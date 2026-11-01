@@ -22,6 +22,12 @@ Plataforma de rendimiento para deportes juveniles (M13 a M19), white-label multi
 
 Todas las tareas pasan por Turborepo y se cachean. Para correr una tarea en un solo paquete: `pnpm turbo run test --filter=@sport-performance/domain`.
 
+## CI
+
+GitHub Actions (`.github/workflows/ci.yml`) corre en cada PR y en cada push a `main`, con jobs en paralelo: `format`, `lint`, `typecheck`, `test`, `build` y `workflows` (actionlint y shellcheck). El job `test` tiene un Postgres 16 de servicio y expone `DATABASE_URL` para los tests de integración; localmente se levanta con Docker (`postgres:16`) y se exporta la misma variable.
+
+El job **`ci`** agrega a todos los demás y es el único check requerido en `main`: si agregás un job, sumalo a `needs` de `ci` (el job `workflows` falla si falta). Las acciones de terceros se fijan por SHA de commit.
+
 ## Estructura
 
 ```
