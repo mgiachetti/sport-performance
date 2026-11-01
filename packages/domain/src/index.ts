@@ -31,6 +31,7 @@ export {
   type AgeBand,
   type DefaultAgeBandCode,
 } from './category.js';
+export { maximalLoadTestsAllowed, strengthAssessmentFor } from './stage-rules.js';
 
 export {
   STANDARD_GRAVITY_MS2,
@@ -140,3 +141,4 @@ export {
   type PlausibleBounds,
   type PlausibleRange,
 } from './plausibility/index.js';
+export * from './player-stage/index.js';

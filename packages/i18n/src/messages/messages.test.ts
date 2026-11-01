@@ -1,3 +1,4 @@
+import { DEFAULT_BIO_BANDING_SCHEMES, STAGE_REASONS } from '@sport-performance/domain';
 import { describe, expect, it } from 'vitest';
 import { SUPPORTED_LOCALES } from '../locale.js';
 import { esAR } from './es-AR.js';
@@ -34,6 +35,22 @@ describe('es-AR source catalog', () => {
     expect(esAR['status.ok']).toBe('Bien');
     expect(esAR['status.warning']).toBe('Atención');
     expect(esAR['status.critical']).toBe('Crítico');
+  });
+});
+
+describe('domain codes', () => {
+  it('have a message for every stage reason', () => {
+    for (const reason of STAGE_REASONS) {
+      expect(isMessageKey(`stageReason.${reason}`), reason).toBe(true);
+    }
+  });
+
+  it('have a message for every default bio-band', () => {
+    for (const scheme of DEFAULT_BIO_BANDING_SCHEMES) {
+      for (const band of scheme.bands) {
+        expect(isMessageKey(`bioBand.${band.code}`), band.code).toBe(true);
+      }
+    }
   });
 });
 

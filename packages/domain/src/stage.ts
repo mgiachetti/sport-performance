@@ -8,7 +8,7 @@ import { memberGuard, memberParser } from './enum.js';
  * - `performance`: M17 / M19. Mirrors the senior squad.
  *
  * The stage is assigned from maturation (years from PHV) plus category and can
- * be pinned by staff (B-204); this module only defines the vocabulary.
+ * be pinned by staff (B-204, `player-stage/`); this module defines the vocabulary.
  */
 export const STAGES = ['foundation', 'development', 'performance'] as const;
 export type Stage = (typeof STAGES)[number];
@@ -34,7 +34,13 @@ export type StrengthAssessment =
 export interface StageProfile {
   readonly stage: Stage;
   readonly strengthAssessment: StrengthAssessment;
-  /** Whether maximal loaded tests are allowed at all. */
+  /**
+   * Whether maximal loaded tests are allowed at all in the stage. Maximal
+   * loads are a category rule too (principle 3: never M13/M14): test
+   * protocols must use `maximalLoadTestsAllowed` / `strengthAssessmentFor`,
+   * which also require `AgeBand.maximalLoadTestsForPlayers`, because a pin or
+   * a step cap of 2 can put an M13/M14 at `performance`.
+   */
   readonly maximalLoadTests: boolean;
   /** Anthropometry cadence, as a range of weeks between measurements. */
   readonly anthropometryEveryWeeks: { readonly min: number; readonly max: number };

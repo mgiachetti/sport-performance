@@ -79,6 +79,29 @@ export const esAR = {
   'stage.m15_m16': 'M15 / M16',
   'stage.m17_m19': 'M17 / M19',
 
+  // Why a player has a stage (codes from STAGE_REASONS, B-204)
+  'stageReason.pinned': 'Fijada a mano por el staff',
+  'stageReason.no_maturation_estimate': 'Por categoría: no hay estimación de maduración',
+  'stageReason.maturation_estimate_stale':
+    'Por categoría: la última estimación de maduración está desactualizada',
+  'stageReason.maturation_estimate_after_date':
+    'Por categoría: la estimación de maduración es posterior a esta fecha',
+  'stageReason.maturation_matches_category': 'La maduración coincide con la categoría',
+  'stageReason.within_uncertainty_margin':
+    'Por categoría: la maduración está dentro del margen de error',
+  'stageReason.maturation_disabled': 'Por categoría: el club no ajusta la etapa por maduración',
+  'stageReason.maturation_shift': 'Ajustada por maduración',
+  'stageReason.maturation_shift_capped': 'Ajustada por maduración, hasta el máximo permitido',
+
+  // Bio-banding bands (codes from DEFAULT_BIO_BANDING_SCHEMES, B-204)
+  'bioBand.pre_phv': 'Antes del pico de crecimiento',
+  'bioBand.circa_phv': 'En el pico de crecimiento',
+  'bioBand.post_phv': 'Después del pico de crecimiento',
+  'bioBand.pre_pubertal': 'Menos del 85 % de la talla adulta',
+  'bioBand.early_pubertal': '85 a 90 % de la talla adulta',
+  'bioBand.mid_pubertal': '90 a 95 % de la talla adulta',
+  'bioBand.late_pubertal': '95 % o más de la talla adulta',
+
   // Wellness (pre-training) and RPE (post-training)
   'wellness.title': 'Bienestar',
   'wellness.prompt': '¿Cómo llegás hoy?',
