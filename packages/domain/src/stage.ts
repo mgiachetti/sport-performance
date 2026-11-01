@@ -8,7 +8,7 @@ import { memberGuard, memberParser } from './enum.js';
  * - `performance`: M17 / M19. Mirrors the senior squad.
  *
  * The stage is assigned from maturation (years from PHV) plus category and can
- * be pinned by staff (B-204); this module only defines the vocabulary.
+ * be pinned by staff (B-204, `player-stage/`); this module defines the vocabulary.
  */
 export const STAGES = ['foundation', 'development', 'performance'] as const;
 export type Stage = (typeof STAGES)[number];

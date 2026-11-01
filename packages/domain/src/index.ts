@@ -140,3 +140,4 @@ export {
   type PlausibleBounds,
   type PlausibleRange,
 } from './plausibility/index.js';
+export * from './player-stage/index.js';

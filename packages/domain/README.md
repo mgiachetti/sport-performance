@@ -49,6 +49,16 @@ Las unidades van en los nombres y no en tipos branded por magnitud (`Cm`, `Kg`):
 - `TimeZone` acepta solo `UTC` o nombres `Área/Lugar` en la grafía IANA (`America/Argentina/Buenos_Aires`), tal como vienen y sin canonicalizar. Se rechazan los offsets fijos y los nombres sin región (`+03:00`, `Etc/GMT+3`, `EST`, `MST`, `GMT`) y las grafías con otras mayúsculas que Intl acepta igual (`america/argentina/buenos_aires`), para que una grafía sea siempre el mismo string.
 - Rango soportado: `LocalDate` de 0001-01-01 a 9999-12-31, también en `dayBoundsInTimeZone` y `localDateInTimeZone` (un instante es válido si su día en la zona está en ese rango).
 
+## Etapa del jugador (B-204), `player-stage/`
+
+- **`assignPlayerStage({ onDate, categoryStage, phvOffset?, pins?, params })`** da la etapa de un día y por qué: `basis` (`manual`, `maturation`, `category`), la fijación vigente si la hay y siempre la sugerencia automática (`automatic`, con `reason` estable para la UI), para mostrar "fijada en X, sugerida Y".
+- **Automática:** parte de la etapa de la categoría (`AgeBand.defaultStage`) y la maduración la mueve si el offset de PHV proyectado al día (`offset + años transcurridos`, porque el offset es edad − edad del PHV) cruza los umbrales `developmentFromPhvOffsetYears` / `performanceFromPhvOffsetYears` **por más que** `uncertaintyMarginYears` (el error de Mirwald/Moore ronda 0,5–0,6 años). Como mucho se mueve `maxStageStepsFromCategory` etapas (por defecto 1: un M13/M14 maduro temprano llega a `development`, nunca a `performance`). Una estimación más vieja que `maxPhvOffsetEstimateAgeDays` (365) o posterior al día se ignora.
+- **Parámetros por defecto como datos** (`DEFAULT_STAGE_ASSIGNMENT_PARAMS_BY_SEX`, para sembrar en la base y editar por club): varones 0,5 / 2,5 años, donde el madurador promedio (PHV ≈ 13,8 años) pasa de M14 a M15 y de M16 a M17, así que el jugador promedio queda en la etapa de su categoría; mujeres corridas 2 años (PHV ≈ 11,8), **pendientes de validar** (B-805). No hay sexo por defecto: el llamador elige `params` según el sexo del jugador. `parseStageAssignmentParams` valida una configuración.
+- **Fijación manual** (`StagePin`: etapa, `fromDate`, `untilDate` opcional, inclusivos): manda sobre la automática y puede ser cualquier etapa; si hay varias vigentes gana la que empezó último.
+- **La etapa no relaja la privacidad:** percentiles propios y rankings con nombres también dependen de la categoría (`AgeBand`); la matriz de permisos (B-303) combina ambas.
+- **Bio-banding:** esquemas como datos, por offset de PHV (`DEFAULT_PHV_OFFSET_BIO_BANDING`: pre < −1, circa −1 a < +1, post ≥ +1) o por % de talla adulta predicha (`DEFAULT_PCT_ADULT_HEIGHT_BIO_BANDING`, Cumming et al. 2017: < 85, 85–90, 90–95, ≥ 95). `bioBandFor` da la banda de un valor y `groupByBioBand` agrupa jugadores en el orden del esquema, con los que no tienen dato en `unbanded`. `parseBioBandScheme` exige bandas contiguas, sin huecos ni solapamientos y abiertas en los extremos.
+- El cálculo del offset y del % de talla adulta es de B-203; este módulo recibe los números.
+
 ## Extender
 
 - **Deporte o sexo nuevo:** agregar el valor a `SPORTS` / `SEXES` y una migración. Los `Record<Sport, …>` del código dejan de compilar hasta cubrir el caso nuevo.
