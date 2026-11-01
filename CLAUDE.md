@@ -107,7 +107,7 @@ Códigos canónicos: `dist_m`, `dist_m_min`, `hsr_abs_m` (> 5,5 m/s por defecto 
 | Multi-tenant | `club_id` en **todas** las tablas + Row Level Security. La API abre una transacción por request y hace `SET LOCAL app.club_id / app.user_id / app.role`; las políticas usan funciones propias `app.current_club_id()`, `app.current_user_id()`, `app.current_role()`, nunca funciones de un proveedor | [0006](docs/adr/0006-multi-tenant-rls.md) |
 | Usuarios | Usuario global con membresías por club (rol por club); selector de club si tiene más de una | [0007](docs/adr/0007-usuarios-globales-membresias.md) |
 | Salud | Esquema `medical` separado, políticas propias, log de auditoría de cada lectura/escritura | [0008](docs/adr/0008-esquema-medical.md) |
-| API | Fastify + `zod`. Contratos en `packages/contracts` (OpenAPI generado, cliente tipado) | [0009](docs/adr/0009-api-fastify-zod.md), [0020](docs/adr/0020-convenciones-contratos-api.md) |
+| API | Fastify + `zod`. Contratos en `packages/contracts` (OpenAPI generado, cliente tipado). Transacción por request con contexto de tenant, sobre de error único, probes `/health/live` y `/health/ready` | [0009](docs/adr/0009-api-fastify-zod.md), [0020](docs/adr/0020-convenciones-contratos-api.md), [0023](docs/adr/0023-estructura-de-la-api.md) |
 | Auth | Better Auth montado en la API: OTP por email; tablas en nuestra base. Email con Resend + React Email | [0010](docs/adr/0010-auth-better-auth.md) |
 | Jobs | `apps/worker` con pg-boss (cola sobre Postgres, sin Redis) | [0011](docs/adr/0011-jobs-pg-boss.md) |
 | Web staff | React + Vite + TanStack Router + TanStack Query; gráficos SVG propios | [0012](docs/adr/0012-web-staff-react-vite-tanstack.md) |

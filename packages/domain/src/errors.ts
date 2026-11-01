@@ -2,6 +2,7 @@
 export type DomainErrorCode =
   | 'invalid_sport'
   | 'invalid_sex'
+  | 'invalid_role'
   | 'invalid_stage'
   | 'invalid_metric_code'
   | 'invalid_test_code'
