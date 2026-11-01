@@ -18,6 +18,15 @@ Modelo de dominio y fórmulas puras (métricas, carga, maduración). Sin I/O ni 
 
 Toda enumeración cerrada tiene la misma forma: constante `UPPER_CASE` como fuente de verdad, tipo derivado, guard `isX(value): value is X` y parser `parseX(value): X` que lanza `DomainValidationError`. `packages/contracts` arma sus esquemas `zod` sobre estas constantes (`z.enum(SPORTS)`) y guards (`z.string().refine(isLocalDate)`), sin redefinir los valores.
 
+## Rangos plausibles (B-206)
+
+`plausibility/` avisa de errores de tipeo al cargar (un 40 m en 3 s, 512 en vez de 5,12) **sin bloquear la carga**: un valor fuera de rango es un resultado, nunca una excepción.
+
+- `PlausibleRange`: `metricCode`, `sex` (`null` = los dos), `minAgeYears` (inclusivo) y `maxAgeYears` (exclusivo), `null` = abierto, y `minValue` / `maxValue` (inclusivos) en la unidad del código de la métrica. Tiene la forma de una fila para sembrarla en la base (B-306).
+- `DEFAULT_PLAUSIBLE_RANGES`: valores por defecto, amplios a propósito, para las métricas canónicas que se cargan a mano. Altura y peso van por edad (`< 14`, `14–17`, `≥ 17`) y por sexo. No incluye métricas derivadas ni de GPS.
+- `checkPlausibleValue({ metricCode, value, sex, ageYears }, ranges?)` y `createPlausibilityChecker(ranges?)`, que valida e indexa una vez, devuelven `within`, `below`, `above` o `no_range`, con los límites usados. Gana el rango del mismo sexo sobre el que no tiene sexo. La edad es la decimal a la fecha de la medición (`decimalAgeYears`). Con edad desconocida (`null`) se usa la envolvente de todos los rangos de la métrica para ese sexo. Fuera de rango, `suggestedValues` lista los valores que resultan de correr la coma (×10^k, |k| ≤ 3) y caen dentro del rango.
+- `validatePlausibleRanges` rechaza rangos mal formados y rangos de la misma métrica y el mismo sexo que se superponen en edad. `mergePlausibleRanges(defaults, overrides)`: si el club configura una métrica, sus rangos reemplazan a todos los rangos por defecto de esa métrica.
+
 ## Convención de unidades en los nombres
 
 - El sufijo de unidad de un código de métrica y de un identificador es el `code` de la unidad en `UNITS`: `height_cm` / `heightCm`, `vmax_ms` / `vmaxMs`, `vift_kmh` / `viftKmh`.
