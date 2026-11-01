@@ -146,6 +146,32 @@ export const esAR = {
   'method.mismatchWarning':
     'Ojo: estos resultados se midieron con métodos distintos ({methods}) y pueden no ser comparables.',
 
+  // Alerts (B-207): `alert.<kind>.message|suggestion` from the domain rules engine. Arguments are
+  // the keys of `Alert.values`, formatted before being passed. Load heuristics, never a diagnosis;
+  // the severity is shown apart with `status.*`.
+  'alert.acwr_high.message':
+    'Carga aguda alta respecto de la crónica: ACWR {acwrRatio} (umbral {thresholdRatio}).',
+  'alert.acwr_high.suggestion':
+    'Revisá el volumen de los próximos días y evitá sumar carga de golpe.',
+  'alert.acwr_low.message':
+    'Carga aguda baja respecto de la crónica: ACWR {acwrRatio} (umbral {thresholdRatio}).',
+  'alert.acwr_low.suggestion': 'Subí la carga de forma progresiva para no perder la base.',
+  'alert.wellness_low.message': 'Bienestar bajo: {wellnessScore} de 5 (umbral {thresholdScore}).',
+  'alert.wellness_low.suggestion':
+    'Hablá antes de entrenar y considerá ajustar la carga de la sesión.',
+  'alert.wellness_zscore_low.message':
+    'Bienestar por debajo de lo habitual: {wellnessScore} contra una media propia de {meanScore} (z = {zScore}).',
+  'alert.wellness_zscore_low.suggestion':
+    'Preguntá cómo durmió y cómo se siente; si se repite, bajá la carga.',
+  'alert.cmj_drop.message':
+    'CMJ {dropPct} por debajo de la base: {heightCm} contra {baselineHeightCm}.',
+  'alert.cmj_drop.suggestion':
+    'Posible fatiga neuromuscular: considerá bajar la intensidad y el volumen de saltos y sprints.',
+  'alert.growth_peak.message':
+    'Crecimiento rápido: {velocityCmYear} (zona de pico desde {thresholdCmYear}).',
+  'alert.growth_peak.suggestion':
+    'Bajá el volumen de saltos y sprints y vigilá molestias en rodilla y talón.',
+
   // Time spans
   'duration.days': '{count, plural, one {# día} other {# días}}',
   'duration.weeks': '{count, plural, one {# semana} other {# semanas}}',
