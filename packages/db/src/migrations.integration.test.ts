@@ -2,6 +2,7 @@ import {
   ALERT_RULE_KINDS,
   ALERT_SEVERITIES,
   ATTEMPT_AGGREGATIONS,
+  COEFFICIENT_VERIFICATION_STATUSES,
   CONSENT_SIGNERS,
   CONSENT_TYPES,
   EXPOSURE_CONTEXTS,
@@ -138,6 +139,7 @@ describe.skipIf(!hasDatabase)('migrations (Postgres 16)', () => {
       session_kind: EXPOSURE_CONTEXTS,
       consent_type: CONSENT_TYPES,
       consent_signer: CONSENT_SIGNERS,
+      coefficient_verification: COEFFICIENT_VERIFICATION_STATUSES,
     };
     const enums = await rows<{ name: string; labels: string[] }>(
       `select t.typname as name, array_agg(e.enumlabel::text order by e.enumsortorder)::text[] as labels

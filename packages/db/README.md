@@ -1,6 +1,6 @@
 # @sport-performance/db
 
-Esquema de PostgreSQL 16 en Drizzle ORM, migraciones SQL versionadas, el runner de migraciones, RLS y los roles de conexión (ADR 0004, 0006, 0007, 0010, 0015, 0017, [0023](../../docs/adr/0023-convenciones-del-esquema-de-base.md) y [0025](../../docs/adr/0026-roles-de-conexion-y-politicas-rls.md)).
+Esquema de PostgreSQL 16 en Drizzle ORM, migraciones SQL versionadas, el runner de migraciones, RLS y los roles de conexión, y los seeds (ADR 0004, 0006, 0007, 0010, 0015, 0017, [0023](../../docs/adr/0023-convenciones-del-esquema-de-base.md), [0026](../../docs/adr/0026-roles-de-conexion-y-politicas-rls.md) y [0027](../../docs/adr/0027-seeds-y-bootstrap-de-club.md)).
 
 ## Uso
 
@@ -26,6 +26,7 @@ client.release();
 - `@sport-performance/db/schema`: tablas, enums y helpers de columnas (`tenantColumns`, `tenantConstraints`, `tenantReference`).
 - `@sport-performance/db/migrate`: solo el runner, sin el cliente.
 - `@sport-performance/db/roles`: `DATABASE_ROLES`, `provisionLoginRole`, `assertConnectionRole`.
+- `@sport-performance/db/seeds`: `bootstrapClub`, `seedTenant` / `ORC_TENANT`, `loadKhamisRocheTable` y los datos de cada seed (ver [Seeds](#seeds)).
 - Tipos de fila: `Player` / `NewPlayer`, `TestResult` / `NewTestResult`… (`AuthUser` para la tabla `user` de Better Auth).
 
 ## Scripts
@@ -34,6 +35,7 @@ client.release();
 |---|---|
 | `pnpm --filter @sport-performance/db db:generate --name=<nombre>` | Genera la migración SQL a partir de los cambios del esquema. Se revisa y se commitea. |
 | `pnpm --filter @sport-performance/db db:generate:custom --name=<nombre>` | Crea una migración vacía para SQL a mano (triggers, RLS, grants). |
+| `pnpm --filter @sport-performance/db db:seed` | Crea el tenant ORC si no existe y siembra su configuración por defecto (rugby masculino y hockey femenino). Idempotente. Mismas variables que `db:migrate`; requiere las migraciones aplicadas y `pnpm build`. También está como bin `sport-performance-db-seed`. |
 | `pnpm --filter @sport-performance/db db:migrate` | Aplica las migraciones pendientes con `MIGRATIONS_DATABASE_URL` (o `DATABASE_URL` si la primera falta o está vacía). Requiere `pnpm build`. También está como bin `sport-performance-db-migrate`. |
 | `pnpm --filter @sport-performance/db db:provision-login` | Crea o actualiza un login (`DB_LOGIN_NAME`, `DB_LOGIN_PASSWORD`) como miembro de un rol de conexión (`DB_LOGIN_ROLE=app\|worker\|auth`), conectado como dueño. Idempotente; rota la contraseña. Bin `sport-performance-db-provision-login`. |
 
@@ -51,10 +53,11 @@ Nunca `drizzle-kit push` ni `drizzle-kit migrate` contra una base compartida. Un
 | `testing.ts` | `test_window` (V1–V4), `test_session`, `test_result` (`done` / `not_done` con motivo, método, evaluador, dispositivo, condiciones), `test_result_value` (varias métricas e intentos, solo se agregan o se anulan), `anthro_measurement`. |
 | `training.ts` | `training_session` (entrenamiento o partido), `drill`, `participation` (`srpe_au` generado), `wellness`, `external_metric`, `gym_program`, `gym_set`. |
 | `alerts.ts` | `alert_rule` (la `AlertRule` del dominio como datos), `alert`. |
+| `maturation.ts` | `khamis_roche_table` (procedencia y estado de verificación) y `khamis_roche_coefficient` (por sexo y edad): los coeficientes de Khamis-Roche como datos (B-203, B-306). |
 
 Convenciones (ADR 0023): `club_id NOT NULL` y auditoría (`created_at`, `updated_at` con trigger, `created_by`, `updated_by`, `client_uuid` único por club) en toda tabla del club; claves foráneas compuestas `(club_id, x_id)` para que nada apunte a otro club; enums creados desde las constantes de `@sport-performance/domain`; días del club como `date` (`LocalDate`) y vigencias `[valid_from, valid_to)`.
 
-## RLS y roles de conexión (ADR 0025)
+## RLS y roles de conexión (ADR 0026)
 
 | Rol (`NOLOGIN`) | Quién | Qué ve |
 |---|---|---|
@@ -79,9 +82,26 @@ MIGRATIONS_DATABASE_URL=postgres://postgres:postgres@localhost:5432/sport_perfor
 # y en apps/api: DATABASE_URL=postgres://sp_api:<contraseña>@localhost:5432/sport_performance
 ```
 
+## Seeds
+
+`bootstrapClub(db, { clubId, branches })` deja un club listo con la configuración por defecto, copiada de `@sport-performance/domain` (ADR 0027). La creación de clubes (B-313) la llama dentro de su transacción.
+
+| Tabla | Qué siembra | Fuente |
+|---|---|---|
+| `metric_definition` | Todo el diccionario canónico, con `catapult_aliases` de las columnas de OpenField | `CANONICAL_METRICS` + `seeds/catapult-aliases.ts` |
+| `test_definition`, `test_definition_metric` | Versión 1 de los 10 tests de la batería con su protocolo (texto es-AR y `parameters`) y sus métricas (derivadas marcadas) | `CANONICAL_TEST_CODES`, `DEFAULT_ATTEMPT_SCORING`, `DEFAULT_IFT_3015_PROTOCOL`, `DEFAULT_E1RM_PROTOCOL`, `SPRINT_VMAX_SEGMENT` |
+| `battery_config` | Batería por rama y etapa ("2 V" = V1 y V3; antropometría continua; CMJ semanal en `performance`; bronco y cuello solo rugby) | `seeds/battery.ts` + `STAGE_PROFILES` |
+| `position` | Posiciones de los deportes del club con su línea | `DEFAULT_POSITION_LINES` |
+| `category` | M13–M19 por rama | `DEFAULT_AGE_BANDS` |
+| `alert_rule` | Reglas por defecto, validadas con `parseAlertRuleSet` | `DEFAULT_ALERT_RULES` |
+| `speed_zone_config` | Zonas absolutas y relativas del club | `DEFAULT_SPEED_ZONE_SETS` |
+| `khamis_roche_table`, `khamis_roche_coefficient` | Tabla de 1994 con su procedencia | `KHAMIS_ROCHE_1994_TABLE` |
+
+Volver a correr solo inserta lo que falta y nunca actualiza: no pisa lo que el club editó (reglas deshabilitadas, categorías renombradas, zonas o baterías cerradas). Corre en una transacción con `pg_advisory_xact_lock` por club y `app.club_id` fijado. Con RLS (ADR 0026) hay dos formas de correrlo: `db:seed` se conecta como el dueño de las migraciones (`MIGRATIONS_DATABASE_URL`: superusuario o `BYPASSRLS`; ningún rol de conexión puede crear el club sin contexto), y la creación de clubes (B-313) lo llama con el login de `sport_performance_app` dentro de una transacción con `app.user_id` de un superadmin y `app.role = 'superadmin'`, que las políticas dejan escribir en todas las tablas sembradas. No siembra jugadores ni datos de prueba (#38).
+
 ## Fuera de este paquete por ahora
 
-Esquema `medical` (#35), historial de cambios (#36), seeds (#37), columnas HLC y marcas de borrado para la sincronización (B-323), tablas `*_daily` del worker (B-326) y la tabla de importaciones de Catapult (B-601; `external_metric.import_id` ya existe).
+Esquema `medical` (#35), historial de cambios (#36), datos de prueba y club demo (#38), columnas HLC y marcas de borrado para la sincronización (B-323), tablas `*_daily` del worker (B-326) y la tabla de importaciones de Catapult (B-601; `external_metric.import_id` ya existe).
 
 ## Tests
 
@@ -90,4 +110,4 @@ docker run -d --rm --name pg-dev -e POSTGRES_PASSWORD=postgres -p 5432:5432 post
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres pnpm --filter @sport-performance/db test
 ```
 
-Cada archivo de integración (`*.integration.test.ts`) crea su propia base temporal y la borra al terminar. Sin `DATABASE_URL` se saltean localmente; en CI (`CI` definido) fallan. Los tests cubren: migración desde cero, idempotencia y concurrencia del runner, convenciones por introspección (de las definiciones y de la base migrada), enums = dominio, índices de las claves compuestas, `CHECK`s, triggers (`updated_at`, `test_result_value` append-only, unidad = la de la métrica), RLS (catálogo: toda tabla forzada, roles sin privilegios, grants mínimos; aislamiento entre clubes por cada tabla con `club_id` enumerada desde la base; fail-closed; conexiones del pool; alcance por rol, `superadmin`, worker y Better Auth), sincronía esquema ↔ migraciones (`drizzle-kit generate` sin cambios) y compatibilidad con Better Auth (alta de usuario con su adaptador de Drizzle).
+Cada archivo de integración (`*.integration.test.ts`) crea su propia base temporal y la borra al terminar. Sin `DATABASE_URL` se saltean localmente; en CI (`CI` definido) fallan. Los tests cubren: migración desde cero, idempotencia y concurrencia del runner, convenciones por introspección (de las definiciones y de la base migrada), enums = dominio, índices de las claves compuestas, `CHECK`s, triggers (`updated_at`, `test_result_value` append-only, unidad = la de la métrica), RLS (catálogo: toda tabla forzada, roles sin privilegios, grants mínimos; aislamiento entre clubes por cada tabla con `club_id` enumerada desde la base; fail-closed; conexiones del pool; alcance por rol, `superadmin`, worker y Better Auth), sincronía esquema ↔ migraciones (`drizzle-kit generate` sin cambios), compatibilidad con Better Auth (alta de usuario con su adaptador de Drizzle) y seeds (bootstrap desde cero, re-corrida y corridas concurrentes sin cambios, ediciones del club preservadas, Khamis-Roche leída de la base igual a la del dominio, bootstrap con el rol de la aplicación como superadmin, comando `db:seed`).

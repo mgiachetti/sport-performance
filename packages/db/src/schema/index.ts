@@ -22,3 +22,4 @@ export * from './catalog.js';
 export * from './testing.js';
 export * from './training.js';
 export * from './alerts.js';
+export * from './maturation.js';

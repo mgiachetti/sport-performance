@@ -2,6 +2,7 @@ import {
   ALERT_RULE_KINDS,
   ALERT_SEVERITIES,
   ATTEMPT_AGGREGATIONS,
+  COEFFICIENT_VERIFICATION_STATUSES,
   CONSENT_SIGNERS,
   CONSENT_TYPES,
   EXPOSURE_CONTEXTS,
@@ -75,6 +76,11 @@ export const consentSignerEnum = pgEnum('consent_signer', CONSENT_SIGNERS);
 export const maturityOffsetEquationEnum = pgEnum(
   'maturity_offset_equation',
   MATURITY_OFFSET_EQUATIONS,
+);
+/** How far published coefficients were checked (Khamis-Roche tables, B-203). */
+export const coefficientVerificationEnum = pgEnum(
+  'coefficient_verification',
+  COEFFICIENT_VERIFICATION_STATUSES,
 );
 /** Training or match (`EXPOSURE_CONTEXTS`): drives exposure hours (B-210). */
 export const sessionKindEnum = pgEnum('session_kind', EXPOSURE_CONTEXTS);

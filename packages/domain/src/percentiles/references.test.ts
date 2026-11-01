@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_POSITION_LINES,
+  HOCKEY_LINE_CODES,
   DomainValidationError,
   RUGBY_LINE_CODES,
   canonicalMetricCode,
@@ -197,6 +198,12 @@ describe('lineForPosition', () => {
     expect(lineForPosition('hockey', 'prop')).toBeUndefined();
   });
 
+  it('maps field hockey positions to their lines', () => {
+    expect(lineForPosition('hockey', 'goalkeeper')).toBe('goalkeepers');
+    expect(lineForPosition('hockey', 'midfielder')).toBe('midfielders');
+    expect(lineForPosition('rugby', 'midfielder')).toBeUndefined();
+  });
+
   it('accepts a club mapping', () => {
     const club = [
       { sport: 'hockey', positionCode: 'goalkeeper', lineCode: 'goalkeepers' },
@@ -204,14 +211,19 @@ describe('lineForPosition', () => {
     expect(lineForPosition('hockey', 'goalkeeper', club)).toBe('goalkeepers');
   });
 
-  it('default data uses well-formed codes and rugby lines, one entry per position', () => {
+  it('default data uses well-formed codes and the sport lines, one entry per position', () => {
     const positions = new Set<string>();
     for (const p of DEFAULT_POSITION_LINES) {
       expect(isWellFormedCode(p.positionCode)).toBe(true);
-      expect(RUGBY_LINE_CODES).toContain(p.lineCode);
-      expect(positions.has(p.positionCode)).toBe(false);
-      positions.add(p.positionCode);
+      const lines: readonly string[] = p.sport === 'rugby' ? RUGBY_LINE_CODES : HOCKEY_LINE_CODES;
+      expect(lines).toContain(p.lineCode);
+      const key = `${p.sport}:${p.positionCode}`;
+      expect(positions.has(key)).toBe(false);
+      positions.add(key);
     }
+    expect(new Set(DEFAULT_POSITION_LINES.map((p) => p.sport))).toEqual(
+      new Set(['rugby', 'hockey']),
+    );
   });
 });
 
