@@ -45,14 +45,33 @@ export const AUTOMATIC_STAGE_REASONS = [
   'maturation_estimate_after_date',
   /** Maturation suggests the same stage as the category. */
   'maturation_matches_category',
-  /** Maturation differs, but the offset is within the uncertainty margin of the threshold. */
+  /**
+   * Maturation differs, but the offset is within the uncertainty margin of the
+   * threshold. Moving needs the offset to clear the threshold by at least the
+   * margin: up at `offset ≥ threshold + margin` (an offset exactly on
+   * `threshold + margin` moves), down at `offset < threshold − margin`, the
+   * same half-open intervals as the thresholds themselves.
+   */
   'within_uncertainty_margin',
+  /**
+   * Maturation differs (beyond the margin), but the club disabled maturation
+   * (`maxStageStepsFromCategory: 0`), so the category stage applies.
+   */
+  'maturation_disabled',
   /** Maturation moved the stage away from the category. */
   'maturation_shift',
   /** Maturation moved the stage, limited by `maxStageStepsFromCategory`. */
   'maturation_shift_capped',
 ] as const;
 export type AutomaticStageReason = (typeof AUTOMATIC_STAGE_REASONS)[number];
+
+/**
+ * Why a stage was assigned: `pinned` when a staff pin is in force, otherwise
+ * the reason of the automatic assignment. Stable codes for the UI and the
+ * stage history.
+ */
+export const STAGE_REASONS = ['pinned', ...AUTOMATIC_STAGE_REASONS] as const;
+export type StageReason = (typeof STAGE_REASONS)[number];
 
 /** The stage suggested from category and maturation, ignoring pins. */
 export interface AutomaticStageAssignment {
@@ -72,6 +91,8 @@ export interface AutomaticStageAssignment {
 export interface StageAssignment {
   readonly stage: Stage;
   readonly basis: StageBasis;
+  /** `pinned` when `basis` is `manual`, otherwise `automatic.reason`. */
+  readonly reason: StageReason;
   /** The pin in force, when `basis` is `manual`. */
   readonly pin?: StagePin;
   /** Always present so the UI can show "pinned to X, suggested Y". */
@@ -89,7 +110,9 @@ export interface AssignPlayerStageInput {
   readonly pins?: readonly StagePin[] | undefined;
   /**
    * Club parameters for the player's sex, for example
-   * `DEFAULT_STAGE_ASSIGNMENT_PARAMS_BY_SEX[player.sex]`.
+   * `DEFAULT_STAGE_ASSIGNMENT_PARAMS_BY_SEX[player.sex]`. Required (not
+   * optional as first sketched in the issue): there is no default sex
+   * (ADR 0017), so there is no sensible default set of thresholds.
    */
   readonly params: StageAssignmentParams;
 }
@@ -141,7 +164,13 @@ export function activeStagePin(pins: readonly StagePin[], onDate: LocalDate): St
 export function automaticPlayerStage(
   input: Omit<AssignPlayerStageInput, 'pins'>,
 ): AutomaticStageAssignment {
-  const params = parseStageAssignmentParams(input.params);
+  return automaticStage(input, parseStageAssignmentParams(input.params));
+}
+
+function automaticStage(
+  input: Omit<AssignPlayerStageInput, 'pins' | 'params'>,
+  params: StageAssignmentParams,
+): AutomaticStageAssignment {
   const categoryStage = parseStage(input.categoryStage);
   const onDate = parseLocalDate(input.onDate);
   const fromCategory = (reason: AutomaticStageReason): AutomaticStageAssignment => ({
@@ -185,6 +214,9 @@ export function automaticPlayerStage(
   if (Math.sign(marginSteps) !== direction) {
     return result(categoryStage, 'within_uncertainty_margin');
   }
+  if (params.maxStageStepsFromCategory === 0) {
+    return result(categoryStage, 'maturation_disabled');
+  }
 
   const cappedSteps = direction * Math.min(Math.abs(marginSteps), params.maxStageStepsFromCategory);
   const stage = stageAtOffset(categoryStage, cappedSteps);
@@ -197,14 +229,40 @@ export function automaticPlayerStage(
 /**
  * Stage of a player on a day (B-204): the stage pinned by staff if a pin is
  * in force, otherwise the category stage adjusted by maturation (years from
- * PHV). The stage never relaxes privacy: percentiles and named rankings are
- * also gated by the age band (`AgeBand`, B-303).
+ * PHV).
+ *
+ * The stage never relaxes the category rules. Privacy (own percentiles,
+ * named rankings) is also gated by the age band (`AgeBand`, B-303), and so
+ * are maximal loaded tests: a pin, or a club cap of 2 steps, can put an
+ * M13/M14 at `performance`, but `maximalLoadTestsAllowed` and
+ * `strengthAssessmentFor` (principle 3) still forbid maximal loads for them.
  */
 export function assignPlayerStage(input: AssignPlayerStageInput): StageAssignment {
-  const automatic = automaticPlayerStage(input);
+  return assignStage(input, parseStageAssignmentParams(input.params));
+}
+
+/**
+ * Validates `params` once and returns an assigner for many players or days
+ * (a whole squad) that does not re-validate them on every call. Inputs other
+ * than the parameters (dates, stages, offsets, pins) are still validated.
+ */
+export function createPlayerStageAssigner(
+  params: StageAssignmentParams,
+): (input: Omit<AssignPlayerStageInput, 'params'>) => StageAssignment {
+  const parsed = parseStageAssignmentParams(params);
+  return (input) => assignStage(input, parsed);
+}
+
+function assignStage(
+  input: Omit<AssignPlayerStageInput, 'params'>,
+  params: StageAssignmentParams,
+): StageAssignment {
+  const automatic = automaticStage(input, params);
   const pin = activeStagePin(input.pins ?? [], input.onDate);
-  if (pin === undefined) return { stage: automatic.stage, basis: automatic.basis, automatic };
-  return { stage: pin.stage, basis: 'manual', pin, automatic };
+  if (pin === undefined) {
+    return { stage: automatic.stage, basis: automatic.basis, reason: automatic.reason, automatic };
+  }
+  return { stage: pin.stage, basis: 'manual', reason: 'pinned', pin, automatic };
 }
 
 function stageAtOffset(stage: Stage, steps: number): Stage {

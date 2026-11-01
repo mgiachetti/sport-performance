@@ -24,6 +24,14 @@ export interface AgeBand {
   readonly ownPercentilesForPlayers: boolean;
   /** Whether players in this band may see rankings with names (never M13–M16). */
   readonly namedRankingsForPlayers: boolean;
+  /**
+   * Whether players in this band may do maximal loaded tests at all (never
+   * M13/M14, principle 3). The stage alone is not enough: a staff pin or a
+   * club step cap of 2 can put an M13/M14 at `performance`. Test protocols
+   * must use `maximalLoadTestsAllowed` / `strengthAssessmentFor`, which
+   * combine both.
+   */
+  readonly maximalLoadTestsForPlayers: boolean;
 }
 
 /**
@@ -39,6 +47,7 @@ export const DEFAULT_AGE_BANDS = [
     defaultStage: 'foundation',
     ownPercentilesForPlayers: false,
     namedRankingsForPlayers: false,
+    maximalLoadTestsForPlayers: false,
   },
   {
     code: 'm14',
@@ -48,6 +57,7 @@ export const DEFAULT_AGE_BANDS = [
     defaultStage: 'foundation',
     ownPercentilesForPlayers: false,
     namedRankingsForPlayers: false,
+    maximalLoadTestsForPlayers: false,
   },
   {
     code: 'm15',
@@ -57,6 +67,7 @@ export const DEFAULT_AGE_BANDS = [
     defaultStage: 'development',
     ownPercentilesForPlayers: true,
     namedRankingsForPlayers: false,
+    maximalLoadTestsForPlayers: true,
   },
   {
     code: 'm16',
@@ -66,6 +77,7 @@ export const DEFAULT_AGE_BANDS = [
     defaultStage: 'development',
     ownPercentilesForPlayers: true,
     namedRankingsForPlayers: false,
+    maximalLoadTestsForPlayers: true,
   },
   {
     code: 'm17',
@@ -75,6 +87,7 @@ export const DEFAULT_AGE_BANDS = [
     defaultStage: 'performance',
     ownPercentilesForPlayers: true,
     namedRankingsForPlayers: true,
+    maximalLoadTestsForPlayers: true,
   },
   {
     code: 'm19',
@@ -84,6 +97,7 @@ export const DEFAULT_AGE_BANDS = [
     defaultStage: 'performance',
     ownPercentilesForPlayers: true,
     namedRankingsForPlayers: true,
+    maximalLoadTestsForPlayers: true,
   },
 ] as const satisfies readonly AgeBand[];
 

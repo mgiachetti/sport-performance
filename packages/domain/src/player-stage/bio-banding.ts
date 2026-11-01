@@ -125,8 +125,11 @@ export function parseBioBandScheme<S extends BioBandScheme>(scheme: S): S {
 }
 
 /**
- * Band of a maturity value in a scheme. Throws for non-finite values; the
- * caller decides what a missing value means (see {@link groupByBioBand}).
+ * Band of a maturity value in a scheme. Validates the scheme on every call;
+ * to band a whole squad use {@link createBioBandLookup} or
+ * {@link groupByBioBand}, which validate it once. Throws for non-finite
+ * values; the caller decides what a missing value means (see
+ * {@link groupByBioBand}).
  */
 export function bioBandFor<B extends BioBand>(
   value: number,
@@ -138,6 +141,21 @@ export function bioBandFor<B extends BioBand>(
 ): B {
   parseBioBandScheme(scheme);
   return findBand(value, scheme.bands);
+}
+
+/**
+ * Validates a scheme once and returns a lookup from value to band that does
+ * not re-validate the scheme. The lookup throws for non-finite values, like
+ * {@link bioBandFor}.
+ */
+export function createBioBandLookup<B extends BioBand>(scheme: {
+  readonly code: string;
+  readonly indicator: BioBandIndicator;
+  readonly bands: readonly B[];
+}): (value: number) => B {
+  parseBioBandScheme(scheme);
+  const { bands } = scheme;
+  return (value) => findBand(value, bands);
 }
 
 function findBand<B extends BioBand>(value: number, bands: readonly B[]): B {
@@ -170,6 +188,13 @@ export interface BioBandGrouping<T, B extends BioBand = BioBand> {
  * Bio-banding: groups players by maturity instead of chronological age.
  * `getValue` returns the scheme's indicator for an item (`undefined` or
  * `null` when it is not available). Input order is kept within each group.
+ * The scheme is validated once per call.
+ *
+ * Only `undefined` and `null` mean "no data" and go to `unbanded`. Any other
+ * non-finite value (`NaN`, `±Infinity`) is a bug upstream, not a missing
+ * measurement: it throws {@link DomainValidationError} (`invalid_argument`)
+ * and aborts the whole grouping. Map such values to `undefined` in
+ * `getValue` if they should be treated as missing.
  */
 export function groupByBioBand<T, B extends BioBand>(
   items: readonly T[],

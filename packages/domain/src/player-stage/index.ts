@@ -14,9 +14,11 @@ export {
 export {
   AUTOMATIC_STAGE_REASONS,
   STAGE_BASES,
+  STAGE_REASONS,
   activeStagePin,
   assignPlayerStage,
   automaticPlayerStage,
+  createPlayerStageAssigner,
   maturationStageForPhvOffset,
   projectPhvOffsetYears,
   type AssignPlayerStageInput,
@@ -25,6 +27,7 @@ export {
   type PhvOffsetEstimate,
   type StageAssignment,
   type StageBasis,
+  type StageReason,
   type StagePin,
 } from './assign.js';
 export {
@@ -33,6 +36,7 @@ export {
   DEFAULT_PCT_ADULT_HEIGHT_BIO_BANDING,
   DEFAULT_PHV_OFFSET_BIO_BANDING,
   bioBandFor,
+  createBioBandLookup,
   groupByBioBand,
   isBioBandIndicator,
   parseBioBandIndicator,

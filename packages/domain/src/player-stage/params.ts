@@ -23,8 +23,11 @@ export interface StageAssignmentParams {
   readonly uncertaintyMarginYears: number;
   /**
    * Maximum number of stages maturation may move a player away from the
-   * category stage, in either direction. `0` disables maturation; `1` keeps
-   * an early-maturing M13/M14 out of `performance` (no maximal loaded tests).
+   * category stage, in either direction. `0` disables maturation (reason
+   * `maturation_disabled`); `1` keeps an early-maturing M13/M14 out of
+   * `performance`. With `2` an M13/M14 can reach `performance`, but maximal
+   * loaded tests stay forbidden by the age band
+   * (`AgeBand.maximalLoadTestsForPlayers`, principle 3).
    */
   readonly maxStageStepsFromCategory: number;
   /**

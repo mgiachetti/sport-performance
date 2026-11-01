@@ -53,6 +53,7 @@ describe('DEFAULT_AGE_BANDS', () => {
       expect(isStage(band.defaultStage)).toBe(true);
       expect(band.ownPercentilesForPlayers).toBe(band.minAgeInSeasonYear >= 15);
       expect(band.namedRankingsForPlayers).toBe(band.minAgeInSeasonYear >= 17);
+      expect(band.maximalLoadTestsForPlayers).toBe(band.minAgeInSeasonYear >= 15);
       expect(band.code).toBe(band.label.toLowerCase());
     }
   });
@@ -90,6 +91,7 @@ describe('ageBandForBirthYear', () => {
         defaultStage: 'foundation',
         ownPercentilesForPlayers: false,
         namedRankingsForPlayers: false,
+        maximalLoadTestsForPlayers: false,
       },
     ];
     expect(ageBandForBirthYear(2012, 2026, bands)?.clubName).toBe('Quinta');

@@ -5,6 +5,7 @@ import {
   DEFAULT_PHV_OFFSET_BIO_BANDING,
   DomainValidationError,
   bioBandFor,
+  createBioBandLookup,
   groupByBioBand,
   isBioBandIndicator,
   parseBioBandIndicator,
@@ -54,6 +55,21 @@ describe('bioBandFor', () => {
       bands: [{ code: 'everyone' }],
     };
     expect(bioBandFor(42, scheme).code).toBe('everyone');
+  });
+});
+
+describe('createBioBandLookup', () => {
+  it('validates the scheme once and bands like bioBandFor', () => {
+    const lookup = createBioBandLookup(DEFAULT_PHV_OFFSET_BIO_BANDING);
+    for (const value of [-3, -1, 0.5, 1, 4]) {
+      expect(lookup(value)).toBe(bioBandFor(value, DEFAULT_PHV_OFFSET_BIO_BANDING));
+    }
+    expect(() => lookup(Number.NaN)).toThrow(DomainValidationError);
+  });
+
+  it('rejects an invalid scheme up front', () => {
+    const scheme: BioBandScheme = { code: 'empty', indicator: 'phv_offset_years', bands: [] };
+    expect(() => createBioBandLookup(scheme)).toThrow(DomainValidationError);
   });
 });
 

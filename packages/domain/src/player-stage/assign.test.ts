@@ -6,11 +6,15 @@ import {
   DEFAULT_MALE_STAGE_ASSIGNMENT_PARAMS,
   DEFAULT_STAGE_ASSIGNMENT_PARAMS_BY_SEX,
   DomainValidationError,
+  STAGE_REASONS,
   activeStagePin,
   addDays,
   assignPlayerStage,
   automaticPlayerStage,
+  createPlayerStageAssigner,
   maturationStageForPhvOffset,
+  maximalLoadTestsAllowed,
+  strengthAssessmentFor,
   parseStageAssignmentParams,
   projectPhvOffsetYears,
   type LocalDate,
@@ -178,8 +182,15 @@ describe('automaticPlayerStage', () => {
       expect(auto('foundation', 4, params)).toMatchObject({
         stage: 'foundation',
         basis: 'category',
-        reason: 'maturation_shift_capped',
+        reason: 'maturation_disabled',
+        maturationStage: 'performance',
       });
+    });
+
+    it('with a cap of 0 the margin and a matching stage keep their reasons', () => {
+      const params = { ...MALE, maxStageStepsFromCategory: 0 };
+      expect(auto('foundation', 0.7, params).reason).toBe('within_uncertainty_margin');
+      expect(auto('foundation', 0, params).reason).toBe('maturation_matches_category');
     });
   });
 
@@ -390,6 +401,7 @@ describe('assignPlayerStage', () => {
     });
     expect(result.stage).toBe('development');
     expect(result.basis).toBe('maturation');
+    expect(result.reason).toBe('maturation_shift');
     expect(result.pin).toBeUndefined();
     expect(result.automatic.reason).toBe('maturation_shift');
   });
@@ -405,11 +417,12 @@ describe('assignPlayerStage', () => {
     });
     expect(result.stage).toBe('foundation');
     expect(result.basis).toBe('manual');
+    expect(result.reason).toBe('pinned');
     expect(result.pin).toBe(pin);
     expect(result.automatic).toMatchObject({ stage: 'development', basis: 'maturation' });
   });
 
-  it('staff may pin any stage, even beyond the step cap', () => {
+  it('staff may pin any stage, but an M13/M14 still never does maximal loads', () => {
     const result = assignPlayerStage({
       onDate: ON,
       categoryStage: 'foundation',
@@ -418,6 +431,24 @@ describe('assignPlayerStage', () => {
     });
     expect(result.stage).toBe('performance');
     expect(result.basis).toBe('manual');
+    expect(result.reason).toBe('pinned');
+    const m14 = DEFAULT_AGE_BANDS.find((b) => b.code === 'm14');
+    if (m14 === undefined) throw new Error('missing m14');
+    expect(maximalLoadTestsAllowed(result.stage, m14)).toBe(false);
+    expect(strengthAssessmentFor(result.stage, m14)).toBe('estimated_rm');
+  });
+
+  it('a cap of 2 can take an M13/M14 to performance, still without maximal loads', () => {
+    const result = assignPlayerStage({
+      onDate: ON,
+      categoryStage: 'foundation',
+      phvOffset: { phvOffsetYears: 4, measuredOn: ON },
+      params: { ...MALE, maxStageStepsFromCategory: 2 },
+    });
+    expect(result.stage).toBe('performance');
+    for (const band of DEFAULT_AGE_BANDS.filter((b) => b.defaultStage === 'foundation')) {
+      expect(maximalLoadTestsAllowed(result.stage, band)).toBe(false);
+    }
   });
 
   it('an expired pin falls back to the automatic stage', () => {
@@ -432,5 +463,36 @@ describe('assignPlayerStage', () => {
 
   it('exposes every reason code', () => {
     expect(new Set(AUTOMATIC_STAGE_REASONS).size).toBe(AUTOMATIC_STAGE_REASONS.length);
+    expect(STAGE_REASONS).toEqual(['pinned', ...AUTOMATIC_STAGE_REASONS]);
+  });
+});
+
+describe('createPlayerStageAssigner', () => {
+  it('validates the parameters once, up front', () => {
+    expect(() => createPlayerStageAssigner({ ...MALE, uncertaintyMarginYears: -1 })).toThrow(
+      DomainValidationError,
+    );
+  });
+
+  it('assigns like assignPlayerStage', () => {
+    const assign = createPlayerStageAssigner(MALE);
+    const input = {
+      onDate: ON,
+      categoryStage: 'foundation' as const,
+      phvOffset: { phvOffsetYears: 1.5, measuredOn: ON },
+      pins: [{ stage: 'performance' as const, fromDate: day('2026-05-01') }],
+    };
+    expect(assign(input)).toEqual(assignPlayerStage({ ...input, params: MALE }));
+  });
+
+  it('still validates the other inputs', () => {
+    const assign = createPlayerStageAssigner(MALE);
+    expect(() =>
+      assign({
+        onDate: ON,
+        categoryStage: 'foundation',
+        phvOffset: { phvOffsetYears: 99, measuredOn: ON },
+      }),
+    ).toThrow(DomainValidationError);
   });
 });

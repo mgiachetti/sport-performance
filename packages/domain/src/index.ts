@@ -31,6 +31,7 @@ export {
   type AgeBand,
   type DefaultAgeBandCode,
 } from './category.js';
+export { maximalLoadTestsAllowed, strengthAssessmentFor } from './stage-rules.js';
 
 export {
   STANDARD_GRAVITY_MS2,
