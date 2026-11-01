@@ -118,6 +118,7 @@ Códigos canónicos: `dist_m`, `dist_m_min`, `hsr_abs_m` (> 5,5 m/s por defecto 
 | Multi-deporte y sexo | `sport` y `sex` en el modelo desde el día uno; lo específico de hockey y femenino en M8 | [0017](docs/adr/0017-deporte-y-sexo-en-el-modelo.md) |
 | Sin facturación | No se cobra la app por ahora | [0018](docs/adr/0018-sin-facturacion.md) |
 | i18n | ICU MessageFormat (FormatJS) con catálogo fuente `es-AR` tipado en `packages/i18n`; formateadores es-AR propios sobre `Intl`, con la zona horaria del club obligatoria | [0019](docs/adr/0019-i18n-y-formatos-es-ar.md) |
+| Seguridad del repo | Dependabot, gitleaks en Actions, CodeQL condicionado al plan, workflows endurecidos y ruleset de `main` versionado (sin aprobaciones obligatorias; check `ci` requerido) | [0021](docs/adr/0021-seguridad-del-repo.md) |
 
 ## Identidad visual (tenant ORC; todo como tokens en `packages/ui-tokens`)
 

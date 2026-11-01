@@ -1,0 +1,14 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "test": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/.github/**",
+        "$TURBO_ROOT$/.gitleaks.toml",
+        "$TURBO_ROOT$/.gitignore"
+      ]
+    }
+  }
+}

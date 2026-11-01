@@ -1,0 +1,14 @@
+# gitleaks configuration (B-107). See docs/security.md.
+# Uses the full default rule set; add narrow, commented allowlists only for
+# confirmed false positives (never whole directories of source code).
+title = "sport-performance"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Generated files without secrets"
+paths = [
+  # Lockfile integrity hashes are high-entropy but public.
+  '''(^|/)pnpm-lock\.yaml$''',
+]

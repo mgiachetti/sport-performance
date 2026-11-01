@@ -1,0 +1,62 @@
+# Dependabot version updates (B-107, docs/adr/0021-seguridad-del-repo.md).
+# Security updates are enabled in the repository settings and reuse this file.
+version: 2
+
+updates:
+  # pnpm workspace: Dependabot resolves every package from the root lockfile.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: America/Argentina/Buenos_Aires
+    # Supply-chain safety: do not pick releases younger than a week
+    # (security updates are not delayed by cooldown).
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+    open-pull-requests-limit: 10
+    versioning-strategy: increase
+    commit-message:
+      prefix: chore(deps)
+      prefix-development: chore(deps-dev)
+    labels:
+      - area:infra
+      - security
+    groups:
+      dev-dependencies:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+      prod-dependencies:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # ADR 0001: typescript-eslint still requires TypeScript < 6.1.
+      # Lift this when typescript-eslint supports a newer TypeScript.
+      - dependency-name: typescript
+        versions:
+          - '>=6.1.0'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: America/Argentina/Buenos_Aires
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore(ci)
+    labels:
+      - area:infra
+      - security
+    groups:
+      github-actions:
+        patterns:
+          - '*'
