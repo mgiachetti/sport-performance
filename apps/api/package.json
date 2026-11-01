@@ -13,17 +13,24 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "start": "node --enable-source-maps --import ./dist/instrument.js ./dist/main.js",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
+    "@sentry/node": "11.10.0",
     "@sport-performance/contracts": "workspace:*",
-    "@sport-performance/domain": "workspace:*"
+    "@sport-performance/domain": "workspace:*",
+    "fastify": "5.12.7",
+    "pg": "8.23.1",
+    "pino": "10.4.0",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@sport-performance/config": "workspace:*",
     "@types/node": "26.6.6",
+    "@types/pg": "8.23.1",
     "eslint": "10.14.0",
     "typescript": "6.0.3",
     "vitest": "5.0.5"

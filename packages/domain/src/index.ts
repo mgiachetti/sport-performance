@@ -14,6 +14,7 @@ export { DomainValidationError, type DomainErrorCode } from './errors.js';
 
 export { SPORTS, isSport, parseSport, type Sport } from './sport.js';
 export { SEXES, isSex, parseSex, type Sex } from './sex.js';
+export { ROLES, isRole, parseRole, type Role } from './role.js';
 export {
   STAGES,
   STAGE_PROFILES,
