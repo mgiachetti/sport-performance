@@ -48,6 +48,20 @@ jobs:
 EOF
 )"
 
+expect pass "if written as an expression" "$(fixture ok-expression <<'EOF'
+jobs:
+  lint: {}
+  ci: { if: '${{ always() }}', needs: lint }
+EOF
+)"
+
+expect fail "if with a different condition" "$(fixture other-if <<'EOF'
+jobs:
+  lint: {}
+  ci: { if: success(), needs: lint }
+EOF
+)"
+
 expect fail "a job missing from needs" "$(fixture missing <<'EOF'
 jobs:
   lint: {}

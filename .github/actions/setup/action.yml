@@ -11,7 +11,8 @@ inputs:
     required: false
     default: 'false'
   turbo-cache:
-    description: Restore and save the local Turborepo cache (.turbo/cache) for this job.
+    description: >-
+      Restore the local Turborepo cache (.turbo/cache) for this job; pushes to main also save it.
     required: false
     default: 'true'
 
@@ -27,11 +28,21 @@ runs:
         save-cache: ${{ inputs.save-pnpm-cache }}
         require-lockfile: true
 
-    # One cache entry per job and commit; a new commit falls back to the job's latest entry,
-    # so untouched packages are Turborepo cache hits.
-    - name: Restore Turborepo cache
-      if: inputs.turbo-cache == 'true'
+    # Only pushes to main save the cache (one entry per job and main commit); PRs and other
+    # runs only restore it, so the cache does not grow with every PR commit. A new commit falls
+    # back to the job's latest main entry, so untouched packages are Turborepo cache hits.
+    - name: Restore and save Turborepo cache
+      if: inputs.turbo-cache == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: .turbo/cache
+        key: turbo-${{ runner.os }}-${{ github.job }}-${{ github.sha }}
+        restore-keys: |
+          turbo-${{ runner.os }}-${{ github.job }}-
+
+    - name: Restore Turborepo cache
+      if: inputs.turbo-cache == 'true' && !(github.event_name == 'push' && github.ref == 'refs/heads/main')
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: .turbo/cache
         key: turbo-${{ runner.os }}-${{ github.job }}-${{ github.sha }}

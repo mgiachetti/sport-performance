@@ -11,9 +11,11 @@ on:
 permissions:
   contents: read
 
+# A PR shares one group, so a new push cancels its superseded run. Each push to main gets its
+# own group (keyed by commit SHA): GitHub keeps only one pending run per group and would
+# otherwise drop queued main runs, so every commit on main gets a full run.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
-  # Superseded PR runs are cancelled; every commit on main gets a full run.
+  group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -68,21 +70,25 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: sport_performance_test
+        # Dynamic host port, so parallel jobs on a self-hosted runner do not collide.
         ports:
-          - 5432:5432
+          - 5432
         options: >-
           --health-cmd "pg_isready -U postgres -d sport_performance_test"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
-    env:
-      # Throwaway credentials of the ephemeral service container; not a secret.
-      DATABASE_URL: postgres://postgres:postgres@localhost:5432/sport_performance_test
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
+      # The `job` context (mapped host port) only exists at step level, so export it here.
+      # Throwaway credentials of the ephemeral service container; not a secret.
+      - name: Export DATABASE_URL
+        env:
+          PG_PORT: ${{ job.services.postgres.ports['5432'] }}
+        run: echo "DATABASE_URL=postgres://postgres:postgres@localhost:${PG_PORT}/sport_performance_test" >>"$GITHUB_ENV"
       - name: Check Postgres connection
         run: psql "$DATABASE_URL" --no-psqlrc --tuples-only --command 'select version();'
       - run: pnpm test
@@ -109,7 +115,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # actionlint also runs shellcheck on every `run:` script.
+      # actionlint also runs shellcheck on every `run:` script. Dependabot's github-actions
+      # ecosystem does not update `docker://` refs; Renovate does (see #20, B-107).
       - name: actionlint
         uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 # 1.7.12
         with:

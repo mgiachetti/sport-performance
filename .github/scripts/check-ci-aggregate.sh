@@ -1,6 +1,6 @@
 #!/bin/sh
 # Fails when the aggregate `ci` job of a workflow does not depend on every other job, or does
-# not run with `if: always()`. `ci` is the only required status check on `main`: a job missing
+# not run with `if: always()` (or `${{ always() }}`). `ci` is the only required status check on `main`: a job missing
 # from its `needs` would be silently optional, and without `always()` a failed dependency would
 # skip `ci`, which GitHub counts as passing.
 #
@@ -34,10 +34,16 @@ if [ -n "$unknown" ]; then
   echo "::error file=${workflow}::'${aggregate}.needs' lists unknown jobs: ${unknown}"
   status=1
 fi
-if [ "$(yq ".jobs.${aggregate}.if" "$workflow")" != "always()" ]; then
-  echo "::error file=${workflow}::Job '${aggregate}' must run with 'if: always()'."
-  status=1
-fi
+condition="$(yq ".jobs.${aggregate}.if" "$workflow")"
+# Both spellings are equivalent for GitHub; `${{ }}` is matched literally, not expanded.
+# shellcheck disable=SC2016
+case "$condition" in
+  'always()' | '${{ always() }}') ;;
+  *)
+    echo "::error file=${workflow}::Job '${aggregate}' must run with 'if: always()' (or the equivalent '\${{ always() }}'); found '${condition}'."
+    status=1
+    ;;
+esac
 
 if [ "$status" -eq 0 ]; then
   echo "'${aggregate}' depends on every job: $(paste -sd, - <"$tmp/jobs")"
