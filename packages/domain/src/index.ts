@@ -32,6 +32,22 @@ export {
   type DefaultAgeBandCode,
 } from './category.js';
 export { maximalLoadTestsAllowed, strengthAssessmentFor } from './stage-rules.js';
+export {
+  MEMBERSHIP_ROLES,
+  isMembershipRole,
+  parseMembershipRole,
+  type MembershipRole,
+} from './roles.js';
+export {
+  TEST_NOT_DONE_REASONS,
+  TEST_RESULT_STATUSES,
+  isTestNotDoneReason,
+  isTestResultStatus,
+  parseTestNotDoneReason,
+  parseTestResultStatus,
+  type TestNotDoneReason,
+  type TestResultStatus,
+} from './test-result.js';
 
 export {
   STANDARD_GRAVITY_MS2,

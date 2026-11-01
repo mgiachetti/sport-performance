@@ -12,6 +12,8 @@ Modelo de dominio y fórmulas puras (métricas, carga, maduración). Sin I/O ni 
 | `units.ts` | Catálogo de unidades (`UNITS`: código, símbolo internacional o `null`, dimensión) y conversiones (`kmhToMs`, `msToKmh`, `secondsToMsec`…). Sin texto de UI: las etiquetas es-AR (`años`, `lpm`, `UA`) están en `packages/i18n` (`unit.<UnitCode>`). |
 | `codes.ts` | `MetricCode` y `TestCode` (branded, `snake_case` validado), la batería canónica (`CANONICAL_TEST_CODES`) y el diccionario canónico (`CANONICAL_METRICS`) con unidad, origen, sentido de mejora, test y deportes. |
 | `measurement.ts` | Método de medición (`manual`, `video`, `photocell`, `pod`, `app`, `historical`) e ítems de bienestar. |
+| `roles.ts` | Roles de una membresía (`MEMBERSHIP_ROLES`: `player`, `parent`, `coach`, `sc`, `medical`, `admin`). `superadmin` no es un rol de club sino un atributo global del usuario (ADR 0007). |
+| `test-result.ts` | Estado de un resultado de test (`done`, `not_done`) y motivo de "no realizado" (`absent`, `injured`, `not_applicable_to_stage`, `other`), B-301 / B-320. |
 | `ids.ts` | `ClubId`, `UserId`, `PlayerId`, `CategoryId`: UUID branded que no se mezclan entre sí. |
 | `time.ts` | `TimeZone`, `LocalDate`, el día del club, aritmética de calendario y edades. |
 | `errors.ts` | `DomainValidationError` con `code` estable. |

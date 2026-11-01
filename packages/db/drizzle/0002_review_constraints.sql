@@ -1,0 +1,3 @@
+CREATE UNIQUE INDEX "user_email_lower_key" ON "user" USING btree (lower("email"));--> statement-breakpoint
+ALTER TABLE "anthro_measurement" ADD CONSTRAINT "anthro_measurement_derived_finite" CHECK (("anthro_measurement"."phv_offset_years" is null or "anthro_measurement"."phv_offset_years" not in ('NaN'::float8, 'Infinity'::float8, '-Infinity'::float8)) and ("anthro_measurement"."adult_height_pct" is null or ("anthro_measurement"."adult_height_pct" not in ('NaN'::float8, 'Infinity'::float8, '-Infinity'::float8) and "anthro_measurement"."adult_height_pct" > 0)));--> statement-breakpoint
+ALTER TABLE "test_result_value" ADD CONSTRAINT "test_result_value_voided_by" CHECK ("test_result_value"."voided_at" is not null or "test_result_value"."voided_by" is null);
