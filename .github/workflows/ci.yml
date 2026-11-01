@@ -30,6 +30,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
+        with:
+          turbo-cache: 'false'
       - run: pnpm format:check
 
   lint:
@@ -93,7 +95,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The only job that saves the pnpm store, so each run adds a single entry.
       - uses: ./.github/actions/setup
+        with:
+          save-pnpm-cache: 'true'
       - run: pnpm build
 
   workflows:
