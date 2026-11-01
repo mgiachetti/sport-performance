@@ -149,3 +149,53 @@ export * from './alerts/index.js';
 // Speed zones (B-209).
 export * from './speed-zones/index.js';
 export * from './exposure/index.js';
+// Percentiles by group and first-team references (B-208).
+export {
+  SUMMARY_PERCENTILES,
+  percentileRank,
+  summarizeDistribution,
+  valueAtPercentile,
+  type DistributionSummary,
+  type SummaryPercentile,
+} from './percentiles/distribution.js';
+export {
+  DEFAULT_PERCENTILE_SETTINGS,
+  METHOD_POLICIES,
+  PERCENTILE_GROUP_DIMENSIONS,
+  PLAYER_AGGREGATIONS,
+  assertPercentileSettings,
+  buildPercentileGroup,
+  computePercentile,
+  isMethodPolicy,
+  isPercentileGroupDimension,
+  isPlayerAggregation,
+  resolvePlayerAggregation,
+  type MethodPolicy,
+  type PercentileAttempt,
+  type PercentileGroup,
+  type PercentileGroupDimension,
+  type PercentileGroupOptions,
+  type PercentileGrouping,
+  type PercentileResult,
+  type PercentileSample,
+  type PercentileSettings,
+  type PercentileSubject,
+  type PlayerAggregation,
+} from './percentiles/groups.js';
+export {
+  DEFAULT_POSITION_LINES,
+  RUGBY_LINE_CODES,
+  lineForPosition,
+  type PositionLine,
+  type RugbyLineCode,
+} from './percentiles/positions.js';
+export {
+  compareToFirstTeamReference,
+  referenceScope,
+  selectFirstTeamReference,
+  type FirstTeamReference,
+  type FirstTeamReferenceQuery,
+  type ReferenceComparison,
+  type ReferenceComparisonInput,
+  type ReferenceScope,
+} from './percentiles/references.js';
