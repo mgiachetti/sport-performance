@@ -148,3 +148,4 @@ export * from './maturation/index.js';
 export * from './alerts/index.js';
 // Speed zones (B-209).
 export * from './speed-zones/index.js';
+export * from './exposure/index.js';
