@@ -29,7 +29,9 @@ import { tenantColumns, tenantConstraints, tenantReference } from './tenant.js';
 /**
  * A user's role in a club. One row per role: the same person may be `coach`
  * and `parent` in the same club, and pick the role with the club selector.
- * Leaving a club closes the membership (`ended_at`), it is never deleted.
+ * Leaving a club closes the membership (`ended_at`), it is never deleted by
+ * the application. Deleting the user account (B-329) does cascade to its
+ * memberships and guardian links (ADR 0023).
  */
 export const membership = pgTable(
   'membership',

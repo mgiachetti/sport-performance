@@ -118,6 +118,11 @@ export const testResult = pgTable(
     testSessionId: uuid('test_session_id'),
     measuredOn: localDate('measured_on').notNull(),
     status: testResultStatusEnum('status').notNull(),
+    /**
+     * `injured` is health-adjacent (ADR 0008): the policies and views of #33
+     * should show it to coaches as a generic "unavailable", like the
+     * availability of `medical`, and keep the exact reason for medical staff.
+     */
     notDoneReason: testNotDoneReasonEnum('not_done_reason'),
     notDoneNote: text('not_done_note'),
     /** Required when done; results with different methods are never compared silently. */
@@ -158,6 +163,16 @@ export const testResult = pgTable(
  * `attempt_number` is `NULL` for a result-level value (a single measurement,
  * a derived value such as Vmax, or a historical import); at most one valid
  * result-level value per metric.
+ *
+ * Duplicate attempt numbers for the same result and metric are allowed on
+ * purpose: two evaluators offline may both record "attempt 2", and a unique
+ * key would turn that into a sync conflict. Attempts are ordered by
+ * `recorded_at`; `attempt_number` is the evaluator's label.
+ *
+ * Enforced in the database (migration `0003`): after the insert only
+ * `voided_*` and `updated_*` can change, a void is final and needs its author
+ * (`voided_by` may become `NULL` later only because the author's account is
+ * deleted), and `unit` must be the metric's unit when the row is written.
  */
 export const testResultValue = pgTable(
   'test_result_value',
@@ -167,6 +182,7 @@ export const testResultValue = pgTable(
     metricDefinitionId: uuid('metric_definition_id').notNull(),
     attemptNumber: smallint('attempt_number'),
     value: doublePrecision('value').notNull(),
+    /** Unit the value was recorded in; equal to `metric_definition.unit` when inserted. */
     unit: unitEnum('unit').notNull(),
     /** When the evaluator recorded it (orders attempts from several devices). */
     recordedAt: timestamptz('recorded_at').notNull().defaultNow(),
@@ -189,6 +205,7 @@ export const testResultValue = pgTable(
       sql`${t.attemptNumber} is null or ${t.attemptNumber} >= 1`,
     ),
     check('test_result_value_void', sql`(${t.voidedAt} is null) = (${t.voidReason} is null)`),
+    check('test_result_value_voided_by', sql`${t.voidedAt} is not null or ${t.voidedBy} is null`),
   ],
 );
 
@@ -216,6 +233,11 @@ export const anthroMeasurement = pgTable(
     notes: text('notes'),
     phvOffsetYears: doublePrecision('phv_offset_years'),
     maturityOffsetEquation: maturityOffsetEquationEnum('maturity_offset_equation'),
+    /**
+     * % of the predicted adult height (Khamis-Roche). Positive, but no upper
+     * bound: a late measurement can exceed a low prediction (> 100 %), and
+     * how far is a plausibility warning of the domain, not an invariant.
+     */
     adultHeightPct: doublePrecision('adult_height_pct'),
     derivedAt: timestamptz('derived_at'),
   },
@@ -240,6 +262,10 @@ export const anthroMeasurement = pgTable(
     check(
       'anthro_measurement_maturation',
       sql`(${t.phvOffsetYears} is null) = (${t.maturityOffsetEquation} is null)`,
+    ),
+    check(
+      'anthro_measurement_derived_finite',
+      sql`(${t.phvOffsetYears} is null or ${finite(t.phvOffsetYears)}) and (${t.adultHeightPct} is null or (${finite(t.adultHeightPct)} and ${t.adultHeightPct} > 0))`,
     ),
   ],
 );

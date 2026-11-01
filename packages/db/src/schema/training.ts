@@ -184,6 +184,7 @@ export const externalMetric = pgTable(
     metricDefinitionId: uuid('metric_definition_id').notNull(),
     localDate: localDate('local_date').notNull(),
     value: doublePrecision('value').notNull(),
+    /** Equal to `metric_definition.unit` when written (trigger, migration `0003`). */
     unit: unitEnum('unit').notNull(),
     source: externalMetricSourceEnum('source').notNull(),
     deviceId: uuid('device_id'),

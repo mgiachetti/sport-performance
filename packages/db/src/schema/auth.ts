@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { boolean, index, pgTable, text } from 'drizzle-orm/pg-core';
+import { boolean, index, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core';
 import { timestamptz } from './columns.js';
 
 /**
@@ -38,22 +38,31 @@ function authId() {
     .default(sql`gen_random_uuid()::text`);
 }
 
-export const user = pgTable('user', {
-  id: authId(),
-  name: text('name').notNull(),
-  /** Unique across the whole system: one account per person (ADR 0007). */
-  email: text('email').notNull().unique(),
-  emailVerified: boolean('email_verified').notNull().default(false),
-  image: text('image'),
-  createdAt: timestamptz('created_at').notNull().defaultNow(),
-  updatedAt: timestamptz('updated_at').notNull().defaultNow(),
-  /**
-   * Global support role (ADR 0007): never a membership. Better Auth must
-   * expose it as an additional field with `input: false`, so users cannot
-   * grant it to themselves.
-   */
-  isSuperadmin: boolean('is_superadmin').notNull().default(false),
-});
+export const user = pgTable(
+  'user',
+  {
+    id: authId(),
+    name: text('name').notNull(),
+    /**
+     * Unique across the whole system: one account per person (ADR 0007).
+     * Better Auth lowercases emails before writing them; `user_email_lower_key`
+     * also rejects `Ana@x.com` next to `ana@x.com` for writes that bypass it
+     * (imports, seeds, raw SQL).
+     */
+    email: text('email').notNull().unique(),
+    emailVerified: boolean('email_verified').notNull().default(false),
+    image: text('image'),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+    updatedAt: timestamptz('updated_at').notNull().defaultNow(),
+    /**
+     * Global support role (ADR 0007): never a membership. Better Auth must
+     * expose it as an additional field with `input: false`, so users cannot
+     * grant it to themselves.
+     */
+    isSuperadmin: boolean('is_superadmin').notNull().default(false),
+  },
+  (t) => [uniqueIndex('user_email_lower_key').on(sql`lower(${t.email})`)],
+);
 
 export const session = pgTable(
   'session',

@@ -15,6 +15,20 @@
       "when": 1793572549955,
       "tag": "0001_updated_at_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793574185285,
+      "tag": "0002_review_constraints",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793574196887,
+      "tag": "0003_append_only_and_unit_triggers",
+      "breakpoints": true
     }
   ]
 }

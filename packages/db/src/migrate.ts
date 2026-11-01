@@ -111,9 +111,15 @@ export async function runMigrations(options: RunMigrationsOptions): Promise<Migr
     connectionString: options.connectionString,
     application_name: 'sport-performance-migrate',
   });
+  // Without a listener, a dropped connection would crash the process; the
+  // pending query rejects anyway and that error is the one reported.
+  client.on('error', () => undefined);
   await client.connect();
   try {
     await client.query('select pg_advisory_lock($1)', [MIGRATION_LOCK_KEY.toString()]);
+    const unlock = () =>
+      client.query('select pg_advisory_unlock($1)', [MIGRATION_LOCK_KEY.toString()]);
+    let report: MigrationReport;
     try {
       const before = await readApplied(client);
       assertInOrder(local, before);
@@ -123,27 +129,37 @@ export async function runMigrations(options: RunMigrationsOptions): Promise<Migr
         migrationsTable: MIGRATIONS_TABLE,
       });
       const after = await readApplied(client);
-      return {
+      report = {
         applied: after.length - before.length,
         total: after.length,
         unknown: after.filter((m) => !localHashes.has(m.hash)).length,
       };
-    } finally {
-      await client.query('select pg_advisory_unlock($1)', [MIGRATION_LOCK_KEY.toString()]);
+    } catch (error) {
+      // If the connection dropped, unlocking fails too (and the session lock
+      // is released anyway): keep the run's error, the one worth reporting.
+      await unlock().catch(() => undefined);
+      throw error;
     }
+    await unlock();
+    return report;
   } finally {
-    await client.end();
+    await client.end().catch(() => undefined);
   }
+}
+
+function nonBlank(value: string | undefined): string | undefined {
+  return value === undefined || value.trim() === '' ? undefined : value;
 }
 
 /**
  * The connection string for migrations: `MIGRATIONS_DATABASE_URL` (owner
- * role) or, when it is not set, `DATABASE_URL` (local development and CI,
- * where a single role owns everything).
+ * role) or, when it is not set or blank (as in `.env.example`),
+ * `DATABASE_URL` (local development and CI, where a single role owns
+ * everything).
  */
 export function migrationsConnectionString(env: NodeJS.ProcessEnv = process.env): string {
-  const url = env.MIGRATIONS_DATABASE_URL ?? env.DATABASE_URL;
-  if (url === undefined || url.trim() === '') {
+  const url = nonBlank(env.MIGRATIONS_DATABASE_URL) ?? nonBlank(env.DATABASE_URL);
+  if (url === undefined) {
     throw new Error('Set MIGRATIONS_DATABASE_URL (or DATABASE_URL) to run the migrations.');
   }
   return url;

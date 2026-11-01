@@ -41,6 +41,20 @@ describe('migrationsConnectionString', () => {
     expect(() => migrationsConnectionString({})).toThrow(/MIGRATIONS_DATABASE_URL/);
     expect(() => migrationsConnectionString({ DATABASE_URL: ' ' })).toThrow();
   });
+
+  it('treats a blank MIGRATIONS_DATABASE_URL as missing (as in .env.example)', () => {
+    for (const blank of ['', '  ']) {
+      expect(
+        migrationsConnectionString({
+          MIGRATIONS_DATABASE_URL: blank,
+          DATABASE_URL: 'postgres://app',
+        }),
+      ).toBe('postgres://app');
+      expect(() => migrationsConnectionString({ MIGRATIONS_DATABASE_URL: blank })).toThrow(
+        /MIGRATIONS_DATABASE_URL/,
+      );
+    }
+  });
 });
 
 describe.skipIf(!hasDatabase)('runMigrations safety (Postgres 16)', () => {
@@ -118,5 +132,41 @@ describe.skipIf(!hasDatabase)('runMigrations safety (Postgres 16)', () => {
       migrationsFolder: folder,
     });
     expect(report).toEqual({ applied: 0, total: journal.entries.length, unknown: 1 });
+  });
+
+  it('reports the original error when the connection drops mid-run', async () => {
+    // The migration kills its own backend: the unlock in `finally` then fails
+    // too, and must not replace the error of the migration itself.
+    const journal = await readJournal(folder);
+    const last = must(journal.entries.at(-1));
+    await writeFile(
+      join(folder, '9999_drop_connection.sql'),
+      'select pg_terminate_backend(pg_backend_pid());',
+    );
+    await writeFile(
+      join(folder, 'meta', '_journal.json'),
+      JSON.stringify({
+        ...journal,
+        entries: [
+          ...journal.entries,
+          {
+            idx: last.idx + 1,
+            when: last.when + 1000,
+            tag: '9999_drop_connection',
+            version: '7',
+            breakpoints: true,
+          },
+        ],
+      }),
+    );
+    const error: unknown = await runMigrations({
+      connectionString: database.connectionString,
+      migrationsFolder: folder,
+    }).catch((e: unknown) => e);
+    // Drizzle reports the failed migration transaction; without the guard the
+    // runner threw the unlock's "not queryable" error instead.
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toMatch(/^Failed query/);
+    expect((error as Error).message).not.toMatch(/pg_advisory_unlock|not queryable/);
   });
 });

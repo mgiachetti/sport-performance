@@ -23,7 +23,7 @@ const players = await db.select().from(schema.player);
 |---|---|
 | `pnpm --filter @sport-performance/db db:generate --name=<nombre>` | Genera la migración SQL a partir de los cambios del esquema. Se revisa y se commitea. |
 | `pnpm --filter @sport-performance/db db:generate:custom --name=<nombre>` | Crea una migración vacía para SQL a mano (triggers, RLS, grants). |
-| `pnpm --filter @sport-performance/db db:migrate` | Aplica las migraciones pendientes con `MIGRATIONS_DATABASE_URL` (o `DATABASE_URL`). Requiere `pnpm build`. También está como bin `sport-performance-db-migrate`. |
+| `pnpm --filter @sport-performance/db db:migrate` | Aplica las migraciones pendientes con `MIGRATIONS_DATABASE_URL` (o `DATABASE_URL` si la primera falta o está vacía). Requiere `pnpm build`. También está como bin `sport-performance-db-migrate`. |
 
 Nunca `drizzle-kit push` ni `drizzle-kit migrate` contra una base compartida. Una migración aplicada no se edita: el runner se niega a correr si un archivo aplicado cambió o si una migración pendiente es más vieja que la última aplicada (dos ramas que se mergearon fuera de orden). En ese caso se regenera la migración más nueva.
 
@@ -53,4 +53,4 @@ docker run -d --rm --name pg-dev -e POSTGRES_PASSWORD=postgres -p 5432:5432 post
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres pnpm --filter @sport-performance/db test
 ```
 
-Cada archivo de integración (`*.integration.test.ts`) crea su propia base temporal y la borra al terminar. Sin `DATABASE_URL` se saltean localmente; en CI (`CI` definido) fallan. Los tests cubren: migración desde cero, idempotencia y concurrencia del runner, convenciones por introspección (de las definiciones y de la base migrada), enums = dominio, índices de las claves compuestas, `CHECK`s, trigger de `updated_at`, sincronía esquema ↔ migraciones (`drizzle-kit generate` sin cambios) y compatibilidad con Better Auth (alta de usuario con su adaptador de Drizzle).
+Cada archivo de integración (`*.integration.test.ts`) crea su propia base temporal y la borra al terminar. Sin `DATABASE_URL` se saltean localmente; en CI (`CI` definido) fallan. Los tests cubren: migración desde cero, idempotencia y concurrencia del runner, convenciones por introspección (de las definiciones y de la base migrada), enums = dominio, índices de las claves compuestas, `CHECK`s, triggers (`updated_at`, `test_result_value` append-only, unidad = la de la métrica), sincronía esquema ↔ migraciones (`drizzle-kit generate` sin cambios) y compatibilidad con Better Auth (alta de usuario con su adaptador de Drizzle).

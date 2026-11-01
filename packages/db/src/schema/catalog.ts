@@ -215,6 +215,7 @@ export const referenceValue = pgTable(
     positionId: uuid('position_id'),
     lineCode: text('line_code'),
     value: doublePrecision('value').notNull(),
+    /** Equal to `metric_definition.unit` when written (trigger, migration `0003`). */
     unit: unitEnum('unit').notNull(),
     method: measurementMethodEnum('method'),
     validFrom: localDate('valid_from').notNull(),

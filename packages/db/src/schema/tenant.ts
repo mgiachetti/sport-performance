@@ -68,7 +68,12 @@ export const club = pgTable(
     /** URL-safe identifier (`orc`), unique across tenants. */
     slug: text('slug').notNull().unique(),
     name: text('name').notNull(),
-    /** IANA zone. "The day" of every club metric is computed in it. */
+    /**
+     * IANA zone. "The day" of every club metric is computed in it. Free text:
+     * the API must validate it (`Intl.DateTimeFormat` accepts it) before
+     * writing: a `CHECK` cannot validate it, the list of zones depends on
+     * the tzdata of each runtime.
+     */
     timeZone: text('time_zone').notNull().default(DEFAULT_CLUB_TIME_ZONE).$type<TimeZone>(),
     branding: jsonb('branding').notNull().default({}).$type<ClubBranding>(),
     settings: jsonb('settings').notNull().default({}).$type<ClubSettings>(),

@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   alert,
   alertRule,
+  anthroMeasurement,
   category,
   club,
   membership,
@@ -11,6 +12,7 @@ import {
   participation,
   player,
   playerCategory,
+  referenceValue,
   speedZoneConfig,
   staffAssignment,
   testDefinition,
@@ -230,6 +232,147 @@ describe.skipIf(!hasDatabase)('schema constraints (Postgres 16)', () => {
       expect(error.constraint).toBe('test_result_value_value_finite');
     });
 
+    describe('append-only values (ADR 0015)', () => {
+      const insertValue = async () => {
+        const [result] = await t.db
+          .insert(testResult)
+          .values({ ...base(), status: 'done', method: 'manual' })
+          .returning({ id: testResult.id });
+        const [row] = await t.db
+          .insert(testResultValue)
+          .values({
+            clubId: clubA,
+            testResultId: must(result).id,
+            metricDefinitionId: cmjHeightA,
+            attemptNumber: 1,
+            value: 40,
+            unit: 'cm',
+            createdBy: evaluatorId,
+          })
+          .returning({ id: testResultValue.id });
+        return must(row).id;
+      };
+
+      it.each([
+        ['value', `value = 41`],
+        ['unit', `unit = 'mm'`],
+        ['metric', `metric_definition_id = gen_random_uuid()`],
+        ['attempt number', `attempt_number = 2`],
+        ['author', `created_by = 'someone-else'`],
+      ])('rejects changing the %s', async (_label, assignment) => {
+        const id = await insertValue();
+        const error = await pgErrorOf(
+          t.pool.query(`update test_result_value set ${assignment} where id = $1`, [id]),
+        );
+        expect(error).toEqual({ code: '23514', constraint: 'test_result_value_append_only' });
+      });
+
+      it('allows voiding once, with its author, and never restoring', async () => {
+        const id = await insertValue();
+        const noAuthor = await pgErrorOf(
+          t.pool.query(
+            `update test_result_value set voided_at = now(), void_reason = 'typo' where id = $1`,
+            [id],
+          ),
+        );
+        expect(noAuthor).toEqual({ code: '23514', constraint: 'test_result_value_void_author' });
+        await t.pool.query(
+          `update test_result_value set voided_at = now(), voided_by = $2, void_reason = 'typo',
+             updated_by = $2 where id = $1`,
+          [id, evaluatorId],
+        );
+        const restore = await pgErrorOf(
+          t.pool.query(
+            `update test_result_value set voided_at = null, voided_by = null, void_reason = null
+             where id = $1`,
+            [id],
+          ),
+        );
+        expect(restore.constraint).toBe('test_result_value_void_final');
+        const reword = await pgErrorOf(
+          t.pool.query(`update test_result_value set void_reason = 'other' where id = $1`, [id]),
+        );
+        expect(reword.constraint).toBe('test_result_value_void_final');
+      });
+
+      it('keeps voided_by NULL on valid values', async () => {
+        const id = await insertValue();
+        const error = await pgErrorOf(
+          t.pool.query(`update test_result_value set voided_by = $2 where id = $1`, [
+            id,
+            evaluatorId,
+          ]),
+        );
+        expect(error.constraint).toBe('test_result_value_voided_by');
+      });
+
+      it('lets a user account be deleted after authoring and voiding values', async () => {
+        await t.db
+          .insert(user)
+          .values({ id: 'user-leaving', name: 'Se va', email: 'leaving@example.com' });
+        const id = await insertValue();
+        await t.pool.query(`update test_result_value set created_by = null where id = $1`, [id]);
+        await t.pool.query(
+          `update test_result_value set voided_at = now(), voided_by = 'user-leaving',
+             void_reason = 'typo', updated_by = 'user-leaving' where id = $1`,
+          [id],
+        );
+        await t.db.delete(user).where(eq(user.id, 'user-leaving'));
+        const [row] = await t.db
+          .select({ voidedBy: testResultValue.voidedBy, voidedAt: testResultValue.voidedAt })
+          .from(testResultValue)
+          .where(eq(testResultValue.id, id));
+        expect(row?.voidedBy).toBeNull();
+        expect(row?.voidedAt).toBeInstanceOf(Date);
+      });
+
+      it('allows two attempts with the same number (two evaluators offline)', async () => {
+        const id = await insertValue();
+        const [first] = await t.db.select().from(testResultValue).where(eq(testResultValue.id, id));
+        await t.db.insert(testResultValue).values({
+          clubId: clubA,
+          testResultId: must(first).testResultId,
+          metricDefinitionId: cmjHeightA,
+          attemptNumber: 1,
+          value: 40.5,
+          unit: 'cm',
+        });
+      });
+    });
+
+    it('requires the unit of the metric when a value is written', async () => {
+      const [result] = await t.db
+        .insert(testResult)
+        .values({ ...base(), status: 'done', method: 'manual' })
+        .returning({ id: testResult.id });
+      const value = await pgErrorOf(
+        t.db.insert(testResultValue).values({
+          clubId: clubA,
+          testResultId: must(result).id,
+          metricDefinitionId: cmjHeightA,
+          value: 400,
+          unit: 'mm',
+        }),
+      );
+      expect(value).toEqual({
+        code: '23514',
+        constraint: 'test_result_value_unit_matches_metric',
+      });
+      const reference = await pgErrorOf(
+        t.db.insert(referenceValue).values({
+          clubId: clubA,
+          metricDefinitionId: cmjHeightA,
+          sport: 'rugby',
+          sex: 'male',
+          value: 0.45,
+          unit: 'm',
+          validFrom: day('2026-01-01'),
+          source: 'test',
+        }),
+      );
+      expect(reference.constraint).toBe('reference_value_unit_matches_metric');
+    });
+
     it('stores a not-done result with its reason', async () => {
       await t.db
         .insert(testResult)
@@ -323,6 +466,33 @@ describe.skipIf(!hasDatabase)('schema constraints (Postgres 16)', () => {
       .from(player)
       .where(eq(player.id, playerA));
     expect(must(after).updatedAt.getTime()).toBeGreaterThan(must(before).updatedAt.getTime());
+  });
+
+  it('rejects non-finite or non-positive derived maturation values', async () => {
+    const row = {
+      clubId: clubA,
+      playerId: playerA,
+      measuredOn: day('2026-02-10'),
+      heightCm: 160,
+    };
+    for (const values of [
+      { phvOffsetYears: Number.POSITIVE_INFINITY, maturityOffsetEquation: 'mirwald_2002' as const },
+      { adultHeightPct: Number.NaN },
+      { adultHeightPct: 0 },
+    ]) {
+      const error = await pgErrorOf(t.db.insert(anthroMeasurement).values({ ...row, ...values }));
+      expect(error.constraint).toBe('anthro_measurement_derived_finite');
+    }
+    // A late measurement may exceed a low prediction.
+    await t.db.insert(anthroMeasurement).values({ ...row, adultHeightPct: 101.2 });
+  });
+
+  it('keeps emails unique regardless of case', async () => {
+    await t.db.insert(user).values({ id: 'user-case-1', name: 'Ana', email: 'ana@example.com' });
+    const error = await pgErrorOf(
+      t.db.insert(user).values({ id: 'user-case-2', name: 'Ana', email: 'Ana@Example.com' }),
+    );
+    expect(error).toEqual({ code: '23505', constraint: 'user_email_lower_key' });
   });
 
   it('allows one active membership per user, club and role', async () => {
