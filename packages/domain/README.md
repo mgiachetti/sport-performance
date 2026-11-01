@@ -159,6 +159,9 @@ const { alerts, skipped } = evaluateAlertRules(rules, {
 - Una alerta trae `messageKey` / `suggestionKey` (`alert.<kind>.*`, textos en `packages/i18n`) y `values` numéricos para interpolar. Sin texto de UI.
 - Lo que no se pudo evaluar va a `skipped` con motivo (`insufficient_history` con < 28 días de carga, `no_data`, `stale_data`, `no_variance`, `disabled`, `not_applicable`): faltar datos nunca es una alerta.
 - Los datos posteriores a `date` se ignoran, así se puede reevaluar un día pasado con la historia completa.
+## Exposición y lesiones (B-210)
+
+`src/exposure/`: horas de exposición (entrenamiento y partido) desde los minutos de participación e incidencia de lesiones por 1000 h con intervalo de Poisson exacto y carga lesional (días perdidos por 1000 h), según Fuller et al. 2007 y el consenso del IOC 2020. Definición de caso (`time_loss` o `medical_attention`) y demás parámetros con valores por defecto como datos (`DEFAULT_INJURY_INCIDENCE_PARAMS`). Detalle en [`src/exposure/README.md`](src/exposure/README.md).
 
 ## Extender
 
