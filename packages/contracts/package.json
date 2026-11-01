@@ -9,22 +9,31 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./openapi": {
+      "types": "./dist/openapi/index.d.ts",
+      "default": "./dist/openapi/index.js"
+    },
+    "./openapi.json": "./openapi.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "openapi.json"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "openapi": "tsc -p tsconfig.build.json && node scripts/generate-openapi.js",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
-    "@sport-performance/domain": "workspace:*"
+    "@sport-performance/domain": "workspace:*",
+    "zod": "4.6.7"
   },
   "devDependencies": {
+    "@seriousme/openapi-schema-validator": "2.11.0",
     "@sport-performance/config": "workspace:*",
     "@types/node": "26.6.6",
     "eslint": "10.14.0",
