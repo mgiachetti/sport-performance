@@ -145,6 +145,11 @@ export function projectPhvOffsetYears(estimate: PhvOffsetEstimate, onDate: Local
 /**
  * Pin in force on a day, or `undefined`. When several overlap, the one that
  * started last wins (on the same start day, the later one in the list).
+ *
+ * Every pin in `pins` is validated, not only those covering `onDate`: one
+ * malformed pin anywhere in the history (unknown stage, bad date,
+ * `untilDate` before `fromDate`) throws {@link DomainValidationError} for
+ * every day. Fix or drop the bad pin rather than catching per day.
  */
 export function activeStagePin(pins: readonly StagePin[], onDate: LocalDate): StagePin | undefined {
   let active: StagePin | undefined;
@@ -183,13 +188,17 @@ function automaticStage(
   const estimate = input.phvOffset;
   if (estimate === undefined) return fromCategory('no_maturation_estimate');
   assertPhvOffsetYears(estimate.phvOffsetYears);
-  const elapsedDays = daysBetween(parseLocalDate(estimate.measuredOn), onDate);
+  const measuredOn = parseLocalDate(estimate.measuredOn);
+  const elapsedDays = daysBetween(measuredOn, onDate);
   if (elapsedDays < 0) return fromCategory('maturation_estimate_after_date');
   if (elapsedDays > params.maxPhvOffsetEstimateAgeDays) {
     return fromCategory('maturation_estimate_stale');
   }
 
-  const phvOffsetYearsOnDate = projectPhvOffsetYears(estimate, onDate);
+  const phvOffsetYearsOnDate = projectPhvOffsetYears(
+    { phvOffsetYears: estimate.phvOffsetYears, measuredOn },
+    onDate,
+  );
   const maturationStage = maturationStageForPhvOffset(phvOffsetYearsOnDate, params);
   const result = (stage: Stage, reason: AutomaticStageReason): AutomaticStageAssignment => ({
     stage,
@@ -269,7 +278,9 @@ function stageAtOffset(stage: Stage, steps: number): Stage {
   const index = STAGES.indexOf(stage) + steps;
   const target = STAGES[Math.max(0, Math.min(STAGES.length - 1, index))];
   // Unreachable: the index is clamped to the array bounds.
-  if (target === undefined) throw new Error('Stage index out of range.');
+  if (target === undefined) {
+    throw new DomainValidationError('invalid_argument', 'Stage index out of range.', index);
+  }
   return target;
 }
 

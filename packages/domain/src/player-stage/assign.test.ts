@@ -39,10 +39,10 @@ function auto(categoryStage: Stage, phvOffsetYears: number, params: StageAssignm
 describe('maturationStageForPhvOffset', () => {
   it.each([
     [-2, 'foundation'],
-    [0.49, 'foundation'],
-    [0.5, 'development'],
-    [2.49, 'development'],
-    [2.5, 'performance'],
+    [0.69, 'foundation'],
+    [0.7, 'development'],
+    [2.69, 'development'],
+    [2.7, 'performance'],
     [5, 'performance'],
   ] as const)('offset %d → %s (male defaults)', (offset, stage) => {
     expect(maturationStageForPhvOffset(offset, MALE)).toBe(stage);
@@ -107,7 +107,7 @@ describe('automaticPlayerStage', () => {
   });
 
   describe('uncertainty margin', () => {
-    it.each([0.5, 0.99])('keeps foundation at offset %d (below threshold + margin)', (offset) => {
+    it.each([0.7, 1.19])('keeps foundation at offset %d (below threshold + margin)', (offset) => {
       expect(auto('foundation', offset)).toMatchObject({
         stage: 'foundation',
         basis: 'category',
@@ -117,10 +117,10 @@ describe('automaticPlayerStage', () => {
     });
 
     it('moves up exactly at threshold + margin', () => {
-      expect(auto('foundation', 1).stage).toBe('development');
+      expect(auto('foundation', 1.2).stage).toBe('development');
     });
 
-    it.each([0.49, 0])(
+    it.each([0.69, 0.2])(
       'keeps development at offset %d (not below threshold − margin)',
       (offset) => {
         expect(auto('development', offset)).toMatchObject({
@@ -132,17 +132,17 @@ describe('automaticPlayerStage', () => {
     );
 
     it('moves down just below threshold − margin', () => {
-      expect(auto('development', -0.01).stage).toBe('foundation');
+      expect(auto('development', 0.19).stage).toBe('foundation');
     });
 
     it('with a zero margin, the threshold alone decides', () => {
       const params = { ...MALE, uncertaintyMarginYears: 0 };
-      expect(auto('foundation', 0.5, params).stage).toBe('development');
-      expect(auto('development', 0.49, params).stage).toBe('foundation');
+      expect(auto('foundation', 0.7, params).stage).toBe('development');
+      expect(auto('development', 0.69, params).stage).toBe('foundation');
     });
 
     it('a two-stage jump within the margin of the far threshold moves one stage', () => {
-      // 2.8 is past performance (2.5) but within its margin; past development + margin.
+      // 2.8 is past performance (2.7) but within its margin; past development + margin.
       const params = { ...MALE, maxStageStepsFromCategory: 2 };
       expect(auto('foundation', 2.8, params)).toMatchObject({
         stage: 'development',
@@ -196,15 +196,15 @@ describe('automaticPlayerStage', () => {
 
   describe('estimate age', () => {
     it('projects an older estimate to the day', () => {
-      // 0.6 measured 200 days before → ≈ 1.15 on the day: past threshold + margin.
+      // 0.7 measured 200 days before → ≈ 1.25 on the day: past threshold + margin.
       const result = automaticPlayerStage({
         onDate: ON,
         categoryStage: 'foundation',
-        phvOffset: { phvOffsetYears: 0.6, measuredOn: addDays(ON, -200) },
+        phvOffset: { phvOffsetYears: 0.7, measuredOn: addDays(ON, -200) },
         params: MALE,
       });
       expect(result.stage).toBe('development');
-      expect(result.phvOffsetYearsOnDate).toBeCloseTo(0.6 + 200 / 365.25, 10);
+      expect(result.phvOffsetYearsOnDate).toBeCloseTo(0.7 + 200 / 365.25, 10);
     });
 
     it('accepts an estimate exactly maxPhvOffsetEstimateAgeDays old', () => {
@@ -246,7 +246,7 @@ describe('automaticPlayerStage', () => {
   });
 
   describe('validation', () => {
-    it.each([Number.NaN, Number.POSITIVE_INFINITY, -6.01, 8.01])('rejects offset %d', (offset) => {
+    it.each([Number.NaN, Number.POSITIVE_INFINITY, -6.01, 10.01])('rejects offset %d', (offset) => {
       expect(() => auto('foundation', offset)).toThrow(DomainValidationError);
     });
 
@@ -281,7 +281,7 @@ describe('parseStageAssignmentParams', () => {
   it.each<[string, Partial<StageAssignmentParams>]>([
     ['non-finite threshold', { developmentFromPhvOffsetYears: Number.NaN }],
     ['infinite threshold', { performanceFromPhvOffsetYears: Number.POSITIVE_INFINITY }],
-    ['equal thresholds', { developmentFromPhvOffsetYears: 2.5 }],
+    ['equal thresholds', { developmentFromPhvOffsetYears: 2.7 }],
     ['reversed thresholds', { performanceFromPhvOffsetYears: 0 }],
     ['negative margin', { uncertaintyMarginYears: -1 }],
     ['fractional cap', { maxStageStepsFromCategory: 0.5 }],
@@ -314,30 +314,50 @@ describe('default params', () => {
     ).toBe(2);
   });
 
-  // Average boy: age at PHV ≈ 13.8. Mid-band chronological ages (age in
-  // season year − 0.5) should land on the band's default stage.
-  it.each(DEFAULT_AGE_BANDS.map((b) => [b.label, b] as const))(
-    'an average-maturing %s boy keeps the stage of the band',
-    (_, band) => {
-      const midAge = (band.minAgeInSeasonYear + band.maxAgeInSeasonYear) / 2 - 0.5;
-      const result = auto(band.defaultStage, midAge - 13.8);
+  // A band spans the age reached in the season year: on the club day an M14
+  // is from 13 years + 1 day (born on 31 Dec, on 1 Jan) to 15 years − 1 day
+  // (born on 1 Jan, on 31 Dec). An average maturer (age at PHV ≈ 13.8 for
+  // boys, ≈ 11.8 for girls) must keep the band's stage on every one of those
+  // days, so check the youngest, mid and oldest age of each band.
+  const ONE_DAY_YEARS = 1 / 365.25;
+  const bandAges = DEFAULT_AGE_BANDS.flatMap((band) => {
+    const youngest = band.minAgeInSeasonYear - 1 + ONE_DAY_YEARS;
+    const oldest = band.maxAgeInSeasonYear + 1 - ONE_DAY_YEARS;
+    return [
+      [band.label, 'youngest', youngest, band] as const,
+      [band.label, 'mid', (youngest + oldest) / 2, band] as const,
+      [band.label, 'oldest', oldest, band] as const,
+    ];
+  });
+
+  it.each(bandAges)(
+    'an average-maturing %s boy keeps the stage of the band (%s age)',
+    (_, __, age, band) => {
+      const result = auto(band.defaultStage, age - 13.8);
       expect(result.stage).toBe(band.defaultStage);
       expect(result.basis).toBe('category');
     },
   );
 
-  it.each(DEFAULT_AGE_BANDS.map((b) => [b.label, b] as const))(
-    'an average-maturing %s girl keeps the stage of the band',
-    (_, band) => {
-      const midAge = (band.minAgeInSeasonYear + band.maxAgeInSeasonYear) / 2 - 0.5;
+  it.each(bandAges)(
+    'an average-maturing %s girl keeps the stage of the band (%s age)',
+    (_, __, age, band) => {
       const result = auto(
         band.defaultStage,
-        midAge - 11.8,
+        age - 11.8,
         DEFAULT_STAGE_ASSIGNMENT_PARAMS_BY_SEX.female,
       );
       expect(result.stage).toBe(band.defaultStage);
+      expect(result.basis).toBe('category');
     },
   );
+
+  it('moves a boy who matures a little earlier or later than average', () => {
+    // The oldest M14 with PHV at 13.6 (offset ≈ 1.4) moves up; the youngest
+    // M15 with PHV at 14.0 (offset ≈ 0.0) moves down.
+    expect(auto('foundation', 15 - ONE_DAY_YEARS - 13.6).stage).toBe('development');
+    expect(auto('development', 14 + ONE_DAY_YEARS - 14.0).stage).toBe('foundation');
+  });
 });
 
 describe('activeStagePin', () => {

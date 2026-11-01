@@ -83,7 +83,7 @@ export const esAR = {
   'stageReason.pinned': 'Fijada a mano por el staff',
   'stageReason.no_maturation_estimate': 'Por categoría: no hay estimación de maduración',
   'stageReason.maturation_estimate_stale':
-    'Por categoría: la última estimación de maduración tiene más de un año',
+    'Por categoría: la última estimación de maduración está desactualizada',
   'stageReason.maturation_estimate_after_date':
     'Por categoría: la estimación de maduración es posterior a esta fecha',
   'stageReason.maturation_matches_category': 'La maduración coincide con la categoría',

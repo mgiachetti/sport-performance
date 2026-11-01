@@ -39,15 +39,18 @@ export interface StageAssignmentParams {
 }
 
 /**
- * Default parameters for boys. Thresholds sit where the average maturer
- * (age at PHV ≈ 13.8 years, Mirwald 2002) crosses from M14 to M15 (offset
- * ≈ +0.5) and from M16 to M17 (offset ≈ +2.5), so a player of average
- * maturation keeps the stage of their category and only early or late
- * maturers (by about a year or more, with the margin) move.
+ * Default parameters for boys. A band spans the age reached in the season
+ * year, so an M14 is 13.0 to 15.0 years old on the club day and the average
+ * maturer (age at PHV ≈ 13.8 years, Mirwald 2002) runs from offset −0.8 to
+ * +1.2 within it. With the 0.5-year margin, the thresholds 0.7 and 2.7 put
+ * the "move up" points at +1.2 and +3.2 and the "move down" points at +0.2
+ * and +2.2: exactly the edges of the M13–M14 / M15–M16 / M17+ age ranges for
+ * an average maturer. So an average maturer keeps the stage of their category
+ * on every day of every band, and only early or late maturers move.
  */
 export const DEFAULT_MALE_STAGE_ASSIGNMENT_PARAMS = {
-  developmentFromPhvOffsetYears: 0.5,
-  performanceFromPhvOffsetYears: 2.5,
+  developmentFromPhvOffsetYears: 0.7,
+  performanceFromPhvOffsetYears: 2.7,
   uncertaintyMarginYears: 0.5,
   maxStageStepsFromCategory: 1,
   maxPhvOffsetEstimateAgeDays: 365,
@@ -59,8 +62,8 @@ export const DEFAULT_MALE_STAGE_ASSIGNMENT_PARAMS = {
  * staff and the female maturation work (B-805).
  */
 export const DEFAULT_FEMALE_STAGE_ASSIGNMENT_PARAMS = {
-  developmentFromPhvOffsetYears: 2.5,
-  performanceFromPhvOffsetYears: 4.5,
+  developmentFromPhvOffsetYears: 2.7,
+  performanceFromPhvOffsetYears: 4.7,
   uncertaintyMarginYears: 0.5,
   maxStageStepsFromCategory: 1,
   maxPhvOffsetEstimateAgeDays: 365,
@@ -75,9 +78,11 @@ export const DEFAULT_STAGE_ASSIGNMENT_PARAMS_BY_SEX: Readonly<Record<Sex, StageA
 
 /**
  * Plausible range of a maturity offset (years from PHV) for a youth player.
- * Values outside are rejected as input errors, not clamped.
+ * Values outside are rejected as input errors, not clamped. The upper bound
+ * covers the oldest M19 girl (almost 20 years old) maturing a year or more
+ * earlier than average (age at PHV ≈ 11.8): offset ≈ 8–9.
  */
-export const PHV_OFFSET_YEARS_RANGE = { min: -6, max: 8 } as const;
+export const PHV_OFFSET_YEARS_RANGE = { min: -6, max: 10 } as const;
 
 /**
  * Validates a set of parameters and returns it unchanged. Throws
