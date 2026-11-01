@@ -60,6 +60,34 @@ Las unidades van en los nombres y no en tipos branded por magnitud (`Cm`, `Kg`):
 - **Cargas máximas (principio 3):** una fijación o un tope de 2 pasos pueden poner a un M13/M14 en `performance`, pero los tests máximos con carga también dependen de la categoría (`AgeBand.maximalLoadTestsForPlayers`, falso en M13/M14). Los protocolos de test usan `maximalLoadTestsAllowed(stage, ageBand)` y `strengthAssessmentFor(stage, ageBand)` (que baja un 1RM directo a estimado), nunca `STAGE_PROFILES[stage]` solo.
 - **Bio-banding:** esquemas como datos, por offset de PHV (`DEFAULT_PHV_OFFSET_BIO_BANDING`: pre < −1, circa −1 a < +1, post ≥ +1) o por % de talla adulta predicha (`DEFAULT_PCT_ADULT_HEIGHT_BIO_BANDING`, Cumming et al. 2017: < 85, 85–90, 90–95, ≥ 95). `bioBandFor` da la banda de un valor (valida el esquema en cada llamada; `createBioBandLookup(scheme)` lo valida una vez) y `groupByBioBand` agrupa jugadores en el orden del esquema, con los que no tienen dato (`null`/`undefined`) en `unbanded`; un `NaN` o infinito es un error y aborta todo el agrupamiento. `parseBioBandScheme` exige bandas contiguas, sin huecos ni solapamientos y abiertas en los extremos.
 - El cálculo del offset y del % de talla adulta es de B-203; este módulo recibe los números.
+## Carga de entrenamiento (B-202, `src/load/`)
+
+| Función | Qué calcula |
+|---|---|
+| `sessionRpeLoadAu({ rpe, durationMin })` | `sRPE = RPE × minutos` (UA, `srpe_au`). RPE CR-10 en [0, 10] (admite medios puntos), duración en [0, 1440] min. |
+| `dailyLoadsFromSessions`, `fillDailyLoads` | Suma las sesiones de cada día del club y rellena con 0 los días sin datos (`hasData: false`). Un descanso registrado es `loadAu: 0, hasData: true`. |
+| `ewmaLambda`, `ewmaSeriesAu`, `acuteChronicWorkloadRatio` | EWMA (Williams et al. 2017): `EWMA_hoy = carga_hoy·λ + (1−λ)·EWMA_ayer`, `λ = 2/(N+1)`; `ACWR = aguda / crónica` (`null` si la crónica es 0). |
+| `fosterMonotony` | Monotonía de Foster = media diaria / desvío (los días sin carga cuentan como 0); strain = carga de la ventana × monotonía. Con desvío 0 (todos los días iguales) monotonía y strain son `null`, nunca `Infinity`. |
+| `computeLoadSeries` | Serie diaria de un jugador: EWMA aguda y crónica, ACWR con estado, días sin datos por ventana y monotonía/strain móviles. |
+| `isoWeekLoadSummaries` | Carga semanal, monotonía y strain por semana ISO (lunes a domingo). |
+
+**Parámetros** (`DEFAULT_LOAD_PARAMETERS`; por club con `resolveLoadParameters(json)`, que valida, rechaza claves desconocidas y completa con los valores por defecto):
+
+| Parámetro | Defecto | Nota |
+|---|---|---|
+| `acuteWindowDays` | 7 | `N` de la EWMA aguda. |
+| `chronicWindowDays` | 28 | `N` de la EWMA crónica; mayor que la aguda. |
+| `minHistoryDays` | 28 | Con menos días de historia el ACWR es `insufficient_history`: no se informa y no dispara alertas (B-207). |
+| `ewmaSeed` | `first_day` | La EWMA del primer día es la carga de ese día. `zero` arranca desde 0 (subestima la crónica durante semanas). |
+| `monotonyWindowDays` | 7 | Ventana móvil de monotonía y strain. |
+| `monotonyStandardDeviation` | `sample` | Desvío muestral (`n − 1`, el `DESVEST` de las planillas); `population` divide por `n`. |
+
+**Historia y días sin datos:**
+
+- La historia empieza el primer día con carga o en `historyStart` (inicio del monitoreo, si se conoce). `historyDays` cuenta ese día como 1. Los días previos devuelven 0 con `insufficient_history`.
+- Los días sin datos cuentan como carga 0 en la EWMA y en la monotonía (Foster); `missingDaysInAcuteWindow` y `missingDaysInChronicWindow` permiten mostrar la cobertura y no confiar en un ACWR armado con pocas respuestas.
+- Monotonía y strain solo se informan cuando la ventana completa está dentro de la historia (`monotonyStatus`). La semana ISO que empieza antes de la historia o termina después de `to` es `incomplete_week` (se informa el total de los días conocidos).
+- El día de cada sesión se calcula afuera con `localDateInTimeZone` en la zona del club.
 
 ## Extender
 
