@@ -126,3 +126,17 @@ export {
   type LocalDayBounds,
   type TimeZone,
 } from './time.js';
+
+export {
+  DEFAULT_PLAUSIBLE_AGE_GROUP_BOUNDS_YEARS,
+  DEFAULT_PLAUSIBLE_RANGES,
+  checkPlausibleValue,
+  createPlausibilityChecker,
+  mergePlausibleRanges,
+  validatePlausibleRanges,
+  type PlausibilityChecker,
+  type PlausibilityInput,
+  type PlausibilityResult,
+  type PlausibleBounds,
+  type PlausibleRange,
+} from './plausibility/index.js';
