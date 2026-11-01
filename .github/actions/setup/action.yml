@@ -1,0 +1,25 @@
+name: Setup workspace
+description: >-
+  Installs Node (from .nvmrc) and pnpm (from packageManager), restores the pnpm store,
+  runs a frozen install and restores the local Turborepo cache for the calling job.
+
+runs:
+  using: composite
+  steps:
+    # Node version comes from .nvmrc, pnpm version from package.json#packageManager.
+    # `require-lockfile` runs `pnpm install --frozen-lockfile`: CI fails if the lockfile is stale.
+    - name: Setup pnpm and Node
+      uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+      with:
+        cache: true
+        require-lockfile: true
+
+    # One cache entry per job and commit; a new commit falls back to the job's latest entry,
+    # so untouched packages are Turborepo cache hits.
+    - name: Restore Turborepo cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: .turbo/cache
+        key: turbo-${{ runner.os }}-${{ github.job }}-${{ github.sha }}
+        restore-keys: |
+          turbo-${{ runner.os }}-${{ github.job }}-
