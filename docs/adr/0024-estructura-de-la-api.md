@@ -1,4 +1,4 @@
-# 0023. Estructura de la API: transacción con contexto de tenant, errores, probes y apagado
+# 0024. Estructura de la API: transacción con contexto de tenant, errores, probes y apagado
 
 - Estado: Aceptado
 - Fecha: 2026-11-01
