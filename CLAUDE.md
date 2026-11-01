@@ -100,9 +100,9 @@ Códigos canónicos: `dist_m`, `dist_m_min`, `hsr_abs_m` (> 5,5 m/s por defecto 
 | Tema | Decisión | ADR |
 |---|---|---|
 | Lenguaje | TypeScript estricto en todo (salvo `firmware/`) | [0002](docs/adr/0002-typescript-estricto.md) |
-| Monorepo | pnpm workspaces + Turborepo. `apps/{api,worker,web,mobile}`, `packages/{domain,contracts,ui-tokens,i18n,config}`, `mockups/`, `assets/`, `firmware/`, `docs/` | [0001](docs/adr/0001-monorepo-tooling.md) |
+| Monorepo | pnpm workspaces + Turborepo. `apps/{api,worker,web,mobile}`, `packages/{domain,contracts,db,ui-tokens,i18n,config}`, `mockups/`, `assets/`, `firmware/`, `docs/` | [0001](docs/adr/0001-monorepo-tooling.md) |
 | Infra | Railway (no Supabase: Postgres estándar, sin auth ni helpers de RLS del proveedor): Postgres con HA y PITR, API, worker, web, buckets S3-compatibles. Ambientes `staging` y `production` | [0003](docs/adr/0003-infra-railway.md) |
-| DB | PostgreSQL. Drizzle ORM + migraciones SQL versionadas; datos de referencia como seeds | [0004](docs/adr/0004-postgres-drizzle.md) |
+| DB | PostgreSQL 16. Drizzle ORM + migraciones SQL versionadas en `packages/db`; datos de referencia como seeds; FK compuestas `(club_id, id)` y auditoría en toda tabla del club | [0004](docs/adr/0004-postgres-drizzle.md), [0023](docs/adr/0023-convenciones-del-esquema-de-base.md) |
 | Pod (Fase 3) | Sin TimescaleDB: el crudo del pod va a storage como archivo inmutable, a Postgres solo métricas derivadas | [0005](docs/adr/0005-pod-crudo-en-storage.md) |
 | Multi-tenant | `club_id` en **todas** las tablas + Row Level Security. La API abre una transacción por request y hace `SET LOCAL app.club_id / app.user_id / app.role`; las políticas usan funciones propias `app.current_club_id()`, `app.current_user_id()`, `app.current_role()`, nunca funciones de un proveedor | [0006](docs/adr/0006-multi-tenant-rls.md) |
 | Usuarios | Usuario global con membresías por club (rol por club); selector de club si tiene más de una | [0007](docs/adr/0007-usuarios-globales-membresias.md) |
