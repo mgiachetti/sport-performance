@@ -149,7 +149,6 @@ export * from './alerts/index.js';
 // Speed zones (B-209).
 export * from './speed-zones/index.js';
 export * from './exposure/index.js';
-export * from './percentiles/index.js';
 // Percentiles by group and first-team references (B-208).
 export {
   SUMMARY_PERCENTILES,
