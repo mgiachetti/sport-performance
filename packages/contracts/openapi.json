@@ -1,0 +1,382 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Sport Performance API",
+    "version": "0.1.0",
+    "description": "API de Sport Performance. Generado desde `@sport-performance/contracts`; no editar a mano."
+  },
+  "tags": [
+    {
+      "name": "system",
+      "description": "Estado del servicio."
+    },
+    {
+      "name": "clubs",
+      "description": "Clubes y su marca (white-label)."
+    }
+  ],
+  "paths": {
+    "/v1/clubs/{clubSlug}/theme": {
+      "get": {
+        "operationId": "getClubTheme",
+        "summary": "Tema del club",
+        "description": "Público: la web y la app lo piden antes del login para mostrar la marca del club. No expone datos de personas.",
+        "tags": [
+          "clubs"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "clubSlug",
+            "in": "path",
+            "required": true,
+            "description": "Slug del club, único entre tenants.",
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 63,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "examples": [
+                "orc"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tema del club.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClubTheme"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Estado del servicio",
+        "description": "Lo usan Railway y los monitores. Responde `503 service_unavailable` si una dependencia (base de datos) no responde.",
+        "tags": [
+          "system"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Servicio operativo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error: `service_unavailable`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ClubBrandColors": {
+        "type": "object",
+        "properties": {
+          "primary": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "description": "Color de marca principal.",
+            "examples": [
+              "#F1882A"
+            ]
+          },
+          "onPrimary": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "description": "Texto e íconos sobre `primary` (contraste AA).",
+            "examples": [
+              "#050505"
+            ]
+          },
+          "secondary": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "description": "Color de marca secundario.",
+            "examples": [
+              "#050505"
+            ]
+          },
+          "onSecondary": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "description": "Texto e íconos sobre `secondary` (contraste AA).",
+            "examples": [
+              "#F3EEE7"
+            ]
+          }
+        },
+        "required": [
+          "primary",
+          "onPrimary",
+          "secondary",
+          "onSecondary"
+        ]
+      },
+      "ClubTheme": {
+        "type": "object",
+        "properties": {
+          "clubId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de club (UUID, RFC 9562)."
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 63,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "description": "Slug del club, único entre tenants.",
+            "examples": [
+              "orc"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Nombre completo.",
+            "examples": [
+              "Olivos Rugby Club"
+            ]
+          },
+          "shortName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16,
+            "description": "Sigla para espacios chicos.",
+            "examples": [
+              "ORC"
+            ]
+          },
+          "logoUrl": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Escudo (HTTPS, SVG o PNG); `null` si el club no cargó uno."
+          },
+          "colors": {
+            "$ref": "#/components/schemas/ClubBrandColors"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Última modificación; sirve para invalidar el tema cacheado.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          }
+        },
+        "required": [
+          "clubId",
+          "slug",
+          "name",
+          "shortName",
+          "logoUrl",
+          "colors",
+          "updatedAt"
+        ],
+        "description": "Marca del club para aplicar el tema en runtime."
+      },
+      "ErrorBody": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode"
+          },
+          "message": {
+            "type": "string",
+            "description": "Detalle para desarrolladores; no se muestra al usuario."
+          },
+          "requestId": {
+            "description": "Id del request, para cruzar con logs y Sentry.",
+            "type": "string",
+            "minLength": 1
+          },
+          "details": {
+            "description": "Problemas por campo cuando `code` es `validation_failed`.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationIssue"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "ErrorCode": {
+        "type": "string",
+        "enum": [
+          "bad_request",
+          "validation_failed",
+          "unauthenticated",
+          "forbidden",
+          "not_found",
+          "conflict",
+          "rate_limited",
+          "internal_error",
+          "service_unavailable"
+        ],
+        "description": "Código estable del error. La UI lo traduce; los clientes deben tolerar códigos nuevos."
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "description": "Sobre único de error de la API."
+      },
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok"
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Versión desplegada (semver o sha del commit).",
+            "examples": [
+              "a1b2c3d"
+            ]
+          },
+          "time": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Hora del servidor (UTC).",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "version",
+          "time"
+        ],
+        "description": "El servicio está vivo y sus dependencias responden."
+      },
+      "ValidationIssue": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              ]
+            },
+            "description": "Ruta al campo, p. ej. `[\"body\", \"weightKg\"]`."
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Código del problema (códigos de issue de zod)."
+          },
+          "message": {
+            "type": "string",
+            "description": "Detalle para desarrolladores."
+          }
+        },
+        "required": [
+          "path",
+          "code",
+          "message"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "session": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Sesión de Better Auth: cookie en la web, token bearer en mobile. Se detalla con la autenticación."
+      }
+    }
+  }
+}
