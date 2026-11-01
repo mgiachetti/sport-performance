@@ -110,6 +110,17 @@ describe('compareToFirstTeamReference', () => {
     expect(c.methodMismatch).toBe(false);
   });
 
+  it('keeps the differencePct sign aligned with differenceAbs for a negative reference', () => {
+    const c = compareToFirstTeamReference(
+      { value: -5, unit: 'cm' },
+      ref({ value: -10 }),
+      'higher_is_better',
+    );
+    expect(c.differenceAbs).toBe(5);
+    expect(c.differencePct).toBeCloseTo(50);
+    expect(c.valuePctOfReference).toBeCloseTo(50);
+  });
+
   it('compares a lower-is-better value', () => {
     const reference = ref({ metricCode: T40, unit: 's', value: 5.0 });
     const faster = compareToFirstTeamReference(

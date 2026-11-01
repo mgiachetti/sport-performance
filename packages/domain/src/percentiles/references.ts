@@ -93,9 +93,18 @@ export interface ReferenceComparison {
   readonly scope: ReferenceScope;
   /** `value − reference`, in the metric's unit. */
   readonly differenceAbs: number;
-  /** `(value − reference) / reference × 100`; `null` when the reference is 0. */
+  /**
+   * `(value − reference) / |reference| × 100`; `null` when the reference is 0.
+   * The base is the absolute reference so the sign always matches
+   * `differenceAbs` (positive: above the reference), even for a negative
+   * reference (an asymmetry or a change can be negative).
+   */
   readonly differencePct: number | null;
-  /** `value / reference × 100`; `null` when the reference is 0. */
+  /**
+   * Plain ratio `value / reference × 100`, signed; `null` when the reference
+   * is 0. Meaningful for positive magnitudes (heights, times, distances); for
+   * a negative reference prefer `differencePct`.
+   */
   readonly valuePctOfReference: number | null;
   /**
    * Whether the value reaches the reference by the metric direction

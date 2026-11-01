@@ -2,7 +2,7 @@ import type { MetricCode, MetricDirection } from '../codes.js';
 import { memberGuard } from '../enum.js';
 import { DomainValidationError, describeValue } from '../errors.js';
 import type { PlayerId } from '../ids.js';
-import type { MeasurementMethod } from '../measurement.js';
+import { isMeasurementMethod, type MeasurementMethod } from '../measurement.js';
 import type { Sex } from '../sex.js';
 import type { Sport } from '../sport.js';
 import { compareLocalDates, type LocalDate } from '../time.js';
@@ -36,8 +36,10 @@ export const isPlayerAggregation = memberGuard(PLAYER_AGGREGATIONS);
 
 /**
  * Which measurement methods enter the group (product principle 4):
- * - `same_method`: only results measured with the subject's method.
- * - `any_method`: every method; the result flags `mixedMethods` so the UI warns.
+ * - `same_method`: only results measured with the subject's method. Needs a
+ *   subject with a known `method`.
+ * - `any_method`: every method; the result flags `mixedMethods` so the UI warns
+ *   whenever the group and the subject do not share one single known method.
  */
 export const METHOD_POLICIES = ['same_method', 'any_method'] as const;
 export type MethodPolicy = (typeof METHOD_POLICIES)[number];
@@ -56,7 +58,11 @@ export interface PercentileGrouping {
 
 /** Club-configurable percentile parameters. Defaults in {@link DEFAULT_PERCENTILE_SETTINGS}. */
 export interface PercentileSettings {
-  /** Minimum distinct players (subject included) for a percentile to be reported. */
+  /**
+   * Minimum distinct players in the group for a percentile to be reported. A
+   * subject with `playerId` counts as one of them; a subject without it (a
+   * first-team value) does not join the group, so it is not counted.
+   */
   readonly minSampleSize: number;
   /**
    * Fallback chain, tried in order: the first grouping that reaches
@@ -97,6 +103,7 @@ export interface PercentileSample {
   readonly positionCode?: string;
   /** Line of the position (`forwards`); see `lineForPosition`. */
   readonly lineCode?: string;
+  /** Integer season year; anything else is rejected with `invalid_argument`. */
   readonly seasonYear: number;
   readonly measuredOn: LocalDate;
   readonly method: MeasurementMethod;
@@ -109,6 +116,10 @@ export interface PercentileSample {
  * of the group: their other results are left out and they count once, with
  * `value`. Without it (a first-team value, a target), `value` is ranked
  * against the group without joining it.
+ *
+ * `method` may be omitted when it is unknown (for example, a first-team
+ * reference loaded without it): that needs the `any_method` policy, and the
+ * comparison is then always flagged `mixedMethods`.
  */
 export interface PercentileSubject {
   readonly playerId?: PlayerId;
@@ -119,7 +130,13 @@ export interface PercentileSubject {
   readonly positionCode?: string;
   readonly lineCode?: string;
   readonly seasonYear: number;
-  readonly method: MeasurementMethod;
+  /**
+   * Date of the value being placed. When given, samples measured after it are
+   * left out, so a historical percentile is reproducible (otherwise later
+   * results of the same season enter the group).
+   */
+  readonly asOf?: LocalDate;
+  readonly method?: MeasurementMethod;
   readonly value: number;
 }
 
@@ -140,8 +157,16 @@ export interface PercentileGroup {
   readonly seasonFrom: number;
   readonly seasonTo: number;
   readonly values: readonly number[];
-  /** Distinct methods in the group, sorted. */
+  /**
+   * Distinct known methods of the comparison, sorted: those of the group plus
+   * the subject's, even when the subject does not join the group.
+   */
   readonly methods: readonly MeasurementMethod[];
+  /**
+   * The comparison may mix methods (principle 4): more than one entry in
+   * `methods`, or a subject whose method is unknown compared with a non-empty
+   * group. The UI must warn.
+   */
   readonly mixedMethods: boolean;
 }
 
@@ -192,6 +217,13 @@ export function buildPercentileGroup(
   if (!isMethodPolicy(options.methodPolicy)) {
     throw invalid('methodPolicy', options.methodPolicy);
   }
+  if (options.methodPolicy === 'same_method' && subject.method === undefined) {
+    throw new DomainValidationError(
+      'invalid_argument',
+      'methodPolicy "same_method" needs a subject with a known method; use "any_method".',
+      subject,
+    );
+  }
 
   const dims = new Set(grouping.dimensions);
   if (dims.has('position') && subject.positionCode === undefined) return 'missing_dimension';
@@ -202,9 +234,13 @@ export function buildPercentileGroup(
 
   const byPlayer = new Map<PlayerId, PercentileSample[]>();
   for (const sample of samples) {
+    if (!Number.isInteger(sample.seasonYear)) throw invalid('sample.seasonYear', sample.seasonYear);
     if (sample.playerId === subject.playerId) continue;
     if (sample.metricCode !== subject.metricCode || sample.sport !== subject.sport) continue;
     if (sample.seasonYear < seasonFrom || sample.seasonYear > seasonTo) continue;
+    if (subject.asOf !== undefined && compareLocalDates(sample.measuredOn, subject.asOf) > 0) {
+      continue;
+    }
     if (dims.has('sex') && sample.sex !== subject.sex) continue;
     if (dims.has('category') && sample.categoryCode !== subject.categoryCode) continue;
     if (dims.has('position') && sample.positionCode !== subject.positionCode) continue;
@@ -222,19 +258,20 @@ export function buildPercentileGroup(
     values.push(aggregatePlayer(playerSamples, aggregation, options.direction));
     for (const s of playerSamples) methods.add(s.method);
   }
-  if (subject.playerId !== undefined) {
-    values.push(subject.value);
-    methods.add(subject.method);
-  }
+  if (subject.playerId !== undefined) values.push(subject.value);
+  // The subject's method is part of the comparison even when the subject does
+  // not join the group (a first-team value placed in a youth group).
+  if (subject.method !== undefined) methods.add(subject.method);
 
   const sortedMethods = [...methods].sort();
+  const unknownSubjectMethod = subject.method === undefined && byPlayer.size > 0;
   return {
     grouping,
     seasonFrom,
     seasonTo,
     values,
     methods: sortedMethods,
-    mixedMethods: sortedMethods.length > 1,
+    mixedMethods: sortedMethods.length > 1 || unknownSubjectMethod,
   };
 }
 
@@ -386,6 +423,9 @@ function assertSubject(subject: PercentileSubject): void {
   assertFinite(subject.value, 'subject.value');
   if (!Number.isInteger(subject.seasonYear)) {
     throw invalid('subject.seasonYear', subject.seasonYear);
+  }
+  if (subject.method !== undefined && !isMeasurementMethod(subject.method)) {
+    throw invalid('subject.method', subject.method);
   }
 }
 

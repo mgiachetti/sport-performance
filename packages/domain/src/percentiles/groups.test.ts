@@ -156,6 +156,49 @@ describe('buildPercentileGroup', () => {
     expect(any.methods).toEqual(['app', 'photocell']);
   });
 
+  it('flags a non-player subject measured with another method (principle 4)', () => {
+    const samples = Array.from({ length: 12 }, (_, i) =>
+      sample(i + 1, 30 + i, { method: 'manual' }),
+    );
+    const reference = { ...omit(subject, 'playerId'), method: 'photocell' as const };
+    const g = group(samples, undefined, reference, { ...groupOptions, methodPolicy: 'any_method' });
+    expect(g.values).toHaveLength(12);
+    expect(g.methods).toEqual(['manual', 'photocell']);
+    expect(g.mixedMethods).toBe(true);
+  });
+
+  it('does not flag a non-player subject measured with the group method', () => {
+    const reference = omit(subject, 'playerId');
+    const g = group([sample(1, 30), sample(2, 31)], undefined, reference, {
+      ...groupOptions,
+      methodPolicy: 'any_method',
+    });
+    expect(g.methods).toEqual(['app']);
+    expect(g.mixedMethods).toBe(false);
+  });
+
+  it('accepts a subject with unknown method only under any_method, and flags it', () => {
+    const unknown = omit(subject, 'playerId', 'method');
+    const anyMethod = { ...groupOptions, methodPolicy: 'any_method' } as const;
+    const g = group([sample(1, 30), sample(2, 31)], undefined, unknown, anyMethod);
+    expect(g.values).toEqual([30, 31]);
+    expect(g.methods).toEqual(['app']);
+    expect(g.mixedMethods).toBe(true);
+    expect(group([], undefined, unknown, anyMethod).mixedMethods).toBe(false);
+    expect(() => group([sample(1, 30)], undefined, unknown)).toThrow(DomainValidationError);
+  });
+
+  it('leaves out samples measured after asOf', () => {
+    const samples = [
+      sample(1, 30, { measuredOn: parseLocalDate('2026-03-01') }),
+      sample(2, 31, { measuredOn: parseLocalDate('2026-05-01') }),
+      sample(3, 32, { measuredOn: parseLocalDate('2026-09-01') }),
+    ];
+    const asOf = { ...subject, asOf: parseLocalDate('2026-05-01') };
+    expect(group(samples, undefined, asOf).values).toEqual([30, 31, 40]);
+    expect(group(samples).values).toEqual([30, 31, 32, 40]);
+  });
+
   it('reports missing_dimension when the subject lacks it, and drops samples lacking it', () => {
     const noPosition = omit(subject, 'positionCode', 'lineCode');
     expect(buildPercentileGroup([], noPosition, oneSeason('position'), groupOptions)).toBe(
@@ -188,6 +231,11 @@ describe('buildPercentileGroup', () => {
       DomainValidationError,
     );
     expect(() => group([], undefined, { ...subject, seasonYear: 2026.5 })).toThrow(
+      DomainValidationError,
+    );
+    expect(() => group([sample(1, 30, { seasonYear: Number.NaN })])).toThrow(DomainValidationError);
+    expect(() => group([sample(1, 30, { seasonYear: 2025.5 })])).toThrow(DomainValidationError);
+    expect(() => group([], undefined, { ...subject, method: 'laser' as never })).toThrow(
       DomainValidationError,
     );
   });
