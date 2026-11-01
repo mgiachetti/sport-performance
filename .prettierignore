@@ -1,0 +1,10 @@
+pnpm-lock.yaml
+node_modules/
+dist/
+coverage/
+.turbo/
+.claude/
+mockups/
+assets/
+# Markdown is hand-written prose; padded tables hurt readability and diffs.
+*.md

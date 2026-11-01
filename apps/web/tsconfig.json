@@ -1,0 +1,7 @@
+{
+  "extends": "@sport-performance/config/tsconfig/bundler.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src", "vitest.config.ts"]
+}

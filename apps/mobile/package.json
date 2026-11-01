@@ -1,0 +1,25 @@
+{
+  "name": "@sport-performance/mobile",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Player and staff mobile app (Expo / React Native, offline-first).",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@sport-performance/contracts": "workspace:*",
+    "@sport-performance/domain": "workspace:*",
+    "@sport-performance/i18n": "workspace:*",
+    "@sport-performance/ui-tokens": "workspace:*"
+  },
+  "devDependencies": {
+    "@sport-performance/config": "workspace:*",
+    "@types/node": "26.6.6",
+    "eslint": "10.14.0",
+    "typescript": "6.0.3",
+    "vitest": "5.0.5"
+  }
+}
