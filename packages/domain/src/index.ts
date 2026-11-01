@@ -149,3 +149,4 @@ export * from './alerts/index.js';
 // Speed zones (B-209).
 export * from './speed-zones/index.js';
 export * from './exposure/index.js';
+export * from './percentiles/index.js';

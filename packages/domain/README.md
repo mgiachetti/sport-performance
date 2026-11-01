@@ -162,6 +162,17 @@ const { alerts, skipped } = evaluateAlertRules(rules, {
 ## Exposición y lesiones (B-210)
 
 `src/exposure/`: horas de exposición (entrenamiento y partido) desde los minutos de participación e incidencia de lesiones por 1000 h con intervalo de Poisson exacto y carga lesional (días perdidos por 1000 h), según Fuller et al. 2007 y el consenso del IOC 2020. Definición de caso (`time_loss` o `medical_attention`) y demás parámetros con valores por defecto como datos (`DEFAULT_INJURY_INCIDENCE_PARAMS`). Detalle en [`src/exposure/README.md`](src/exposure/README.md).
+## Percentiles y referencias de primera (B-208)
+
+Módulo `src/percentiles/`. Todo entra por parámetro (muestras, referencias, configuración); los valores por defecto son datos listos para el seed.
+
+- **Grupo de comparación.** `PercentileGrouping` elige dimensiones (`sex`, `category`, `line`, `position`) y temporadas acumuladas (`seasonsAccumulated`: ventana `[temporada − n + 1, temporada]`, nunca temporadas posteriores). Deporte y métrica siempre se igualan. Las muestras sin la dimensión pedida quedan afuera; si el sujeto no la tiene, el agrupamiento se saltea (`missing_dimension`).
+- **Un valor por jugador.** Los resultados de un jugador en la ventana se agregan con `best` (según el sentido de mejora), `latest` (los del mismo día se promedian) o `mean`. Por defecto `best`, o `latest` en métricas neutrales. El jugador evaluado entra una sola vez, con el valor que se evalúa; un sujeto sin `playerId` (por ejemplo, un valor de primera) se ubica en el grupo sin sumarse.
+- **Métodos (principio 4).** `same_method` (por defecto) compara solo contra el mismo método; `any_method` compara contra todos y marca `mixedMethods`.
+- **Percentil.** Rango medio, `PR = (peores + 0,5 · empates) / N × 100`, respetando el sentido de mejora. `valueAtPercentile` interpola como `PERCENTILE.INC` (tipo 7) y `summarizeDistribution` da media, mínimo, máximo y P10…P90; en ambos P90 es siempre el extremo "mejor".
+- **Tamaño mínimo y respaldo.** `computePercentile` prueba los agrupamientos de `PercentileSettings.groupings` en orden y usa el primero con al menos `minSampleSize` jugadores distintos; si ninguno llega, devuelve `insufficient_sample` sin percentil. `DEFAULT_PERCENTILE_SETTINGS`: mínimo 10; posición → línea → línea con 3 temporadas → categoría y sexo con 3 temporadas, siempre con sexo y categoría. El resultado trae el `n` de cada intento y no expone identidades de otros jugadores.
+- **Referencias de primera.** `FirstTeamReference` (métrica, deporte, sexo, posición o línea opcional, valor, unidad, método, vigencia y fuente) es una entrada (B-004, B-321). `selectFirstTeamReference` elige la más específica (posición > línea > plantel) vigente a la fecha; `compareToFirstTeamReference` da diferencia absoluta y %, % de la referencia, si la alcanza según el sentido de mejora y si los métodos difieren; rechaza unidades distintas.
+- **Posiciones y líneas.** `DEFAULT_POSITION_LINES` mapea las posiciones de rugby a `forwards` / `backs`; `lineForPosition` acepta el mapeo del club. Hockey llega con M8.
 
 ## Extender
 
