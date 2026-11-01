@@ -1,0 +1,36 @@
+export {
+  MAX_ABSOLUTE_ZONE_SPEED_MS,
+  MAX_RELATIVE_ZONE_VMAX_PCT,
+  SPEED_ZONE_KINDS,
+  classifySpeedMs,
+  highSpeedThresholdMs,
+  isSpeedZoneKind,
+  parseSpeedZoneKind,
+  speedPctOfVmax,
+  speedZoneBandsMs,
+  validateSpeedZoneSet,
+  type AbsoluteSpeedZone,
+  type AbsoluteSpeedZoneSet,
+  type RelativeSpeedZone,
+  type RelativeSpeedZoneSet,
+  type SpeedZoneBand,
+  type SpeedZoneCode,
+  type SpeedZoneKind,
+  type SpeedZoneSet,
+  type SpeedZoneSetOfKind,
+} from './zones.js';
+export {
+  DEFAULT_ABSOLUTE_SPEED_ZONES,
+  DEFAULT_RELATIVE_SPEED_ZONES,
+  DEFAULT_SPEED_ZONE_SETS,
+} from './defaults.js';
+export {
+  findSpeedZoneConfigConflicts,
+  isSpeedZoneConfigValidOn,
+  resolveSpeedZoneConfig,
+  resolveSpeedZoneSet,
+  speedZoneConfigSpecificity,
+  validateSpeedZoneConfig,
+  type SpeedZoneConfig,
+  type SpeedZoneQuery,
+} from './config.js';
