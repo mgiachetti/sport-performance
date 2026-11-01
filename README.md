@@ -19,6 +19,7 @@ Plataforma de rendimiento para deportes juveniles (M13 a M19), white-label multi
 | `pnpm test` | Vitest en cada paquete |
 | `pnpm format` / `pnpm format:check` | Prettier en todo el repo |
 | `pnpm dev` | Modo watch de cada paquete |
+| `pnpm docs:check` | Valida los ADRs de `docs/adr/`, su índice y los enlaces desde `CLAUDE.md` |
 
 Todas las tareas pasan por Turborepo y se cachean. Para correr una tarea en un solo paquete: `pnpm turbo run test --filter=@sport-performance/domain`.
 
