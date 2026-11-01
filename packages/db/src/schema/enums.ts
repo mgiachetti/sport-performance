@@ -2,6 +2,8 @@ import {
   ALERT_RULE_KINDS,
   ALERT_SEVERITIES,
   ATTEMPT_AGGREGATIONS,
+  CONSENT_SIGNERS,
+  CONSENT_TYPES,
   EXPOSURE_CONTEXTS,
   MATURITY_OFFSET_EQUATIONS,
   MEASUREMENT_METHODS,
@@ -66,6 +68,10 @@ export const alertRuleKindEnum = pgEnum('alert_rule_kind', ALERT_RULE_KINDS);
 export const speedZoneKindEnum = pgEnum('speed_zone_kind', SPEED_ZONE_KINDS);
 export const stageBasisEnum = pgEnum('stage_basis', STAGE_BASES);
 export const stageReasonEnum = pgEnum('stage_reason', STAGE_REASONS);
+/** Kinds of consent (B-312): personal data, image (CMJ videos, photos) and health. */
+export const consentTypeEnum = pgEnum('consent_type', CONSENT_TYPES);
+/** Who signed a consent: a guardian, or the player once of age (B-311). */
+export const consentSignerEnum = pgEnum('consent_signer', CONSENT_SIGNERS);
 export const maturityOffsetEquationEnum = pgEnum(
   'maturity_offset_equation',
   MATURITY_OFFSET_EQUATIONS,
@@ -90,14 +96,6 @@ export const metricDirectionEnum = pgEnum('metric_direction', METRIC_DIRECTIONS)
 // ---------------------------------------------------------------------------
 // Vocabularies that only exist in the database for now.
 // ---------------------------------------------------------------------------
-
-/** Kinds of consent (B-312): personal data, image (CMJ videos, photos) and health. */
-export const CONSENT_TYPES = ['data', 'image', 'health'] as const;
-export const consentTypeEnum = pgEnum('consent_type', CONSENT_TYPES);
-
-/** Who signed a consent: a guardian, or the player once of age (B-311). */
-export const CONSENT_SIGNERS = ['guardian', 'player'] as const;
-export const consentSignerEnum = pgEnum('consent_signer', CONSENT_SIGNERS);
 
 /** Relationship of a guardian with the player (B-310). */
 export const GUARDIAN_RELATIONSHIPS = ['mother', 'father', 'legal_guardian', 'other'] as const;
