@@ -1,4 +1,4 @@
-# 0020. Motor de reglas de alerta declarativo
+# 0022. Motor de reglas de alerta declarativo
 
 - Estado: Aceptado
 - Fecha: 2026-11-01

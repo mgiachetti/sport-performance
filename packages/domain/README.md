@@ -140,7 +140,7 @@ Antes de producción cada fila tiene que pasar a "contrastado con el paper" por 
 | Ejemplo trabajado de Khamis-Roche (p. 507) | — | [ ] | Agregarlo como test al acceder al artículo. Los tests usan los casos de control de vilda-calc. |
 ## Reglas de alerta (B-207, `src/alerts/`)
 
-Decisiones en [ADR 0020](../../docs/adr/0020-motor-de-reglas-de-alerta.md).
+Decisiones en [ADR 0022](../../docs/adr/0022-motor-de-reglas-de-alerta.md).
 
 ```ts
 const rules = parseAlertRuleSet(rowsFromAlertRuleTable); // unknown → AlertRule[] validado
