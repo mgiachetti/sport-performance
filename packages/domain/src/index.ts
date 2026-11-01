@@ -145,3 +145,4 @@ export * from './player-stage/index.js';
 export * from './physical-tests/index.js';
 export * from './load/index.js';
 export * from './maturation/index.js';
+export * from './alerts/index.js';

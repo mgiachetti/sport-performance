@@ -138,6 +138,27 @@ Antes de producción cada fila tiene que pasar a "contrastado con el paper" por 
 | Khamis-Roche 1994, varones (β0, β1, β2, β3) | vilda-calc, 2nk1/performance-monitor, DadosGPS/Ulisses-Dashboard, CRAN matuR | [ ] | β2 con los valores de la errata (×10 sobre la impresión de 1994, que es lo que trae matuR). |
 | Khamis-Roche 1994, mujeres (β0, β1, β2, β3) | vilda-calc, 2nk1/performance-monitor, CRAN matuR | [ ] | β0 a los 5,0 años: −5,13582 en dos fuentes, −5,13583 en una. |
 | Ejemplo trabajado de Khamis-Roche (p. 507) | — | [ ] | Agregarlo como test al acceder al artículo. Los tests usan los casos de control de vilda-calc. |
+## Reglas de alerta (B-207, `src/alerts/`)
+
+Decisiones en [ADR 0020](../../docs/adr/0020-motor-de-reglas-de-alerta.md).
+
+```ts
+const rules = parseAlertRuleSet(rowsFromAlertRuleTable); // unknown → AlertRule[] validado
+const { alerts, skipped } = evaluateAlertRules(rules, {
+  date, // LocalDate del club
+  sport, sex, stage, // para `appliesTo`
+  acwr: { ratio, historyDays }, // de B-202
+  wellness: [{ date, meanScore }], // meanWellnessScore(items) por día
+  cmj: { measurements: [{ date, heightCm }], baselineHeightCm }, // base fijada por el staff, opcional
+  growth: { velocityCmYear, measuredOn }, // de B-203
+});
+```
+
+- Una regla es JSON: `code`, `kind`, `enabled`, `appliesTo?` y `params` con umbrales por severidad (`null` si no se usa). `DEFAULT_ALERT_RULES` tiene los valores de CLAUDE.md y es la fuente del seed (B-306).
+- Cada regla da a lo sumo una alerta, con la severidad más alta alcanzada; las alertas vienen ordenadas (crítico primero, después el orden de las reglas).
+- Una alerta trae `messageKey` / `suggestionKey` (`alert.<kind>.*`, textos en `packages/i18n`) y `values` numéricos para interpolar. Sin texto de UI.
+- Lo que no se pudo evaluar va a `skipped` con motivo (`insufficient_history` con < 28 días de carga, `no_data`, `stale_data`, `no_variance`, `disabled`, `not_applicable`): faltar datos nunca es una alerta.
+- Los datos posteriores a `date` se ignoran, así se puede reevaluar un día pasado con la historia completa.
 
 ## Extender
 

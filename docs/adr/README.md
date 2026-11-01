@@ -25,6 +25,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0019](0019-i18n-y-formatos-es-ar.md) | i18n y formatos es-AR | Aceptado |
 | [0020](0020-convenciones-contratos-api.md) | Convenciones de los contratos de la API | Aceptado |
 | [0021](0021-seguridad-del-repo.md) | Seguridad del repositorio | Aceptado |
+| [0020](0020-motor-de-reglas-de-alerta.md) | Motor de reglas de alerta declarativo | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 
