@@ -5,6 +5,25 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | # | Título | Estado |
 |---|---|---|
 | [0001](0001-monorepo-tooling.md) | Monorepo y tooling | Aceptado |
+| [0002](0002-typescript-estricto.md) | TypeScript estricto en todo | Aceptado |
+| [0003](0003-infra-railway.md) | Infraestructura en Railway | Aceptado |
+| [0004](0004-postgres-drizzle.md) | PostgreSQL con Drizzle y migraciones SQL versionadas | Aceptado |
+| [0005](0005-pod-crudo-en-storage.md) | Crudo del pod en storage, sin TimescaleDB | Aceptado |
+| [0006](0006-multi-tenant-rls.md) | Multi-tenant con `club_id` y RLS sobre funciones propias `app.*` | Aceptado |
+| [0007](0007-usuarios-globales-membresias.md) | Usuarios globales con membresías por club | Aceptado |
+| [0008](0008-esquema-medical.md) | Datos de salud en un esquema `medical` separado y auditado | Aceptado |
+| [0009](0009-api-fastify-zod.md) | API con Fastify, zod y contratos compartidos | Aceptado |
+| [0010](0010-auth-better-auth.md) | Auth con Better Auth y OTP por email | Aceptado |
+| [0011](0011-jobs-pg-boss.md) | Jobs en `apps/worker` con pg-boss | Aceptado |
+| [0012](0012-web-staff-react-vite-tanstack.md) | Web del staff con React, Vite y TanStack; gráficos SVG propios | Aceptado |
+| [0013](0013-mobile-expo-eas.md) | Mobile con Expo, dev builds, EAS Build y EAS Update (no PWA) | Aceptado |
+| [0014](0014-app-unica-white-label.md) | Una sola app white-label para todos los clubes | Aceptado |
+| [0015](0015-offline-sqlite-hlc.md) | Offline en mobile: SQLite, cola de mutaciones y resolución por campo con HLC | Aceptado |
+| [0016](0016-observabilidad-sentry-pino.md) | Observabilidad con Sentry y logs estructurados con pino | Aceptado |
+| [0017](0017-deporte-y-sexo-en-el-modelo.md) | Deporte y sexo en el modelo desde el día uno | Aceptado |
+| [0018](0018-sin-facturacion.md) | Sin facturación por ahora | Aceptado |
+
+`pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 
 ## Plantilla
 

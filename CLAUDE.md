@@ -97,22 +97,26 @@ Códigos canónicos: `dist_m`, `dist_m_min`, `hsr_abs_m` (> 5,5 m/s por defecto 
 
 ## Arquitectura (decisiones tomadas; detalle en `docs/adr/`)
 
-| Tema | Decisión |
-|---|---|
-| Lenguaje | TypeScript estricto en todo |
-| Monorepo | pnpm workspaces + Turborepo. `apps/{api,worker,web,mobile}`, `packages/{domain,contracts,ui-tokens,i18n,config}`, `mockups/`, `assets/`, `firmware/`, `docs/` |
-| Infra | Railway: Postgres con HA y PITR, API, worker, web, buckets S3-compatibles. Ambientes `staging` y `production` |
-| DB | PostgreSQL. Drizzle ORM + migraciones SQL versionadas. Sin TimescaleDB: el crudo del pod va a storage, a Postgres solo métricas derivadas |
-| Multi-tenant | `club_id` en **todas** las tablas + Row Level Security. La API abre una transacción por request y hace `SET LOCAL app.club_id / app.user_id / app.role`; las políticas usan funciones propias `app.current_club_id()`, `app.current_user_id()`, `app.current_role()` |
-| Salud | Esquema `medical` separado, políticas propias, log de auditoría de cada lectura/escritura |
-| API | Fastify + `zod`. Contratos en `packages/contracts` (OpenAPI generado, cliente tipado) |
-| Auth | Better Auth montado en la API: OTP por email; tablas en nuestra base. Email con Resend + React Email |
-| Jobs | `apps/worker` con pg-boss (cola sobre Postgres) |
-| Web staff | React + Vite + TanStack Router + TanStack Query; gráficos SVG propios |
-| Mobile | Expo (React Native) con dev builds; EAS Build + EAS Update; una sola app para todos los clubes |
-| Offline | Mobile: SQLite (`expo-sqlite` + Drizzle) + cola de mutaciones con `client_uuid` y timestamps HLC; servidor resuelve por campo (gana el último); intentos de test solo se agregan |
-| Observabilidad | Sentry + logs estructurados (pino) |
-| Sin facturación | No se cobra la app por ahora |
+| Tema | Decisión | ADR |
+|---|---|---|
+| Lenguaje | TypeScript estricto en todo (salvo `firmware/`) | [0002](docs/adr/0002-typescript-estricto.md) |
+| Monorepo | pnpm workspaces + Turborepo. `apps/{api,worker,web,mobile}`, `packages/{domain,contracts,ui-tokens,i18n,config}`, `mockups/`, `assets/`, `firmware/`, `docs/` | [0001](docs/adr/0001-monorepo-tooling.md) |
+| Infra | Railway (no Supabase: Postgres estándar, sin auth ni helpers de RLS del proveedor): Postgres con HA y PITR, API, worker, web, buckets S3-compatibles. Ambientes `staging` y `production` | [0003](docs/adr/0003-infra-railway.md) |
+| DB | PostgreSQL. Drizzle ORM + migraciones SQL versionadas; datos de referencia como seeds | [0004](docs/adr/0004-postgres-drizzle.md) |
+| Pod (Fase 3) | Sin TimescaleDB: el crudo del pod va a storage como archivo inmutable, a Postgres solo métricas derivadas | [0005](docs/adr/0005-pod-crudo-en-storage.md) |
+| Multi-tenant | `club_id` en **todas** las tablas + Row Level Security. La API abre una transacción por request y hace `SET LOCAL app.club_id / app.user_id / app.role`; las políticas usan funciones propias `app.current_club_id()`, `app.current_user_id()`, `app.current_role()`, nunca funciones de un proveedor | [0006](docs/adr/0006-multi-tenant-rls.md) |
+| Usuarios | Usuario global con membresías por club (rol por club); selector de club si tiene más de una | [0007](docs/adr/0007-usuarios-globales-membresias.md) |
+| Salud | Esquema `medical` separado, políticas propias, log de auditoría de cada lectura/escritura | [0008](docs/adr/0008-esquema-medical.md) |
+| API | Fastify + `zod`. Contratos en `packages/contracts` (OpenAPI generado, cliente tipado) | [0009](docs/adr/0009-api-fastify-zod.md) |
+| Auth | Better Auth montado en la API: OTP por email; tablas en nuestra base. Email con Resend + React Email | [0010](docs/adr/0010-auth-better-auth.md) |
+| Jobs | `apps/worker` con pg-boss (cola sobre Postgres, sin Redis) | [0011](docs/adr/0011-jobs-pg-boss.md) |
+| Web staff | React + Vite + TanStack Router + TanStack Query; gráficos SVG propios | [0012](docs/adr/0012-web-staff-react-vite-tanstack.md) |
+| Mobile | Expo (React Native) con dev builds; EAS Build + EAS Update (no PWA: BLE, cámara, offline y notificaciones en iOS) | [0013](docs/adr/0013-mobile-expo-eas.md) |
+| White-label | Una sola app y una sola web para todos los clubes (guía 4.2.6 de Apple); marca aplicada en runtime | [0014](docs/adr/0014-app-unica-white-label.md) |
+| Offline | Mobile: SQLite (`expo-sqlite` + Drizzle) + cola de mutaciones con `client_uuid` y timestamps HLC; servidor resuelve por campo (gana el último); intentos de test solo se agregan | [0015](docs/adr/0015-offline-sqlite-hlc.md) |
+| Observabilidad | Sentry + logs estructurados (pino); sin datos personales ni de salud | [0016](docs/adr/0016-observabilidad-sentry-pino.md) |
+| Multi-deporte y sexo | `sport` y `sex` en el modelo desde el día uno; lo específico de hockey y femenino en M8 | [0017](docs/adr/0017-deporte-y-sexo-en-el-modelo.md) |
+| Sin facturación | No se cobra la app por ahora | [0018](docs/adr/0018-sin-facturacion.md) |
 
 ## Identidad visual (tenant ORC; todo como tokens en `packages/ui-tokens`)
 
@@ -133,4 +137,4 @@ Naranja `#F1882A`, negro `#050505`, fondo `#141210`, paneles `#1C1916` / `#24201
 - Antes de abrir el PR: `pnpm install`, `pnpm lint`, `pnpm typecheck`, `pnpm test` y `pnpm build` en verde.
 - El PR describe qué se hizo, cómo se probó y qué quedó fuera; si algo del issue no se pudo hacer, se dice explícitamente.
 - Squash merge. No se commitean secretos; variables en `.env.example`.
-- Si una decisión no está en este archivo ni en `docs/adr/`, se toma la opción más alineada con la solución final (no atajos temporales) y se documenta en un ADR nuevo.
+- Si una decisión no está en este archivo ni en `docs/adr/`, se toma la opción más alineada con la solución final (no atajos temporales) y se documenta en un ADR nuevo (plantilla en `docs/adr/README.md`). Si cambia una decisión de la tabla de arquitectura, se escribe un ADR que reemplaza al anterior y se actualiza la fila. `pnpm docs:check` valida los ADRs y sus enlaces.
