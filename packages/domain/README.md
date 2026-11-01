@@ -88,9 +88,60 @@ Las unidades van en los nombres y no en tipos branded por magnitud (`Cm`, `Kg`):
 - Los días sin datos cuentan como carga 0 en la EWMA y en la monotonía (Foster); `missingDaysInAcuteWindow` y `missingDaysInChronicWindow` permiten mostrar la cobertura y no confiar en un ACWR armado con pocas respuestas.
 - Monotonía y strain solo se informan cuando la ventana completa está dentro de la historia (`monotonyStatus`). La semana ISO que empieza antes de la historia o termina después de `to` es `incomplete_week` (se informa el total de los días conocidos).
 - El día de cada sesión se calcula afuera con `localDateInTimeZone` en la zona del club.
+## Maduración (B-203)
+
+Módulo `src/maturation/`. Los coeficientes y los parámetros son **datos** tipados (con su fuente y estado de verificación), listos para el seed de B-306; las funciones evalúan cualquier modelo o tabla que cumpla la interfaz.
+
+| Archivo | Qué define |
+|---|---|
+| `maturity-offset.ts` | Offset de maduración (`phv_offset_years`, años desde el PHV) y edad del PHV. `MATURITY_OFFSET_MODELS` (un modelo lineal por ecuación y sexo), `predictMaturityOffset(model, input)` y `maturityOffset({ sex, equation?, … })`. Ecuación por defecto: `moore_2015`. |
+| `khamis-roche.ts`, `khamis-roche-1994.ts` | Talla adulta predicha y % alcanzado (`adult_height_pct`): interfaz `KhamisRocheTable`, `predictAdultHeight`, validación de tablas cargadas desde la base y la tabla por defecto `KHAMIS_ROCHE_1994_TABLE`. |
+| `growth-velocity.ts` | Velocidad de crecimiento (`growth_velocity_cm_year`) entre dos mediciones y `latestGrowthVelocity` con intervalo mínimo/máximo configurable (por defecto 84–400 días). |
+| `peak-zone.ts` | Zona de pico (`peakHeightVelocityZone`): ventana de offset (por defecto −1 a +1 años) y umbral opcional de velocidad (por defecto apagado). Devuelve qué criterio se cumplió para la regla de B-207. |
+| `provenance.ts` | `CoefficientProvenance` y `CoefficientVerificationStatus` (`verified_against_publication`, `cross_checked_secondary_sources`, `unverified`). |
+
+### Ecuaciones de offset de maduración
+
+E = edad decimal (días / 365,25), T = talla (cm), TS = talla sentado (cm, sin el banco), LP = T − TS, P = peso (kg).
+
+| Ecuación | Sexo | Fórmula (años desde el PHV) | SEE | Muestra |
+|---|---|---|---|---|
+| `mirwald_2002` | varones | −9,236 + 0,0002708·(LP·TS) − 0,001663·(E·LP) + 0,007216·(E·TS) + 0,02292·(P/T·100) | 0,49 | 8–16 años |
+| `mirwald_2002` | mujeres | −9,376 + 0,0001882·(LP·TS) + 0,0022·(E·LP) + 0,005841·(E·TS) − 0,002658·(E·P) + 0,07693·(P/T·100) | 0,50 | 8–16 años |
+| `moore_2015` | varones | −8,128741 + 0,0070346·(E·TS) | 0,51 | 7,5–17,5 años |
+| `moore_2015` | mujeres | −7,709133 + 0,0042232·(E·T) | 0,52 | 7,5–17,5 años |
+| `moore_2015_height` | varones | −7,999994 + 0,0036124·(E·T) (sin talla sentado) | — | 7,5–17,5 años |
+
+Fuera del rango de edad de la muestra de desarrollo el resultado se devuelve igual, con el aviso `age_outside_development_sample`. Mirwald et al. recomiendan leer el offset como categoría (antes, cerca o después del PHV) más que como valor continuo.
+
+- Mirwald RL, Baxter-Jones ADG, Bailey DA, Beunen GP. *An assessment of maturity from anthropometric measurements.* Med Sci Sports Exerc. 2002;34(4):689–694. doi:10.1097/00005768-200204000-00020 (PMID 11932580).
+- Moore SA, McKay HA, Macdonald H, Nettlefold L, Baxter-Jones ADG, Cameron N, Brasher PMA. *Enhancing a somatic maturity prediction model.* Med Sci Sports Exerc. 2015;47(8):1755–1764. doi:10.1249/MSS.0000000000000588 (PMID 25423445).
+
+### Khamis-Roche
+
+`talla adulta (in) = β0 + β1·talla (in) + β2·peso (lb) + β3·talla media de los padres (in)`, con coeficientes por sexo y edad (4,0 a 17,5 años, cada medio año) y conversión interna desde cm/kg (1 in = 2,54 cm, 1 lb = 0,45359237 kg). La talla media de los padres es el promedio simple de madre y padre (el ajuste por sexo está en los coeficientes). Entre filas se interpola linealmente (`ageMode: 'linear'`, decisión de producto para que las series no salten) o se usa la fila más cercana (`'nearest_row'`). Fuera de 4,0–17,5 años se lanza error: no se extrapola. Si la predicción queda por debajo de la talla actual (posible al final de la tabla) no se recorta: se marca `predictionBelowCurrentHeight` y el % supera 100.
+
+- Khamis HJ, Roche AF. *Predicting adult stature without using skeletal age: the Khamis-Roche method.* Pediatrics. 1994;94(4 Pt 1):504–507 (PMID 7936860). Errata: Pediatrics. 1995;95(3):457 (coeficientes del peso).
+- Aplicable a chicos blancos estadounidenses sanos (Fels Longitudinal Study): para otras poblaciones es una aproximación.
+
+### Checklist de verificación de coeficientes
+
+Antes de producción cada fila tiene que pasar a "contrastado con el paper" por una persona con acceso al artículo; recién entonces se cambia `verification` a `verified_against_publication`. Estado al abrir B-203 (no se pudo acceder al texto completo de ningún artículo: paywall o captcha; los resúmenes de PubMed sí):
+
+| Coeficientes | Fuentes con las que se contrastó | Contrastado con el paper | Notas |
+|---|---|---|---|
+| Mirwald 2002, varones | J Sports Sci Med 2022;21:640 (tabla 2), explicador sportkid (Substack), CLAUDE.md | [ ] | SEE y R² del resumen de PubMed. CRAN matuR usa 0,0002728 en el primer término; el resto de las fuentes, 0,0002708. |
+| Mirwald 2002, mujeres | CRAN matuR (`maturation_cm.R`), sportkid, CLAUDE.md | [ ] | SEE y R² del resumen de PubMed. |
+| Moore 2015, varones (E·TS) | Documentación de AthleteMonitoring, sportkid | [ ] | J Sports Sci Med 2022 imprime −8,125741 (errata de esa fuente). CLAUDE.md lo tenía redondeado a −8,1. |
+| Moore 2015, mujeres (E·T) | AthleteMonitoring, sportkid, CLAUDE.md | [ ] | |
+| Moore 2015, varones (E·T) | J Sports Sci Med 2022 (tabla 2, "Moore-2") | [ ] | Una sola fuente secundaria; falta el SEE. |
+| Khamis-Roche 1994, varones (β0, β1, β2, β3) | vilda-calc, 2nk1/performance-monitor, DadosGPS/Ulisses-Dashboard, CRAN matuR | [ ] | β2 con los valores de la errata (×10 sobre la impresión de 1994, que es lo que trae matuR). |
+| Khamis-Roche 1994, mujeres (β0, β1, β2, β3) | vilda-calc, 2nk1/performance-monitor, CRAN matuR | [ ] | β0 a los 5,0 años: −5,13582 en dos fuentes, −5,13583 en una. |
+| Ejemplo trabajado de Khamis-Roche (p. 507) | — | [ ] | Agregarlo como test al acceder al artículo. Los tests usan los casos de control de vilda-calc. |
 
 ## Extender
 
 - **Deporte o sexo nuevo:** agregar el valor a `SPORTS` / `SEXES` y una migración. Los `Record<Sport, …>` del código dejan de compilar hasta cubrir el caso nuevo.
+- **Coeficientes de maduración corregidos o nuevos:** son datos (`MATURITY_OFFSET_MODELS`, `KhamisRocheTable`); se agregan con su `CoefficientProvenance` y se actualiza el checklist de arriba.
 - **Métrica o test nuevo del club:** son datos del diccionario (seed B-306, configuración B-322); cualquier código válido es un `MetricCode` / `TestCode`. Solo se agregan a `CANONICAL_METRICS` las métricas que definen las fórmulas del dominio o que son comunes a todos los clubes.
 - **Categorías de un club:** se modelan como `AgeBand` propias (con datos extra si hace falta); `ageBandForBirthYear` es genérica.

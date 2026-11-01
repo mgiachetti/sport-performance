@@ -86,7 +86,7 @@ V1 febrero (batería completa + movilidad + bases de reacción y cuello) · V2 a
 
 - **Mirwald 2002, varones:** `offset = −9,236 + 0,0002708·(LP×TS) − 0,001663·(E×LP) + 0,007216·(E×TS) + 0,02292·(P/T×100)`
 - **Mirwald 2002, mujeres:** `offset = −9,376 + 0,0001882·(LP×TS) + 0,0022·(E×LP) + 0,005841·(E×TS) − 0,002658·(E×P) + 0,07693·(P/T×100)`
-- **Moore 2015, varones:** `offset = −8,1 + 0,0070346·(E×TS)` · **mujeres:** `offset = −7,709133 + 0,0042232·(E×T)`
+- **Moore 2015, varones:** `offset = −8,128741 + 0,0070346·(E×TS)` · **mujeres:** `offset = −7,709133 + 0,0042232·(E×T)`
 - LP = largo de piernas (talla − talla sentado, cm), TS = talla sentado (cm), E = edad decimal, P = peso (kg), T = talla (cm).
 - **% de talla adulta predicha:** Khamis-Roche 1994; coeficientes por edad y sexo como **datos en la base** (seed), no hardcodeados. Requiere altura de los padres.
 - Velocidad de crecimiento (cm/año) y alerta en zona de pico (sugiere bajar saltos y sprints, vigilar rodilla y talón). Bio-banding: agrupar por offset de PHV.
