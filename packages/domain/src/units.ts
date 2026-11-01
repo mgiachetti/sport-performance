@@ -9,8 +9,11 @@ import { DomainValidationError } from './errors.js';
  * - `ms` always means metres per second; milliseconds are `msec`.
  * - `n` always means a count; newtons are `newton`.
  *
- * Values are stored and computed in these units; display formatting (es-AR,
- * decimal comma) lives in `packages/i18n`.
+ * Values are stored and computed in these units. Nothing here is UI text:
+ * `symbol` is the locale-independent international symbol, or `null` when the
+ * unit has none (years, cm per year, beats per minute, arbitrary units, scores,
+ * counts). What the user sees next to a value, and its es-AR formatting
+ * (decimal comma), lives in `packages/i18n`, keyed by {@link UnitCode}.
  */
 export const UNITS = {
   mm: { code: 'mm', symbol: 'mm', dimension: 'length' },
@@ -22,20 +25,20 @@ export const UNITS = {
   s: { code: 's', symbol: 's', dimension: 'time' },
   min: { code: 'min', symbol: 'min', dimension: 'time' },
   h: { code: 'h', symbol: 'h', dimension: 'time' },
-  years: { code: 'years', symbol: 'años', dimension: 'time' },
+  years: { code: 'years', symbol: null, dimension: 'time' },
   ms: { code: 'ms', symbol: 'm/s', dimension: 'speed' },
   kmh: { code: 'kmh', symbol: 'km/h', dimension: 'speed' },
   m_min: { code: 'm_min', symbol: 'm/min', dimension: 'speed' },
-  cm_year: { code: 'cm_year', symbol: 'cm/año', dimension: 'growth_rate' },
+  cm_year: { code: 'cm_year', symbol: null, dimension: 'growth_rate' },
   ms2: { code: 'ms2', symbol: 'm/s²', dimension: 'acceleration' },
   newton: { code: 'newton', symbol: 'N', dimension: 'force' },
   deg: { code: 'deg', symbol: '°', dimension: 'angle' },
-  bpm: { code: 'bpm', symbol: 'lpm', dimension: 'frequency' },
+  bpm: { code: 'bpm', symbol: null, dimension: 'frequency' },
   kg_kg: { code: 'kg_kg', symbol: 'kg/kg', dimension: 'ratio' },
   pct: { code: 'pct', symbol: '%', dimension: 'ratio' },
-  au: { code: 'au', symbol: 'UA', dimension: 'arbitrary' },
-  score: { code: 'score', symbol: '', dimension: 'arbitrary' },
-  n: { code: 'n', symbol: '', dimension: 'count' },
+  au: { code: 'au', symbol: null, dimension: 'arbitrary' },
+  score: { code: 'score', symbol: null, dimension: 'arbitrary' },
+  n: { code: 'n', symbol: null, dimension: 'count' },
 } as const satisfies Readonly<Record<string, UnitDefinition>>;
 
 export type UnitCode = keyof typeof UNITS;
@@ -56,8 +59,12 @@ export type UnitDimension =
 
 export interface UnitDefinition {
   readonly code: string;
-  /** SI symbol as shown next to a value (es-AR wording where there is one). */
-  readonly symbol: string;
+  /**
+   * International (SI or SI-accepted) symbol, identical in every locale
+   * (`m/s`, `km/h`, `N`, `%`). `null` when there is none: the label comes
+   * from `packages/i18n`.
+   */
+  readonly symbol: string | null;
   readonly dimension: UnitDimension;
 }
 

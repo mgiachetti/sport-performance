@@ -20,6 +20,8 @@ export interface AgeBand {
   readonly maxAgeInSeasonYear: number;
   /** Stage suggested by the category alone, before maturation (B-204). */
   readonly defaultStage: Stage;
+  /** Whether players in this band may see their own percentiles (from M15). */
+  readonly ownPercentilesForPlayers: boolean;
   /** Whether players in this band may see rankings with names (never M13–M16). */
   readonly namedRankingsForPlayers: boolean;
 }
@@ -35,6 +37,7 @@ export const DEFAULT_AGE_BANDS = [
     minAgeInSeasonYear: 13,
     maxAgeInSeasonYear: 13,
     defaultStage: 'foundation',
+    ownPercentilesForPlayers: false,
     namedRankingsForPlayers: false,
   },
   {
@@ -43,6 +46,7 @@ export const DEFAULT_AGE_BANDS = [
     minAgeInSeasonYear: 14,
     maxAgeInSeasonYear: 14,
     defaultStage: 'foundation',
+    ownPercentilesForPlayers: false,
     namedRankingsForPlayers: false,
   },
   {
@@ -51,6 +55,7 @@ export const DEFAULT_AGE_BANDS = [
     minAgeInSeasonYear: 15,
     maxAgeInSeasonYear: 15,
     defaultStage: 'development',
+    ownPercentilesForPlayers: true,
     namedRankingsForPlayers: false,
   },
   {
@@ -59,6 +64,7 @@ export const DEFAULT_AGE_BANDS = [
     minAgeInSeasonYear: 16,
     maxAgeInSeasonYear: 16,
     defaultStage: 'development',
+    ownPercentilesForPlayers: true,
     namedRankingsForPlayers: false,
   },
   {
@@ -67,6 +73,7 @@ export const DEFAULT_AGE_BANDS = [
     minAgeInSeasonYear: 17,
     maxAgeInSeasonYear: 17,
     defaultStage: 'performance',
+    ownPercentilesForPlayers: true,
     namedRankingsForPlayers: true,
   },
   {
@@ -75,6 +82,7 @@ export const DEFAULT_AGE_BANDS = [
     minAgeInSeasonYear: 18,
     maxAgeInSeasonYear: 19,
     defaultStage: 'performance',
+    ownPercentilesForPlayers: true,
     namedRankingsForPlayers: true,
   },
 ] as const satisfies readonly AgeBand[];

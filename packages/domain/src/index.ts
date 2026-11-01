@@ -106,6 +106,7 @@ export {
   ageInCompletedYears,
   compareLocalDates,
   dayBoundsInTimeZone,
+  dayBoundsRangeInTimeZone,
   daysBetween,
   decimalAgeYears,
   isLocalDate,
@@ -122,5 +123,6 @@ export {
   type Instant,
   type LocalDate,
   type LocalDateParts,
+  type LocalDayBounds,
   type TimeZone,
 } from './time.js';

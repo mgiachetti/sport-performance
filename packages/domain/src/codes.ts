@@ -227,11 +227,11 @@ export type CanonicalMetricCode = keyof typeof CANONICAL_METRICS;
 export const CANONICAL_METRIC_CODES = Object.keys(CANONICAL_METRICS) as CanonicalMetricCode[];
 
 /** Established codes that keep their name without a unit suffix. */
-export const UNITLESS_NAME_METRIC_CODES: readonly CanonicalMetricCode[] = [
+export const UNITLESS_NAME_METRIC_CODES = [
   'hr_avg',
   'hr_max',
   'trimp',
-];
+] as const satisfies readonly CanonicalMetricCode[];
 
 export function isCanonicalMetricCode(value: unknown): value is CanonicalMetricCode {
   return typeof value === 'string' && Object.hasOwn(CANONICAL_METRICS, value);

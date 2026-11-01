@@ -41,7 +41,7 @@ describe('DEFAULT_AGE_BANDS', () => {
     expect(expectedMin).toBe(20);
   });
 
-  it('maps bands to the stage table and the named-rankings rule', () => {
+  it('maps bands to the stage table and the percentile and named-rankings rules', () => {
     const byCode = Object.fromEntries(DEFAULT_AGE_BANDS.map((b) => [b.code, b]));
     expect(byCode.m13?.defaultStage).toBe('foundation');
     expect(byCode.m14?.defaultStage).toBe('foundation');
@@ -51,6 +51,7 @@ describe('DEFAULT_AGE_BANDS', () => {
     expect(byCode.m19?.defaultStage).toBe('performance');
     for (const band of DEFAULT_AGE_BANDS) {
       expect(isStage(band.defaultStage)).toBe(true);
+      expect(band.ownPercentilesForPlayers).toBe(band.minAgeInSeasonYear >= 15);
       expect(band.namedRankingsForPlayers).toBe(band.minAgeInSeasonYear >= 17);
       expect(band.code).toBe(band.label.toLowerCase());
     }
@@ -87,6 +88,7 @@ describe('ageBandForBirthYear', () => {
         minAgeInSeasonYear: 13,
         maxAgeInSeasonYear: 14,
         defaultStage: 'foundation',
+        ownPercentilesForPlayers: false,
         namedRankingsForPlayers: false,
       },
     ];

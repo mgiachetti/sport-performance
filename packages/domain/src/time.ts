@@ -13,7 +13,10 @@ import { DomainValidationError, describeValue } from './errors.js';
  *   the club's IANA {@link TimeZone}, never in the device's or the server's zone.
  */
 
-/** IANA time zone name, canonicalised by the runtime (`America/Argentina/Buenos_Aires`). */
+/**
+ * IANA region time zone name in IANA spelling (`America/Argentina/Buenos_Aires`),
+ * kept as given and not canonicalised (see {@link isTimeZone}).
+ */
 export type TimeZone = Brand<string, 'TimeZone'>;
 
 /** ISO 8601 calendar date `YYYY-MM-DD` (years 0001–9999). Sorts lexicographically. */
@@ -40,7 +43,8 @@ function formatterFor(timeZone: string): Intl.DateTimeFormat {
       calendar: 'iso8601',
       numberingSystem: 'latn',
       hourCycle: 'h23',
-      year: 'numeric',
+      // No `year`: with the ISO calendar Intl prints years <= 0 without an era,
+      // so the year is derived from the UTC year instead (see `wallClock`).
       month: 'numeric',
       day: 'numeric',
       hour: 'numeric',
@@ -54,18 +58,65 @@ function formatterFor(timeZone: string): Intl.DateTimeFormat {
 
 const TIME_ZONE_PATTERN = /^[A-Za-z][A-Za-z0-9_+-]*(?:\/[A-Za-z0-9_+-]+)*$/;
 
+/** Areas whose zones are fixed offsets or legacy aliases, never a club's region. */
+const NON_REGION_AREAS = new Set(['etc', 'systemv']);
+
+function isRegionName(name: string): boolean {
+  if (name === 'UTC') return true;
+  const slash = name.indexOf('/');
+  return slash > 0 && !NON_REGION_AREAS.has(name.slice(0, slash).toLowerCase());
+}
+
+let listedZonesByLowerCase: ReadonlyMap<string, string> | undefined;
+
+/** Zone names the runtime lists, keyed by lower case. Empty if unsupported. */
+function listedZones(): ReadonlyMap<string, string> {
+  if (listedZonesByLowerCase === undefined) {
+    const { supportedValuesOf } = Intl as {
+      supportedValuesOf?: (key: 'timeZone') => readonly string[];
+    };
+    const names = typeof supportedValuesOf === 'function' ? supportedValuesOf('timeZone') : [];
+    listedZonesByLowerCase = new Map(names.map((name) => [name.toLowerCase(), name]));
+  }
+  return listedZonesByLowerCase;
+}
+
+const CAPITALISED_WORD = /^[A-Z0-9]/;
+
 /**
- * Whether `value` is an IANA zone name known to the runtime. The name is kept
- * as given (runtimes disagree on canonical spellings, for example ICU still
- * resolves `America/Argentina/Buenos_Aires` to `America/Buenos_Aires`).
- * Fixed offsets (`+03:00`) are rejected: a club needs a region so that daylight
- * saving rules apply.
+ * Whether `name` is spelled the IANA way. Names the runtime lists must match
+ * the listed spelling exactly (`Europe/Isle_of_Man`); other names (links such
+ * as `America/Argentina/Buenos_Aires`, which ICU lists as
+ * `America/Buenos_Aires`) must start every word with a capital or a digit.
+ */
+function hasIanaSpelling(name: string): boolean {
+  const listed = listedZones().get(name.toLowerCase());
+  if (listed !== undefined) return listed === name;
+  return name
+    .split('/')
+    .every((segment) => segment.split('_').every((word) => CAPITALISED_WORD.test(word)));
+}
+
+/**
+ * Whether `value` is an IANA region zone known to the runtime, in IANA spelling.
+ *
+ * - The name is kept as given, not canonicalised: runtimes disagree on
+ *   canonical names (ICU still resolves `America/Argentina/Buenos_Aires` to
+ *   `America/Buenos_Aires`, other runtimes may not). A zone and its links are
+ *   still different strings.
+ * - Intl matches names case-insensitively, but only the IANA spelling is
+ *   accepted (`america/argentina/buenos_aires` is rejected), so each spelling
+ *   is stored as exactly one string.
+ * - Only `UTC` and `Area/Location` names are accepted: a club needs a region so
+ *   that daylight saving rules apply. Fixed offsets (`+03:00`, `Etc/GMT+3`) and
+ *   legacy names without a region (`EST`, `MST`, `EST5EDT`, `GMT`,
+ *   `SystemV/AST4`) are rejected.
  */
 export function isTimeZone(value: unknown): value is TimeZone {
   if (typeof value !== 'string' || !TIME_ZONE_PATTERN.test(value)) return false;
+  if (!isRegionName(value) || !hasIanaSpelling(value)) return false;
   try {
-    formatterFor(value);
-    return true;
+    return isRegionName(formatterFor(value).resolvedOptions().timeZone);
   } catch {
     return false;
   }
@@ -154,9 +205,14 @@ function toEpochDay(date: LocalDate): number {
   return Math.round(utcMs(year, month, day) / MS_PER_DAY);
 }
 
-function fromEpochDay(epochDay: number): LocalDate {
+/** Calendar parts of an epoch day, without the `LocalDate` range check. */
+function epochDayParts(epochDay: number): LocalDateParts {
   const date = new Date(epochDay * MS_PER_DAY);
-  const year = date.getUTCFullYear();
+  return { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate() };
+}
+
+function fromEpochDay(epochDay: number): LocalDate {
+  const { year, month, day } = epochDayParts(epochDay);
   if (year < 1 || year > 9999) {
     throw new DomainValidationError(
       'invalid_local_date',
@@ -164,7 +220,7 @@ function fromEpochDay(epochDay: number): LocalDate {
       epochDay,
     );
   }
-  return format(year, date.getUTCMonth() + 1, date.getUTCDate());
+  return format(year, month, day);
 }
 
 /** `Date.UTC` that also works for years 0–99 (which `Date.UTC` maps to 19xx). */
@@ -223,20 +279,21 @@ export function startOfIsoWeek(date: LocalDate): LocalDate {
 // Instants in the club's zone
 
 /**
- * Supported instants: years 0002–9998 UTC. The margin around the `LocalDate`
- * range keeps every zone offset and the ±1 day DST probes inside it.
+ * Instants the zone arithmetic works with: years 0000–10000 UTC. That covers
+ * the whole `LocalDate` range (0001-01-01 to 9999-12-31) in every zone, plus
+ * the ±1 day DST probes around it. `localDateInTimeZone` narrows it further to
+ * instants whose day in the zone is a valid `LocalDate`.
  */
-const MIN_INSTANT_MS = utcMs(2, 1, 1);
-const MAX_INSTANT_MS = utcMs(9999, 1, 1) - 1;
+const MIN_INSTANT_MS = utcMs(0, 1, 1);
+const MAX_INSTANT_MS = utcMs(10001, 1, 1) - 1;
+
+const INVALID_INSTANT_MESSAGE =
+  'Invalid instant: expected a finite time whose day in the zone is between 0001-01-01 and 9999-12-31.';
 
 function toEpochMs(instant: Instant): number {
   const ms = typeof instant === 'number' ? instant : instant.getTime();
   if (!Number.isFinite(ms) || ms < MIN_INSTANT_MS || ms > MAX_INSTANT_MS) {
-    throw new DomainValidationError(
-      'invalid_instant',
-      'Invalid instant: expected a finite time between years 0002 and 9998.',
-      instant,
-    );
+    throw new DomainValidationError('invalid_instant', INVALID_INSTANT_MESSAGE, instant);
   }
   return ms;
 }
@@ -255,9 +312,15 @@ function wallClock(epochMs: number, timeZone: TimeZone): WallClock {
   for (const part of formatterFor(timeZone).formatToParts(toEpochMs(epochMs))) {
     values[part.type] = part.value;
   }
+  const month = Number(values.month);
+  // Offsets are under a day, so the wall-clock year differs from the UTC year
+  // only across New Year, which shows as a December/January mismatch.
+  const utc = new Date(epochMs);
+  const utcMonth = utc.getUTCMonth() + 1;
+  const yearShift = month === 12 && utcMonth === 1 ? -1 : month === 1 && utcMonth === 12 ? 1 : 0;
   return {
-    year: Number(values.year),
-    month: Number(values.month),
+    year: utc.getUTCFullYear() + yearShift,
+    month,
     day: Number(values.day),
     hour: Number(values.hour) % 24,
     minute: Number(values.minute),
@@ -276,6 +339,9 @@ function offsetMs(epochMs: number, timeZone: TimeZone): number {
 /** The club's calendar day of an instant. */
 export function localDateInTimeZone(instant: Instant, timeZone: TimeZone): LocalDate {
   const w = wallClock(toEpochMs(instant), timeZone);
+  if (w.year < 1 || w.year > 9999) {
+    throw new DomainValidationError('invalid_instant', INVALID_INSTANT_MESSAGE, instant);
+  }
   return format(w.year, w.month, w.day);
 }
 
@@ -283,15 +349,20 @@ export function localDateInTimeZone(instant: Instant, timeZone: TimeZone): Local
  * First instant of `date` in `timeZone`. Handles DST: when local midnight does
  * not exist (clocks jump from 23:59:59 to 01:00), the day starts at the jump.
  */
-function startOfDayMs(date: LocalDate, timeZone: TimeZone): number {
-  const { year, month, day } = localDateParts(date);
+function startOfDayMs(
+  { year, month, day }: LocalDateParts,
+  timeZone: TimeZone,
+  offsetAt: (epochMs: number) => number = (epochMs) => offsetMs(epochMs, timeZone),
+): number {
   const wallMidnight = utcMs(year, month, day);
   // At most one transition happens within ±1 day, so these two offsets
   // cover every candidate.
-  const offsetBefore = offsetMs(wallMidnight - MS_PER_DAY, timeZone);
-  const offsetAfter = offsetMs(wallMidnight + MS_PER_DAY, timeZone);
+  const offsetBefore = offsetAt(wallMidnight - MS_PER_DAY);
+  const offsetAfter = offsetAt(wallMidnight + MS_PER_DAY);
+  // Same offset on both sides: no transition in between (the usual case).
+  if (offsetBefore === offsetAfter) return wallMidnight - offsetBefore;
   const candidates = [wallMidnight - offsetBefore, wallMidnight - offsetAfter].filter(
-    (t) => offsetMs(t, timeZone) === wallMidnight - t,
+    (t) => offsetAt(t) === wallMidnight - t,
   );
   if (candidates.length > 0) return Math.min(...candidates);
   // Midnight falls in a DST gap: the day starts at the transition instant.
@@ -311,9 +382,50 @@ export interface DayBounds {
  */
 export function dayBoundsInTimeZone(date: LocalDate, timeZone: TimeZone): DayBounds {
   return {
-    start: new Date(startOfDayMs(date, timeZone)),
-    end: new Date(startOfDayMs(addDays(date, 1), timeZone)),
+    start: new Date(startOfDayMs(localDateParts(date), timeZone)),
+    end: new Date(startOfDayMs(nextDayParts(date), timeZone)),
   };
+}
+
+export interface LocalDayBounds extends DayBounds {
+  readonly date: LocalDate;
+}
+
+/**
+ * {@link dayBoundsInTimeZone} for every day from `from` to `to`, both
+ * inclusive (daily fills of load and wellness). Each day starts where the
+ * previous one ends and the offset probes are shared between neighbouring
+ * days, so it costs about a third of calling it once per day.
+ * Throws if `to` is before `from`.
+ */
+export function dayBoundsRangeInTimeZone(
+  from: LocalDate,
+  to: LocalDate,
+  timeZone: TimeZone,
+): LocalDayBounds[] {
+  const days = localDateRange(from, to);
+  // The probes of one day are the wall midnights of its neighbours: memoise.
+  const offsets = new Map<number, number>();
+  const offsetAt = (epochMs: number): number => {
+    let offset = offsets.get(epochMs);
+    if (offset === undefined) {
+      offset = offsetMs(epochMs, timeZone);
+      offsets.set(epochMs, offset);
+    }
+    return offset;
+  };
+  let startMs = startOfDayMs(localDateParts(from), timeZone, offsetAt);
+  return days.map((date) => {
+    const endMs = startOfDayMs(nextDayParts(date), timeZone, offsetAt);
+    const bounds = { date, start: new Date(startMs), end: new Date(endMs) };
+    startMs = endMs;
+    return bounds;
+  });
+}
+
+/** Parts of the day after `date`; may be 10000-01-01 (the end of 9999-12-31). */
+function nextDayParts(date: LocalDate): LocalDateParts {
+  return epochDayParts(toEpochDay(date) + 1);
 }
 
 // ---------------------------------------------------------------------------

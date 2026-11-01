@@ -44,7 +44,12 @@ export interface StageProfile {
   readonly wellnessItemCount: 3 | 5;
   /** Whether the stage adds a weekly CMJ to wellness monitoring. */
   readonly weeklyCmj: boolean;
-  /** Whether players see their own percentiles. */
+  /**
+   * Whether players see their own percentiles. Percentiles are a category rule
+   * too ("desde M15"): the permission matrix (B-303) must also require
+   * `AgeBand.ownPercentilesForPlayers`, because an early-maturing M14 can be
+   * at `development` stage.
+   */
   readonly playerSeesOwnPercentiles: boolean;
   /**
    * Whether players may see rankings with other players' names (senior-like).

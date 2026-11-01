@@ -21,6 +21,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@sport-performance/domain": "workspace:*"
+  },
   "devDependencies": {
     "@sport-performance/config": "workspace:*",
     "@types/node": "26.6.6",

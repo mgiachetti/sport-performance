@@ -6,6 +6,7 @@ import {
   ageInCompletedYears,
   compareLocalDates,
   dayBoundsInTimeZone,
+  dayBoundsRangeInTimeZone,
   daysBetween,
   decimalAgeYears,
   isLocalDate,
@@ -38,15 +39,46 @@ describe('TimeZone', () => {
     },
   );
 
-  it.each(['', 'Mars/Olympus', '+03:00', '-03:00', 'America/', 'GMT-3 ', 3, null])(
-    'rejects %j',
+  it.each(['Europe/Isle_of_Man', 'America/Port-au-Prince', 'America/Argentina/ComodRivadavia'])(
+    'accepts the IANA spelling of %s',
     (zone) => {
-      expect(isTimeZone(zone)).toBe(false);
-      expect(() => parseTimeZone(zone)).toThrow(
-        expect.objectContaining({ code: 'invalid_time_zone' }),
-      );
+      expect(parseTimeZone(zone)).toBe(zone);
     },
   );
+
+  it.each([
+    '',
+    'Mars/Olympus',
+    '+03:00',
+    '-03:00',
+    'America/',
+    'GMT-3 ',
+    3,
+    null,
+    // Fixed offsets and names without a region.
+    'Etc/GMT+3',
+    'Etc/UTC',
+    'etc/gmt+3',
+    'EST',
+    'MST',
+    'HST',
+    'EST5EDT',
+    'GMT',
+    'Universal',
+    'SystemV/AST4',
+    // Intl accepts these case-insensitively; only the IANA spelling is stored.
+    'america/argentina/buenos_aires',
+    'America/Argentina/buenos_aires',
+    'AMERICA/SANTIAGO',
+    'europe/madrid',
+    'Europe/Isle_Of_Man',
+    'utc',
+  ])('rejects %j', (zone) => {
+    expect(isTimeZone(zone)).toBe(false);
+    expect(() => parseTimeZone(zone)).toThrow(
+      expect.objectContaining({ code: 'invalid_time_zone' }),
+    );
+  });
 
   it('defaults to the first tenant zone', () => {
     expect(isTimeZone(DEFAULT_CLUB_TIME_ZONE)).toBe(true);
@@ -182,11 +214,28 @@ describe('dayBoundsInTimeZone', () => {
     expect(end.toISOString()).toBe('2026-03-02T03:00:00.000Z');
   });
 
-  it('rejects days outside the supported instant range', () => {
-    expect(() => dayBoundsInTimeZone(d('0001-01-01'), UTC)).toThrow(
-      expect.objectContaining({ code: 'invalid_instant' }),
-    );
-    expect(() => dayBoundsInTimeZone(d('9999-12-31'), UTC)).toThrow(DomainValidationError);
+  it('covers the whole LocalDate range', () => {
+    const first = dayBoundsInTimeZone(d('0001-01-01'), UTC);
+    expect(first.start.toISOString()).toBe('0001-01-01T00:00:00.000Z');
+    expect(first.end.toISOString()).toBe('0001-01-02T00:00:00.000Z');
+    const last = dayBoundsInTimeZone(d('9999-12-31'), UTC);
+    expect(last.start.toISOString()).toBe('9999-12-31T00:00:00.000Z');
+    expect(last.end.toISOString()).toBe('+010000-01-01T00:00:00.000Z');
+    for (const zone of [BUENOS_AIRES, SANTIAGO, MADRID]) {
+      for (const day of [d('0001-01-01'), d('9998-12-31'), d('9999-12-31')]) {
+        const { start, end } = dayBoundsInTimeZone(day, zone);
+        expect(localDateInTimeZone(start, zone)).toBe(day);
+        expect(localDateInTimeZone(end.getTime() - 1, zone)).toBe(day);
+      }
+      const first = dayBoundsInTimeZone(d('0001-01-01'), zone);
+      expect(() => localDateInTimeZone(first.start.getTime() - 1, zone)).toThrow(
+        expect.objectContaining({ code: 'invalid_instant' }),
+      );
+      const last = dayBoundsInTimeZone(d('9999-12-31'), zone);
+      expect(() => localDateInTimeZone(last.end, zone)).toThrow(
+        expect.objectContaining({ code: 'invalid_instant' }),
+      );
+    }
   });
 
   it('is 23 h when clocks spring forward (Madrid)', () => {
@@ -227,6 +276,28 @@ describe('dayBoundsInTimeZone', () => {
         expect(localDateInTimeZone(start.getTime() - 1, zone)).toBe(addDays(day, -1));
       }
     }
+  });
+});
+
+describe('dayBoundsRangeInTimeZone', () => {
+  it('matches dayBoundsInTimeZone on every day, across DST changes', () => {
+    for (const zone of [BUENOS_AIRES, SANTIAGO, MADRID]) {
+      const range = dayBoundsRangeInTimeZone(d('2024-01-01'), d('2024-12-31'), zone);
+      expect(range).toHaveLength(366);
+      for (const bounds of range) {
+        expect(bounds).toEqual({ date: bounds.date, ...dayBoundsInTimeZone(bounds.date, zone) });
+      }
+      expect(range.map((b) => b.date)).toEqual(localDateRange(d('2024-01-01'), d('2024-12-31')));
+    }
+  });
+
+  it('returns one day for a single-day range and rejects reversed ranges', () => {
+    expect(dayBoundsRangeInTimeZone(d('2026-03-01'), d('2026-03-01'), BUENOS_AIRES)).toEqual([
+      { date: '2026-03-01', ...dayBoundsInTimeZone(d('2026-03-01'), BUENOS_AIRES) },
+    ]);
+    expect(() => dayBoundsRangeInTimeZone(d('2026-03-02'), d('2026-03-01'), UTC)).toThrow(
+      DomainValidationError,
+    );
   });
 });
 

@@ -33,6 +33,15 @@ describe('unit catalog', () => {
     expect(UNITS.newton.dimension).toBe('force');
   });
 
+  it('keeps UI text out of the domain: symbols are international or null', () => {
+    const withoutSymbol = UNIT_CODES.filter((code) => UNITS[code].symbol === null);
+    expect(withoutSymbol).toEqual(['years', 'cm_year', 'bpm', 'au', 'score', 'n']);
+    for (const code of UNIT_CODES) {
+      const { symbol } = UNITS[code];
+      if (symbol !== null) expect(symbol).toMatch(/^(?:[A-Za-z]+(?:\/[A-Za-z]+)?²?|%|°)$/);
+    }
+  });
+
   it('parses unit codes', () => {
     expect(isUnitCode('kmh')).toBe(true);
     expect(parseUnitCode('cm')).toBe('cm');
