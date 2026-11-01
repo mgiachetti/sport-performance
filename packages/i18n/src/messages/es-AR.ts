@@ -1,0 +1,134 @@
+/**
+ * Source catalog: Rioplatense Spanish (vos). Every key exists here first; other locales and club
+ * overrides are checked against it.
+ *
+ * Rules for writing messages:
+ * - ICU MessageFormat syntax (`{name}`, `{count, plural, ...}`, `{value, select, ...}`).
+ * - Arguments are strings or numbers only. Dates, times and measured values are formatted before
+ *   being passed (`formatDate`, `formatUnit`, ...) so that they use the club time zone and SI units.
+ * - Flat keys, `namespace.name` in camelCase; domain codes keep their `snake_case` (`test.sprint_40`).
+ * - Status texts always exist as words: the UI never conveys a state by color alone.
+ */
+export const esAR = {
+  // Shared actions and labels
+  'common.save': 'Guardar',
+  'common.cancel': 'Cancelar',
+  'common.confirm': 'Confirmar',
+  'common.retry': 'Reintentar',
+  'common.edit': 'Editar',
+  'common.delete': 'Eliminar',
+  'common.close': 'Cerrar',
+  'common.back': 'Volver',
+  'common.next': 'Siguiente',
+  'common.search': 'Buscar',
+  'common.loading': 'Cargando…',
+  'common.noData': 'Sin datos',
+  'common.notAvailable': 'No disponible',
+  'common.today': 'Hoy',
+  'common.yesterday': 'Ayer',
+  'common.category': 'Categoría {name}',
+  'common.showTable': 'Ver como tabla',
+
+  // Status: always shown with icon + text, never color alone
+  'status.ok': 'Bien',
+  'status.warning': 'Atención',
+  'status.critical': 'Crítico',
+  'status.insufficientHistory': 'Historia insuficiente',
+  'status.insufficientHistoryDetail':
+    'Hacen falta al menos {days, plural, one {# día} other {# días}} de carga para calcular este indicador.',
+
+  // Offline and sync
+  'sync.offline':
+    'Sin conexión. Lo que cargues se guarda en el teléfono y se envía cuando vuelva la señal.',
+  'sync.pending':
+    '{count, plural, =0 {Nada pendiente de envío} one {# cambio sin enviar} other {# cambios sin enviar}}',
+  'sync.syncing': 'Sincronizando…',
+  'sync.synced': 'Todo sincronizado',
+  'sync.lastSynced': 'Última sincronización: {dateTime}',
+  'sync.failed': 'No pudimos sincronizar. Lo volvemos a intentar solos en unos minutos.',
+
+  // Errors
+  'error.generic': 'Algo salió mal. Probá de nuevo.',
+  'error.network': 'No hay conexión. Revisá la señal y probá de nuevo.',
+  'error.forbidden': 'No tenés permiso para ver esto.',
+  'error.notFound': 'No encontramos lo que buscabas.',
+  'error.sessionExpired': 'Tu sesión venció. Volvé a ingresar.',
+  'error.validation.required': 'Este dato es obligatorio.',
+  'error.validation.number': 'Ingresá un número válido, con coma decimal (por ejemplo, 1,85).',
+  'error.validation.range': 'Ingresá un valor entre {min} y {max}.',
+
+  // Auth (email OTP)
+  'auth.signIn': 'Ingresar',
+  'auth.signOut': 'Cerrar sesión',
+  'auth.email.label': 'Email',
+  'auth.otp.label': 'Código',
+  'auth.otp.sent': 'Te mandamos un código a {email}. Revisá tu correo.',
+  'auth.otp.invalid': 'El código no es válido o ya venció. Pedí uno nuevo.',
+
+  // Roles
+  'role.player': 'Jugador/a',
+  'role.parent': 'Madre, padre o tutor/a',
+  'role.coach': 'Entrenador/a',
+  'role.sc': 'Preparador/a físico/a',
+  'role.medical': 'Staff médico',
+  'role.admin': 'Administrador/a',
+  'role.superadmin': 'Superadministrador/a',
+
+  // Development stages (by category; the staff can pin a stage by hand)
+  'stage.m13_m14': 'M13 / M14',
+  'stage.m15_m16': 'M15 / M16',
+  'stage.m17_m19': 'M17 / M19',
+
+  // Wellness (pre-training) and RPE (post-training)
+  'wellness.title': 'Bienestar',
+  'wellness.prompt': '¿Cómo llegás hoy?',
+  'wellness.item.sleep': 'Sueño',
+  'wellness.item.fatigue': 'Fatiga',
+  'wellness.item.soreness': 'Dolor muscular',
+  'wellness.item.stress': 'Estrés',
+  'wellness.item.mood': 'Ánimo',
+  'wellness.submitted': '¡Listo! Gracias por cargar tu bienestar.',
+  'wellness.streak': '{days, plural, one {# día seguido} other {# días seguidos}}',
+  'rpe.title': 'Esfuerzo percibido (RPE)',
+  'rpe.prompt': '¿Qué tan dura fue la sesión?',
+  'rpe.scale.0': 'Reposo',
+  'rpe.scale.1': 'Muy, muy suave',
+  'rpe.scale.2': 'Suave',
+  'rpe.scale.3': 'Moderado',
+  'rpe.scale.4': 'Algo duro',
+  'rpe.scale.5': 'Duro',
+  'rpe.scale.7': 'Muy duro',
+  'rpe.scale.10': 'Máximo',
+  'rpe.sessionLoad': 'Carga de la sesión: {load}',
+
+  // Test battery (codes from the metric dictionary)
+  'test.anthro': 'Antropometría',
+  'test.sprint_40': 'Sprint 10/20/40 m',
+  'test.cmj': 'Salto con contramovimiento (CMJ)',
+  'test.cod_505': '505 (cambio de dirección)',
+  'test.ift_3015': '30-15 IFT',
+  'test.bronco': 'Bronco',
+  'test.strength': 'Fuerza',
+  'test.mobility': 'Movilidad',
+  'test.reaction': 'Reacción',
+  'test.neck': 'Cuello isométrico',
+
+  // How a result was measured
+  'method.manual': 'Manual',
+  'method.video': 'Video',
+  'method.photocell': 'Fotocélula',
+  'method.pod': 'Pod',
+  'method.app': 'App',
+  'method.historical': 'Histórico',
+  'method.mismatchWarning':
+    'Ojo: estos resultados se midieron con métodos distintos ({methods}) y pueden no ser comparables.',
+
+  // Time spans
+  'duration.days': '{count, plural, one {# día} other {# días}}',
+  'duration.weeks': '{count, plural, one {# semana} other {# semanas}}',
+  'duration.years': '{count, plural, one {# año} other {# años}}',
+
+  // Disclaimers
+  'legal.notMedicalDevice':
+    'Esta app monitorea la carga de entrenamiento. No diagnostica ni reemplaza al staff médico.',
+} as const;
