@@ -7,3 +7,13 @@ dist/
 .DS_Store
 coverage/
 *.tsbuildinfo
+
+# Key material and signing credentials (B-107). Never commit them; see docs/security.md.
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+*.mobileprovision
+*.p8
