@@ -149,7 +149,8 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
     read: { ...administration, parent: guardian, sc: assigned },
     report: {
       ...nobody,
-      parent: allow('guardian', 'data'),
+      // Only while the player is a minor: an adult keeps the guardian's read access only.
+      parent: allow('guardian', 'data', 'minor'),
       sc: allow('assigned', 'data'),
       admin: allow('club', 'data'),
       superadmin: allow('club', 'data'),
@@ -218,6 +219,12 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
   percentile: {
     read: { ...staffRead, player: allow('self', 'own_percentiles') },
   },
+  // The player cell is `self`, but the ranking shows the other players of the
+  // group: the endpoint must take the group from the viewer's own player and
+  // never accept an arbitrary player id (see the resource kind).
+  // The player cell is `self`, but the ranking shows the other players of the
+  // group: the endpoint must take the group from the viewer's own player and
+  // never accept an arbitrary player id (see the resource kind).
   named_ranking: {
     read: { ...staffRead, player: allow('self', 'named_rankings') },
   },
@@ -278,12 +285,15 @@ export function ruleFor<K extends ResourceKind>(
   action: ActionOf<K>,
   role: Role,
 ): PermissionRule {
-  const rules = (PERMISSION_MATRIX[kind] as Readonly<Record<string, RoleRules | undefined>>)[
-    action
-  ];
-  // Unreachable for typed callers; fail closed for untyped ones.
-  if (rules === undefined) return deny;
-  return rules[role];
+  // Unreachable for typed callers; fail closed for untyped ones: an unknown
+  // kind, an action that is not an own key (`constructor`, `toString`) or an
+  // unknown role is a denial, never a crash.
+  if (!Object.hasOwn(PERMISSION_MATRIX, kind)) return deny;
+  const actions = PERMISSION_MATRIX[kind] as Readonly<Record<string, RoleRules>>;
+  if (!Object.hasOwn(actions, action)) return deny;
+  const rules = actions[action] as Readonly<Record<string, PermissionRule>>;
+  if (!Object.hasOwn(rules, role)) return deny;
+  return rules[role] ?? deny;
 }
 
 /** Every cell, in resource, action and role order (for tests, docs and audits). */

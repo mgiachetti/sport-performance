@@ -75,7 +75,12 @@ export const PERMISSION_RESOURCES = {
   alert: { target: 'player', medical: false, actions: ['read', 'acknowledge'] },
   /** The player's percentile within a group (B-208). */
   percentile: { target: 'player', medical: false, actions: ['read'] },
-  /** Rankings with players' names. The player passed is the viewer's group. */
+  /**
+   * Rankings with players' names. The rows show other players of the group,
+   * so the player passed is the one whose group is ranked: for the `player`
+   * role (`self`) the endpoint must take it from the viewer's own player
+   * (`subject.playerId`) and never accept an arbitrary player from the request.
+   */
   named_ranking: { target: 'player', medical: false, actions: ['read'] },
   /** Anonymised group reference and first-team reference, against the player's own value. */
   group_reference: { target: 'player', medical: false, actions: ['read'] },

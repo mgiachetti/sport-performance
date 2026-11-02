@@ -4,7 +4,7 @@ import { CONSENT_TYPES, type ConsentType } from '../consent.js';
 import type { CategoryId, ClubId, PlayerId, UserId } from '../ids.js';
 import { ROLES, type Role } from '../role.js';
 import type { Stage } from '../stage.js';
-import { decide, type DenialReason, type PermissionDecision } from './evaluate.js';
+import { decide, listScope, type DenialReason, type PermissionDecision } from './evaluate.js';
 import { PERMISSION_MATRIX, permissionCells, type RoleRules } from './matrix.js';
 import { PERMISSION_RESOURCES, type ResourceKind } from './resources.js';
 import { deny, describeRule, isPermissionScope, isPlayerCondition } from './rules.js';
@@ -53,7 +53,7 @@ consent.read             self                  guardian        assigned        a
 consent.sign             self+adult            guardian+minor  -               -               -                -           -
 consent.revoke           self+adult            guardian+minor  -               -               -                -           -
 parent_height.read       -                     guardian        -               assigned        -                club        club
-parent_height.report     -                     guardian+data   -               assigned+data   -                club+data   club+data
+parent_height.report     -                     guardian+data+minor -               assigned+data   -                club+data   club+data
 wellness.read            self                  -               assigned        assigned        assigned         club        club
 wellness.submit          self+data             -               -               -               -                -           -
 rpe.read                 self                  -               assigned        assigned        assigned         club        club
@@ -553,10 +553,39 @@ describe.each(cells.map((c) => [`${c.kind}.${c.action} × ${c.role}`, c] as cons
       );
       if (decision.allowed) {
         expect(decision.obligations).toEqual(expectedObligations(cell.kind, cell.role));
+        // A subject allowed on one row can list, with the same obligations.
+        const scope = listScope(probe.subject, cell.kind, cell.action as never);
+        expect(scope.kind).not.toBe('none');
+        expect(scope.kind === 'none' ? null : scope.obligations).toEqual(decision.obligations);
+      }
+      if (!decision.allowed && decision.reason === 'role_denied') {
+        expect(listScope(probe.subject, cell.kind, cell.action as never)).toEqual({ kind: 'none' });
       }
     });
   },
 );
+
+describe('listScope and decide agree on obligations', () => {
+  it.each(
+    cells
+      .filter((c) => c.rule.effect === 'allow')
+      .map((c) => [`${c.kind}.${c.action} × ${c.role}`, c] as const),
+  )('%s', (_, cell) => {
+    const platformScope = cell.rule.effect === 'allow' && cell.rule.scope === 'platform';
+    const subject = platformScope
+      ? { ...omnipotentSubject(cell.role), clubId: null }
+      : omnipotentSubject(cell.role);
+    const resource = platformScope
+      ? { kind: cell.kind }
+      : { kind: cell.kind, clubId: CLUB, player: player() };
+    const scope = listScope(subject, cell.kind, cell.action as never);
+    expect(scope.kind).not.toBe('none');
+    const expected = expectedObligations(cell.kind, cell.role);
+    expect(scope.kind === 'none' ? null : scope.obligations).toEqual(expected);
+    const decision = decide(subject, cell.action as never, resource);
+    if (decision.allowed) expect(decision.obligations).toEqual(expected);
+  });
+});
 
 describe('privacy invariants (independent of the specification)', () => {
   const allowedCells = cells.filter((c) => c.rule.effect === 'allow');
@@ -602,6 +631,20 @@ describe('privacy invariants (independent of the specification)', () => {
       if (cell.rule.effect === 'allow' && cell.rule.scope === 'platform') {
         expect([cell.kind, cell.role]).toEqual(['club_registry', 'superadmin']);
       }
+    }
+  });
+
+  it('a guardian writes only while the player is a minor (an adult keeps read access only)', () => {
+    const guardianCells = allowedCells.filter(
+      (c) => c.rule.effect === 'allow' && c.rule.scope === 'guardian',
+    );
+    expect(guardianCells.length).toBeGreaterThan(0);
+    for (const cell of guardianCells) {
+      if (cell.action === 'read') continue;
+      expect(
+        cell.rule.effect === 'allow' && cell.rule.conditions,
+        `${cell.kind}.${cell.action}`,
+      ).toContain('minor');
     }
   });
 

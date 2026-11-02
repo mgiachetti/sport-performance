@@ -80,10 +80,21 @@ export function decide<K extends ResourceKind>(
     if (required !== null) return required;
   }
 
+  return { allowed: true, obligations: obligationsFor(subject, resource.kind) };
+}
+
+/**
+ * Obligations of an allowed access. They depend only on the resource kind and
+ * the role, so {@link decide} and {@link listScope} share them.
+ */
+function obligationsFor(
+  subject: PermissionSubject,
+  kind: ResourceKind,
+): readonly PermissionObligation[] {
   const obligations: PermissionObligation[] = [];
-  if (PERMISSION_RESOURCES[resource.kind].medical) obligations.push('audit_medical_access');
+  if (PERMISSION_RESOURCES[kind].medical) obligations.push('audit_medical_access');
   if (subject.role === 'superadmin') obligations.push('audit_support_access');
-  return { allowed: true, obligations };
+  return obligations;
 }
 
 /** Whether the subject may do `action` on the resource. */
@@ -147,23 +158,39 @@ export function permittedActions<K extends ResourceKind>(
  * Which rows of a kind a subject may list, as a filter to translate into SQL
  * (on top of RLS). When `rowCheck` is `true` the rule also has consent or
  * player conditions, so every row must still pass {@link can} with its facts.
+ *
+ * Every variant but `none` carries the same `obligations` that {@link decide}
+ * gives for one row: a list endpoint must fulfil them for the rows it returns
+ * (the `medical` audit row for every read, ADR 0008; the superadmin's support
+ * audit), in the same transaction.
  */
 export type ListScope =
   | { readonly kind: 'none' }
-  | { readonly kind: 'platform'; readonly rowCheck: false }
-  | { readonly kind: 'club'; readonly clubId: ClubId; readonly rowCheck: boolean }
+  | {
+      readonly kind: 'platform';
+      readonly rowCheck: false;
+      readonly obligations: readonly PermissionObligation[];
+    }
+  | {
+      readonly kind: 'club';
+      readonly clubId: ClubId;
+      readonly rowCheck: boolean;
+      readonly obligations: readonly PermissionObligation[];
+    }
   | {
       readonly kind: 'assigned';
       readonly clubId: ClubId;
       readonly categoryIds: readonly CategoryId[];
       readonly sports: readonly Sport[];
       readonly rowCheck: boolean;
+      readonly obligations: readonly PermissionObligation[];
     }
   | {
       readonly kind: 'players';
       readonly clubId: ClubId;
       readonly playerIds: readonly PlayerId[];
       readonly rowCheck: boolean;
+      readonly obligations: readonly PermissionObligation[];
     };
 
 export function listScope<K extends ResourceKind>(
@@ -174,25 +201,39 @@ export function listScope<K extends ResourceKind>(
   const none: ListScope = { kind: 'none' };
   const rule = ruleFor(kind, action, subject.role);
   if (rule.effect === 'deny') return none;
-  if (rule.scope === 'platform') return { kind: 'platform', rowCheck: false };
+  const obligations = obligationsFor(subject, kind);
+  if (rule.scope === 'platform') return { kind: 'platform', rowCheck: false, obligations };
   const clubId = subject.clubId ?? null;
   if (clubId === null) return none;
   const hasRequirements = rule.consents.length > 0 || rule.conditions.length > 0;
 
   switch (rule.scope) {
     case 'club':
-      return { kind: 'club', clubId, rowCheck: hasRequirements };
+      return { kind: 'club', clubId, rowCheck: hasRequirements, obligations };
     case 'assigned': {
       const assignments = subject.assignments ?? [];
       const categoryIds = assignments.flatMap((a) => (a.kind === 'category' ? [a.categoryId] : []));
       const sports = assignments.flatMap((a) => (a.kind === 'sport' ? [a.sport] : []));
       if (categoryIds.length === 0 && sports.length === 0) return none;
-      return { kind: 'assigned', clubId, categoryIds, sports, rowCheck: hasRequirements };
+      return {
+        kind: 'assigned',
+        clubId,
+        categoryIds,
+        sports,
+        rowCheck: hasRequirements,
+        obligations,
+      };
     }
     case 'self': {
       const playerId = subject.playerId ?? null;
       if (playerId === null) return none;
-      return { kind: 'players', clubId, playerIds: [playerId], rowCheck: hasRequirements };
+      return {
+        kind: 'players',
+        clubId,
+        playerIds: [playerId],
+        rowCheck: hasRequirements,
+        obligations,
+      };
     }
     case 'guardian': {
       const playerIds = (subject.guardianships ?? []).map((g) => g.playerId);
@@ -200,7 +241,7 @@ export function listScope<K extends ResourceKind>(
       // Majority (B-311) depends on each player: unconfirmed links need the row's facts.
       const rowCheck =
         hasRequirements || (subject.guardianships ?? []).some((g) => !g.confirmedByAdultPlayer);
-      return { kind: 'players', clubId, playerIds, rowCheck };
+      return { kind: 'players', clubId, playerIds, rowCheck, obligations };
     }
   }
 }

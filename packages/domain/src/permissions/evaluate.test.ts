@@ -241,6 +241,7 @@ describe('listScope', () => {
       categoryIds: [M15],
       sports: [],
       rowCheck: false,
+      obligations: [],
     });
     expect(listScope(coach, 'participation', 'record')).toMatchObject({ rowCheck: true });
     expect(listScope({ ...coach, assignments: [] }, 'test_result', 'read')).toEqual({
@@ -256,6 +257,7 @@ describe('listScope', () => {
       kind: 'club',
       clubId: CLUB,
       rowCheck: true,
+      obligations: [],
     });
     const player: PermissionSubject = {
       userId: USER,
@@ -268,6 +270,7 @@ describe('listScope', () => {
       clubId: CLUB,
       playerIds: [PLAYER],
       rowCheck: false,
+      obligations: [],
     });
     expect(listScope({ ...player, playerId: null }, 'wellness', 'read')).toEqual({ kind: 'none' });
     const parent: PermissionSubject = {
@@ -284,6 +287,7 @@ describe('listScope', () => {
       clubId: CLUB,
       playerIds: [PLAYER, SIBLING],
       rowCheck: true,
+      obligations: [],
     });
     expect(listScope({ ...parent, guardianships: [] }, 'availability', 'read')).toEqual({
       kind: 'none',
@@ -292,7 +296,61 @@ describe('listScope', () => {
     expect(listScope(superadmin, 'club_registry', 'read')).toEqual({
       kind: 'platform',
       rowCheck: false,
+      obligations: ['audit_support_access'],
     });
+  });
+
+  it('carries the audit obligations of decide', () => {
+    const medical: PermissionSubject = {
+      userId: USER,
+      role: 'medical',
+      clubId: CLUB,
+      assignments: [{ kind: 'category', categoryId: M15 }],
+    };
+    expect(listScope(medical, 'medical_record', 'read')).toEqual({
+      kind: 'assigned',
+      clubId: CLUB,
+      categoryIds: [M15],
+      sports: [],
+      rowCheck: false,
+      obligations: ['audit_medical_access'],
+    });
+    const superadmin: PermissionSubject = { userId: USER, role: 'superadmin', clubId: CLUB };
+    expect(listScope(superadmin, 'test_result', 'read')).toEqual({
+      kind: 'club',
+      clubId: CLUB,
+      rowCheck: false,
+      obligations: ['audit_support_access'],
+    });
+  });
+});
+
+describe('untyped input', () => {
+  const admin: PermissionSubject = { userId: USER, role: 'admin', clubId: CLUB };
+
+  it('denies actions that are not own keys of the matrix instead of throwing', () => {
+    for (const action of ['constructor', 'toString', '__proto__', 'hasOwnProperty', 'nope']) {
+      expect(ruleFor('club', action as never, 'admin')).toEqual({ effect: 'deny' });
+      expect(decide(admin, action as never, { kind: 'club', clubId: CLUB })).toEqual({
+        allowed: false,
+        reason: 'role_denied',
+      });
+      expect(listScope(admin, 'club', action as never)).toEqual({ kind: 'none' });
+    }
+  });
+
+  it('denies unknown roles and kinds instead of throwing', () => {
+    for (const role of ['owner', 'constructor', 'toString']) {
+      const subject = { ...admin, role } as unknown as PermissionSubject;
+      expect(decide(subject, 'read', { kind: 'club', clubId: CLUB })).toEqual({
+        allowed: false,
+        reason: 'role_denied',
+      });
+      expect(listScope(subject, 'club', 'read')).toEqual({ kind: 'none' });
+    }
+    for (const kind of ['constructor', 'nope']) {
+      expect(ruleFor(kind as never, 'read' as never, 'admin')).toEqual({ effect: 'deny' });
+    }
   });
 });
 
