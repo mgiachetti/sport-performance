@@ -1,4 +1,5 @@
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import type { CategoryId } from '@sport-performance/domain';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { eq } from 'drizzle-orm';
@@ -6,7 +7,7 @@ import type pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDatabase } from './client.js';
 import { assertConnectionRole, DatabaseRoleError, provisionLoginRole } from './roles.js';
-import { authSchema, membership, user } from './schema/index.js';
+import { authSchema, invitation, invitationCategory, membership, user } from './schema/index.js';
 import {
   connectAs,
   createMigratedDatabase,
@@ -20,7 +21,7 @@ import {
 import { seedClubFixture, type ClubFixture, type FixtureUser } from './testing/tenant-fixture.js';
 
 /**
- * What each role sees and writes inside its own club (ADR 0025), the
+ * What each role sees and writes inside its own club (ADR 0026), the
  * validation of the claimed role, superadmin, the worker and Better Auth's
  * role. Isolation between clubs is in `rls.isolation.integration.test.ts`.
  */
@@ -29,7 +30,9 @@ async function pgCode(promise: Promise<unknown>): Promise<string | undefined> {
   try {
     await promise;
   } catch (error) {
-    return (error as { code?: string }).code;
+    // Drizzle wraps the driver error in `cause`.
+    const failure = error as { code?: string; cause?: { code?: string } };
+    return failure.code ?? failure.cause?.code;
   }
   return 'no error';
 }
@@ -333,6 +336,255 @@ describe.skipIf(!hasDatabase)('RLS by role (Postgres 16)', () => {
     });
   });
 
+  describe('invitations (B-309, ADR 0028)', () => {
+    const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
+    const DAY_MS = 24 * 60 * 60 * 1000;
+
+    /** A pending invitation of club A written as the owner; returns its token hash. */
+    async function invite(email: string, role: 'coach' | 'player', categoryId?: string) {
+      const tokenHash = sha256(`token-${randomUUID()}`);
+      const [row] = await t.db
+        .insert(invitation)
+        .values({
+          clubId: a.clubId,
+          email,
+          role,
+          tokenHash,
+          expiresAt: new Date(Date.now() + 7 * DAY_MS),
+          createdBy: a.users.admin,
+        })
+        .returning({ id: invitation.id });
+      if (categoryId !== undefined) {
+        await t.db.insert(invitationCategory).values({
+          clubId: a.clubId,
+          invitationId: must(row).id,
+          categoryId: categoryId as CategoryId,
+        });
+      }
+      return tokenHash;
+    }
+
+    async function newUser(email: string) {
+      const [row] = await t.db
+        .insert(user)
+        .values({ name: email, email })
+        .returning({ id: user.id });
+      return must(row).id;
+    }
+
+    async function accept(context: TestContext, tokenHash: string) {
+      return run(context, async (client) => {
+        const { rows } = await client.query<{
+          outcome: string;
+          joined_membership_id: string | null;
+          membership_created: boolean;
+        }>('select * from app.accept_invitation($1)', [tokenHash]);
+        return must(rows[0]);
+      });
+    }
+
+    it('only the admin of the club (or a superadmin supporting it) sees and writes them', async () => {
+      const own = [must(a.rows.invitation)];
+      expect(await ids(as('admin'), 'select id from invitation')).toEqual(own);
+      expect(
+        await ids(
+          { clubId: a.clubId, userId: superadminId, role: 'superadmin' },
+          'select id from invitation',
+        ),
+      ).toEqual(own);
+      for (const who of ['coach', 'sc', 'medical', 'player', 'parent'] as const) {
+        expect(await ids(as(who), 'select id from invitation'), who).toEqual([]);
+        expect(await ids(as(who), 'select id from invitation_category'), who).toEqual([]);
+      }
+      expect(
+        await pgCode(
+          run(as('coach'), (client) =>
+            client.query(
+              `insert into invitation (club_id, email, role, token_hash, expires_at)
+               values ($1, 'x@example.com', 'player', $2, now() + interval '1 day')`,
+              [a.clubId, sha256('coach-invite')],
+            ),
+          ),
+        ),
+      ).toBe('42501');
+      await run(as('admin'), (client) =>
+        client.query(
+          `insert into invitation (club_id, email, role, token_hash, expires_at)
+           values ($1, 'y@example.com', 'player', $2, now() + interval '1 day')`,
+          [a.clubId, sha256('admin-invite')],
+        ),
+      );
+    });
+
+    it('finds an invitation by token hash only, without any context', async () => {
+      const tokenHash = await invite('vista@example.com', 'player');
+      const { rows } = await app.pool.query<Record<string, unknown>>(
+        'select * from app.invitation_by_token($1)',
+        [tokenHash],
+      );
+      expect(rows).toHaveLength(1);
+      expect(must(rows[0])).toMatchObject({
+        club_id: a.clubId,
+        club_slug: a.slug,
+        email: 'vista@example.com',
+        role: 'player',
+        accepted_at: null,
+        revoked_at: null,
+      });
+      const unknown = await app.pool.query('select * from app.invitation_by_token($1)', [
+        sha256('nope'),
+      ]);
+      expect(unknown.rowCount).toBe(0);
+      // Still nothing through the tables.
+      expect(await ids({}, 'select id from invitation')).toEqual([]);
+    });
+
+    it('accepts as the user of the context: membership, staff assignments, once', async () => {
+      const email = 'nuevo-coach@example.com';
+      const userId = await newUser(email);
+      const tokenHash = await invite(email, 'coach', must(a.rows.category));
+
+      const joined = await accept({ userId }, tokenHash);
+      expect(joined).toMatchObject({ outcome: 'joined', membership_created: true });
+      const membershipId = must(joined.joined_membership_id);
+      const { rows: stored } = await t.pool.query<{
+        role: string;
+        invited_by: string;
+        categories: string[];
+        accepted_by: string;
+      }>(
+        `select m.role, m.invited_by,
+                array(select sa.category_id::text from staff_assignment sa where sa.membership_id = m.id) as categories,
+                (select i.accepted_by from invitation i where i.token_hash = $2) as accepted_by
+           from membership m where m.id = $1`,
+        [membershipId, tokenHash],
+      );
+      expect(must(stored[0])).toEqual({
+        role: 'coach',
+        invited_by: a.users.admin,
+        categories: [a.rows.category],
+        accepted_by: userId,
+      });
+      // The new coach now acts in the club with the validated role.
+      expect(await players({ clubId: a.clubId, userId, role: 'coach' })).toEqual([
+        a.players.assigned,
+      ]);
+
+      // A retry by the same user answers the same membership, without changes.
+      expect(await accept({ userId }, tokenHash)).toEqual({
+        outcome: 'joined',
+        joined_membership_id: membershipId,
+        membership_created: false,
+      });
+      const { rows: assignments } = await t.pool.query(
+        'select 1 from staff_assignment where membership_id = $1',
+        [membershipId],
+      );
+      expect(assignments).toHaveLength(1);
+      // Anyone else: already used.
+      const other = await newUser('otro-coach@example.com');
+      expect(await accept({ userId: other }, tokenHash)).toMatchObject({ outcome: 'accepted' });
+    });
+
+    it('allows one open invitation per email and role, and one open assignment per category', async () => {
+      await invite('unica@example.com', 'player');
+      expect(await pgCode(invite('unica@example.com', 'player'))).toBe('23505');
+      await invite('unica@example.com', 'coach');
+      expect(
+        await pgCode(
+          t.pool.query(
+            `insert into staff_assignment (club_id, membership_id, category_id, valid_from)
+             select club_id, membership_id, category_id, valid_from from staff_assignment
+              where club_id = $1 and category_id is not null and valid_to is null limit 1`,
+            [a.clubId],
+          ),
+        ),
+      ).toBe('23505');
+    });
+
+    it('lets the API change only the revocation of an invitation', async () => {
+      const tokenHash = await invite('revocable@example.com', 'player');
+      await run(as('admin'), (client) =>
+        client.query(
+          'update invitation set revoked_at = now(), revoked_by = $2 where token_hash = $1',
+          [tokenHash, a.users.admin],
+        ),
+      );
+      for (const set of [
+        `email = 'otro@example.com'`,
+        `role = 'admin'`,
+        `token_hash = token_hash`,
+        `expires_at = now() + interval '1 year'`,
+        `accepted_at = now()`,
+        `accepted_by = created_by`,
+      ]) {
+        expect(
+          await pgCode(
+            run(as('admin'), (client) =>
+              client.query(`update invitation set ${set} where token_hash = $1`, [tokenHash]),
+            ),
+          ),
+          set,
+        ).toBe('42501');
+      }
+    });
+
+    it('does not duplicate an active membership with the same role', async () => {
+      const tokenHash = await invite(`player@roles-a.example.com`, 'player');
+      const result = await accept({ userId: a.users.player }, tokenHash);
+      expect(result).toMatchObject({ outcome: 'joined', membership_created: false });
+      const { rows } = await t.pool.query<{ n: number }>(
+        `select count(*)::int as n from membership where user_id = $1 and club_id = $2 and role = 'player'`,
+        [a.users.player, a.clubId],
+      );
+      expect(must(rows[0]).n).toBe(1);
+    });
+
+    it('refuses another email, expired and revoked invitations and unknown tokens', async () => {
+      const userId = await newUser('otra-persona@example.com');
+      const tokenHash = await invite('destinatario@example.com', 'player');
+      expect(await accept({ userId }, tokenHash)).toMatchObject({ outcome: 'wrong_email' });
+      expect(await accept({ userId }, sha256('unknown'))).toMatchObject({ outcome: 'not_found' });
+
+      const late = await invite('otra-persona@example.com', 'player');
+      await t.pool.query(
+        `update invitation set created_at = now() - interval '2 days', expires_at = now() - interval '1 second'
+          where token_hash = $1`,
+        [late],
+      );
+      expect(await accept({ userId }, late)).toMatchObject({ outcome: 'expired' });
+
+      const revoked = await invite('otra-persona@example.com', 'coach');
+      await t.pool.query(`update invitation set revoked_at = now() where token_hash = $1`, [
+        revoked,
+      ]);
+      expect(await accept({ userId }, revoked)).toMatchObject({ outcome: 'revoked' });
+
+      const { rows } = await t.pool.query<{ n: number }>(
+        'select count(*)::int as n from membership where user_id = $1',
+        [userId],
+      );
+      expect(must(rows[0]).n).toBe(0);
+    });
+
+    it('needs a user and no club in the context, and only the API role may call it', async () => {
+      const tokenHash = await invite('alguien@example.com', 'player');
+      expect(await pgCode(accept({}, tokenHash))).toBe('42501');
+      expect(await pgCode(accept(as('admin'), tokenHash))).toBe('42501');
+      const worker = await connectAs(t, 'worker');
+      try {
+        expect(
+          await pgCode(worker.pool.query('select * from app.accept_invitation($1)', [tokenHash])),
+        ).toBe('42501');
+        expect(
+          await pgCode(worker.pool.query('select * from app.invitation_by_token($1)', [tokenHash])),
+        ).toBe('42501');
+      } finally {
+        await worker.close();
+      }
+    });
+  });
+
   describe('superadmin in a club', () => {
     it('acts as admin of the club it supports', async () => {
       const context = { clubId: a.clubId, userId: superadminId, role: 'superadmin' };
@@ -406,6 +658,18 @@ describe.skipIf(!hasDatabase)('RLS by role (Postgres 16)', () => {
         .from(user)
         .where(eq(user.email, 'auth-role@example.com'));
       expect(stored?.isSuperadmin).toBe(false);
+    });
+
+    it('owns the sign-in attempt counters, which the API cannot see', async () => {
+      await auth.pool.query(
+        `insert into auth_rate_limit (key, count, window_ends_at) values ('test:key', 1, now() + interval '1 minute')`,
+      );
+      expect(
+        (await auth.pool.query('delete from auth_rate_limit where key = $1', ['test:key']))
+          .rowCount,
+      ).toBe(1);
+      expect(await pgCode(app.pool.query('select 1 from auth_rate_limit'))).toBe('42501');
+      expect(await pgCode(auth.pool.query('select 1 from invitation'))).toBe('42501');
     });
 
     it('cannot read club data nor grant is_superadmin', async () => {

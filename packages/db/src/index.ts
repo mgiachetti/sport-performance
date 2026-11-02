@@ -5,7 +5,7 @@
  * - `@sport-performance/db/schema`: tables, enums and column helpers.
  * - `@sport-performance/db/migrate`: `runMigrations()` without the ORM client.
  * - `@sport-performance/db/roles`: connection roles, login provisioning and
- *   the startup check of the login (ADR 0025).
+ *   the startup check of the login (ADR 0026).
  */
 export * as schema from './schema/index.js';
 export { createDatabase, createPool, type CreatePoolOptions, type Database } from './client.js';

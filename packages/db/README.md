@@ -54,6 +54,7 @@ Nunca `drizzle-kit push` ni `drizzle-kit migrate` contra una base compartida. Un
 | `training.ts` | `training_session` (entrenamiento o partido), `drill`, `participation` (`srpe_au` generado), `wellness`, `external_metric`, `gym_program`, `gym_set`. |
 | `alerts.ts` | `alert_rule` (la `AlertRule` del dominio como datos), `alert`. |
 | `maturation.ts` | `khamis_roche_table` (procedencia y estado de verificación) y `khamis_roche_coefficient` (por sexo y edad): los coeficientes de Khamis-Roche como datos (B-203, B-306). |
+| `access.ts` | `invitation` (invitación por link: email, rol, vencimiento, solo el SHA-256 del token; aceptada o anulada, nunca las dos), `invitation_category` (alcance por categoría que se convierte en `staff_assignment`) y `auth_rate_limit` (contadores de intentos del ingreso, global, claves HMAC). B-309, [ADR 0028](../../docs/adr/0028-auth-membresias-e-invitaciones-en-la-api.md). |
 
 Convenciones (ADR 0023): `club_id NOT NULL` y auditoría (`created_at`, `updated_at` con trigger, `created_by`, `updated_by`, `client_uuid` único por club) en toda tabla del club; claves foráneas compuestas `(club_id, x_id)` para que nada apunte a otro club; enums creados desde las constantes de `@sport-performance/domain`; días del club como `date` (`LocalDate`) y vigencias `[valid_from, valid_to)`.
 
@@ -63,12 +64,13 @@ Convenciones (ADR 0023): `club_id NOT NULL` y auditoría (`created_at`, `updated
 |---|---|---|
 | `sport_performance_app` | API | Lo que permite el contexto de la transacción (`app.club_id`, `app.user_id`, `app.role`). |
 | `sport_performance_worker` | worker | Todo el club del job (`app.club_id`), nada sin él. |
-| `sport_performance_auth` | Better Auth | Solo `user`, `session`, `account`, `verification`. |
+| `sport_performance_auth` | Better Auth | Solo `user`, `session`, `account`, `verification` y `auth_rate_limit` (contadores de intentos del ingreso). |
 
 - Cada login real es miembro de **un solo** rol y se crea con `db:provision-login`; la contraseña nunca va al repo. La API verifica su login al arrancar.
 - `app.current_role()` solo devuelve el rol si hay una membresía activa que lo respalde (o `is_superadmin` para `superadmin`). Sin contexto, todo se deniega.
 - Toda tabla con `club_id` tiene RLS forzada, una política `RESTRICTIVE` por club y políticas por rol, creadas con `app_admin.secure_club_table()`. Una tabla nueva la llama en su migración y suma una fila al fixture `src/testing/tenant-fixture.ts`; si no, los tests de RLS fallan.
 - `DELETE` solo en `drill`; `test_result_value` es append-only también por grants.
+- Invitaciones (B-309, [ADR 0028](../../docs/adr/0028-auth-membresias-e-invitaciones-en-la-api.md)): `invitation` e `invitation_category` las leen y escriben solo `admin` y `superadmin` del club, y de una invitación la API solo puede cambiar su anulación (grant de `UPDATE` por columna). Un solo link abierto por club, email y rol (`invitation_pending_key`) y una sola asignación abierta por membresía y categoría (`staff_assignment_open_category_key`). Quien abre el link todavía no es miembro: `app.invitation_by_token(hash)` y `app.accept_invitation(hash)` (`SECURITY DEFINER`, solo para `sport_performance_app`) encuentran exactamente la invitación de ese hash; aceptar exige `app.user_id` sin club, valida estado y email en la base y crea la membresía y las asignaciones de staff.
 - Las migraciones corren como superusuario o con `BYPASSRLS`.
 
 Puesta en marcha local:

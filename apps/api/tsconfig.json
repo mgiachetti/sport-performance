@@ -1,6 +1,7 @@
 {
   "extends": "@sport-performance/config/tsconfig/node.json",
   "compilerOptions": {
+    "jsx": "react-jsx",
     "noEmit": true
   },
   "include": ["src", "vitest.config.ts"]

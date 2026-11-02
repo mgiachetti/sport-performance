@@ -6,7 +6,7 @@ import * as schema from './schema/index.js';
 export type Database = NodePgDatabase<typeof schema>;
 
 export interface CreatePoolOptions {
-  /** Login of a connection role (ADR 0025), never the owner. Never logged. */
+  /** Login of a connection role (ADR 0026), never the owner. Never logged. */
   readonly connectionString: string;
   /** Shown in `pg_stat_activity` (`sport-performance-api`, `sport-performance-worker`). */
   readonly applicationName?: string;
@@ -30,7 +30,7 @@ export interface CreatePoolOptions {
 /**
  * Connection pool for the API and the worker. They connect with a login of
  * their connection role (`sport_performance_app`, `sport_performance_worker`),
- * which is not the table owner and has no `BYPASSRLS` (ADR 0006, ADR 0025):
+ * which is not the table owner and has no `BYPASSRLS` (ADR 0006, ADR 0026):
  * check it at startup with `assertConnectionRole()`. Every query runs inside a
  * transaction that first sets the tenant context with `set_config(..., true)`.
  */

@@ -126,7 +126,7 @@ export function databaseFromPool(pool: pg.Pool): Database {
 
 /**
  * The pool of the API, from `@sport-performance/db`. `options.url` must be a
- * login of `sport_performance_app` (ADR 0025): `main.ts` checks it with
+ * login of `sport_performance_app` (ADR 0026): `main.ts` checks it with
  * `assertConnectionRole` before serving.
  */
 export function createApiPool(options: PgDatabaseOptions): pg.Pool {

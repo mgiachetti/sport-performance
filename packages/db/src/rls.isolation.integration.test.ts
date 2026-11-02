@@ -18,7 +18,7 @@ import { seedClubFixture, type ClubFixture } from './testing/tenant-fixture.js';
 
 /**
  * Isolation between clubs for every table with `club_id` (ADR 0006, ADR
- * 0025), through real logins of the connection roles. The list of tables
+ * 0026), through real logins of the connection roles. The list of tables
  * comes from the schema and is checked against the migrated database's
  * catalog, and the fixture must have a row in each: a new table without
  * policies or without fixture data fails here.

@@ -1,7 +1,10 @@
 /** Test helpers. Not part of the build (`tsconfig.build.json` excludes `src/testing`). */
+import { randomUUID } from 'node:crypto';
+import { parseUuid, type ClubId, type Role, type UserId } from '@sport-performance/domain';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { describe } from 'vitest';
 import { buildApp, type BuildAppOptions } from '../app.js';
+import type { AuthContext } from '../auth/context.js';
 import type { Database } from '../db/database.js';
 import type { ErrorReportContext, ErrorReporter } from '../observability/error-reporter.js';
 import { createLogger } from '../observability/logger.js';
@@ -49,6 +52,29 @@ export function recordingReporter(): ErrorReporter & {
       captured.push({ error, context });
     },
     flush: () => Promise.resolve(true),
+  };
+}
+
+/** An authenticated caller for tests that do not go through Better Auth. */
+export function testAuthContext(
+  userId: UserId,
+  membership: { clubId: ClubId; role: Role; membershipId?: string } | null = null,
+): AuthContext {
+  return {
+    userId,
+    email: 'test@example.com',
+    name: 'Test',
+    isSuperadmin: false,
+    session: { id: 'test-session', expiresAt: new Date(Date.now() + 60_000) },
+    membership:
+      membership === null
+        ? null
+        : {
+            membershipId: parseUuid(membership.membershipId ?? randomUUID()),
+            clubId: membership.clubId,
+            role: membership.role,
+          },
+    membershipRejected: false,
   };
 }
 

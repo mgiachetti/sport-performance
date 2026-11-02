@@ -13,13 +13,13 @@ const tables = (Object.values(schema) as unknown[])
   .filter((value): value is PgTable => is(value as object, PgTable))
   .map((table) => getTableConfig(table));
 
-/** Global tables: identity (ADR 0007) and the tenant root. */
-const GLOBAL_TABLES = ['user', 'session', 'account', 'verification', 'club'];
+/** Global tables: identity (ADR 0007), sign-in attempt counters and the tenant root. */
+const GLOBAL_TABLES = ['user', 'session', 'account', 'verification', 'auth_rate_limit', 'club'];
 const tenantTables = tables.filter((t) => !GLOBAL_TABLES.includes(t.name));
 const tenantTableNames = new Set(tenantTables.map((t) => t.name));
 
 describe('schema conventions', () => {
-  it('defines the B-301 model and the B-306 reference tables', () => {
+  it('defines the B-301 model, the B-306 reference tables and the B-309 access tables', () => {
     const names = tables.map((t) => t.name).sort();
     expect(names).toEqual(
       [
@@ -27,6 +27,7 @@ describe('schema conventions', () => {
         'alert',
         'alert_rule',
         'anthro_measurement',
+        'auth_rate_limit',
         'battery_config',
         'category',
         'club',
@@ -39,6 +40,8 @@ describe('schema conventions', () => {
         'khamis_roche_table',
         'gym_program',
         'gym_set',
+        'invitation',
+        'invitation_category',
         'membership',
         'metric_definition',
         'participation',

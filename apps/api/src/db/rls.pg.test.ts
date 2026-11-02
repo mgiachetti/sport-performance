@@ -1,6 +1,6 @@
 /**
  * The API's data layer against a migrated Postgres 16, connected as a real
- * login of `sport_performance_app` (ADR 0006, ADR 0025): RLS isolates clubs
+ * login of `sport_performance_app` (ADR 0006, ADR 0026): RLS isolates clubs
  * and fails closed through the real transaction helper, the Drizzle client
  * handlers get runs inside the request transaction, and a pooled connection
  * never leaks a context.
@@ -21,7 +21,7 @@ import { afterAll, beforeAll, expect, it } from 'vitest';
 import { z } from 'zod';
 import type { AuthContext } from '../auth/context.js';
 import { registerEndpoint } from '../http/endpoint.js';
-import { describeWithPostgres, testApp } from '../testing/support.js';
+import { describeWithPostgres, testApp, testAuthContext } from '../testing/support.js';
 import { createApiPool, createPgDatabase, databaseFromPool, type Database } from './database.js';
 import { ANONYMOUS_CONTEXT, TENANT_SETTINGS, type TenantContext } from './tenant-context.js';
 
@@ -45,10 +45,9 @@ function headerAuth(request: FastifyRequest): Promise<AuthContext | null> {
   const user = request.headers['x-test-user'];
   const club = request.headers['x-test-club'];
   if (typeof user !== 'string' || typeof club !== 'string') return Promise.resolve(null);
-  return Promise.resolve({
-    userId: parseUserId(user),
-    membership: { clubId: parseClubId(club), role: 'admin' },
-  });
+  return Promise.resolve(
+    testAuthContext(parseUserId(user), { clubId: parseClubId(club), role: 'admin' }),
+  );
 }
 
 describeWithPostgres('RLS through the API data layer (Postgres)', (url) => {

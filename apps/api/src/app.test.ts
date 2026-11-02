@@ -15,7 +15,8 @@ import type { AuthContext } from './auth/context.js';
 import { fastifyPath, registerEndpoint } from './http/endpoint.js';
 import { HttpError } from './http/errors.js';
 import { IMPLEMENTED_ENDPOINTS, PENDING_ENDPOINTS } from './routes/index.js';
-import { fakeDatabase, recordingReporter, testApp } from './testing/support.js';
+import { offlineAuthModule } from './testing/identity.js';
+import { fakeDatabase, recordingReporter, testApp, testAuthContext } from './testing/support.js';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -240,6 +241,16 @@ describe('error envelope', () => {
     });
     expect(wrongType.statusCode).toBe(400);
     expect(envelope(wrongType.body).error.code).toBe('bad_request');
+
+    // Only JSON is parsed: a `text/plain` body (what a cross-site form can send) is rejected.
+    const plainText = await app.inject({
+      method: 'POST',
+      url: `/v1/test/echo/${id}`,
+      headers: { 'content-type': 'text/plain' },
+      payload: '{"heightCm":1}',
+    });
+    expect(plainText.statusCode).toBe(400);
+    expect(envelope(plainText.body).error.code).toBe('bad_request');
   });
 });
 
@@ -296,7 +307,7 @@ describe('endpoints from the contract', () => {
   });
 
   it('serves or lists as pending every endpoint of the catalog', async () => {
-    const { app } = await start();
+    const { app } = await start({ auth: offlineAuthModule() });
     const served = [...IMPLEMENTED_ENDPOINTS].sort();
     const pending = Object.keys(PENDING_ENDPOINTS).sort();
     expect([...served, ...pending].sort()).toEqual(Object.keys(apiEndpoints).sort());
@@ -317,7 +328,7 @@ describe('request context hook', () => {
   });
 
   it('hands the authenticated caller to handlers and to the reporter', async () => {
-    const auth: AuthContext = { userId, membership: { clubId, role: 'coach' } };
+    const auth: AuthContext = testAuthContext(userId, { clubId, role: 'coach' });
     const reporter = recordingReporter();
     const { app } = await start({
       authenticate: (request) =>

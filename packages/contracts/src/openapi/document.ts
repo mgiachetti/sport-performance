@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import {
   API_TAGS,
+  MEMBERSHIP_HEADER,
+  SESSION_COOKIE_PREFIX,
   endpointErrorCodes,
   type EndpointCatalog,
   type EndpointDefinition,
@@ -18,7 +20,7 @@ export const CONTRACT_VERSION = '0.1.0';
 
 export interface OpenApiParameter {
   name: string;
-  in: 'path' | 'query';
+  in: 'path' | 'query' | 'header';
   required: boolean;
   description?: string;
   schema: JsonSchema;
@@ -55,6 +57,21 @@ export interface BuildOpenApiOptions {
   version?: string;
   description?: string;
 }
+
+/** Name of the web session cookie over HTTPS (Better Auth adds `__Secure-`). */
+const SESSION_COOKIE_NAME = `__Secure-${SESSION_COOKIE_PREFIX}.session_token`;
+
+/** Either the web cookie or the mobile bearer token authenticates a request. */
+const SESSION_SECURITY: Record<string, string[]>[] = [{ sessionCookie: [] }, { bearerToken: [] }];
+
+const MEMBERSHIP_PARAMETER: OpenApiParameter = {
+  name: MEMBERSHIP_HEADER,
+  in: 'header',
+  required: false,
+  description:
+    'Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.',
+  schema: { type: 'string', format: 'uuid' },
+};
 
 /** Converted schemas are plain JSON with deterministic key order. */
 function jsonEqual(a: unknown, b: unknown): boolean {
@@ -259,12 +276,15 @@ export function buildOpenApiDocument(
       ...(endpoint.description !== undefined && { description: endpoint.description }),
       tags: [...endpoint.tags],
       ...(endpoint.deprecated === true && { deprecated: true }),
-      security: endpoint.auth === 'public' ? [] : [{ session: [] }],
-      ...(parameters.length > 0 && {
-        parameters: parameters.map(({ schema, ...parameter }) => ({
-          ...parameter,
-          schema: resolve(schema),
-        })),
+      security: endpoint.auth === 'public' ? [] : SESSION_SECURITY,
+      ...((parameters.length > 0 || endpoint.auth === 'club') && {
+        parameters: [
+          ...parameters.map(({ schema, ...parameter }) => ({
+            ...parameter,
+            schema: resolve(schema),
+          })),
+          ...(endpoint.auth === 'club' ? [MEMBERSHIP_PARAMETER] : []),
+        ],
       }),
       ...(body && {
         requestBody: {
@@ -298,11 +318,18 @@ export function buildOpenApiDocument(
     components: {
       schemas,
       securitySchemes: {
-        session: {
+        sessionCookie: {
+          type: 'apiKey',
+          in: 'cookie',
+          name: SESSION_COOKIE_NAME,
+          description:
+            'Web: cookie `HttpOnly` de la sesión que fija `POST /v1/auth/email-otp/verify` con `transport: "cookie"`. Sin HTTPS (desarrollo) va sin el prefijo `__Secure-`.',
+        },
+        bearerToken: {
           type: 'http',
           scheme: 'bearer',
           description:
-            'Sesión de Better Auth: cookie en la web, token bearer en mobile. Se detalla con la autenticación.',
+            'Mobile: token de la sesión que devuelve `POST /v1/auth/email-otp/verify` con `transport: "bearer"`, guardado en el almacenamiento seguro del sistema.',
         },
       },
     },

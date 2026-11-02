@@ -11,14 +11,35 @@ export {
   type Authenticate,
   type Membership,
 } from './auth/context.js';
+export { createSessionAuthenticate, selectMembership } from './auth/authenticate.js';
+export { createBetterAuth, generateSignInCode, type SportAuth } from './auth/better-auth.js';
+export { createIdentityStore, type ActiveMembership, type IdentityStore } from './auth/identity.js';
+export { createAuthModule, type AuthModule, type CreateAuthModuleOptions } from './auth/module.js';
+export {
+  AUTH_RATE_LIMITS,
+  createPgRateLimiter,
+  type RateLimiter,
+  type RateLimitRule,
+} from './auth/rate-limit.js';
 export {
   ConfigError,
   envSchema,
   loadConfig,
   loadSentryConfig,
   type ApiConfig,
+  type AuthConfig,
+  type EmailConfig,
   type SentryConfig,
 } from './config/env.js';
+export { createMailer, type Mailer } from './email/mailer.js';
+export { ResendEmailTransport } from './email/resend.js';
+export {
+  EmailDeliveryError,
+  LogEmailTransport,
+  MemoryEmailTransport,
+  type EmailMessage,
+  type EmailTransport,
+} from './email/transport.js';
 export {
   DatabaseTimeoutError,
   TransactionAbortedError,
@@ -41,6 +62,7 @@ export {
 } from './db/tenant-context.js';
 export {
   registerEndpoint,
+  type ClubAuthContext,
   type EndpointRequest,
   type EndpointResult,
   type EndpointRoute,

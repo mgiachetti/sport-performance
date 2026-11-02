@@ -2,7 +2,7 @@
 /**
  * `pnpm --filter @sport-performance/db db:provision-login` (or the
  * `sport-performance-db-provision-login` bin): creates or updates a login as
- * a member of one connection role (ADR 0025). Connects as the owner with
+ * a member of one connection role (ADR 0026). Connects as the owner with
  * `MIGRATIONS_DATABASE_URL` (or `DATABASE_URL`), after the migrations ran.
  *
  *   DB_LOGIN_ROLE=app|worker|auth   which connection role the login gets

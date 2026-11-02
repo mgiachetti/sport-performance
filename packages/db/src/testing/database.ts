@@ -90,7 +90,7 @@ export interface RoleConnection {
 }
 
 /**
- * A pool that connects as a fresh login of a connection role (ADR 0025),
+ * A pool that connects as a fresh login of a connection role (ADR 0026),
  * provisioned the way production does it.
  */
 export async function connectAs(

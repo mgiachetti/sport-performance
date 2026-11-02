@@ -1,9 +1,10 @@
 {
   "extends": "@sport-performance/config/tsconfig/node.json",
   "compilerOptions": {
+    "jsx": "react-jsx",
     "rootDir": "src",
     "outDir": "dist"
   },
   "include": ["src"],
-  "exclude": ["src/**/*.test.ts", "src/testing"]
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/testing"]
 }
