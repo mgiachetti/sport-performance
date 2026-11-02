@@ -143,6 +143,16 @@ describeWithPostgres('active sessions per device (Better Auth + Postgres)', (ser
       const ids = [...first.items, ...second.items].map((s) => s.id);
       expect(new Set(ids).size).toBe(3);
 
+      // Oldest first on request (ADR 0032), paged the same way; a cursor of the other order is rejected.
+      const ascending = await list(who, '?limit=2&sort=createdAt');
+      const rest = await list(who, `?limit=2&sort=createdAt&cursor=${ascending.nextCursor ?? ''}`);
+      expect([...ascending.items, ...rest.items].map((s) => s.id)).toEqual([...ids].reverse());
+      const mixed = await t.app.inject({
+        url: `/v1/me/sessions?cursor=${first.nextCursor ?? ''}&sort=createdAt`,
+        headers: who.headers,
+      });
+      expect(mixed.statusCode).toBe(400);
+
       const forged = await t.app.inject({
         url: '/v1/me/sessions?cursor=bm9wZQ',
         headers: who.headers,

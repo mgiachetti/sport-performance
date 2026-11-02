@@ -4,12 +4,13 @@ import {
   revokeMySession,
   type ActiveSession,
 } from '@sport-performance/contracts';
-import { isUuid } from '@sport-performance/domain';
+import { session } from '@sport-performance/db/schema';
 import type { FastifyInstance } from 'fastify';
 import type { AuthModule } from '../auth/module.js';
-import type { SessionCursor, SessionRow } from '../auth/sessions.js';
+import type { SessionRow } from '../auth/sessions.js';
 import { registerEndpoint } from '../http/endpoint.js';
 import { HttpError } from '../http/errors.js';
+import { keysetPage, type KeysetSpec } from '../http/pagination.js';
 
 function toDto(row: SessionRow, currentId: string): ActiveSession {
   return {
@@ -23,24 +24,13 @@ function toDto(row: SessionRow, currentId: string): ActiveSession {
   };
 }
 
-/** Opaque cursor: the sort key (`created_at`, `id`) of the last item, base64url JSON. */
-function encodeCursor(row: SessionRow): string {
-  return Buffer.from(JSON.stringify([row.createdAt.toISOString(), row.id])).toString('base64url');
-}
-
-function decodeCursor(cursor: string): SessionCursor {
-  try {
-    const parsed: unknown = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
-    if (Array.isArray(parsed) && parsed.length === 2) {
-      const [createdAt, id] = parsed as unknown[];
-      const date = typeof createdAt === 'string' ? new Date(createdAt) : new Date(Number.NaN);
-      if (!Number.isNaN(date.getTime()) && isUuid(id)) return { createdAt: date, id };
-    }
-  } catch {
-    // Falls through to the error below.
-  }
-  throw new HttpError('bad_request', 'Invalid cursor');
-}
+/** Sort keys of the list (ADR 0032): newest first by default. Session ids are UUIDs stored as text. */
+const SESSION_KEYS: KeysetSpec<SessionRow, 'createdAt'> = {
+  fields: {
+    createdAt: { column: session.createdAt, type: 'timestamp', value: (row) => row.createdAt },
+  },
+  id: { column: session.id, type: 'text', value: (row) => row.id },
+};
 
 /**
  * `/v1/me/sessions`: the user's live sessions on every device and closing
@@ -53,14 +43,9 @@ export function registerSessionRoutes(app: FastifyInstance, auth: AuthModule): v
   registerEndpoint(app, listMySessions, {
     transaction: false,
     handler: async ({ query }, { auth: caller }) => {
-      const after = query.cursor === undefined ? undefined : decodeCursor(query.cursor);
-      const rows = await auth.sessions.list(caller.userId, { limit: query.limit + 1, after });
-      const page = rows.slice(0, query.limit);
-      const last = page.at(-1);
-      return {
-        items: page.map((row) => toDto(row, caller.session.id)),
-        nextCursor: rows.length > query.limit && last !== undefined ? encodeCursor(last) : null,
-      };
+      const plan = keysetPage(SESSION_KEYS, query, {});
+      const rows = await auth.sessions.list(caller.userId, plan);
+      return plan.page(rows, (row) => toDto(row, caller.session.id));
     },
   });
 

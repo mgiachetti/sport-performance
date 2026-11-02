@@ -4,7 +4,9 @@ import type {
   SessionClientType,
   UserId,
 } from '@sport-performance/domain';
-import type { Database, TransactionClient } from '../db/database.js';
+import { session } from '@sport-performance/db/schema';
+import { and, eq, gt, sql, type SQL } from 'drizzle-orm';
+import { tenantDatabase, type Database, type TransactionClient } from '../db/database.js';
 import { ANONYMOUS_CONTEXT } from '../db/tenant-context.js';
 import { hashDeviceId, KNOWN_DEVICE_TTL_DAYS } from './device.js';
 
@@ -22,10 +24,14 @@ export interface SessionRow {
   readonly expiresAt: Date;
 }
 
-/** Sort key of the list (newest first): the cursor carries the last row's. */
-export interface SessionCursor {
-  readonly createdAt: Date;
-  readonly id: string;
+/**
+ * A page of the list as `keysetPage` plans it (ADR 0032): the keyset
+ * condition, the order and `limit + 1`, over the `session` table.
+ */
+export interface SessionPagePlan {
+  readonly where: SQL | undefined;
+  readonly orderBy: SQL[];
+  readonly limit: number;
 }
 
 /**
@@ -39,11 +45,8 @@ export interface SessionCursor {
  * the id of the authenticated session, never one taken from the request.
  */
 export interface SessionStore {
-  /** Live sessions of `userId`, newest first, after `cursor`. */
-  list(
-    userId: UserId,
-    page: { readonly limit: number; readonly after?: SessionCursor | undefined },
-  ): Promise<SessionRow[]>;
+  /** Live sessions of `userId`, in the order and after the cursor of `plan`. */
+  list(userId: UserId, plan: SessionPagePlan): Promise<SessionRow[]>;
   /** Deletes one live session of `userId`; `false` if there is none with that id. */
   revoke(userId: UserId, sessionId: string): Promise<boolean>;
   /** Deletes every session of `userId` but `keepSessionId`; returns how many. */
@@ -64,16 +67,6 @@ export interface SessionStore {
   prune(): Promise<{ sessions: number; devices: number }>;
 }
 
-interface SessionDbRow {
-  id: string;
-  client_type: SessionClientType;
-  device_os: DeviceOperatingSystem | null;
-  device_browser: DeviceBrowser | null;
-  created_at: Date;
-  last_seen_at: Date;
-  expires_at: Date;
-}
-
 const LIVE = 'expires_at > now()';
 
 export function createSessionStore(authDb: Database): SessionStore {
@@ -81,33 +74,23 @@ export function createSessionStore(authDb: Database): SessionStore {
     authDb.transaction(ANONYMOUS_CONTEXT, work);
 
   return {
-    list: (userId, { limit, after }) =>
-      run<SessionRow[]>(async (client) => {
-        const params: unknown[] = [userId, limit];
-        let keyset = '';
-        if (after !== undefined) {
-          params.push(after.createdAt, after.id);
-          // `created_at` keeps microseconds; the cursor carries milliseconds.
-          keyset = `and (date_trunc('milliseconds', created_at), id) < ($3, $4)`;
-        }
-        const { rows } = await client.query<SessionDbRow>(
-          `select id, client_type, device_os, device_browser, created_at, last_seen_at, expires_at
-             from session
-            where user_id = $1 and ${LIVE} ${keyset}
-            order by date_trunc('milliseconds', created_at) desc, id desc
-            limit $2`,
-          params,
-        );
-        return rows.map((row) => ({
-          id: row.id,
-          clientType: row.client_type,
-          deviceOs: row.device_os,
-          deviceBrowser: row.device_browser,
-          createdAt: row.created_at,
-          lastSeenAt: row.last_seen_at,
-          expiresAt: row.expires_at,
-        }));
-      }),
+    list: (userId, plan) =>
+      run<SessionRow[]>((client) =>
+        tenantDatabase(client)
+          .select({
+            id: session.id,
+            clientType: session.clientType,
+            deviceOs: session.deviceOs,
+            deviceBrowser: session.deviceBrowser,
+            createdAt: session.createdAt,
+            lastSeenAt: session.lastSeenAt,
+            expiresAt: session.expiresAt,
+          })
+          .from(session)
+          .where(and(eq(session.userId, userId), gt(session.expiresAt, sql`now()`), plan.where))
+          .orderBy(...plan.orderBy)
+          .limit(plan.limit),
+      ),
 
     revoke: (userId, sessionId) =>
       run<boolean>(async (client) => {

@@ -144,7 +144,7 @@
       "post": {
         "operationId": "verifySignInCode",
         "summary": "Ingresar con el código",
-        "description": "Verifica el código y abre una sesión. La web usa `transport: \"cookie\"` (cookie `HttpOnly`); mobile usa `\"bearer\"` y guarda el token en el almacenamiento seguro. Código incorrecto o vencido: `unauthenticated`. Cada código admite 3 intentos; después, `rate_limited` sin `Retry-After`: no hay que esperar sino pedir otro código. Los límites por email y por IP también responden `rate_limited`, con `Retry-After`.",
+        "description": "Verifica el código y abre una sesión. La web usa `transport: \"cookie\"` (cookie `HttpOnly`); mobile usa `\"bearer\"` y guarda el token en el almacenamiento seguro. Un ingreso desde un dispositivo que la cuenta no usó antes se avisa por email (salvo al crear la cuenta). Código incorrecto o vencido: `unauthenticated`. Cada código admite 3 intentos; después, `rate_limited` sin `Retry-After`: no hay que esperar sino pedir otro código. Los límites por email y por IP también responden `rate_limited`, con `Retry-After`.",
         "tags": [
           "auth"
         ],
@@ -181,6 +181,15 @@
                     "enum": [
                       "cookie",
                       "bearer"
+                    ]
+                  },
+                  "deviceId": {
+                    "description": "Solo mobile: UUID aleatorio que la app genera una vez por instalación y guarda en el almacenamiento seguro. Sirve para avisar por email solo de los ingresos desde un dispositivo nuevo; sin él, cada ingreso se avisa. La web no lo manda: el servidor usa una cookie `HttpOnly` propia.",
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "examples": [
+                      "0192e7a0-5c1a-7b7e-9f3a-2d4c6b8a1e0f"
                     ]
                   }
                 },
@@ -3415,6 +3424,298 @@
         }
       }
     },
+    "/v1/me/sessions": {
+      "get": {
+        "operationId": "listMySessions",
+        "summary": "Mis sesiones activas",
+        "description": "Sesiones vigentes del usuario en todos sus dispositivos (web y mobile), las más nuevas primero (`-createdAt`). La del request viene con `current: true`. No incluye IP: no se guarda.",
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `createdAt`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "-createdAt",
+              "type": "string",
+              "enum": [
+                "createdAt",
+                "-createdAt"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de sesiones.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveSessionPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `bad_request`, `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/sessions/{sessionId}": {
+      "delete": {
+        "operationId": "revokeMySession",
+        "summary": "Cerrar una sesión",
+        "description": "Cierra otra sesión del usuario: el dispositivo queda afuera en su próximo request. Una sesión que no es del usuario o ya no está vigente: `not_found`. La sesión actual no se cierra acá (`conflict`): se usa `POST /v1/auth/sign-out`.",
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "description": "Id de sesión (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Sesión cerrada."
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/sessions/revoke-others": {
+      "post": {
+        "operationId": "revokeMyOtherSessions",
+        "summary": "Cerrar las demás sesiones",
+        "description": "Cierra todas las sesiones del usuario menos la de este request (por ejemplo, después de perder un celular).",
+        "tags": [
+          "me"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sesiones cerradas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokedSessions"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/positions": {
       "get": {
         "operationId": "listPositions",
@@ -3575,6 +3876,117 @@
         },
         "required": [
           "membership"
+        ]
+      },
+      "ActiveSession": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de sesión (UUID, RFC 9562)."
+          },
+          "clientType": {
+            "$ref": "#/components/schemas/SessionClientType"
+          },
+          "device": {
+            "type": "object",
+            "properties": {
+              "os": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DeviceOs"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "browser": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DeviceBrowser"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "os",
+              "browser"
+            ],
+            "description": "`null` cuando el `User-Agent` no lo dice."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Cuándo se ingresó.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "lastUsedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Último uso, con una precisión de unos minutos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Vence si no se usa antes; con el uso se renueva.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "current": {
+            "type": "boolean",
+            "description": "Es la sesión de este request."
+          }
+        },
+        "required": [
+          "id",
+          "clientType",
+          "device",
+          "createdAt",
+          "lastUsedAt",
+          "expiresAt",
+          "current"
+        ]
+      },
+      "ActiveSessionPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActiveSession"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
         ]
       },
       "AgeBandCode": {
@@ -4140,6 +4552,31 @@
         ],
         "description": "Los links solo se devuelven al crearla: el servidor guarda el hash del token."
       },
+      "DeviceBrowser": {
+        "type": "string",
+        "enum": [
+          "chrome",
+          "safari",
+          "firefox",
+          "edge",
+          "opera",
+          "samsung_internet",
+          "app"
+        ],
+        "description": "Navegador de una sesión web; `app` para la app mobile."
+      },
+      "DeviceOs": {
+        "type": "string",
+        "enum": [
+          "ios",
+          "android",
+          "macos",
+          "windows",
+          "linux",
+          "chromeos"
+        ],
+        "description": "Sistema operativo del dispositivo, deducido del `User-Agent` al ingresar."
+      },
       "ErrorBody": {
         "type": "object",
         "properties": {
@@ -4629,6 +5066,31 @@
         "examples": [
           "1793586338688123"
         ]
+      },
+      "RevokedSessions": {
+        "type": "object",
+        "properties": {
+          "revoked": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Sesiones cerradas.",
+            "examples": [
+              2
+            ]
+          }
+        },
+        "required": [
+          "revoked"
+        ]
+      },
+      "SessionClientType": {
+        "type": "string",
+        "enum": [
+          "web",
+          "mobile"
+        ],
+        "description": "`web`: la sesión viaja en una cookie `HttpOnly`; `mobile`: token bearer de la app."
       },
       "SessionUser": {
         "type": "object",

@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { defineEndpoint } from '../endpoint.js';
 import { dateTimeSchema } from '../primitives/dates.js';
 import { idOf } from '../primitives/ids.js';
+import { sortQuerySchema } from '../primitives/conventions.js';
 import { pageOf, pageQuerySchema } from '../primitives/pagination.js';
 
 /** Id of a sign-in session. It is not the session token: knowing it opens nothing. */
@@ -70,10 +71,10 @@ export const listMySessions = defineEndpoint({
   path: '/v1/me/sessions',
   summary: 'Mis sesiones activas',
   description:
-    'Sesiones vigentes del usuario en todos sus dispositivos (web y mobile), las más nuevas primero. La del request viene con `current: true`. No incluye IP: no se guarda.',
+    'Sesiones vigentes del usuario en todos sus dispositivos (web y mobile), las más nuevas primero (`-createdAt`). La del request viene con `current: true`. No incluye IP: no se guarda.',
   tags: ['me'],
   auth: 'session',
-  query: pageQuerySchema,
+  query: pageQuerySchema.extend({ sort: sortQuerySchema(['createdAt'], '-createdAt') }),
   response: {
     status: 200,
     description: 'Página de sesiones.',
