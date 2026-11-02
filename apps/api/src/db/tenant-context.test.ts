@@ -5,25 +5,73 @@ import { testAuthContext } from '../testing/support.js';
 import {
   ANONYMOUS_CONTEXT,
   TenantContextError,
-  tenantContextParameters,
+  transactionParameters,
   type TenantContext,
 } from './tenant-context.js';
 
 const clubId = parseClubId('0192e7a0-5c1a-7b7e-9f3a-2d4c6b8a1e0f');
 const userId = parseUserId('0192e7a0-5c1a-7b7e-9f3a-2d4c6b8a1e10');
 
-describe('tenantContextParameters', () => {
-  it('maps a club context to the three settings', () => {
-    expect(tenantContextParameters({ clubId, userId, role: 'coach' })).toEqual([
+const settingsOf = (context: TenantContext) => transactionParameters(context).settings;
+
+describe('transactionParameters', () => {
+  it('maps a club context to the settings', () => {
+    expect(settingsOf({ clubId, userId, role: 'coach' })).toEqual([
       clubId,
       userId,
       'coach',
+      '',
+      '',
     ]);
   });
 
   it('uses empty strings for missing values', () => {
-    expect(tenantContextParameters(ANONYMOUS_CONTEXT)).toEqual(['', '', '']);
-    expect(tenantContextParameters({ clubId: null, userId, role: null })).toEqual(['', userId, '']);
+    expect(settingsOf(ANONYMOUS_CONTEXT)).toEqual(['', '', '', '', '']);
+    expect(settingsOf({ clubId: null, userId, role: null })).toEqual(['', userId, '', '', '']);
+  });
+
+  it('carries the request id and a trimmed change reason', () => {
+    expect(
+      transactionParameters(
+        { clubId, userId, role: 'sc' },
+        { requestId: 'req-12345678', changeReason: '  Se cargó mal  ' },
+      ),
+    ).toEqual({
+      settings: [clubId, userId, 'sc', 'req-12345678', 'Se cargó mal'],
+      supportReason: null,
+    });
+  });
+
+  it('needs a support reason and a request id for a superadmin, in a club or on the registry', () => {
+    const inClub = { clubId, userId, role: 'superadmin' } as const;
+    const registry = { clubId: null, userId, role: 'superadmin' } as const;
+    for (const context of [inClub, registry]) {
+      expect(() => transactionParameters(context, { requestId: 'req-12345678' })).toThrow(
+        TenantContextError,
+      );
+      expect(() => transactionParameters(context, { supportReason: 'Soporte' })).toThrow(
+        TenantContextError,
+      );
+      expect(
+        transactionParameters(context, { requestId: 'req-12345678', supportReason: ' Soporte ' })
+          .supportReason,
+      ).toBe('Soporte');
+    }
+    expect(
+      transactionParameters(registry, { requestId: 'r', supportReason: 'x' }).settings,
+    ).toEqual(['', userId, 'superadmin', 'r', '']);
+  });
+
+  it.each([
+    ['a request id with spaces', { requestId: 'req 1' }],
+    ['a request id too long', { requestId: 'r'.repeat(129) }],
+    ['a blank change reason', { changeReason: '   ' }],
+    ['a change reason too long', { changeReason: 'x'.repeat(501) }],
+    ['a support reason for another role', { supportReason: 'Soporte' }],
+  ])('rejects %s', (_name, settings) => {
+    expect(() => transactionParameters({ clubId, userId, role: 'admin' }, settings)).toThrow(
+      TenantContextError,
+    );
   });
 
   it.each([
@@ -35,7 +83,7 @@ describe('tenantContextParameters', () => {
     ['a role without club', { clubId: null, userId, role: 'admin' }],
     ['a club without user', { clubId, userId: null, role: 'admin' }],
   ])('rejects %s', (_name, context) => {
-    expect(() => tenantContextParameters(context as unknown as TenantContext)).toThrow(
+    expect(() => transactionParameters(context as unknown as TenantContext)).toThrow(
       TenantContextError,
     );
   });

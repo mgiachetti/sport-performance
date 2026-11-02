@@ -1,7 +1,7 @@
 import { DEFAULT_CLUB_TIME_ZONE, type ClubId, type TimeZone } from '@sport-performance/domain';
 import { orcPalette } from '@sport-performance/ui-tokens';
 import { eq, sql } from 'drizzle-orm';
-import { club, type ClubBranding } from '../schema/tenant.js';
+import { club } from '../schema/tenant.js';
 import { bootstrapClub, type BootstrapClubReport, type ClubBranch } from './bootstrap.js';
 import type { SeedExecutor } from './executor.js';
 
@@ -10,7 +10,11 @@ export interface TenantSeed {
   readonly slug: string;
   readonly name: string;
   readonly timeZone: TimeZone;
-  readonly branding: ClubBranding;
+  /** Initials for small spaces (`ORC`). */
+  readonly shortName: string;
+  /** Brand colors, `#rrggbb` lowercase. */
+  readonly primaryColor: string;
+  readonly secondaryColor: string;
   readonly branches: readonly ClubBranch[];
 }
 
@@ -23,11 +27,9 @@ export const ORC_TENANT: TenantSeed = {
   slug: 'orc',
   name: 'Olivos Rugby Club',
   timeZone: DEFAULT_CLUB_TIME_ZONE,
-  branding: {
-    primaryColor: orcPalette.orange,
-    secondaryColor: orcPalette.black,
-    backgroundColor: orcPalette.background,
-  },
+  shortName: 'ORC',
+  primaryColor: orcPalette.orange,
+  secondaryColor: orcPalette.black,
   branches: [
     { sport: 'rugby', sex: 'male' },
     { sport: 'hockey', sex: 'female' },
@@ -56,7 +58,9 @@ export async function seedTenant(db: SeedExecutor, tenant: TenantSeed): Promise<
         slug: tenant.slug,
         name: tenant.name,
         timeZone: tenant.timeZone,
-        branding: tenant.branding,
+        shortName: tenant.shortName,
+        primaryColor: tenant.primaryColor,
+        secondaryColor: tenant.secondaryColor,
       })
       .onConflictDoNothing({ target: club.slug })
       .returning({ id: club.id });

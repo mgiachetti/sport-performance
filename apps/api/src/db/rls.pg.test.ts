@@ -75,7 +75,10 @@ describeWithPostgres('RLS through the API data layer (Postgres)', (url) => {
       if (row === undefined) throw new Error('no row');
       return row.id;
     };
-    const id = await one(`insert into club (slug, name) values ($1, $1) returning id`, [slug]);
+    const id = await one(
+      `insert into club (slug, name, short_name) values ($1, $1, 'T') returning id`,
+      [slug],
+    );
     const admin = await one(`insert into "user" (name, email) values ('Admin', $1) returning id`, [
       `admin@${slug}.example.com`,
     ]);
@@ -149,7 +152,13 @@ describeWithPostgres('RLS through the API data layer (Postgres)', (url) => {
   });
 
   it('writes the settings the policies read', () => {
-    expect(TENANT_SETTINGS).toEqual(['app.club_id', 'app.user_id', 'app.role']);
+    expect(TENANT_SETTINGS).toEqual([
+      'app.club_id',
+      'app.user_id',
+      'app.role',
+      'app.request_id',
+      'app.change_reason',
+    ]);
   });
 
   it('isolates clubs and fails closed through the transaction helper', async () => {

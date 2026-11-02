@@ -110,7 +110,7 @@ async function main(): Promise<void> {
   pruneTimer.unref();
 
   const databases: Database = {
-    transaction: (context, work) => db.transaction(context, work),
+    transaction: (context, work, settings) => db.transaction(context, work, settings),
     ping: (timeoutMs) => db.ping(timeoutMs),
     close: async () => {
       clearInterval(pruneTimer);

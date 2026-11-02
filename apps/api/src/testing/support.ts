@@ -75,6 +75,7 @@ export function testAuthContext(
             role: membership.role,
           },
     membershipRejected: false,
+    supportReason: null,
   };
 }
 

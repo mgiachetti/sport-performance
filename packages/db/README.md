@@ -70,6 +70,7 @@ Convenciones (ADR 0023): `club_id NOT NULL` y auditoría (`created_at`, `updated
 
 - Cada login real es miembro de **un solo** rol y se crea con `db:provision-login`; la contraseña nunca va al repo. La API verifica su login al arrancar.
 - `app.current_role()` solo devuelve el rol si hay una membresía activa que lo respalde (o `is_superadmin` para `superadmin`). Sin contexto, todo se deniega.
+- Las ramas del club (`club_branch`: deporte y sexo, migración `0009_clubs_branches_and_brand`, ADR 0032) son la raíz de las categorías: `category (club_id, sport, sex)` referencia a su rama por la clave natural. La marca del club está en columnas tipadas (`short_name`, `locale`, `primary_color`, `secondary_color`, `logo_file_id`); el slug solo lo cambia un superadmin (trigger `club_slug_guard`).
 - Toda tabla con `club_id` tiene RLS forzada, una política `RESTRICTIVE` por club y políticas por rol, creadas con `app_admin.secure_club_table()`. Una tabla nueva la llama en su migración y suma una fila al fixture `src/testing/tenant-fixture.ts`; si no, los tests de RLS fallan.
 - `DELETE` solo en `drill`; `test_result_value` es append-only también por grants.
 - `superadmin` solo vale en una transacción que registró su acceso con `app.begin_support_access(motivo)` (`support.access_log`, append-only). Sin `app.request_id` el registro se rechaza.
@@ -126,6 +127,7 @@ const { entries, nextBeforeSeq } = await listRecordChangeHistory(db, { tableName
 | `metric_definition` | Todo el diccionario canónico, con `catapult_aliases` de las columnas de OpenField | `CANONICAL_METRICS` + `seeds/catapult-aliases.ts` |
 | `test_definition`, `test_definition_metric` | Versión 1 de los 10 tests de la batería con su protocolo (texto es-AR y `parameters`) y sus métricas (derivadas marcadas) | `CANONICAL_TEST_CODES`, `DEFAULT_ATTEMPT_SCORING`, `DEFAULT_IFT_3015_PROTOCOL`, `DEFAULT_E1RM_PROTOCOL`, `SPRINT_VMAX_SEGMENT` |
 | `battery_config` | Batería por rama y etapa ("2 V" = V1 y V3; antropometría continua; CMJ semanal en `performance`; bronco y cuello solo rugby) | `seeds/battery.ts` + `STAGE_PROFILES` |
+| `club_branch` | Las ramas (deporte y sexo) del club; una archivada no se reabre | `branches` del llamado |
 | `position` | Posiciones de los deportes del club con su línea | `DEFAULT_POSITION_LINES` |
 | `category` | M13–M19 por rama | `DEFAULT_AGE_BANDS` |
 | `alert_rule` | Reglas por defecto, validadas con `parseAlertRuleSet` | `DEFAULT_ALERT_RULES` |

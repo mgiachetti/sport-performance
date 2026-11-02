@@ -2,9 +2,14 @@ import type { ClubId, Role, Uuid, UserId } from '@sport-performance/domain';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { ANONYMOUS_CONTEXT, type TenantContext } from '../db/tenant-context.js';
 
-/** The membership (club + role) a request acts as (ADR 0007). */
+/**
+ * The club and role a request acts as: a membership of the caller (ADR
+ * 0007), or the club a superadmin supports (`X-Support-Club-Id`, ADR 0029),
+ * with role `superadmin` and no membership.
+ */
 export interface Membership {
-  readonly membershipId: Uuid;
+  /** `null` for a superadmin supporting the club: they are not a member. */
+  readonly membershipId: Uuid | null;
   readonly clubId: ClubId;
   readonly role: Role;
 }
@@ -30,8 +35,18 @@ export interface AuthContext {
    * several and did not choose, or named one that is not theirs.
    */
   readonly membership: Membership | null;
-  /** `X-Membership-Id` named a membership that is not an active one of this user. */
+  /**
+   * `X-Membership-Id` named a membership that is not an active one of this
+   * user, or `X-Support-Club-Id` came from someone who is not a superadmin
+   * (or together with `X-Membership-Id`).
+   */
   readonly membershipRejected: boolean;
+  /**
+   * Why the superadmin acts (`X-Support-Reason`, decoded and trimmed); `null`
+   * when absent, invalid, or the caller is not a superadmin. Every
+   * transaction of a superadmin records it (ADR 0029, ADR 0032).
+   */
+  readonly supportReason: string | null;
 }
 
 /**

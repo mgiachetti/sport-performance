@@ -25,7 +25,7 @@ import {
   testDefinitionMetric,
 } from '../schema/catalog.js';
 import { khamisRocheCoefficient, khamisRocheTable } from '../schema/maturation.js';
-import { category, position } from '../schema/organization.js';
+import { category, clubBranch, position } from '../schema/organization.js';
 import { club } from '../schema/tenant.js';
 import { batterySeeds } from './battery.js';
 import type { SeedExecutor } from './executor.js';
@@ -74,6 +74,7 @@ export interface BootstrapClubOptions {
 
 /** Inserted rows per table. All zero when the club was already bootstrapped. */
 export interface BootstrapClubReport {
+  readonly branches: number;
   readonly metricDefinitions: number;
   readonly testDefinitions: number;
   readonly testDefinitionMetrics: number;
@@ -120,7 +121,9 @@ function validateOptions(options: BootstrapClubOptions): LocalDate {
  * Seeds the default configuration of a club. Runs in a transaction (a
  * savepoint when `db` already is one), serialised per club with an advisory
  * lock, and sets `app.club_id` for the transaction (ADR 0006) so it works
- * under the tenant's row-level security.
+ * under the tenant's row-level security. The branches are recorded in
+ * `club_branch` (an archived one is not reopened); enabling a branch later
+ * is calling it again with that branch.
  */
 export async function bootstrapClub(
   db: SeedExecutor,
@@ -157,6 +160,13 @@ export async function bootstrapClub(
     );
     const [existing] = await tx.select({ id: club.id }).from(club).where(eq(club.id, clubId));
     if (existing === undefined) throw new BootstrapClubError(`Club ${clubId} does not exist.`);
+
+    // Branches (sport + sex) the categories hang from. An archived branch stays archived.
+    const insertedBranches = await tx
+      .insert(clubBranch)
+      .values(branches.map((b) => ({ clubId, sport: b.sport, sex: b.sex })))
+      .onConflictDoNothing({ target: [clubBranch.clubId, clubBranch.sport, clubBranch.sex] })
+      .returning({ id: clubBranch.id });
 
     // Metric dictionary.
     const metrics = await tx
@@ -379,6 +389,7 @@ export async function bootstrapClub(
     }
 
     return {
+      branches: insertedBranches.length,
       metricDefinitions: metrics.length,
       testDefinitions: insertedTests.length,
       testDefinitionMetrics,

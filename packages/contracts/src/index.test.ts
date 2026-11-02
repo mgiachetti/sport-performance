@@ -20,8 +20,25 @@ describe('@sport-performance/contracts entry point', () => {
       'previewInvitation',
       'acceptInvitation',
       'getClubTheme',
+      'listClubs',
+      'createClub',
+      'getClub',
+      'updateClub',
+      'listClubBranches',
+      'enableClubBranch',
+      'archiveClubBranch',
+      'restoreClubBranch',
+      'listCategories',
+      'getCategory',
+      'createCategory',
+      'updateCategory',
+      'archiveCategory',
+      'restoreCategory',
+      'listPositions',
     ]);
     expect(contracts.MEMBERSHIP_HEADER).toBe('x-membership-id');
+    expect(contracts.SUPPORT_CLUB_HEADER).toBe('x-support-club-id');
+    expect(contracts.SUPPORT_REASON_HEADER).toBe('x-support-reason');
     expect(typeof contracts.createApiClient).toBe('function');
     expect(typeof contracts.defineEndpoint).toBe('function');
     expect(contracts.ERROR_STATUS.not_found).toBe(404);

@@ -50,6 +50,9 @@ function expectNoContext(settings: Settings): void {
   expect(isUnset(settings.role), `role = ${String(settings.role)}`).toBe(true);
 }
 
+/** Roles that act without a support access (a superadmin needs migration 0007's function). */
+const MEMBER_ROLES = ROLES.filter((role) => role !== 'superadmin');
+
 function clubContext(role: (typeof ROLES)[number] = 'coach'): TenantContext {
   return { clubId: parseClubId(randomUUID()), userId: parseUserId(randomUUID()), role };
 }
@@ -70,6 +73,45 @@ describeWithPostgres('Database.transaction (Postgres)', (url) => {
 
   afterAll(async () => {
     await Promise.all([singleDb.close(), wideDb.close()]);
+  });
+
+  it('sets the request id and the change reason for the transaction only', async () => {
+    const read = (client: pg.ClientBase) =>
+      client
+        .query<{ requestId: string | null; reason: string | null }>(
+          `select current_setting('app.request_id', true) as "requestId",
+                  current_setting('app.change_reason', true) as reason`,
+        )
+        .then((result) => result.rows[0]);
+    const seen = await singleDb.transaction(clubContext('sc'), read, {
+      requestId: 'req-settings-1',
+      changeReason: 'Se cargó en el jugador equivocado',
+    });
+    expect(seen).toEqual({
+      requestId: 'req-settings-1',
+      reason: 'Se cargó en el jugador equivocado',
+    });
+    const next = await singleDb.transaction(ANONYMOUS_CONTEXT, read);
+    expect(isUnset(next?.requestId ?? null) && isUnset(next?.reason ?? null)).toBe(true);
+  });
+
+  it('never runs a superadmin transaction without its support reason', async () => {
+    let ran = false;
+    await expect(
+      singleDb.transaction(
+        {
+          clubId: parseClubId(randomUUID()),
+          userId: parseUserId(randomUUID()),
+          role: 'superadmin',
+        },
+        () => {
+          ran = true;
+          return Promise.resolve();
+        },
+        { requestId: 'req-support-1' },
+      ),
+    ).rejects.toThrow(TenantContextError);
+    expect(ran).toBe(false);
   });
 
   it('sets the three settings before the work runs', async () => {
@@ -180,7 +222,7 @@ describeWithPostgres('Database.transaction (Postgres)', (url) => {
 
   it('isolates concurrent transactions sharing a small pool', async () => {
     const contexts: TenantContext[] = Array.from({ length: 40 }, (_, index) =>
-      index % 5 === 0 ? ANONYMOUS_CONTEXT : clubContext(ROLES[index % ROLES.length]),
+      index % 5 === 0 ? ANONYMOUS_CONTEXT : clubContext(MEMBER_ROLES[index % MEMBER_ROLES.length]),
     );
     const results = await Promise.all(
       contexts.map((context, index) =>

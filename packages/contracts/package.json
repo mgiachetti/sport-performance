@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "@sport-performance/domain": "workspace:*",
+    "@sport-performance/i18n": "workspace:*",
     "zod": "4.6.7"
   },
   "devDependencies": {

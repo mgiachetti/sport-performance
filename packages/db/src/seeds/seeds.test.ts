@@ -182,7 +182,8 @@ describe('ORC tenant', () => {
       { sport: 'rugby', sex: 'male' },
       { sport: 'hockey', sex: 'female' },
     ]);
-    expect(ORC_TENANT.branding.primaryColor?.toLowerCase()).toBe('#f1882a');
+    expect(ORC_TENANT.primaryColor).toBe('#f1882a');
+    expect(ORC_TENANT.secondaryColor).toBe('#050505');
     expect(ORC_TENANT.timeZone).toBe('America/Argentina/Buenos_Aires');
   });
 });
