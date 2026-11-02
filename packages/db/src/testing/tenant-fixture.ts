@@ -27,6 +27,8 @@ import {
   participation,
   player,
   playerCategory,
+  playerParentHeight,
+  playerPosition,
   playerStage,
   position,
   referenceValue,
@@ -199,6 +201,7 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
     ...base,
     birthDate: day('2011-05-04'),
     sex: 'male' as const,
+    sport: 'rugby' as const,
     joinedOn: FROM,
   };
   const assigned = await id(
@@ -224,6 +227,24 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
   await db
     .insert(playerCategory)
     .values({ ...base, playerId: other, categoryId: m17, validFrom: FROM });
+  rows.player_position = await id(
+    db
+      .insert(playerPosition)
+      .values({ ...base, playerId: assigned, positionId: rows.position, sortOrder: 0 })
+      .returning({ id: playerPosition.id }),
+  );
+  rows.player_parent_height = await id(
+    db
+      .insert(playerParentHeight)
+      .values({
+        ...base,
+        playerId: assigned,
+        parent: 'mother',
+        heightCm: 165,
+        source: 'reported',
+      })
+      .returning({ id: playerParentHeight.id }),
+  );
   rows.guardian = await id(
     db
       .insert(guardian)

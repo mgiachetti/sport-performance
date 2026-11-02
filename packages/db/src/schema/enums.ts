@@ -7,11 +7,15 @@ import {
   CONSENT_TYPES,
   DEVICE_BROWSERS,
   DEVICE_OPERATING_SYSTEMS,
+  DOMINANT_SIDES,
   EXPOSURE_CONTEXTS,
+  HEIGHT_SOURCES,
   MATURITY_OFFSET_EQUATIONS,
   MEASUREMENT_METHODS,
   MEMBERSHIP_ROLES,
   SESSION_CLIENT_TYPES,
+  PARENTS,
+  PLAYER_LEAVE_REASONS,
   SEXES,
   SPEED_ZONE_KINDS,
   SPORTS,
@@ -107,6 +111,14 @@ export const METRIC_DIRECTIONS = exhaustive<MetricDirection>()([
   'neutral',
 ]);
 export const metricDirectionEnum = pgEnum('metric_direction', METRIC_DIRECTIONS);
+/** Whether a parent's height was measured by staff or reported (B-315, Khamis-Roche). */
+export const heightSourceEnum = pgEnum('height_source', HEIGHT_SOURCES);
+/** Dominant side of a player (foot in rugby, hand in hockey). */
+export const dominantSideEnum = pgEnum('dominant_side', DOMINANT_SIDES);
+/** Mother or father, for the parents' heights (Khamis-Roche, B-315). */
+export const parentKindEnum = pgEnum('parent_kind', PARENTS);
+/** Why a player left the club (baja, B-315). */
+export const playerLeaveReasonEnum = pgEnum('player_leave_reason', PLAYER_LEAVE_REASONS);
 
 // ---------------------------------------------------------------------------
 // Vocabularies that only exist in the database for now.
@@ -115,14 +127,6 @@ export const metricDirectionEnum = pgEnum('metric_direction', METRIC_DIRECTIONS)
 /** Relationship of a guardian with the player (B-310). */
 export const GUARDIAN_RELATIONSHIPS = ['mother', 'father', 'legal_guardian', 'other'] as const;
 export const guardianRelationshipEnum = pgEnum('guardian_relationship', GUARDIAN_RELATIONSHIPS);
-
-/** Whether a parent's height was measured by staff or reported (B-315, Khamis-Roche). */
-export const HEIGHT_SOURCES = ['measured', 'reported'] as const;
-export const heightSourceEnum = pgEnum('height_source', HEIGHT_SOURCES);
-
-/** Dominant side of a player (foot in rugby, hand in hockey). */
-export const DOMINANT_SIDES = ['left', 'right', 'both'] as const;
-export const dominantSideEnum = pgEnum('dominant_side', DOMINANT_SIDES);
 
 /** Lifecycle of a scheduled test day. */
 export const TEST_SESSION_STATUSES = [

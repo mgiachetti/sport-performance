@@ -39,6 +39,19 @@ import {
   listStaffAssignments,
   updateStaffAssignment,
 } from './staff-assignments.js';
+import {
+  addPlayerCategory,
+  archivePlayer,
+  createPlayer,
+  getPlayer,
+  getPlayerParentHeights,
+  listPlayerCategories,
+  listPlayers,
+  restorePlayer,
+  setPlayerParentHeight,
+  updatePlayer,
+  updatePlayerCategory,
+} from './players.js';
 
 export * from './auth.js';
 export * from './categories.js';
@@ -50,6 +63,7 @@ export * from './me.js';
 export * from './sessions.js';
 export * from './members.js';
 export * from './staff-assignments.js';
+export * from './players.js';
 
 /**
  * Every endpoint of the API, keyed by operationId. The API registers its
@@ -97,6 +111,17 @@ export const apiEndpoints = {
   createStaffAssignment,
   updateStaffAssignment,
   endStaffAssignment,
+  listPlayers,
+  getPlayer,
+  createPlayer,
+  updatePlayer,
+  archivePlayer,
+  restorePlayer,
+  listPlayerCategories,
+  addPlayerCategory,
+  updatePlayerCategory,
+  getPlayerParentHeights,
+  setPlayerParentHeight,
 } as const satisfies EndpointCatalog;
 
 export type ApiEndpoints = typeof apiEndpoints;

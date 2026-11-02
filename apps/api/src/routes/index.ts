@@ -12,6 +12,7 @@ import { registerMemberRoutes } from './members.js';
 import { registerOpenApiRoute } from './openapi.js';
 import { registerSessionRoutes } from './sessions.js';
 import { registerStaffAssignmentRoutes } from './staff-assignments.js';
+import { registerPlayerRoutes } from './players.js';
 
 /**
  * Endpoints of the contract the API serves, by operationId. Adding an
@@ -59,6 +60,17 @@ export const IMPLEMENTED_ENDPOINTS = [
   'createStaffAssignment',
   'updateStaffAssignment',
   'endStaffAssignment',
+  'listPlayers',
+  'getPlayer',
+  'createPlayer',
+  'updatePlayer',
+  'archivePlayer',
+  'restorePlayer',
+  'listPlayerCategories',
+  'addPlayerCategory',
+  'updatePlayerCategory',
+  'getPlayerParentHeights',
+  'setPlayerParentHeight',
 ] as const satisfies readonly (keyof ApiEndpoints)[];
 
 /** Declared in the contract but served by a later issue (`'#N (B-xxx): why'`). */
@@ -84,6 +96,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerClubRoutes(app);
   registerCategoryRoutes(app);
   registerStaffAssignmentRoutes(app);
+  registerPlayerRoutes(app);
   if (options.auth !== undefined) {
     registerAuthRoutes(app, options.auth);
     registerMeRoutes(app, options.auth);

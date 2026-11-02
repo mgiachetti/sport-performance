@@ -36,7 +36,7 @@ const tenantTables = allTables
 const tenantTableNames = new Set(tenantTables.map(qualified));
 
 describe('schema conventions', () => {
-  it('defines the B-301 model, the B-306 reference tables, the B-309 access tables and the B-305 history', () => {
+  it('defines the B-301 model, the B-306 reference tables, the B-309 access tables, the B-305 history and the B-315 roster tables', () => {
     const names = tables.map((t) => t.name).sort();
     expect(names).toEqual(
       [
@@ -67,6 +67,8 @@ describe('schema conventions', () => {
         'participation',
         'player',
         'player_category',
+        'player_parent_height',
+        'player_position',
         'player_stage',
         'position',
         'reference_value',

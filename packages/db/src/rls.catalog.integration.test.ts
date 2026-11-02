@@ -32,8 +32,14 @@ const AUTH_TABLES = [
   'user',
   'verification',
 ];
-/** The only club table the application may DELETE from (a drill is a plan, ADR 0026). */
-const DELETABLE = { [DATABASE_ROLES.app]: ['drill'], [DATABASE_ROLES.auth]: AUTH_TABLES };
+/**
+ * The only club tables the application may DELETE from: `drill` (a plan, ADR 0026) and
+ * `player_position` (a current attribute, replaced when a profile is edited, ADR 0035).
+ */
+const DELETABLE = {
+  [DATABASE_ROLES.app]: ['drill', 'player_position'],
+  [DATABASE_ROLES.auth]: AUTH_TABLES,
+};
 const IMMUTABLE_COLUMNS = ['id', 'club_id', 'created_at', 'created_by', 'client_uuid'];
 
 interface TableRow {
@@ -242,6 +248,7 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
       'app.is_superadmin',
       'app.visible_player_ids',
       'public.change_history_record',
+      'public.player_sport_matches',
       'public.unit_matches_metric',
     ]);
     for (const row of rows) {

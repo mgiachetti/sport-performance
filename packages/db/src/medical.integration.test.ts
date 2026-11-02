@@ -173,6 +173,7 @@ describe.skipIf(!hasDatabase)('medical schema and audit (Postgres 16)', () => {
             lastName: 'Sin consentimiento',
             birthDate: '2011-08-01' as never,
             sex: 'male',
+            sport: 'rugby',
             joinedOn: '2020-01-01' as never,
           })
           .returning({ id: player.id })
