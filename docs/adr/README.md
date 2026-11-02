@@ -52,6 +52,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0046](0046-worker-cola-outbox-y-tablas-derivadas.md) | Worker: pg-boss instalado por las migraciones, outbox de recálculos por triggers y tablas derivadas | Aceptado |
 | [0047](0047-importacion-de-padron.md) | Importación de padrón: planilla leída en el cliente, vista previa, duplicados, decisiones por fila y registro sin datos personales | Aceptado |
 | [0048](0048-mayoria-de-edad.md) | Mayoría de edad: el adulto decide el acceso de cada tutor y firma sus propios consentimientos | Aceptado |
+| [0049](0049-cambio-de-temporada.md) | Cambio de temporada: propuesta por año de nacimiento, revisión obligatoria y aplicación única | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 

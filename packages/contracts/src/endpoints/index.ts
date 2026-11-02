@@ -151,6 +151,15 @@ import {
   updatePlayerCategory,
 } from './players.js';
 import {
+  applySeasonRollover,
+  cancelSeasonRollover,
+  createSeasonRollover,
+  getSeasonRollover,
+  listSeasonRolloverItems,
+  listSeasonRollovers,
+  updateSeasonRolloverItem,
+} from './season-rollovers.js';
+import {
   archiveTrainingSession,
   createDrill,
   createTrainingSession,
@@ -207,6 +216,7 @@ export * from './sessions.js';
 export * from './members.js';
 export * from './staff-assignments.js';
 export * from './players.js';
+export * from './season-rollovers.js';
 export * from './training.js';
 export * from './wellness.js';
 export * from './tests.js';
@@ -267,6 +277,13 @@ export const apiEndpoints = {
   listPlayerCategories,
   addPlayerCategory,
   updatePlayerCategory,
+  createSeasonRollover,
+  listSeasonRollovers,
+  getSeasonRollover,
+  listSeasonRolloverItems,
+  updateSeasonRolloverItem,
+  applySeasonRollover,
+  cancelSeasonRollover,
   getPlayerParentHeights,
   setPlayerParentHeight,
   listSeasons,

@@ -25,6 +25,10 @@ import {
   PARENTS,
   PLAYER_LEAVE_REASONS,
   PARTICIPATION_STATUSES,
+  SEASON_ROLLOVER_DECISIONS,
+  SEASON_ROLLOVER_OUTCOMES,
+  SEASON_ROLLOVER_PROPOSALS,
+  SEASON_ROLLOVER_STATUSES,
   SEXES,
   SPEED_ZONE_KINDS,
   SPORTS,
@@ -148,6 +152,23 @@ export const dominantSideEnum = pgEnum('dominant_side', DOMINANT_SIDES);
 export const parentKindEnum = pgEnum('parent_kind', PARENTS);
 /** Why a player left the club (baja, B-315). */
 export const playerLeaveReasonEnum = pgEnum('player_leave_reason', PLAYER_LEAVE_REASONS);
+/** Life cycle of a season change (B-316, ADR 0049). */
+export const seasonRolloverStatusEnum = pgEnum('season_rollover_status', SEASON_ROLLOVER_STATUSES);
+/** Why the season change proposes what it proposes for a player (B-316). */
+export const seasonRolloverProposalEnum = pgEnum(
+  'season_rollover_proposal',
+  SEASON_ROLLOVER_PROPOSALS,
+);
+/** Move the player to a category, or leave them as they are (B-316). */
+export const seasonRolloverDecisionEnum = pgEnum(
+  'season_rollover_decision',
+  SEASON_ROLLOVER_DECISIONS,
+);
+/** What applying the season change did with a player (B-316). */
+export const seasonRolloverOutcomeEnum = pgEnum(
+  'season_rollover_outcome',
+  SEASON_ROLLOVER_OUTCOMES,
+);
 
 // ---------------------------------------------------------------------------
 // Vocabularies that only exist in the database for now.

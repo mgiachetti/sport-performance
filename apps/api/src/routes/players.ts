@@ -439,7 +439,7 @@ async function categoryForPlayer(
 }
 
 /** One membership change at a time per player: checks and writes do not race. */
-async function lockPlayer(db: TenantDatabase, playerId: PlayerId): Promise<void> {
+export async function lockPlayer(db: TenantDatabase, playerId: PlayerId): Promise<void> {
   await db.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`player:${playerId}`}, 0))`);
 }
 

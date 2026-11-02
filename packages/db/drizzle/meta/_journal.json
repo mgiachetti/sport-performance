@@ -169,6 +169,13 @@
       "when": 1793651116962,
       "tag": "0023_adult_player",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793651295970,
+      "tag": "0024_season_rollover",
+      "breakpoints": true
     }
   ]
 }
