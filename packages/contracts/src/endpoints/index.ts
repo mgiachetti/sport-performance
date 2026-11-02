@@ -91,6 +91,14 @@ import {
   revokeConsent,
   signConsent,
 } from './consents.js';
+import {
+  confirmFileUpload,
+  createFileUpload,
+  deleteFile,
+  getFile,
+  getFileDownload,
+  listFiles,
+} from './files.js';
 import { getHealth } from './health.js';
 import {
   acceptInvitation,
@@ -179,6 +187,7 @@ export * from './configuration-modules.js';
 export * from './configuration-speed-zones.js';
 export * from './guardians.js';
 export * from './consents.js';
+export * from './files.js';
 export * from './health.js';
 export * from './invitations.js';
 export * from './me.js';
@@ -343,6 +352,12 @@ export const apiEndpoints = {
   listPlayerConsentHistory,
   signConsent,
   revokeConsent,
+  createFileUpload,
+  confirmFileUpload,
+  listFiles,
+  getFile,
+  getFileDownload,
+  deleteFile,
 } as const satisfies EndpointCatalog;
 
 export type ApiEndpoints = typeof apiEndpoints;

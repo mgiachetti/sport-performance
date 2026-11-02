@@ -358,3 +358,31 @@ export {
 export * from './training/index.js';
 // Wellness check-in (B-319).
 export * from './wellness/index.js';
+
+export {
+  CLIENT_UPLOAD_FILE_KINDS,
+  FILE_KINDS,
+  FILE_KIND_POLICIES,
+  FILE_NAME_MAX_LENGTH,
+  FILE_STATUSES,
+  FILE_UPLOAD_URL_MAX_TTL_S,
+  PENDING_UPLOAD_RETENTION_HOURS,
+  SHA256_BASE64_PATTERN,
+  SIGNED_URL_CLOCK_SKEW_S,
+  deletedFileExpiresAt,
+  fileExpiresAt,
+  fileObjectKey,
+  fileUploadProblems,
+  isFileKind,
+  isFileStatus,
+  parseFileKind,
+  parseFileStatus,
+  pendingUploadExpiresAt,
+  sanitizeFileName,
+  type ClientUploadFileKind,
+  type FileKind,
+  type FileKindPolicy,
+  type FileRetention,
+  type FileStatus,
+  type FileSubject,
+} from './files.js';

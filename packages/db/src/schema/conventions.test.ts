@@ -56,6 +56,7 @@ describe('schema conventions', () => {
         'drill',
         'external_metric',
         'fixture',
+        'file',
         'guardian',
         'khamis_roche_coefficient',
         'khamis_roche_table',

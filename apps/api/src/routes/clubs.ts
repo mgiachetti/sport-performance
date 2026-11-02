@@ -12,13 +12,21 @@ import {
   type ClubBranch,
   type ClubTheme,
 } from '@sport-performance/contracts';
-import { category, club, clubBranch } from '@sport-performance/db/schema';
+import { category, club, clubBranch, file } from '@sport-performance/db/schema';
 import { bootstrapClub } from '@sport-performance/db/seeds';
-import { parseClubId, type ClubId, type Sex, type Sport } from '@sport-performance/domain';
+import {
+  fileExpiresAt,
+  fileObjectKey,
+  parseClubId,
+  type ClubId,
+  type Sex,
+  type Sport,
+} from '@sport-performance/domain';
 import { createTheme, normalizeHex } from '@sport-performance/ui-tokens';
-import { and, eq, ilike, isNull, or, sql } from 'drizzle-orm';
+import { and, eq, gt, ilike, isNull, or, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { TenantDatabase } from '../db/database.js';
+import type { FilesModule } from '../files/module.js';
 import { registerEndpoint } from '../http/endpoint.js';
 import { HttpError } from '../http/errors.js';
 import { keysetPage, likePattern, type KeysetSpec } from '../http/pagination.js';
@@ -172,10 +180,11 @@ interface ClubThemeRow extends Record<string, unknown> {
   primary_color: string;
   secondary_color: string;
   logo_file_id: string | null;
+  logo_content_type: string | null;
   updated_at: Date | string;
 }
 
-export function registerClubRoutes(app: FastifyInstance): void {
+export function registerClubRoutes(app: FastifyInstance, files?: FilesModule): void {
   registerEndpoint(app, getClubTheme, {
     transaction: true,
     handler: async ({ params }, { db, reply }) => {
@@ -191,8 +200,12 @@ export function registerClubRoutes(app: FastifyInstance): void {
         slug: row.slug,
         name: row.name,
         shortName: row.short_name,
-        // Uploaded crests are served by the files module (#56); until then, none.
-        logoUrl: null,
+        logoUrl: await logoUrlOf(
+          files,
+          parseClubId(row.id),
+          row.logo_file_id,
+          row.logo_content_type,
+        ),
         colors: themeColors(row.primary_color, row.secondary_color),
         updatedAt: new Date(row.updated_at).toISOString(),
       };
@@ -292,6 +305,12 @@ export function registerClubRoutes(app: FastifyInstance): void {
         // Also refused by the database (club_slug_guard): it breaks links and deep links.
         throw new HttpError('forbidden', 'Only a superadmin changes the slug of a club');
       }
+      // One clock for the crest's checks and its retention.
+      const now = files?.now() ?? new Date();
+      const logo =
+        body.logoFileId === undefined
+          ? undefined
+          : await logoChange(db, clubId, body.logoFileId, now);
       const row = await updateAtVersion({
         resource: 'Club',
         update: async () =>
@@ -319,6 +338,9 @@ export function registerClubRoutes(app: FastifyInstance): void {
         exists: async () =>
           (await db.select({ id: club.id }).from(club).where(eq(club.id, clubId))).length > 0,
       });
+      if (logo !== undefined && logo.previous !== row.logoFileId) {
+        await applyLogoRetention(db, clubId, logo.previous, row.logoFileId, caller.userId, now);
+      }
       return clubDto(row);
     },
   });
@@ -462,4 +484,99 @@ async function enterCreatedClub(
   if (reason === null) throw new HttpError('forbidden', 'A superadmin acts only with a reason');
   await db.execute(sql`select set_config('app.club_id', ${clubId}, true)`);
   await db.execute(sql`select app.begin_support_access(${reason})`);
+}
+
+/**
+ * The crest the club is about to use: a `club_logo` of its own, uploaded and
+ * not expired at `now` (the clock of the files module, ADR 0044); otherwise
+ * `400` on `body.logoFileId`. Returns the crest it replaces. The file row
+ * stays locked until the transaction ends: `DELETE /v1/files/{id}` takes the
+ * same lock, so a crest is never set and deleted at once.
+ */
+async function logoChange(
+  db: TenantDatabase,
+  clubId: ClubId,
+  logoFileId: string | null,
+  now: Date,
+): Promise<{ previous: string | null }> {
+  const [current] = await db
+    .select({ logoFileId: club.logoFileId })
+    .from(club)
+    .where(eq(club.id, clubId));
+  if (logoFileId !== null) {
+    const [crest] = await db
+      .select({ id: file.id })
+      .from(file)
+      .where(
+        and(
+          eq(file.clubId, clubId),
+          eq(file.id, logoFileId),
+          eq(file.kind, 'club_logo'),
+          eq(file.status, 'ready'),
+          or(isNull(file.expiresAt), gt(file.expiresAt, now)),
+        ),
+      )
+      // Held until the club points at it: the retention job (`SKIP LOCKED`) cannot purge it
+      // in between, and a purge that got there first leaves it `deleted` (re-checked here).
+      .for('update');
+    if (crest === undefined) {
+      throw new HttpError('validation_failed', 'The crest must be an uploaded club_logo file', {
+        details: [
+          {
+            path: ['body', 'logoFileId'],
+            code: 'invalid_file',
+            message: 'Not a ready club_logo file of this club',
+          },
+        ],
+      });
+    }
+  }
+  return { previous: current?.logoFileId ?? null };
+}
+
+/**
+ * Retention of crests (`while_in_use`, ADR 0044): the crest in use never
+ * expires; the one it replaced expires `unusedDays` from now.
+ */
+async function applyLogoRetention(
+  db: TenantDatabase,
+  clubId: ClubId,
+  previous: string | null,
+  next: string | null,
+  userId: string,
+  now: Date,
+): Promise<void> {
+  if (next !== null) {
+    await db
+      .update(file)
+      .set({ expiresAt: fileExpiresAt('club_logo', now, true), updatedBy: userId })
+      .where(and(eq(file.clubId, clubId), eq(file.id, next)));
+  }
+  if (previous !== null) {
+    await db
+      .update(file)
+      .set({ expiresAt: fileExpiresAt('club_logo', now, false), updatedBy: userId })
+      .where(and(eq(file.clubId, clubId), eq(file.id, previous), eq(file.status, 'ready')));
+  }
+}
+
+/**
+ * Signed URL of the crest for the public theme, valid longer than the
+ * theme's cache. `null` without a crest or without a bucket configured.
+ */
+async function logoUrlOf(
+  files: FilesModule | undefined,
+  clubId: ClubId,
+  logoFileId: string | null,
+  contentType: string | null,
+): Promise<string | null> {
+  if (files === undefined || logoFileId === null || contentType === null) return null;
+  const signed = await files.storage.presignDownload({
+    key: fileObjectKey({ clubId, kind: 'club_logo', id: logoFileId }),
+    expiresInS: files.logoUrlTtlS,
+    // The type recorded (PNG or WebP), never the object's own.
+    contentType,
+    contentDisposition: 'inline',
+  });
+  return signed.url;
 }

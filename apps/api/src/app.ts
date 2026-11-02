@@ -12,6 +12,7 @@ import { createOriginGuard } from './auth/origin-guard.js';
 import type { RateLimiter } from './auth/rate-limit.js';
 import type { ApiConfig } from './config/env.js';
 import type { Database } from './db/database.js';
+import type { FilesModule } from './files/module.js';
 import { createErrorHandler, HttpError, notFoundHandler, sendError } from './http/errors.js';
 import { disabledErrorReporter, type ErrorReporter } from './observability/error-reporter.js';
 import { REQUEST_ID_HEADER, requestIdOf } from './observability/request-id.js';
@@ -57,6 +58,11 @@ export interface BuildAppOptions {
    * the identity routes are not mounted (unit tests of the core).
    */
   auth?: AuthModule;
+  /**
+   * The bucket of uploaded files (B-325, ADR 0044). Without it the file
+   * endpoints answer `503` and the club theme serves no crest.
+   */
+  files?: FilesModule;
   /** Overrides how the caller is resolved (tests); defaults to the auth module's. */
   authenticate?: Authenticate;
   /**
@@ -192,6 +198,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     version: config.version,
     databaseTimeoutMs: config.health.databaseTimeoutMs,
     auth: options.auth,
+    files: options.files,
   });
   options.register?.(app);
 

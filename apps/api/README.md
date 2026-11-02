@@ -60,6 +60,7 @@ Variables: [`.env.example`](.env.example). Se validan al arrancar; si falta o es
 | `POST /v1/auth/player-access` | Público: canjea el código o el link y abre la sesión mobile del jugador/a (ADR 0042). |
 | `GET /v1/consent-documents`, `GET …/{id}`, `POST /v1/consent-documents` | Textos de consentimiento versionados del club (lectura: todo miembro; publicar: la administración). |
 | `GET /v1/players/{id}/consents`, `GET …/consents/history`, `POST …/consents`, `POST …/consents/{type}/revoke` | Estado, historial, firma y revocación de los consentimientos de un jugador (firma y revoca el titular: tutor de un menor o jugador mayor). Sin consentimiento vigente, las rutas que guardan datos responden `403 consent_required` (`requireConsent`, ADR 0043). |
+| `POST /v1/files`, `POST /v1/files/{id}/confirm`, `GET /v1/files`, `GET /v1/files/{id}`, `GET …/{id}/download`, `DELETE /v1/files/{id}` | Archivos ([ADR 0044](../../docs/adr/0044-archivos-urls-firmadas-y-retencion.md)): subida directa al bucket con `PUT` firmado y confirmación, bajada con URL firmada de minutos, permisos por tipo (video del CMJ con consentimiento de imagen) y borrado que completa el job de retención. Sin `STORAGE_*`, `503`. |
 
 ## Sesión y club
 

@@ -96,8 +96,10 @@ export const club = pgTable(
     primaryColor: text('primary_color').notNull().default(defaultBrand.primary),
     secondaryColor: text('secondary_color').notNull().default(defaultBrand.secondary),
     /**
-     * Crest: id of the uploaded file (B-325, #56). No foreign key until the
-     * file table exists; the theme serves no logo while it is `NULL`.
+     * Crest: a `club_logo` of the club's own files (B-325, ADR 0044). The
+     * key `(id, logo_file_id) → file (club_id, id)` is declared in migration
+     * `0020_files` only: declaring it here would make `club` and `file`
+     * import each other. The theme serves no logo while it is `NULL`.
      */
     logoFileId: uuid('logo_file_id'),
     settings: jsonb('settings').notNull().default({}).$type<ClubSettings>(),
@@ -105,6 +107,10 @@ export const club = pgTable(
   },
   (t) => [
     unique('club_client_uuid_key').on(t.clientUuid),
+    // Covers the crest's key (`club_logo_file_id_fkey`, migration 0020).
+    index('club_logo_file_id_idx')
+      .on(t.id, t.logoFileId)
+      .where(sql`${t.logoFileId} is not null`),
     check('club_slug_format', sql`${t.slug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'`),
     check(
       'club_name_format',

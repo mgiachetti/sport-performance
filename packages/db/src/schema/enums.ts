@@ -14,6 +14,8 @@ import {
   FIXTURE_STATUSES,
   FIXTURE_VENUES,
   GUARDIAN_RELATIONSHIPS,
+  FILE_KINDS,
+  FILE_STATUSES,
   MATURITY_OFFSET_EQUATIONS,
   MEASUREMENT_METHODS,
   MEMBERSHIP_ROLES,
@@ -95,6 +97,10 @@ export const coefficientVerificationEnum = pgEnum(
   'coefficient_verification',
   COEFFICIENT_VERIFICATION_STATUSES,
 );
+/** What an uploaded file is (B-325, ADR 0044). */
+export const fileKindEnum = pgEnum('file_kind', FILE_KINDS);
+/** Life of an uploaded file: pending upload, ready, deleted (B-325). */
+export const fileStatusEnum = pgEnum('file_status', FILE_STATUSES);
 /** Training or match (`EXPOSURE_CONTEXTS`): drives exposure hours (B-210). */
 export const sessionKindEnum = pgEnum('session_kind', EXPOSURE_CONTEXTS);
 

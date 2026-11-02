@@ -2,6 +2,7 @@ import type { ApiEndpoints } from '@sport-performance/contracts';
 import type { FastifyInstance } from 'fastify';
 import { revokeSessionsOfEndedMembership } from '../auth/member-sessions.js';
 import type { AuthModule } from '../auth/module.js';
+import type { FilesModule } from '../files/module.js';
 import { registerAuthRoutes } from './auth.js';
 import { registerCalendarRoutes } from './calendar/index.js';
 import { registerCategoryRoutes } from './categories.js';
@@ -12,6 +13,7 @@ import { registerModuleRoutes } from './configuration-modules.js';
 import { registerSpeedZoneRoutes } from './configuration-speed-zones.js';
 import { registerGuardianRoutes } from './guardians.js';
 import { registerConsentRoutes } from './consents.js';
+import { registerFileRoutes } from './files.js';
 import { registerHealthRoutes, type HealthOptions } from './health.js';
 import { registerInvitationRoutes } from './invitations.js';
 import { registerMeRoutes } from './me.js';
@@ -179,6 +181,12 @@ export const IMPLEMENTED_ENDPOINTS = [
   'listPlayerConsentHistory',
   'signConsent',
   'revokeConsent',
+  'createFileUpload',
+  'confirmFileUpload',
+  'listFiles',
+  'getFile',
+  'getFileDownload',
+  'deleteFile',
 ] as const satisfies readonly (keyof ApiEndpoints)[];
 
 /** Declared in the contract but served by a later issue (`'#N (B-xxx): why'`). */
@@ -195,13 +203,15 @@ export interface RoutesOptions extends HealthOptions {
    * without it and those routes answer `404`.
    */
   auth?: AuthModule | undefined;
+  /** The bucket (B-325); without it the file endpoints answer `503` and the theme has no crest. */
+  files?: FilesModule | undefined;
 }
 
 export function registerRoutes(app: FastifyInstance, options: RoutesOptions): void {
   registerOpenApiRoute(app);
   registerHealthRoutes(app, options);
   // Club data: they need no auth module (the theme is public; the rest answer 401 without it).
-  registerClubRoutes(app);
+  registerClubRoutes(app, options.files);
   registerCategoryRoutes(app);
   registerStaffAssignmentRoutes(app);
   registerPlayerRoutes(app);
@@ -217,6 +227,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerAlertRuleRoutes(app);
   registerModuleRoutes(app);
   registerConsentRoutes(app);
+  registerFileRoutes(app, options.files);
   if (options.auth !== undefined) {
     registerAuthRoutes(app, options.auth);
     registerMeRoutes(app, options.auth);

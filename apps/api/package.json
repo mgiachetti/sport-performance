@@ -27,6 +27,7 @@
     "@sport-performance/db": "workspace:*",
     "@sport-performance/domain": "workspace:*",
     "@sport-performance/i18n": "workspace:*",
+    "@sport-performance/storage": "workspace:*",
     "@sport-performance/ui-tokens": "workspace:*",
     "better-auth": "1.7.14",
     "drizzle-orm": "0.45.4",
