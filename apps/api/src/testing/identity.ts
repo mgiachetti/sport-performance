@@ -115,7 +115,10 @@ export async function startIdentityApp(
     ...(options.now !== undefined && { now: options.now }),
   });
   const app = await buildApp({
-    config: testConfig,
+    // These suites assert the counters on the real store: on a loaded runner one
+    // round trip can exceed the 500 ms after which the general limits fail open,
+    // and a request would go through uncounted (issue #147).
+    config: { ...testConfig, rateLimit: { ...testConfig.rateLimit, timeoutMs: 10_000 } },
     db,
     logger: logs.logger,
     auth,

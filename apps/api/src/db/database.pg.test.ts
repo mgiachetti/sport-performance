@@ -310,7 +310,7 @@ describeWithPostgres('createApiPool (Postgres)', (url) => {
     const pool = createApiPool({
       url,
       poolMax: 1,
-      connectTimeoutMs: 2000,
+      connectTimeoutMs: 10_000,
       statementTimeoutMs: 200,
       applicationName: 'api-test',
     });
