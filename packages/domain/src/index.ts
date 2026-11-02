@@ -421,3 +421,6 @@ export {
 export * from './app-version/index.js';
 // Roster import: spreadsheets and duplicate detection (B-330).
 export * from './roster-import/index.js';
+
+// Offline sync: hybrid logical clocks, collections and operations (B-323).
+export * from './sync/index.js';

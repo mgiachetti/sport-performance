@@ -34,6 +34,7 @@ import { registerTrainingSessionRoutes } from './training-sessions.js';
 import { registerWellnessRoutes } from './wellness.js';
 import { registerTestResultRoutes } from './test-results.js';
 import { registerTestSessionResultRoutes } from './test-sessions.js';
+import { registerSyncRoutes } from './sync.js';
 
 /**
  * Endpoints of the contract the API serves, by operationId. Adding an
@@ -207,6 +208,8 @@ export const IMPLEMENTED_ENDPOINTS = [
   'importRoster',
   'listRosterImports',
   'getRosterImport',
+  'pushSyncMutations',
+  'pullSyncChanges',
 ] as const satisfies readonly (keyof ApiEndpoints)[];
 
 /** Declared in the contract but served by a later issue (`'#N (B-xxx): why'`). */
@@ -251,6 +254,8 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerConsentRoutes(app);
   registerFileRoutes(app, options.files);
   registerRosterImportRoutes(app);
+  // Last of the club data: the push runs the handlers of the routes above.
+  registerSyncRoutes(app);
   if (options.auth !== undefined) {
     registerAuthRoutes(app, options.auth);
     registerMeRoutes(app, options.auth);

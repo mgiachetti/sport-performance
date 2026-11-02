@@ -13,6 +13,7 @@ import {
 import { and, eq } from 'drizzle-orm';
 import type { TenantDatabase } from '../../db/database.js';
 import { HttpError } from '../../http/errors.js';
+import { withDefaultedFields, type DefaultedField } from '../../sync/defaults.js';
 import type { RequestPermissions } from '../../http/permissions.js';
 import {
   batteryRows,
@@ -209,11 +210,20 @@ export async function recordResult(
     createdBy: ctx.userId,
     updatedBy: ctx.userId,
   };
-  const [inserted] = await db
-    .insert(testResult)
-    .values(values)
-    .onConflictDoNothing({ target: [testResult.clubId, testResult.clientUuid] })
-    .returning({ id: testResult.id });
+  // Values the caller did not send (the day of the test day, its evaluator, its conditions)
+  // are defaults: no clock, so a correction of the result wins over them (ADR 0050).
+  const defaulted: DefaultedField[] = [
+    ...(input.measuredOn === undefined ? (['test_result.measured_on'] as const) : []),
+    ...(input.evaluatorId === undefined ? (['test_result.evaluator_id'] as const) : []),
+    ...(input.conditions === undefined ? (['test_result.conditions'] as const) : []),
+  ];
+  const [inserted] = await withDefaultedFields(db, defaulted, () =>
+    db
+      .insert(testResult)
+      .values(values)
+      .onConflictDoNothing({ target: [testResult.clubId, testResult.clientUuid] })
+      .returning({ id: testResult.id }),
+  );
   if (inserted === undefined) {
     if (input.clientUuid === undefined) {
       throw new Error('recordResult: the insert returned no row without a clientUuid');

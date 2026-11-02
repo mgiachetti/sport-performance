@@ -30,6 +30,8 @@ import { HttpError } from '../http/errors.js';
 import { keysetPage, type KeysetSpec } from '../http/pagination.js';
 import type { RequestPermissions } from '../http/permissions.js';
 import { markReplay, updateAtVersion, versionMatches } from '../http/writes.js';
+import { withDefaultedFields } from '../sync/defaults.js';
+import { lockKeys, participationKey } from '../sync/locks.js';
 import {
   assertSessionActive,
   authorizeSession,
@@ -212,6 +214,12 @@ export function registerParticipationRoutes(app: FastifyInstance): void {
         'playerId',
       ]);
       await authorizeRecord(permissions, facts);
+      // The rows of the batch, existing or not, as the offline push does (ADR 0050): two
+      // batches that create the same participation wait for each other, not the unique key.
+      await lockKeys(
+        db,
+        playerIds.map((playerId) => participationKey(session.id, playerId)),
+      );
 
       const existing = new Map(
         (
@@ -427,10 +435,13 @@ export function registerParticipationRoutes(app: FastifyInstance): void {
   registerEndpoint(app, submitSessionRpe, {
     transaction: true,
     changeReason: ({ body }) => body.changeReason,
-    handler: async ({ params, body }, { db, permissions, auth: caller, reply }) => {
+    handler: async ({ params, body }, { db, permissions, auth: caller, reply, recordedAt }) => {
       const { clubId } = caller.membership;
       const session = await readSession(db, clubId, params.trainingSessionId);
       const me = await ownPlayer(db, permissions, clubId, 'rpe', 'submit', session);
+      // As the offline push (ADR 0050): an RPE that creates the participation waits for a
+      // batch or another RPE that creates it at the same time, instead of hitting the unique key.
+      await lockKeys(db, [participationKey(session.id, me.id)]);
 
       if (body.clientUuid !== undefined) {
         const [previous] = await participationsBy(
@@ -449,7 +460,8 @@ export function registerParticipationRoutes(app: FastifyInstance): void {
 
       assertSessionActive(session);
       const window = rpeSubmissionWindow(session, await clubTimeZone(db, clubId));
-      const state = rpeWindowState(window, new Date());
+      // Offline (ADR 0050): an RPE recorded inside the window counts when it syncs after it.
+      const state = rpeWindowState(window, recordedAt ?? new Date());
       if (state !== 'open') {
         throw new HttpError(
           'conflict',
@@ -484,21 +496,28 @@ export function registerParticipationRoutes(app: FastifyInstance): void {
         if (inCategory === undefined) {
           throw new HttpError('forbidden', 'The session is not one of the player’s categories');
         }
-        const [created] = await db
-          .insert(participation)
-          .values({
-            clubId,
-            ...(body.clientUuid !== undefined && { clientUuid: body.clientUuid }),
-            trainingSessionId: session.id,
-            playerId: me.id,
-            status: 'full',
-            minutes: session.plannedDurationMin,
-            rpe: body.rpe,
-            rpeReportedAt: sql`now()`,
-            createdBy: caller.userId,
-            updatedBy: caller.userId,
-          })
-          .returning(participationColumns);
+        // The player only reports the RPE: status and minutes are defaults the staff corrects
+        // (ADR 0037), with no clock, so the staff's load wins over them however it syncs.
+        const [created] = await withDefaultedFields(
+          db,
+          ['participation.status', 'participation.minutes'],
+          () =>
+            db
+              .insert(participation)
+              .values({
+                clubId,
+                ...(body.clientUuid !== undefined && { clientUuid: body.clientUuid }),
+                trainingSessionId: session.id,
+                playerId: me.id,
+                status: 'full',
+                minutes: session.plannedDurationMin,
+                rpe: body.rpe,
+                rpeReportedAt: sql`now()`,
+                createdBy: caller.userId,
+                updatedBy: caller.userId,
+              })
+              .returning(participationColumns),
+        );
         if (created === undefined) throw new Error('submitSessionRpe: insert returned no row');
         return participationDto(created);
       }

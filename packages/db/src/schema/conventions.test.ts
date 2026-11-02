@@ -86,6 +86,8 @@ describe('schema conventions', () => {
         'session',
         'speed_zone_config',
         'staff_assignment',
+        'sync_change',
+        'sync_mutation',
         'test_definition',
         'test_definition_metric',
         'test_result',

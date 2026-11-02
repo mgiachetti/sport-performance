@@ -77,6 +77,10 @@
     {
       "name": "imports",
       "description": "Importación del padrón desde una planilla: vista previa, duplicados y registro (B-330)."
+    },
+    {
+      "name": "sync",
+      "description": "Sincronización sin conexión: cola de mutaciones con reloj lógico híbrido y cambios por cursor."
     }
   ],
   "paths": {
@@ -14262,6 +14266,190 @@
         }
       }
     },
+    "/v1/sync/changes": {
+      "get": {
+        "operationId": "pullSyncChanges",
+        "summary": "Cambios desde el cursor",
+        "description": "Cambios de las colecciones que el rol puede leer (la misma matriz y RLS que las listas), en el orden en que confirmaron, con los mismos DTO que los endpoints de lectura. Sin `cursor`, desde el principio. Una fila que salió de la vista por un cambio propio (una sesión que pasó a otra categoría) llega como baja. Si cambió lo que ve quien pide (rol, asignaciones, categorías asignadas, jugadores visibles o colecciones), `reset: true`: la página empieza de cero y el dispositivo borra esas colecciones antes de aplicarla. Seguir pidiendo con `cursor` mientras `hasMore`.",
+        "tags": [
+          "sync"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "El `cursor` de la respuesta anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Cambios por página (1 a 500).",
+            "schema": {
+              "default": 200,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            }
+          },
+          {
+            "name": "collections",
+            "in": "query",
+            "required": false,
+            "description": "Colecciones separadas por coma; por defecto, todas las que el rol puede leer. Las que no puede leer no se devuelven.",
+            "schema": {
+              "type": "string",
+              "maxLength": 256,
+              "pattern": "^(wellness|participation|training_session|test_session|test_result)(,(wellness|participation|training_session|test_session|test_result))*$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Una página de cambios.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncChangesPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.bad_request.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/sync/push": {
+      "post": {
+        "operationId": "pushSyncMutations",
+        "summary": "Sincronizar la cola de mutaciones",
+        "description": "Hasta 100 mutaciones, en el orden de la cola. Cada una corre el mismo handler que su endpoint en línea (contrato, permisos, consentimientos, RLS) en su propio savepoint: una rechazada vuelve con su error y no frena las siguientes; un error del servidor hace fallar todo el pedido (reintentar), y un choque con un push concurrente (deadlock) es un `503` con `Retry-After` para reintentar el pedido entero. Idempotente por `mutationId`. Las ediciones se resuelven por campo: gana el reloj (HLC) mayor.",
+        "tags": [
+          "sync"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mutations": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/SyncMutation"
+                    }
+                  }
+                },
+                "required": [
+                  "mutations"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "El resultado de cada mutación, en el orden del pedido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncPushResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error.service_unavailable"
+          }
+        }
+      }
+    },
     "/v1/test-results": {
       "get": {
         "operationId": "listTestResults",
@@ -21379,6 +21567,13 @@
         ],
         "description": "Origen de la altura: `measured` (medida por el staff) o `reported` (informada)."
       },
+      "Hlc": {
+        "type": "string",
+        "maxLength": 55,
+        "pattern": "^\\d{15}-\\d{6}-(?:[0-9a-f]{16,32}|server)$",
+        "description": "Reloj lógico híbrido `PPPPPPPPPPPPPPP-CCCCCC-nodo`: milisegundos desde 1970 (15 dígitos), contador (6 dígitos) y nodo del dispositivo (16 a 32 caracteres hex en minúscula). Se ordena como texto.",
+        "example": "001793620800000-000003-0f1e2d3c4b5a6978"
+      },
       "Invitation": {
         "type": "object",
         "properties": {
@@ -25641,6 +25836,461 @@
           "performance"
         ],
         "description": "Etapa de desarrollo: `foundation` (M13/M14), `development` (M15/M16), `performance` (M17/M19)."
+      },
+      "SyncChange": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/SyncUpsert"
+          },
+          {
+            "$ref": "#/components/schemas/SyncTombstone"
+          }
+        ]
+      },
+      "SyncChangesPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyncChange"
+            }
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Cursor opaco para el próximo pedido (también sin cambios nuevos)."
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "reset": {
+            "type": "boolean",
+            "description": "El cursor ya no servía: borrar las colecciones del dispositivo antes de aplicar esta página."
+          },
+          "collections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyncCollection"
+            },
+            "description": "Colecciones que cubre la respuesta (las pedidas que el rol puede leer)."
+          },
+          "serverHlc": {
+            "$ref": "#/components/schemas/Hlc"
+          }
+        },
+        "required": [
+          "items",
+          "cursor",
+          "hasMore",
+          "reset",
+          "collections",
+          "serverHlc"
+        ]
+      },
+      "SyncCollection": {
+        "type": "string",
+        "enum": [
+          "wellness",
+          "participation",
+          "training_session",
+          "test_session",
+          "test_result"
+        ],
+        "description": "Colección sincronizable: `wellness`, `participation`, `training_session`, `test_session` o `test_result` (con sus intentos)."
+      },
+      "SyncMutation": {
+        "type": "object",
+        "properties": {
+          "mutationId": {
+            "description": "Id de la mutación generado en el dispositivo. Reenviarla no la aplica dos veces: vuelve `replayed`.",
+            "$ref": "#/components/schemas/ClientUuid"
+          },
+          "hlc": {
+            "$ref": "#/components/schemas/Hlc"
+          },
+          "op": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Operación: `wellness.submit`, `wellness.correct`, `rpe.submit`, `participation.record`, `participation.update`, `test_result.create`, `test_session.record_results`, `test_result.update`, `test_result.add_entries`, `test_result.void_entries`. Una desconocida se rechaza sola."
+          },
+          "params": {
+            "description": "Parámetros de ruta del endpoint en línea (`trainingSessionId`, `testSessionId`)."
+          },
+          "target": {
+            "description": "Fila que edita: `{ id }` o `{ clientUuid }` (ediciones)."
+          },
+          "body": {
+            "description": "Body del endpoint en línea, sin `version` en las ediciones."
+          }
+        },
+        "required": [
+          "mutationId",
+          "hlc",
+          "op"
+        ],
+        "additionalProperties": false
+      },
+      "SyncMutationResult": {
+        "type": "object",
+        "properties": {
+          "mutationId": {
+            "$ref": "#/components/schemas/ClientUuid"
+          },
+          "op": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "applied",
+              "superseded",
+              "replayed",
+              "rejected"
+            ],
+            "description": "`applied`; `superseded` (todos sus campos ya tenían un reloj posterior: no se escribió nada); `replayed` (ya se había aplicado); `rejected` (el error que daría el endpoint en línea; no frena la cola)."
+          },
+          "hlc": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Hlc"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Reloj con el que se aplicó: el del dispositivo o, si estaba adelantado, la hora del servidor. `null` si se rechazó."
+          },
+          "clamped": {
+            "type": "boolean",
+            "description": "El reloj del dispositivo estaba adelantado y se llevó a la hora del servidor."
+          },
+          "appliedFields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Campos que ganaron (ediciones resueltas por campo)."
+          },
+          "supersededFields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Campos que perdieron contra una edición posterior."
+          },
+          "firstOutcome": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "applied",
+                  "superseded",
+                  "replayed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "En un reenvío del mismo `mutationId` (`replayed`), lo que resultó la primera vez: `applied`, `superseded` o `replayed` (el handler ya tenía el alta por su `clientUuid`). `null` en cualquier otro caso."
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ErrorBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "mutationId",
+          "op",
+          "status",
+          "hlc",
+          "clamped",
+          "appliedFields",
+          "supersededFields",
+          "firstOutcome",
+          "error"
+        ]
+      },
+      "SyncPushResult": {
+        "type": "object",
+        "properties": {
+          "serverHlc": {
+            "description": "Reloj del servidor: el dispositivo lo recibe para adelantar el suyo.",
+            "$ref": "#/components/schemas/Hlc"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyncMutationResult"
+            }
+          }
+        },
+        "required": [
+          "serverHlc",
+          "results"
+        ]
+      },
+      "SyncTombstone": {
+        "type": "object",
+        "properties": {
+          "collection": {
+            "$ref": "#/components/schemas/SyncCollection"
+          },
+          "op": {
+            "type": "string",
+            "const": "delete"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "UUID (RFC 9562). El servidor lo emite en minúsculas.",
+            "examples": [
+              "0192e7a0-5c1a-7b7e-9f3a-2d4c6b8a1e0f"
+            ]
+          },
+          "clientUuid": {
+            "type": "null"
+          },
+          "data": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "collection",
+          "op",
+          "id",
+          "clientUuid",
+          "data"
+        ],
+        "description": "La fila ya no existe o salió de la vista de quien pide (por ejemplo, una sesión que pasó a otra categoría): borrarla del dispositivo. Si el dispositivo no la tiene, no hace nada."
+      },
+      "SyncUpsert": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "collection": {
+                "type": "string",
+                "const": "wellness"
+              },
+              "op": {
+                "type": "string",
+                "const": "upsert"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "UUID (RFC 9562). El servidor lo emite en minúsculas.",
+                "examples": [
+                  "0192e7a0-5c1a-7b7e-9f3a-2d4c6b8a1e0f"
+                ]
+              },
+              "clientUuid": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ClientUuid"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "El `clientUuid` con que se creó la fila, para reconciliar lo creado sin conexión."
+              },
+              "data": {
+                "$ref": "#/components/schemas/Wellness"
+              }
+            },
+            "required": [
+              "collection",
+              "op",
+              "id",
+              "clientUuid",
+              "data"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "collection": {
+                "type": "string",
+                "const": "participation"
+              },
+              "op": {
+                "type": "string",
+                "const": "upsert"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "UUID (RFC 9562). El servidor lo emite en minúsculas.",
+                "examples": [
+                  "0192e7a0-5c1a-7b7e-9f3a-2d4c6b8a1e0f"
+                ]
+              },
+              "clientUuid": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ClientUuid"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "El `clientUuid` con que se creó la fila, para reconciliar lo creado sin conexión."
+              },
+              "data": {
+                "$ref": "#/components/schemas/Participation"
+              }
+            },
+            "required": [
+              "collection",
+              "op",
+              "id",
+              "clientUuid",
+              "data"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "collection": {
+                "type": "string",
+                "const": "training_session"
+              },
+              "op": {
+                "type": "string",
+                "const": "upsert"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "UUID (RFC 9562). El servidor lo emite en minúsculas.",
+                "examples": [
+                  "0192e7a0-5c1a-7b7e-9f3a-2d4c6b8a1e0f"
+                ]
+              },
+              "clientUuid": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ClientUuid"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "El `clientUuid` con que se creó la fila, para reconciliar lo creado sin conexión."
+              },
+              "data": {
+                "$ref": "#/components/schemas/TrainingSession"
+              }
+            },
+            "required": [
+              "collection",
+              "op",
+              "id",
+              "clientUuid",
+              "data"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "collection": {
+                "type": "string",
+                "const": "test_session"
+              },
+              "op": {
+                "type": "string",
+                "const": "upsert"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "UUID (RFC 9562). El servidor lo emite en minúsculas.",
+                "examples": [
+                  "0192e7a0-5c1a-7b7e-9f3a-2d4c6b8a1e0f"
+                ]
+              },
+              "clientUuid": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ClientUuid"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "El `clientUuid` con que se creó la fila, para reconciliar lo creado sin conexión."
+              },
+              "data": {
+                "$ref": "#/components/schemas/TestSession"
+              }
+            },
+            "required": [
+              "collection",
+              "op",
+              "id",
+              "clientUuid",
+              "data"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "collection": {
+                "type": "string",
+                "const": "test_result"
+              },
+              "op": {
+                "type": "string",
+                "const": "upsert"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "UUID (RFC 9562). El servidor lo emite en minúsculas.",
+                "examples": [
+                  "0192e7a0-5c1a-7b7e-9f3a-2d4c6b8a1e0f"
+                ]
+              },
+              "clientUuid": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ClientUuid"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "El `clientUuid` con que se creó la fila, para reconciliar lo creado sin conexión."
+              },
+              "data": {
+                "$ref": "#/components/schemas/TestResult"
+              }
+            },
+            "required": [
+              "collection",
+              "op",
+              "id",
+              "clientUuid",
+              "data"
+            ]
+          }
+        ]
       },
       "TestComparison": {
         "type": "object",

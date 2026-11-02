@@ -31,6 +31,9 @@ import {
   SEXES,
   SPEED_ZONE_KINDS,
   SPORTS,
+  SYNC_COLLECTIONS,
+  SYNC_OPERATIONS,
+  SYNC_STORED_OUTCOMES,
   STAGES,
   STAGE_BASES,
   STAGE_REASONS,
@@ -196,6 +199,9 @@ describe.skipIf(!hasDatabase)('migrations (Postgres 16)', () => {
       test_session_status: TEST_SESSION_STATUSES,
       fixture_venue: FIXTURE_VENUES,
       fixture_status: FIXTURE_STATUSES,
+      sync_collection: SYNC_COLLECTIONS,
+      sync_operation: SYNC_OPERATIONS,
+      sync_mutation_outcome: SYNC_STORED_OUTCOMES,
     };
     const enums = await rows<{ name: string; labels: string[] }>(
       `select t.typname as name, array_agg(e.enumlabel::text order by e.enumsortorder)::text[] as labels

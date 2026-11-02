@@ -83,6 +83,7 @@ export const API_TAGS = {
     'Archivos subidos al bucket con URLs firmadas: videos del CMJ, escudo, informes y planillas.',
   imports:
     'Importación del padrón desde una planilla: vista previa, duplicados y registro (B-330).',
+  sync: 'Sincronización sin conexión: cola de mutaciones con reloj lógico híbrido y cambios por cursor.',
 } as const satisfies Record<string, string>;
 
 export type ApiTag = keyof typeof API_TAGS;

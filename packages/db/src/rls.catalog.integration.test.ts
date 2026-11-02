@@ -243,6 +243,7 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
     );
     expect(rows.map((r) => r.fn)).toEqual([
       'app.accept_invitation',
+      'app.assigned_category_ids',
       'app.begin_support_access',
       'app.club_theme',
       'app.club_today',
@@ -254,12 +255,15 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
       'app.player_takes_access_codes',
       'app.redeem_player_access',
       'app.review_guardian',
+      'app.sync_lock_rows',
+      'app.sync_stamp_fields',
       'app.visible_player_ids',
       'app.worker_clubs',
       'public.change_history_record',
       'public.derived_refresh_mark',
       'public.derived_refresh_trigger',
       'public.player_sport_matches',
+      'public.sync_change_record',
       'public.unit_matches_metric',
     ]);
     for (const row of rows) {
