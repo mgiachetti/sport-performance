@@ -5,10 +5,13 @@ import {
   COEFFICIENT_VERIFICATION_STATUSES,
   CONSENT_SIGNERS,
   CONSENT_TYPES,
+  DEVICE_BROWSERS,
+  DEVICE_OPERATING_SYSTEMS,
   EXPOSURE_CONTEXTS,
   MATURITY_OFFSET_EQUATIONS,
   MEASUREMENT_METHODS,
   MEMBERSHIP_ROLES,
+  SESSION_CLIENT_TYPES,
   SEXES,
   SPEED_ZONE_KINDS,
   SPORTS,
@@ -84,6 +87,12 @@ export const coefficientVerificationEnum = pgEnum(
 );
 /** Training or match (`EXPOSURE_CONTEXTS`): drives exposure hours (B-210). */
 export const sessionKindEnum = pgEnum('session_kind', EXPOSURE_CONTEXTS);
+
+/** How a sign-in session travels: cookie (web) or bearer token (mobile app), ADR 0033. */
+export const sessionClientTypeEnum = pgEnum('session_client_type', SESSION_CLIENT_TYPES);
+/** Coarse device of a session, derived from the `User-Agent` (never stored raw), ADR 0033. */
+export const deviceOsEnum = pgEnum('device_os', DEVICE_OPERATING_SYSTEMS);
+export const deviceBrowserEnum = pgEnum('device_browser', DEVICE_BROWSERS);
 
 /** `UNIT_CODES` is derived from the `UNITS` record, hence the tuple cast. */
 export const unitEnum = pgEnum('unit', UNIT_CODES as unknown as readonly [UnitCode, ...UnitCode[]]);

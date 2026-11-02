@@ -14,6 +14,17 @@ export { DomainValidationError, type DomainErrorCode } from './errors.js';
 
 export { SPORTS, isSport, parseSport, type Sport } from './sport.js';
 export { SEXES, isSex, parseSex, type Sex } from './sex.js';
+export {
+  DEVICE_BROWSERS,
+  DEVICE_OPERATING_SYSTEMS,
+  SESSION_CLIENT_TYPES,
+  isDeviceBrowser,
+  isDeviceOperatingSystem,
+  isSessionClientType,
+  type DeviceBrowser,
+  type DeviceOperatingSystem,
+  type SessionClientType,
+} from './session-device.js';
 export { ROLES, isRole, parseRole, type Role } from './role.js';
 export {
   STAGES,

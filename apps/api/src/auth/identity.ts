@@ -3,9 +3,11 @@ import type { InvitationStatus } from '@sport-performance/contracts';
 import { club, membership } from '@sport-performance/db/schema';
 import {
   parseClubId,
+  parseUserId,
   parseUuid,
   type ClubId,
   type MembershipRole,
+  type TimeZone,
   type UserId,
   type Uuid,
 } from '@sport-performance/domain';
@@ -20,6 +22,8 @@ export interface ActiveMembership {
   readonly clubId: ClubId;
   readonly clubSlug: string;
   readonly clubName: string;
+  /** "The day" and the times of the club's emails are shown in it. */
+  readonly clubTimeZone: TimeZone;
   readonly role: MembershipRole;
   readonly startedAt: Date;
 }
@@ -59,6 +63,12 @@ export interface IdentityStore {
     tokenHash: string,
     caller: { readonly userId: UserId },
   ): Promise<AcceptInvitationResult>;
+  /**
+   * The user of a membership of the context's club, in any state (ended
+   * too), as the club policies show it to the context's role; `undefined`
+   * when the membership is not of that club or not visible.
+   */
+  membershipUser(context: TenantContext, membershipId: string): Promise<UserId | undefined>;
 }
 
 function userContext(userId: UserId | null): TenantContext {
@@ -70,6 +80,7 @@ const membershipColumns = {
   clubId: membership.clubId,
   clubSlug: club.slug,
   clubName: club.name,
+  clubTimeZone: club.timeZone,
   role: membership.role,
   startedAt: membership.startedAt,
 };
@@ -79,6 +90,7 @@ function toActiveMembership(row: {
   clubId: string;
   clubSlug: string;
   clubName: string;
+  clubTimeZone: TimeZone;
   role: MembershipRole;
   startedAt: Date;
 }): ActiveMembership {
@@ -128,6 +140,16 @@ export function createIdentityStore(appDb: Database): IdentityStore {
 
   return {
     activeMemberships: (userId) => run(userId, (db) => membershipsOf(db, userId)),
+
+    membershipUser: (context, membershipId) =>
+      appDb.transaction(context, async (tx) => {
+        if (context.clubId === null) return undefined;
+        const [row] = await tenantDatabase(tx)
+          .select({ userId: membership.userId })
+          .from(membership)
+          .where(and(eq(membership.clubId, context.clubId), eq(membership.id, membershipId)));
+        return row === undefined ? undefined : parseUserId(row.userId);
+      }),
 
     previewInvitation: (tokenHash, now) =>
       run(null, async (db) => {

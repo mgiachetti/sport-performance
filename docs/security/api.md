@@ -1,6 +1,6 @@
 # Revisión de seguridad de la API (OWASP)
 
-Checklist previo a producción de `apps/api` contra **OWASP API Security Top 10 (2023)** y **OWASP ASVS 4.0.3, nivel 2** (las secciones equivalen a los capítulos de ASVS 5.0). Cada ítem apunta a código y tests, o a un issue abierto cuando falta. Decisiones en [ADR 0028](../adr/0028-auth-membresias-e-invitaciones-en-la-api.md) (ingreso) y [ADR 0031](../adr/0031-endurecimiento-de-la-api.md) (endurecimiento). La seguridad del repositorio (dependencias, secretos en git, workflows) está en [`docs/security.md`](../security.md).
+Checklist previo a producción de `apps/api` contra **OWASP API Security Top 10 (2023)** y **OWASP ASVS 4.0.3, nivel 2** (las secciones equivalen a los capítulos de ASVS 5.0). Cada ítem apunta a código y tests, o a un issue abierto cuando falta. Decisiones en [ADR 0028](../adr/0028-auth-membresias-e-invitaciones-en-la-api.md) (ingreso), [ADR 0031](../adr/0031-endurecimiento-de-la-api.md) (endurecimiento) y [ADR 0033](../adr/0033-sesiones-activas-por-dispositivo.md) (sesiones por dispositivo). La seguridad del repositorio (dependencias, secretos en git, workflows) está en [`docs/security.md`](../security.md).
 
 Estados: **Hecho** (código + test), **Parcial** (lo base está, falta algo que se nombra), **Pendiente** (issue abierto), **N/A** (no aplica, con el motivo).
 
@@ -19,7 +19,7 @@ Estados: **Hecho** (código + test), **Parcial** (lo base está, falta algo que 
 | | Cada endpoint de recursos aplica la matriz de permisos (`authorize` de `packages/domain`) además de la RLS. | Matriz en `packages/domain/src/permissions` (#34). Endpoints: #44, #45, #46 y siguientes; las invitaciones todavía usan un chequeo de `admin` propio (`apps/api/src/routes/invitations.ts`). | Parcial |
 | **API2 Broken Authentication** | OTP de 6 dígitos (CSPRNG de Better Auth), 5 min, hasheado, un solo uso, 3 intentos por código; límites por email y por IP con claves HMAC. | `apps/api/src/auth/better-auth.ts`, `apps/api/src/auth/rate-limit.ts`; `apps/api/src/auth/sign-in.pg.test.ts` | Hecho |
 | | Sesión por cookie `HttpOnly`, `SameSite=Lax`, `Secure` y `__Secure-` con https; bearer solo en el body; sin cache de sesión (cerrar sesión corta en el request siguiente). | `apps/api/src/auth/better-auth.ts`, `apps/api/src/routes/auth.ts`; `sign-in.pg.test.ts` | Hecho |
-| | Listar y cerrar sesiones de otros dispositivos; aviso de ingreso nuevo. | #142 | Pendiente |
+| | Listar y cerrar sesiones de otros dispositivos (web y mobile, sin IP); cierre de todas las sesiones de un miembro al darlo de baja si no le queda otra membresía; aviso por email de un ingreso desde un dispositivo nuevo. | `apps/api/src/routes/sessions.ts`, `apps/api/src/auth/sessions.ts`, `apps/api/src/auth/member-sessions.ts`, `apps/api/src/routes/auth.ts`; `apps/api/src/auth/sessions.pg.test.ts` ([ADR 0033](../adr/0033-sesiones-activas-por-dispositivo.md)) | Hecho |
 | **API3 Broken Object Property Level Authorization** | Entradas `z.strictObject` en todos los niveles: una clave desconocida es `400` (sin asignación masiva). `defineEndpoint` falla al cargar si un esquema de entrada no es estricto. | `packages/contracts/src/strict-input.ts`, `packages/contracts/src/endpoint.ts`; `packages/contracts/src/endpoint.test.ts`, `apps/api/src/security/security.test.ts` | Hecho |
 | | Respuestas validadas contra el contrato antes de salir: un campo que el contrato no declara no sale (zod lo descarta) y una respuesta fuera de contrato es `500` con rollback. | `apps/api/src/http/endpoint.ts`; `apps/api/src/app.test.ts` | Hecho |
 | | Datos de salud solo para `medical` y con auditoría de cada lectura. | #35 | Pendiente |
@@ -55,7 +55,7 @@ Estados: **Hecho** (código + test), **Parcial** (lo base está, falta algo que 
 | V3.2.1, V3.2.3 | Token nuevo al ingresar; guardado seguro en el navegador. | Better Auth; cookie `HttpOnly` | Hecho |
 | V3.3.1 | Cerrar sesión invalida el token en el servidor. | `POST /v1/auth/sign-out`; `sign-in.pg.test.ts` | Hecho |
 | V3.3.2 | Vencimiento de la sesión. | 30 días renovables (`SESSION_EXPIRES_IN_DAYS`) | Hecho |
-| V3.3.3, V3.3.4 | Cerrar las demás sesiones; ver las sesiones activas. | #142 | Pendiente |
+| V3.3.3, V3.3.4 | Cerrar las demás sesiones; ver las sesiones activas. | `GET /v1/me/sessions`, `DELETE /v1/me/sessions/{sessionId}`, `POST /v1/me/sessions/revoke-others`; baja de un miembro con `revokeSessionsOfEndedMembership`; `sessions.pg.test.ts` | Hecho |
 | V3.4.1–V3.4.3 | Cookie `Secure`, `HttpOnly`, `SameSite`. | `better-auth.ts`; `sign-in.pg.test.ts` | Hecho |
 | V3.4.4 | Prefijo `__Host-`. | Se usa `__Secure-` (Better Auth); `__Host-` exige `Path=/` sin `Domain`, revisar al configurar dominios en #99 | Parcial |
 | V4.1.1, V4.1.3 | Control de acceso en el servidor, mínimo privilegio. | RLS por rol + niveles de auth del contrato; roles de conexión (ADR 0026) | Hecho |

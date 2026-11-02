@@ -6,6 +6,7 @@ import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { bearer, emailOTP } from 'better-auth/plugins';
 import type { FastifyBaseLogger } from 'fastify';
+import type { SessionClient } from './device.js';
 
 /** Lifetime of a sign-in code (ADR 0010). */
 export const SIGN_IN_CODE_EXPIRES_IN_S = 5 * 60;
@@ -49,6 +50,35 @@ export async function generateSignInCode(auth: SportAuth, email: string): Promis
   return box.code;
 }
 
+/** What the sign-in endpoint tells the hooks of the session it is opening (ADR 0033). */
+interface SignInScope {
+  readonly client: SessionClient;
+  /** Set by the user-create hook: the code created the account. */
+  userCreated: boolean;
+}
+
+const signInScope = new AsyncLocalStorage<SignInScope>();
+
+/**
+ * Signs in with an email code, opening a session that records `client`
+ * (cookie → web, bearer → mobile, coarse device). Sessions are only created
+ * through here: the session-create hook refuses any other path, so no row
+ * misses its client type. Also tells whether the code created the account.
+ */
+export async function signInWithCode(
+  auth: SportAuth,
+  input: { email: string; code: string; client: SessionClient },
+) {
+  const scope: SignInScope = { client: input.client, userCreated: false };
+  const result = await signInScope.run(scope, () =>
+    auth.api.signInEmailOTP({
+      body: { email: input.email, otp: input.code },
+      returnHeaders: true,
+    }),
+  );
+  return { ...result, userCreated: scope.userCreated };
+}
+
 /**
  * Better Auth inside the API (ADR 0010, ADR 0028), over the identity tables of
  * `packages/db`. Only its server API (`auth.api.*`) is used: the HTTP routes
@@ -61,6 +91,9 @@ export async function generateSignInCode(auth: SportAuth, email: string): Promis
  * - Sessions: cookie `sp.session_token` for the web (`HttpOnly`, `SameSite=Lax`,
  *   `Secure` + `__Secure-` over https) and the same token as bearer for mobile.
  * - `isSuperadmin`: additional field, never writable through Better Auth.
+ * - Session client (ADR 0033): `clientType`, `deviceOs`, `deviceBrowser` and
+ *   `lastSeenAt` are additional fields set by the session-create hook from
+ *   {@link signInWithCode}; never the IP or the raw `User-Agent`.
  */
 export function createBetterAuth(options: BetterAuthOptions) {
   const { logger } = options;
@@ -79,6 +112,12 @@ export function createBetterAuth(options: BetterAuthOptions) {
       },
     },
     session: {
+      additionalFields: {
+        clientType: { type: 'string', input: false, required: true },
+        deviceOs: { type: 'string', input: false, required: false },
+        deviceBrowser: { type: 'string', input: false, required: false },
+        lastSeenAt: { type: 'date', input: false, required: false },
+      },
       expiresIn: options.sessionExpiresInS,
       updateAge: SESSION_UPDATE_AGE_S,
       // Every request reads the session from the database: revoking it is immediate.
@@ -91,6 +130,39 @@ export function createBetterAuth(options: BetterAuthOptions) {
       defaultCookieAttributes: { httpOnly: true, sameSite: 'lax', secure: options.secureCookies },
       // The IP of minors' devices is personal data we do not need to keep with the session.
       ipAddress: { disableIpTracking: true },
+    },
+    databaseHooks: {
+      user: {
+        create: {
+          after: () => {
+            const scope = signInScope.getStore();
+            if (scope !== undefined) scope.userCreated = true;
+            return Promise.resolve();
+          },
+        },
+      },
+      session: {
+        create: {
+          before: (session) => {
+            const scope = signInScope.getStore();
+            if (scope === undefined) {
+              return Promise.reject(new Error('sessions are only opened through signInWithCode'));
+            }
+            const { client } = scope;
+            return Promise.resolve({
+              data: {
+                ...session,
+                clientType: client.clientType,
+                deviceOs: client.deviceOs,
+                deviceBrowser: client.deviceBrowser,
+                lastSeenAt: new Date(),
+                ipAddress: null,
+                userAgent: null,
+              },
+            });
+          },
+        },
+      },
     },
     logger: {
       level: 'warn',

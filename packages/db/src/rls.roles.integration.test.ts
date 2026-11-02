@@ -760,6 +760,10 @@ describe.skipIf(!hasDatabase)('RLS by role (Postgres 16)', () => {
             isSuperadmin: { type: 'boolean', input: false, defaultValue: false },
           },
         },
+        // `session.client_type` is required (ADR 0033); the API sets it per sign-in.
+        session: {
+          additionalFields: { clientType: { type: 'string', input: false, defaultValue: 'web' } },
+        },
         logger: { disabled: true },
       });
       const result = await betterAuthInstance.api.signUpEmail({
@@ -783,6 +787,42 @@ describe.skipIf(!hasDatabase)('RLS by role (Postgres 16)', () => {
       ).toBe(1);
       expect(await pgCode(app.pool.query('select 1 from auth_rate_limit'))).toBe('42501');
       expect(await pgCode(auth.pool.query('select 1 from invitation'))).toBe('42501');
+    });
+
+    it('owns the known devices (ADR 0033), which the API cannot see', async () => {
+      const hash = 'a'.repeat(64);
+      await auth.pool.query('insert into known_device (user_id, device_hash) values ($1, $2)', [
+        a.users.admin,
+        hash,
+      ]);
+      expect(
+        await pgCode(
+          auth.pool.query('insert into known_device (user_id, device_hash) values ($1, $2)', [
+            a.users.admin,
+            'not-a-hash',
+          ]),
+        ),
+      ).toBe('23514');
+      expect(await pgCode(app.pool.query('select 1 from known_device'))).toBe('42501');
+      expect(
+        (
+          await auth.pool.query(
+            'delete from known_device where user_id = $1 and device_hash = $2',
+            [a.users.admin, hash],
+          )
+        ).rowCount,
+      ).toBe(1);
+    });
+
+    it('cannot store the IP or the raw User-Agent with a session', async () => {
+      const insert = (column: 'ip_address' | 'user_agent') =>
+        auth.pool.query(
+          `insert into session (token, expires_at, user_id, client_type, ${column})
+           values ($1, now() + interval '1 day', $2, 'web', 'x')`,
+          [`token-${column}`, a.users.admin],
+        );
+      expect(await pgCode(insert('ip_address'))).toBe('23514');
+      expect(await pgCode(insert('user_agent'))).toBe('23514');
     });
 
     it('cannot read club data nor grant is_superadmin', async () => {

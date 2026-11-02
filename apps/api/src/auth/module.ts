@@ -8,6 +8,7 @@ import { createSessionAuthenticate } from './authenticate.js';
 import { createBetterAuth, type SportAuth } from './better-auth.js';
 import type { Authenticate } from './context.js';
 import { createIdentityStore, type IdentityStore } from './identity.js';
+import { createSessionStore, type SessionStore } from './sessions.js';
 import {
   AUTH_RATE_LIMITS,
   createPgRateLimiter,
@@ -20,6 +21,8 @@ export interface AuthModule {
   readonly betterAuth: SportAuth;
   readonly authenticate: Authenticate;
   readonly identity: IdentityStore;
+  /** Sessions and known devices, on Better Auth's connection (ADR 0033). */
+  readonly sessions: SessionStore;
   readonly rateLimiter: RateLimiter;
   readonly limits: AuthRateLimits;
   readonly mailer: Mailer;
@@ -28,6 +31,8 @@ export interface AuthModule {
   readonly webOrigins: readonly string[];
   /** Origin of the API itself, also trusted by the origin guard. */
   readonly apiOrigin: string;
+  /** Cookies (session and device id) are `Secure` with the `__Secure-` prefix. */
+  readonly secureCookies: boolean;
   /**
    * Clock of the expiry of new invitations and of the invitation states the API
    * reports; tests may pin it. Accepting uses the database's clock.
@@ -64,16 +69,19 @@ export function createAuthModule(options: CreateAuthModuleOptions): AuthModule {
     logger: options.logger,
   });
   const identity = createIdentityStore(options.db);
+  const sessions = createSessionStore(options.authDb);
   return {
     betterAuth,
-    authenticate: createSessionAuthenticate(betterAuth, identity),
+    authenticate: createSessionAuthenticate(betterAuth, identity, sessions),
     identity,
+    sessions,
     rateLimiter: createPgRateLimiter(options.authDb, config.secret),
     limits: { ...AUTH_RATE_LIMITS, ...options.limits },
     mailer: options.mailer,
     links: config.links,
     webOrigins: config.webOrigins,
     apiOrigin: new URL(config.baseUrl).origin,
+    secureCookies: config.secureCookies,
     now: options.now ?? (() => new Date()),
   };
 }

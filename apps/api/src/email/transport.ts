@@ -8,7 +8,7 @@ export interface EmailMessage {
   /** Plain-text alternative: clients that block HTML, screen readers, spam filters. */
   readonly text: string;
   /** What the message is, for the provider's analytics and our logs (never personal data). */
-  readonly kind: 'sign_in_code' | 'invitation';
+  readonly kind: 'sign_in_code' | 'invitation' | 'new_sign_in';
 }
 
 /**

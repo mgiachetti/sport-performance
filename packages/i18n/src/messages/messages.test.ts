@@ -1,4 +1,10 @@
-import { DEFAULT_BIO_BANDING_SCHEMES, STAGE_REASONS } from '@sport-performance/domain';
+import {
+  DEFAULT_BIO_BANDING_SCHEMES,
+  DEVICE_BROWSERS,
+  DEVICE_OPERATING_SYSTEMS,
+  SESSION_CLIENT_TYPES,
+  STAGE_REASONS,
+} from '@sport-performance/domain';
 import { describe, expect, it } from 'vitest';
 import { SUPPORTED_LOCALES } from '../locale.js';
 import { esAR } from './es-AR.js';
@@ -39,6 +45,18 @@ describe('es-AR source catalog', () => {
 });
 
 describe('domain codes', () => {
+  it('have a message for every session client type, device OS and browser', () => {
+    for (const type of SESSION_CLIENT_TYPES) {
+      expect(isMessageKey(`session.clientType.${type}`), type).toBe(true);
+    }
+    for (const os of DEVICE_OPERATING_SYSTEMS) {
+      expect(isMessageKey(`device.os.${os}`), os).toBe(true);
+    }
+    for (const browser of DEVICE_BROWSERS) {
+      expect(isMessageKey(`device.browser.${browser}`), browser).toBe(true);
+    }
+  });
+
   it('have a message for every stage reason', () => {
     for (const reason of STAGE_REASONS) {
       expect(isMessageKey(`stageReason.${reason}`), reason).toBe(true);

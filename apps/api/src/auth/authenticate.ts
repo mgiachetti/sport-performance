@@ -8,6 +8,13 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { SportAuth } from './better-auth.js';
 import type { Authenticate, AuthContext, Membership } from './context.js';
 import type { ActiveMembership, IdentityStore } from './identity.js';
+import { SESSION_TOUCH_INTERVAL_S, type SessionStore } from './sessions.js';
+
+/** Whether a session last seen at `lastSeenAt` is due for a `last_seen_at` refresh. */
+export function touchDue(lastSeenAt: unknown, nowMs: number): boolean {
+  const seen = lastSeenAt instanceof Date ? lastSeenAt : new Date(String(lastSeenAt));
+  return Number.isNaN(seen.getTime()) || nowMs - seen.getTime() >= SESSION_TOUCH_INTERVAL_S * 1000;
+}
 
 /** Request headers Better Auth needs to find the session: nothing else is handed to it. */
 export function sessionHeaders(request: FastifyRequest): Headers {
@@ -95,9 +102,15 @@ export function selectSupportClub(
  * {@link Authenticate} over Better Auth: the session comes from the cookie
  * (web) or `Authorization: Bearer` (mobile, through Better Auth's bearer
  * plugin), the memberships from the identity store. A refreshed session
- * re-sets the cookie of web callers.
+ * re-sets the cookie of web callers. The session's `last_seen_at` ("Sesiones
+ * activas", ADR 0033) is refreshed at most every few minutes; failing to
+ * refresh it is logged and does not fail the request.
  */
-export function createSessionAuthenticate(auth: SportAuth, identity: IdentityStore): Authenticate {
+export function createSessionAuthenticate(
+  auth: SportAuth,
+  identity: IdentityStore,
+  sessions: SessionStore,
+): Authenticate {
   return async (request, reply): Promise<AuthContext | null> => {
     const headers = sessionHeaders(request);
     if (!headers.has('cookie') && !headers.has('authorization')) return null;
@@ -107,6 +120,14 @@ export function createSessionAuthenticate(auth: SportAuth, identity: IdentitySto
     if (found === null) return null;
     // Mobile callers never get cookies: their token stays the same when the session is extended.
     if (!headers.has('authorization')) forwardSetCookie(reply, result.headers);
+
+    if (touchDue(found.session.lastSeenAt, Date.now())) {
+      try {
+        await sessions.touch(found.session.id);
+      } catch (error) {
+        request.log.warn({ err: error }, 'refreshing the session last use failed');
+      }
+    }
 
     const userId = parseUserId(found.user.id);
     const isSuperadmin = found.user.isSuperadmin === true;

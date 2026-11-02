@@ -1,8 +1,14 @@
 import { render } from '@react-email/render';
-import type { MembershipRole, TimeZone } from '@sport-performance/domain';
+import type {
+  DeviceBrowser,
+  DeviceOperatingSystem,
+  MembershipRole,
+  TimeZone,
+} from '@sport-performance/domain';
 import { createTranslator, formatDateTime, type Translator } from '@sport-performance/i18n';
 import type { ReactElement } from 'react';
 import { InvitationEmail } from './templates/invitation.js';
+import { NewSignInEmail } from './templates/new-sign-in.js';
 import { SignInCodeEmail } from './templates/sign-in-code.js';
 import type { EmailMessage, EmailTransport } from './transport.js';
 
@@ -25,10 +31,27 @@ export interface InvitationEmailInput {
   timeZone: TimeZone;
 }
 
+export interface NewSignInEmailInput {
+  to: string;
+  device: { os: DeviceOperatingSystem | null; browser: DeviceBrowser | null };
+  at: Date;
+  /** Time zone the time is shown in: the user's club, or the default one. */
+  timeZone: TimeZone;
+}
+
 /** Renders the emails of the identity flows (React Email, es-AR from `packages/i18n`) and sends them. */
 export interface Mailer {
   sendSignInCode(input: SignInCodeEmailInput): Promise<void>;
   sendInvitation(input: InvitationEmailInput): Promise<void>;
+  sendNewSignIn(input: NewSignInEmailInput): Promise<void>;
+}
+
+/** "Chrome en macOS", "la app en iOS", "Windows"… from the coarse device of a session. */
+export function deviceLabel(t: Translator['t'], device: NewSignInEmailInput['device']): string {
+  const os = device.os === null ? null : t(`device.os.${device.os}`);
+  const browser = device.browser === null ? null : t(`device.browser.${device.browser}`);
+  if (os !== null && browser !== null) return t('device.label', { browser, os });
+  return os ?? browser ?? t('device.unknown');
 }
 
 async function renderBoth(element: ReactElement): Promise<{ html: string; text: string }> {
@@ -67,6 +90,24 @@ export function createMailer(
           body={t('email.signInCode.body', { minutes })}
           code={code}
           ignore={t('email.signInCode.ignore')}
+          footer={footer}
+        />,
+      );
+    },
+
+    async sendNewSignIn(input) {
+      const device = deviceLabel(t, input.device);
+      const date = formatDateTime(input.at, { timeZone: input.timeZone });
+      await send(
+        input.to,
+        'new_sign_in',
+        t('email.newSignIn.subject'),
+        <NewSignInEmail
+          preview={t('email.newSignIn.preview', { appName })}
+          heading={t('email.newSignIn.heading')}
+          body={t('email.newSignIn.body', { device, date })}
+          ifYou={t('email.newSignIn.ifYou')}
+          ifNotYou={t('email.newSignIn.ifNotYou')}
           footer={footer}
         />,
       );

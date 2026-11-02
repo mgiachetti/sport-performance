@@ -1,7 +1,8 @@
 import { parseTimeZone } from '@sport-performance/domain';
 import { describe, expect, it } from 'vitest';
 import { memoryLogger } from '../testing/support.js';
-import { createMailer } from './mailer.js';
+import { createTranslator } from '@sport-performance/i18n';
+import { createMailer, deviceLabel } from './mailer.js';
 import { ResendEmailTransport } from './resend.js';
 import { EmailDeliveryError, LogEmailTransport, MemoryEmailTransport } from './transport.js';
 
@@ -53,6 +54,35 @@ describe('mailer (React Email, es-AR)', () => {
     expect(anonymous?.text).toContain(
       'Te invitaron a sumarte a Olivos Rugby Club como Preparador/a físico/a.',
     );
+  });
+});
+
+describe('new sign-in notice (B-333)', () => {
+  it('names the device and the time in the given time zone, without a link', async () => {
+    const transport = new MemoryEmailTransport();
+    await createMailer(transport).sendNewSignIn({
+      to: 'ana@example.com',
+      device: { os: 'macos', browser: 'chrome' },
+      at: new Date('2026-11-08T02:30:00.000Z'),
+      timeZone: parseTimeZone('America/Argentina/Buenos_Aires'),
+    });
+    const [message] = transport.sent;
+    expect(message).toMatchObject({ kind: 'new_sign_in', subject: 'Ingreso nuevo a tu cuenta' });
+    expect(message?.text).toContain(
+      'Se ingresó a tu cuenta desde un dispositivo nuevo: Chrome en macOS, el 07/11/2026 23:30.',
+    );
+    expect(message?.text).toContain('Si fuiste vos, no tenés que hacer nada.');
+    expect(message?.text).toContain('abrí Sesiones activas y cerrá esa sesión');
+    expect(message?.html).toContain('lang="es-AR"');
+    expect(message?.html).not.toContain('href=');
+  });
+
+  it('labels partial and unknown devices', () => {
+    const { t } = createTranslator();
+    expect(deviceLabel(t, { os: 'android', browser: 'app' })).toBe('la app en Android');
+    expect(deviceLabel(t, { os: 'windows', browser: null })).toBe('Windows');
+    expect(deviceLabel(t, { os: null, browser: 'firefox' })).toBe('Firefox');
+    expect(deviceLabel(t, { os: null, browser: null })).toBe('Dispositivo sin identificar');
   });
 });
 
