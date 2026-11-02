@@ -188,6 +188,11 @@ export const batteryConfig = pgTable(
     cadenceWeeksMax: smallint('cadence_weeks_max'),
     validFrom: localDate('valid_from').notNull(),
     validTo: localDate('valid_to'),
+    /**
+     * Withdrawn before it ever applied (B-322, ADR 0041): ignored when the
+     * battery is resolved. An entry in force is closed (`valid_to`) instead.
+     */
+    archivedAt: timestamptz('archived_at'),
   },
   (t) => [
     ...tenantConstraints('battery_config', t),
@@ -273,7 +278,7 @@ export const referenceValue = pgTable(
 /**
  * Speed zones with scope and validity (B-209, `SpeedZoneConfig` in the
  * domain). `zone_set` is a `SpeedZoneSet`, validated by the domain before it
- * is written. Changing zones closes the row and opens a new one.
+ * is written. Changing zones in force closes the row and opens a new one.
  */
 export const speedZoneConfig = pgTable(
   'speed_zone_config',
@@ -286,6 +291,8 @@ export const speedZoneConfig = pgTable(
     zoneSet: jsonb('zone_set').notNull().$type<SpeedZoneSet>(),
     validFrom: localDate('valid_from').notNull(),
     validTo: localDate('valid_to'),
+    /** Withdrawn before it ever applied (ADR 0041); a config in force is closed instead. */
+    archivedAt: timestamptz('archived_at'),
   },
   (t) => [
     ...tenantConstraints('speed_zone_config', t),

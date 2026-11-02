@@ -73,6 +73,8 @@ export const API_TAGS = {
   wellness: 'Bienestar antes de entrenar: una carga por jugador y día del club.',
   tests: 'Días de test, resultados con sus intentos y series comparables (B-320).',
   references: 'Referencias de primera por métrica, deporte, sexo y alcance (B-321).',
+  configuration:
+    'Configuración del club: batería de tests, zonas de velocidad, reglas de alerta y módulos activos.',
 } as const satisfies Record<string, string>;
 
 export type ApiTag = keyof typeof API_TAGS;

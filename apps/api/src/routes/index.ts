@@ -6,6 +6,10 @@ import { registerAuthRoutes } from './auth.js';
 import { registerCalendarRoutes } from './calendar/index.js';
 import { registerCategoryRoutes } from './categories.js';
 import { registerClubRoutes } from './clubs.js';
+import { registerAlertRuleRoutes } from './configuration-alert-rules.js';
+import { registerBatteryRoutes } from './configuration-battery.js';
+import { registerModuleRoutes } from './configuration-modules.js';
+import { registerSpeedZoneRoutes } from './configuration-speed-zones.js';
 import { registerHealthRoutes, type HealthOptions } from './health.js';
 import { registerInvitationRoutes } from './invitations.js';
 import { registerMeRoutes } from './me.js';
@@ -136,6 +140,26 @@ export const IMPLEMENTED_ENDPOINTS = [
   'restoreReferenceValue',
   'importReferenceValues',
   'getPlayerFirstTeamReferences',
+  'listBatteryEntries',
+  'getEffectiveBattery',
+  'getBatteryEntry',
+  'createBatteryEntry',
+  'updateBatteryEntry',
+  'archiveBatteryEntry',
+  'restoreBatteryEntry',
+  'listSpeedZoneConfigs',
+  'getEffectiveSpeedZones',
+  'getSpeedZoneConfig',
+  'createSpeedZoneConfig',
+  'updateSpeedZoneConfig',
+  'archiveSpeedZoneConfig',
+  'restoreSpeedZoneConfig',
+  'listAlertRules',
+  'getAlertRule',
+  'createAlertRule',
+  'updateAlertRule',
+  'getClubModules',
+  'updateClubModules',
 ] as const satisfies readonly (keyof ApiEndpoints)[];
 
 /** Declared in the contract but served by a later issue (`'#N (B-xxx): why'`). */
@@ -169,6 +193,10 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerTestSessionResultRoutes(app);
   registerTestResultRoutes(app);
   registerReferenceValueRoutes(app);
+  registerBatteryRoutes(app);
+  registerSpeedZoneRoutes(app);
+  registerAlertRuleRoutes(app);
+  registerModuleRoutes(app);
   if (options.auth !== undefined) {
     registerAuthRoutes(app, options.auth);
     registerMeRoutes(app, options.auth);
