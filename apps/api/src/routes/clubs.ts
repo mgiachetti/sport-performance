@@ -258,8 +258,13 @@ export function registerClubRoutes(app: FastifyInstance): void {
       } else {
         // Seeds the default configuration in this same transaction (ADR 0027): the club and
         // its configuration exist together or not at all. From here on the context's club
-        // is the new one, with the superadmin's support access to it recorded.
-        await bootstrapClub(db, { clubId, branches: body.branches });
+        // is the new one, with the superadmin's support access to it recorded under the
+        // operator's reason (the registry scope guarantees one).
+        await bootstrapClub(db, {
+          clubId,
+          branches: body.branches,
+          ...(caller.supportReason !== null && { supportReason: caller.supportReason }),
+        });
       }
       const branches = await db
         .select(branchColumns)
@@ -368,12 +373,13 @@ export function registerClubRoutes(app: FastifyInstance): void {
             eq(clubBranch.sex, body.sex),
           ),
         );
+      // Another create of the same branch (the replay of this one was answered above):
+      // a repeated natural key is a conflict, not a replay (ADR 0032).
       if (existing !== undefined && existing.archivedAt !== null) {
         throw new HttpError('conflict', 'The branch is archived: restore it instead');
       }
       if (existing !== undefined) {
-        markReplay(reply);
-        return branchDto(existing);
+        throw new HttpError('conflict', 'The branch is already enabled');
       }
       await db.insert(clubBranch).values({
         clubId,

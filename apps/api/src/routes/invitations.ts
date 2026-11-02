@@ -11,20 +11,7 @@ import {
 } from '@sport-performance/contracts';
 import { category, club, invitation, invitationCategory } from '@sport-performance/db/schema';
 import type { ClubId, MembershipRole } from '@sport-performance/domain';
-import {
-  and,
-  desc,
-  eq,
-  gt,
-  inArray,
-  isNotNull,
-  isNull,
-  lt,
-  lte,
-  or,
-  sql,
-  type SQL,
-} from 'drizzle-orm';
+import { and, eq, gt, inArray, isNotNull, isNull, lte, sql, type SQL } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { membershipSummary } from '../auth/identity.js';
 import type { AuthModule } from '../auth/module.js';
@@ -33,6 +20,7 @@ import type { TenantDatabase } from '../db/database.js';
 import { EmailDeliveryError } from '../email/transport.js';
 import { registerEndpoint, type ClubAuthContext } from '../http/endpoint.js';
 import { HttpError } from '../http/errors.js';
+import { keysetPage, type KeysetSpec } from '../http/pagination.js';
 import {
   generateInvitationToken,
   hashInvitationToken,
@@ -42,13 +30,6 @@ import {
 } from '../invitations/tokens.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-/**
- * Sort key of the list, truncated to the millisecond the cursor can carry
- * (`timestamptz` keeps microseconds): rows created within the same
- * millisecond are ordered by id, never skipped between pages.
- */
-const createdAtMs = sql<Date>`date_trunc('milliseconds', ${invitation.createdAt})`;
 
 /**
  * Who manages invitations. Until the permissions matrix (#34, B-305) lands,
@@ -139,26 +120,13 @@ function statusFilter(status: InvitationStatus | undefined, now: Date): SQL | un
   }
 }
 
-/** Opaque cursor: the sort key (`created_at`, `id`) of the last item, base64url JSON. */
-function encodeCursor(row: InvitationRow): string {
-  return Buffer.from(JSON.stringify([row.createdAt.toISOString(), row.id])).toString('base64url');
-}
-
-function decodeCursor(cursor: string): { createdAt: Date; id: string } {
-  try {
-    const parsed: unknown = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
-    if (Array.isArray(parsed) && parsed.length === 2) {
-      const [createdAt, id] = parsed as unknown[];
-      const date = typeof createdAt === 'string' ? new Date(createdAt) : new Date(Number.NaN);
-      if (!Number.isNaN(date.getTime()) && typeof id === 'string' && /^[0-9a-f-]{36}$/.test(id)) {
-        return { createdAt: date, id };
-      }
-    }
-  } catch {
-    // Falls through to the error below.
-  }
-  throw new HttpError('bad_request', 'Invalid cursor');
-}
+const INVITATION_KEYS: KeysetSpec<InvitationRow, 'createdAt' | 'expiresAt'> = {
+  fields: {
+    createdAt: { column: invitation.createdAt, type: 'timestamp', value: (row) => row.createdAt },
+    expiresAt: { column: invitation.expiresAt, type: 'timestamp', value: (row) => row.expiresAt },
+  },
+  id: { column: invitation.id, value: (row) => row.id },
+};
 
 /** `/v1/invitations`: invitations by link to a club (ADR 0007, ADR 0028). */
 export function registerInvitationRoutes(app: FastifyInstance, auth: AuthModule): void {
@@ -289,34 +257,22 @@ export function registerInvitationRoutes(app: FastifyInstance, auth: AuthModule)
       requireInvitationManager(caller);
       const { clubId } = caller.membership;
       const now = auth.now();
-      const after = query.cursor === undefined ? undefined : decodeCursor(query.cursor);
+      const plan = keysetPage(INVITATION_KEYS, query, { status: query.status });
       const rows = await db
         .select(invitationColumns)
         .from(invitation)
-        .where(
-          and(
-            eq(invitation.clubId, clubId),
-            statusFilter(query.status, now),
-            after === undefined
-              ? undefined
-              : or(
-                  lt(createdAtMs, after.createdAt),
-                  and(eq(createdAtMs, after.createdAt), lt(invitation.id, after.id)),
-                ),
-          ),
-        )
-        .orderBy(desc(createdAtMs), desc(invitation.id))
-        .limit(query.limit + 1);
-      const page = rows.slice(0, query.limit);
+        .where(and(eq(invitation.clubId, clubId), statusFilter(query.status, now), plan.where))
+        .orderBy(...plan.orderBy)
+        .limit(plan.limit);
+      const page = plan.page(rows, (row) => row);
       const categories = await categoriesOf(
         db,
         clubId,
-        page.map((row) => row.id),
+        page.items.map((row) => row.id),
       );
-      const last = page.at(-1);
       return {
-        items: page.map((row) => toDto(row, categories.get(row.id) ?? [], now)),
-        nextCursor: rows.length > query.limit && last !== undefined ? encodeCursor(last) : null,
+        items: page.items.map((row) => toDto(row, categories.get(row.id) ?? [], now)),
+        nextCursor: page.nextCursor,
       };
     },
   });

@@ -12,6 +12,7 @@
  */
 export {
   BootstrapClubError,
+  DEFAULT_BOOTSTRAP_SUPPORT_REASON,
   DEFAULT_SEED_VALID_FROM,
   bootstrapClub,
   totalInserted,

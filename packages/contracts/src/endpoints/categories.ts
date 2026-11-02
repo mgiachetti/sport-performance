@@ -168,7 +168,7 @@ export const updateCategory = defineEndpoint({
   path: '/v1/categories/{categoryId}',
   summary: 'Editar una categoría',
   description:
-    'Solo la administración. Se cambian el nombre y el orden; la rama y la franja no (la historia tiene que seguir siendo comparable: se crea otra categoría). `version` desactualizada o nombre repetido: `conflict`.',
+    'Solo la administración. Se cambian el nombre y el orden; la rama y la franja no (la historia tiene que seguir siendo comparable: se crea otra categoría). Una categoría archivada (sola o con su rama) no se edita: se restaura primero (`conflict`). `version` desactualizada o nombre repetido: `conflict`.',
   tags: ['categories'],
   auth: 'club',
   params: categoryParams,

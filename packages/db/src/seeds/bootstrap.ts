@@ -70,7 +70,17 @@ export interface BootstrapClubOptions {
    * imported sessions of past seasons resolve to the seeded configuration.
    */
   readonly validFrom?: LocalDate;
+  /**
+   * Why a superadmin seeds the club (ADR 0029): recorded as the support
+   * access to the club when the transaction acts as `superadmin` and has
+   * not recorded one for this club yet. The API passes the operator's
+   * `X-Support-Reason`; without one, {@link DEFAULT_BOOTSTRAP_SUPPORT_REASON}.
+   */
+  readonly supportReason?: string;
 }
+
+/** Support reason of a superadmin bootstrap that did not say why (scripts, tests). */
+export const DEFAULT_BOOTSTRAP_SUPPORT_REASON = 'Configuración inicial del club (bootstrap)';
 
 /** Inserted rows per table. All zero when the club was already bootstrapped. */
 export interface BootstrapClubReport {
@@ -110,6 +120,10 @@ function validateOptions(options: BootstrapClubOptions): LocalDate {
     const key = `${branch.sport}:${branch.sex}`;
     if (seen.has(key)) throw new BootstrapClubError(`Duplicate branch: ${key}.`);
     seen.add(key);
+  }
+  const reason = options.supportReason;
+  if (reason !== undefined && (reason.trim() === '' || reason.length > 500)) {
+    throw new BootstrapClubError('supportReason must be 1 to 500 characters.');
   }
   const validFrom = options.validFrom ?? DEFAULT_SEED_VALID_FROM;
   if (!isLocalDate(validFrom))
@@ -151,9 +165,13 @@ export async function bootstrapClub(
     await tx.execute(sql`select set_config('app.club_id', ${clubId}, true)`);
     // A superadmin creating the club (B-313) acts in it from here on: the support access
     // to the new club is recorded first, or `app.current_role()` does not grant it (ADR 0029).
+    // Already recorded in this transaction (a superadmin supporting the club enables a
+    // branch): `app.current_role()` grants it, and a second entry would only repeat it.
+    const reason = options.supportReason ?? DEFAULT_BOOTSTRAP_SUPPORT_REASON;
     await tx.execute(
-      sql`select app.begin_support_access('Configuración inicial del club (bootstrap)')
-           where current_setting('app.role', true) = 'superadmin'`,
+      sql`select app.begin_support_access(${reason})
+           where current_setting('app.role', true) = 'superadmin'
+             and app.current_role() is distinct from 'superadmin'`,
     );
     await tx.execute(
       sql`select pg_advisory_xact_lock(${BOOTSTRAP_LOCK_NAMESPACE}, hashtext(${clubId}))`,

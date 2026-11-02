@@ -166,14 +166,15 @@ function requestScope(
  * Tenant context and settings of the request transaction (ADR 0032): the
  * caller's club and role, the request id, the change reason and, for a
  * superadmin, the support reason that `app.begin_support_access` records.
- * A superadmin without a support reason does not act (`403`).
+ * A superadmin without a support reason does not act (`403`). `auth` is
+ * `null` for a public endpoint, whoever calls: it runs anonymous.
  */
 function transactionOf(
   request: FastifyRequest,
+  auth: AuthContext | null,
   scope: RequestScope,
   changeReason: string | null | undefined,
 ): { context: TenantContext; settings: TransactionSettings } {
-  const auth = request.auth;
   const settings: TransactionSettings = {
     requestId: request.id,
     changeReason: changeReason ?? null,
@@ -268,7 +269,15 @@ export function registerEndpoint<E extends EndpointDefinition>(
       let body: unknown;
       if (route.transaction) {
         const scope = requestScope(endpoint, route.scope);
-        const { context, settings } = transactionOf(request, scope, route.changeReason?.(input));
+        // A public endpoint answers the same with or without a session: it runs anonymous
+        // (no club, user or role in the context, so no support access for a superadmin).
+        const caller = endpoint.auth === 'public' ? null : request.auth;
+        const { context, settings } = transactionOf(
+          request,
+          caller,
+          scope,
+          route.changeReason?.(input),
+        );
         // The response is built inside the transaction (a result outside the contract rolls
         // it back) but only sent after the commit: a transaction that did not commit never
         // reaches the client (ADR 0029: medical reads are logged in that same transaction).
@@ -276,7 +285,7 @@ export function registerEndpoint<E extends EndpointDefinition>(
           context,
           async (tx) => {
             const db = tenantDatabase(tx);
-            const permissions = requestPermissions(db, request.auth, scope);
+            const permissions = requestPermissions(db, caller, scope);
             return respond(await route.handler(input, { ...base, tx, db, permissions }));
           },
           settings,

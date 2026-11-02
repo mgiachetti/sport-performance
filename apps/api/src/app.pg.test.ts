@@ -21,15 +21,17 @@ const settingsSchema = z.object({
   pid: z.number(),
 });
 
-const settingsEndpoint = defineEndpoint({
-  method: 'GET',
-  path: '/v1/test/settings',
-  summary: 'Tenant settings seen by the request transaction',
-  tags: ['system'],
-  auth: 'public',
-  response: { status: 200, description: 'Settings', schema: settingsSchema },
-  errors: [],
-});
+/** The same probe with a caller (`session`) and without one (`public`, always anonymous). */
+const settingsEndpoint = (auth: 'session' | 'public') =>
+  defineEndpoint({
+    method: 'GET',
+    path: auth === 'public' ? '/v1/test/settings/public' : '/v1/test/settings',
+    summary: 'Tenant settings seen by the request transaction',
+    tags: ['system'],
+    auth,
+    response: { status: 200, description: 'Settings', schema: settingsSchema },
+    errors: [],
+  });
 
 const writeEndpoint = defineEndpoint({
   method: 'POST',
@@ -71,19 +73,21 @@ describeWithPostgres('request transaction (HTTP + Postgres)', (url) => {
       db,
       authenticate: headerAuth,
       register: (instance) => {
-        registerEndpoint(instance, settingsEndpoint, {
-          transaction: true,
-          handler: async (_input, { tx }) => {
-            await tx.query('select pg_sleep(0.005)');
-            const { rows } = await tx.query<z.input<typeof settingsSchema>>(
-              `select current_setting('app.club_id', true) as "clubId",
-                current_setting('app.user_id', true) as "userId",
-                current_setting('app.role', true) as "role",
-                pg_backend_pid() as pid`,
-            );
-            return rows[0] ?? { clubId: '?', userId: '?', role: '?', pid: -1 };
-          },
-        });
+        for (const auth of ['session', 'public'] as const) {
+          registerEndpoint(instance, settingsEndpoint(auth), {
+            transaction: true,
+            handler: async (_input, { tx }) => {
+              await tx.query('select pg_sleep(0.005)');
+              const { rows } = await tx.query<z.input<typeof settingsSchema>>(
+                `select current_setting('app.club_id', true) as "clubId",
+                  current_setting('app.user_id', true) as "userId",
+                  current_setting('app.role', true) as "role",
+                  pg_backend_pid() as pid`,
+              );
+              return rows[0] ?? { clubId: '?', userId: '?', role: '?', pid: -1 };
+            },
+          });
+        }
         registerEndpoint(instance, writeEndpoint, {
           transaction: true,
           handler: async ({ body }, { tx }) => {
@@ -113,7 +117,7 @@ describeWithPostgres('request transaction (HTTP + Postgres)', (url) => {
     const responses = await Promise.all(
       callers.map((caller) =>
         app.inject({
-          url: '/v1/test/settings',
+          url: caller === null ? '/v1/test/settings/public' : '/v1/test/settings',
           headers:
             caller === null
               ? {}
@@ -138,6 +142,20 @@ describeWithPostgres('request transaction (HTTP + Postgres)', (url) => {
       });
     });
     expect(pids.size).toBeLessThanOrEqual(2);
+  });
+
+  it('runs a public endpoint anonymous, whoever calls it', async () => {
+    const response = await app.inject({
+      url: '/v1/test/settings/public',
+      headers: { 'x-test-user': randomUUID(), 'x-test-club': randomUUID(), 'x-test-role': 'admin' },
+    });
+    expect(response.statusCode, response.body).toBe(200);
+    const seen = settingsSchema.parse(response.json());
+    expect({ clubId: seen.clubId, userId: seen.userId, role: seen.role }).toEqual({
+      clubId: '',
+      userId: '',
+      role: '',
+    });
   });
 
   it('rolls back the transaction when the response breaks the contract', async () => {

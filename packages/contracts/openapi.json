@@ -807,7 +807,7 @@
       "patch": {
         "operationId": "updateCategory",
         "summary": "Editar una categoría",
-        "description": "Solo la administración. Se cambian el nombre y el orden; la rama y la franja no (la historia tiene que seguir siendo comparable: se crea otra categoría). `version` desactualizada o nombre repetido: `conflict`.",
+        "description": "Solo la administración. Se cambian el nombre y el orden; la rama y la franja no (la historia tiene que seguir siendo comparable: se crea otra categoría). Una categoría archivada (sola o con su rama) no se edita: se restaura primero (`conflict`). `version` desactualizada o nombre repetido: `conflict`.",
         "tags": [
           "categories"
         ],
@@ -1721,7 +1721,7 @@
       "post": {
         "operationId": "enableClubBranch",
         "summary": "Habilitar un deporte y rama",
-        "description": "Solo la administración. Siembra la configuración por defecto de la rama (posiciones del deporte, categorías M13 a M19, batería). Habilitar una rama activa devuelve la existente; una archivada se restaura con `POST /v1/club/branches/{branchId}/restore` (`conflict`).",
+        "description": "Solo la administración. Siembra la configuración por defecto de la rama (posiciones del deporte, categorías M13 a M19, batería). Repetir el pedido con el mismo `clientUuid` devuelve la rama con `X-Idempotent-Replay: true`; habilitar una rama ya activa con otro pedido es `conflict`, y una archivada también (se restaura con `POST /v1/club/branches/{branchId}/restore`).",
         "tags": [
           "clubs"
         ],
@@ -2624,7 +2624,7 @@
       "get": {
         "operationId": "listInvitations",
         "summary": "Invitaciones del club",
-        "description": "Solo `admin` del club activo. Las más nuevas primero.",
+        "description": "Solo `admin` del club activo. Por defecto, las más nuevas primero.",
         "tags": [
           "invitations"
         ],
@@ -2666,6 +2666,22 @@
             "required": false,
             "schema": {
               "$ref": "#/components/schemas/InvitationStatus"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `createdAt`, `expiresAt`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "-createdAt",
+              "type": "string",
+              "enum": [
+                "createdAt",
+                "-createdAt",
+                "expiresAt",
+                "-expiresAt"
+              ]
             }
           },
           {
