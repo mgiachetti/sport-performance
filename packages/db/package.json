@@ -17,10 +17,15 @@
     "./migrate": {
       "types": "./dist/migrate.d.ts",
       "default": "./dist/migrate.js"
+    },
+    "./roles": {
+      "types": "./dist/roles.d.ts",
+      "default": "./dist/roles.js"
     }
   },
   "bin": {
-    "sport-performance-db-migrate": "./dist/cli/migrate.js"
+    "sport-performance-db-migrate": "./dist/cli/migrate.js",
+    "sport-performance-db-provision-login": "./dist/cli/provision-login.js"
   },
   "files": [
     "dist",
@@ -34,7 +39,8 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:generate:custom": "drizzle-kit generate --custom",
-    "db:migrate": "node dist/cli/migrate.js"
+    "db:migrate": "node dist/cli/migrate.js",
+    "db:provision-login": "node dist/cli/provision-login.js"
   },
   "dependencies": {
     "@sport-performance/domain": "workspace:*",

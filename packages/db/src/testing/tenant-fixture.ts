@@ -1,0 +1,472 @@
+import type { ClubId, LocalDate, PlayerId } from '@sport-performance/domain';
+import type { Database } from '../client.js';
+import {
+  alert,
+  alertRule,
+  anthroMeasurement,
+  batteryConfig,
+  category,
+  club,
+  consent,
+  device,
+  drill,
+  externalMetric,
+  guardian,
+  gymProgram,
+  gymSet,
+  membership,
+  metricDefinition,
+  participation,
+  player,
+  playerCategory,
+  playerStage,
+  position,
+  referenceValue,
+  season,
+  speedZoneConfig,
+  staffAssignment,
+  testDefinition,
+  testDefinitionMetric,
+  testResult,
+  testResultValue,
+  testSession,
+  testWindow,
+  trainingSession,
+  user,
+  wellness,
+} from '../schema/index.js';
+import { must } from './database.js';
+
+/**
+ * One club with a row in every club table, written as the owner (no RLS), for
+ * the RLS tests (ADR 0025). Two players: `assigned` (M15, linked to the
+ * player user and the parent) and `other` (M17). Staff:
+ *
+ * - `admin`, and `coach` assigned to M15, `coachM17` assigned to M17;
+ * - `sc` assigned to the whole sport (rugby); `medical` without assignment;
+ * - `player` (the user of the assigned player) and `parent` (their guardian).
+ *
+ * `rows` maps every club table to the id of a row of the assigned player (or
+ * of the club, for tables without player): the isolation tests check that
+ * the map covers every table with `club_id` in the migrated database.
+ */
+export interface ClubFixture {
+  readonly clubId: ClubId;
+  readonly slug: string;
+  readonly users: Readonly<Record<FixtureUser, string>>;
+  readonly players: { readonly assigned: PlayerId; readonly other: PlayerId };
+  readonly rows: Readonly<Record<string, string>>;
+}
+
+export const FIXTURE_USERS = [
+  'admin',
+  'coach',
+  'coachM17',
+  'sc',
+  'medical',
+  'player',
+  'parent',
+] as const;
+export type FixtureUser = (typeof FIXTURE_USERS)[number];
+
+const MEMBERSHIP_ROLE_OF: Record<
+  FixtureUser,
+  'admin' | 'coach' | 'sc' | 'medical' | 'player' | 'parent'
+> = {
+  admin: 'admin',
+  coach: 'coach',
+  coachM17: 'coach',
+  sc: 'sc',
+  medical: 'medical',
+  player: 'player',
+  parent: 'parent',
+};
+
+const day = (value: string) => value as LocalDate;
+const FROM = day('2020-01-01');
+
+async function id<T extends { id: string }>(rows: Promise<T[]>): Promise<T['id']> {
+  return must((await rows)[0], 'inserted row').id;
+}
+
+export async function seedClubFixture(db: Database, slug: string): Promise<ClubFixture> {
+  const clubId = must(
+    (
+      await db
+        .insert(club)
+        .values({ slug, name: `Club ${slug}` })
+        .returning({ id: club.id })
+    )[0],
+  ).id;
+
+  const users = {} as Record<FixtureUser, string>;
+  for (const key of FIXTURE_USERS) {
+    users[key] = await id(
+      db
+        .insert(user)
+        .values({ name: `${key} ${slug}`, email: `${key.toLowerCase()}@${slug}.example.com` })
+        .returning({ id: user.id }),
+    );
+  }
+  const memberships = {} as Record<FixtureUser, string>;
+  for (const key of FIXTURE_USERS) {
+    memberships[key] = await id(
+      db
+        .insert(membership)
+        .values({ clubId, userId: users[key], role: MEMBERSHIP_ROLE_OF[key] })
+        .returning({ id: membership.id }),
+    );
+  }
+
+  const rows: Record<string, string> = { membership: memberships.admin };
+  const base = { clubId };
+
+  rows.season = await id(
+    db
+      .insert(season)
+      .values({
+        ...base,
+        sport: 'rugby',
+        name: '2026',
+        startsOn: day('2026-01-01'),
+        endsOn: day('2026-12-31'),
+      })
+      .returning({ id: season.id }),
+  );
+  rows.test_window = await id(
+    db
+      .insert(testWindow)
+      .values({
+        ...base,
+        seasonId: rows.season,
+        number: 1,
+        startsOn: day('2026-02-01'),
+        endsOn: day('2026-02-28'),
+      })
+      .returning({ id: testWindow.id }),
+  );
+  const categoryBase = { ...base, sport: 'rugby' as const, sex: 'male' as const };
+  const m15 = await id(
+    db
+      .insert(category)
+      .values({ ...categoryBase, ageBandCode: 'm15', name: 'M15', defaultStage: 'development' })
+      .returning({ id: category.id }),
+  );
+  const m17 = await id(
+    db
+      .insert(category)
+      .values({ ...categoryBase, ageBandCode: 'm17', name: 'M17', defaultStage: 'performance' })
+      .returning({ id: category.id }),
+  );
+  rows.position = await id(
+    db
+      .insert(position)
+      .values({ ...base, sport: 'rugby', code: 'hooker' })
+      .returning({ id: position.id }),
+  );
+
+  rows.staff_assignment = await id(
+    db
+      .insert(staffAssignment)
+      .values({
+        ...base,
+        membershipId: memberships.coach,
+        categoryId: m15,
+        validFrom: FROM,
+      })
+      .returning({ id: staffAssignment.id }),
+  );
+  await db.insert(staffAssignment).values([
+    { ...base, membershipId: memberships.coachM17, categoryId: m17, validFrom: FROM },
+    { ...base, membershipId: memberships.sc, sport: 'rugby', validFrom: FROM },
+  ]);
+
+  const playerBase = {
+    ...base,
+    birthDate: day('2011-05-04'),
+    sex: 'male' as const,
+    joinedOn: FROM,
+  };
+  const assigned = await id(
+    db
+      .insert(player)
+      .values({ ...playerBase, userId: users.player, firstName: 'Juan', lastName: slug })
+      .returning({ id: player.id }),
+  );
+  const other = await id(
+    db
+      .insert(player)
+      .values({ ...playerBase, firstName: 'Pedro', lastName: slug })
+      .returning({ id: player.id }),
+  );
+  rows.player = assigned;
+  rows.category = m15;
+  rows.player_category = await id(
+    db
+      .insert(playerCategory)
+      .values({ ...base, playerId: assigned, categoryId: m15, validFrom: FROM })
+      .returning({ id: playerCategory.id }),
+  );
+  await db
+    .insert(playerCategory)
+    .values({ ...base, playerId: other, categoryId: m17, validFrom: FROM });
+  rows.guardian = await id(
+    db
+      .insert(guardian)
+      .values({
+        ...base,
+        playerId: assigned,
+        userId: users.parent,
+        relationship: 'mother',
+        validFrom: FROM,
+      })
+      .returning({ id: guardian.id }),
+  );
+  rows.consent = await id(
+    db
+      .insert(consent)
+      .values({
+        ...base,
+        playerId: assigned,
+        type: 'data',
+        documentVersion: '2026-01',
+        signerKind: 'guardian',
+        signedBy: users.parent,
+      })
+      .returning({ id: consent.id }),
+  );
+  rows.player_stage = await id(
+    db
+      .insert(playerStage)
+      .values({
+        ...base,
+        playerId: assigned,
+        stage: 'development',
+        basis: 'category',
+        reason: 'maturation_disabled',
+        validFrom: FROM,
+      })
+      .returning({ id: playerStage.id }),
+  );
+
+  rows.metric_definition = await id(
+    db
+      .insert(metricDefinition)
+      .values({
+        ...base,
+        code: 'cmj_height_cm',
+        unit: 'cm',
+        source: 'test',
+        direction: 'higher_is_better',
+        testCode: 'cmj',
+      })
+      .returning({ id: metricDefinition.id }),
+  );
+  rows.test_definition = await id(
+    db
+      .insert(testDefinition)
+      .values({ ...base, code: 'cmj', version: 1, attemptCount: 3, validFrom: FROM })
+      .returning({ id: testDefinition.id }),
+  );
+  rows.test_definition_metric = await id(
+    db
+      .insert(testDefinitionMetric)
+      .values({
+        ...base,
+        testDefinitionId: rows.test_definition,
+        metricDefinitionId: rows.metric_definition,
+      })
+      .returning({ id: testDefinitionMetric.id }),
+  );
+  rows.battery_config = await id(
+    db
+      .insert(batteryConfig)
+      .values({ ...base, sport: 'rugby', testCode: 'cmj', windows: [1], validFrom: FROM })
+      .returning({ id: batteryConfig.id }),
+  );
+  rows.reference_value = await id(
+    db
+      .insert(referenceValue)
+      .values({
+        ...base,
+        metricDefinitionId: rows.metric_definition,
+        sport: 'rugby',
+        sex: 'male',
+        value: 45,
+        unit: 'cm',
+        validFrom: FROM,
+        source: 'primera',
+      })
+      .returning({ id: referenceValue.id }),
+  );
+  rows.speed_zone_config = await id(
+    db
+      .insert(speedZoneConfig)
+      .values({
+        ...base,
+        playerId: assigned,
+        kind: 'relative',
+        zoneSet: { kind: 'relative', zones: [] } as never,
+        validFrom: FROM,
+      })
+      .returning({ id: speedZoneConfig.id }),
+  );
+  rows.device = await id(
+    db
+      .insert(device)
+      .values({ ...base, kind: 'photocell', label: 'Fotocélula 1' })
+      .returning({ id: device.id }),
+  );
+
+  rows.test_session = await id(
+    db
+      .insert(testSession)
+      .values({ ...base, sport: 'rugby', scheduledOn: day('2026-02-10') })
+      .returning({ id: testSession.id }),
+  );
+  rows.test_result = await id(
+    db
+      .insert(testResult)
+      .values({
+        ...base,
+        playerId: assigned,
+        testDefinitionId: rows.test_definition,
+        testSessionId: rows.test_session,
+        measuredOn: day('2026-02-10'),
+        status: 'done',
+        method: 'video',
+      })
+      .returning({ id: testResult.id }),
+  );
+  rows.test_result_value = await id(
+    db
+      .insert(testResultValue)
+      .values({
+        ...base,
+        testResultId: rows.test_result,
+        metricDefinitionId: rows.metric_definition,
+        attemptNumber: 1,
+        value: 41.5,
+        unit: 'cm',
+      })
+      .returning({ id: testResultValue.id }),
+  );
+  // The other player has results too, so scoped roles can be checked against them.
+  await db.insert(testResult).values({
+    ...base,
+    playerId: other,
+    testDefinitionId: rows.test_definition,
+    measuredOn: day('2026-02-10'),
+    status: 'not_done',
+    notDoneReason: 'absent',
+  });
+  rows.anthro_measurement = await id(
+    db
+      .insert(anthroMeasurement)
+      .values({ ...base, playerId: assigned, measuredOn: day('2026-02-10'), heightCm: 170 })
+      .returning({ id: anthroMeasurement.id }),
+  );
+
+  rows.training_session = await id(
+    db
+      .insert(trainingSession)
+      .values({
+        ...base,
+        sport: 'rugby',
+        kind: 'training',
+        categoryId: m15,
+        startsAt: new Date('2026-03-10T21:00:00Z'),
+        localDate: day('2026-03-10'),
+      })
+      .returning({ id: trainingSession.id }),
+  );
+  rows.drill = await id(
+    db
+      .insert(drill)
+      .values({ ...base, trainingSessionId: rows.training_session, name: 'Rondo' })
+      .returning({ id: drill.id }),
+  );
+  rows.participation = await id(
+    db
+      .insert(participation)
+      .values({
+        ...base,
+        trainingSessionId: rows.training_session,
+        playerId: assigned,
+        status: 'full',
+        minutes: 60,
+        rpe: 5,
+        rpeReportedAt: new Date('2026-03-10T22:30:00Z'),
+      })
+      .returning({ id: participation.id }),
+  );
+  const wellnessOf = (playerId: PlayerId) => ({
+    ...base,
+    playerId,
+    localDate: day('2026-03-10'),
+    itemCount: 3,
+    sleep: 4,
+    fatigue: 3,
+    soreness: 3,
+  });
+  rows.wellness = await id(
+    db.insert(wellness).values(wellnessOf(assigned)).returning({ id: wellness.id }),
+  );
+  await db.insert(wellness).values(wellnessOf(other));
+  rows.external_metric = await id(
+    db
+      .insert(externalMetric)
+      .values({
+        ...base,
+        playerId: assigned,
+        metricDefinitionId: rows.metric_definition,
+        localDate: day('2026-03-10'),
+        value: 40,
+        unit: 'cm',
+        source: 'manual',
+      })
+      .returning({ id: externalMetric.id }),
+  );
+  rows.gym_program = await id(
+    db
+      .insert(gymProgram)
+      .values({ ...base, name: 'Fuerza M15', categoryId: m15, validFrom: FROM })
+      .returning({ id: gymProgram.id }),
+  );
+  rows.gym_set = await id(
+    db
+      .insert(gymSet)
+      .values({
+        ...base,
+        playerId: assigned,
+        gymProgramId: rows.gym_program,
+        performedOn: day('2026-03-11'),
+        exerciseCode: 'goblet_squat',
+        setNumber: 1,
+        reps: 8,
+      })
+      .returning({ id: gymSet.id }),
+  );
+  rows.alert_rule = await id(
+    db
+      .insert(alertRule)
+      .values({ ...base, code: 'acwr_high', kind: 'acwr_high', params: {} as never })
+      .returning({ id: alertRule.id }),
+  );
+  rows.alert = await id(
+    db
+      .insert(alert)
+      .values({
+        ...base,
+        alertRuleId: rows.alert_rule,
+        playerId: assigned,
+        kind: 'acwr_high',
+        severity: 'warning',
+        localDate: day('2026-03-11'),
+        observedOn: day('2026-03-11'),
+      })
+      .returning({ id: alert.id }),
+  );
+
+  return { clubId, slug, users, players: { assigned, other }, rows };
+}

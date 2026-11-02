@@ -119,9 +119,10 @@ export const testResult = pgTable(
     measuredOn: localDate('measured_on').notNull(),
     status: testResultStatusEnum('status').notNull(),
     /**
-     * `injured` is health-adjacent (ADR 0008): the policies and views of #33
-     * should show it to coaches as a generic "unavailable", like the
-     * availability of `medical`, and keep the exact reason for medical staff.
+     * `injured` is health-adjacent (ADR 0008): RLS (ADR 0025) decides who
+     * sees the row; showing the reason to coaches as a generic "unavailable"
+     * is a column projection of the permission matrix (#34) and the views of
+     * the `medical` schema (#35).
      */
     notDoneReason: testNotDoneReasonEnum('not_done_reason'),
     notDoneNote: text('not_done_note'),

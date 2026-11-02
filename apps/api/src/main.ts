@@ -5,7 +5,8 @@
  */
 import { buildApp } from './app.js';
 import { ConfigError, loadConfig } from './config/env.js';
-import { createPgDatabase } from './db/database.js';
+import { assertConnectionRole, DatabaseRoleError } from '@sport-performance/db';
+import { createApiPool, databaseFromPool } from './db/database.js';
 import { disabledErrorReporter } from './observability/error-reporter.js';
 import { createLogger } from './observability/logger.js';
 import { initSentry, isSentryInitialized, sentryErrorReporter } from './observability/sentry.js';
@@ -38,12 +39,25 @@ async function main(): Promise<void> {
   }
   const reporter = config.sentry === null ? disabledErrorReporter : sentryErrorReporter();
 
-  const db = createPgDatabase({
+  const pool = createApiPool({
     ...config.database,
     onIdleError: (error) => {
       logger.error({ err: error }, 'idle database connection failed');
     },
   });
+  // RLS only protects anything if the API is not the owner and has no
+  // BYPASSRLS (ADR 0006, ADR 0025): refuse to serve with the wrong login.
+  try {
+    await assertConnectionRole(pool, 'app');
+  } catch (error) {
+    await pool.end().catch(() => undefined);
+    if (error instanceof DatabaseRoleError) {
+      logger.fatal({ err: error }, 'database login is not the application role');
+      process.exit(1);
+    }
+    throw error;
+  }
+  const db = databaseFromPool(pool);
 
   const app = await buildApp({ config, db, logger, errorReporter: reporter });
   const shutdown = createShutdown({

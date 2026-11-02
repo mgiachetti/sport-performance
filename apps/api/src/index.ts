@@ -22,10 +22,13 @@ export {
 export {
   DatabaseTimeoutError,
   TransactionAbortedError,
+  createApiPool,
   createPgDatabase,
   databaseFromPool,
+  tenantDatabase,
   type Database,
   type PgDatabaseOptions,
+  type TenantDatabase,
   type TransactionClient,
 } from './db/database.js';
 export {

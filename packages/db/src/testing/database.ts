@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import pg from 'pg';
 import { createDatabase, type Database } from '../client.js';
 import { runMigrations } from '../migrate.js';
+import { TENANT_SETTING_NAMES, provisionLoginRole, type DatabaseRoleKind } from '../roles.js';
 
 /**
  * Integration-test support: every test file gets its own throwaway database
@@ -77,6 +78,80 @@ export async function createMigratedDatabase(): Promise<MigratedTestDatabase> {
       await database.drop();
     },
   };
+}
+
+export interface RoleConnection {
+  /** Login created for this connection, member of the role. */
+  readonly login: string;
+  readonly connectionString: string;
+  readonly pool: pg.Pool;
+  /** Closes the pool and drops the login (roles are cluster-wide). */
+  readonly close: () => Promise<void>;
+}
+
+/**
+ * A pool that connects as a fresh login of a connection role (ADR 0025),
+ * provisioned the way production does it.
+ */
+export async function connectAs(
+  database: TestDatabase,
+  role: DatabaseRoleKind,
+  options: { max?: number } = {},
+): Promise<RoleConnection> {
+  const login = `sp_test_${role}_${randomBytes(5).toString('hex')}`;
+  const password = randomBytes(24).toString('hex');
+  await provisionLoginRole({ connectionString: url ?? '', login, password, role });
+  const parsed = new URL(database.connectionString);
+  parsed.username = login;
+  parsed.password = password;
+  const connectionString = parsed.toString();
+  const pool = new pg.Pool({ connectionString, max: options.max ?? 2 });
+  pool.on('error', () => undefined);
+  return {
+    login,
+    connectionString,
+    pool,
+    close: async () => {
+      await pool.end();
+      await admin((client) => client.query(`drop role if exists "${login}"`));
+    },
+  };
+}
+
+/** The settings of a transaction; `null` writes `''` like the API's helper. */
+export interface TestContext {
+  readonly clubId?: string | null;
+  readonly userId?: string | null;
+  readonly role?: string | null;
+}
+
+/**
+ * Runs `work` in a transaction that first sets the tenant context with
+ * `set_config(..., true)`, as `apps/api` does. Rolls back when `work` throws.
+ */
+export async function inContext<T>(
+  pool: pg.Pool,
+  context: TestContext,
+  work: (client: pg.PoolClient) => Promise<T>,
+): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    await client.query(
+      `select set_config('${TENANT_SETTING_NAMES.clubId}', $1, true),
+              set_config('${TENANT_SETTING_NAMES.userId}', $2, true),
+              set_config('${TENANT_SETTING_NAMES.role}', $3, true)`,
+      [context.clubId ?? '', context.userId ?? '', context.role ?? ''],
+    );
+    const result = await work(client);
+    await client.query('commit');
+    return result;
+  } catch (error) {
+    await client.query('rollback').catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /** Narrows a value the test knows is present (`returning()` rows, lookups). */
