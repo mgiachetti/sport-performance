@@ -9,6 +9,7 @@ import {
 import { createTranslator } from '@sport-performance/i18n';
 import { describe, expect, it } from 'vitest';
 import {
+  BLOCKED_STORAGE_KEY,
   DISMISSED_STORAGE_KEY,
   NATIVE_APP_VERSION,
   POLICY_STORAGE_KEY,
@@ -49,6 +50,7 @@ function answer(overrides: Partial<AppCompatibility>): AppCompatibility {
     status: 'supported',
     platform: 'ios',
     version: build.nativeVersion,
+    runtimeVersion: build.runtimeVersion,
     minVersion: '1.0.0',
     latestVersion: null,
     storeUrl: STORE,
@@ -133,7 +135,7 @@ describe('compatibility checker', () => {
       getAppCompatibility: online(answer({ status: 'supported' })),
       now: () => new Date('2026-11-02T12:00:00Z'),
     });
-    expect(await checker.check()).toEqual({ kind: 'supported' });
+    expect(await checker.check()).toEqual({ kind: 'ok' });
     expect(JSON.parse(storage.data.get(POLICY_STORAGE_KEY) ?? '')).toEqual({
       minVersion: '1.0.0',
       latestVersion: null,
@@ -149,12 +151,7 @@ describe('compatibility checker', () => {
       getAppCompatibility: online(answer({ status: 'update_required', minVersion: '1.2.0' })),
     });
     const gate = await checker.check();
-    expect(gate).toEqual({
-      kind: 'update_required',
-      minVersion: '1.2.0',
-      storeUrl: STORE,
-      offline: false,
-    });
+    expect(gate).toEqual({ kind: 'update_required', minVersion: '1.2.0', storeUrl: STORE });
     expect(blocksApp(gate)).toBe(true);
     expect(pausesSync(gate)).toBe(true);
   });
@@ -173,16 +170,15 @@ describe('compatibility checker', () => {
     }).check();
     // Decided locally from the cached policy: 1.1.0 < 1.2.0.
     expect(gate).toEqual({
-      kind: 'update_required',
+      kind: 'update_required_offline',
       minVersion: '1.2.0',
       storeUrl: STORE,
-      offline: true,
     });
     expect(blocksApp(gate)).toBe(false);
     expect(pausesSync(gate)).toBe(true);
   });
 
-  it('is unknown, and does not block, without a cached policy or with a corrupt one', async () => {
+  it('is ok, and does not block, without a cached policy or with a corrupt one', async () => {
     for (const storage of [
       memoryStore(),
       memoryStore({ [POLICY_STORAGE_KEY]: 'not json' }),
@@ -201,7 +197,7 @@ describe('compatibility checker', () => {
         storage,
         getAppCompatibility: offline,
       }).check();
-      expect(gate).toEqual({ kind: 'unknown' });
+      expect(gate).toEqual({ kind: 'ok' });
       expect(blocksApp(gate)).toBe(false);
       expect(pausesSync(gate)).toBe(false);
     }
@@ -222,7 +218,7 @@ describe('compatibility checker', () => {
           }),
         ),
     });
-    expect(await checker.check()).toEqual({ kind: 'unknown' });
+    expect(await checker.check()).toEqual({ kind: 'ok' });
   });
 
   it('offers a newer version until the user dismisses it', async () => {
@@ -261,7 +257,6 @@ describe('compatibility checker', () => {
       kind: 'update_required',
       minVersion: '1.2.0',
       storeUrl: STORE,
-      offline: false,
     });
   });
 
@@ -279,8 +274,103 @@ describe('compatibility checker', () => {
       kind: 'update_required',
       minVersion: null,
       storeUrl: STORE,
-      offline: false,
     });
+  });
+
+  it('remembers a 426 offline, so sync stays paused over a stale policy', async () => {
+    const storage = memoryStore();
+    // The policy says 1.1.0 is served (an old replica), then a push answers 426.
+    let reachable = true;
+    const checker = createCompatibilityChecker({
+      build,
+      storage,
+      getAppCompatibility: (input) =>
+        reachable ? online(answer({ status: 'supported' }))(input) : offline(input),
+    });
+    expect(await checker.check()).toEqual({ kind: 'ok' });
+    expect(await checker.handleApiError(updateRequiredError)).toMatchObject({
+      kind: 'update_required',
+    });
+    expect(storage.data.get(BLOCKED_STORAGE_KEY)).toBe('1.1.0');
+
+    reachable = false;
+    const gate = await checker.check();
+    expect(gate).toEqual({ kind: 'update_required_offline', minVersion: null, storeUrl: STORE });
+    expect(pausesSync(gate)).toBe(true);
+    expect(blocksApp(gate)).toBe(false);
+
+    // Back online, the server's answer replaces the remembered 426.
+    reachable = true;
+    expect(await checker.check()).toEqual({ kind: 'ok' });
+    expect(storage.data.get(BLOCKED_STORAGE_KEY)).toBe('');
+  });
+
+  it('remembers a 426 only for the binary it was received for', async () => {
+    const storage = memoryStore({ [BLOCKED_STORAGE_KEY]: '1.0.0' });
+    const gate = await createCompatibilityChecker({
+      build,
+      storage,
+      getAppCompatibility: offline,
+    }).check();
+    expect(gate).toEqual({ kind: 'ok' });
+  });
+
+  it('remembers a 426 without a cached policy too', async () => {
+    const storage = memoryStore({ [BLOCKED_STORAGE_KEY]: '1.1.0' });
+    const gate = await createCompatibilityChecker({
+      build,
+      storage,
+      getAppCompatibility: offline,
+    }).check();
+    expect(gate).toEqual({ kind: 'update_required_offline', minVersion: null, storeUrl: null });
+  });
+
+  it('never fails on a failing device storage', async () => {
+    const broken: KeyValueStore = {
+      get: () => Promise.reject(new Error('disk')),
+      set: () => Promise.reject(new Error('disk full')),
+    };
+    const required = createCompatibilityChecker({
+      build,
+      storage: broken,
+      getAppCompatibility: online(answer({ status: 'update_required', minVersion: '1.2.0' })),
+    });
+    expect(await required.check()).toEqual({
+      kind: 'update_required',
+      minVersion: '1.2.0',
+      storeUrl: STORE,
+    });
+    expect(await required.handleApiError(updateRequiredError)).toMatchObject({
+      kind: 'update_required',
+    });
+    const unreachable = createCompatibilityChecker({
+      build,
+      storage: broken,
+      getAppCompatibility: offline,
+    });
+    expect(await unreachable.check()).toEqual({ kind: 'ok' });
+  });
+
+  it('sends the runtime version of the bundle with the check', async () => {
+    const queries: unknown[] = [];
+    const getAppCompatibility: GetAppCompatibility = (input) => {
+      queries.push(input.query);
+      return Promise.resolve(answer({}));
+    };
+    await createCompatibilityChecker({
+      build,
+      storage: memoryStore(),
+      getAppCompatibility,
+    }).check();
+    await createCompatibilityChecker({
+      build: { ...build, runtimeVersion: null },
+      storage: memoryStore(),
+      getAppCompatibility,
+    }).check();
+    expect(queries).toEqual([
+      { platform: 'ios', version: '1.1.0', runtimeVersion: '1.1.0' },
+      { platform: 'ios', version: '1.1.0' },
+    ]);
   });
 
   it('ignores other errors', async () => {
@@ -299,12 +389,7 @@ describe('compatibility checker', () => {
 });
 
 describe('update prompt', () => {
-  const required: UpdateGate = {
-    kind: 'update_required',
-    minVersion: '1.2.0',
-    storeUrl: STORE,
-    offline: false,
-  };
+  const required: UpdateGate = { kind: 'update_required', minVersion: '1.2.0', storeUrl: STORE };
 
   it('is the blocking "actualizá la app" screen online', () => {
     expect(updatePrompt(required, '1.1.0', translator)).toEqual({
@@ -332,7 +417,9 @@ describe('update prompt', () => {
   });
 
   it('is a banner offline, so the staff keeps loading data', () => {
-    expect(updatePrompt({ ...required, offline: true }, '1.1.0', translator)).toMatchObject({
+    expect(
+      updatePrompt({ ...required, kind: 'update_required_offline' }, '1.1.0', translator),
+    ).toMatchObject({
       presentation: 'banner',
       title: 'Actualizá la app',
       action: { label: 'Actualizar', url: STORE },
@@ -358,8 +445,7 @@ describe('update prompt', () => {
     expect(updatePrompt({ ...gate, dismissed: true }, '1.1.0', translator)).toBeNull();
   });
 
-  it('shows nothing when supported or unknown', () => {
-    expect(updatePrompt({ kind: 'supported' }, '1.1.0', translator)).toBeNull();
-    expect(updatePrompt({ kind: 'unknown' }, '1.1.0', translator)).toBeNull();
+  it('shows nothing when ok', () => {
+    expect(updatePrompt({ kind: 'ok' }, '1.1.0', translator)).toBeNull();
   });
 });

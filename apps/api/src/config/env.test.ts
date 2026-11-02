@@ -369,11 +369,11 @@ describe('auth and email configuration', () => {
       DATABASE_URL,
       AUTH_DATABASE_URL,
       AUTH_SECRET,
-      MOBILE_MIN_VERSION_IOS: '1.2.0',
-      MOBILE_LATEST_VERSION_IOS: '1.4.1',
-      MOBILE_STORE_URL_IOS: 'https://apps.apple.com/app/id0000000000',
-      MOBILE_MIN_VERSION_ANDROID: '1.1.0',
-      MOBILE_LATEST_VERSION_ANDROID: '',
+      APP_MIN_VERSION_IOS: '1.2.0',
+      APP_LATEST_VERSION_IOS: '1.4.1',
+      APP_STORE_URL_IOS: 'https://apps.apple.com/app/id0000000000',
+      APP_MIN_VERSION_ANDROID: '1.1.0',
+      APP_LATEST_VERSION_ANDROID: '',
     });
     expect(config.mobileApp).toEqual({
       ios: {
@@ -388,22 +388,22 @@ describe('auth and email configuration', () => {
 
   it('validates the versions policy of the mobile app', () => {
     const base = { DATABASE_URL, AUTH_DATABASE_URL, AUTH_SECRET };
-    expect(configError({ ...base, MOBILE_MIN_VERSION_IOS: '1.2' }).variables).toEqual([
-      'MOBILE_MIN_VERSION_IOS',
+    expect(configError({ ...base, APP_MIN_VERSION_IOS: '1.2' }).variables).toEqual([
+      'APP_MIN_VERSION_IOS',
     ]);
-    expect(configError({ ...base, MOBILE_LATEST_VERSION_ANDROID: 'v2.0.0' }).variables).toEqual([
-      'MOBILE_LATEST_VERSION_ANDROID',
+    expect(configError({ ...base, APP_LATEST_VERSION_ANDROID: 'v2.0.0' }).variables).toEqual([
+      'APP_LATEST_VERSION_ANDROID',
     ]);
     expect(
-      configError({ ...base, MOBILE_STORE_URL_ANDROID: 'http://play.google.com/x' }).variables,
-    ).toEqual(['MOBILE_STORE_URL_ANDROID']);
+      configError({ ...base, APP_STORE_URL_ANDROID: 'http://play.google.com/x' }).variables,
+    ).toEqual(['APP_STORE_URL_ANDROID']);
     const older = configError({
       ...base,
-      MOBILE_MIN_VERSION_IOS: '2.0.0',
-      MOBILE_LATEST_VERSION_IOS: '1.9.9',
+      APP_MIN_VERSION_IOS: '2.0.0',
+      APP_LATEST_VERSION_IOS: '1.9.9',
     });
-    expect(older.variables).toEqual(['MOBILE_LATEST_VERSION_IOS']);
-    expect(older.message).toContain('must not be older than MOBILE_MIN_VERSION_IOS');
+    expect(older.variables).toEqual(['APP_LATEST_VERSION_IOS']);
+    expect(older.message).toContain('must not be older than APP_MIN_VERSION_IOS');
   });
 });
 

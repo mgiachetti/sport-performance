@@ -2,6 +2,7 @@ import { CONTRACT_VERSION, getAppCompatibility } from '@sport-performance/contra
 import { evaluateAppCompatibility } from '@sport-performance/domain';
 import type { FastifyInstance } from 'fastify';
 import type { MobileAppConfig } from '../config/env.js';
+import { parseMobileAppPolicies } from '../http/app-version.js';
 import { registerEndpoint } from '../http/endpoint.js';
 
 export interface AppCompatibilityOptions {
@@ -22,15 +23,18 @@ export function registerAppCompatibilityRoutes(
   app: FastifyInstance,
   options: AppCompatibilityOptions,
 ): void {
+  const policies = parseMobileAppPolicies(options.mobileApp);
   registerEndpoint(app, getAppCompatibility, {
     transaction: false,
     handler: ({ query }, { reply }) => {
       const policy = options.mobileApp[query.platform];
       void reply.header('cache-control', CACHE_CONTROL);
       return Promise.resolve({
-        status: evaluateAppCompatibility(policy, query.version),
+        status: evaluateAppCompatibility(policies[query.platform], query.version),
         platform: query.platform,
         version: query.version,
+        // Informative: under `policy: appVersion` it equals the native version (ADR 0045).
+        runtimeVersion: query.runtimeVersion ?? null,
         minVersion: policy.minVersion,
         latestVersion: policy.latestVersion,
         storeUrl: policy.storeUrl,

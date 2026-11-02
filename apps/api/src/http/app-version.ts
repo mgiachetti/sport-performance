@@ -9,7 +9,9 @@ import {
   evaluateAppCompatibility,
   isAppPlatform,
   isAppVersion,
+  parseAppVersionPolicy,
   type AppPlatform,
+  type ParsedAppVersionPolicy,
 } from '@sport-performance/domain';
 import type { FastifyRequest } from 'fastify';
 import type { MobileAppConfig } from '../config/env.js';
@@ -78,22 +80,32 @@ export function clientAppOf(request: FastifyRequest): ClientApp | null {
 }
 
 /**
+ * The policy of every platform, parsed once at startup (the environment was
+ * already validated by `loadConfig`), so a request only compares versions.
+ */
+export function parseMobileAppPolicies(
+  config: MobileAppConfig,
+): Readonly<Record<AppPlatform, ParsedAppVersionPolicy>> {
+  return { ios: parseAppVersionPolicy(config.ios), android: parseAppVersionPolicy(config.android) };
+}
+
+/**
  * The `onRequest` check of the app version (ADR 0045): an app below the
  * minimum supported version of its platform gets `426 app_update_required`
  * on every route except those marked `appVersionCheck: 'skip'`. It runs
  * before authentication: an outdated app costs no session lookup.
  */
 export function createAppVersionCheck(config: MobileAppConfig): (request: FastifyRequest) => void {
+  const policies = parseMobileAppPolicies(config);
   return (request) => {
     // `routeOptions.config` is empty for unknown routes: they are checked too.
     if (request.routeOptions.config.appVersionCheck === 'skip') return;
     const client = clientAppOf(request);
     if (client === null) return;
-    const policy = config[client.platform];
-    if (evaluateAppCompatibility(policy, client.version) === 'update_required') {
+    if (evaluateAppCompatibility(policies[client.platform], client.version) === 'update_required') {
       throw new HttpError(
         'app_update_required',
-        `App ${client.version} on ${client.platform} is no longer supported; the minimum is ${policy.minVersion} (GET /v1/app/compatibility)`,
+        `App ${client.version} on ${client.platform} is no longer supported; the minimum is ${config[client.platform].minVersion} (GET /v1/app/compatibility)`,
       );
     }
   };

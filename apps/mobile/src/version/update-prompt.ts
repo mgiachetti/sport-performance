@@ -26,8 +26,7 @@ export function updatePrompt(
   { t }: Translator,
 ): UpdatePrompt | null {
   switch (gate.kind) {
-    case 'unknown':
-    case 'supported':
+    case 'ok':
       return null;
     case 'update_available':
       if (gate.dismissed) return null;
@@ -42,12 +41,13 @@ export function updatePrompt(
         note: null,
         dismissLabel: t('appUpdate.available.dismiss'),
       };
-    case 'update_required': {
+    case 'update_required':
+    case 'update_required_offline': {
       const action =
         gate.storeUrl === null
           ? null
           : { label: t('appUpdate.required.action'), url: gate.storeUrl };
-      if (gate.offline) {
+      if (gate.kind === 'update_required_offline') {
         return {
           presentation: 'banner',
           title: t('appUpdate.required.title'),

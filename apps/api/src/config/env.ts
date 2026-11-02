@@ -121,14 +121,14 @@ export const envSchema = z
 
     // Versions of the mobile app (B-324, ADR 0045): one policy per store, for every club.
     /** Oldest native version the API serves; older apps get `426 app_update_required`. */
-    MOBILE_MIN_VERSION_IOS: appVersion.default('0.0.0'),
-    MOBILE_MIN_VERSION_ANDROID: appVersion.default('0.0.0'),
+    APP_MIN_VERSION_IOS: appVersion.default('0.0.0'),
+    APP_MIN_VERSION_ANDROID: appVersion.default('0.0.0'),
     /** Newest version in the store: older apps (at or above the minimum) see a dismissible notice. */
-    MOBILE_LATEST_VERSION_IOS: appVersion.optional(),
-    MOBILE_LATEST_VERSION_ANDROID: appVersion.optional(),
+    APP_LATEST_VERSION_IOS: appVersion.optional(),
+    APP_LATEST_VERSION_ANDROID: appVersion.optional(),
     /** Link of the app in each store, for the "actualizá la app" screen. */
-    MOBILE_STORE_URL_IOS: httpsUrl.optional(),
-    MOBILE_STORE_URL_ANDROID: httpsUrl.optional(),
+    APP_STORE_URL_IOS: httpsUrl.optional(),
+    APP_STORE_URL_ANDROID: httpsUrl.optional(),
 
     // Email (Resend + React Email)
     /** Empty = emails are written to the log instead of sent (development only). */
@@ -170,14 +170,14 @@ export const envSchema = z
     }
     for (const platform of APP_PLATFORMS) {
       const suffix = platform.toUpperCase() as Uppercase<AppPlatform>;
-      const latest = env[`MOBILE_LATEST_VERSION_${suffix}`];
-      const min = env[`MOBILE_MIN_VERSION_${suffix}`];
+      const latest = env[`APP_LATEST_VERSION_${suffix}`];
+      const min = env[`APP_MIN_VERSION_${suffix}`];
       // Refinements run even when a field failed: compare only well-formed versions.
       if (isAppVersion(latest) && isAppVersion(min) && compareAppVersions(latest, min) < 0) {
         ctx.addIssue({
           code: 'custom',
-          path: [`MOBILE_LATEST_VERSION_${suffix}`],
-          message: `must not be older than MOBILE_MIN_VERSION_${suffix}`,
+          path: [`APP_LATEST_VERSION_${suffix}`],
+          message: `must not be older than APP_MIN_VERSION_${suffix}`,
         });
       }
     }
@@ -499,14 +499,14 @@ export function loadConfig(env: Env = process.env): ApiConfig {
     },
     mobileApp: {
       ios: {
-        minVersion: e.MOBILE_MIN_VERSION_IOS,
-        latestVersion: e.MOBILE_LATEST_VERSION_IOS ?? null,
-        storeUrl: e.MOBILE_STORE_URL_IOS ?? null,
+        minVersion: e.APP_MIN_VERSION_IOS,
+        latestVersion: e.APP_LATEST_VERSION_IOS ?? null,
+        storeUrl: e.APP_STORE_URL_IOS ?? null,
       },
       android: {
-        minVersion: e.MOBILE_MIN_VERSION_ANDROID,
-        latestVersion: e.MOBILE_LATEST_VERSION_ANDROID ?? null,
-        storeUrl: e.MOBILE_STORE_URL_ANDROID ?? null,
+        minVersion: e.APP_MIN_VERSION_ANDROID,
+        latestVersion: e.APP_LATEST_VERSION_ANDROID ?? null,
+        storeUrl: e.APP_STORE_URL_ANDROID ?? null,
       },
     },
   };

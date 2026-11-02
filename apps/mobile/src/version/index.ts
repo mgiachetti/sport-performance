@@ -8,6 +8,7 @@ export {
 } from './release.js';
 export { appClientHeaders, parseAppBuildInfo, type AppBuildInfo } from './client-headers.js';
 export {
+  BLOCKED_STORAGE_KEY,
   DISMISSED_STORAGE_KEY,
   POLICY_STORAGE_KEY,
   blocksApp,

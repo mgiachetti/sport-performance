@@ -1,22 +1,28 @@
 import { ApiError, type AppCompatibility, type EndpointInput } from '@sport-performance/contracts';
 import type { getAppCompatibility } from '@sport-performance/contracts';
-import { evaluateAppCompatibility, isAppVersion } from '@sport-performance/domain';
+import {
+  evaluateAppCompatibility,
+  isAppVersion,
+  parseAppVersionPolicy,
+  type ParsedAppVersionPolicy,
+} from '@sport-performance/domain';
 import { parseAppBuildInfo, type AppBuildInfo } from './client-headers.js';
 
 /**
  * What the app does about its own version (B-324, ADR 0045):
- * - `unknown`: never checked and the server cannot be reached: the app works.
- * - `supported`: up to date.
+ * - `ok`: nothing to do. Also when the version was never checked and the
+ *   server cannot be reached: without a known policy the app just works.
  * - `update_available`: a newer version is in the store: dismissible notice.
- * - `update_required`: the API no longer serves this binary. Online
- *   (`offline: false`) the blocking "actualizá la app" screen; when the
- *   server could not be reached (`offline: true`, from the last policy seen)
- *   the app keeps working locally, sync pauses and a notice explains why:
- *   the staff loads a whole test day without signal (product principle 5).
+ * - `update_required`: the server confirmed that the API no longer serves
+ *   this binary: the blocking "actualizá la app" screen with the store button.
+ * - `update_required_offline`: the last policy seen (or the last `426`
+ *   received) says this binary is no longer served, but the server could
+ *   not be reached now: the app keeps working locally, sync pauses and a
+ *   notice explains why. The staff loads a whole test day without signal
+ *   (product principle 5).
  */
 export type UpdateGate =
-  | { readonly kind: 'unknown' }
-  | { readonly kind: 'supported' }
+  | { readonly kind: 'ok' }
   | {
       readonly kind: 'update_available';
       readonly latestVersion: string;
@@ -25,16 +31,15 @@ export type UpdateGate =
       readonly dismissed: boolean;
     }
   | {
-      readonly kind: 'update_required';
-      /** `null` when a `426` arrived and the policy could not be read yet. */
+      readonly kind: 'update_required' | 'update_required_offline';
+      /** `null` when a `426` arrived and the policy could not be read. */
       readonly minVersion: string | null;
       readonly storeUrl: string | null;
-      readonly offline: boolean;
     };
 
 /** The blocking screen: only when the server confirmed it. */
 export function blocksApp(gate: UpdateGate): boolean {
-  return gate.kind === 'update_required' && !gate.offline;
+  return gate.kind === 'update_required';
 }
 
 /**
@@ -42,7 +47,7 @@ export function blocksApp(gate: UpdateGate): boolean {
  * `426` to every push. The queue stays in SQLite and goes out after the update.
  */
 export function pausesSync(gate: UpdateGate): boolean {
-  return gate.kind === 'update_required';
+  return gate.kind === 'update_required' || gate.kind === 'update_required_offline';
 }
 
 /** True for the error of any call when this binary is no longer supported. */
@@ -67,6 +72,14 @@ export interface CachedPolicy {
 
 export const POLICY_STORAGE_KEY = 'app_version.policy';
 export const DISMISSED_STORAGE_KEY = 'app_version.dismissed_latest';
+/**
+ * The native version a `426 app_update_required` was received for. It keeps
+ * sync paused offline even when the cached policy is older than the `426`
+ * (a stale cache, replicas mid-rollout of a new minimum); a successful check
+ * that says the version is served clears it, and an updated binary no
+ * longer matches it.
+ */
+export const BLOCKED_STORAGE_KEY = 'app_version.blocked_version';
 
 /** The client call the checker needs (`createApiClient().getAppCompatibility`). */
 export type GetAppCompatibility = (
@@ -84,17 +97,23 @@ export interface CompatibilityChecker {
   /** At launch and when the app comes back to the foreground. */
   check(): Promise<UpdateGate>;
   /**
-   * For the error of any API call: on `426 app_update_required` it re-reads
-   * the policy and returns the gate (always `update_required`, online);
-   * `null` for any other error.
+   * For the error of any API call: on `426 app_update_required` it remembers
+   * the block on the device, re-reads the policy and returns the gate
+   * (always `update_required`); `null` for any other error.
    */
   handleApiError(error: unknown): Promise<UpdateGate | null>;
   /** "Más tarde" on the notice of a newer version: hidden until a newer one comes out. */
   dismissUpdateNotice(latestVersion: string): Promise<void>;
 }
 
-function parseCachedPolicy(raw: string | null): CachedPolicy | null {
-  if (raw === null) return null;
+interface ReadPolicy {
+  readonly policy: CachedPolicy;
+  readonly parsed: ParsedAppVersionPolicy;
+}
+
+/** The cached policy, or `null` when missing or corrupt (then it is ignored). */
+function parseCachedPolicy(raw: string | null): ReadPolicy | null {
+  if (raw === null || raw === '') return null;
   try {
     const value = JSON.parse(raw) as Partial<Record<keyof CachedPolicy, unknown>>;
     const { minVersion, latestVersion, storeUrl, checkedAt } = value;
@@ -104,7 +123,9 @@ function parseCachedPolicy(raw: string | null): CachedPolicy | null {
       return null;
     }
     if (typeof checkedAt !== 'string') return null;
-    return { minVersion, latestVersion, storeUrl, checkedAt };
+    const policy = { minVersion, latestVersion, storeUrl, checkedAt };
+    // Throws (caught below) when the latest version is older than the minimum.
+    return { policy, parsed: parseAppVersionPolicy(policy) };
   } catch {
     return null;
   }
@@ -119,14 +140,13 @@ function gateOf(
   switch (status) {
     case 'update_required':
       return {
-        kind: 'update_required',
+        kind: offline ? 'update_required_offline' : 'update_required',
         minVersion: policy.minVersion,
         storeUrl: policy.storeUrl,
-        offline,
       };
     case 'update_available':
       return policy.latestVersion === null
-        ? { kind: 'supported' }
+        ? { kind: 'ok' }
         : {
             kind: 'update_available',
             latestVersion: policy.latestVersion,
@@ -134,15 +154,15 @@ function gateOf(
             dismissed: dismissed === policy.latestVersion,
           };
     case 'supported':
-      return { kind: 'supported' };
+      return { kind: 'ok' };
   }
 }
 
 /**
  * Checks the version of the app against the API and keeps the last policy
  * on the device. Never blocks on its own failures: an unreachable server,
- * a `5xx` or an answer off the contract fall back to the cached policy
- * (`offline: true`) or to `unknown`.
+ * a `5xx`, an answer off the contract or a failing device storage fall back
+ * to the cached policy (`update_required_offline`) or to `ok`.
  */
 export function createCompatibilityChecker(
   options: CompatibilityCheckerOptions,
@@ -151,23 +171,52 @@ export function createCompatibilityChecker(
   const now = options.now ?? (() => new Date());
   const { storage } = options;
 
-  async function fromCache(): Promise<UpdateGate> {
-    const cached = parseCachedPolicy(await storage.get(POLICY_STORAGE_KEY));
-    if (cached === null) return { kind: 'unknown' };
-    let status: AppCompatibility['status'];
+  // The device storage is best effort here: a failure reads as "nothing stored"
+  // and a lost write only costs deciding from the server next time.
+  async function read(key: string): Promise<string | null> {
     try {
-      status = evaluateAppCompatibility(cached, build.nativeVersion);
+      return await storage.get(key);
     } catch {
-      return { kind: 'unknown' };
+      return null;
     }
-    return gateOf(status, cached, await storage.get(DISMISSED_STORAGE_KEY), true);
+  }
+  async function write(key: string, value: string): Promise<void> {
+    try {
+      await storage.set(key, value);
+    } catch {
+      // Ignored: see above.
+    }
+  }
+
+  async function fromCache(): Promise<UpdateGate> {
+    const cached = parseCachedPolicy(await read(POLICY_STORAGE_KEY));
+    const blocked = (await read(BLOCKED_STORAGE_KEY)) === build.nativeVersion;
+    if (cached === null) {
+      return blocked
+        ? { kind: 'update_required_offline', minVersion: null, storeUrl: null }
+        : { kind: 'ok' };
+    }
+    const status = evaluateAppCompatibility(cached.parsed, build.nativeVersion);
+    if (status === 'update_required' || blocked) {
+      return {
+        kind: 'update_required_offline',
+        // A remembered `426` above the cached minimum: the new minimum is unknown.
+        minVersion: status === 'update_required' ? cached.policy.minVersion : null,
+        storeUrl: cached.policy.storeUrl,
+      };
+    }
+    return gateOf(status, cached.policy, await read(DISMISSED_STORAGE_KEY), true);
   }
 
   async function check(): Promise<UpdateGate> {
     let answer: AppCompatibility;
     try {
       answer = await options.getAppCompatibility({
-        query: { platform: build.platform, version: build.nativeVersion },
+        query: {
+          platform: build.platform,
+          version: build.nativeVersion,
+          ...(build.runtimeVersion !== null && { runtimeVersion: build.runtimeVersion }),
+        },
       });
     } catch {
       return fromCache();
@@ -178,8 +227,13 @@ export function createCompatibilityChecker(
       storeUrl: answer.storeUrl,
       checkedAt: now().toISOString(),
     };
-    await storage.set(POLICY_STORAGE_KEY, JSON.stringify(policy));
-    return gateOf(answer.status, policy, await storage.get(DISMISSED_STORAGE_KEY), false);
+    await write(POLICY_STORAGE_KEY, JSON.stringify(policy));
+    // The server answered: its decision replaces a remembered `426`.
+    await write(
+      BLOCKED_STORAGE_KEY,
+      answer.status === 'update_required' ? build.nativeVersion : '',
+    );
+    return gateOf(answer.status, policy, await read(DISMISSED_STORAGE_KEY), false);
   }
 
   return {
@@ -187,14 +241,17 @@ export function createCompatibilityChecker(
     async handleApiError(error) {
       if (!isAppUpdateRequired(error)) return null;
       const gate = await check();
-      if (gate.kind === 'update_required') return { ...gate, offline: false };
-      // The API just said `426`: it wins over a policy that could not be read or is stale.
-      const cached = parseCachedPolicy(await storage.get(POLICY_STORAGE_KEY));
+      // After `check()`, which may have cleared it: the API just said `426`.
+      await write(BLOCKED_STORAGE_KEY, build.nativeVersion);
+      if (gate.kind === 'update_required' || gate.kind === 'update_required_offline') {
+        return { ...gate, kind: 'update_required' };
+      }
+      // The `426` wins over a policy that could not be read or is stale.
+      const cached = parseCachedPolicy(await read(POLICY_STORAGE_KEY));
       return {
         kind: 'update_required',
         minVersion: null,
-        storeUrl: cached?.storeUrl ?? null,
-        offline: false,
+        storeUrl: cached?.policy.storeUrl ?? null,
       };
     },
     async dismissUpdateNotice(latestVersion) {

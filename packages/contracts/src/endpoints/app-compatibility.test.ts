@@ -12,9 +12,15 @@ describe('getAppCompatibility', () => {
     expect(apiEndpoints.getAppCompatibility).toBe(getAppCompatibility);
   });
 
-  it('takes a platform and a native version, nothing else', () => {
+  it('takes a platform, a native version and an optional runtime version, nothing else', () => {
     const query = getAppCompatibility.query;
     expect(query.safeParse({ platform: 'ios', version: '1.4.0' }).success).toBe(true);
+    expect(
+      query.safeParse({ platform: 'ios', version: '1.4.0', runtimeVersion: '1.4.0' }).success,
+    ).toBe(true);
+    expect(
+      query.safeParse({ platform: 'ios', version: '1.4.0', runtimeVersion: 'a b' }).success,
+    ).toBe(false);
     expect(query.safeParse({ platform: 'android', version: '0.1.0' }).success).toBe(true);
     expect(query.safeParse({ platform: 'web', version: '1.4.0' }).success).toBe(false);
     expect(query.safeParse({ platform: 'ios', version: '1.4' }).success).toBe(false);
@@ -28,6 +34,7 @@ describe('getAppCompatibility', () => {
       status: 'update_required',
       platform: 'ios',
       version: '1.0.0',
+      runtimeVersion: '1.0.0',
       minVersion: '1.2.0',
       latestVersion: null,
       storeUrl: 'https://apps.apple.com/app/id0000000000',

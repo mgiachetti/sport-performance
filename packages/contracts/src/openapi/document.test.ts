@@ -7,6 +7,7 @@ import { apiEndpoints } from '../endpoints/index.js';
 import { pageOf, pageQuerySchema } from '../primitives/pagination.js';
 import {
   buildOpenApiDocument,
+  resolveOpenApiResponse,
   serializeOpenApiDocument,
   type OpenApiDocument,
 } from './document.js';
@@ -32,9 +33,15 @@ function danglingRefs(document: OpenApiDocument): string[] {
     }
   };
   walk(document);
-  const prefix = '#/components/schemas/';
+  const sections = {
+    '#/components/schemas/': document.components.schemas,
+    '#/components/responses/': document.components.responses,
+  };
   return refs.filter(
-    (ref) => !ref.startsWith(prefix) || !(ref.slice(prefix.length) in document.components.schemas),
+    (ref) =>
+      !Object.entries(sections).some(
+        ([prefix, components]) => ref.startsWith(prefix) && ref.slice(prefix.length) in components,
+      ),
   );
 }
 
@@ -61,13 +68,18 @@ describe('buildOpenApiDocument (API catalog)', () => {
 
   it('shares named schemas as components and uses the error envelope', () => {
     const operation = document.paths['/v1/clubs/{clubSlug}/theme']?.get;
-    expect(operation?.responses['200']?.content?.['application/json']?.schema).toEqual({
+    expect(
+      resolveOpenApiResponse(document, operation?.responses['200'])?.content?.['application/json']
+        ?.schema,
+    ).toEqual({
       $ref: '#/components/schemas/ClubTheme',
     });
-    expect(operation?.responses['404']?.content?.['application/json']?.schema).toEqual({
+    expect(operation?.responses['404']).toEqual({ $ref: '#/components/responses/Error.not_found' });
+    const notFound = resolveOpenApiResponse(document, operation?.responses['404']);
+    expect(notFound?.content?.['application/json']?.schema).toEqual({
       $ref: '#/components/schemas/ErrorEnvelope',
     });
-    expect(operation?.responses['404']?.description).toContain('not_found');
+    expect(notFound?.description).toContain('not_found');
     expect(operation?.parameters).toEqual([
       expect.objectContaining({ name: 'clubSlug', in: 'path', required: true }),
     ]);
@@ -177,7 +189,10 @@ describe('buildOpenApiDocument (generic features)', () => {
     expect(post?.requestBody?.content['application/json'].schema).toEqual({
       $ref: '#/components/schemas/TestPlayerInput',
     });
-    expect(post?.responses['201']?.content?.['application/json']?.schema).toEqual({
+    expect(
+      resolveOpenApiResponse(document, post?.responses['201'])?.content?.['application/json']
+        ?.schema,
+    ).toEqual({
       $ref: '#/components/schemas/TestPlayer',
     });
     expect(document.components.schemas.TestPlayer?.required).toContain('active');
@@ -198,11 +213,17 @@ describe('buildOpenApiDocument (generic features)', () => {
       '429',
       '500',
     ]);
-    expect(del?.responses['429']?.headers?.['Retry-After']?.schema).toEqual({
-      type: 'integer',
-      minimum: 1,
+    expect(
+      resolveOpenApiResponse(document, del?.responses['429'])?.headers?.['Retry-After']?.schema,
+    ).toEqual({ type: 'integer', minimum: 1 });
+    expect(resolveOpenApiResponse(document, del?.responses['404'])?.headers).toBeUndefined();
+    // Error responses are shared components, referenced by every operation.
+    expect(del?.responses['426']).toEqual({
+      $ref: '#/components/responses/Error.app_update_required',
     });
-    expect(del?.responses['404']?.headers).toBeUndefined();
+    expect(document.components.responses['Error.app_update_required']?.description).toBe(
+      'Error: `app_update_required`.',
+    );
     expect(Object.keys(document.components.securitySchemes)).toEqual([
       'sessionCookie',
       'bearerToken',

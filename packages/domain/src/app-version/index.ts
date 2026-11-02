@@ -12,9 +12,10 @@ export {
 } from './version.js';
 export {
   APP_COMPATIBILITY_STATUSES,
-  assertAppVersionPolicy,
   evaluateAppCompatibility,
   isAppCompatibilityStatus,
+  parseAppVersionPolicy,
   type AppCompatibilityStatus,
   type AppVersionPolicy,
+  type ParsedAppVersionPolicy,
 } from './compatibility.js';

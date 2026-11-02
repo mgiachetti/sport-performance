@@ -212,6 +212,7 @@ describe('GET /v1/app/compatibility', () => {
       status: 'update_required',
       platform: 'ios',
       version: '1.0.0',
+      runtimeVersion: null,
       minVersion: '1.2.0',
       latestVersion: '1.4.0',
       storeUrl: 'https://apps.apple.com/app/id0000000000',
@@ -233,8 +234,21 @@ describe('GET /v1/app/compatibility', () => {
     });
   });
 
+  it('takes the runtime version of the bundle, informative only', async () => {
+    const { app } = await start();
+    const response = await app.inject({
+      url: '/v1/app/compatibility?platform=ios&version=1.0.0&runtimeVersion=1.0.0',
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      status: 'update_required',
+      runtimeVersion: '1.0.0',
+    });
+  });
+
   it('validates the query', async () => {
     for (const query of [
+      'platform=ios&version=1.0.0&runtimeVersion=a%20b',
       'platform=web&version=1.0.0',
       'platform=ios&version=1.0',
       'platform=ios',

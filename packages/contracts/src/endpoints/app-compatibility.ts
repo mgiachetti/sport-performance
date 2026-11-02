@@ -5,7 +5,7 @@ import {
 } from '@sport-performance/domain';
 import { z } from 'zod';
 import { defineEndpoint } from '../endpoint.js';
-import { CONTRACT_VERSION } from '../versioning.js';
+import { CONTRACT_VERSION, RUNTIME_VERSION_PATTERN } from '../versioning.js';
 
 export const appPlatformSchema = z.enum(APP_PLATFORMS).meta({
   id: 'AppPlatform',
@@ -21,6 +21,16 @@ export const appVersionSchema = z
     examples: ['1.4.0'],
   });
 
+export const appRuntimeVersionSchema = z
+  .string()
+  .regex(RUNTIME_VERSION_PATTERN)
+  .meta({
+    id: 'AppRuntimeVersion',
+    description:
+      '`runtimeVersion` de EAS Update del bundle que corre la app. Con la política `appVersion` (ADR 0045) es igual a la versión nativa: la decisión se toma con la versión nativa y este dato queda para soporte y diagnóstico.',
+    examples: ['1.4.0'],
+  });
+
 export const appCompatibilityStatusSchema = z.enum(APP_COMPATIBILITY_STATUSES).meta({
   id: 'AppCompatibilityStatus',
   description:
@@ -32,6 +42,9 @@ export const appCompatibilitySchema = z
     status: appCompatibilityStatusSchema,
     platform: appPlatformSchema,
     version: appVersionSchema.meta({ description: 'La versión consultada.' }),
+    runtimeVersion: appRuntimeVersionSchema.nullable().meta({
+      description: 'El `runtimeVersion` consultado; `null` si no se mandó.',
+    }),
     minVersion: appVersionSchema.meta({
       description: 'Versión más vieja que la API todavía atiende en esta plataforma.',
     }),
@@ -80,7 +93,11 @@ export const getAppCompatibility = defineEndpoint({
     'Público y sin sesión: la app lo pide al abrir y al volver a primer plano, y cuando cualquier llamada responde `426 app_update_required`. Nunca responde `426`. La política es la misma para todos los clubes (una sola app, ADR 0014). Cacheable unos minutos.',
   tags: ['system'],
   auth: 'public',
-  query: z.strictObject({ platform: appPlatformSchema, version: appVersionSchema }),
+  query: z.strictObject({
+    platform: appPlatformSchema,
+    version: appVersionSchema,
+    runtimeVersion: appRuntimeVersionSchema.optional(),
+  }),
   response: { status: 200, description: 'Estado de la versión.', schema: appCompatibilitySchema },
   errors: [],
   skipAppVersionCheck: true,

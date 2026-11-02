@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DomainValidationError } from '../errors.js';
 import {
-  assertAppVersionPolicy,
   compareAppVersions,
   evaluateAppCompatibility,
   formatAppVersion,
@@ -10,6 +9,7 @@ import {
   isAppVersion,
   parseAppPlatform,
   parseAppVersion,
+  parseAppVersionPolicy,
 } from './index.js';
 
 describe('app versions', () => {
@@ -61,7 +61,7 @@ describe('app versions', () => {
 });
 
 describe('evaluateAppCompatibility', () => {
-  const policy = { minVersion: '1.2.0', latestVersion: '1.5.1' };
+  const policy = parseAppVersionPolicy({ minVersion: '1.2.0', latestVersion: '1.5.1' });
 
   it('requires an update below the minimum', () => {
     expect(evaluateAppCompatibility(policy, '1.1.9')).toBe('update_required');
@@ -80,17 +80,29 @@ describe('evaluateAppCompatibility', () => {
   });
 
   it('without a latest version, only the minimum matters', () => {
-    const minOnly = { minVersion: '1.0.0', latestVersion: null };
+    const minOnly = parseAppVersionPolicy({ minVersion: '1.0.0', latestVersion: null });
     expect(evaluateAppCompatibility(minOnly, '1.0.0')).toBe('supported');
     expect(evaluateAppCompatibility(minOnly, '0.9.9')).toBe('update_required');
   });
 
   it('rejects a latest version older than the minimum', () => {
     const broken = { minVersion: '2.0.0', latestVersion: '1.9.0' };
-    expect(() => {
-      assertAppVersionPolicy(broken);
-    }).toThrow(DomainValidationError);
-    expect(() => evaluateAppCompatibility(broken, '2.0.0')).toThrow(DomainValidationError);
+    expect(() => parseAppVersionPolicy(broken)).toThrow(DomainValidationError);
+  });
+
+  it('parses the policy once, also from already parsed versions', () => {
+    expect(parseAppVersionPolicy({ minVersion: '1.2.0', latestVersion: null })).toEqual({
+      minVersion: { major: 1, minor: 2, patch: 0 },
+      latestVersion: null,
+    });
+    const parsed = parseAppVersionPolicy({
+      minVersion: parseAppVersion('1.0.0'),
+      latestVersion: '1.0.0',
+    });
+    expect(evaluateAppCompatibility(parsed, '1.0.0')).toBe('supported');
+    expect(() => parseAppVersionPolicy({ minVersion: '1.2', latestVersion: null })).toThrow(
+      DomainValidationError,
+    );
   });
 
   it('guards the statuses', () => {
