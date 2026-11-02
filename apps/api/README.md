@@ -1,6 +1,6 @@
 # @sport-performance/api
 
-API HTTP: Fastify + `zod` con los contratos de `@sport-performance/contracts`, una transacción por request con `SET LOCAL app.club_id / app.user_id / app.role` para RLS. Decisiones en [ADR 0009](../../docs/adr/0009-api-fastify-zod.md), [0020](../../docs/adr/0020-convenciones-contratos-api.md), [0024](../../docs/adr/0024-estructura-de-la-api.md) y [0025](../../docs/adr/0025-roles-de-conexion-y-politicas-rls.md).
+API HTTP: Fastify + `zod` con los contratos de `@sport-performance/contracts`, una transacción por request con `SET LOCAL app.club_id / app.user_id / app.role` para RLS. Decisiones en [ADR 0009](../../docs/adr/0009-api-fastify-zod.md), [0020](../../docs/adr/0020-convenciones-contratos-api.md), [0024](../../docs/adr/0024-estructura-de-la-api.md) y [0025](../../docs/adr/0026-roles-de-conexion-y-politicas-rls.md).
 
 ## Correr
 

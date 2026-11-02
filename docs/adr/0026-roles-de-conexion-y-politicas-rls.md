@@ -1,4 +1,4 @@
-# 0025. Roles de conexión, funciones `app.*` y políticas RLS por club y rol
+# 0026. Roles de conexión, funciones `app.*` y políticas RLS por club y rol
 
 - Estado: Aceptado
 - Fecha: 2026-11-01

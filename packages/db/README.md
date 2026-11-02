@@ -1,6 +1,6 @@
 # @sport-performance/db
 
-Esquema de PostgreSQL 16 en Drizzle ORM, migraciones SQL versionadas, el runner de migraciones, RLS y los roles de conexión (ADR 0004, 0006, 0007, 0010, 0015, 0017, [0023](../../docs/adr/0023-convenciones-del-esquema-de-base.md) y [0025](../../docs/adr/0025-roles-de-conexion-y-politicas-rls.md)).
+Esquema de PostgreSQL 16 en Drizzle ORM, migraciones SQL versionadas, el runner de migraciones, RLS y los roles de conexión (ADR 0004, 0006, 0007, 0010, 0015, 0017, [0023](../../docs/adr/0023-convenciones-del-esquema-de-base.md) y [0025](../../docs/adr/0026-roles-de-conexion-y-politicas-rls.md)).
 
 ## Uso
 
