@@ -1,4 +1,5 @@
 import {
+  ACWR_STATUSES,
   ALERT_RULE_KINDS,
   ALERT_SEVERITIES,
   ATTEMPT_AGGREGATIONS,
@@ -19,6 +20,7 @@ import {
   MATURITY_OFFSET_EQUATIONS,
   MEASUREMENT_METHODS,
   MEMBERSHIP_ROLES,
+  MONOTONY_STATUSES,
   SESSION_CLIENT_TYPES,
   PARENTS,
   PLAYER_LEAVE_REASONS,
@@ -175,3 +177,7 @@ export const externalMetricSourceEnum = pgEnum('external_metric_source', EXTERNA
 /** Lifecycle of a generated alert (B-327). */
 export const ALERT_STATUSES = ['open', 'acknowledged', 'dismissed'] as const;
 export const alertStatusEnum = pgEnum('alert_status', ALERT_STATUSES);
+
+/** Status of the ACWR and of Foster's monotony of a day (B-202, `player_load_daily`). */
+export const acwrStatusEnum = pgEnum('acwr_status', ACWR_STATUSES);
+export const monotonyStatusEnum = pgEnum('monotony_status', MONOTONY_STATUSES);

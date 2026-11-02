@@ -156,7 +156,7 @@ describe.skipIf(!hasDatabase)('runMigrations safety (Postgres 16)', () => {
       connectionString: database.connectionString,
       migrationsFolder: folder,
     });
-    expect(report).toEqual({ applied: 0, total: journal.entries.length, unknown: 1 });
+    expect(report).toMatchObject({ applied: 0, total: journal.entries.length, unknown: 1 });
   });
 
   it('reports the original error when the connection drops mid-run', async () => {

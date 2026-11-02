@@ -219,6 +219,8 @@ export * from './player-stage/index.js';
 export * from './physical-tests/index.js';
 export * from './load/index.js';
 export * from './maturation/index.js';
+// Derived values for the panel (B-326).
+export * from './derived/index.js';
 export * from './alerts/index.js';
 // Speed zones (B-209).
 export * from './speed-zones/index.js';

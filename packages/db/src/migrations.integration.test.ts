@@ -92,7 +92,9 @@ describe.skipIf(!hasDatabase)('migrations (Postgres 16)', () => {
       expect(reports.map((r) => r.applied).sort()).toEqual([0, 0, total]);
 
       const again = await runMigrations({ connectionString: database.connectionString });
-      expect(again).toEqual({ applied: 0, total, unknown: 0 });
+      expect(again).toMatchObject({ applied: 0, total, unknown: 0 });
+      expect(again.jobQueueVersion).toBeGreaterThan(0);
+      expect(reports.every((r) => r.jobQueueVersion === again.jobQueueVersion)).toBe(true);
     },
   );
 
