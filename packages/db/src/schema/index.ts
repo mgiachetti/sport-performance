@@ -24,3 +24,4 @@ export * from './training.js';
 export * from './alerts.js';
 export * from './maturation.js';
 export * from './access.js';
+export * from './medical.js';

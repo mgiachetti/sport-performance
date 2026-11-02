@@ -85,3 +85,17 @@ export type NewInvitation = typeof schema.invitation.$inferInsert;
 export type InvitationCategory = typeof schema.invitationCategory.$inferSelect;
 export type NewInvitationCategory = typeof schema.invitationCategory.$inferInsert;
 export type AuthRateLimit = typeof schema.authRateLimit.$inferSelect;
+// Medical schema (B-304, ADR 0029). Rows are read only through the `medical.read_*()`
+// functions; Drizzle types the writes and the rows those functions return.
+export type MedicalInjury = typeof schema.medicalInjury.$inferSelect;
+export type NewMedicalInjury = typeof schema.medicalInjury.$inferInsert;
+export type MedicalConcussion = typeof schema.medicalConcussion.$inferSelect;
+export type NewMedicalConcussion = typeof schema.medicalConcussion.$inferInsert;
+export type MedicalConcussionStage = typeof schema.medicalConcussionStage.$inferSelect;
+export type NewMedicalConcussionStage = typeof schema.medicalConcussionStage.$inferInsert;
+export type MedicalHold = typeof schema.medicalHold.$inferSelect;
+export type NewMedicalHold = typeof schema.medicalHold.$inferInsert;
+export type MedicalNote = typeof schema.medicalNote.$inferSelect;
+export type NewMedicalNote = typeof schema.medicalNote.$inferInsert;
+/** Written by the database only (functions and triggers). */
+export type MedicalAccessLogEntry = typeof schema.medicalAccessLog.$inferSelect;

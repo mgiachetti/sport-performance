@@ -55,12 +55,14 @@ const ownAndStaffRead: RoleRules = { ...staffRead, player: self };
  *   group reference instead; their own consents once of age.
  * - **parent**: through a guardian link, the summarised profile, availability
  *   and consents (signed while the player is a minor), parents' heights and
- *   the account of a player without email. Never rankings, never health.
+ *   the account of a player without email. Never rankings; of health, only
+ *   the record of a minor with a health consent (read only, ADR 0029).
  * - **coach**: assigned categories: panel, roster, sessions, participation.
  * - **sc**: assigned categories: test days, results, anthropometry, gym, CMJ
  *   videos (with an image consent), imports; club configuration.
  * - **medical**: health data of assigned players, always audited; the rest
- *   of the staff sees availability only, never the cause.
+ *   of the staff sees availability only, never the cause. The player reads
+ *   their own record with a health consent (ADR 0029).
  * - **admin**: everything of the club except health data and signing
  *   consents for someone else.
  * - **superadmin**: what an admin can, in the club whose context they fix,
@@ -252,7 +254,14 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
     read: { ...ownAndStaffRead, parent: guardian },
   },
   medical_record: {
-    read: { ...nobody, medical: assigned },
+    // The holder's right of access (Ley 25.326, art. 14; ADR 0029): the player and the
+    // guardian of a minor read their own record, with a current health consent.
+    read: {
+      ...nobody,
+      player: allow('self', 'health'),
+      parent: allow('guardian', 'health', 'minor'),
+      medical: assigned,
+    },
     record: { ...nobody, medical: allow('assigned', 'health') },
     update: { ...nobody, medical: allow('assigned', 'health') },
   },

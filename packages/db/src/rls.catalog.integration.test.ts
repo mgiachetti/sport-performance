@@ -219,6 +219,7 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
     );
     expect(rows.map((r) => r.fn)).toEqual([
       'app.accept_invitation',
+      'app.begin_support_access',
       'app.club_theme',
       'app.club_today',
       'app.current_role',

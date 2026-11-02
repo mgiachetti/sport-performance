@@ -443,8 +443,10 @@ describe.skipIf(!hasDatabase)('seeds (Postgres 16)', () => {
           await tx.execute(
             sql`select set_config(${TENANT_SETTING_NAMES.clubId}, '', true),
                        set_config(${TENANT_SETTING_NAMES.userId}, ${superadmin}, true),
-                       set_config(${TENANT_SETTING_NAMES.role}, 'superadmin', true)`,
+                       set_config(${TENANT_SETTING_NAMES.role}, 'superadmin', true),
+                       set_config(${TENANT_SETTING_NAMES.requestId}, 'req-club-creation', true)`,
           );
+          await tx.execute(sql`select app.begin_support_access('Alta de club')`);
           const [created] = await tx
             .insert(club)
             .values({ slug: 'via-app', name: 'Club creado por la API' })
