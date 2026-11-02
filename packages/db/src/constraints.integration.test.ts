@@ -618,6 +618,46 @@ describe.skipIf(!hasDatabase)('schema constraints (Postgres 16)', () => {
     expect(badCode.constraint).toBe('alert_rule_code_format');
   });
 
+  it('keeps one active first-team reference per key, with a clean source and line', async () => {
+    const reference = (extra: Partial<typeof referenceValue.$inferInsert> = {}) => ({
+      clubId: clubA,
+      metricDefinitionId: cmjHeightA,
+      sport: 'rugby' as const,
+      sex: 'male' as const,
+      value: 45,
+      unit: 'cm' as const,
+      validFrom: day('2030-02-01'),
+      source: 'Primera 2030',
+      ...extra,
+    });
+    const [first] = await t.db
+      .insert(referenceValue)
+      .values(reference())
+      .returning({ id: referenceValue.id });
+    const duplicate = await pgErrorOf(t.db.insert(referenceValue).values(reference()));
+    expect(duplicate).toEqual({ code: '23505', constraint: 'reference_value_active_key' });
+    // Another scope, another date or an archived row do not collide.
+    await t.db.insert(referenceValue).values(reference({ lineCode: 'forwards' }));
+    await t.db.insert(referenceValue).values(reference({ validFrom: day('2030-07-01') }));
+    await t.db
+      .update(referenceValue)
+      .set({ archivedAt: new Date() })
+      .where(eq(referenceValue.id, must(first).id));
+    await t.db.insert(referenceValue).values(reference());
+    const lineDuplicate = await pgErrorOf(
+      t.db.insert(referenceValue).values(reference({ lineCode: 'forwards' })),
+    );
+    expect(lineDuplicate.constraint).toBe('reference_value_active_key');
+    for (const [extra, constraint] of [
+      [{ source: ' Primera' }, 'reference_value_source_format'],
+      [{ source: '' }, 'reference_value_source_format'],
+      [{ lineCode: 'Forwards', validFrom: day('2031-01-01') }, 'reference_value_line_code_format'],
+    ] as const) {
+      const error = await pgErrorOf(t.db.insert(referenceValue).values(reference(extra)));
+      expect(error.constraint).toBe(constraint);
+    }
+  });
+
   it('rejects metric codes named after "PlayerLoad"', async () => {
     const error = await pgErrorOf(
       t.db.insert(metricDefinition).values({

@@ -109,6 +109,14 @@ describe('@sport-performance/contracts entry point', () => {
       'addTestResultEntries',
       'voidTestResultEntries',
       'listPlayerTestMetric',
+      'listReferenceValues',
+      'getReferenceValue',
+      'createReferenceValue',
+      'updateReferenceValue',
+      'archiveReferenceValue',
+      'restoreReferenceValue',
+      'importReferenceValues',
+      'getPlayerFirstTeamReferences',
     ]);
     expect(contracts.MEMBERSHIP_HEADER).toBe('x-membership-id');
     expect(contracts.SUPPORT_CLUB_HEADER).toBe('x-support-club-id');

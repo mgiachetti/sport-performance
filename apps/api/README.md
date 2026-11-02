@@ -51,6 +51,8 @@ Variables: [`.env.example`](.env.example). Se validan al arrancar; si falta o es
 | `POST /v1/test-sessions/{id}/results` | Carga por lote de la cancha de un día de test, todo o nada (ADR 0039). El día se programa y se corre (estado, condiciones, evaluador) con los endpoints del calendario. |
 | `GET`/`POST /v1/test-results`, `GET`/`PATCH /v1/test-results/{id}`, `POST …/{id}/entries`, `POST …/{id}/void` | Resultados con entradas crudas puntuadas por el dominio, reglas de etapa de la batería, `not_done` con motivo (`injured` se ve `unavailable` salvo para `medical`) y anulación con motivo. |
 | `GET /v1/players/{id}/test-metrics/{metricCode}` | Serie de una métrica del jugador con el aviso de métodos, versiones o equipos distintos. |
+| `GET`/`POST /v1/reference-values`, `GET`/`PATCH /v1/reference-values/{id}`, `POST …/{id}/archive`, `POST …/{id}/restore`, `POST /v1/reference-values/import` | Referencias de primera (el staff lee; `sc` y la administración cargan, corrigen e importan; ADR 0040). |
+| `GET /v1/players/{playerId}/first-team-references` | La referencia de primera que aplica al jugador por métrica (el propio jugador, el staff asignado, la administración). |
 
 ## Sesión y club
 

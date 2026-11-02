@@ -211,10 +211,15 @@ export const batteryConfig = pgTable(
   ],
 );
 
+/** Longest `reference_value.source` (the contract allows the same). */
+export const REFERENCE_SOURCE_MAX_LENGTH = 200;
+
 /**
  * First-team reference values (B-321, `FirstTeamReference` in the domain):
- * position-specific, line-specific or for the whole squad. References are
- * replaced (new `valid_from`), never edited.
+ * position-specific, line-specific or for the whole squad. A new period is a
+ * new row (new `valid_from`); a typo is corrected in place and a wrong row is
+ * archived (ADR 0040). At most one active reference per metric, sport, sex,
+ * scope and `valid_from`.
  */
 export const referenceValue = pgTable(
   'reference_value',
@@ -232,6 +237,7 @@ export const referenceValue = pgTable(
     validFrom: localDate('valid_from').notNull(),
     /** Where it comes from ("Catapult 2026 preseason"), shown in the tooltip. */
     source: text('source').notNull(),
+    archivedAt: timestamptz('archived_at'),
   },
   (t) => [
     ...tenantConstraints('reference_value', t),
@@ -241,6 +247,26 @@ export const referenceValue = pgTable(
     index('reference_value_lookup_idx').on(t.clubId, t.metricDefinitionId, t.sport, t.sex),
     check('reference_value_value_finite', finite(t.value)),
     check('reference_value_one_scope', sql`num_nonnulls(${t.positionId}, ${t.lineCode}) <= 1`),
+    check(
+      'reference_value_line_code_format',
+      sql`${t.lineCode} is null or ${t.lineCode} ~ '^[a-z][a-z0-9_]*$'`,
+    ),
+    check(
+      'reference_value_source_format',
+      sql`${t.source} = btrim(${t.source}) and ${t.source} <> '' and char_length(${t.source}) <= ${sql.raw(String(REFERENCE_SOURCE_MAX_LENGTH))}`,
+    ),
+    // One active reference per metric, sport, sex, scope and start date (ADR 0040).
+    uniqueIndex('reference_value_active_key')
+      .on(
+        t.clubId,
+        t.metricDefinitionId,
+        t.sport,
+        t.sex,
+        sql`coalesce(${t.positionId}, '00000000-0000-0000-0000-000000000000'::uuid)`,
+        sql`coalesce(${t.lineCode}, '')`,
+        t.validFrom,
+      )
+      .where(sql`${t.archivedAt} is null`),
   ],
 );
 

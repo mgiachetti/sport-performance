@@ -43,6 +43,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0037](0037-sesiones-participacion-y-rpe.md) | Sesiones, participación y RPE: ventana del jugador, carga masiva idempotente y sesiones archivables | Aceptado |
 | [0038](0038-bienestar-diario.md) | Bienestar diario: versión de ítems por etapa, ventana de carga y corrección por el jugador | Aceptado |
 | [0039](0039-tests-entradas-crudas-reglas-de-etapa-y-comparacion.md) | Tests: entradas crudas puntuadas en el servidor, reglas de etapa de la batería y aviso de comparación | Aceptado |
+| [0040](0040-referencias-de-primera.md) | Referencias de primera: carga, corrección, archivo, importación y vista del jugador | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 

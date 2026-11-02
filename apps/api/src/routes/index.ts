@@ -11,6 +11,7 @@ import { registerInvitationRoutes } from './invitations.js';
 import { registerMeRoutes } from './me.js';
 import { registerMemberRoutes } from './members.js';
 import { registerOpenApiRoute } from './openapi.js';
+import { registerReferenceValueRoutes } from './reference-values.js';
 import { registerSessionRoutes } from './sessions.js';
 import { registerStaffAssignmentRoutes } from './staff-assignments.js';
 import { registerPlayerRoutes } from './players.js';
@@ -127,6 +128,14 @@ export const IMPLEMENTED_ENDPOINTS = [
   'addTestResultEntries',
   'voidTestResultEntries',
   'listPlayerTestMetric',
+  'listReferenceValues',
+  'getReferenceValue',
+  'createReferenceValue',
+  'updateReferenceValue',
+  'archiveReferenceValue',
+  'restoreReferenceValue',
+  'importReferenceValues',
+  'getPlayerFirstTeamReferences',
 ] as const satisfies readonly (keyof ApiEndpoints)[];
 
 /** Declared in the contract but served by a later issue (`'#N (B-xxx): why'`). */
@@ -159,6 +168,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerWellnessRoutes(app);
   registerTestSessionResultRoutes(app);
   registerTestResultRoutes(app);
+  registerReferenceValueRoutes(app);
   if (options.auth !== undefined) {
     registerAuthRoutes(app, options.auth);
     registerMeRoutes(app, options.auth);
