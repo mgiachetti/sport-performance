@@ -105,6 +105,20 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
     read: staffRead,
     manage: administration,
   },
+  season: {
+    // The calendar frame is no personal data: every member of the club reads it.
+    read: {
+      player: club,
+      parent: club,
+      coach: club,
+      sc: club,
+      medical: club,
+      admin: club,
+      superadmin: club,
+    },
+    manage: administration,
+    plan_windows: { ...administration, sc: club },
+  },
   metric_catalog: {
     read: {
       player: club,

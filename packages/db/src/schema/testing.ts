@@ -51,7 +51,13 @@ export interface TestConditions {
   readonly notes?: string;
 }
 
-/** A testing window of a season (V1 February … V4 November), dates set by the club. */
+/**
+ * A testing window of a season (V1 February … V4 November), dates set by the
+ * club. Within its season, in order and without overlapping the other active
+ * windows (`testWindowProblems` of the domain in the API; the overlap also by
+ * the exclusion constraint `test_window_no_overlap`, migration `0013`).
+ * Archived instead of deleted.
+ */
 export const testWindow = pgTable(
   'test_window',
   {
@@ -61,6 +67,7 @@ export const testWindow = pgTable(
     number: smallint('number').notNull(),
     startsOn: localDate('starts_on').notNull(),
     endsOn: localDate('ends_on').notNull(),
+    archivedAt: timestamptz('archived_at'),
   },
   (t) => [
     ...tenantConstraints('test_window', t),
@@ -71,7 +78,11 @@ export const testWindow = pgTable(
   ],
 );
 
-/** A scheduled test day (offline capable, ADR 0015). */
+/**
+ * A scheduled test day (offline capable, ADR 0015). The API schedules it for
+ * one category (B-317; `category_id` stays nullable for historical imports)
+ * and, optionally, in a window of the same sport that contains its day.
+ */
 export const testSession = pgTable(
   'test_session',
   {

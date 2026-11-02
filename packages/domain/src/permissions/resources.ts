@@ -29,6 +29,12 @@ export const PERMISSION_RESOURCES = {
   staff_assignment: { target: 'club', medical: false, actions: ['read', 'manage'] },
   /** Categories of the club per sport (B-313). */
   category: { target: 'category', medical: false, actions: ['read', 'manage'] },
+  /**
+   * Seasons per sport and their testing windows V1–V4 (B-317): the club's
+   * calendar frame. `manage` creates and edits seasons; `plan_windows` sets
+   * the dates of the windows (S&C plans the battery around them).
+   */
+  season: { target: 'club', medical: false, actions: ['read', 'manage', 'plan_windows'] },
   /** Metric dictionary, test definitions and protocols (seeded, read-only). */
   metric_catalog: { target: 'club', medical: false, actions: ['read'] },
   /** Club configuration (B-322): batteries, speed zones, alert rules, first-team references. */
@@ -57,11 +63,11 @@ export const PERMISSION_RESOURCES = {
   wellness: { target: 'player', medical: false, actions: ['read', 'submit'] },
   /** Session RPE. */
   rpe: { target: 'player', medical: false, actions: ['read', 'submit'] },
-  /** Training sessions and matches, with their drills (B-318). */
+  /** Training sessions and matches, with their drills (B-318), and the fixture (B-317). */
   training_session: { target: 'category', medical: false, actions: ['read', 'manage'] },
   /** Participation of a player in a session: minutes, status, contacts. */
   participation: { target: 'player', medical: false, actions: ['read', 'record'] },
-  /** Scheduled test days. */
+  /** Scheduled test days (B-317), run with their results (B-320). */
   test_session: { target: 'category', medical: false, actions: ['read', 'manage'] },
   /** Test results and attempts. */
   test_result: { target: 'player', medical: false, actions: ['read', 'record', 'correct'] },

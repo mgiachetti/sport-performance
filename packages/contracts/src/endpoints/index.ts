@@ -1,6 +1,31 @@
 import type { EndpointCatalog } from '../endpoint.js';
 import { sendSignInCode, signOut, verifySignInCode } from './auth.js';
 import {
+  archiveFixture,
+  archiveSeason,
+  archiveTestWindow,
+  cancelTestSession,
+  createFixture,
+  createSeason,
+  createTestSession,
+  createTestWindow,
+  getCategoryCalendar,
+  getFixture,
+  getSeason,
+  getTestSession,
+  listFixtures,
+  listSeasons,
+  listTestSessions,
+  restoreFixture,
+  restoreSeason,
+  restoreTestSession,
+  restoreTestWindow,
+  updateFixture,
+  updateSeason,
+  updateTestSession,
+  updateTestWindow,
+} from './calendar.js';
+import {
   archiveCategory,
   createCategory,
   getCategory,
@@ -54,6 +79,7 @@ import {
 } from './players.js';
 
 export * from './auth.js';
+export * from './calendar.js';
 export * from './categories.js';
 export * from './club-theme.js';
 export * from './clubs.js';
@@ -122,6 +148,29 @@ export const apiEndpoints = {
   updatePlayerCategory,
   getPlayerParentHeights,
   setPlayerParentHeight,
+  listSeasons,
+  getSeason,
+  createSeason,
+  updateSeason,
+  archiveSeason,
+  restoreSeason,
+  createTestWindow,
+  updateTestWindow,
+  archiveTestWindow,
+  restoreTestWindow,
+  listTestSessions,
+  getTestSession,
+  createTestSession,
+  updateTestSession,
+  cancelTestSession,
+  restoreTestSession,
+  listFixtures,
+  getFixture,
+  createFixture,
+  updateFixture,
+  archiveFixture,
+  restoreFixture,
+  getCategoryCalendar,
 } as const satisfies EndpointCatalog;
 
 export type ApiEndpoints = typeof apiEndpoints;

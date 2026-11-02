@@ -68,6 +68,7 @@ export const API_TAGS = {
   members: 'Miembros del club, sus roles y las asignaciones del staff (qué ve cada uno).',
   players:
     'Jugadores y plantel: ficha, posiciones, alta y baja, categorías y altura de los padres.',
+  calendar: 'Calendario: temporadas, ventanas de tests V1 a V4, días de test y fixture.',
 } as const satisfies Record<string, string>;
 
 export type ApiTag = keyof typeof API_TAGS;

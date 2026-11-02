@@ -36,6 +36,9 @@ staff_assignment.read    -                     -               -               -
 staff_assignment.manage  -                     -               -               -               -                club        club
 category.read            -                     -               assigned        assigned        assigned         club        club
 category.manage          -                     -               -               -               -                club        club
+season.read              club                  club            club            club            club             club        club
+season.manage            -                     -               -               -               -                club        club
+season.plan_windows      -                     -               -               club            -                club        club
 metric_catalog.read      club                  club            club            club            club             club        club
 configuration.read       -                     -               club            club            club             club        club
 configuration.update     -                     -               -               club            -                club        club
@@ -631,7 +634,9 @@ describe('privacy invariants (independent of the specification)', () => {
   it('players and parents act only on their own or linked player', () => {
     for (const cell of allowedCells.filter((c) => c.role === 'player' || c.role === 'parent')) {
       const scope = cell.rule.effect === 'allow' ? cell.rule.scope : null;
-      const clubWide = cell.kind === 'club' || cell.kind === 'metric_catalog';
+      // Club-wide reference data without personal data: the club, its catalog and calendar frame.
+      const clubWide =
+        cell.kind === 'club' || cell.kind === 'metric_catalog' || cell.kind === 'season';
       expect(clubWide ? 'club' : scope, `${cell.kind}.${cell.action} × ${cell.role}`).toBe(
         clubWide ? 'club' : cell.role === 'player' ? 'self' : 'guardian',
       );

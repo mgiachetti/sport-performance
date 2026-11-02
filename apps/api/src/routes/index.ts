@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { revokeSessionsOfEndedMembership } from '../auth/member-sessions.js';
 import type { AuthModule } from '../auth/module.js';
 import { registerAuthRoutes } from './auth.js';
+import { registerCalendarRoutes } from './calendar/index.js';
 import { registerCategoryRoutes } from './categories.js';
 import { registerClubRoutes } from './clubs.js';
 import { registerHealthRoutes, type HealthOptions } from './health.js';
@@ -71,6 +72,29 @@ export const IMPLEMENTED_ENDPOINTS = [
   'updatePlayerCategory',
   'getPlayerParentHeights',
   'setPlayerParentHeight',
+  'listSeasons',
+  'getSeason',
+  'createSeason',
+  'updateSeason',
+  'archiveSeason',
+  'restoreSeason',
+  'createTestWindow',
+  'updateTestWindow',
+  'archiveTestWindow',
+  'restoreTestWindow',
+  'listTestSessions',
+  'getTestSession',
+  'createTestSession',
+  'updateTestSession',
+  'cancelTestSession',
+  'restoreTestSession',
+  'listFixtures',
+  'getFixture',
+  'createFixture',
+  'updateFixture',
+  'archiveFixture',
+  'restoreFixture',
+  'getCategoryCalendar',
 ] as const satisfies readonly (keyof ApiEndpoints)[];
 
 /** Declared in the contract but served by a later issue (`'#N (B-xxx): why'`). */
@@ -97,6 +121,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerCategoryRoutes(app);
   registerStaffAssignmentRoutes(app);
   registerPlayerRoutes(app);
+  registerCalendarRoutes(app);
   if (options.auth !== undefined) {
     registerAuthRoutes(app, options.auth);
     registerMeRoutes(app, options.auth);

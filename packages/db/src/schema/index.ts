@@ -23,6 +23,7 @@ export * from './players.js';
 export * from './catalog.js';
 export * from './testing.js';
 export * from './training.js';
+export * from './calendar.js';
 export * from './alerts.js';
 export * from './maturation.js';
 export * from './access.js';
