@@ -17,6 +17,7 @@ import {
   drill,
   externalMetric,
   fixture,
+  file,
   guardian,
   gymProgram,
   gymSet,
@@ -451,6 +452,20 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
     status: 'not_done',
     notDoneReason: 'absent',
   });
+  // A CMJ video of the assigned player (B-325): the object itself lives in the bucket.
+  rows.file = await id(
+    db
+      .insert(file)
+      .values({
+        ...base,
+        kind: 'cmj_video',
+        playerId: assigned,
+        contentType: 'video/mp4',
+        sizeBytes: 1024,
+        checksumSha256: '47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=',
+      })
+      .returning({ id: file.id }),
+  );
   rows.anthro_measurement = await id(
     db
       .insert(anthroMeasurement)

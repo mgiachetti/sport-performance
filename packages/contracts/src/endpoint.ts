@@ -79,6 +79,8 @@ export const API_TAGS = {
     'Tutores, sus hijos/as y el acceso de los jugadores/as menores (código o link del tutor).',
   consents:
     'Consentimientos (Ley 25.326): textos versionados, firma, revocación y estado por jugador.',
+  files:
+    'Archivos subidos al bucket con URLs firmadas: videos del CMJ, escudo, informes y planillas.',
 } as const satisfies Record<string, string>;
 
 export type ApiTag = keyof typeof API_TAGS;

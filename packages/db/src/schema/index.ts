@@ -29,3 +29,4 @@ export * from './maturation.js';
 export * from './access.js';
 export * from './medical.js';
 export * from './history.js';
+export * from './files.js';

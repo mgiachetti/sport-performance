@@ -47,6 +47,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0041](0041-configuracion-del-club.md) | Configuración del club: vigencia de la batería y las zonas, reglas de alerta editables y módulos activos | Aceptado |
 | [0042](0042-tutores-y-cuentas-de-menores.md) | Tutores y cuentas de menores: vínculo, invitación del hijo/a y código o link de un solo uso | Aceptado |
 | [0043](0043-consentimientos.md) | Consentimientos: textos versionados del club, firma del titular, revocación y `consent_required` | Aceptado |
+| [0044](0044-archivos-urls-firmadas-y-retencion.md) | Archivos: bucket S3 con URLs firmadas, tabla `file`, permisos por tipo y retención | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 

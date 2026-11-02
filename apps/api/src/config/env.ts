@@ -1,3 +1,10 @@
+import { FILE_UPLOAD_URL_MAX_TTL_S } from '@sport-performance/domain';
+import {
+  storageConfigOf,
+  storageEnvProblems,
+  storageEnvShape,
+  type S3StorageConfig,
+} from '@sport-performance/storage';
 import { z } from 'zod';
 import { databaseUrlProblems, secretProblems } from '../security/secrets.js';
 
@@ -37,7 +44,8 @@ const sentryShape = {
 /**
  * Environment variables of the API. Every variable is documented in
  * `apps/api/.env.example`. Secrets (`DATABASE_URL`, `AUTH_DATABASE_URL`, `SENTRY_DSN`,
- * `AUTH_SECRET`, `RESEND_API_KEY`) never appear in error messages or logs.
+ * `AUTH_SECRET`, `RESEND_API_KEY`, `STORAGE_SECRET_ACCESS_KEY`) never appear in error
+ * messages or logs.
  */
 export const envSchema = z
   .object({
@@ -111,8 +119,20 @@ export const envSchema = z
       .max(200)
       .regex(/^[^<>@\s]+@[^<>@\s]+$|^[^<>]*<[^<>@\s]+@[^<>@\s]+>$/)
       .optional(),
+
+    // Files (B-325, ADR 0044): the S3-compatible bucket and the life of the signed URLs.
+    ...storageEnvShape,
+    /** Life of a signed upload URL; a new one is asked with the same `clientUuid`. */
+    FILE_UPLOAD_URL_TTL_S: integer(60, FILE_UPLOAD_URL_MAX_TTL_S).default(900),
+    /** Life of a signed download URL: short, the files are personal. */
+    FILE_DOWNLOAD_URL_TTL_S: integer(30, 3600).default(300),
+    /** Life of the crest URL of the public theme; above the theme's cache (300 s). */
+    FILE_LOGO_URL_TTL_S: integer(600, 86_400).default(3600),
   })
   .superRefine((env, ctx) => {
+    for (const problem of storageEnvProblems(env, env.NODE_ENV === 'production')) {
+      ctx.addIssue({ code: 'custom', path: [problem.variable], message: problem.message });
+    }
     if (env.RESEND_API_KEY !== undefined && env.EMAIL_FROM === undefined) {
       ctx.addIssue({
         code: 'custom',
@@ -229,6 +249,15 @@ export interface ApiConfig {
   sentry: SentryConfig | null;
   auth: AuthConfig;
   email: EmailConfig;
+  files: FilesConfig;
+}
+
+export interface FilesConfig {
+  /** `null` outside production when the bucket is not configured: file endpoints answer `503`. */
+  storage: S3StorageConfig | null;
+  uploadUrlTtlS: number;
+  downloadUrlTtlS: number;
+  logoUrlTtlS: number;
 }
 
 export interface HttpServerConfig {
@@ -294,6 +323,15 @@ export function configSummary(config: ApiConfig) {
       poolMax: config.auth.database.poolMax,
     },
     email: { resend: config.email.resendApiKey !== null },
+    files: {
+      storage:
+        config.files.storage === null
+          ? null
+          : { endpoint: config.files.storage.endpoint, bucket: config.files.storage.bucket },
+      uploadUrlTtlS: config.files.uploadUrlTtlS,
+      downloadUrlTtlS: config.files.downloadUrlTtlS,
+      logoUrlTtlS: config.files.logoUrlTtlS,
+    },
     sentry: config.sentry !== null,
   };
 }
@@ -404,6 +442,12 @@ export function loadConfig(env: Env = process.env): ApiConfig {
     email: {
       resendApiKey: e.RESEND_API_KEY ?? null,
       from: e.EMAIL_FROM ?? 'Sport Performance <no-reply@localhost>',
+    },
+    files: {
+      storage: storageConfigOf(e),
+      uploadUrlTtlS: e.FILE_UPLOAD_URL_TTL_S,
+      downloadUrlTtlS: e.FILE_DOWNLOAD_URL_TTL_S,
+      logoUrlTtlS: e.FILE_LOGO_URL_TTL_S,
     },
   };
 }

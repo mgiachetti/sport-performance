@@ -91,6 +91,22 @@ jobs:
         run: echo "DATABASE_URL=postgres://postgres:postgres@localhost:${PG_PORT}/sport_performance_test" >>"$GITHUB_ENV"
       - name: Check Postgres connection
         run: psql "$DATABASE_URL" --no-psqlrc --tuples-only --command 'select version();'
+      # S3-compatible bucket for the file tests (B-325, ADR 0044). A step and not a service:
+      # MinIO needs its `server` command. `pgsty/minio` is the community build (the official
+      # image is no longer published), pinned by digest. Throwaway credentials, not a secret.
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio -p 9000 \
+            -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin123 \
+            pgsty/minio:RELEASE.2026-08-04T00-00-00Z@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372 \
+            server /data
+          port="$(docker port minio 9000/tcp | head -n 1 | sed 's/.*://')"
+          for _ in $(seq 1 30); do
+            if curl -fsS "http://localhost:${port}/minio/health/live" >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS "http://localhost:${port}/minio/health/live"
+          echo "STORAGE_TEST_URL=http://minioadmin:minioadmin123@localhost:${port}" >>"$GITHUB_ENV"
       - run: pnpm test
 
   build:

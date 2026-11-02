@@ -62,6 +62,7 @@ describe('loadConfig', () => {
         database: { url: AUTH_DATABASE_URL, poolMax: 5 },
       },
       email: { resendApiKey: null, from: 'Sport Performance <no-reply@localhost>' },
+      files: { storage: null, uploadUrlTtlS: 900, downloadUrlTtlS: 300, logoUrlTtlS: 3600 },
     });
   });
 
@@ -146,6 +147,10 @@ describe('auth and email configuration', () => {
     WEB_ORIGINS: 'https://app.sport.example.com, https://staff.sport.example.com/',
     AUTH_DATABASE_URL: strongDatabaseUrl('auth'),
     TRUST_PROXY_HOPS: '1',
+    STORAGE_ENDPOINT: 'https://storage.railway.app',
+    STORAGE_BUCKET: 'sport-performance-files',
+    STORAGE_ACCESS_KEY_ID: 'tid_placeholder',
+    STORAGE_SECRET_ACCESS_KEY: strongSecret(),
   };
 
   it('logs a summary of the configuration without any secret', () => {
@@ -163,6 +168,8 @@ describe('auth and email configuration', () => {
       production.DATABASE_URL,
       production.AUTH_DATABASE_URL,
       new URL(production.DATABASE_URL).password,
+      production.STORAGE_SECRET_ACCESS_KEY,
+      production.STORAGE_ACCESS_KEY_ID,
       'o1.ingest.sentry.io',
     ]) {
       expect(raw).not.toContain(secret);
@@ -388,5 +395,84 @@ describe('Sentry configuration', () => {
       configError({ DATABASE_URL, AUTH_DATABASE_URL, AUTH_SECRET, SENTRY_DSN: 'not a url' })
         .variables,
     ).toEqual(['SENTRY_DSN']);
+  });
+});
+
+describe('files configuration', () => {
+  const base = { DATABASE_URL, AUTH_DATABASE_URL, AUTH_SECRET };
+
+  it('reads the bucket and the life of the signed URLs', () => {
+    const config = loadConfig({
+      ...base,
+      STORAGE_ENDPOINT: 'http://localhost:9000',
+      STORAGE_BUCKET: 'files',
+      STORAGE_ACCESS_KEY_ID: 'minioadmin',
+      STORAGE_SECRET_ACCESS_KEY: 'minioadmin123',
+      STORAGE_FORCE_PATH_STYLE: 'true',
+      FILE_DOWNLOAD_URL_TTL_S: '60',
+    });
+    expect(config.files).toEqual({
+      storage: {
+        endpoint: 'http://localhost:9000',
+        region: 'auto',
+        bucket: 'files',
+        accessKeyId: 'minioadmin',
+        secretAccessKey: 'minioadmin123',
+        forcePathStyle: true,
+      },
+      uploadUrlTtlS: 900,
+      downloadUrlTtlS: 60,
+      logoUrlTtlS: 3600,
+    });
+    expect(configSummary(config).files).toEqual({
+      storage: { endpoint: 'http://localhost:9000', bucket: 'files' },
+      uploadUrlTtlS: 900,
+      downloadUrlTtlS: 60,
+      logoUrlTtlS: 3600,
+    });
+  });
+
+  it('asks for the whole bucket once one variable is set, without printing values', () => {
+    const error = configError({
+      ...base,
+      STORAGE_SECRET_ACCESS_KEY: 'a-secret-that-must-not-leak',
+    });
+    expect([...error.variables].sort()).toEqual([
+      'STORAGE_ACCESS_KEY_ID',
+      'STORAGE_BUCKET',
+      'STORAGE_ENDPOINT',
+    ]);
+    expect(error.message).not.toContain('a-secret-that-must-not-leak');
+  });
+
+  it('requires the bucket over https in production', () => {
+    const production = {
+      ...base,
+      DATABASE_URL: strongDatabaseUrl('api'),
+      AUTH_DATABASE_URL: strongDatabaseUrl('auth'),
+      AUTH_SECRET: strongSecret(),
+      NODE_ENV: 'production',
+      RESEND_API_KEY: RESEND_KEY_PLACEHOLDER,
+      EMAIL_FROM: 'Sport Performance <no-reply@sport.example.com>',
+      AUTH_BASE_URL: 'https://api.sport.example.com',
+      WEB_APP_URL: 'https://app.sport.example.com',
+      TRUST_PROXY_HOPS: '1',
+    };
+    expect([...configError(production).variables].sort()).toEqual([
+      'STORAGE_ACCESS_KEY_ID',
+      'STORAGE_BUCKET',
+      'STORAGE_ENDPOINT',
+      'STORAGE_SECRET_ACCESS_KEY',
+    ]);
+    const insecure = configError({
+      ...production,
+      STORAGE_ENDPOINT: 'http://bucket.internal:9000',
+      STORAGE_BUCKET: 'files',
+      STORAGE_ACCESS_KEY_ID: 'tid_placeholder',
+      STORAGE_SECRET_ACCESS_KEY: strongSecret(),
+    });
+    expect(insecure.variables).toEqual(['STORAGE_ENDPOINT']);
+    expect(insecure.message).toContain('STORAGE_ENDPOINT: invalid (must be https in production)');
+    expect(() => loadConfig({ ...base, FILE_UPLOAD_URL_TTL_S: '30' })).toThrow(ConfigError);
   });
 });

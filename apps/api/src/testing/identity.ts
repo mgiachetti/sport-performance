@@ -85,6 +85,7 @@ export async function startIdentityApp(
     now?: () => Date;
     register?: BuildAppOptions['register'];
     routeClassLimits?: BuildAppOptions['routeClassLimits'];
+    files?: BuildAppOptions['files'];
   } = {},
 ): Promise<IdentityTestApp> {
   const pgOptions = { poolMax: 4, connectTimeoutMs: 15_000, statementTimeoutMs: 15_000 };
@@ -124,6 +125,7 @@ export async function startIdentityApp(
     auth,
     ...(options.register !== undefined && { register: options.register }),
     ...(options.routeClassLimits !== undefined && { routeClassLimits: options.routeClassLimits }),
+    ...(options.files !== undefined && { files: options.files }),
   });
   return {
     app,

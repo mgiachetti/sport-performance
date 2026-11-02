@@ -738,6 +738,7 @@ describe.skipIf(!hasDatabase)('RLS by role (Postgres 16)', () => {
       expect(Object.keys(must(rows[0])).sort()).toEqual(
         [
           'id',
+          'logo_content_type',
           'logo_file_id',
           'name',
           'primary_color',

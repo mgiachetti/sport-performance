@@ -9,6 +9,14 @@ export const clubSlugSchema = slugSchema.meta({
   examples: ['orc'],
 });
 
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+/** HTTPS, or plain HTTP to a local bucket (MinIO in development and tests). */
+function isSecureOrLoopback(value: string): boolean {
+  const url = new URL(value);
+  return url.protocol === 'https:' || LOOPBACK_HOSTS.has(url.hostname);
+}
+
 /** Brand colors a club overrides; `packages/ui-tokens` derives the full palette from them. */
 export const clubBrandColorsSchema = z
   .object({
@@ -47,9 +55,13 @@ export const clubThemeSchema = z
       .max(16)
       .meta({ description: 'Sigla para espacios chicos.', examples: ['ORC'] }),
     logoUrl: z
-      .url({ protocol: /^https$/ })
+      .url({ protocol: /^https?$/ })
+      .refine(isSecureOrLoopback, { message: 'The logo URL must be https' })
       .nullable()
-      .meta({ description: 'Escudo (HTTPS, SVG o PNG); `null` si el club no cargó uno.' }),
+      .meta({
+        description:
+          'Escudo (PNG o WebP): URL firmada del bucket, HTTPS (HTTP solo contra `localhost` en desarrollo), válida al menos una hora. `null` si el club no cargó uno.',
+      }),
     colors: clubBrandColorsSchema,
     updatedAt: dateTimeSchema.meta({
       description: 'Última modificación; sirve para invalidar el tema cacheado.',

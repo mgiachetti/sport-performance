@@ -13,6 +13,7 @@ import {
   type DatabaseRoleKind,
 } from '@sport-performance/db';
 import { createApiPool, databaseFromPool, type Database } from './db/database.js';
+import { createFilesModule } from './files/module.js';
 import { createMailer } from './email/mailer.js';
 import { ResendEmailTransport } from './email/resend.js';
 import { LogEmailTransport, type EmailTransport } from './email/transport.js';
@@ -122,7 +123,17 @@ async function main(): Promise<void> {
     },
   };
 
-  const app = await buildApp({ config, db, logger, errorReporter: reporter, auth });
+  // The bucket of uploaded files (B-325); required in production (validated with the env).
+  const files = createFilesModule(config.files);
+  if (files === undefined) logger.warn('file storage is not configured: file endpoints answer 503');
+  const app = await buildApp({
+    config,
+    db,
+    logger,
+    errorReporter: reporter,
+    auth,
+    ...(files !== undefined && { files }),
+  });
   const shutdown = createShutdown({
     app,
     db: databases,
