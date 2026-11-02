@@ -14,6 +14,12 @@ export const ERROR_STATUS = {
   validation_failed: 400,
   unauthenticated: 401,
   forbidden: 403,
+  /**
+   * The player has no current consent of a type the operation needs (B-312,
+   * ADR 0043): `details` lists the missing types (`path: ['consents', type]`)
+   * so the UI can ask the holder to sign.
+   */
+  consent_required: 403,
   not_found: 404,
   conflict: 409,
   payload_too_large: 413,
@@ -73,10 +79,10 @@ export const errorBodySchema = z
       .min(1)
       .optional()
       .meta({ description: 'Id del request, para cruzar con logs y Sentry.' }),
-    details: z
-      .array(validationIssueSchema)
-      .optional()
-      .meta({ description: 'Problemas por campo cuando `code` es `validation_failed`.' }),
+    details: z.array(validationIssueSchema).optional().meta({
+      description:
+        'Problemas por campo cuando `code` es `validation_failed`; los consentimientos que faltan (`["consents", tipo]`) cuando es `consent_required`.',
+    }),
   })
   .meta({ id: 'ErrorBody' });
 

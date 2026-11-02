@@ -11,6 +11,7 @@ import { registerBatteryRoutes } from './configuration-battery.js';
 import { registerModuleRoutes } from './configuration-modules.js';
 import { registerSpeedZoneRoutes } from './configuration-speed-zones.js';
 import { registerGuardianRoutes } from './guardians.js';
+import { registerConsentRoutes } from './consents.js';
 import { registerHealthRoutes, type HealthOptions } from './health.js';
 import { registerInvitationRoutes } from './invitations.js';
 import { registerMeRoutes } from './me.js';
@@ -171,6 +172,13 @@ export const IMPLEMENTED_ENDPOINTS = [
   'listPlayerAccessCodes',
   'revokePlayerAccessCode',
   'redeemPlayerAccess',
+  'listConsentDocuments',
+  'getConsentDocument',
+  'publishConsentDocument',
+  'getPlayerConsents',
+  'listPlayerConsentHistory',
+  'signConsent',
+  'revokeConsent',
 ] as const satisfies readonly (keyof ApiEndpoints)[];
 
 /** Declared in the contract but served by a later issue (`'#N (B-xxx): why'`). */
@@ -208,6 +216,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerSpeedZoneRoutes(app);
   registerAlertRuleRoutes(app);
   registerModuleRoutes(app);
+  registerConsentRoutes(app);
   if (options.auth !== undefined) {
     registerAuthRoutes(app, options.auth);
     registerMeRoutes(app, options.auth);

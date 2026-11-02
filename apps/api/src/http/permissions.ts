@@ -107,7 +107,7 @@ export async function loadPermissionSubject(
 }
 
 /** "Today" in the club's time zone (CLAUDE.md), from the database's clock. */
-async function clubToday(db: TenantDatabase) {
+export async function clubToday(db: TenantDatabase) {
   const { rows } = await db.execute<{ today: string | null }>(
     sql`select app.club_today()::text as today`,
   );

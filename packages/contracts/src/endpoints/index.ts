@@ -82,6 +82,15 @@ import {
   revokePlayerAccessCode,
   updateGuardian,
 } from './guardians.js';
+import {
+  getConsentDocument,
+  getPlayerConsents,
+  listConsentDocuments,
+  listPlayerConsentHistory,
+  publishConsentDocument,
+  revokeConsent,
+  signConsent,
+} from './consents.js';
 import { getHealth } from './health.js';
 import {
   acceptInvitation,
@@ -169,6 +178,7 @@ export * from './configuration-common.js';
 export * from './configuration-modules.js';
 export * from './configuration-speed-zones.js';
 export * from './guardians.js';
+export * from './consents.js';
 export * from './health.js';
 export * from './invitations.js';
 export * from './me.js';
@@ -326,6 +336,13 @@ export const apiEndpoints = {
   listPlayerAccessCodes,
   revokePlayerAccessCode,
   redeemPlayerAccess,
+  listConsentDocuments,
+  getConsentDocument,
+  publishConsentDocument,
+  getPlayerConsents,
+  listPlayerConsentHistory,
+  signConsent,
+  revokeConsent,
 } as const satisfies EndpointCatalog;
 
 export type ApiEndpoints = typeof apiEndpoints;

@@ -58,6 +58,8 @@ Variables: [`.env.example`](.env.example). Se validan al arrancar; si falta o es
 | `POST /v1/players/{id}/invitations` | El tutor de un menor (o la administración) invita al jugador/a por email. |
 | `POST`/`GET /v1/players/{id}/access-codes`, `DELETE …/{codeId}` | Código y link de un solo uso (15 min) para el dispositivo de un jugador/a sin email. |
 | `POST /v1/auth/player-access` | Público: canjea el código o el link y abre la sesión mobile del jugador/a (ADR 0042). |
+| `GET /v1/consent-documents`, `GET …/{id}`, `POST /v1/consent-documents` | Textos de consentimiento versionados del club (lectura: todo miembro; publicar: la administración). |
+| `GET /v1/players/{id}/consents`, `GET …/consents/history`, `POST …/consents`, `POST …/consents/{type}/revoke` | Estado, historial, firma y revocación de los consentimientos de un jugador (firma y revoca el titular: tutor de un menor o jugador mayor). Sin consentimiento vigente, las rutas que guardan datos responden `403 consent_required` (`requireConsent`, ADR 0043). |
 
 ## Sesión y club
 

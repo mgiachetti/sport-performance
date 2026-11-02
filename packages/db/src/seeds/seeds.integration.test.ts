@@ -1,6 +1,7 @@
 import {
   CANONICAL_METRIC_CODES,
   CANONICAL_TEST_CODES,
+  CONSENT_TYPES,
   DEFAULT_AGE_BANDS,
   DEFAULT_ALERT_RULES,
   DEFAULT_SPEED_ZONE_SETS,
@@ -18,6 +19,7 @@ import {
   batteryConfig,
   category,
   club,
+  consentDocument,
   khamisRocheCoefficient,
   khamisRocheTable,
   metricDefinition,
@@ -38,6 +40,7 @@ import {
 } from '../testing/database.js';
 import {
   BootstrapClubError,
+  DEFAULT_CONSENT_DOCUMENT_VERSION,
   ORC_TENANT,
   bootstrapClub,
   loadKhamisRocheTable,
@@ -59,6 +62,7 @@ const SEEDED_TABLES = [
   'speed_zone_config',
   'khamis_roche_table',
   'khamis_roche_coefficient',
+  'consent_document',
 ] as const;
 
 describe.skipIf(!hasDatabase)('seeds (Postgres 16)', () => {
@@ -243,6 +247,22 @@ describe.skipIf(!hasDatabase)('seeds (Postgres 16)', () => {
     expect(firstReport.alertRules).toBe(DEFAULT_ALERT_RULES.length);
     expect(firstReport.categories).toBe(DEFAULT_AGE_BANDS.length * 2);
     expect(firstReport.khamisRocheTables).toBe(1);
+    expect(firstReport.consentDocuments).toBe(CONSENT_TYPES.length);
+  });
+
+  it('publishes one es-AR consent text per type, naming the club', async () => {
+    const documents = await t.db
+      .select()
+      .from(consentDocument)
+      .where(eq(consentDocument.clubId, orc))
+      .orderBy(consentDocument.type);
+    expect(documents.map((d) => [d.type, d.version, d.locale])).toEqual(
+      CONSENT_TYPES.map((type) => [type, DEFAULT_CONSENT_DOCUMENT_VERSION, 'es-AR']),
+    );
+    for (const document of documents) {
+      expect(document.body).toContain(ORC_TENANT.name);
+      expect(document.bodySha256).toMatch(/^[0-9a-f]{64}$/);
+    }
   });
 
   it('is a no-op when run again, sequentially and concurrently', async () => {

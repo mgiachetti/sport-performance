@@ -4,7 +4,7 @@ import {
   type ErrorCode,
   type ValidationIssue,
 } from '@sport-performance/contracts';
-import { PermissionDeniedError } from '@sport-performance/domain';
+import { PermissionDeniedError, type ConsentType } from '@sport-performance/domain';
 import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
 import { SupportAccessError } from '../db/tenant-context.js';
 import type { ErrorReporter } from '../observability/error-reporter.js';
@@ -35,6 +35,18 @@ export class HttpError extends Error {
     this.details = options.details;
     this.headers = options.headers ?? {};
   }
+}
+
+/**
+ * `details` of a `consent_required` error (B-312, ADR 0043): one entry per
+ * missing consent type, so the UI can ask the holder to sign it.
+ */
+export function consentRequiredDetails(types: readonly ConsentType[]): ValidationIssue[] {
+  return types.map((type) => ({
+    path: ['consents', type],
+    code: 'consent_required',
+    message: `The player has no current ${type} consent`,
+  }));
 }
 
 const GENERIC_MESSAGES: Partial<Record<ErrorCode, string>> = {
@@ -146,6 +158,17 @@ export function classifyError(error: unknown): {
       details: error.details,
       headers: error.headers,
       unexpected,
+    };
+  }
+  if (error instanceof PermissionDeniedError && error.reason === 'missing_consent') {
+    // Only reached once the caller is in scope for the player (the evaluator checks the
+    // scope first): the missing consent is what the holder has to sign (ADR 0043).
+    return {
+      code: 'consent_required',
+      message: 'The player has no current consent of a type this needs',
+      details: consentRequiredDetails(error.missingConsents),
+      headers: {},
+      unexpected: false,
     };
   }
   if (error instanceof PermissionDeniedError) {

@@ -169,15 +169,30 @@ describe.skipIf(!hasDatabase)('RLS by role (Postgres 16)', () => {
       expect(await pgCode(run(context, wellnessFor(a.players.assigned, '2026-03-13')))).toBe(
         '42501',
       );
-      const sign = (signedBy: string, playerId: string) => (client: pg.ClientBase) =>
-        client.query(
-          `insert into consent (club_id, player_id, type, document_version, signer_kind, signed_by)
-           values ($1, $2, 'image', '2026-01', 'guardian', $3)`,
-          [a.clubId, playerId, signedBy],
-        );
+      const document = await t.pool.query<{ id: string }>(
+        `insert into consent_document (club_id, type, version, title, body)
+         values ($1, 'image', '2026-01', 'Imagen', 'Texto del consentimiento de imagen.')
+         returning id`,
+        [a.clubId],
+      );
+      const documentId = document.rows[0]?.id;
+      const sign =
+        (signedBy: string, playerId: string, signerKind = 'guardian') =>
+        (client: pg.ClientBase) =>
+          client.query(
+            `insert into consent (club_id, player_id, type, document_version, document_id, signer_kind, signed_by)
+             values ($1, $2, 'image', '2026-01', $3, $4, $5)`,
+            [a.clubId, playerId, documentId, signerKind, signedBy],
+          );
       await run(context, sign(a.users.parent, a.players.assigned));
       expect(await pgCode(run(context, sign(a.users.admin, a.players.assigned)))).toBe('42501');
       expect(await pgCode(run(context, sign(a.users.parent, a.players.other)))).toBe('42501');
+      // A guardian signs as a guardian (B-312).
+      expect(await pgCode(run(context, sign(a.users.parent, a.players.assigned, 'player')))).toBe(
+        '42501',
+      );
+      // The administration reads consents but never signs one (matrix: consent.sign).
+      expect(await pgCode(run(as('admin'), sign(a.users.admin, a.players.assigned)))).toBe('42501');
     });
 
     it('coach: the players of their assigned categories only', async () => {

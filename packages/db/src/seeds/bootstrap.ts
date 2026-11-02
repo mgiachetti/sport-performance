@@ -26,8 +26,10 @@ import {
 } from '../schema/catalog.js';
 import { khamisRocheCoefficient, khamisRocheTable } from '../schema/maturation.js';
 import { category, clubBranch, position } from '../schema/organization.js';
+import { consentDocument } from '../schema/players.js';
 import { club } from '../schema/tenant.js';
 import { batterySeeds } from './battery.js';
+import { consentDocumentSeeds } from './consent-documents.js';
 import type { SeedExecutor } from './executor.js';
 import {
   SEEDED_KHAMIS_ROCHE_TABLES,
@@ -95,6 +97,7 @@ export interface BootstrapClubReport {
   readonly speedZoneConfigs: number;
   readonly khamisRocheTables: number;
   readonly khamisRocheCoefficients: number;
+  readonly consentDocuments: number;
 }
 
 /** Long before any club's first imported season. */
@@ -176,7 +179,10 @@ export async function bootstrapClub(
     await tx.execute(
       sql`select pg_advisory_xact_lock(${BOOTSTRAP_LOCK_NAMESPACE}, hashtext(${clubId}))`,
     );
-    const [existing] = await tx.select({ id: club.id }).from(club).where(eq(club.id, clubId));
+    const [existing] = await tx
+      .select({ id: club.id, name: club.name })
+      .from(club)
+      .where(eq(club.id, clubId));
     if (existing === undefined) throw new BootstrapClubError(`Club ${clubId} does not exist.`);
 
     // Branches (sport + sex) the categories hang from. An archived branch stays archived.
@@ -406,6 +412,30 @@ export async function bootstrapClub(
       khamisRocheCoefficients += rows.length;
     }
 
+    // Consent texts (B-312): one per type the club has no text of yet. Published texts are
+    // immutable; the club publishes new versions, these are never rewritten.
+    const existingConsentTypes = new Set(
+      (
+        await tx
+          .select({ type: consentDocument.type })
+          .from(consentDocument)
+          .where(eq(consentDocument.clubId, clubId))
+      ).map((d) => d.type),
+    );
+    const consentRows = consentDocumentSeeds(existing.name)
+      .filter((d) => !existingConsentTypes.has(d.type))
+      .map((d) => ({ ...d, clubId }));
+    const consentDocuments =
+      consentRows.length === 0
+        ? []
+        : await tx
+            .insert(consentDocument)
+            .values(consentRows)
+            .onConflictDoNothing({
+              target: [consentDocument.clubId, consentDocument.type, consentDocument.version],
+            })
+            .returning({ id: consentDocument.id });
+
     return {
       branches: insertedBranches.length,
       metricDefinitions: metrics.length,
@@ -418,6 +448,7 @@ export async function bootstrapClub(
       speedZoneConfigs: zoneRows.length,
       khamisRocheTables,
       khamisRocheCoefficients,
+      consentDocuments: consentDocuments.length,
     };
   });
 }

@@ -291,13 +291,23 @@ export {
 export {
   AGE_OF_MAJORITY_YEARS,
   CONSENT_SIGNERS,
+  CONSENT_STATES,
   CONSENT_TYPES,
+  consentSignerOfRole,
+  consentStates,
+  currentConsentTypes,
   isConsentSigner,
   isConsentType,
+  isCurrentConsent,
   parseConsentSigner,
   parseConsentType,
+  requiredConsentSigner,
+  type ConsentRecord,
   type ConsentSigner,
+  type ConsentState,
   type ConsentType,
+  type ConsentTypeState,
+  type CurrentConsentDocument,
 } from './consent.js';
 // Guardians and accounts of minors without email (B-310).
 export {
