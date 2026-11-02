@@ -235,7 +235,9 @@ export const medicalConcussionStage = medicalSchema.table(
  * A medical block: what the player may do, for training and for matches,
  * over `[valid_from, valid_to)`. `staff_note` is the only text the rest of
  * the staff sees ("sin contacto"), written by the medical staff without a
- * diagnosis. Lifting closes `valid_to` and records who and when.
+ * diagnosis. Lifting closes `valid_to` and records who and when; a block no
+ * longer counts from the club day it was lifted on (`medical.availability`),
+ * so one recorded today and lifted today does not block today.
  */
 export const medicalHold = medicalSchema.table(
   'hold',

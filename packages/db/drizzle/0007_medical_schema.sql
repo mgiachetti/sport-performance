@@ -554,7 +554,10 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  SELECT * INTO parent FROM "medical"."concussion" c WHERE c.club_id = NEW.club_id AND c.id = NEW.concussion_id;
+  -- Lock the concussion: stage inserts and the clearance (an UPDATE, which holds the same
+  -- row lock) of one concussion run one at a time, so their checks see each other's rows.
+  SELECT * INTO parent FROM "medical"."concussion" c
+   WHERE c.club_id = NEW.club_id AND c.id = NEW.concussion_id FOR UPDATE;
   IF parent.cleared_on IS NOT NULL THEN
     RAISE EXCEPTION 'The concussion is cleared: no more GRTP stages'
       USING ERRCODE = 'check_violation', CONSTRAINT = 'concussion_stage_after_clearance', TABLE = 'concussion_stage';
@@ -563,6 +566,7 @@ BEGIN
     RAISE EXCEPTION 'A GRTP stage cannot start before the concussion'
       USING ERRCODE = 'check_violation', CONSTRAINT = 'concussion_stage_after_concussion', TABLE = 'concussion_stage';
   END IF;
+  -- Last closed stage by end (stages never overlap: same as the latest by start).
   SELECT * INTO last_closed FROM "medical"."concussion_stage" s
    WHERE s.club_id = NEW.club_id AND s.concussion_id = NEW.concussion_id AND s.outcome <> 'in_progress'
    ORDER BY s.ended_on DESC, s.created_at DESC, s.stage DESC LIMIT 1;
@@ -605,6 +609,9 @@ BEGIN
     END IF;
   END IF;
   IF NEW.cleared_on IS NOT NULL AND (TG_OP = 'INSERT' OR OLD.cleared_on IS NULL) THEN
+    -- An UPDATE already holds the row lock; take it explicitly too (no-op then), so a
+    -- concurrent stage insert (which locks the concussion FOR UPDATE) waits or is seen.
+    PERFORM 1 FROM "medical"."concussion" c WHERE c.club_id = NEW.club_id AND c.id = NEW.id FOR UPDATE;
     SELECT * INTO last_closed FROM "medical"."concussion_stage" s
      WHERE s.club_id = NEW.club_id AND s.concussion_id = NEW.id AND s.outcome <> 'in_progress'
      ORDER BY s.ended_on DESC, s.created_at DESC, s.stage DESC LIMIT 1;
@@ -833,7 +840,8 @@ CREATE TYPE "medical"."player_availability" AS (
 --> statement-breakpoint
 
 -- Availability of the players the context may see on a club day (default: today), for
--- training and for matches, and the worst of both. The worst of the blocks in force and of
+-- training and for matches, and the worst of both. The worst of the blocks in force (in
+-- their validity and not lifted on or before that day) and of
 -- every concussion not cleared that day (CONCUSSION_GRTP_STAGES of the domain: never a
 -- match; training unavailable without a stage, at stage 1 or after symptoms, limited from
 -- stage 2). `staff_notes` are the blocks' notes for the staff. No diagnosis, no cause.
@@ -845,6 +853,7 @@ DECLARE
   scope uuid[] := "medical"."readable_players"('availability', player_ids);
   club uuid := "app"."current_club_id"();
   club_day date := coalesce(on_date, "app"."club_today"());
+  club_zone text := (SELECT c.time_zone FROM "public"."club" c WHERE c.id = club);
   result "medical"."player_availability"[];
 BEGIN
   WITH holds AS (
@@ -853,6 +862,9 @@ BEGIN
       FROM "medical"."hold" h
      WHERE h.club_id = club AND h.player_id = ANY (scope)
        AND h.valid_from <= club_day AND (h.valid_to IS NULL OR h.valid_to > club_day)
+       -- Lifted on or before that club day: no longer in force, whatever `valid_to` says
+       -- (a block recorded today can only be lifted to `valid_to` = tomorrow).
+       AND (h.lifted_at IS NULL OR (h.lifted_at AT TIME ZONE club_zone)::date > club_day)
      GROUP BY h.player_id
   ), concussions AS (
     SELECT c.player_id AS pid,
@@ -862,6 +874,8 @@ BEGIN
       LEFT JOIN LATERAL (
         SELECT s.stage, s.outcome FROM "medical"."concussion_stage" s
          WHERE s.club_id = c.club_id AND s.concussion_id = c.id AND s.started_on <= club_day
+         -- The latest stage by start. The guards pick the last closed one by end instead:
+         -- stages never overlap (each starts on or after the previous end), so both orders agree.
          ORDER BY s.started_on DESC, s.created_at DESC LIMIT 1
       ) ls ON true
      WHERE c.club_id = club AND c.player_id = ANY (scope)

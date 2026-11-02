@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { CONCUSSION_GRTP_STAGES, MEDICAL_ACCESS_ACTIONS } from '@sport-performance/domain';
+import {
+  AGE_OF_MAJORITY_YEARS,
+  CONCUSSION_GRTP_STAGES,
+  MEDICAL_ACCESS_ACTIONS,
+} from '@sport-performance/domain';
 import type pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DATABASE_ROLES } from './roles.js';
@@ -331,6 +335,13 @@ describe.skipIf(!hasDatabase)('medical schema and audit (Postgres 16)', () => {
         `select enum_range(null::medical.access_action)::text[] as labels`,
       );
       expect(rows[0]?.labels).toEqual([...MEDICAL_ACCESS_ACTIONS]);
+    });
+
+    it('a minor is under the age of majority of the domain', async () => {
+      const { rows } = await t.pool.query<{ src: string }>(
+        `select prosrc as src from pg_proc where oid = 'medical.is_minor(uuid)'::regprocedure`,
+      );
+      expect(rows[0]?.src).toContain(`interval '${String(AGE_OF_MAJORITY_YEARS)} years'`);
     });
   });
 
@@ -905,6 +916,39 @@ describe.skipIf(!hasDatabase)('medical schema and audit (Postgres 16)', () => {
       for (const definition of CONCUSSION_GRTP_STAGES.slice(0, 5)) {
         expect(definition.match).toBe('unavailable');
       }
+    });
+
+    it('a block lifted on the day it starts no longer blocks that day', async () => {
+      const { rows } = await t.pool.query<{ today: string; tomorrow: string }>(
+        `select d::text as today, (d + 1)::text as tomorrow
+           from (select (now() at time zone time_zone)::date as d from club where id = $1) x`,
+        [b.clubId],
+      );
+      const { today, tomorrow } = must(rows[0]);
+      const statusToday = async () =>
+        must(
+          (await availability(as(b, 'coach'), today)).find(
+            (r) => r.player_id === b.players.assigned,
+          ),
+        );
+      const hold = await recordHold(b, b.players.assigned, {
+        training: 'unavailable',
+        match: 'unavailable',
+        from: today,
+      });
+      expect(await statusToday()).toMatchObject({ overall: 'unavailable' });
+      // valid_to must be after valid_from: the earliest is tomorrow.
+      await run(as(b, 'medical'), (client) =>
+        client.query(
+          `update medical.hold set valid_to = $2, lifted_at = now(), lifted_by = $3 where id = $1`,
+          [hold, tomorrow, b.users.medical],
+        ),
+      );
+      expect(await statusToday()).toMatchObject({
+        training: 'available',
+        match: 'available',
+        overall: 'available',
+      });
     });
 
     it('the stages of a concussion belong to its player', async () => {
