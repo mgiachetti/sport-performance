@@ -216,3 +216,16 @@ export {
   type ReferenceComparisonInput,
   type ReferenceScope,
 } from './percentiles/references.js';
+// Consents (B-312) and the permission matrix (B-303).
+export {
+  AGE_OF_MAJORITY_YEARS,
+  CONSENT_SIGNERS,
+  CONSENT_TYPES,
+  isConsentSigner,
+  isConsentType,
+  parseConsentSigner,
+  parseConsentType,
+  type ConsentSigner,
+  type ConsentType,
+} from './consent.js';
+export * from './permissions/index.js';

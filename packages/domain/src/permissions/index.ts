@@ -1,0 +1,63 @@
+// Permission matrix (B-303, ADR 0025).
+export {
+  PERMISSION_RESOURCES,
+  RESOURCE_KINDS,
+  actionsOf,
+  isActionOf,
+  isResourceKind,
+  type ActionOf,
+  type PermissionAction,
+  type ResourceKind,
+  type ResourceTarget,
+} from './resources.js';
+export {
+  PERMISSION_SCOPES,
+  PLAYER_CONDITIONS,
+  allow,
+  deny,
+  describeRule,
+  isPermissionScope,
+  isPlayerCondition,
+  ruleRequirements,
+  type AllowRule,
+  type DenyRule,
+  type PermissionRule,
+  type PermissionScope,
+  type PlayerCondition,
+  type RuleRequirement,
+} from './rules.js';
+export {
+  PERMISSION_MATRIX,
+  permissionCells,
+  ruleFor,
+  type PermissionCell,
+  type PermissionMatrix,
+  type RoleRules,
+} from './matrix.js';
+export {
+  currentAssignments,
+  currentGuardianships,
+  isCurrentOn,
+  isOfAge,
+  type AssignmentTarget,
+  type CategoryFacts,
+  type Guardianship,
+  type PermissionResource,
+  type PermissionSubject,
+  type PlayerFacts,
+  type ValidityWindow,
+} from './subject.js';
+export {
+  DENIAL_REASONS,
+  PERMISSION_OBLIGATIONS,
+  PermissionDeniedError,
+  authorize,
+  can,
+  decide,
+  listScope,
+  permittedActions,
+  type DenialReason,
+  type ListScope,
+  type PermissionDecision,
+  type PermissionObligation,
+} from './evaluate.js';

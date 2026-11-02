@@ -108,6 +108,7 @@ Códigos canónicos: `dist_m`, `dist_m_min`, `hsr_abs_m` (> 5,5 m/s por defecto 
 | Usuarios | Usuario global con membresías por club (rol por club); selector de club si tiene más de una | [0007](docs/adr/0007-usuarios-globales-membresias.md) |
 | Salud | Esquema `medical` separado, políticas propias, log de auditoría de cada lectura/escritura | [0008](docs/adr/0008-esquema-medical.md) |
 | API | Fastify + `zod`. Contratos en `packages/contracts` (OpenAPI generado, cliente tipado). Transacción por request con contexto de tenant, sobre de error único, probes `/health/live` y `/health/ready` | [0009](docs/adr/0009-api-fastify-zod.md), [0020](docs/adr/0020-convenciones-contratos-api.md), [0023](docs/adr/0024-estructura-de-la-api.md) |
+| Permisos | Matriz declarativa recurso × acción × rol en `packages/domain` (alcance por club, asignación, jugador propio o tutelado; condiciones de etapa, consentimiento y mayoría de edad), evaluada igual en API, web y mobile; la RLS sigue como última barrera | [0025](docs/adr/0025-matriz-de-permisos.md) |
 | Auth | Better Auth montado en la API: OTP por email; tablas en nuestra base. Email con Resend + React Email | [0010](docs/adr/0010-auth-better-auth.md) |
 | Jobs | `apps/worker` con pg-boss (cola sobre Postgres, sin Redis) | [0011](docs/adr/0011-jobs-pg-boss.md) |
 | Web staff | React + Vite + TanStack Router + TanStack Query; gráficos SVG propios | [0012](docs/adr/0012-web-staff-react-vite-tanstack.md) |
