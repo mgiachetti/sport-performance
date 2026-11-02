@@ -29,6 +29,7 @@ import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runMigrations } from './migrate.js';
 import { createEmptyDatabase, hasDatabase, type TestDatabase } from './testing/database.js';
+import { FULL_MIGRATION_TIMEOUT_MS } from './testing/temporary-database.js';
 
 const GLOBAL_TABLES = [
   'user',
@@ -64,21 +65,26 @@ describe.skipIf(!hasDatabase)('migrations (Postgres 16)', () => {
     expect(Number(row?.server_version_num)).toBeGreaterThanOrEqual(160000);
   });
 
-  it('applies every migration on an empty database, concurrently and only once', async () => {
-    const reports = await Promise.all([
-      runMigrations({ connectionString: database.connectionString }),
-      runMigrations({ connectionString: database.connectionString }),
-      runMigrations({ connectionString: database.connectionString }),
-    ]);
-    const total = reports[0].total;
-    expect(total).toBeGreaterThanOrEqual(2);
-    expect(reports.every((r) => r.total === total)).toBe(true);
-    // Exactly one runner applied the migrations; the others waited on the lock.
-    expect(reports.map((r) => r.applied).sort()).toEqual([0, 0, total]);
+  // A full run of every migration: minutes on a loaded runner (issue #147).
+  it(
+    'applies every migration on an empty database, concurrently and only once',
+    { timeout: FULL_MIGRATION_TIMEOUT_MS },
+    async () => {
+      const reports = await Promise.all([
+        runMigrations({ connectionString: database.connectionString }),
+        runMigrations({ connectionString: database.connectionString }),
+        runMigrations({ connectionString: database.connectionString }),
+      ]);
+      const total = reports[0].total;
+      expect(total).toBeGreaterThanOrEqual(2);
+      expect(reports.every((r) => r.total === total)).toBe(true);
+      // Exactly one runner applied the migrations; the others waited on the lock.
+      expect(reports.map((r) => r.applied).sort()).toEqual([0, 0, total]);
 
-    const again = await runMigrations({ connectionString: database.connectionString });
-    expect(again).toEqual({ applied: 0, total, unknown: 0 });
-  });
+      const again = await runMigrations({ connectionString: database.connectionString });
+      expect(again).toEqual({ applied: 0, total, unknown: 0 });
+    },
+  );
 
   it('gives every club table club_id, audit columns and a per-club client_uuid', async () => {
     const tables = await rows<{ table_name: string }>(

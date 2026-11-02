@@ -38,6 +38,14 @@ import { provisionLoginRole, type DatabaseRoleKind } from '../roles.js';
 /** Postgres `admin_shutdown`: the server terminated the backend (`WITH (FORCE)`, `pg_terminate_backend`). */
 export const ADMIN_SHUTDOWN_CODE = '57P01';
 
+/**
+ * Timeout of a test or hook that runs every migration on a fresh database:
+ * ~7 s on an idle server, but minutes when every package tests at once on a
+ * loaded runner. The first hook of a run builds the template, so it is also
+ * the hook timeout of the integration suites (`vitest.config.ts`).
+ */
+export const FULL_MIGRATION_TIMEOUT_MS = 300_000;
+
 /** How long `drop()` waits for a pool to end and its sockets to close before reporting a leak. */
 export const POOL_CLOSE_TIMEOUT_MS = 15_000;
 

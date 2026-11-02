@@ -123,8 +123,7 @@ describeWithPostgres('RLS through the API data layer (Postgres)', (url) => {
         });
       },
     }));
-    // Creating the database and running every migration takes a few seconds.
-  }, 120_000);
+  });
 
   afterAll(async () => {
     await app.close();

@@ -133,8 +133,8 @@ describeWithPostgres('clubs, branches and categories (Postgres)', (serverUrl) =>
     coachA = await signIn(t, 'coach@club-a.example.com');
     playerA = await signIn(t, 'player@club-a.example.com');
     parentA = await signIn(t, 'parent@club-a.example.com');
-    // Migrating a database and six sign-ins: slow when CI runs every package at once.
-  }, 60_000);
+    // Slow when every package tests at once: the hook timeout of vitest.config.ts applies.
+  });
 
   afterAll(async () => {
     await t.close();

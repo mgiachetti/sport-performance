@@ -13,7 +13,8 @@ export default mergeConfig(
   defineConfig({
     test: {
       testTimeout: 120_000,
-      hookTimeout: 120_000,
+      // FULL_MIGRATION_TIMEOUT_MS: the first hook of a run may build the migrated template.
+      hookTimeout: 300_000,
     },
   }),
 );

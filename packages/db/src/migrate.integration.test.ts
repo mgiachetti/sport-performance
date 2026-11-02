@@ -8,7 +8,14 @@ import {
   migrationsConnectionString,
   runMigrations,
 } from './migrate.js';
-import { createEmptyDatabase, hasDatabase, must, type TestDatabase } from './testing/database.js';
+import {
+  createEmptyDatabase,
+  createMigratedDatabase,
+  hasDatabase,
+  must,
+  type TestDatabase,
+} from './testing/database.js';
+import { FULL_MIGRATION_TIMEOUT_MS } from './testing/temporary-database.js';
 
 interface Journal {
   entries: { idx: number; when: number; tag: string }[];
@@ -72,8 +79,18 @@ describe.skipIf(!hasDatabase)('runMigrations safety (Postgres 16)', () => {
     await rm(folder, { recursive: true, force: true });
   });
 
+  /**
+   * Switches to a copy of the migrated template: the state a full run of
+   * `folder` (a copy of the migrations) leaves, same hashes and timestamps,
+   * without paying for a full run under load (issue #147).
+   */
+  async function startMigrated(): Promise<void> {
+    await database.drop();
+    database = await createMigratedDatabase();
+  }
+
   it('refuses to run after an applied migration was edited', async () => {
-    await runMigrations({ connectionString: database.connectionString, migrationsFolder: folder });
+    await startMigrated();
     const { entries } = await readJournal(folder);
     await appendFile(
       join(folder, `${must(entries[0]).tag}.sql`),
@@ -84,44 +101,52 @@ describe.skipIf(!hasDatabase)('runMigrations safety (Postgres 16)', () => {
     ).rejects.toBeInstanceOf(MigrationOrderError);
   });
 
-  it('refuses to skip a migration merged out of order', async () => {
-    const journal = await readJournal(folder);
-    const last = must(journal.entries.at(-1));
-    // Apply everything except the last migration, then add one dated before it.
-    const withoutLast = { ...journal, entries: journal.entries.slice(0, -1) };
-    await writeFile(join(folder, 'meta', '_journal.json'), JSON.stringify(withoutLast));
-    await writeFile(join(folder, '9999_newer.sql'), 'select 1;');
-    const newer = {
-      idx: last.idx,
-      when: last.when + 1000,
-      tag: '9999_newer',
-      version: '7',
-      breakpoints: true,
-    };
-    await writeFile(
-      join(folder, 'meta', '_journal.json'),
-      JSON.stringify({ ...journal, entries: [...withoutLast.entries, newer] }),
-    );
-    await runMigrations({ connectionString: database.connectionString, migrationsFolder: folder });
+  // A full run of every migration: minutes on a loaded runner (issue #147).
+  it(
+    'refuses to skip a migration merged out of order',
+    { timeout: FULL_MIGRATION_TIMEOUT_MS },
+    async () => {
+      const journal = await readJournal(folder);
+      const last = must(journal.entries.at(-1));
+      // Apply everything except the last migration, then add one dated before it.
+      const withoutLast = { ...journal, entries: journal.entries.slice(0, -1) };
+      await writeFile(join(folder, 'meta', '_journal.json'), JSON.stringify(withoutLast));
+      await writeFile(join(folder, '9999_newer.sql'), 'select 1;');
+      const newer = {
+        idx: last.idx,
+        when: last.when + 1000,
+        tag: '9999_newer',
+        version: '7',
+        breakpoints: true,
+      };
+      await writeFile(
+        join(folder, 'meta', '_journal.json'),
+        JSON.stringify({ ...journal, entries: [...withoutLast.entries, newer] }),
+      );
+      await runMigrations({
+        connectionString: database.connectionString,
+        migrationsFolder: folder,
+      });
 
-    // The "other branch" migration is older than the applied 9999_newer.
-    await writeFile(
-      join(folder, 'meta', '_journal.json'),
-      JSON.stringify({
-        ...journal,
-        entries: [...withoutLast.entries, last, { ...newer, idx: last.idx + 1 }],
-      }),
-    );
-    const error: unknown = await runMigrations({
-      connectionString: database.connectionString,
-      migrationsFolder: folder,
-    }).catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(MigrationOrderError);
-    expect((error as MigrationOrderError).migrations).toEqual([last.when]);
-  });
+      // The "other branch" migration is older than the applied 9999_newer.
+      await writeFile(
+        join(folder, 'meta', '_journal.json'),
+        JSON.stringify({
+          ...journal,
+          entries: [...withoutLast.entries, last, { ...newer, idx: last.idx + 1 }],
+        }),
+      );
+      const error: unknown = await runMigrations({
+        connectionString: database.connectionString,
+        migrationsFolder: folder,
+      }).catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(MigrationOrderError);
+      expect((error as MigrationOrderError).migrations).toEqual([last.when]);
+    },
+  );
 
   it('reports applied migrations the code does not know', async () => {
-    await runMigrations({ connectionString: database.connectionString, migrationsFolder: folder });
+    await startMigrated();
     const journal = await readJournal(folder);
     await writeFile(
       join(folder, 'meta', '_journal.json'),
@@ -137,6 +162,7 @@ describe.skipIf(!hasDatabase)('runMigrations safety (Postgres 16)', () => {
   it('reports the original error when the connection drops mid-run', async () => {
     // The migration kills its own backend: the unlock in `finally` then fails
     // too, and must not replace the error of the migration itself.
+    await startMigrated();
     const journal = await readJournal(folder);
     const last = must(journal.entries.at(-1));
     await writeFile(
