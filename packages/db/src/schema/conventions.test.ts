@@ -36,7 +36,7 @@ const tenantTables = allTables
 const tenantTableNames = new Set(tenantTables.map(qualified));
 
 describe('schema conventions', () => {
-  it('defines the B-301 model, the B-306 reference tables, the B-309 access tables, the B-305 history and the B-315 roster tables', () => {
+  it('defines the B-301 model, the B-306 reference tables, the B-309 access tables, the B-305 history, the B-315 roster and the B-316 season change tables', () => {
     const names = tables.map((t) => t.name).sort();
     expect(names).toEqual(
       [
@@ -81,6 +81,8 @@ describe('schema conventions', () => {
         'reference_value',
         'roster_import',
         'season',
+        'season_rollover',
+        'season_rollover_item',
         'session',
         'speed_zone_config',
         'staff_assignment',

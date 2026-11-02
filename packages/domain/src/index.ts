@@ -43,6 +43,30 @@ export {
   type AgeBand,
   type DefaultAgeBandCode,
 } from './category.js';
+export {
+  SEASON_ROLLOVER_DECISIONS,
+  SEASON_ROLLOVER_OUTCOMES,
+  SEASON_ROLLOVER_PROPOSALS,
+  SEASON_ROLLOVER_STATUSES,
+  isSeasonRolloverDecision,
+  isSeasonRolloverOutcome,
+  isSeasonRolloverProposal,
+  isSeasonRolloverStatus,
+  parseSeasonRolloverDecision,
+  parseSeasonRolloverOutcome,
+  parseSeasonRolloverProposal,
+  parseSeasonRolloverStatus,
+  proposeSeasonRollover,
+  seasonRolloverYear,
+  type RolloverCategory,
+  type RolloverPlayer,
+  type RolloverProposalItem,
+  type SeasonRolloverDecision,
+  type SeasonRolloverInput,
+  type SeasonRolloverOutcome,
+  type SeasonRolloverProposal,
+  type SeasonRolloverStatus,
+} from './season-rollover.js';
 export { maximalLoadTestsAllowed, strengthAssessmentFor } from './stage-rules.js';
 export {
   MEMBERSHIP_ROLES,

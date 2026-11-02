@@ -28,6 +28,7 @@ import { registerRosterImportRoutes } from './roster-imports.js';
 import { registerSessionRoutes } from './sessions.js';
 import { registerStaffAssignmentRoutes } from './staff-assignments.js';
 import { registerPlayerRoutes } from './players.js';
+import { registerSeasonRolloverRoutes } from './season-rollovers.js';
 import { registerParticipationRoutes } from './participations.js';
 import { registerTrainingSessionRoutes } from './training-sessions.js';
 import { registerWellnessRoutes } from './wellness.js';
@@ -90,6 +91,13 @@ export const IMPLEMENTED_ENDPOINTS = [
   'listPlayerCategories',
   'addPlayerCategory',
   'updatePlayerCategory',
+  'createSeasonRollover',
+  'listSeasonRollovers',
+  'getSeasonRollover',
+  'listSeasonRolloverItems',
+  'updateSeasonRolloverItem',
+  'applySeasonRollover',
+  'cancelSeasonRollover',
   'getPlayerParentHeights',
   'setPlayerParentHeight',
   'listSeasons',
@@ -228,6 +236,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerCategoryRoutes(app);
   registerStaffAssignmentRoutes(app);
   registerPlayerRoutes(app);
+  registerSeasonRolloverRoutes(app);
   registerCalendarRoutes(app);
   registerTrainingSessionRoutes(app);
   registerParticipationRoutes(app);

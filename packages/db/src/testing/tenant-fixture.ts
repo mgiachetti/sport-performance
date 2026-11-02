@@ -41,6 +41,8 @@ import {
   referenceValue,
   rosterImport,
   season,
+  seasonRollover,
+  seasonRolloverItem,
   speedZoneConfig,
   staffAssignment,
   testDefinition,
@@ -235,6 +237,29 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
   await db
     .insert(playerCategory)
     .values({ ...base, playerId: other, categoryId: m17, validFrom: FROM });
+  // A season change under review (B-316): the assigned player stays in M15.
+  rows.season_rollover = await id(
+    db
+      .insert(seasonRollover)
+      .values({ ...base, seasonId: rows.season, effectiveOn: day('2026-01-01'), seasonYear: 2026 })
+      .returning({ id: seasonRollover.id }),
+  );
+  rows.season_rollover_item = await id(
+    db
+      .insert(seasonRolloverItem)
+      .values({
+        ...base,
+        rolloverId: rows.season_rollover,
+        playerId: assigned,
+        ageInSeasonYear: 15,
+        ageBandCode: 'm15',
+        proposal: 'already_there',
+        proposedCategoryId: m15,
+        needsReview: false,
+        decision: 'stay',
+      })
+      .returning({ id: seasonRolloverItem.id }),
+  );
   rows.player_position = await id(
     db
       .insert(playerPosition)

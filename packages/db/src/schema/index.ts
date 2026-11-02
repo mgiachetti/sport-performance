@@ -20,6 +20,7 @@ export {
 } from './tenant.js';
 export * from './organization.js';
 export * from './players.js';
+export * from './season-rollover.js';
 export * from './catalog.js';
 export * from './testing.js';
 export * from './training.js';
