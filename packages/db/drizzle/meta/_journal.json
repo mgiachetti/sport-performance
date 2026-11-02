@@ -99,6 +99,13 @@
       "when": 1793628962184,
       "tag": "0013_calendar",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793629436731,
+      "tag": "0014_training_session_archive",
+      "breakpoints": true
     }
   ]
 }

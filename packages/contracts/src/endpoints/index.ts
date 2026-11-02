@@ -77,6 +77,22 @@ import {
   updatePlayer,
   updatePlayerCategory,
 } from './players.js';
+import {
+  archiveTrainingSession,
+  createDrill,
+  createTrainingSession,
+  deleteDrill,
+  getTrainingSession,
+  listMyTrainingSessions,
+  listParticipations,
+  listTrainingSessions,
+  recordParticipations,
+  restoreTrainingSession,
+  submitSessionRpe,
+  updateDrill,
+  updateParticipation,
+  updateTrainingSession,
+} from './training.js';
 
 export * from './auth.js';
 export * from './calendar.js';
@@ -90,6 +106,7 @@ export * from './sessions.js';
 export * from './members.js';
 export * from './staff-assignments.js';
 export * from './players.js';
+export * from './training.js';
 
 /**
  * Every endpoint of the API, keyed by operationId. The API registers its
@@ -171,6 +188,20 @@ export const apiEndpoints = {
   archiveFixture,
   restoreFixture,
   getCategoryCalendar,
+  listTrainingSessions,
+  getTrainingSession,
+  createTrainingSession,
+  updateTrainingSession,
+  archiveTrainingSession,
+  restoreTrainingSession,
+  createDrill,
+  updateDrill,
+  deleteDrill,
+  recordParticipations,
+  updateParticipation,
+  listParticipations,
+  submitSessionRpe,
+  listMyTrainingSessions,
 } as const satisfies EndpointCatalog;
 
 export type ApiEndpoints = typeof apiEndpoints;

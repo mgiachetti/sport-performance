@@ -8,6 +8,7 @@ import {
   DEVICE_BROWSERS,
   DEVICE_OPERATING_SYSTEMS,
   DOMINANT_SIDES,
+  CONTACT_LEVELS,
   EXPOSURE_CONTEXTS,
   HEIGHT_SOURCES,
   FIXTURE_STATUSES,
@@ -18,6 +19,7 @@ import {
   SESSION_CLIENT_TYPES,
   PARENTS,
   PLAYER_LEAVE_REASONS,
+  PARTICIPATION_STATUSES,
   SEXES,
   SPEED_ZONE_KINDS,
   SPORTS,
@@ -107,6 +109,15 @@ export const fixtureVenueEnum = pgEnum('fixture_venue', FIXTURE_VENUES);
 /** State of a match of the fixture (B-317). */
 export const fixtureStatusEnum = pgEnum('fixture_status', FIXTURE_STATUSES);
 
+/** Contact level of a drill (B-318), for contact load and return-to-play planning. */
+export const contactLevelEnum = pgEnum('contact_level', CONTACT_LEVELS);
+
+/**
+ * Participation of a player in a session (B-318). `unavailable` is what the
+ * coach sees for a medically blocked player: never the cause (ADR 0008).
+ */
+export const participationStatusEnum = pgEnum('participation_status', PARTICIPATION_STATUSES);
+
 /** `UNIT_CODES` is derived from the `UNITS` record, hence the tuple cast. */
 export const unitEnum = pgEnum('unit', UNIT_CODES as unknown as readonly [UnitCode, ...UnitCode[]]);
 
@@ -136,17 +147,6 @@ export const playerLeaveReasonEnum = pgEnum('player_leave_reason', PLAYER_LEAVE_
 /** Relationship of a guardian with the player (B-310). */
 export const GUARDIAN_RELATIONSHIPS = ['mother', 'father', 'legal_guardian', 'other'] as const;
 export const guardianRelationshipEnum = pgEnum('guardian_relationship', GUARDIAN_RELATIONSHIPS);
-
-/** Contact level of a drill (B-318), for contact load and return-to-play planning. */
-export const CONTACT_LEVELS = ['none', 'controlled', 'full'] as const;
-export const contactLevelEnum = pgEnum('contact_level', CONTACT_LEVELS);
-
-/**
- * Participation of a player in a session (B-318). `unavailable` is what the
- * coach sees for a medically blocked player: never the cause (ADR 0008).
- */
-export const PARTICIPATION_STATUSES = ['full', 'partial', 'absent', 'unavailable'] as const;
-export const participationStatusEnum = pgEnum('participation_status', PARTICIPATION_STATUSES);
 
 /** Shared hardware (Phase 2) and the player pod (Phase 3). */
 export const DEVICE_KINDS = [

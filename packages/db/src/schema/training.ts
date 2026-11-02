@@ -41,7 +41,11 @@ import {
  * `*_daily` tables (B-326), not stored here.
  */
 
-/** A training session or a match (`kind`, which drives exposure hours, B-210). */
+/**
+ * A training session or a match (`kind`, which drives exposure hours, B-210).
+ * The API requires a category; `NULL` is kept for rows of imports or of the
+ * worker that span a whole sport.
+ */
 export const trainingSession = pgTable(
   'training_session',
   {
@@ -58,6 +62,12 @@ export const trainingSession = pgTable(
     /** Matches only. */
     opponent: text('opponent'),
     notes: text('notes'),
+    /**
+     * Cancelled or entered by mistake (ADR 0032: archive, never delete). An
+     * archived session keeps its participation for the history but takes no
+     * new drills, participation or RPE.
+     */
+    archivedAt: timestamptz('archived_at'),
   },
   (t) => [
     ...tenantConstraints('training_session', t),

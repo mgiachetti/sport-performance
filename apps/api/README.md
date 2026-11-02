@@ -44,6 +44,10 @@ Variables: [`.env.example`](.env.example). Se validan al arrancar; si falta o es
 | `GET /v1/categories`, `POST /v1/categories`, `GET`/`PATCH /v1/categories/{id}`, `POST …/{id}/archive`, `POST …/{id}/restore` | Categorías (el staff ve sus asignadas; la administración edita). |
 | `GET`/`POST /v1/players`, `GET`/`PATCH /v1/players/{id}`, `POST …/{id}/archive` (baja), `POST …/{id}/restore`, `GET`/`POST …/{id}/categories`, `PATCH …/{id}/categories/{membershipId}`, `GET …/{id}/parent-heights`, `PUT …/{id}/parent-heights/{parent}` | Plantel (B-315, ADR 0035): ficha, posiciones, alta y baja, pases de categoría y altura de los padres con origen. |
 | `GET /v1/positions` | Posiciones por deporte (todo miembro). |
+| `GET /v1/training-sessions`, `POST /v1/training-sessions`, `GET`/`PATCH /v1/training-sessions/{id}`, `POST …/{id}/archive`, `POST …/{id}/restore` | Sesiones y partidos con sus bloques (el staff ve sus asignadas; el `coach` y la administración las manejan). |
+| `POST /v1/training-sessions/{id}/drills`, `PATCH`/`DELETE /v1/drills/{id}` | Bloques con nivel de contacto. |
+| `POST /v1/training-sessions/{id}/participations/batch`, `PATCH /v1/participations/{id}`, `GET /v1/participations` | Participación: carga masiva idempotente por fila, correcciones con `changeReason`, listas por alcance. |
+| `POST /v1/training-sessions/{id}/rpe`, `GET /v1/me/training-sessions` | RPE del jugador dentro de su ventana y sus sesiones pendientes ([ADR 0037](../../docs/adr/0037-sesiones-participacion-y-rpe.md)). |
 
 ## Sesión y club
 
