@@ -12,7 +12,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { user } from './auth.js';
-import { codeCheck, validityCheck } from './checks.js';
+import { codeCheck } from './checks.js';
 import { localDate, timestamptz } from './columns.js';
 import { membershipRoleEnum, sexEnum, sportEnum, stageEnum } from './enums.js';
 import { tenantColumns, tenantConstraints, tenantReference } from './tenant.js';
@@ -158,7 +158,9 @@ export const position = pgTable(
 
 /**
  * What each staff member sees (B-314): a coach or S&C to categories, a
- * medical staff member to a whole sport. Exactly one target per row.
+ * medical staff member to a whole sport. Exactly one target per row. The
+ * application ends an assignment (`valid_to`) instead of deleting it, and
+ * never lets two of a membership to the same target overlap (ADR 0034).
  */
 export const staffAssignment = pgTable(
   'staff_assignment',
@@ -182,6 +184,11 @@ export const staffAssignment = pgTable(
       .on(t.clubId, t.membershipId, t.categoryId)
       .where(sql`${t.validTo} is null`),
     check('staff_assignment_one_target', sql`num_nonnulls(${t.categoryId}, ${t.sport}) = 1`),
-    validityCheck('staff_assignment_validity', t.validFrom, t.validTo),
+    /**
+     * Unlike other validity ranges, an empty one (`valid_to = valid_from`) is
+     * allowed: an assignment ended before it started is cancelled, never in
+     * force, and its row stays (ADR 0034).
+     */
+    check('staff_assignment_validity', sql`${t.validTo} is null or ${t.validTo} >= ${t.validFrom}`),
   ],
 );

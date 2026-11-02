@@ -70,6 +70,7 @@ Convenciones (ADR 0023): `club_id NOT NULL` y auditoría (`created_at`, `updated
 
 - Cada login real es miembro de **un solo** rol y se crea con `db:provision-login`; la contraseña nunca va al repo. La API verifica su login al arrancar.
 - `app.current_role()` solo devuelve el rol si hay una membresía activa que lo respalde (o `is_superadmin` para `superadmin`). Sin contexto, todo se deniega.
+- Asignaciones del staff (B-314, migración `0011_staff_assignment_ending`, [ADR 0034](../../docs/adr/0034-asignaciones-del-staff-y-membresias.md)): se terminan con `valid_to`, nunca se borran; una que no empezó queda con rango vacío (`valid_to = valid_from`, cancelada), lo único que `staff_assignment_validity` permite y el resto de las vigencias no.
 - Las ramas del club (`club_branch`: deporte y sexo, migración `0009_clubs_branches_and_brand`, ADR 0032) son la raíz de las categorías: `category (club_id, sport, sex)` referencia a su rama por la clave natural. La marca del club está en columnas tipadas (`short_name`, `locale`, `primary_color`, `secondary_color`, `logo_file_id`); el slug solo lo cambia un superadmin (trigger `club_slug_guard`).
 - Toda tabla con `club_id` tiene RLS forzada, una política `RESTRICTIVE` por club y políticas por rol, creadas con `app_admin.secure_club_table()`. Una tabla nueva la llama en su migración y suma una fila al fixture `src/testing/tenant-fixture.ts`; si no, los tests de RLS fallan.
 - `DELETE` solo en `drill`; `test_result_value` es append-only también por grants.

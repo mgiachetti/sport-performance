@@ -51,6 +51,18 @@ export {
   type MembershipRole,
 } from './roles.js';
 export {
+  STAFF_ASSIGNMENT_ROLES,
+  STAFF_ASSIGNMENT_STATUSES,
+  endedValidTo,
+  isEmptyValidity,
+  isStaffAssignmentRole,
+  staffAssignmentStatus,
+  validitiesOverlap,
+  type AssignmentValidity,
+  type StaffAssignmentRole,
+  type StaffAssignmentStatus,
+} from './staff-assignment.js';
+export {
   TEST_NOT_DONE_REASONS,
   TEST_RESULT_STATUSES,
   isTestNotDoneReason,

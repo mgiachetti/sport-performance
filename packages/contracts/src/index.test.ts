@@ -38,6 +38,16 @@ describe('@sport-performance/contracts entry point', () => {
       'archiveCategory',
       'restoreCategory',
       'listPositions',
+      'listMembers',
+      'getMember',
+      'changeMemberRole',
+      'endMember',
+      'listStaffAssignments',
+      'listMyStaffAssignments',
+      'getStaffAssignment',
+      'createStaffAssignment',
+      'updateStaffAssignment',
+      'endStaffAssignment',
     ]);
     expect(contracts.MEMBERSHIP_HEADER).toBe('x-membership-id');
     expect(contracts.SUPPORT_CLUB_HEADER).toBe('x-support-club-id');

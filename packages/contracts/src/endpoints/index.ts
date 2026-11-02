@@ -30,6 +30,15 @@ import {
 } from './invitations.js';
 import { getMe, listMyMemberships } from './me.js';
 import { listMySessions, revokeMyOtherSessions, revokeMySession } from './sessions.js';
+import { changeMemberRole, endMember, getMember, listMembers } from './members.js';
+import {
+  createStaffAssignment,
+  endStaffAssignment,
+  getStaffAssignment,
+  listMyStaffAssignments,
+  listStaffAssignments,
+  updateStaffAssignment,
+} from './staff-assignments.js';
 
 export * from './auth.js';
 export * from './categories.js';
@@ -39,6 +48,8 @@ export * from './health.js';
 export * from './invitations.js';
 export * from './me.js';
 export * from './sessions.js';
+export * from './members.js';
+export * from './staff-assignments.js';
 
 /**
  * Every endpoint of the API, keyed by operationId. The API registers its
@@ -76,6 +87,16 @@ export const apiEndpoints = {
   archiveCategory,
   restoreCategory,
   listPositions,
+  listMembers,
+  getMember,
+  changeMemberRole,
+  endMember,
+  listStaffAssignments,
+  listMyStaffAssignments,
+  getStaffAssignment,
+  createStaffAssignment,
+  updateStaffAssignment,
+  endStaffAssignment,
 } as const satisfies EndpointCatalog;
 
 export type ApiEndpoints = typeof apiEndpoints;
