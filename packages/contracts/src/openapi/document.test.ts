@@ -41,7 +41,8 @@ function danglingRefs(document: OpenApiDocument): string[] {
 describe('buildOpenApiDocument (API catalog)', () => {
   const document = buildOpenApiDocument();
 
-  it('is a valid OpenAPI 3.1 document', async () => {
+  // Validating the whole catalog takes seconds, more when every package tests at once.
+  it('is a valid OpenAPI 3.1 document', { timeout: 30_000 }, async () => {
     await expectValidOpenApi(document);
     expect(danglingRefs(document)).toEqual([]);
   });

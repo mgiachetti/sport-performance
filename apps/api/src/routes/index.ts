@@ -14,6 +14,8 @@ import { registerOpenApiRoute } from './openapi.js';
 import { registerSessionRoutes } from './sessions.js';
 import { registerStaffAssignmentRoutes } from './staff-assignments.js';
 import { registerPlayerRoutes } from './players.js';
+import { registerParticipationRoutes } from './participations.js';
+import { registerTrainingSessionRoutes } from './training-sessions.js';
 
 /**
  * Endpoints of the contract the API serves, by operationId. Adding an
@@ -95,6 +97,20 @@ export const IMPLEMENTED_ENDPOINTS = [
   'archiveFixture',
   'restoreFixture',
   'getCategoryCalendar',
+  'listTrainingSessions',
+  'getTrainingSession',
+  'createTrainingSession',
+  'updateTrainingSession',
+  'archiveTrainingSession',
+  'restoreTrainingSession',
+  'createDrill',
+  'updateDrill',
+  'deleteDrill',
+  'recordParticipations',
+  'updateParticipation',
+  'listParticipations',
+  'submitSessionRpe',
+  'listMyTrainingSessions',
 ] as const satisfies readonly (keyof ApiEndpoints)[];
 
 /** Declared in the contract but served by a later issue (`'#N (B-xxx): why'`). */
@@ -122,6 +138,8 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerStaffAssignmentRoutes(app);
   registerPlayerRoutes(app);
   registerCalendarRoutes(app);
+  registerTrainingSessionRoutes(app);
+  registerParticipationRoutes(app);
   if (options.auth !== undefined) {
     registerAuthRoutes(app, options.auth);
     registerMeRoutes(app, options.auth);

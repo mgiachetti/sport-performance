@@ -82,6 +82,20 @@ describe('@sport-performance/contracts entry point', () => {
       'archiveFixture',
       'restoreFixture',
       'getCategoryCalendar',
+      'listTrainingSessions',
+      'getTrainingSession',
+      'createTrainingSession',
+      'updateTrainingSession',
+      'archiveTrainingSession',
+      'restoreTrainingSession',
+      'createDrill',
+      'updateDrill',
+      'deleteDrill',
+      'recordParticipations',
+      'updateParticipation',
+      'listParticipations',
+      'submitSessionRpe',
+      'listMyTrainingSessions',
     ]);
     expect(contracts.MEMBERSHIP_HEADER).toBe('x-membership-id');
     expect(contracts.SUPPORT_CLUB_HEADER).toBe('x-support-club-id');

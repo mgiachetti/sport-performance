@@ -323,3 +323,5 @@ export {
   type MedicalAccessAction,
   type MedicalNoteVisibility,
 } from './medical.js';
+// Training sessions, drills, participation and the RPE window (B-318).
+export * from './training/index.js';
