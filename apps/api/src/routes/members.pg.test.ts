@@ -76,13 +76,22 @@ describeWithPostgres('members and staff assignments (Postgres)', (serverUrl) => 
   let scA: SignedIn;
   let medicalA: SignedIn;
   let playerA: SignedIn;
+  let parentA: SignedIn;
   let adminB: SignedIn;
   let coachB: SignedIn;
   let clubA: ClubId;
   let clubB: ClubId;
   let today: string;
   const m = {} as Record<
-    'adminA' | 'admin2A' | 'coachA' | 'scA' | 'medicalA' | 'playerA' | 'adminB' | 'coachB',
+    | 'adminA'
+    | 'admin2A'
+    | 'coachA'
+    | 'scA'
+    | 'medicalA'
+    | 'playerA'
+    | 'parentA'
+    | 'adminB'
+    | 'coachB',
     string
   >;
   const cat = {} as Record<'m15' | 'm16' | 'm17' | 'b15', string>;
@@ -138,6 +147,7 @@ describeWithPostgres('members and staff assignments (Postgres)', (serverUrl) => 
     scA = await signIn(t, 'sc@club-a.example.com');
     medicalA = await signIn(t, 'medical@club-a.example.com');
     playerA = await signIn(t, 'player@club-a.example.com');
+    parentA = await signIn(t, 'parent@club-a.example.com');
     adminB = await signIn(t, 'admin@club-b.example.com');
     coachB = await signIn(t, 'coach@club-b.example.com');
     await database.admin.query(`update "user" set name = 'Ana Entrenadora' where id = $1`, [
@@ -152,6 +162,7 @@ describeWithPostgres('members and staff assignments (Postgres)', (serverUrl) => 
     m.scA = await createMembership(database.admin, scA.userId, clubA, 'sc');
     m.medicalA = await createMembership(database.admin, medicalA.userId, clubA, 'medical');
     m.playerA = await createMembership(database.admin, playerA.userId, clubA, 'player');
+    m.parentA = await createMembership(database.admin, parentA.userId, clubA, 'parent');
     m.adminB = await createMembership(database.admin, adminB.userId, clubB, 'admin');
     m.coachB = await createMembership(database.admin, coachB.userId, clubB, 'coach');
     cat.m15 = await createCategory(database.admin, clubA, 'M15');
@@ -323,7 +334,7 @@ describeWithPostgres('members and staff assignments (Postgres)', (serverUrl) => 
     });
 
     it('is managed and listed only by the administration', async () => {
-      for (const caller of [coachA, scA, medicalA, playerA]) {
+      for (const caller of [coachA, scA, medicalA, playerA, parentA]) {
         const create = await assign(caller.headers, {
           membershipId: m.coachA,
           target: { kind: 'category', categoryId: cat.m17 },
@@ -556,6 +567,7 @@ describeWithPostgres('members and staff assignments (Postgres)', (serverUrl) => 
         'admin@club-a.example.com',
         'coach@club-a.example.com',
         'medical@club-a.example.com',
+        'parent@club-a.example.com',
         'player@club-a.example.com',
         'sc@club-a.example.com',
       ]);
@@ -572,7 +584,7 @@ describeWithPostgres('members and staff assignments (Postgres)', (serverUrl) => 
       });
       expect(search.json<Page<MemberBody>>().items.map((i) => i.id)).toEqual([m.coachA]);
 
-      for (const caller of [coachA, scA, medicalA, playerA]) {
+      for (const caller of [coachA, scA, medicalA, playerA, parentA]) {
         const denied = await t.app.inject({ url: '/v1/club/members', headers: caller.headers });
         expect(denied.statusCode).toBe(403);
         const one = await t.app.inject({
@@ -580,6 +592,19 @@ describeWithPostgres('members and staff assignments (Postgres)', (serverUrl) => 
           headers: caller.headers,
         });
         expect(one.statusCode).toBe(403);
+        const role = await t.app.inject({
+          method: 'POST',
+          url: `/v1/club/members/${m.playerA}/role`,
+          headers: caller.headers,
+          payload: { version: '1', role: 'parent' },
+        });
+        expect(role.statusCode).toBe(403);
+        const end = await t.app.inject({
+          method: 'POST',
+          url: `/v1/club/members/${m.playerA}/end`,
+          headers: caller.headers,
+        });
+        expect(end.statusCode).toBe(403);
       }
       const otherClub = await t.app.inject({
         url: `/v1/club/members/${m.coachA}`,
@@ -604,6 +629,20 @@ describeWithPostgres('members and staff assignments (Postgres)', (serverUrl) => 
         payload: { version: '1', role: 'coach' },
       });
       expect(stale.statusCode).toBe(409);
+      // The role it already has: a conflict, and nothing changes.
+      const same = await t.app.inject({
+        method: 'POST',
+        url: `/v1/club/members/${m.scA}/role`,
+        headers: adminA.headers,
+        payload: { version: sc.version, role: 'sc' },
+      });
+      expect(same.statusCode, same.body).toBe(409);
+      expect(errorOf(same).code).toBe('conflict');
+      expect(await member(m.scA)).toMatchObject({
+        role: 'sc',
+        status: 'active',
+        version: sc.version,
+      });
 
       const changed = await t.app.inject({
         method: 'POST',
@@ -717,6 +756,38 @@ describeWithPostgres('members and staff assignments (Postgres)', (serverUrl) => 
       expect(medical.statusCode, medical.body).toBe(200);
       const signedOut = await t.app.inject({ url: '/v1/me', headers: medicalA.headers });
       expect(signedOut.statusCode).toBe(401);
+    });
+
+    it('serializes two admins ending each other at once (no deadlock)', async () => {
+      const created: string[] = [];
+      for (let round = 0; round < 3; round += 1) {
+        const x = await signIn(t, `admin-x${String(round)}@club-a.example.com`);
+        const y = await signIn(t, `admin-y${String(round)}@club-a.example.com`);
+        const mx = await createMembership(database.admin, x.userId, clubA, 'admin');
+        const my = await createMembership(database.admin, y.userId, clubA, 'admin');
+        created.push(mx, my);
+        const results = await Promise.all([
+          t.app.inject({ method: 'POST', url: `/v1/club/members/${my}/end`, headers: x.headers }),
+          t.app.inject({ method: 'POST', url: `/v1/club/members/${mx}/end`, headers: y.headers }),
+        ]);
+        // One goes first; the other waits for its locks and then ends too (adminA remains),
+        // or is refused because its caller just lost its membership (the database no longer
+        // shows it the club: 401/403/404). Never a 500 (a deadlock, 40P01).
+        for (const result of results)
+          expect([200, 401, 403, 404], result.body).toContain(result.statusCode);
+        expect(results.some((result) => result.statusCode === 200)).toBe(true);
+      }
+      // The next test counts on adminA and admin2A being the only admins left.
+      await database.admin.query(
+        `update membership set ended_at = now() where id = any($1::uuid[]) and ended_at is null`,
+        [created],
+      );
+      const admins = await database.admin.query<{ id: string }>(
+        `select id from membership
+          where club_id = $1 and role = 'admin' and (ended_at is null or ended_at > now())`,
+        [clubA],
+      );
+      expect(admins.rows.map((row) => row.id).sort()).toEqual([m.adminA, m.admin2A].sort());
     });
 
     it('keeps the club governable', async () => {

@@ -517,13 +517,17 @@ export function registerStaffAssignmentRoutes(app: FastifyInstance): void {
     transaction: true,
     handler: async ({ params }, { db, permissions, auth: caller }) => {
       const { clubId } = caller.membership;
-      const current = await authorizedAssignment(
+      const found = await authorizedAssignment(
         db,
         permissions,
         clubId,
         params.assignmentId,
         'manage',
       );
+      // Under the membership's lock, like the edits: a PATCH that moved `validFrom` and
+      // committed after the first read is seen here, so `validTo` never ends up before it.
+      await lockMembership(db, clubId, found.membershipId);
+      const current = await readAssignment(db, clubId, found.id);
       const today = await clubToday(db);
       const validTo = endedValidTo(current, today);
       if (validTo === null) return assignmentDto(current, today);

@@ -105,36 +105,59 @@ async function readMember(
   return row;
 }
 
+interface LockedTarget {
+  target: MemberRow;
+  /** The club's active admins, locked; `null` when the target is not an active admin. */
+  admins: { id: string }[] | null;
+}
+
 /**
- * Checks an end or a role change of `target` keeps the club governable, with
- * every active admin membership of the club locked (one statement, in id
- * order, so two admins ending each other cannot deadlock or both succeed):
- * an admin does not end or demote the membership they act with, and the
- * club never stays without an active admin (not even by a superadmin).
+ * Reads the target of an end or a role change with its row locked. When it
+ * is an active admin, every active admin membership of the club (the target
+ * among them) is locked first, in one statement in id order: two admins
+ * ending each other then take the same locks in the same order, so one waits
+ * for the other instead of deadlocking, and sees its end (they cannot both
+ * succeed). A membership's role never changes in place (a role change ends
+ * it and opens another), so the first, unlocked read decides correctly
+ * whether the admins need locking; the locked read is the one that counts.
  */
-async function assertGovernable(
+async function lockTarget(
   db: TenantDatabase,
-  caller: ClubAuthContext,
-  target: MemberRow,
-  removesAdmin: boolean,
-): Promise<void> {
+  clubId: ClubId,
+  membershipId: string,
+): Promise<LockedTarget> {
+  const peek = await readMember(db, clubId, membershipId);
+  let admins: { id: string }[] | null = null;
+  if (peek.role === 'admin' && peek.active) {
+    admins = await db
+      .select({ id: membership.id })
+      .from(membership)
+      .where(
+        and(
+          eq(membership.clubId, clubId),
+          eq(membership.role, 'admin'),
+          lte(membership.startedAt, sql`now()`),
+          isActive,
+        ),
+      )
+      .orderBy(asc(membership.id))
+      .for('update');
+  }
+  return { target: await readMember(db, clubId, membershipId, true), admins };
+}
+
+/**
+ * Checks an end or a role change of a target locked by `lockTarget` keeps
+ * the club governable: an admin does not end or demote the membership they
+ * act with, and the club never stays without an active admin (not even by a
+ * superadmin).
+ */
+function assertGovernable(caller: ClubAuthContext, { target, admins }: LockedTarget): void {
   if (target.id === caller.membership.membershipId) {
     throw new HttpError('conflict', 'An admin cannot end or change their own membership');
   }
-  if (!removesAdmin) return;
-  const admins = await db
-    .select({ id: membership.id })
-    .from(membership)
-    .where(
-      and(
-        eq(membership.clubId, caller.membership.clubId),
-        eq(membership.role, 'admin'),
-        lte(membership.startedAt, sql`now()`),
-        isActive,
-      ),
-    )
-    .orderBy(asc(membership.id))
-    .for('update');
+  if (target.role !== 'admin') return;
+  if (admins === null) throw new Error('assertGovernable: the active admins were not locked');
   if (!admins.some((admin) => admin.id !== target.id)) {
     throw new HttpError('conflict', 'The club would be left without an active admin');
   }
@@ -216,13 +239,16 @@ export function registerMemberRoutes(
     handler: async ({ params, body }, { db, permissions, auth: caller }) => {
       await permissions.authorize('membership', 'update');
       const { clubId } = caller.membership;
-      const target = await readMember(db, clubId, params.membershipId, true);
+      const locked = await lockTarget(db, clubId, params.membershipId);
+      const { target } = locked;
       if (target.version !== body.version) {
         throw new HttpError('conflict', 'The member changed since it was read: read it again');
       }
       if (!target.active) throw new HttpError('conflict', 'The membership has ended');
-      if (target.role === body.role) return memberDto(target);
-      await assertGovernable(db, caller, target, target.role === 'admin');
+      if (target.role === body.role) {
+        throw new HttpError('conflict', 'The membership already has that role');
+      }
+      assertGovernable(caller, locked);
       const [taken] = await db
         .select({ id: membership.id })
         .from(membership)
@@ -231,7 +257,7 @@ export function registerMemberRoutes(
             eq(membership.clubId, clubId),
             eq(membership.userId, target.userId),
             eq(membership.role, body.role),
-            isNull(membership.endedAt),
+            isActive,
           ),
         );
       if (taken !== undefined) {
@@ -263,9 +289,10 @@ export function registerMemberRoutes(
     handler: async ({ params }, { db, permissions, auth: caller }) => {
       await permissions.authorize('membership', 'revoke');
       const { clubId } = caller.membership;
-      const target = await readMember(db, clubId, params.membershipId, true);
+      const locked = await lockTarget(db, clubId, params.membershipId);
+      const { target } = locked;
       if (!target.active) return memberDto(target);
-      await assertGovernable(db, caller, target, target.role === 'admin');
+      assertGovernable(caller, locked);
       await endMembership(db, caller, target);
       await options.onMembershipEnded?.(caller, {
         id: target.id,
