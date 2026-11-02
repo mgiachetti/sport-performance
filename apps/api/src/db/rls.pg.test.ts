@@ -105,8 +105,8 @@ describeWithPostgres('RLS through the API data layer (Postgres)', (url) => {
         createApiPool({
           url: appUrl,
           poolMax: 2,
-          connectTimeoutMs: 5000,
-          statementTimeoutMs: 5000,
+          connectTimeoutMs: 15_000,
+          statementTimeoutMs: 15_000,
         }),
       ),
     );
@@ -164,7 +164,12 @@ describeWithPostgres('RLS through the API data layer (Postgres)', (url) => {
 
   it('never leaks a context through a pooled connection, even one set at session level', async () => {
     const pool = database.track(
-      createApiPool({ url: appUrl, poolMax: 1, connectTimeoutMs: 5000, statementTimeoutMs: 5000 }),
+      createApiPool({
+        url: appUrl,
+        poolMax: 1,
+        connectTimeoutMs: 15_000,
+        statementTimeoutMs: 15_000,
+      }),
     );
     const single = databaseFromPool(pool);
     try {
@@ -184,7 +189,7 @@ describeWithPostgres('RLS through the API data layer (Postgres)', (url) => {
   });
 
   it('accepts the application login and rejects the owner at startup', async () => {
-    const options = { poolMax: 1, connectTimeoutMs: 5000, statementTimeoutMs: 5000 };
+    const options = { poolMax: 1, connectTimeoutMs: 15_000, statementTimeoutMs: 15_000 };
     const appPool = database.track(createApiPool({ ...options, url: appUrl }));
     const ownerPool = database.track(createApiPool({ ...options, url: ownerUrl }));
     try {

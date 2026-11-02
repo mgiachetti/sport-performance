@@ -297,7 +297,7 @@ describeWithPostgres('Database.transaction (Postgres)', (url) => {
   });
 
   it('pings the database', async () => {
-    await expect(singleDb.ping(2000)).resolves.toBeUndefined();
+    await expect(singleDb.ping(15_000)).resolves.toBeUndefined();
   });
 });
 

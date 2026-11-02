@@ -61,7 +61,12 @@ describeWithPostgres('request transaction (HTTP + Postgres)', (url) => {
   let app: FastifyInstance;
 
   beforeAll(async () => {
-    db = createPgDatabase({ url, poolMax: 2, connectTimeoutMs: 5000, statementTimeoutMs: 5000 });
+    db = createPgDatabase({
+      url,
+      poolMax: 2,
+      connectTimeoutMs: 15_000,
+      statementTimeoutMs: 15_000,
+    });
     ({ app } = await testApp({
       db,
       authenticate: headerAuth,

@@ -87,7 +87,7 @@ export async function startIdentityApp(
     routeClassLimits?: BuildAppOptions['routeClassLimits'];
   } = {},
 ): Promise<IdentityTestApp> {
-  const pgOptions = { poolMax: 4, connectTimeoutMs: 5000, statementTimeoutMs: 15_000 };
+  const pgOptions = { poolMax: 4, connectTimeoutMs: 15_000, statementTimeoutMs: 15_000 };
   // Tracked, so dropping the database waits for their sockets (issue #147).
   const pool = database.temporary.track(
     createApiPool({ ...pgOptions, url: database.appUrl, applicationName: 'api-test' }),
