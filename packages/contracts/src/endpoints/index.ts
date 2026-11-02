@@ -54,6 +54,16 @@ import {
   revokeInvitation,
 } from './invitations.js';
 import { getMe, listMyMemberships } from './me.js';
+import {
+  archiveReferenceValue,
+  createReferenceValue,
+  getPlayerFirstTeamReferences,
+  getReferenceValue,
+  importReferenceValues,
+  listReferenceValues,
+  restoreReferenceValue,
+  updateReferenceValue,
+} from './reference-values.js';
 import { listMySessions, revokeMyOtherSessions, revokeMySession } from './sessions.js';
 import { changeMemberRole, endMember, getMember, listMembers } from './members.js';
 import {
@@ -119,6 +129,7 @@ export * from './clubs.js';
 export * from './health.js';
 export * from './invitations.js';
 export * from './me.js';
+export * from './reference-values.js';
 export * from './sessions.js';
 export * from './members.js';
 export * from './staff-assignments.js';
@@ -234,6 +245,14 @@ export const apiEndpoints = {
   addTestResultEntries,
   voidTestResultEntries,
   listPlayerTestMetric,
+  listReferenceValues,
+  getReferenceValue,
+  createReferenceValue,
+  updateReferenceValue,
+  archiveReferenceValue,
+  restoreReferenceValue,
+  importReferenceValues,
+  getPlayerFirstTeamReferences,
 } as const satisfies EndpointCatalog;
 
 export type ApiEndpoints = typeof apiEndpoints;

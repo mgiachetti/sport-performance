@@ -53,6 +53,10 @@
     {
       "name": "tests",
       "description": "Días de test, resultados con sus intentos y series comparables (B-320)."
+    },
+    {
+      "name": "references",
+      "description": "Referencias de primera por métrica, deporte, sexo y alcance (B-321)."
     }
   ],
   "paths": {
@@ -8048,6 +8052,156 @@
         }
       }
     },
+    "/v1/players/{playerId}/first-team-references": {
+      "get": {
+        "operationId": "getPlayerFirstTeamReferences",
+        "summary": "Referencias de primera que aplican a un jugador",
+        "description": "La línea de referencia de la ficha (`group_reference.read`): el propio jugador, el staff asignado y la administración; nunca el tutor. Por métrica, la referencia del deporte de su categoría y su sexo, la más específica (posición, después línea, después plantel) y la vigencia más nueva no posterior a `asOf`. Solo valores de la primera: ningún dato de otros jugadores. Una métrica sin referencia no aparece. Jugador de otro club, fuera del alcance o sin categoría: `not_found`.",
+        "tags": [
+          "references"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "asOf",
+            "in": "query",
+            "required": false,
+            "description": "Fecha a comparar; por defecto, hoy en la zona del club.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "metricCode",
+            "in": "query",
+            "required": false,
+            "description": "Código canónico de la métrica (`metric_definition.code`).",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "examples": [
+                "cmj_height_cm"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Las referencias del jugador, por código de métrica.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerFirstTeamReferences"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/players/{playerId}/parent-heights": {
       "get": {
         "operationId": "getPlayerParentHeights",
@@ -8799,6 +8953,1228 @@
           },
           "403": {
             "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/reference-values": {
+      "get": {
+        "operationId": "listReferenceValues",
+        "summary": "Referencias de primera",
+        "description": "Staff del club (`configuration.read`: coach, sc, medical y la administración). Jugadores y tutores: `forbidden` (ven la que les aplica en `GET /v1/players/{playerId}/first-team-references`).",
+        "tags": [
+          "references"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "metricCode",
+            "in": "query",
+            "required": false,
+            "description": "Código canónico de la métrica (`metric_definition.code`).",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "examples": [
+                "cmj_height_cm"
+              ]
+            }
+          },
+          {
+            "name": "sport",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Sport"
+            }
+          },
+          {
+            "name": "sex",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Sex"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ReferenceScope"
+            }
+          },
+          {
+            "name": "positionCode",
+            "in": "query",
+            "required": false,
+            "description": "Código de la posición en ese deporte (`GET /v1/positions`).",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "examples": [
+                "hooker"
+              ]
+            }
+          },
+          {
+            "name": "lineCode",
+            "in": "query",
+            "required": false,
+            "description": "Línea de las posiciones del deporte (`Position.lineCode`).",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "examples": [
+                "forwards"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "`active` (por defecto), `archived` o `all`.",
+            "schema": {
+              "default": "active",
+              "type": "string",
+              "enum": [
+                "active",
+                "archived",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `validFrom`, `createdAt`, `metricCode`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "-validFrom",
+              "type": "string",
+              "enum": [
+                "validFrom",
+                "-validFrom",
+                "createdAt",
+                "-createdAt",
+                "metricCode",
+                "-metricCode"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de referencias.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceValuePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `bad_request`, `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createReferenceValue",
+        "summary": "Cargar una referencia de primera",
+        "description": "`sc` y la administración (`configuration.update`). La métrica tiene que existir, estar activa y aplicar al deporte; la unidad, ser la de la métrica; la posición, del mismo deporte; la línea, una de las posiciones del deporte. Idempotente por `clientUuid`; otra referencia activa con la misma métrica, deporte, sexo, alcance y vigencia: `conflict`.",
+        "tags": [
+          "references"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientUuid": {
+                    "$ref": "#/components/schemas/ClientUuid"
+                  },
+                  "metricCode": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "description": "Código canónico de la métrica (`metric_definition.code`).",
+                    "examples": [
+                      "cmj_height_cm"
+                    ]
+                  },
+                  "sport": {
+                    "$ref": "#/components/schemas/Sport"
+                  },
+                  "sex": {
+                    "$ref": "#/components/schemas/Sex"
+                  },
+                  "positionCode": {
+                    "description": "Referencia de una posición. Excluyente con `lineCode`; sin ninguno, plantel.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "examples": [
+                      "hooker"
+                    ]
+                  },
+                  "lineCode": {
+                    "description": "Referencia de una línea. Excluyente con `positionCode`.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-z][a-z0-9_]*$",
+                    "examples": [
+                      "forwards"
+                    ]
+                  },
+                  "value": {
+                    "type": "number",
+                    "description": "Valor de la primera, en la unidad de la métrica."
+                  },
+                  "unit": {
+                    "type": "string",
+                    "enum": [
+                      "mm",
+                      "cm",
+                      "m",
+                      "km",
+                      "kg",
+                      "msec",
+                      "s",
+                      "min",
+                      "h",
+                      "years",
+                      "ms",
+                      "kmh",
+                      "m_min",
+                      "cm_year",
+                      "ms2",
+                      "newton",
+                      "deg",
+                      "bpm",
+                      "kg_kg",
+                      "pct",
+                      "au",
+                      "score",
+                      "n"
+                    ],
+                    "description": "Unidad canónica de la métrica (sin conversión: tiene que ser la de la métrica).",
+                    "examples": [
+                      "cm"
+                    ]
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "manual",
+                      "video",
+                      "photocell",
+                      "pod",
+                      "app",
+                      "historical"
+                    ],
+                    "description": "Cómo la midió la primera, si se sabe (principio 4: métodos distintos avisan)."
+                  },
+                  "validFrom": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                    "examples": [
+                      "2026-11-01"
+                    ]
+                  },
+                  "source": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "De dónde sale el valor; se muestra en el tooltip.",
+                    "examples": [
+                      "Catapult, pretemporada 2026"
+                    ]
+                  }
+                },
+                "required": [
+                  "metricCode",
+                  "sport",
+                  "sex",
+                  "value",
+                  "unit",
+                  "validFrom",
+                  "source"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Referencia cargada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceValue"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/reference-values/{referenceValueId}": {
+      "get": {
+        "operationId": "getReferenceValue",
+        "summary": "Una referencia de primera",
+        "description": "Mismo permiso que la lista. De otro club: `not_found`.",
+        "tags": [
+          "references"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "referenceValueId",
+            "in": "path",
+            "required": true,
+            "description": "Id de referencia de primera (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "La referencia.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceValue"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateReferenceValue",
+        "summary": "Corregir una referencia de primera",
+        "description": "`sc` y la administración. Se corrigen el valor, el método, la vigencia y la fuente; la métrica, el deporte, el sexo y el alcance no (se archiva y se carga otra). Un período nuevo es otra referencia con otra vigencia, no una edición. `version` desactualizada o choque con otra activa: `conflict`.",
+        "tags": [
+          "references"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "referenceValueId",
+            "in": "path",
+            "required": true,
+            "description": "Id de referencia de primera (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "description": "Versión que el cliente leyó (`version` de la respuesta). Si no es la actual: `409 conflict`.",
+                    "$ref": "#/components/schemas/ResourceVersion"
+                  },
+                  "value": {
+                    "type": "number",
+                    "description": "Valor de la primera, en la unidad de la métrica."
+                  },
+                  "method": {
+                    "description": "`null` lo borra.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "manual",
+                          "video",
+                          "photocell",
+                          "pod",
+                          "app",
+                          "historical"
+                        ],
+                        "description": "Cómo la midió la primera, si se sabe (principio 4: métodos distintos avisan)."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "validFrom": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                    "examples": [
+                      "2026-11-01"
+                    ]
+                  },
+                  "source": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "De dónde sale el valor; se muestra en el tooltip.",
+                    "examples": [
+                      "Catapult, pretemporada 2026"
+                    ]
+                  }
+                },
+                "required": [
+                  "version"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "La referencia corregida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceValue"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/reference-values/{referenceValueId}/archive": {
+      "post": {
+        "operationId": "archiveReferenceValue",
+        "summary": "Archivar una referencia de primera",
+        "description": "`sc` y la administración. Deja de aplicar a los jugadores. Idempotente.",
+        "tags": [
+          "references"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "referenceValueId",
+            "in": "path",
+            "required": true,
+            "description": "Id de referencia de primera (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Referencia archivada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceValue"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/reference-values/{referenceValueId}/restore": {
+      "post": {
+        "operationId": "restoreReferenceValue",
+        "summary": "Restaurar una referencia de primera",
+        "description": "`sc` y la administración. Si ya hay otra activa con la misma clave y vigencia: `conflict`. Idempotente.",
+        "tags": [
+          "references"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "referenceValueId",
+            "in": "path",
+            "required": true,
+            "description": "Id de referencia de primera (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Referencia restaurada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceValue"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/reference-values/import": {
+      "post": {
+        "operationId": "importReferenceValues",
+        "summary": "Importar una tabla de referencias de primera",
+        "description": "`sc` y la administración. Una tabla ya parseada (el cliente lee la planilla; la importación de Catapult, #90, arma las mismas filas), de 1 a 500 filas. Todo o nada: si alguna fila no vale, `validation_failed` con el detalle por fila (`body.rows.<i>.<campo>`) y no se escribe nada. `insert`: una fila que choca con una referencia activa (misma métrica, deporte, sexo, alcance y vigencia) es `conflict`; `replace`: la activa se archiva y queda la importada. Idempotente por `clientUuid` del lote.",
+        "tags": [
+          "references"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientUuid": {
+                    "$ref": "#/components/schemas/ClientUuid"
+                  },
+                  "mode": {
+                    "default": "insert",
+                    "description": "`insert` (por defecto) o `replace`.",
+                    "type": "string",
+                    "enum": [
+                      "insert",
+                      "replace"
+                    ]
+                  },
+                  "validFrom": {
+                    "description": "Vigencia de las filas que no traen la suya.",
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "examples": [
+                      "2026-11-01"
+                    ]
+                  },
+                  "source": {
+                    "description": "Fuente de las filas que no traen la suya.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "examples": [
+                      "Catapult, pretemporada 2026"
+                    ]
+                  },
+                  "rows": {
+                    "minItems": 1,
+                    "maxItems": 500,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/ReferenceImportRow"
+                    }
+                  }
+                },
+                "required": [
+                  "clientUuid",
+                  "rows"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Referencias importadas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferenceImportResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error: `payload_too_large`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -18390,6 +19766,189 @@
           "nextCursor"
         ]
       },
+      "PlayerFirstTeamReference": {
+        "type": "object",
+        "properties": {
+          "metricCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Código canónico de la métrica (`metric_definition.code`).",
+            "examples": [
+              "cmj_height_cm"
+            ]
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "mm",
+              "cm",
+              "m",
+              "km",
+              "kg",
+              "msec",
+              "s",
+              "min",
+              "h",
+              "years",
+              "ms",
+              "kmh",
+              "m_min",
+              "cm_year",
+              "ms2",
+              "newton",
+              "deg",
+              "bpm",
+              "kg_kg",
+              "pct",
+              "au",
+              "score",
+              "n"
+            ],
+            "description": "Unidad canónica de la métrica (sin conversión: tiene que ser la de la métrica).",
+            "examples": [
+              "cm"
+            ]
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "higher_is_better",
+              "lower_is_better",
+              "neutral"
+            ],
+            "description": "Sentido de la métrica: si más es mejor, si menos es mejor o neutra."
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ReferenceScope"
+          },
+          "value": {
+            "type": "number",
+            "description": "Valor de la primera, en la unidad de la métrica."
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "manual",
+                  "video",
+                  "photocell",
+                  "pod",
+                  "app",
+                  "historical"
+                ],
+                "description": "Cómo la midió la primera, si se sabe (principio 4: métodos distintos avisan)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "De dónde sale el valor; se muestra en el tooltip.",
+            "examples": [
+              "Catapult, pretemporada 2026"
+            ]
+          }
+        },
+        "required": [
+          "metricCode",
+          "unit",
+          "direction",
+          "scope",
+          "value",
+          "method",
+          "validFrom",
+          "source"
+        ]
+      },
+      "PlayerFirstTeamReferences": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "asOf": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "sport": {
+            "$ref": "#/components/schemas/Sport"
+          },
+          "sex": {
+            "$ref": "#/components/schemas/Sex"
+          },
+          "positionCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "description": "Código de la posición en ese deporte (`GET /v1/positions`).",
+                "examples": [
+                  "hooker"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lineCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-z][a-z0-9_]*$",
+                "description": "Línea de las posiciones del deporte (`Position.lineCode`).",
+                "examples": [
+                  "forwards"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlayerFirstTeamReference"
+            }
+          }
+        },
+        "required": [
+          "playerId",
+          "asOf",
+          "sport",
+          "sex",
+          "positionCode",
+          "lineCode",
+          "items"
+        ]
+      },
       "PlayerLeaveReason": {
         "type": "string",
         "enum": [
@@ -18526,6 +20085,384 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Position"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "ReferenceImportResult": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReferenceValue"
+            }
+          },
+          "archivedCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Referencias activas que archivó el modo `replace`."
+          }
+        },
+        "required": [
+          "items",
+          "archivedCount"
+        ]
+      },
+      "ReferenceImportRow": {
+        "type": "object",
+        "properties": {
+          "metricCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Código canónico de la métrica (`metric_definition.code`).",
+            "examples": [
+              "cmj_height_cm"
+            ]
+          },
+          "sport": {
+            "$ref": "#/components/schemas/Sport"
+          },
+          "sex": {
+            "$ref": "#/components/schemas/Sex"
+          },
+          "positionCode": {
+            "description": "Referencia de una posición. Excluyente con `lineCode`; sin ninguno, plantel.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "examples": [
+              "hooker"
+            ]
+          },
+          "lineCode": {
+            "description": "Referencia de una línea. Excluyente con `positionCode`.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "examples": [
+              "forwards"
+            ]
+          },
+          "value": {
+            "type": "number",
+            "description": "Valor de la primera, en la unidad de la métrica."
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "mm",
+              "cm",
+              "m",
+              "km",
+              "kg",
+              "msec",
+              "s",
+              "min",
+              "h",
+              "years",
+              "ms",
+              "kmh",
+              "m_min",
+              "cm_year",
+              "ms2",
+              "newton",
+              "deg",
+              "bpm",
+              "kg_kg",
+              "pct",
+              "au",
+              "score",
+              "n"
+            ],
+            "description": "Unidad canónica de la métrica (sin conversión: tiene que ser la de la métrica).",
+            "examples": [
+              "cm"
+            ]
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "video",
+              "photocell",
+              "pod",
+              "app",
+              "historical"
+            ],
+            "description": "Cómo la midió la primera, si se sabe (principio 4: métodos distintos avisan)."
+          },
+          "validFrom": {
+            "description": "Por defecto, la del lote.",
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "source": {
+            "description": "Por defecto, la del lote.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "examples": [
+              "Catapult, pretemporada 2026"
+            ]
+          }
+        },
+        "required": [
+          "metricCode",
+          "sport",
+          "sex",
+          "value",
+          "unit"
+        ],
+        "additionalProperties": false
+      },
+      "ReferenceScope": {
+        "type": "string",
+        "enum": [
+          "position",
+          "line",
+          "squad"
+        ],
+        "description": "Alcance: una posición (`position`), una línea (`line`) o todo el plantel (`squad`). Para un jugador aplica la más específica."
+      },
+      "ReferenceValue": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de referencia de primera (UUID, RFC 9562)."
+          },
+          "metricDefinitionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de métrica (UUID, RFC 9562)."
+          },
+          "metricCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Código canónico de la métrica (`metric_definition.code`).",
+            "examples": [
+              "cmj_height_cm"
+            ]
+          },
+          "sport": {
+            "$ref": "#/components/schemas/Sport"
+          },
+          "sex": {
+            "$ref": "#/components/schemas/Sex"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ReferenceScope"
+          },
+          "positionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de posición (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "positionCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "description": "Código de la posición en ese deporte (`GET /v1/positions`).",
+                "examples": [
+                  "hooker"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lineCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-z][a-z0-9_]*$",
+                "description": "Línea de las posiciones del deporte (`Position.lineCode`).",
+                "examples": [
+                  "forwards"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value": {
+            "type": "number",
+            "description": "Valor de la primera, en la unidad de la métrica."
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "mm",
+              "cm",
+              "m",
+              "km",
+              "kg",
+              "msec",
+              "s",
+              "min",
+              "h",
+              "years",
+              "ms",
+              "kmh",
+              "m_min",
+              "cm_year",
+              "ms2",
+              "newton",
+              "deg",
+              "bpm",
+              "kg_kg",
+              "pct",
+              "au",
+              "score",
+              "n"
+            ],
+            "description": "Unidad canónica de la métrica (sin conversión: tiene que ser la de la métrica).",
+            "examples": [
+              "cm"
+            ]
+          },
+          "method": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "manual",
+                  "video",
+                  "photocell",
+                  "pod",
+                  "app",
+                  "historical"
+                ],
+                "description": "Cómo la midió la primera, si se sabe (principio 4: métodos distintos avisan)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Desde qué día aplica (la más nueva no posterior a la fecha comparada).",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "De dónde sale el valor; se muestra en el tooltip.",
+            "examples": [
+              "Catapult, pretemporada 2026"
+            ]
+          },
+          "archivedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cuándo se archivó; `null` si está activo."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "version": {
+            "$ref": "#/components/schemas/ResourceVersion"
+          }
+        },
+        "required": [
+          "id",
+          "metricDefinitionId",
+          "metricCode",
+          "sport",
+          "sex",
+          "scope",
+          "positionId",
+          "positionCode",
+          "lineCode",
+          "value",
+          "unit",
+          "method",
+          "validFrom",
+          "source",
+          "archivedAt",
+          "createdAt",
+          "updatedAt",
+          "version"
+        ]
+      },
+      "ReferenceValuePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReferenceValue"
             }
           },
           "nextCursor": {
