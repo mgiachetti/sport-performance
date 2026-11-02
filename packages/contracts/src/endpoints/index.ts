@@ -93,6 +93,13 @@ import {
   updateParticipation,
   updateTrainingSession,
 } from './training.js';
+import {
+  correctWellness,
+  getWellness,
+  getWellnessForm,
+  listWellness,
+  submitWellness,
+} from './wellness.js';
 
 export * from './auth.js';
 export * from './calendar.js';
@@ -107,6 +114,7 @@ export * from './members.js';
 export * from './staff-assignments.js';
 export * from './players.js';
 export * from './training.js';
+export * from './wellness.js';
 
 /**
  * Every endpoint of the API, keyed by operationId. The API registers its
@@ -202,6 +210,11 @@ export const apiEndpoints = {
   listParticipations,
   submitSessionRpe,
   listMyTrainingSessions,
+  getWellnessForm,
+  submitWellness,
+  correctWellness,
+  listWellness,
+  getWellness,
 } as const satisfies EndpointCatalog;
 
 export type ApiEndpoints = typeof apiEndpoints;

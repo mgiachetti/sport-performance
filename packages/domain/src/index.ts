@@ -325,3 +325,5 @@ export {
 } from './medical.js';
 // Training sessions, drills, participation and the RPE window (B-318).
 export * from './training/index.js';
+// Wellness check-in (B-319).
+export * from './wellness/index.js';
