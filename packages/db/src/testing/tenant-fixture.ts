@@ -14,6 +14,8 @@ import {
   guardian,
   gymProgram,
   gymSet,
+  khamisRocheCoefficient,
+  khamisRocheTable,
   membership,
   metricDefinition,
   participation,
@@ -298,6 +300,33 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         source: 'primera',
       })
       .returning({ id: referenceValue.id }),
+  );
+  rows.khamis_roche_table = await id(
+    db
+      .insert(khamisRocheTable)
+      .values({
+        ...base,
+        code: 'khamis_roche_1994',
+        citation: 'Khamis & Roche (1994)',
+        verification: 'unverified',
+        verificationNotes: 'fixture',
+      })
+      .returning({ id: khamisRocheTable.id }),
+  );
+  rows.khamis_roche_coefficient = await id(
+    db
+      .insert(khamisRocheCoefficient)
+      .values({
+        ...base,
+        tableId: rows.khamis_roche_table,
+        sex: 'male',
+        ageYears: 14,
+        interceptIn: -10,
+        heightInCoef: 1,
+        weightLbCoef: 0,
+        midparentHeightInCoef: 0.3,
+      })
+      .returning({ id: khamisRocheCoefficient.id }),
   );
   rows.speed_zone_config = await id(
     db

@@ -91,7 +91,18 @@ export interface TestProtocol {
   /** Rest between attempts, in seconds. */
   readonly restBetweenAttemptsS?: number;
   readonly equipment?: readonly string[];
+  /**
+   * Numeric and categorical settings the scoring depends on (the 30-15 IFT
+   * speed progression, the e1RM rep and RIR range, the sprint Vmax gates),
+   * copied from the domain defaults when seeded (B-306). Part of the version:
+   * changing one means a new protocol version.
+   */
+  readonly parameters?: Readonly<Record<string, TestProtocolParameter>>;
 }
+
+/** A protocol setting: a number, a code, a flag or a small nested record of them. */
+export type TestProtocolParameter =
+  number | string | boolean | Readonly<Record<string, number | string | boolean>>;
 
 /**
  * One **version** of a test protocol (principle 4: the protocol version is

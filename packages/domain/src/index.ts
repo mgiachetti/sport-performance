@@ -201,8 +201,10 @@ export {
 } from './percentiles/groups.js';
 export {
   DEFAULT_POSITION_LINES,
+  HOCKEY_LINE_CODES,
   RUGBY_LINE_CODES,
   lineForPosition,
+  type HockeyLineCode,
   type PositionLine,
   type RugbyLineCode,
 } from './percentiles/positions.js';

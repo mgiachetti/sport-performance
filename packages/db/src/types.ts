@@ -76,3 +76,7 @@ export type AlertRule = typeof schema.alertRule.$inferSelect;
 export type NewAlertRule = typeof schema.alertRule.$inferInsert;
 export type Alert = typeof schema.alert.$inferSelect;
 export type NewAlert = typeof schema.alert.$inferInsert;
+export type KhamisRocheTableRow = typeof schema.khamisRocheTable.$inferSelect;
+export type NewKhamisRocheTableRow = typeof schema.khamisRocheTable.$inferInsert;
+export type KhamisRocheCoefficient = typeof schema.khamisRocheCoefficient.$inferSelect;
+export type NewKhamisRocheCoefficient = typeof schema.khamisRocheCoefficient.$inferInsert;

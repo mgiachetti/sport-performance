@@ -19,7 +19,7 @@ const tenantTables = tables.filter((t) => !GLOBAL_TABLES.includes(t.name));
 const tenantTableNames = new Set(tenantTables.map((t) => t.name));
 
 describe('schema conventions', () => {
-  it('defines the B-301 model', () => {
+  it('defines the B-301 model and the B-306 reference tables', () => {
     const names = tables.map((t) => t.name).sort();
     expect(names).toEqual(
       [
@@ -35,6 +35,8 @@ describe('schema conventions', () => {
         'drill',
         'external_metric',
         'guardian',
+        'khamis_roche_coefficient',
+        'khamis_roche_table',
         'gym_program',
         'gym_set',
         'membership',

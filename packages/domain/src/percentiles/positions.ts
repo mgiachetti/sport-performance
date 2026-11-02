@@ -16,9 +16,15 @@ export interface PositionLine {
 export const RUGBY_LINE_CODES = ['forwards', 'backs'] as const;
 export type RugbyLineCode = (typeof RUGBY_LINE_CODES)[number];
 
+/** Default field hockey lines (B-801): goalkeepers, defenders, midfielders, forwards. */
+export const HOCKEY_LINE_CODES = ['goalkeepers', 'defenders', 'midfielders', 'forwards'] as const;
+export type HockeyLineCode = (typeof HOCKEY_LINE_CODES)[number];
+
 /**
- * Default position → line mapping, ready to seed (B-306). Rugby union only;
- * hockey positions and lines arrive with M8 (B-804).
+ * Default position → line mapping per sport, seeded into every club
+ * (`position`, B-306) and edited per club. Rugby union by position; field
+ * hockey by the four lines of B-801 (arquera, defensora, volante, delantera),
+ * refined in M8.
  */
 export const DEFAULT_POSITION_LINES = [
   { sport: 'rugby', positionCode: 'prop', lineCode: 'forwards' },
@@ -31,7 +37,14 @@ export const DEFAULT_POSITION_LINES = [
   { sport: 'rugby', positionCode: 'centre', lineCode: 'backs' },
   { sport: 'rugby', positionCode: 'wing', lineCode: 'backs' },
   { sport: 'rugby', positionCode: 'fullback', lineCode: 'backs' },
-] as const satisfies readonly (PositionLine & { readonly lineCode: RugbyLineCode })[];
+  { sport: 'hockey', positionCode: 'goalkeeper', lineCode: 'goalkeepers' },
+  { sport: 'hockey', positionCode: 'defender', lineCode: 'defenders' },
+  { sport: 'hockey', positionCode: 'midfielder', lineCode: 'midfielders' },
+  { sport: 'hockey', positionCode: 'forward', lineCode: 'forwards' },
+] as const satisfies readonly (
+  | (PositionLine & { readonly sport: 'rugby'; readonly lineCode: RugbyLineCode })
+  | (PositionLine & { readonly sport: 'hockey'; readonly lineCode: HockeyLineCode })
+)[];
 
 /**
  * Line of a position in a sport, or `undefined` when the position is unknown
