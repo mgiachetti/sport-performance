@@ -119,7 +119,7 @@ export const testResult = pgTable(
     measuredOn: localDate('measured_on').notNull(),
     status: testResultStatusEnum('status').notNull(),
     /**
-     * `injured` is health-adjacent (ADR 0008): RLS (ADR 0025) decides who
+     * `injured` is health-adjacent (ADR 0008): RLS (ADR 0026) decides who
      * sees the row; showing the reason to coaches as a generic "unavailable"
      * is a column projection of the permission matrix (#34) and the views of
      * the `medical` schema (#35).

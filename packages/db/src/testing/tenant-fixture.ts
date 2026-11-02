@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { ClubId, LocalDate, PlayerId } from '@sport-performance/domain';
 import type { Database } from '../client.js';
 import {
@@ -14,6 +15,8 @@ import {
   guardian,
   gymProgram,
   gymSet,
+  invitation,
+  invitationCategory,
   khamisRocheCoefficient,
   khamisRocheTable,
   membership,
@@ -41,7 +44,7 @@ import { must } from './database.js';
 
 /**
  * One club with a row in every club table, written as the owner (no RLS), for
- * the RLS tests (ADR 0025). Two players: `assigned` (M15, linked to the
+ * the RLS tests (ADR 0026). Two players: `assigned` (M15, linked to the
  * player user and the parent) and `other` (M17). Staff:
  *
  * - `admin`, and `coach` assigned to M15, `coachM17` assigned to M17;
@@ -495,6 +498,26 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         observedOn: day('2026-03-11'),
       })
       .returning({ id: alert.id }),
+  );
+
+  rows.invitation = await id(
+    db
+      .insert(invitation)
+      .values({
+        ...base,
+        email: `invitado@${slug}.example.com`,
+        role: 'coach',
+        tokenHash: createHash('sha256').update(`fixture-invitation-${slug}`).digest('hex'),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        createdBy: users.admin,
+      })
+      .returning({ id: invitation.id }),
+  );
+  rows.invitation_category = await id(
+    db
+      .insert(invitationCategory)
+      .values({ ...base, invitationId: rows.invitation, categoryId: m15 })
+      .returning({ id: invitationCategory.id }),
   );
 
   return { clubId, slug, users, players: { assigned, other }, rows };

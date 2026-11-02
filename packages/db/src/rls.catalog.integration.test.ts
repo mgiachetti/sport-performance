@@ -8,15 +8,16 @@ import {
 
 /**
  * The shape of RLS, roles and grants read from the migrated database's
- * catalog (ADR 0006, ADR 0025). Every table is enumerated from the catalog,
+ * catalog (ADR 0006, ADR 0026). Every table is enumerated from the catalog,
  * so a table added later without RLS or with a broad grant fails here.
  */
 
 const ROLES = Object.values(DATABASE_ROLES);
-/** Global tables: the identity of Better Auth and the tenant root. */
-const GLOBAL_TABLES = ['account', 'club', 'session', 'user', 'verification'];
-const AUTH_TABLES = ['account', 'session', 'user', 'verification'];
-/** The only club table the application may DELETE from (a drill is a plan, ADR 0025). */
+/** Global tables: the identity of Better Auth, its attempt counters and the tenant root. */
+const GLOBAL_TABLES = ['account', 'auth_rate_limit', 'club', 'session', 'user', 'verification'];
+/** What Better Auth's role reaches (ADR 0028: the sign-in attempt counters too). */
+const AUTH_TABLES = ['account', 'auth_rate_limit', 'session', 'user', 'verification'];
+/** The only club table the application may DELETE from (a drill is a plan, ADR 0026). */
 const DELETABLE = { [DATABASE_ROLES.app]: ['drill'], [DATABASE_ROLES.auth]: AUTH_TABLES };
 const IMMUTABLE_COLUMNS = ['id', 'club_id', 'created_at', 'created_by', 'client_uuid'];
 
@@ -156,7 +157,7 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
     expect(rows).toEqual([]);
   });
 
-  it('the API and the worker have no access to sessions, accounts or verifications', async () => {
+  it('the API and the worker have no access to sessions, accounts, verifications or attempt counters', async () => {
     const { rows } = await t.pool.query<{ role: string; table: string }>(
       `select r.rolname as role, c.relname as table
          from pg_class c join pg_namespace n on n.oid = c.relnamespace cross join pg_roles r
@@ -165,7 +166,7 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
           and has_table_privilege(r.oid, c.oid, 'SELECT, INSERT, UPDATE, DELETE')`,
       [
         [DATABASE_ROLES.app, DATABASE_ROLES.worker],
-        ['session', 'account', 'verification'],
+        ['session', 'account', 'verification', 'auth_rate_limit'],
       ],
     );
     expect(rows).toEqual([]);
@@ -217,9 +218,11 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
         order by 1`,
     );
     expect(rows.map((r) => r.fn)).toEqual([
+      'app.accept_invitation',
       'app.club_theme',
       'app.club_today',
       'app.current_role',
+      'app.invitation_by_token',
       'app.is_superadmin',
       'app.visible_player_ids',
       'public.unit_matches_metric',

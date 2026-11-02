@@ -185,10 +185,34 @@ describe('buildOpenApiDocument (generic features)', () => {
 
   it('marks session endpoints, implicit errors, 204 and deprecation', () => {
     const del = document.paths['/v1/players/{playerId}']?.delete;
-    expect(del?.security).toEqual([{ session: [] }]);
+    expect(del?.security).toEqual([{ sessionCookie: [] }, { bearerToken: [] }]);
     expect(del?.deprecated).toBe(true);
     expect(del?.responses['204']).toEqual({ description: 'Deleted' });
     expect(Object.keys(del?.responses ?? {})).toEqual(['204', '400', '401', '404', '500']);
+    expect(Object.keys(document.components.securitySchemes)).toEqual([
+      'sessionCookie',
+      'bearerToken',
+    ]);
+  });
+
+  it('documents the membership header and forbidden on club endpoints', () => {
+    const clubCatalog = {
+      listThings: defineEndpoint({
+        method: 'GET',
+        path: '/v1/things',
+        summary: 'Club things',
+        tags: ['clubs'],
+        auth: 'club',
+        response: { status: 200, description: 'Things', schema: z.object({ n: z.int() }) },
+        errors: [],
+      }),
+    } satisfies EndpointCatalog;
+    const get = buildOpenApiDocument(clubCatalog).paths['/v1/things']?.get;
+    expect(get?.parameters?.map((p) => [p.name, p.in, p.required])).toEqual([
+      ['x-membership-id', 'header', false],
+    ]);
+    expect(Object.keys(get?.responses ?? {})).toEqual(['200', '401', '403', '500']);
+    expect(get?.security).toEqual([{ sessionCookie: [] }, { bearerToken: [] }]);
   });
 
   it('rejects two different schemas with the same id', () => {

@@ -12,7 +12,7 @@ import { z } from 'zod';
 import type { AuthContext } from './auth/context.js';
 import { createPgDatabase, type Database } from './db/database.js';
 import { registerEndpoint } from './http/endpoint.js';
-import { describeWithPostgres, testApp } from './testing/support.js';
+import { describeWithPostgres, testApp, testAuthContext } from './testing/support.js';
 
 const settingsSchema = z.object({
   clubId: z.string(),
@@ -48,11 +48,12 @@ function headerAuth(request: FastifyRequest): Promise<AuthContext | null> {
   if (typeof user !== 'string') return Promise.resolve(null);
   const club = request.headers['x-test-club'];
   const role = request.headers['x-test-role'];
-  return Promise.resolve({
-    userId: parseUserId(user),
-    membership:
+  return Promise.resolve(
+    testAuthContext(
+      parseUserId(user),
       typeof club === 'string' && isRole(role) ? { clubId: parseClubId(club), role } : null,
-  });
+    ),
+  );
 }
 
 describeWithPostgres('request transaction (HTTP + Postgres)', (url) => {

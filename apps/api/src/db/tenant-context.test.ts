@@ -1,6 +1,7 @@
 import { parseClubId, parseUserId } from '@sport-performance/domain';
 import { describe, expect, it } from 'vitest';
 import { tenantContextOf } from '../auth/context.js';
+import { testAuthContext } from '../testing/support.js';
 import {
   ANONYMOUS_CONTEXT,
   TenantContextError,
@@ -43,12 +44,12 @@ describe('tenantContextParameters', () => {
 describe('tenantContextOf', () => {
   it('derives the context from the auth context', () => {
     expect(tenantContextOf(null)).toEqual(ANONYMOUS_CONTEXT);
-    expect(tenantContextOf({ userId, membership: null })).toEqual({
+    expect(tenantContextOf(testAuthContext(userId))).toEqual({
       clubId: null,
       userId,
       role: null,
     });
-    expect(tenantContextOf({ userId, membership: { clubId, role: 'medical' } })).toEqual({
+    expect(tenantContextOf(testAuthContext(userId, { clubId, role: 'medical' }))).toEqual({
       clubId,
       userId,
       role: 'medical',

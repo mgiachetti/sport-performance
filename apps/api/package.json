@@ -19,19 +19,30 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fastify/cors": "11.3.1",
+    "@react-email/components": "1.0.12",
+    "@react-email/render": "2.2.0",
     "@sentry/node": "11.10.0",
     "@sport-performance/contracts": "workspace:*",
     "@sport-performance/db": "workspace:*",
     "@sport-performance/domain": "workspace:*",
+    "@sport-performance/i18n": "workspace:*",
+    "better-auth": "1.7.14",
+    "drizzle-orm": "0.45.4",
     "fastify": "5.12.7",
     "pg": "8.23.1",
     "pino": "10.4.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "resend": "6.37.0",
     "zod": "4.6.7"
   },
   "devDependencies": {
     "@sport-performance/config": "workspace:*",
     "@types/node": "26.6.6",
     "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "eslint": "10.14.0",
     "typescript": "6.0.3",
     "vitest": "5.0.5"

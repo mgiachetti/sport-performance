@@ -23,7 +23,7 @@ import { timestamptz } from './columns.js';
  * user up through the adapter.
  *
  * Users are global: no `club_id`. What a club knows about a person lives in
- * `membership` and the club tables. RLS (ADR 0025): Better Auth reaches them
+ * `membership` and the club tables. RLS (ADR 0026): Better Auth reaches them
  * through `sport_performance_auth`; the API sees only the user itself and,
  * for staff, the members of the club; sessions, accounts and verifications
  * are invisible to it.

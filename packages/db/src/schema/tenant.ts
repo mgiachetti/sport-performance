@@ -27,7 +27,7 @@ import { timestamptz } from './columns.js';
  *   never point to a player, category or session of club B, whatever the RLS
  *   policies say.
  * - RLS, `app.current_club_id()` and grants are added on top in SQL
- *   migrations (ADR 0025): every table that has `club_id` calls
+ *   migrations (ADR 0026): every table that has `club_id` calls
  *   `app_admin.secure_club_table()` in the migration that creates it.
  */
 

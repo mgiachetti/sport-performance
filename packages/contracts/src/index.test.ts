@@ -7,7 +7,21 @@ describe('@sport-performance/contracts entry point', () => {
   });
 
   it('exports the catalog, the client and the primitives', () => {
-    expect(Object.keys(contracts.apiEndpoints)).toEqual(['getHealth', 'getClubTheme']);
+    expect(Object.keys(contracts.apiEndpoints)).toEqual([
+      'getHealth',
+      'sendSignInCode',
+      'verifySignInCode',
+      'signOut',
+      'getMe',
+      'listMyMemberships',
+      'createInvitation',
+      'listInvitations',
+      'revokeInvitation',
+      'previewInvitation',
+      'acceptInvitation',
+      'getClubTheme',
+    ]);
+    expect(contracts.MEMBERSHIP_HEADER).toBe('x-membership-id');
     expect(typeof contracts.createApiClient).toBe('function');
     expect(typeof contracts.defineEndpoint).toBe('function');
     expect(contracts.ERROR_STATUS.not_found).toBe(404);

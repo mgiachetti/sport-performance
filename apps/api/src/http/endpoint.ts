@@ -5,7 +5,7 @@ import {
 } from '@sport-performance/contracts';
 import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { z } from 'zod';
-import { tenantContextOf, type AuthContext } from '../auth/context.js';
+import { tenantContextOf, type AuthContext, type Membership } from '../auth/context.js';
 import { tenantDatabase, type TenantDatabase, type TransactionClient } from '../db/database.js';
 import { HttpError } from './errors.js';
 
@@ -23,10 +23,18 @@ export type EndpointResult<E extends EndpointDefinition> = E['response']['schema
   ? z.input<E['response']['schema']>
   : undefined;
 
-/** `session` endpoints only run with a caller, so their handlers get a non-null `auth`. */
-export type EndpointAuthContext<E extends EndpointDefinition> = E['auth'] extends 'session'
-  ? AuthContext
-  : AuthContext | null;
+/** A caller acting in a club: what `club` endpoints get. */
+export type ClubAuthContext = AuthContext & { readonly membership: Membership };
+
+/**
+ * `session` endpoints only run with a caller and `club` endpoints with a
+ * selected membership, so their handlers get the narrowed `auth`.
+ */
+export type EndpointAuthContext<E extends EndpointDefinition> = E['auth'] extends 'club'
+  ? ClubAuthContext
+  : E['auth'] extends 'session'
+    ? AuthContext
+    : AuthContext | null;
 
 export interface HandlerContext<E extends EndpointDefinition> {
   auth: EndpointAuthContext<E>;
@@ -113,8 +121,16 @@ export function registerEndpoint<E extends EndpointDefinition>(
     method: endpoint.method,
     url: fastifyPath(endpoint.path),
     handler: async (request, reply) => {
-      if (endpoint.auth === 'session' && request.auth === null) {
+      if (endpoint.auth !== 'public' && request.auth === null) {
         throw new HttpError('unauthenticated', 'This endpoint needs a session');
+      }
+      if (endpoint.auth === 'club' && request.auth?.membership === null) {
+        throw new HttpError(
+          'forbidden',
+          request.auth.membershipRejected
+            ? 'X-Membership-Id is not an active membership of this user'
+            : 'Select a club: send X-Membership-Id (GET /v1/me/memberships)',
+        );
       }
 
       const issues: ValidationIssue[] = [];

@@ -43,6 +43,13 @@
       "when": 1793580971761,
       "tag": "0005_khamis_roche_reference",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793583517127,
+      "tag": "0006_invitations_and_auth_rate_limit",
+      "breakpoints": true
     }
   ]
 }

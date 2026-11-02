@@ -145,6 +145,10 @@ export const staffAssignment = pgTable(
     tenantReference('staff_assignment', t.clubId, t.categoryId, category),
     index('staff_assignment_membership_idx').on(t.clubId, t.membershipId),
     index('staff_assignment_category_idx').on(t.clubId, t.categoryId),
+    /** One open assignment of a membership to a category (B-309: accepting twice adds none). */
+    uniqueIndex('staff_assignment_open_category_key')
+      .on(t.clubId, t.membershipId, t.categoryId)
+      .where(sql`${t.validTo} is null`),
     check('staff_assignment_one_target', sql`num_nonnulls(${t.categoryId}, ${t.sport}) = 1`),
     validityCheck('staff_assignment_validity', t.validFrom, t.validTo),
   ],

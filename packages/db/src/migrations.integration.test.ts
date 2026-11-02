@@ -24,7 +24,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runMigrations } from './migrate.js';
 import { createEmptyDatabase, hasDatabase, type TestDatabase } from './testing/database.js';
 
-const GLOBAL_TABLES = ['user', 'session', 'account', 'verification', 'club'];
+const GLOBAL_TABLES = ['user', 'session', 'account', 'verification', 'auth_rate_limit', 'club'];
 
 describe.skipIf(!hasDatabase)('migrations (Postgres 16)', () => {
   let database: TestDatabase;

@@ -64,6 +64,45 @@ export const esAR = {
   'auth.otp.label': 'Código',
   'auth.otp.sent': 'Te mandamos un código a {email}. Revisá tu correo.',
   'auth.otp.invalid': 'El código no es válido o ya venció. Pedí uno nuevo.',
+  'auth.otp.tooManyAttempts': 'Probaste demasiadas veces. Pedí un código nuevo.',
+  'auth.rateLimited': 'Hiciste muchos intentos seguidos. Esperá unos minutos y probá de nuevo.',
+
+  // Club selector and invitations
+  'club.select.title': 'Elegí el club',
+  'club.select.asRole': '{clubName} · {role}',
+  'invitation.title': 'Te invitaron a {clubName}',
+  'invitation.asRole': 'Para sumarte como {role}.',
+  'invitation.accept': 'Aceptar invitación',
+  'invitation.signInFirst': 'Ingresá con {emailHint} para aceptarla.',
+  'invitation.accepted': 'Listo, ya sos parte de {clubName}.',
+  'invitation.status.pending': 'Pendiente',
+  'invitation.status.accepted': 'Ya se usó',
+  'invitation.status.revoked': 'Anulada',
+  'invitation.status.expired': 'Vencida',
+  'invitation.error.unavailable':
+    'Esta invitación ya no sirve: venció, se anuló o ya se usó. Pedile una nueva a quien te invitó.',
+  'invitation.error.wrongEmail':
+    'Esta invitación es para otro email. Ingresá con el email al que te llegó.',
+
+  // Emails (React Email templates of apps/api)
+  'email.appName': 'Sport Performance',
+  'email.footer': 'Este correo lo mandó {appName} automáticamente. No hace falta que lo respondas.',
+  'email.signInCode.subject': '{code} es tu código para ingresar',
+  'email.signInCode.preview': 'Tu código para ingresar a {appName}',
+  'email.signInCode.heading': 'Tu código para ingresar',
+  'email.signInCode.body':
+    'Escribilo en la app o en la web. Vence en {minutes, plural, one {# minuto} other {# minutos}} y sirve una sola vez.',
+  'email.signInCode.ignore':
+    'Si no lo pediste, ignorá este correo: sin el código nadie puede entrar a tu cuenta.',
+  'email.invitation.subject': 'Te invitaron a {clubName}',
+  'email.invitation.preview': 'Sumate a {clubName} en {appName}',
+  'email.invitation.heading': 'Te invitaron a {clubName}',
+  'email.invitation.body': '{inviterName} te invitó a sumarte a {clubName} como {role}.',
+  'email.invitation.bodyNoInviter': 'Te invitaron a sumarte a {clubName} como {role}.',
+  'email.invitation.cta': 'Aceptar invitación',
+  'email.invitation.expires': 'El link vence el {date} y sirve una sola vez.',
+  'email.invitation.fallback': 'Si el botón no anda, copiá este link en el navegador:',
+  'email.invitation.ignore': 'Si no esperabas esta invitación, ignorá este correo.',
 
   // Roles
   'role.player': 'Jugador/a',

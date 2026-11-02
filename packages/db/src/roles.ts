@@ -2,7 +2,7 @@ import { createHash, createHmac, pbkdf2Sync, randomBytes } from 'node:crypto';
 import pg from 'pg';
 
 /**
- * Connection roles (ADR 0006, ADR 0025). Migration `0004_rls_and_roles`
+ * Connection roles (ADR 0006, ADR 0026). Migration `0004_rls_and_roles`
  * creates them as `NOLOGIN` group roles with their grants and policies; the
  * real logins are created with {@link provisionLoginRole} as members of
  * exactly one of them, so the password never lives in a migration.

@@ -3,14 +3,39 @@ import type { ErrorCode } from './primitives/errors.js';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
-/** `public`: no session needed. `session`: an authenticated user with a membership in the club. */
-export type EndpointAuth = 'public' | 'session';
+/**
+ * Who may call an endpoint (ADR 0007, ADR 0025):
+ * - `public`: anyone, no session needed.
+ * - `session`: a signed-in user (cookie on web, bearer token on mobile), with
+ *   or without a selected club (profile, club selector, accept invitation).
+ * - `club`: a signed-in user acting in a club: a selected membership, sent in
+ *   the {@link MEMBERSHIP_HEADER} header (implied when the user has exactly one).
+ *   Its club and role are the tenant context of the request (RLS, ADR 0006).
+ */
+export type EndpointAuth = 'public' | 'session' | 'club';
+
+/**
+ * Header with the membership (club + role) the request acts as, as listed by
+ * `GET /v1/me/memberships`. Clients store the user's choice and send it on
+ * every request; a membership that is not the caller's is `403 forbidden`.
+ */
+export const MEMBERSHIP_HEADER = 'x-membership-id';
+
+/**
+ * Prefix of the session cookies the API sets for the web (`sp.session_token`,
+ * `__Secure-sp.session_token` over HTTPS). Mobile never sees them: it uses the
+ * bearer token.
+ */
+export const SESSION_COOKIE_PREFIX = 'sp';
 
 export type SuccessStatus = 200 | 201 | 202 | 204;
 
 /** OpenAPI tags. Every endpoint belongs to at least one. */
 export const API_TAGS = {
   system: 'Estado del servicio.',
+  auth: 'Ingreso con código por email (OTP) y sesiones.',
+  me: 'El usuario de la sesión: perfil y membresías (selector de club).',
+  invitations: 'Invitaciones por link a un club.',
   clubs: 'Clubes y su marca (white-label).',
 } as const satisfies Record<string, string>;
 
@@ -48,7 +73,7 @@ export interface EndpointDefinition {
   /**
    * Error codes this endpoint can answer besides the implicit ones
    * (`internal_error` always, `validation_failed` when it takes input,
-   * `unauthenticated` when it needs a session).
+   * `unauthenticated` when it needs a session, `forbidden` when it needs a club).
    */
   errors: readonly ErrorCode[];
   deprecated?: boolean;
@@ -104,7 +129,8 @@ export function defineEndpoint<const E extends EndpointDefinition>(
 export function endpointErrorCodes(endpoint: EndpointDefinition): ErrorCode[] {
   const codes = new Set<ErrorCode>(endpoint.errors);
   if (endpoint.params ?? endpoint.query ?? endpoint.body) codes.add('validation_failed');
-  if (endpoint.auth === 'session') codes.add('unauthenticated');
+  if (endpoint.auth !== 'public') codes.add('unauthenticated');
+  if (endpoint.auth === 'club') codes.add('forbidden');
   codes.add('internal_error');
   return [...codes];
 }

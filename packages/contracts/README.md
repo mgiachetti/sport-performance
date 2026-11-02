@@ -20,6 +20,7 @@ Contrato HTTP de la API (B-106): esquemas `zod` de requests y responses, catálo
 - **Colores:** `hexColorSchema` (`#RRGGBB`).
 - **Errores:** todo status no 2xx responde `{ error: { code, message, requestId?, details? } }`. Catálogo y status en `ERROR_STATUS`; la API arma la respuesta con `apiError(code, message, { requestId, details })` y `toValidationIssues(issues, ['body'])`. La UI traduce por `code`; `message` es para desarrolladores.
 - **Paginación:** query `pageQuerySchema` (`cursor?`, `limit` 1–100, por defecto 50) y respuesta `pageOf(item)` → `{ items, nextCursor }`.
+- **Auth:** `auth: 'public'` (sin sesión), `'session'` (usuario con sesión: cookie en la web, `Authorization: Bearer` en mobile) o `'club'` (sesión + membresía elegida con el header `X-Membership-Id`, `MEMBERSHIP_HEADER`; implícita si el usuario tiene una sola). Implícitos: `unauthenticated` para `session` y `club`, `forbidden` para `club` ([ADR 0025](../../docs/adr/0025-auth-membresias-e-invitaciones-en-la-api.md)).
 - **Compatibilidad:** las respuestas son objetos abiertos; agregar campos o códigos de error no rompe clientes. Quitar o renombrar requiere versión nueva (`/v2`).
 
 ## Agregar un endpoint
@@ -51,7 +52,10 @@ import { ApiError, createApiClient } from '@sport-performance/contracts';
 const api = createApiClient({
   baseUrl: 'https://api.example.com',
   credentials: 'include', // web: cookie de sesión
-  headers: async () => ({ authorization: `Bearer ${await getToken()}` }), // mobile
+  headers: async () => ({
+    authorization: `Bearer ${await getToken()}`, // mobile
+    'x-membership-id': await getSelectedMembership(), // club elegido en el selector
+  }),
 });
 
 try {

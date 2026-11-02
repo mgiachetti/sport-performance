@@ -3,14 +3,25 @@
  * Validates the environment, wires logger, Sentry and Postgres, listens and
  * installs the shutdown handlers.
  */
+import { createDatabase } from '@sport-performance/db';
 import { buildApp } from './app.js';
+import { createAuthModule } from './auth/module.js';
 import { ConfigError, loadConfig } from './config/env.js';
-import { assertConnectionRole, DatabaseRoleError } from '@sport-performance/db';
-import { createApiPool, databaseFromPool } from './db/database.js';
+import {
+  assertConnectionRole,
+  DatabaseRoleError,
+  type DatabaseRoleKind,
+} from '@sport-performance/db';
+import { createApiPool, databaseFromPool, type Database } from './db/database.js';
+import { createMailer } from './email/mailer.js';
+import { ResendEmailTransport } from './email/resend.js';
+import { LogEmailTransport, type EmailTransport } from './email/transport.js';
 import { disabledErrorReporter } from './observability/error-reporter.js';
 import { createLogger } from './observability/logger.js';
 import { initSentry, isSentryInitialized, sentryErrorReporter } from './observability/sentry.js';
 import { createShutdown, installProcessHandlers } from './shutdown.js';
+
+const RATE_LIMIT_PRUNE_INTERVAL_MS = 60 * 60 * 1000;
 
 async function main(): Promise<void> {
   let config;
@@ -45,24 +56,72 @@ async function main(): Promise<void> {
       logger.error({ err: error }, 'idle database connection failed');
     },
   });
-  // RLS only protects anything if the API is not the owner and has no
-  // BYPASSRLS (ADR 0006, ADR 0025): refuse to serve with the wrong login.
-  try {
-    await assertConnectionRole(pool, 'app');
-  } catch (error) {
-    await pool.end().catch(() => undefined);
-    if (error instanceof DatabaseRoleError) {
-      logger.fatal({ err: error }, 'database login is not the application role');
-      process.exit(1);
+  // Better Auth's own connection (ADR 0026, ADR 0028): a login of sport_performance_auth,
+  // which only reaches the identity tables and the attempt counters.
+  const authPool = createApiPool({
+    ...config.database,
+    url: config.auth.database.url,
+    poolMax: config.auth.database.poolMax,
+    applicationName: 'sport-performance-api-auth',
+    onIdleError: (error) => {
+      logger.error({ err: error }, 'idle auth database connection failed');
+    },
+  });
+  // RLS only protects anything if neither login is the owner nor has BYPASSRLS
+  // (ADR 0006, ADR 0026): refuse to serve with the wrong logins.
+  const logins: [typeof pool, DatabaseRoleKind, string][] = [
+    [pool, 'app', 'DATABASE_URL'],
+    [authPool, 'auth', 'AUTH_DATABASE_URL'],
+  ];
+  for (const [checked, role, variable] of logins) {
+    try {
+      await assertConnectionRole(checked, role);
+    } catch (error) {
+      await Promise.all([pool.end(), authPool.end()]).catch(() => undefined);
+      if (error instanceof DatabaseRoleError) {
+        logger.fatal({ err: error, variable }, `database login is not the ${role} role`);
+        process.exit(1);
+      }
+      throw error;
     }
-    throw error;
   }
   const db = databaseFromPool(pool);
+  const authDb = databaseFromPool(authPool);
 
-  const app = await buildApp({ config, db, logger, errorReporter: reporter });
+  const transport: EmailTransport =
+    config.email.resendApiKey === null
+      ? new LogEmailTransport(logger)
+      : new ResendEmailTransport({ apiKey: config.email.resendApiKey, from: config.email.from });
+  const auth = createAuthModule({
+    config: config.auth,
+    db,
+    authDb,
+    authDrizzle: createDatabase(authPool),
+    mailer: createMailer(transport),
+    logger,
+  });
+
+  // Ended rate-limit windows are reset on the next attempt; pruning only keeps the table small.
+  const pruneTimer = setInterval(() => {
+    auth.rateLimiter.prune().catch((error: unknown) => {
+      logger.warn({ err: error }, 'pruning auth rate limits failed');
+    });
+  }, RATE_LIMIT_PRUNE_INTERVAL_MS);
+  pruneTimer.unref();
+
+  const databases: Database = {
+    transaction: (context, work) => db.transaction(context, work),
+    ping: (timeoutMs) => db.ping(timeoutMs),
+    close: async () => {
+      clearInterval(pruneTimer);
+      await Promise.all([db.close(), authDb.close()]);
+    },
+  };
+
+  const app = await buildApp({ config, db, logger, errorReporter: reporter, auth });
   const shutdown = createShutdown({
     app,
-    db,
+    db: databases,
     reporter,
     logger,
     timeoutMs: config.shutdownTimeoutMs,
@@ -71,7 +130,7 @@ async function main(): Promise<void> {
   installProcessHandlers(process, shutdown, logger, reporter);
 
   await app.listen({ host: config.host, port: config.port });
-  logger.info({ sentry: reporter.enabled }, 'api ready');
+  logger.info({ sentry: reporter.enabled, email: transport.name }, 'api ready');
 }
 
 await main();
