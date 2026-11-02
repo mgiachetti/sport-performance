@@ -5,24 +5,18 @@
  * handlers get runs inside the request transaction, and a pooled connection
  * never leaks a context.
  */
-import { randomBytes } from 'node:crypto';
 import { defineEndpoint } from '@sport-performance/contracts';
-import {
-  assertConnectionRole,
-  DatabaseRoleError,
-  provisionLoginRole,
-  runMigrations,
-  schema,
-} from '@sport-performance/db';
+import { assertConnectionRole, DatabaseRoleError, schema } from '@sport-performance/db';
+import { createTemporaryDatabase, type TemporaryDatabase } from '@sport-performance/db/testing';
 import { parseClubId, parseUserId, type ClubId, type UserId } from '@sport-performance/domain';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import pg from 'pg';
+import type pg from 'pg';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import { z } from 'zod';
 import type { AuthContext } from '../auth/context.js';
 import { registerEndpoint } from '../http/endpoint.js';
 import { describeWithPostgres, testApp, testAuthContext } from '../testing/support.js';
-import { createApiPool, createPgDatabase, databaseFromPool, type Database } from './database.js';
+import { createApiPool, databaseFromPool, type Database } from './database.js';
 import { ANONYMOUS_CONTEXT, TENANT_SETTINGS, type TenantContext } from './tenant-context.js';
 
 interface Club {
@@ -51,9 +45,7 @@ function headerAuth(request: FastifyRequest): Promise<AuthContext | null> {
 }
 
 describeWithPostgres('RLS through the API data layer (Postgres)', (url) => {
-  const name = `sp_api_rls_${randomBytes(5).toString('hex')}`;
-  const login = `sp_test_api_${randomBytes(5).toString('hex')}`;
-  const password = randomBytes(24).toString('hex');
+  let database: TemporaryDatabase;
   let ownerUrl: string;
   let appUrl: string;
   let owner: pg.Pool;
@@ -101,29 +93,23 @@ describeWithPostgres('RLS through the API data layer (Postgres)', (url) => {
     });
 
   beforeAll(async () => {
-    const admin = new pg.Client({ connectionString: url });
-    await admin.connect();
-    await admin.query(`create database "${name}"`);
-    await admin.end();
-    const parsed = new URL(url);
-    parsed.pathname = `/${name}`;
-    ownerUrl = parsed.toString();
-    await runMigrations({ connectionString: ownerUrl });
-    await provisionLoginRole({ connectionString: url, login, password, role: 'app' });
-    parsed.username = login;
-    parsed.password = password;
-    appUrl = parsed.toString();
-
-    owner = new pg.Pool({ connectionString: ownerUrl, max: 2 });
+    database = await createTemporaryDatabase({ serverUrl: url, prefix: 'sp_api_rls' });
+    ownerUrl = database.connectionString;
+    appUrl = (await database.login('app')).connectionString;
+    owner = database.pool({ max: 2 });
     a = await seedClub('api-a');
     b = await seedClub('api-b');
 
-    db = createPgDatabase({
-      url: appUrl,
-      poolMax: 2,
-      connectTimeoutMs: 5000,
-      statementTimeoutMs: 5000,
-    });
+    db = databaseFromPool(
+      database.track(
+        createApiPool({
+          url: appUrl,
+          poolMax: 2,
+          connectTimeoutMs: 15_000,
+          statementTimeoutMs: 15_000,
+        }),
+      ),
+    );
     ({ app } = await testApp({
       db,
       authenticate: headerAuth,
@@ -137,18 +123,12 @@ describeWithPostgres('RLS through the API data layer (Postgres)', (url) => {
         });
       },
     }));
-    // Creating the database and running every migration takes a few seconds.
-  }, 120_000);
+  });
 
   afterAll(async () => {
     await app.close();
-    await db.close();
-    await owner.end();
-    const admin = new pg.Client({ connectionString: url });
-    await admin.connect();
-    await admin.query(`drop database if exists "${name}" with (force)`);
-    await admin.query(`drop role if exists "${login}"`);
-    await admin.end();
+    // Closes every tracked pool (waiting for the sockets) before dropping.
+    await database.drop();
   });
 
   it('writes the settings the policies read', () => {
@@ -183,12 +163,14 @@ describeWithPostgres('RLS through the API data layer (Postgres)', (url) => {
   });
 
   it('never leaks a context through a pooled connection, even one set at session level', async () => {
-    const pool = createApiPool({
-      url: appUrl,
-      poolMax: 1,
-      connectTimeoutMs: 5000,
-      statementTimeoutMs: 5000,
-    });
+    const pool = database.track(
+      createApiPool({
+        url: appUrl,
+        poolMax: 1,
+        connectTimeoutMs: 15_000,
+        statementTimeoutMs: 15_000,
+      }),
+    );
     const single = databaseFromPool(pool);
     try {
       expect(await playerIds(adminOf(a), single)).toEqual([a.player]);
@@ -202,31 +184,22 @@ describeWithPostgres('RLS through the API data layer (Postgres)', (url) => {
       expect(await playerIds(ANONYMOUS_CONTEXT, single)).toEqual([]);
       expect(await playerIds(adminOf(b), single)).toEqual([b.player]);
     } finally {
-      await single.close();
+      await database.closePool(pool);
     }
   });
 
   it('accepts the application login and rejects the owner at startup', async () => {
-    const appPool = createApiPool({
-      url: appUrl,
-      poolMax: 1,
-      connectTimeoutMs: 5000,
-      statementTimeoutMs: 5000,
-    });
-    const ownerPool = createApiPool({
-      url: ownerUrl,
-      poolMax: 1,
-      connectTimeoutMs: 5000,
-      statementTimeoutMs: 5000,
-    });
+    const options = { poolMax: 1, connectTimeoutMs: 15_000, statementTimeoutMs: 15_000 };
+    const appPool = database.track(createApiPool({ ...options, url: appUrl }));
+    const ownerPool = database.track(createApiPool({ ...options, url: ownerUrl }));
     try {
       await assertConnectionRole(appPool, 'app');
       await expect(assertConnectionRole(ownerPool, 'app')).rejects.toBeInstanceOf(
         DatabaseRoleError,
       );
     } finally {
-      await appPool.end();
-      await ownerPool.end();
+      await database.closePool(appPool);
+      await database.closePool(ownerPool);
     }
   });
 });

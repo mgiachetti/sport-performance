@@ -45,4 +45,9 @@ describe('vitest preset', () => {
     expect(preset.test?.include).toContain('src/**/*.test.ts');
     expect(preset.test?.passWithNoTests).toBe(false);
   });
+
+  it('gives tests room for a loaded runner without hiding hangs', () => {
+    expect(preset.test?.testTimeout).toBe(30_000);
+    expect(preset.test?.hookTimeout).toBe(60_000);
+  });
 });

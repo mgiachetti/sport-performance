@@ -1,13 +1,15 @@
 import { randomBytes } from 'node:crypto';
 import pg from 'pg';
 import { createDatabase, type Database } from '../client.js';
-import { runMigrations } from '../migrate.js';
-import { TENANT_SETTING_NAMES, provisionLoginRole, type DatabaseRoleKind } from '../roles.js';
+import { TENANT_SETTING_NAMES, type DatabaseRoleKind } from '../roles.js';
+import { createTemporaryDatabase, type TemporaryDatabase } from './temporary-database.js';
 
 /**
  * Integration-test support: every test file gets its own throwaway database
  * on the Postgres 16 server of `DATABASE_URL` (Docker locally, the service
- * container in CI), so files run in parallel without sharing state.
+ * container in CI), so files run in parallel without sharing state. The
+ * databases come from `./temporary-database.ts`, which closes every pool and
+ * waits for its sockets before `DROP DATABASE ... WITH (FORCE)` (issue #147).
  *
  * Without `DATABASE_URL` the integration suites are skipped locally, but in
  * CI (`CI` set) they fail: a missing database must never pass as green.
@@ -23,61 +25,42 @@ if (!hasDatabase && process.env.CI !== undefined && process.env.CI !== '') {
 
 export interface TestDatabase {
   readonly connectionString: string;
-  /** Drops the database, terminating open connections. */
+  /** The throwaway database: tracks its pools and logins. */
+  readonly temporary: TemporaryDatabase;
+  /**
+   * Closes every pool over the database (waiting for their sockets), then
+   * drops it `WITH (FORCE)` with its logins.
+   */
   readonly drop: () => Promise<void>;
 }
 
-function withDatabase(connectionString: string, database: string): string {
-  const parsed = new URL(connectionString);
-  parsed.pathname = `/${database}`;
-  return parsed.toString();
+function serverUrl(): string {
+  if (!hasDatabase || url === undefined) throw new Error('DATABASE_URL is not set.');
+  return url;
 }
 
-async function admin<T>(run: (client: pg.Client) => Promise<T>): Promise<T> {
-  if (!hasDatabase || url === undefined) throw new Error('DATABASE_URL is not set.');
-  const client = new pg.Client({ connectionString: url });
-  await client.connect();
-  try {
-    return await run(client);
-  } finally {
-    await client.end();
-  }
+function testDatabase(temporary: TemporaryDatabase): TestDatabase {
+  return { connectionString: temporary.connectionString, temporary, drop: temporary.drop };
 }
 
 /** Creates an empty database (no migrations applied). */
 export async function createEmptyDatabase(): Promise<TestDatabase> {
-  if (url === undefined) throw new Error('DATABASE_URL is not set.');
-  const name = `sp_test_${randomBytes(6).toString('hex')}`;
-  await admin((client) => client.query(`create database "${name}"`));
-  return {
-    connectionString: withDatabase(url, name),
-    drop: async () => {
-      await admin((client) => client.query(`drop database if exists "${name}" with (force)`));
-    },
-  };
+  return testDatabase(await createTemporaryDatabase({ serverUrl: serverUrl(), migrate: false }));
 }
 
 export interface MigratedTestDatabase extends TestDatabase {
+  /** Owner pool (bypasses RLS). */
   readonly pool: pg.Pool;
   readonly db: Database;
-  /** Closes the pool and drops the database. */
+  /** Same as `drop()`: closes the pools and drops the database. */
   readonly close: () => Promise<void>;
 }
 
 /** Creates a database with every migration applied and a typed client over it. */
 export async function createMigratedDatabase(): Promise<MigratedTestDatabase> {
-  const database = await createEmptyDatabase();
-  await runMigrations({ connectionString: database.connectionString });
-  const pool = new pg.Pool({ connectionString: database.connectionString, max: 4 });
-  return {
-    ...database,
-    pool,
-    db: createDatabase(pool),
-    close: async () => {
-      await pool.end();
-      await database.drop();
-    },
-  };
+  const temporary = await createTemporaryDatabase({ serverUrl: serverUrl() });
+  const pool = temporary.pool({ max: 4 });
+  return { ...testDatabase(temporary), pool, db: createDatabase(pool), close: temporary.drop };
 }
 
 export interface RoleConnection {
@@ -85,7 +68,7 @@ export interface RoleConnection {
   readonly login: string;
   readonly connectionString: string;
   readonly pool: pg.Pool;
-  /** Closes the pool and drops the login (roles are cluster-wide). */
+  /** Closes the pool, waiting for its sockets. The login is dropped with the database. */
   readonly close: () => Promise<void>;
 }
 
@@ -98,23 +81,13 @@ export async function connectAs(
   role: DatabaseRoleKind,
   options: { max?: number } = {},
 ): Promise<RoleConnection> {
-  const login = `sp_test_${role}_${randomBytes(5).toString('hex')}`;
-  const password = randomBytes(24).toString('hex');
-  await provisionLoginRole({ connectionString: url ?? '', login, password, role });
-  const parsed = new URL(database.connectionString);
-  parsed.username = login;
-  parsed.password = password;
-  const connectionString = parsed.toString();
-  const pool = new pg.Pool({ connectionString, max: options.max ?? 2 });
-  pool.on('error', () => undefined);
+  const { login, connectionString } = await database.temporary.login(role);
+  const pool = database.temporary.pool({ connectionString, max: options.max ?? 2 });
   return {
     login,
     connectionString,
     pool,
-    close: async () => {
-      await pool.end();
-      await admin((client) => client.query(`drop role if exists "${login}"`));
-    },
+    close: () => database.temporary.closePool(pool),
   };
 }
 
