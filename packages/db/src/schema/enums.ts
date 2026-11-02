@@ -10,6 +10,8 @@ import {
   DOMINANT_SIDES,
   EXPOSURE_CONTEXTS,
   HEIGHT_SOURCES,
+  FIXTURE_STATUSES,
+  FIXTURE_VENUES,
   MATURITY_OFFSET_EQUATIONS,
   MEASUREMENT_METHODS,
   MEMBERSHIP_ROLES,
@@ -24,6 +26,7 @@ import {
   STAGE_REASONS,
   TEST_NOT_DONE_REASONS,
   TEST_RESULT_STATUSES,
+  TEST_SESSION_STATUSES,
   UNIT_CODES,
   type MetricDirection,
   type MetricSource,
@@ -97,6 +100,12 @@ export const sessionClientTypeEnum = pgEnum('session_client_type', SESSION_CLIEN
 /** Coarse device of a session, derived from the `User-Agent` (never stored raw), ADR 0033. */
 export const deviceOsEnum = pgEnum('device_os', DEVICE_OPERATING_SYSTEMS);
 export const deviceBrowserEnum = pgEnum('device_browser', DEVICE_BROWSERS);
+/** Lifecycle of a scheduled test day (B-317 schedules it, B-320 runs it). */
+export const testSessionStatusEnum = pgEnum('test_session_status', TEST_SESSION_STATUSES);
+/** Where a match of the fixture is played (B-317). */
+export const fixtureVenueEnum = pgEnum('fixture_venue', FIXTURE_VENUES);
+/** State of a match of the fixture (B-317). */
+export const fixtureStatusEnum = pgEnum('fixture_status', FIXTURE_STATUSES);
 
 /** `UNIT_CODES` is derived from the `UNITS` record, hence the tuple cast. */
 export const unitEnum = pgEnum('unit', UNIT_CODES as unknown as readonly [UnitCode, ...UnitCode[]]);
@@ -127,15 +136,6 @@ export const playerLeaveReasonEnum = pgEnum('player_leave_reason', PLAYER_LEAVE_
 /** Relationship of a guardian with the player (B-310). */
 export const GUARDIAN_RELATIONSHIPS = ['mother', 'father', 'legal_guardian', 'other'] as const;
 export const guardianRelationshipEnum = pgEnum('guardian_relationship', GUARDIAN_RELATIONSHIPS);
-
-/** Lifecycle of a scheduled test day. */
-export const TEST_SESSION_STATUSES = [
-  'scheduled',
-  'in_progress',
-  'completed',
-  'cancelled',
-] as const;
-export const testSessionStatusEnum = pgEnum('test_session_status', TEST_SESSION_STATUSES);
 
 /** Contact level of a drill (B-318), for contact load and return-to-play planning. */
 export const CONTACT_LEVELS = ['none', 'controlled', 'full'] as const;

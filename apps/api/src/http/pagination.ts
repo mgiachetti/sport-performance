@@ -34,10 +34,11 @@ export interface KeysetSpec<Row, Field extends string> {
   /**
    * The id column and its value in a row: the tie-breaker. The value is
    * always a UUID; `text` for a column that stores it as text (Better
-   * Auth's tables, ADR 0010), `uuid` by default.
+   * Auth's tables, ADR 0010), `uuid` by default. The column may be an `SQL`
+   * expression for a derived table (a `UNION` of several tables).
    */
   readonly id: {
-    readonly column: AnyColumn;
+    readonly column: AnyColumn | SQL;
     readonly value: (row: Row) => string;
     readonly type?: 'uuid' | 'text';
   };

@@ -70,6 +70,8 @@ function register(app: FastifyInstance): void {
           throw pgError('23514', 'change_history_reason_required');
         case 'policy':
           throw pgError('42501');
+        case 'overlap':
+          throw pgError('23P01', 'season_no_overlap');
         case 'other-check':
           throw pgError('23514', 'club_name_format');
         default:
@@ -195,6 +197,7 @@ describe('errors of the conventions', () => {
     ['unique', 409, 'conflict'],
     ['reason', 400, 'validation_failed'],
     ['policy', 403, 'forbidden'],
+    ['overlap', 409, 'conflict'],
     ['other-check', 500, 'internal_error'],
   ])('answers %s with %i %s, without the database detail', async (fail, status, code) => {
     const { app, logs } = await start(admin);
@@ -308,7 +311,7 @@ const KEYS: KeysetSpec<Row, 'name' | 'createdAt'> = {
     name: { column: sql`name`, type: 'text', value: (row) => row.name },
     createdAt: { column: sql`created_at`, type: 'timestamp', value: (row) => row.createdAt },
   },
-  id: { column: sql`id` as never, value: (row) => row.id },
+  id: { column: sql`id`, value: (row) => row.id },
 };
 
 const dialect = new PgDialect();

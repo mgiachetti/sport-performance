@@ -74,6 +74,9 @@ function classifyDatabaseError(
   switch (found.code) {
     case '23505':
       return { code: 'conflict', message: 'Another resource already has these unique values' };
+    case '23P01':
+      // An exclusion constraint: the row overlaps another one (seasons, testing windows).
+      return { code: 'conflict', message: 'Another resource already takes these dates' };
     case '23503':
       return {
         code: 'validation_failed',

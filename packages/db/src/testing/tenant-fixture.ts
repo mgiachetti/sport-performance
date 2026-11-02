@@ -15,6 +15,7 @@ import {
   device,
   drill,
   externalMetric,
+  fixture,
   guardian,
   gymProgram,
   gymSet,
@@ -441,6 +442,19 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         localDate: day('2026-03-10'),
       })
       .returning({ id: trainingSession.id }),
+  );
+  rows.fixture = await id(
+    db
+      .insert(fixture)
+      .values({
+        ...base,
+        categoryId: m15,
+        opponent: 'Club Rival',
+        venue: 'home',
+        matchDate: day('2026-04-11'),
+        kickoffTime: '15:30',
+      })
+      .returning({ id: fixture.id }),
   );
   rows.drill = await id(
     db

@@ -13,6 +13,8 @@ import {
   DOMINANT_SIDES,
   EXPOSURE_CONTEXTS,
   HEIGHT_SOURCES,
+  FIXTURE_STATUSES,
+  FIXTURE_VENUES,
   MATURITY_OFFSET_EQUATIONS,
   MEASUREMENT_METHODS,
   MEMBERSHIP_ROLES,
@@ -27,6 +29,7 @@ import {
   STAGE_REASONS,
   TEST_NOT_DONE_REASONS,
   TEST_RESULT_STATUSES,
+  TEST_SESSION_STATUSES,
   UNIT_CODES,
 } from '@sport-performance/domain';
 import pg from 'pg';
@@ -174,6 +177,9 @@ describe.skipIf(!hasDatabase)('migrations (Postgres 16)', () => {
       height_source: HEIGHT_SOURCES,
       parent_kind: PARENTS,
       player_leave_reason: PLAYER_LEAVE_REASONS,
+      test_session_status: TEST_SESSION_STATUSES,
+      fixture_venue: FIXTURE_VENUES,
+      fixture_status: FIXTURE_STATUSES,
     };
     const enums = await rows<{ name: string; labels: string[] }>(
       `select t.typname as name, array_agg(e.enumlabel::text order by e.enumsortorder)::text[] as labels

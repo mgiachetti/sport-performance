@@ -57,7 +57,14 @@ export const membership = pgTable(
   ],
 );
 
-/** Season per sport (B-317), for example "2027" from March to October. */
+/**
+ * Season per sport (B-317): the planning year of the sport, for example
+ * "2027" from February (V1, pre-season) to November (V4); the competition
+ * itself is the fixture. At most a year long. Active seasons of a sport never
+ * overlap (exclusion constraint `season_no_overlap`, migration `0013`), so a
+ * day of the club belongs to at most one season per sport. Archived instead
+ * of deleted.
+ */
 export const season = pgTable(
   'season',
   {
@@ -66,11 +73,18 @@ export const season = pgTable(
     name: text('name').notNull(),
     startsOn: localDate('starts_on').notNull(),
     endsOn: localDate('ends_on').notNull(),
+    archivedAt: timestamptz('archived_at'),
   },
   (t) => [
     ...tenantConstraints('season', t),
     unique('season_club_id_sport_name_key').on(t.clubId, t.sport, t.name),
     check('season_span', sql`${t.endsOn} >= ${t.startsOn}`),
+    /** `SEASON_MAX_DAYS` of the domain: both ends count. */
+    check('season_max_length', sql`${t.endsOn} - ${t.startsOn} < 366`),
+    check(
+      'season_name_format',
+      sql`${t.name} = btrim(${t.name}) and ${t.name} <> '' and char_length(${t.name}) <= 60`,
+    ),
   ],
 );
 
