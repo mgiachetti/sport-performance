@@ -322,6 +322,8 @@ export async function batteryRows(
         eq(batteryConfig.clubId, clubId),
         eq(batteryConfig.sport, sport),
         eq(batteryConfig.testCode, testCode),
+        // A withdrawn entry never applied (B-322, ADR 0041).
+        isNull(batteryConfig.archivedAt),
       ),
     );
 }

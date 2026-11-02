@@ -57,6 +57,10 @@
     {
       "name": "references",
       "description": "Referencias de primera por métrica, deporte, sexo y alcance (B-321)."
+    },
+    {
+      "name": "configuration",
+      "description": "Configuración del club: batería de tests, zonas de velocidad, reglas de alerta y módulos activos."
     }
   ],
   "paths": {
@@ -3319,6 +3323,3470 @@
           },
           "400": {
             "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/configuration/alert-rules": {
+      "get": {
+        "operationId": "listAlertRules",
+        "summary": "Reglas de alerta del club",
+        "description": "Lectura: `coach`, `sc`, `medical` y la administración. Son heurísticas de monitoreo de carga, no predicen lesiones ni diagnostican.",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/AlertRuleKind"
+            }
+          },
+          {
+            "name": "enabled",
+            "in": "query",
+            "required": false,
+            "description": "Solo las activas (`true`) o las desactivadas (`false`).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `code`, `createdAt`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "code",
+              "type": "string",
+              "enum": [
+                "code",
+                "-code",
+                "createdAt",
+                "-createdAt"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de reglas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertRulePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `bad_request`, `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createAlertRule",
+        "summary": "Crear una regla de alerta",
+        "description": "Solo `sc` y la administración. El dominio valida la regla (umbrales por severidad, el rojo al menos tan estricto como el amarillo, ventanas y muestras). Código repetido: `conflict`. Idempotente por `clientUuid`.",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "clientUuid": {
+                        "$ref": "#/components/schemas/ClientUuid"
+                      },
+                      "code": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "description": "Código único en el club, inglés `snake_case`.",
+                        "examples": [
+                          "acwr_high",
+                          "wellness_low_m15"
+                        ]
+                      },
+                      "enabled": {
+                        "description": "Por defecto, `true`.",
+                        "type": "boolean"
+                      },
+                      "appliesTo": {
+                        "$ref": "#/components/schemas/AlertRuleScope"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "const": "acwr_high"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/AcwrHighParams"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "kind",
+                      "params"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "clientUuid": {
+                        "$ref": "#/components/schemas/ClientUuid"
+                      },
+                      "code": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "description": "Código único en el club, inglés `snake_case`.",
+                        "examples": [
+                          "acwr_high",
+                          "wellness_low_m15"
+                        ]
+                      },
+                      "enabled": {
+                        "description": "Por defecto, `true`.",
+                        "type": "boolean"
+                      },
+                      "appliesTo": {
+                        "$ref": "#/components/schemas/AlertRuleScope"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "const": "acwr_low"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/AcwrLowParams"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "kind",
+                      "params"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "clientUuid": {
+                        "$ref": "#/components/schemas/ClientUuid"
+                      },
+                      "code": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "description": "Código único en el club, inglés `snake_case`.",
+                        "examples": [
+                          "acwr_high",
+                          "wellness_low_m15"
+                        ]
+                      },
+                      "enabled": {
+                        "description": "Por defecto, `true`.",
+                        "type": "boolean"
+                      },
+                      "appliesTo": {
+                        "$ref": "#/components/schemas/AlertRuleScope"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "const": "wellness_low"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/WellnessLowParams"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "kind",
+                      "params"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "clientUuid": {
+                        "$ref": "#/components/schemas/ClientUuid"
+                      },
+                      "code": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "description": "Código único en el club, inglés `snake_case`.",
+                        "examples": [
+                          "acwr_high",
+                          "wellness_low_m15"
+                        ]
+                      },
+                      "enabled": {
+                        "description": "Por defecto, `true`.",
+                        "type": "boolean"
+                      },
+                      "appliesTo": {
+                        "$ref": "#/components/schemas/AlertRuleScope"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "const": "wellness_zscore_low"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/WellnessZScoreLowParams"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "kind",
+                      "params"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "clientUuid": {
+                        "$ref": "#/components/schemas/ClientUuid"
+                      },
+                      "code": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "description": "Código único en el club, inglés `snake_case`.",
+                        "examples": [
+                          "acwr_high",
+                          "wellness_low_m15"
+                        ]
+                      },
+                      "enabled": {
+                        "description": "Por defecto, `true`.",
+                        "type": "boolean"
+                      },
+                      "appliesTo": {
+                        "$ref": "#/components/schemas/AlertRuleScope"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "const": "cmj_drop"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/CmjDropParams"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "kind",
+                      "params"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "clientUuid": {
+                        "$ref": "#/components/schemas/ClientUuid"
+                      },
+                      "code": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "description": "Código único en el club, inglés `snake_case`.",
+                        "examples": [
+                          "acwr_high",
+                          "wellness_low_m15"
+                        ]
+                      },
+                      "enabled": {
+                        "description": "Por defecto, `true`.",
+                        "type": "boolean"
+                      },
+                      "appliesTo": {
+                        "$ref": "#/components/schemas/AlertRuleScope"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "const": "growth_peak"
+                      },
+                      "params": {
+                        "$ref": "#/components/schemas/GrowthPeakParams"
+                      }
+                    },
+                    "required": [
+                      "code",
+                      "kind",
+                      "params"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Regla creada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertRule"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/configuration/alert-rules/{alertRuleId}": {
+      "get": {
+        "operationId": "getAlertRule",
+        "summary": "Una regla de alerta",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "alertRuleId",
+            "in": "path",
+            "required": true,
+            "description": "Id de regla de alerta (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "La regla.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertRule"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateAlertRule",
+        "summary": "Editar una regla de alerta",
+        "description": "Solo `sc` y la administración. Se cambian `enabled`, `appliesTo` (`null` = a todos) y `params` (completos, del tipo de la regla); el código y el tipo no. Las reglas no se borran (las alertas guardan su referencia): se desactivan. `version` desactualizada: `conflict`.",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "alertRuleId",
+            "in": "path",
+            "required": true,
+            "description": "Id de regla de alerta (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "description": "Versión que el cliente leyó (`version` de la respuesta). Si no es la actual: `409 conflict`.",
+                    "$ref": "#/components/schemas/ResourceVersion"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "appliesTo": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/AlertRuleScope"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "params": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/AcwrHighParams"
+                      },
+                      {
+                        "$ref": "#/components/schemas/AcwrLowParams"
+                      },
+                      {
+                        "$ref": "#/components/schemas/WellnessLowParams"
+                      },
+                      {
+                        "$ref": "#/components/schemas/WellnessZScoreLowParams"
+                      },
+                      {
+                        "$ref": "#/components/schemas/CmjDropParams"
+                      },
+                      {
+                        "$ref": "#/components/schemas/GrowthPeakParams"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "version"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "La regla actualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertRule"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/configuration/battery": {
+      "get": {
+        "operationId": "listBatteryEntries",
+        "summary": "Batería de tests del club",
+        "description": "Lectura: `coach`, `sc`, `medical` y la administración. Los filtros de alcance son exactos (`sex=male` no trae las filas para los dos sexos); para saber qué aplica a un grupo, `GET /v1/configuration/battery/effective`.",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "sport",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Sport"
+            }
+          },
+          {
+            "name": "sex",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Sex"
+            }
+          },
+          {
+            "name": "stage",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Stage"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "query",
+            "required": false,
+            "description": "Id de categoría (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "testCode",
+            "in": "query",
+            "required": false,
+            "description": "Código del test del catálogo del club.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "examples": [
+                "cmj",
+                "sprint_40"
+              ]
+            }
+          },
+          {
+            "name": "validOn",
+            "in": "query",
+            "required": false,
+            "description": "Solo las filas vigentes ese día.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "`active` (por defecto), `archived` o `all`.",
+            "schema": {
+              "default": "active",
+              "type": "string",
+              "enum": [
+                "active",
+                "archived",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `testCode`, `validFrom`, `createdAt`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "testCode",
+              "type": "string",
+              "enum": [
+                "testCode",
+                "-testCode",
+                "validFrom",
+                "-validFrom",
+                "createdAt",
+                "-createdAt"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de entradas de la batería.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatteryEntryPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `bad_request`, `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createBatteryEntry",
+        "summary": "Programar un test para un grupo",
+        "description": "Solo `sc` y la administración. El test tiene que existir en el catálogo del club y aplicar al deporte; la categoría, ser del deporte (y del sexo, si se indica). Un test con cargas máximas solo con la etapa `performance` y una franja que las permita (principio 3). Al menos una ventana o una cadencia. Vigencia `[validFrom, validTo)`. Dos filas con el mismo alcance no se superponen (`conflict`). Una fila que todavía no empezó se edita entera o se archiva; una vigente solo se cierra (`validTo` desde hoy) y se abre otra; una que ya terminó no cambia. Idempotente por `clientUuid`.",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientUuid": {
+                    "$ref": "#/components/schemas/ClientUuid"
+                  },
+                  "sport": {
+                    "$ref": "#/components/schemas/Sport"
+                  },
+                  "sex": {
+                    "description": "Rama; `null` = los dos sexos del deporte.",
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/Sex"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "stage": {
+                    "description": "Etapa del jugador/a (por maduración o fijada); `null` = todas.",
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/Stage"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "categoryId": {
+                    "description": "Categoría; `null` = todas las del deporte.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "description": "Id de categoría (UUID, RFC 9562)."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "testCode": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "description": "Código del test del catálogo del club.",
+                    "examples": [
+                      "cmj",
+                      "sprint_40"
+                    ]
+                  },
+                  "windows": {
+                    "maxItems": 4,
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 4,
+                      "description": "Ventana de tests: 1 = V1 (febrero) … 4 = V4 (noviembre)."
+                    },
+                    "description": "Ventanas en las que se hace el test, sin repetir. Vacío: solo cadencia."
+                  },
+                  "cadenceWeeks": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/BatteryCadenceWeeks"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "validFrom": {
+                    "description": "Por defecto, hoy en el club.",
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "examples": [
+                      "2026-11-01"
+                    ]
+                  },
+                  "validTo": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                        "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                        "examples": [
+                          "2026-11-01"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Fin de la vigencia (exclusivo: ese día ya no vale); `null` mientras siga vigente sin fecha de cierre."
+                  },
+                  "closePrevious": {
+                    "description": "Si `true`, cierra en `validFrom` la fila vigente con el mismo alcance (en la misma transacción) en vez de responder `conflict`. Solo con `validFrom` desde hoy.",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "sport",
+                  "testCode"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Entrada creada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatteryEntry"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/configuration/battery/{batteryEntryId}": {
+      "get": {
+        "operationId": "getBatteryEntry",
+        "summary": "Una entrada de la batería",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "batteryEntryId",
+            "in": "path",
+            "required": true,
+            "description": "Id de entrada de la batería (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "La entrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatteryEntry"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateBatteryEntry",
+        "summary": "Editar una entrada de la batería",
+        "description": "Solo `sc` y la administración. El alcance y el test no cambian. Vigencia `[validFrom, validTo)`. Dos filas con el mismo alcance no se superponen (`conflict`). Una fila que todavía no empezó se edita entera o se archiva; una vigente solo se cierra (`validTo` desde hoy) y se abre otra; una que ya terminó no cambia. `version` desactualizada: `conflict`.",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "batteryEntryId",
+            "in": "path",
+            "required": true,
+            "description": "Id de entrada de la batería (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "description": "Versión que el cliente leyó (`version` de la respuesta). Si no es la actual: `409 conflict`.",
+                    "$ref": "#/components/schemas/ResourceVersion"
+                  },
+                  "windows": {
+                    "maxItems": 4,
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 4,
+                      "description": "Ventana de tests: 1 = V1 (febrero) … 4 = V4 (noviembre)."
+                    },
+                    "description": "Ventanas en las que se hace el test, sin repetir. Vacío: solo cadencia."
+                  },
+                  "cadenceWeeks": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/BatteryCadenceWeeks"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "validFrom": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "description": "Primer día de vigencia (inclusive), en la zona horaria del club.",
+                    "examples": [
+                      "2026-11-01"
+                    ]
+                  },
+                  "validTo": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                        "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                        "examples": [
+                          "2026-11-01"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Fin de la vigencia (exclusivo: ese día ya no vale); `null` mientras siga vigente sin fecha de cierre."
+                  }
+                },
+                "required": [
+                  "version"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "La entrada actualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatteryEntry"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/configuration/battery/{batteryEntryId}/archive": {
+      "post": {
+        "operationId": "archiveBatteryEntry",
+        "summary": "Retirar una entrada que todavía no empezó",
+        "description": "Solo `sc` y la administración. Una entrada vigente o pasada no se archiva (`conflict`): se cierra con `validTo`. Idempotente.",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "batteryEntryId",
+            "in": "path",
+            "required": true,
+            "description": "Id de entrada de la batería (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Entrada archivada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatteryEntry"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/configuration/battery/{batteryEntryId}/restore": {
+      "post": {
+        "operationId": "restoreBatteryEntry",
+        "summary": "Restaurar una entrada archivada",
+        "description": "Solo `sc` y la administración. Tiene que seguir sin empezar; si ya pasó su inicio, si se superpone con otra del mismo alcance o si la categoría está archivada: `conflict`. Idempotente.",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "batteryEntryId",
+            "in": "path",
+            "required": true,
+            "description": "Id de entrada de la batería (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Entrada restaurada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatteryEntry"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/configuration/battery/effective": {
+      "get": {
+        "operationId": "getEffectiveBattery",
+        "summary": "Batería que le toca a un grupo",
+        "description": "Por test, la entrada vigente más específica para el deporte, el sexo, la etapa y la categoría (categoría > etapa > sexo > club). Sin `categoryId`, solo las entradas para todas las categorías. Mismo permiso que la lista.",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sport",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Sport"
+            }
+          },
+          {
+            "name": "sex",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Sex"
+            }
+          },
+          {
+            "name": "stage",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Stage"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "query",
+            "required": false,
+            "description": "Id de categoría (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "onDate",
+            "in": "query",
+            "required": false,
+            "description": "Día a resolver; por defecto, hoy en la zona horaria del club.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "La batería resuelta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EffectiveBattery"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/configuration/modules": {
+      "get": {
+        "operationId": "getClubModules",
+        "summary": "Módulos activos del club",
+        "description": "Todo miembro del club: la web y la app muestran u ocultan áreas enteras según esto. Los módulos que el club nunca tocó tienen su valor por defecto.",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Los módulos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClubModuleSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateClubModules",
+        "summary": "Prender o apagar módulos",
+        "description": "Solo la administración (`admin` o superadmin en soporte), como el perfil del club. Se mandan solo los módulos que cambian. Apagar un módulo no borra datos: deja de mostrarse y de pedirse. `version` desactualizada: `conflict`.",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "description": "Versión que el cliente leyó (`version` de la respuesta). Si no es la actual: `409 conflict`.",
+                    "$ref": "#/components/schemas/ResourceVersion"
+                  },
+                  "modules": {
+                    "type": "object",
+                    "properties": {
+                      "wellness": {
+                        "description": "Bienestar antes de entrenar.",
+                        "type": "boolean"
+                      },
+                      "gym": {
+                        "description": "Rutinas y series de gimnasio.",
+                        "type": "boolean"
+                      },
+                      "gps": {
+                        "description": "Métricas de cancha por GPS (importaciones de Catapult, pods).",
+                        "type": "boolean"
+                      },
+                      "maturation": {
+                        "description": "Maduración y crecimiento (PHV, % de talla adulta, velocidad de crecimiento).",
+                        "type": "boolean"
+                      },
+                      "pain_report": {
+                        "description": "Reporte de dolor con mapa del cuerpo (requiere consentimiento de salud).",
+                        "type": "boolean"
+                      },
+                      "menstrual_cycle": {
+                        "description": "Seguimiento del ciclo menstrual (opt-in, con consentimiento propio).",
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "Los módulos que cambian."
+                  }
+                },
+                "required": [
+                  "version",
+                  "modules"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Los módulos actualizados.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClubModuleSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/configuration/speed-zones": {
+      "get": {
+        "operationId": "listSpeedZoneConfigs",
+        "summary": "Zonas de velocidad del club",
+        "description": "Lectura: `coach`, `sc`, `medical` y la administración; las filas de un jugador/a, solo si quien llama lo ve. Filtros de alcance exactos; `scope` separa las de grupo de las de jugador/a.",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/SpeedZoneKind"
+            }
+          },
+          {
+            "name": "sport",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Sport"
+            }
+          },
+          {
+            "name": "sex",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Sex"
+            }
+          },
+          {
+            "name": "playerId",
+            "in": "query",
+            "required": false,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "description": "`group`: sin jugador/a; `player`: umbrales individuales.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "group",
+                "player"
+              ]
+            }
+          },
+          {
+            "name": "validOn",
+            "in": "query",
+            "required": false,
+            "description": "Solo las filas vigentes ese día.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "`active` (por defecto), `archived` o `all`.",
+            "schema": {
+              "default": "active",
+              "type": "string",
+              "enum": [
+                "active",
+                "archived",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `validFrom`, `createdAt`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "validFrom",
+              "type": "string",
+              "enum": [
+                "validFrom",
+                "-validFrom",
+                "createdAt",
+                "-createdAt"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de configuraciones de zonas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeedZoneConfigPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `bad_request`, `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createSpeedZoneConfig",
+        "summary": "Crear una configuración de zonas de velocidad",
+        "description": "Solo `sc` y la administración. Las zonas las valida el dominio: la primera empieza en 0, límites estrictamente crecientes, códigos únicos y la zona de alta velocidad existe y no es la primera. Para un jugador/a, tiene que ser visible para quien llama. Vigencia `[validFrom, validTo)`. Dos filas con el mismo alcance no se superponen (`conflict`). Una fila que todavía no empezó se edita entera o se archiva; una vigente solo se cierra (`validTo` desde hoy) y se abre otra; una que ya terminó no cambia. Idempotente por `clientUuid`.",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientUuid": {
+                    "$ref": "#/components/schemas/ClientUuid"
+                  },
+                  "sport": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/Sport"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "sex": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/Sex"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "playerId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "description": "Id de jugador/a (UUID, RFC 9562)."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "zoneSet": {
+                    "$ref": "#/components/schemas/SpeedZoneSet"
+                  },
+                  "validFrom": {
+                    "description": "Por defecto, hoy en el club.",
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "examples": [
+                      "2026-11-01"
+                    ]
+                  },
+                  "validTo": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                        "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                        "examples": [
+                          "2026-11-01"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Fin de la vigencia (exclusivo: ese día ya no vale); `null` mientras siga vigente sin fecha de cierre."
+                  },
+                  "closePrevious": {
+                    "description": "Si `true`, cierra en `validFrom` la fila vigente con el mismo alcance (en la misma transacción) en vez de responder `conflict`. Solo con `validFrom` desde hoy.",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "zoneSet"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Configuración creada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeedZoneConfig"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/configuration/speed-zones/{speedZoneConfigId}": {
+      "get": {
+        "operationId": "getSpeedZoneConfig",
+        "summary": "Una configuración de zonas de velocidad",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "speedZoneConfigId",
+            "in": "path",
+            "required": true,
+            "description": "Id de configuración de zonas de velocidad (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "La configuración.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeedZoneConfig"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateSpeedZoneConfig",
+        "summary": "Editar una configuración de zonas de velocidad",
+        "description": "Solo `sc` y la administración. El alcance y el tipo (`kind`) no cambian. Vigencia `[validFrom, validTo)`. Dos filas con el mismo alcance no se superponen (`conflict`). Una fila que todavía no empezó se edita entera o se archiva; una vigente solo se cierra (`validTo` desde hoy) y se abre otra; una que ya terminó no cambia. `version` desactualizada: `conflict`.",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "speedZoneConfigId",
+            "in": "path",
+            "required": true,
+            "description": "Id de configuración de zonas de velocidad (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "description": "Versión que el cliente leyó (`version` de la respuesta). Si no es la actual: `409 conflict`.",
+                    "$ref": "#/components/schemas/ResourceVersion"
+                  },
+                  "zoneSet": {
+                    "$ref": "#/components/schemas/SpeedZoneSet"
+                  },
+                  "validFrom": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "description": "Primer día de vigencia (inclusive), en la zona horaria del club.",
+                    "examples": [
+                      "2026-11-01"
+                    ]
+                  },
+                  "validTo": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                        "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                        "examples": [
+                          "2026-11-01"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Fin de la vigencia (exclusivo: ese día ya no vale); `null` mientras siga vigente sin fecha de cierre."
+                  }
+                },
+                "required": [
+                  "version"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "La configuración actualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeedZoneConfig"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/configuration/speed-zones/{speedZoneConfigId}/archive": {
+      "post": {
+        "operationId": "archiveSpeedZoneConfig",
+        "summary": "Retirar una configuración que todavía no empezó",
+        "description": "Solo `sc` y la administración. Una vigente o pasada no se archiva (`conflict`): se cierra con `validTo`, así las sesiones ya calculadas conservan sus zonas. Idempotente.",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "speedZoneConfigId",
+            "in": "path",
+            "required": true,
+            "description": "Id de configuración de zonas de velocidad (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configuración archivada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeedZoneConfig"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/configuration/speed-zones/{speedZoneConfigId}/restore": {
+      "post": {
+        "operationId": "restoreSpeedZoneConfig",
+        "summary": "Restaurar una configuración archivada",
+        "description": "Solo `sc` y la administración. Tiene que seguir sin empezar; si ya pasó su inicio o se superpone con otra del mismo alcance: `conflict`. Idempotente.",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "speedZoneConfigId",
+            "in": "path",
+            "required": true,
+            "description": "Id de configuración de zonas de velocidad (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configuración restaurada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeedZoneConfig"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/configuration/speed-zones/effective": {
+      "get": {
+        "operationId": "getEffectiveSpeedZones",
+        "summary": "Zonas de velocidad que aplican",
+        "description": "La configuración vigente más específica (jugador/a > deporte > sexo > club) o, si no hay, las zonas por defecto. Con `playerId`, el jugador/a tiene que ser visible para quien llama y de ese sexo.",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/SpeedZoneKind"
+            }
+          },
+          {
+            "name": "sport",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Sport"
+            }
+          },
+          {
+            "name": "sex",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Sex"
+            }
+          },
+          {
+            "name": "playerId",
+            "in": "query",
+            "required": false,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "onDate",
+            "in": "query",
+            "required": false,
+            "description": "Día a resolver; por defecto, hoy en la zona horaria del club.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Las zonas resueltas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EffectiveSpeedZones"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -17169,6 +20637,58 @@
   },
   "components": {
     "schemas": {
+      "AbsoluteSpeedZoneSet": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "absolute"
+          },
+          "zones": {
+            "minItems": 1,
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "description": "Código de la zona (el texto sale de i18n o de la terminología del club).",
+                  "examples": [
+                    "high_speed_running"
+                  ]
+                },
+                "minSpeedMs": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 15,
+                  "description": "Límite inferior (inclusive), m/s."
+                }
+              },
+              "required": [
+                "code",
+                "minSpeedMs"
+              ],
+              "additionalProperties": false
+            },
+            "description": "De menor a mayor; la primera empieza en 0."
+          },
+          "highSpeedZoneCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Zona desde la que se cuenta alta velocidad (`hsr_abs_m` o `hsr_rel_m`); no puede ser la primera."
+          }
+        },
+        "required": [
+          "kind",
+          "zones",
+          "highSpeedZoneCode"
+        ],
+        "additionalProperties": false
+      },
       "AcceptedInvitation": {
         "type": "object",
         "properties": {
@@ -17291,6 +20811,68 @@
           "nextCursor"
         ]
       },
+      "AcwrHighParams": {
+        "type": "object",
+        "properties": {
+          "warningAboveRatio": {
+            "description": "Amarillo si el ACWR supera este valor. `null` = sin esa severidad.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "criticalAboveRatio": {
+            "description": "Rojo si el ACWR supera este valor. `null` = sin esa severidad.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "minHistoryDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3650,
+            "description": "Con menos días de carga: \"historia insuficiente\", sin alerta."
+          }
+        },
+        "required": [
+          "warningAboveRatio",
+          "criticalAboveRatio",
+          "minHistoryDays"
+        ],
+        "additionalProperties": false
+      },
+      "AcwrLowParams": {
+        "type": "object",
+        "properties": {
+          "warningBelowRatio": {
+            "description": "Amarillo si el ACWR queda por debajo. `null` = sin esa severidad.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "criticalBelowRatio": {
+            "description": "Rojo si el ACWR queda por debajo. `null` = sin esa severidad.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "minHistoryDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3650,
+            "description": "Con menos días de carga: \"historia insuficiente\", sin alerta."
+          }
+        },
+        "required": [
+          "warningBelowRatio",
+          "criticalBelowRatio",
+          "minHistoryDays"
+        ],
+        "additionalProperties": false
+      },
       "AgeBandCode": {
         "type": "string",
         "enum": [
@@ -17302,6 +20884,708 @@
           "m19"
         ],
         "description": "Franja de edad del dominio (M13 a M19; no hay M18)."
+      },
+      "AlertRule": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de regla de alerta (UUID, RFC 9562)."
+              },
+              "code": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "description": "Código único en el club, inglés `snake_case`.",
+                "examples": [
+                  "acwr_high",
+                  "wellness_low_m15"
+                ]
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "appliesTo": {
+                "$ref": "#/components/schemas/AlertRuleScope"
+              },
+              "isDefault": {
+                "type": "boolean",
+                "description": "Es una de las reglas sembradas por defecto (su código), editada o no."
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "version": {
+                "$ref": "#/components/schemas/ResourceVersion"
+              },
+              "kind": {
+                "type": "string",
+                "const": "acwr_high"
+              },
+              "params": {
+                "$ref": "#/components/schemas/AcwrHighParams"
+              }
+            },
+            "required": [
+              "id",
+              "code",
+              "enabled",
+              "appliesTo",
+              "isDefault",
+              "createdAt",
+              "updatedAt",
+              "version",
+              "kind",
+              "params"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de regla de alerta (UUID, RFC 9562)."
+              },
+              "code": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "description": "Código único en el club, inglés `snake_case`.",
+                "examples": [
+                  "acwr_high",
+                  "wellness_low_m15"
+                ]
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "appliesTo": {
+                "$ref": "#/components/schemas/AlertRuleScope"
+              },
+              "isDefault": {
+                "type": "boolean",
+                "description": "Es una de las reglas sembradas por defecto (su código), editada o no."
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "version": {
+                "$ref": "#/components/schemas/ResourceVersion"
+              },
+              "kind": {
+                "type": "string",
+                "const": "acwr_low"
+              },
+              "params": {
+                "$ref": "#/components/schemas/AcwrLowParams"
+              }
+            },
+            "required": [
+              "id",
+              "code",
+              "enabled",
+              "appliesTo",
+              "isDefault",
+              "createdAt",
+              "updatedAt",
+              "version",
+              "kind",
+              "params"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de regla de alerta (UUID, RFC 9562)."
+              },
+              "code": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "description": "Código único en el club, inglés `snake_case`.",
+                "examples": [
+                  "acwr_high",
+                  "wellness_low_m15"
+                ]
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "appliesTo": {
+                "$ref": "#/components/schemas/AlertRuleScope"
+              },
+              "isDefault": {
+                "type": "boolean",
+                "description": "Es una de las reglas sembradas por defecto (su código), editada o no."
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "version": {
+                "$ref": "#/components/schemas/ResourceVersion"
+              },
+              "kind": {
+                "type": "string",
+                "const": "wellness_low"
+              },
+              "params": {
+                "$ref": "#/components/schemas/WellnessLowParams"
+              }
+            },
+            "required": [
+              "id",
+              "code",
+              "enabled",
+              "appliesTo",
+              "isDefault",
+              "createdAt",
+              "updatedAt",
+              "version",
+              "kind",
+              "params"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de regla de alerta (UUID, RFC 9562)."
+              },
+              "code": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "description": "Código único en el club, inglés `snake_case`.",
+                "examples": [
+                  "acwr_high",
+                  "wellness_low_m15"
+                ]
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "appliesTo": {
+                "$ref": "#/components/schemas/AlertRuleScope"
+              },
+              "isDefault": {
+                "type": "boolean",
+                "description": "Es una de las reglas sembradas por defecto (su código), editada o no."
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "version": {
+                "$ref": "#/components/schemas/ResourceVersion"
+              },
+              "kind": {
+                "type": "string",
+                "const": "wellness_zscore_low"
+              },
+              "params": {
+                "$ref": "#/components/schemas/WellnessZScoreLowParams"
+              }
+            },
+            "required": [
+              "id",
+              "code",
+              "enabled",
+              "appliesTo",
+              "isDefault",
+              "createdAt",
+              "updatedAt",
+              "version",
+              "kind",
+              "params"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de regla de alerta (UUID, RFC 9562)."
+              },
+              "code": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "description": "Código único en el club, inglés `snake_case`.",
+                "examples": [
+                  "acwr_high",
+                  "wellness_low_m15"
+                ]
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "appliesTo": {
+                "$ref": "#/components/schemas/AlertRuleScope"
+              },
+              "isDefault": {
+                "type": "boolean",
+                "description": "Es una de las reglas sembradas por defecto (su código), editada o no."
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "version": {
+                "$ref": "#/components/schemas/ResourceVersion"
+              },
+              "kind": {
+                "type": "string",
+                "const": "cmj_drop"
+              },
+              "params": {
+                "$ref": "#/components/schemas/CmjDropParams"
+              }
+            },
+            "required": [
+              "id",
+              "code",
+              "enabled",
+              "appliesTo",
+              "isDefault",
+              "createdAt",
+              "updatedAt",
+              "version",
+              "kind",
+              "params"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de regla de alerta (UUID, RFC 9562)."
+              },
+              "code": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "description": "Código único en el club, inglés `snake_case`.",
+                "examples": [
+                  "acwr_high",
+                  "wellness_low_m15"
+                ]
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "appliesTo": {
+                "$ref": "#/components/schemas/AlertRuleScope"
+              },
+              "isDefault": {
+                "type": "boolean",
+                "description": "Es una de las reglas sembradas por defecto (su código), editada o no."
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "version": {
+                "$ref": "#/components/schemas/ResourceVersion"
+              },
+              "kind": {
+                "type": "string",
+                "const": "growth_peak"
+              },
+              "params": {
+                "$ref": "#/components/schemas/GrowthPeakParams"
+              }
+            },
+            "required": [
+              "id",
+              "code",
+              "enabled",
+              "appliesTo",
+              "isDefault",
+              "createdAt",
+              "updatedAt",
+              "version",
+              "kind",
+              "params"
+            ]
+          }
+        ]
+      },
+      "AlertRuleKind": {
+        "type": "string",
+        "enum": [
+          "acwr_high",
+          "acwr_low",
+          "wellness_low",
+          "wellness_zscore_low",
+          "cmj_drop",
+          "growth_peak"
+        ],
+        "description": "Qué evalúa la regla: ACWR alto o bajo, bienestar bajo (valor o z-score propio), caída del CMJ contra la base del jugador/a o velocidad de crecimiento en zona de pico."
+      },
+      "AlertRulePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AlertRule"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "AlertRuleScope": {
+        "type": "object",
+        "properties": {
+          "sports": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Sport"
+            }
+          },
+          "sexes": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Sex"
+            }
+          },
+          "stages": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Stage"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "A quién aplica: tienen que coincidir todas las dimensiones presentes; una dimensión ausente es \"todos\"."
+      },
+      "BatteryCadenceWeeks": {
+        "type": "object",
+        "properties": {
+          "min": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 52
+          },
+          "max": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 52
+          }
+        },
+        "required": [
+          "min",
+          "max"
+        ],
+        "additionalProperties": false,
+        "description": "Programación continua: una medición cada `min` a `max` semanas (antropometría cada 4–6, CMJ semanal 1–1)."
+      },
+      "BatteryEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de entrada de la batería (UUID, RFC 9562)."
+          },
+          "sport": {
+            "$ref": "#/components/schemas/Sport"
+          },
+          "sex": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Sex"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Rama; `null` = los dos sexos del deporte."
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Etapa del jugador/a (por maduración o fijada); `null` = todas."
+          },
+          "categoryId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de categoría (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Categoría; `null` = todas las del deporte."
+          },
+          "testCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Código del test del catálogo del club.",
+            "examples": [
+              "cmj",
+              "sprint_40"
+            ]
+          },
+          "windows": {
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4,
+              "description": "Ventana de tests: 1 = V1 (febrero) … 4 = V4 (noviembre)."
+            },
+            "description": "Ventanas en las que se hace el test, sin repetir. Vacío: solo cadencia."
+          },
+          "cadenceWeeks": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BatteryCadenceWeeks"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Primer día de vigencia (inclusive), en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "validTo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                "examples": [
+                  "2026-11-01"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fin de la vigencia (exclusivo: ese día ya no vale); `null` mientras siga vigente sin fecha de cierre."
+          },
+          "archivedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cuándo se archivó; `null` si está activo."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "version": {
+            "$ref": "#/components/schemas/ResourceVersion"
+          }
+        },
+        "required": [
+          "id",
+          "sport",
+          "sex",
+          "stage",
+          "categoryId",
+          "testCode",
+          "windows",
+          "cadenceWeeks",
+          "validFrom",
+          "validTo",
+          "archivedAt",
+          "createdAt",
+          "updatedAt",
+          "version"
+        ]
+      },
+      "BatteryEntryPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BatteryEntry"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
       },
       "CalendarEvent": {
         "oneOf": [
@@ -17859,6 +22143,61 @@
         ],
         "description": "Colores de marca, `#rrggbb` en minúsculas."
       },
+      "ClubModules": {
+        "type": "object",
+        "properties": {
+          "wellness": {
+            "type": "boolean",
+            "description": "Bienestar antes de entrenar."
+          },
+          "gym": {
+            "type": "boolean",
+            "description": "Rutinas y series de gimnasio."
+          },
+          "gps": {
+            "type": "boolean",
+            "description": "Métricas de cancha por GPS (importaciones de Catapult, pods)."
+          },
+          "maturation": {
+            "type": "boolean",
+            "description": "Maduración y crecimiento (PHV, % de talla adulta, velocidad de crecimiento)."
+          },
+          "pain_report": {
+            "type": "boolean",
+            "description": "Reporte de dolor con mapa del cuerpo (requiere consentimiento de salud)."
+          },
+          "menstrual_cycle": {
+            "type": "boolean",
+            "description": "Seguimiento del ciclo menstrual (opt-in, con consentimiento propio)."
+          }
+        },
+        "required": [
+          "wellness",
+          "gym",
+          "gps",
+          "maturation",
+          "pain_report",
+          "menstrual_cycle"
+        ],
+        "additionalProperties": false,
+        "description": "Cada módulo, prendido (`true`) o apagado."
+      },
+      "ClubModuleSettings": {
+        "type": "object",
+        "properties": {
+          "modules": {
+            "$ref": "#/components/schemas/ClubModules"
+          },
+          "version": {
+            "description": "Versión del club: cambia también con su perfil y su marca.",
+            "$ref": "#/components/schemas/ResourceVersion"
+          }
+        },
+        "required": [
+          "modules",
+          "version"
+        ]
+      },
       "ClubPage": {
         "type": "object",
         "properties": {
@@ -17992,6 +22331,51 @@
           "updatedAt"
         ],
         "description": "Marca del club para aplicar el tema en runtime."
+      },
+      "CmjDropParams": {
+        "type": "object",
+        "properties": {
+          "warningDropPct": {
+            "description": "Amarillo con una caída mayor a este % de la base. `null` = sin esa severidad.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "criticalDropPct": {
+            "description": "Rojo con una caída mayor a este % de la base. `null` = sin esa severidad.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "baselineWindowDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3650,
+            "description": "Días anteriores al último CMJ que forman la base."
+          },
+          "minBaselineSamples": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3650,
+            "description": "Días con CMJ necesarios dentro de la base."
+          },
+          "maxMeasurementAgeDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3650,
+            "description": "El último CMJ se ignora pasada esta antigüedad (días)."
+          }
+        },
+        "required": [
+          "warningDropPct",
+          "criticalDropPct",
+          "baselineWindowDays",
+          "minBaselineSamples",
+          "maxMeasurementAgeDays"
+        ],
+        "additionalProperties": false
       },
       "ContactLevel": {
         "type": "string",
@@ -18194,6 +22578,149 @@
           "name"
         ],
         "additionalProperties": false
+      },
+      "EffectiveBattery": {
+        "type": "object",
+        "properties": {
+          "sport": {
+            "$ref": "#/components/schemas/Sport"
+          },
+          "sex": {
+            "$ref": "#/components/schemas/Sex"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/Stage"
+          },
+          "categoryId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de categoría (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "onDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "tests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EffectiveBatteryTest"
+            },
+            "description": "Por código de test."
+          }
+        },
+        "required": [
+          "sport",
+          "sex",
+          "stage",
+          "categoryId",
+          "onDate",
+          "tests"
+        ]
+      },
+      "EffectiveBatteryTest": {
+        "type": "object",
+        "properties": {
+          "testCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Código del test del catálogo del club.",
+            "examples": [
+              "cmj",
+              "sprint_40"
+            ]
+          },
+          "windows": {
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4,
+              "description": "Ventana de tests: 1 = V1 (febrero) … 4 = V4 (noviembre)."
+            },
+            "description": "Ventanas en las que se hace el test, sin repetir. Vacío: solo cadencia."
+          },
+          "cadenceWeeks": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BatteryCadenceWeeks"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entry": {
+            "description": "La entrada que manda para este test.",
+            "$ref": "#/components/schemas/BatteryEntry"
+          }
+        },
+        "required": [
+          "testCode",
+          "windows",
+          "cadenceWeeks",
+          "entry"
+        ]
+      },
+      "EffectiveSpeedZones": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/SpeedZoneKind"
+          },
+          "onDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "club",
+              "default"
+            ],
+            "description": "`club`: una configuración del club; `default`: las zonas sembradas por defecto."
+          },
+          "config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpeedZoneConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La configuración que manda; `null` con `source = default`."
+          },
+          "zoneSet": {
+            "$ref": "#/components/schemas/SpeedZoneSet"
+          }
+        },
+        "required": [
+          "kind",
+          "onDate",
+          "source",
+          "config",
+          "zoneSet"
+        ]
       },
       "ErrorBody": {
         "type": "object",
@@ -18465,6 +22992,37 @@
           "neutral"
         ],
         "description": "Dónde se juega, para el club: `home` (local), `away` (visitante) o `neutral`."
+      },
+      "GrowthPeakParams": {
+        "type": "object",
+        "properties": {
+          "warningAtOrAboveCmYear": {
+            "description": "Amarillo desde esta velocidad de crecimiento (cm/año). `null` = sin esa severidad.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "criticalAtOrAboveCmYear": {
+            "description": "Rojo desde esta velocidad de crecimiento (cm/año). `null` = sin esa severidad.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "maxMeasurementAgeDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3650,
+            "description": "La velocidad se ignora pasada esta antigüedad (días)."
+          }
+        },
+        "required": [
+          "warningAtOrAboveCmYear",
+          "criticalAtOrAboveCmYear",
+          "maxMeasurementAgeDays"
+        ],
+        "additionalProperties": false
       },
       "Health": {
         "type": "object",
@@ -20483,6 +25041,58 @@
           "nextCursor"
         ]
       },
+      "RelativeSpeedZoneSet": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "relative"
+          },
+          "zones": {
+            "minItems": 1,
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "description": "Código de la zona (el texto sale de i18n o de la terminología del club).",
+                  "examples": [
+                    "high_speed_running"
+                  ]
+                },
+                "minVmaxPct": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100,
+                  "description": "Límite inferior (inclusive), % de la Vmax."
+                }
+              },
+              "required": [
+                "code",
+                "minVmaxPct"
+              ],
+              "additionalProperties": false
+            },
+            "description": "De menor a mayor; la primera empieza en 0."
+          },
+          "highSpeedZoneCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Zona desde la que se cuenta alta velocidad (`hsr_abs_m` o `hsr_rel_m`); no puede ser la primera."
+          }
+        },
+        "required": [
+          "kind",
+          "zones",
+          "highSpeedZoneCode"
+        ],
+        "additionalProperties": false
+      },
       "ResourceVersion": {
         "type": "string",
         "pattern": "^[A-Za-z0-9_-]{1,64}$",
@@ -20780,6 +25390,178 @@
         },
         "required": [
           "expiresInS"
+        ]
+      },
+      "SpeedZoneConfig": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de configuración de zonas de velocidad (UUID, RFC 9562)."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SpeedZoneKind"
+          },
+          "sport": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Sport"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`null` = todos los deportes."
+          },
+          "sex": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Sex"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`null` = los dos sexos."
+          },
+          "playerId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de jugador/a (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Umbral propio de un jugador/a; `null` = un grupo."
+          },
+          "zoneSet": {
+            "$ref": "#/components/schemas/SpeedZoneSet"
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Primer día de vigencia (inclusive), en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "validTo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                "examples": [
+                  "2026-11-01"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fin de la vigencia (exclusivo: ese día ya no vale); `null` mientras siga vigente sin fecha de cierre."
+          },
+          "archivedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cuándo se archivó; `null` si está activo."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "version": {
+            "$ref": "#/components/schemas/ResourceVersion"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "sport",
+          "sex",
+          "playerId",
+          "zoneSet",
+          "validFrom",
+          "validTo",
+          "archivedAt",
+          "createdAt",
+          "updatedAt",
+          "version"
+        ]
+      },
+      "SpeedZoneConfigPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpeedZoneConfig"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "SpeedZoneKind": {
+        "type": "string",
+        "enum": [
+          "absolute",
+          "relative"
+        ],
+        "description": "`absolute`: límites en m/s. `relative`: límites en % de la Vmax del jugador/a."
+      },
+      "SpeedZoneSet": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AbsoluteSpeedZoneSet"
+          },
+          {
+            "$ref": "#/components/schemas/RelativeSpeedZoneSet"
+          }
         ]
       },
       "Sport": {
@@ -23527,6 +28309,30 @@
         ],
         "description": "Versión del conjunto de ítems: `3` (sueño, fatiga y dolor muscular, con caritas; M13/M14) o `5` (los cinco)."
       },
+      "WellnessLowParams": {
+        "type": "object",
+        "properties": {
+          "warningBelowScore": {
+            "description": "Amarillo con un bienestar medio (1–5) por debajo. `null` = sin esa severidad.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "criticalBelowScore": {
+            "description": "Rojo con un bienestar medio (1–5) por debajo. `null` = sin esa severidad.",
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "warningBelowScore",
+          "criticalBelowScore"
+        ],
+        "additionalProperties": false
+      },
       "WellnessPage": {
         "type": "object",
         "properties": {
@@ -23626,6 +28432,44 @@
         },
         "additionalProperties": false,
         "description": "Puntaje de cada ítem del conjunto de la etapa, y de ninguno más. Ítems que faltan o sobran: `validation_failed` en `body.scores.<ítem>`."
+      },
+      "WellnessZScoreLowParams": {
+        "type": "object",
+        "properties": {
+          "warningBelowZScore": {
+            "description": "Amarillo con un z-score (negativo) por debajo. `null` = sin esa severidad.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "criticalBelowZScore": {
+            "description": "Rojo con un z-score (negativo) por debajo. `null` = sin esa severidad.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "windowDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3650,
+            "description": "Días anteriores que forman la base móvil."
+          },
+          "minSamples": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3650,
+            "description": "Días con bienestar necesarios dentro de la ventana."
+          }
+        },
+        "required": [
+          "warningBelowZScore",
+          "criticalBelowZScore",
+          "windowDays",
+          "minSamples"
+        ],
+        "additionalProperties": false
       }
     },
     "securitySchemes": {

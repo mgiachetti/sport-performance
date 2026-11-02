@@ -222,6 +222,17 @@ export * from './maturation/index.js';
 export * from './alerts/index.js';
 // Speed zones (B-209).
 export * from './speed-zones/index.js';
+export * from './battery/index.js';
+export {
+  CLUB_MODULES,
+  DEFAULT_CLUB_MODULES,
+  applyClubModuleChanges,
+  isClubModule,
+  parseClubModule,
+  resolveClubModules,
+  type ClubModule,
+  type ClubModules,
+} from './club-modules.js';
 export * from './exposure/index.js';
 export * from './calendar/index.js';
 // Percentiles by group and first-team references (B-208).

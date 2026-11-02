@@ -36,6 +36,31 @@ import {
 } from './categories.js';
 import { getClubTheme } from './club-theme.js';
 import {
+  createAlertRule,
+  getAlertRule,
+  listAlertRules,
+  updateAlertRule,
+} from './configuration-alert-rules.js';
+import {
+  archiveBatteryEntry,
+  createBatteryEntry,
+  getBatteryEntry,
+  getEffectiveBattery,
+  listBatteryEntries,
+  restoreBatteryEntry,
+  updateBatteryEntry,
+} from './configuration-battery.js';
+import { getClubModules, updateClubModules } from './configuration-modules.js';
+import {
+  archiveSpeedZoneConfig,
+  createSpeedZoneConfig,
+  getEffectiveSpeedZones,
+  getSpeedZoneConfig,
+  listSpeedZoneConfigs,
+  restoreSpeedZoneConfig,
+  updateSpeedZoneConfig,
+} from './configuration-speed-zones.js';
+import {
   archiveClubBranch,
   createClub,
   enableClubBranch,
@@ -126,6 +151,11 @@ export * from './calendar.js';
 export * from './categories.js';
 export * from './club-theme.js';
 export * from './clubs.js';
+export * from './configuration-alert-rules.js';
+export * from './configuration-battery.js';
+export * from './configuration-common.js';
+export * from './configuration-modules.js';
+export * from './configuration-speed-zones.js';
 export * from './health.js';
 export * from './invitations.js';
 export * from './me.js';
@@ -253,6 +283,26 @@ export const apiEndpoints = {
   restoreReferenceValue,
   importReferenceValues,
   getPlayerFirstTeamReferences,
+  listBatteryEntries,
+  getEffectiveBattery,
+  getBatteryEntry,
+  createBatteryEntry,
+  updateBatteryEntry,
+  archiveBatteryEntry,
+  restoreBatteryEntry,
+  listSpeedZoneConfigs,
+  getEffectiveSpeedZones,
+  getSpeedZoneConfig,
+  createSpeedZoneConfig,
+  updateSpeedZoneConfig,
+  archiveSpeedZoneConfig,
+  restoreSpeedZoneConfig,
+  listAlertRules,
+  getAlertRule,
+  createAlertRule,
+  updateAlertRule,
+  getClubModules,
+  updateClubModules,
 } as const satisfies EndpointCatalog;
 
 export type ApiEndpoints = typeof apiEndpoints;
