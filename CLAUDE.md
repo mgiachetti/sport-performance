@@ -118,7 +118,7 @@ Códigos canónicos: `dist_m`, `dist_m_min`, `hsr_abs_m` (> 5,5 m/s por defecto 
 | Web staff | React + Vite + TanStack Router + TanStack Query; gráficos SVG propios | [0012](docs/adr/0012-web-staff-react-vite-tanstack.md) |
 | Mobile | Expo (React Native) con dev builds; EAS Build + EAS Update (no PWA: BLE, cámara, offline y notificaciones en iOS) | [0013](docs/adr/0013-mobile-expo-eas.md) |
 | White-label | Una sola app y una sola web para todos los clubes (guía 4.2.6 de Apple); marca aplicada en runtime | [0014](docs/adr/0014-app-unica-white-label.md) |
-| Offline | Mobile: SQLite (`expo-sqlite` + Drizzle) + cola de mutaciones con `client_uuid` y timestamps HLC; servidor resuelve por campo (gana el último); intentos de test solo se agregan | [0015](docs/adr/0015-offline-sqlite-hlc.md) |
+| Offline | Mobile: SQLite (`expo-sqlite` + Drizzle) + cola de mutaciones con `client_uuid` y timestamps HLC; servidor resuelve por campo (gana el último); intentos de test solo se agregan. Servidor: `POST /v1/sync/push` por los mismos handlers en línea, idempotente por `mutationId`, reloj por campo en `sync_change`; `GET /v1/sync/changes` por `(txid, seq)` hasta el `xmin` del snapshot, con baja si la fila sale de la vista y reset si cambia el alcance | [0015](docs/adr/0015-offline-sqlite-hlc.md), [0050](docs/adr/0050-sincronizacion-sin-conexion.md) |
 | Observabilidad | Sentry + logs estructurados (pino); sin datos personales ni de salud | [0016](docs/adr/0016-observabilidad-sentry-pino.md) |
 | Multi-deporte y sexo | `sport` y `sex` en el modelo desde el día uno; lo específico de hockey y femenino en M8 | [0017](docs/adr/0017-deporte-y-sexo-en-el-modelo.md) |
 | Sin facturación | No se cobra la app por ahora | [0018](docs/adr/0018-sin-facturacion.md) |

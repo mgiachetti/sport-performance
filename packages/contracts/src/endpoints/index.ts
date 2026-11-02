@@ -192,6 +192,7 @@ import {
   updateTestResult,
   voidTestResultEntries,
 } from './tests.js';
+import { pullSyncChanges, pushSyncMutations } from './sync.js';
 
 export * from './app-compatibility.js';
 export * from './auth.js';
@@ -220,6 +221,7 @@ export * from './season-rollovers.js';
 export * from './training.js';
 export * from './wellness.js';
 export * from './tests.js';
+export * from './sync.js';
 
 /**
  * Every endpoint of the API, keyed by operationId. The API registers its
@@ -393,6 +395,8 @@ export const apiEndpoints = {
   importRoster,
   listRosterImports,
   getRosterImport,
+  pushSyncMutations,
+  pullSyncChanges,
 } as const satisfies EndpointCatalog;
 
 export type ApiEndpoints = typeof apiEndpoints;

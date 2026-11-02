@@ -1,0 +1,614 @@
+import {
+  addTestResultEntries,
+  correctWellness,
+  createTestResult,
+  recordParticipations,
+  recordTestSessionResults,
+  submitSessionRpe,
+  submitWellness,
+  updateParticipation,
+  updateTestResult,
+  voidTestResultEntries,
+  type EndpointDefinition,
+  type SyncOperationInput,
+  type ValidationIssue,
+} from '@sport-performance/contracts';
+import { participation, syncChange, testResult, wellness } from '@sport-performance/db/schema';
+import {
+  WELLNESS_ITEMS,
+  compareHlc,
+  type ClubId,
+  type SyncFieldColumn,
+  type SyncFieldTable,
+  type SyncOperation,
+} from '@sport-performance/domain';
+import { randomUUID } from 'node:crypto';
+import { and, eq, inArray, sql } from 'drizzle-orm';
+import type { TenantDatabase } from '../db/database.js';
+import { HttpError } from '../http/errors.js';
+import type { RequestPermissions } from '../http/permissions.js';
+import { rowVersion } from '../http/writes.js';
+import { lockKeys, participationKey } from './locks.js';
+
+/**
+ * How each sync operation becomes a call of its online endpoint (ADR 0050):
+ * which endpoint, with which params and body, after resolving the target row
+ * (by id or by the `clientUuid` it was created with) and, for edits, the
+ * fields whose clock wins. The handler of the endpoint does the rest, as
+ * online.
+ */
+
+/** One call of an online endpoint, with the raw input its contract validates. */
+export interface EndpointCall {
+  readonly endpoint: EndpointDefinition;
+  readonly params?: Readonly<Record<string, unknown>>;
+  readonly body?: unknown;
+}
+
+/** Winning fields of an existing row: stamped with the mutation's clock after the call. */
+export interface FieldStamp {
+  readonly collection: SyncFieldTable;
+  readonly rowId: string;
+  readonly columns: readonly string[];
+}
+
+/** What a call wrote, as the push stamps and reports it. */
+export interface Settlement {
+  readonly stamps: readonly FieldStamp[];
+  readonly appliedFields: readonly string[];
+  readonly supersededFields: readonly string[];
+  /** The handler replayed every row by its `clientUuid` and wrote nothing. */
+  readonly replayed: boolean;
+}
+
+export interface Resolution {
+  readonly call: EndpointCall;
+  /**
+   * Every field lost against a later clock (superseded, nothing to write):
+   * the call carries the edit as if it won and runs only to answer what the
+   * endpoint would online (permissions, consents, validation), then it is
+   * rolled back.
+   */
+  readonly checkOnly: boolean;
+  readonly stamps: readonly FieldStamp[];
+  readonly appliedFields: readonly string[];
+  readonly supersededFields: readonly string[];
+  /**
+   * What the call actually wrote, from the handler's output: only those rows
+   * are stamped and reported (a row the handler replayed by its `clientUuid`
+   * wrote nothing). Without it, the resolution is taken as is.
+   */
+  readonly settle?: (output: unknown) => Settlement;
+}
+
+export interface ResolveContext {
+  readonly db: TenantDatabase;
+  readonly clubId: ClubId;
+  /** The mutation's clock, already clamped to the server's time. */
+  readonly hlc: string;
+  readonly permissions: RequestPermissions;
+  /** Where the mutation is in the push body (`['body', 'mutations', i]`), for the issues. */
+  readonly path: readonly (string | number)[];
+}
+
+type Resolver<Op extends SyncOperation> = (
+  input: SyncOperationInput<Op>,
+  ctx: ResolveContext,
+) => Promise<Resolution>;
+
+function invalid(path: (string | number)[], message: string): never {
+  throw new HttpError('validation_failed', 'The mutation does not match the contract', {
+    details: [{ path, code: 'custom', message } satisfies ValidationIssue],
+  });
+}
+
+function create(call: EndpointCall): Resolution {
+  return { call, checkOnly: false, stamps: [], appliedFields: [], supersededFields: [] };
+}
+
+/**
+ * Locks rows with field clocks (`FOR NO KEY UPDATE`, in id order) before the
+ * resolver reads their version, values and clocks: a concurrent push or
+ * online edit commits before, or waits until this push ends.
+ */
+async function lockRows(db: TenantDatabase, collection: SyncFieldTable, ids: readonly string[]) {
+  if (ids.length === 0) return;
+  await db.execute(
+    sql`select app.sync_lock_rows(${collection}, ${`{${[...ids].sort().join(',')}}`}::uuid[])`,
+  );
+}
+
+/** Creates carry their `clientUuid`: the row comes back in a pull and is reconciled by it. */
+function requireClientUuid(body: { clientUuid?: string | undefined }, path: (string | number)[]) {
+  if (body.clientUuid === undefined) {
+    invalid([...path, 'clientUuid'], 'A create of the offline queue carries its clientUuid');
+  }
+}
+
+/** Tables whose rows the offline queue edits. */
+type EditedTable = typeof wellness | typeof participation | typeof testResult;
+
+/**
+ * The id of the row a mutation edits, visible to the caller (RLS): by `id`
+ * or by the `clientUuid` it was created with. Not visible: `404`, as online.
+ */
+async function targetId(
+  db: TenantDatabase,
+  table: EditedTable,
+  clubId: ClubId,
+  target: { id: string } | { clientUuid: string },
+  resource: string,
+): Promise<string> {
+  const rows = await db
+    .select({ id: sql<string>`${table.id}` })
+    .from(table)
+    .where(
+      and(
+        eq(table.clubId, clubId),
+        'id' in target ? eq(table.id, target.id) : eq(table.clientUuid, target.clientUuid),
+      ),
+    )
+    .limit(1);
+  const row = rows[0];
+  if (row === undefined) throw new HttpError('not_found', `${resource} not found`);
+  return row.id;
+}
+
+/**
+ * Clocks of the fields of rows, by row id (`{}` for a row without clocks yet):
+ * from the live entry of each row (the marks of scopes it left are not read).
+ */
+async function fieldClocks(
+  db: TenantDatabase,
+  clubId: ClubId,
+  collection: SyncFieldTable,
+  rowIds: readonly string[],
+): Promise<Map<string, Readonly<Record<string, string>>>> {
+  if (rowIds.length === 0) return new Map();
+  const rows = await db
+    .select({ rowId: syncChange.rowId, fieldHlc: syncChange.fieldHlc })
+    .from(syncChange)
+    .where(
+      and(
+        eq(syncChange.clubId, clubId),
+        eq(syncChange.collection, collection),
+        inArray(syncChange.rowId, [...rowIds]),
+        eq(syncChange.deleted, false),
+      ),
+    );
+  return new Map(rows.map((row) => [row.rowId, row.fieldHlc]));
+}
+
+/** Whether a field edited at `hlc` wins against its stored clock (none: it wins). */
+function wins(clocks: Readonly<Record<string, string>> | undefined, column: string, hlc: string) {
+  const stored = clocks?.[column];
+  return stored === undefined || compareHlc(hlc, stored) > 0;
+}
+
+interface FieldSplit<Key extends string> {
+  readonly winners: Key[];
+  readonly losers: Key[];
+}
+
+/** Splits the edited fields (API names) into those whose clock wins and those that lose. */
+function splitFields<T extends SyncFieldTable, Key extends string>(
+  clocks: Readonly<Record<string, string>> | undefined,
+  hlc: string,
+  edited: readonly Key[],
+  columnOf: (key: Key) => SyncFieldColumn<T>,
+): FieldSplit<Key> {
+  const winners: Key[] = [];
+  const losers: Key[] = [];
+  for (const key of edited) (wins(clocks, columnOf(key), hlc) ? winners : losers).push(key);
+  return { winners, losers };
+}
+
+/** Keys of `body` that are set (`undefined` is "not edited"; `null` is a value). */
+function editedKeys<Key extends string>(body: Partial<Record<Key, unknown>>, keys: readonly Key[]) {
+  return keys.filter((key) => body[key] !== undefined);
+}
+
+// ─── Wellness ────────────────────────────────────────────────────────────────────────
+
+const wellnessSubmit: Resolver<'wellness.submit'> = async ({ body }, ctx) => {
+  requireClientUuid(body, [...ctx.path, 'body']);
+  return Promise.resolve(create({ endpoint: submitWellness, body }));
+};
+
+const wellnessCorrect: Resolver<'wellness.correct'> = async ({ target, body }, ctx) => {
+  const id = await targetId(ctx.db, wellness, ctx.clubId, target, 'Wellness entry');
+  await lockRows(ctx.db, 'wellness', [id]);
+  const [current] = await ctx.db
+    .select({
+      version: rowVersion(wellness.updatedAt),
+      sleep: wellness.sleep,
+      fatigue: wellness.fatigue,
+      soreness: wellness.soreness,
+      stress: wellness.stress,
+      mood: wellness.mood,
+    })
+    .from(wellness)
+    .where(and(eq(wellness.clubId, ctx.clubId), eq(wellness.id, id)));
+  if (current === undefined) throw new HttpError('not_found', 'Wellness entry not found');
+  const clocks = (await fieldClocks(ctx.db, ctx.clubId, 'wellness', [id])).get(id);
+  const edited = editedKeys(body.scores, WELLNESS_ITEMS);
+  const { winners, losers } = splitFields<'wellness', (typeof edited)[number]>(
+    clocks,
+    ctx.hlc,
+    edited,
+    (item) => item,
+  );
+  const superseded = losers.map((item) => `scores.${item}`);
+  const checkOnly = winners.length === 0;
+  // The answer as stored, with the winning items of the mutation on top (all of them to check).
+  const scores: Partial<Record<(typeof WELLNESS_ITEMS)[number], number>> = {};
+  for (const item of WELLNESS_ITEMS) {
+    const stored = current[item];
+    if (stored !== null) scores[item] = stored;
+  }
+  for (const item of checkOnly ? edited : winners) {
+    const value = body.scores[item];
+    if (value !== undefined) scores[item] = value;
+  }
+  return {
+    call: {
+      endpoint: correctWellness,
+      params: { wellnessId: id },
+      body: {
+        version: current.version,
+        ...(body.changeReason !== undefined && { changeReason: body.changeReason }),
+        scores,
+      },
+    },
+    checkOnly,
+    stamps: checkOnly ? [] : [{ collection: 'wellness', rowId: id, columns: winners }],
+    appliedFields: winners.map((item) => `scores.${item}`),
+    supersededFields: superseded,
+  };
+};
+
+// ─── Training: RPE and participation ─────────────────────────────────────────────────
+
+const PARTICIPATION_FIELDS = ['status', 'minutes', 'contactsN'] as const;
+type ParticipationField = (typeof PARTICIPATION_FIELDS)[number];
+const participationColumn = (field: ParticipationField): SyncFieldColumn<'participation'> =>
+  field === 'contactsN' ? 'contacts_n' : field;
+
+const rpeSubmit: Resolver<'rpe.submit'> = async ({ params, body }, ctx) => {
+  const subject = await ctx.permissions.subject();
+  const playerId = subject.playerId ?? null;
+  const call: EndpointCall = { endpoint: submitSessionRpe, params, body };
+  // Not a player: the handler answers what the matrix says.
+  if (playerId === null) return create(call);
+  // Also when it does not exist yet: a concurrent push of the same RPE waits.
+  await lockKeys(ctx.db, [participationKey(params.trainingSessionId, playerId)]);
+  const [existing] = await ctx.db
+    .select({ id: participation.id, clientUuid: participation.clientUuid })
+    .from(participation)
+    .where(
+      and(
+        eq(participation.clubId, ctx.clubId),
+        eq(participation.trainingSessionId, params.trainingSessionId),
+        eq(participation.playerId, playerId),
+      ),
+    );
+  // Not loaded yet: the handler creates it, and its insert stamps the fields.
+  if (existing === undefined) return create(call);
+  await lockRows(ctx.db, 'participation', [existing.id]);
+  // The device reuses the clientUuid the participation was created with: online that is a
+  // replay of the create and writes nothing, but here it is another mutation (a resend has
+  // the same mutationId and never gets here), so an edit of the row, resolved by its clock.
+  const { clientUuid, ...edit } = body;
+  const editCall: EndpointCall =
+    clientUuid !== undefined && clientUuid === existing.clientUuid
+      ? { endpoint: submitSessionRpe, params, body: edit }
+      : call;
+  const clocks = (await fieldClocks(ctx.db, ctx.clubId, 'participation', [existing.id])).get(
+    existing.id,
+  );
+  if (!wins(clocks, 'rpe', ctx.hlc)) {
+    return {
+      call: editCall,
+      checkOnly: true,
+      stamps: [],
+      appliedFields: [],
+      supersededFields: ['rpe'],
+    };
+  }
+  return {
+    call: editCall,
+    checkOnly: false,
+    stamps: [{ collection: 'participation', rowId: existing.id, columns: ['rpe'] }],
+    appliedFields: ['rpe'],
+    supersededFields: [],
+  };
+};
+
+const participationUpdate: Resolver<'participation.update'> = async ({ target, body }, ctx) => {
+  const id = await targetId(ctx.db, participation, ctx.clubId, target, 'Participation');
+  await lockRows(ctx.db, 'participation', [id]);
+  const [current] = await ctx.db
+    .select({ version: rowVersion(participation.updatedAt) })
+    .from(participation)
+    .where(and(eq(participation.clubId, ctx.clubId), eq(participation.id, id)));
+  if (current === undefined) throw new HttpError('not_found', 'Participation not found');
+  const clocks = (await fieldClocks(ctx.db, ctx.clubId, 'participation', [id])).get(id);
+  const edited = editedKeys(body, PARTICIPATION_FIELDS);
+  const { winners, losers } = splitFields<'participation', ParticipationField>(
+    clocks,
+    ctx.hlc,
+    edited,
+    participationColumn,
+  );
+  const checkOnly = winners.length === 0;
+  const sent = checkOnly ? edited : winners;
+  const fields = Object.fromEntries(sent.map((field) => [field, body[field]]));
+  return {
+    checkOnly,
+    call: {
+      endpoint: updateParticipation,
+      params: { participationId: id },
+      body: {
+        version: current.version,
+        ...(body.changeReason !== undefined && { changeReason: body.changeReason }),
+        ...fields,
+      },
+    },
+    stamps: checkOnly
+      ? []
+      : [{ collection: 'participation', rowId: id, columns: winners.map(participationColumn) }],
+    appliedFields: winners,
+    supersededFields: losers,
+  };
+};
+
+const participationRecord: Resolver<'participation.record'> = async ({ params, body }, ctx) => {
+  const playerIds = body.rows.map((row) => row.playerId);
+  // The rows of the batch, existing or not, before reading them: a concurrent batch waits.
+  await lockKeys(
+    ctx.db,
+    playerIds.map((playerId) => participationKey(params.trainingSessionId, playerId)),
+  );
+  const ofSession = and(
+    eq(participation.clubId, ctx.clubId),
+    eq(participation.trainingSessionId, params.trainingSessionId),
+    inArray(participation.playerId, playerIds),
+  );
+  const ids = await ctx.db.select({ id: participation.id }).from(participation).where(ofSession);
+  await lockRows(
+    ctx.db,
+    'participation',
+    ids.map((row) => row.id),
+  );
+  const existing = await ctx.db
+    .select({
+      id: participation.id,
+      clientUuid: participation.clientUuid,
+      playerId: participation.playerId,
+      status: participation.status,
+    })
+    .from(participation)
+    .where(ofSession);
+  const byPlayer = new Map(existing.map((row) => [row.playerId, row]));
+  const clocks = await fieldClocks(
+    ctx.db,
+    ctx.clubId,
+    'participation',
+    existing.map((row) => row.id),
+  );
+  // By row of the batch, so the rows the handler did not write can be dropped after the call.
+  const appliedFields: { index: number; field: string }[] = [];
+  const supersededFields: string[] = [];
+  const stamps: { index: number; stamp: FieldStamp }[] = [];
+  const resolved = body.rows.map((row, index) => {
+    // The clock replaces the version precondition of the online batch: no `version`.
+    const fields = {
+      clientUuid: row.clientUuid,
+      playerId: row.playerId,
+      status: row.status,
+      ...(row.minutes !== undefined && { minutes: row.minutes }),
+      ...(row.contactsN !== undefined && { contactsN: row.contactsN }),
+    };
+    const current = byPlayer.get(row.playerId);
+    if (current === undefined) {
+      // A new participation: its insert stamps every field.
+      appliedFields.push({ index, field: `rows.${String(index)}` });
+      return { fields, current, edited: PARTICIPATION_FIELDS, winners: PARTICIPATION_FIELDS };
+    }
+    const edited = editedKeys(fields, PARTICIPATION_FIELDS);
+    const { winners, losers } = splitFields<'participation', ParticipationField>(
+      clocks.get(current.id),
+      ctx.hlc,
+      edited,
+      participationColumn,
+    );
+    appliedFields.push(
+      ...winners.map((field) => ({ index, field: `rows.${String(index)}.${field}` })),
+    );
+    supersededFields.push(...losers.map((field) => `rows.${String(index)}.${field}`));
+    if (winners.length > 0) {
+      stamps.push({
+        index,
+        stamp: {
+          collection: 'participation',
+          rowId: current.id,
+          columns: winners.map(participationColumn),
+        },
+      });
+    }
+    return { fields, current, edited, winners };
+  });
+  // Nothing new and every edited field lost: superseded, the whole batch only checked.
+  const checkOnly = appliedFields.length === 0;
+  const rows = resolved.map(({ fields, current, edited, winners }) => {
+    if (current === undefined) return fields;
+    const sent: readonly ParticipationField[] = checkOnly ? edited : winners;
+    // A row keeps its status (required by the contract) and only its winning fields.
+    return {
+      // The clientUuid the row was created with, reused by the device: online a replay of the
+      // create that writes nothing; here an edit (a resend has the same mutationId and never
+      // gets here). A fresh one, which the update of an existing row does not store.
+      clientUuid: fields.clientUuid === current.clientUuid ? randomUUID() : fields.clientUuid,
+      playerId: fields.playerId,
+      status: sent.includes('status') ? fields.status : current.status,
+      ...(sent.includes('minutes') && { minutes: fields.minutes }),
+      ...(sent.includes('contactsN') && { contactsN: fields.contactsN }),
+    };
+  });
+  return {
+    checkOnly,
+    call: {
+      endpoint: recordParticipations,
+      params,
+      body: {
+        ...(body.changeReason !== undefined && { changeReason: body.changeReason }),
+        rows,
+      },
+    },
+    stamps: stamps.map(({ stamp }) => stamp),
+    appliedFields: appliedFields.map(({ field }) => field),
+    supersededFields,
+    settle: (output) => {
+      // Defense in depth: a row the handler replayed by its clientUuid wrote nothing.
+      const items = (output as { items: readonly { outcome: string }[] }).items;
+      const replayedRows = new Set(
+        items.flatMap((item, index) => (item.outcome === 'replayed' ? [index] : [])),
+      );
+      return {
+        stamps: stamps.filter(({ index }) => !replayedRows.has(index)).map(({ stamp }) => stamp),
+        appliedFields: appliedFields
+          .filter(({ index }) => !replayedRows.has(index))
+          .map(({ field }) => field),
+        supersededFields,
+        replayed: items.length > 0 && replayedRows.size === items.length,
+      };
+    },
+  };
+};
+
+// ─── Tests ───────────────────────────────────────────────────────────────────────────
+
+const RESULT_FIELDS = [
+  'measuredOn',
+  'status',
+  'notDoneReason',
+  'notDoneNote',
+  'method',
+  'evaluatorId',
+  'deviceId',
+  'exercise',
+  'conditions',
+  'notes',
+] as const;
+type ResultField = (typeof RESULT_FIELDS)[number];
+const RESULT_COLUMNS: Record<ResultField, SyncFieldColumn<'test_result'>> = {
+  measuredOn: 'measured_on',
+  status: 'status',
+  notDoneReason: 'not_done_reason',
+  notDoneNote: 'not_done_note',
+  method: 'method',
+  evaluatorId: 'evaluator_id',
+  deviceId: 'device_id',
+  exercise: 'exercise',
+  conditions: 'conditions',
+  notes: 'notes',
+};
+
+const resultTarget = (ctx: ResolveContext, target: { id: string } | { clientUuid: string }) =>
+  targetId(ctx.db, testResult, ctx.clubId, target, 'Test result');
+
+const testResultCreate: Resolver<'test_result.create'> = async ({ body }, ctx) => {
+  requireClientUuid(body, [...ctx.path, 'body']);
+  return Promise.resolve(create({ endpoint: createTestResult, body }));
+};
+
+const testSessionRecordResults: Resolver<'test_session.record_results'> = async (
+  { params, body },
+  ctx,
+) => {
+  body.results.forEach((result, index) => {
+    requireClientUuid(result, [...ctx.path, 'body', 'results', index]);
+  });
+  return Promise.resolve(create({ endpoint: recordTestSessionResults, params, body }));
+};
+
+const testResultUpdate: Resolver<'test_result.update'> = async ({ target, body }, ctx) => {
+  const id = await resultTarget(ctx, target);
+  await lockRows(ctx.db, 'test_result', [id]);
+  const [current] = await ctx.db
+    .select({ version: rowVersion(testResult.updatedAt) })
+    .from(testResult)
+    .where(and(eq(testResult.clubId, ctx.clubId), eq(testResult.id, id)));
+  if (current === undefined) throw new HttpError('not_found', 'Test result not found');
+  const clocks = (await fieldClocks(ctx.db, ctx.clubId, 'test_result', [id])).get(id);
+  const edited = editedKeys(body, RESULT_FIELDS);
+  const { winners, losers } = splitFields<'test_result', ResultField>(
+    clocks,
+    ctx.hlc,
+    edited,
+    (field) => RESULT_COLUMNS[field],
+  );
+  const checkOnly = winners.length === 0;
+  const sent = checkOnly ? edited : winners;
+  const fields = Object.fromEntries(sent.map((field) => [field, body[field]]));
+  return {
+    checkOnly,
+    call: {
+      endpoint: updateTestResult,
+      params: { testResultId: id },
+      body: {
+        version: current.version,
+        ...(body.changeReason !== undefined && { changeReason: body.changeReason }),
+        ...fields,
+      },
+    },
+    stamps: checkOnly
+      ? []
+      : [{ collection: 'test_result', rowId: id, columns: winners.map((f) => RESULT_COLUMNS[f]) }],
+    appliedFields: winners,
+    supersededFields: losers,
+  };
+};
+
+const testResultAddEntries: Resolver<'test_result.add_entries'> = async ({ target, body }, ctx) => {
+  const id = await resultTarget(ctx, target);
+  // Attempts are only appended (ADR 0015): never in conflict.
+  return create({ endpoint: addTestResultEntries, params: { testResultId: id }, body });
+};
+
+const testResultVoidEntries: Resolver<'test_result.void_entries'> = async (
+  { target, body },
+  ctx,
+) => {
+  const id = await resultTarget(ctx, target);
+  // A void is final and idempotent: never in conflict either.
+  return create({ endpoint: voidTestResultEntries, params: { testResultId: id }, body });
+};
+
+/** The resolver of each operation. */
+export const SYNC_RESOLVERS: { readonly [Op in SyncOperation]: Resolver<Op> } = {
+  'wellness.submit': wellnessSubmit,
+  'wellness.correct': wellnessCorrect,
+  'rpe.submit': rpeSubmit,
+  'participation.record': participationRecord,
+  'participation.update': participationUpdate,
+  'test_result.create': testResultCreate,
+  'test_session.record_results': testSessionRecordResults,
+  'test_result.update': testResultUpdate,
+  'test_result.add_entries': testResultAddEntries,
+  'test_result.void_entries': testResultVoidEntries,
+};
+
+/** Every endpoint a sync operation may call (all must be registered transactional routes). */
+export const SYNC_ENDPOINTS: readonly EndpointDefinition[] = [
+  submitWellness,
+  correctWellness,
+  submitSessionRpe,
+  recordParticipations,
+  updateParticipation,
+  createTestResult,
+  recordTestSessionResults,
+  updateTestResult,
+  addTestResultEntries,
+  voidTestResultEntries,
+];

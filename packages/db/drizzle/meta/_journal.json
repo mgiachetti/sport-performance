@@ -176,6 +176,13 @@
       "when": 1793651295970,
       "tag": "0024_season_rollover",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793653846457,
+      "tag": "0025_offline_sync",
+      "breakpoints": true
     }
   ]
 }

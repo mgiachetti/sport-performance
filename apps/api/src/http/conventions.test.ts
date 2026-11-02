@@ -74,6 +74,10 @@ function register(app: FastifyInstance): void {
           throw pgError('23P01', 'season_no_overlap');
         case 'other-check':
           throw pgError('23514', 'club_name_format');
+        case 'deadlock':
+          throw pgError('40P01');
+        case 'serialization':
+          throw pgError('40001');
         default:
           return Promise.resolve({ secret: 'medical data' });
       }
@@ -199,6 +203,8 @@ describe('errors of the conventions', () => {
     ['policy', 403, 'forbidden'],
     ['overlap', 409, 'conflict'],
     ['other-check', 500, 'internal_error'],
+    ['deadlock', 503, 'service_unavailable'],
+    ['serialization', 503, 'service_unavailable'],
   ])('answers %s with %i %s, without the database detail', async (fail, status, code) => {
     const { app, logs } = await start(admin);
     const response = await app.inject({
@@ -211,6 +217,11 @@ describe('errors of the conventions', () => {
     expect(body.error.code).toBe(code);
     expect(response.body).not.toContain('row values');
     if (fail === 'reason') expect(body.error.details?.[0]?.path).toEqual(['body', 'changeReason']);
+    if (fail === 'deadlock' || fail === 'serialization') {
+      // Retryable, not a bug: no error log (Sentry), a Retry-After.
+      expect(response.headers['retry-after']).toBe('1');
+      expect(logs.lines().some((l) => l.msg === 'unexpected error')).toBe(false);
+    }
     if (fail === 'permission') {
       // The client is not told which rule denied; the logs are.
       expect(response.body).not.toContain('role_denied');

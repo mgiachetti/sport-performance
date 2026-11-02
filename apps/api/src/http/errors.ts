@@ -78,9 +78,14 @@ export const CHANGE_REASON_REQUIRED_CONSTRAINT = 'change_history_reason_required
  * (ADR 0032). Messages are generic: the Postgres detail carries row values.
  * Anything else stays a server error.
  */
-function classifyDatabaseError(
-  error: unknown,
-): { code: ErrorCode; message: string; details?: ValidationIssue[] } | undefined {
+function classifyDatabaseError(error: unknown):
+  | {
+      code: ErrorCode;
+      message: string;
+      details?: ValidationIssue[];
+      headers?: Readonly<Record<string, string>>;
+    }
+  | undefined {
   const found = databaseErrorOf(error);
   if (found === undefined) return undefined;
   switch (found.code) {
@@ -108,6 +113,16 @@ function classifyDatabaseError(
             ],
           }
         : undefined;
+    case '40P01':
+    case '40001':
+      // A deadlock or a serialization failure: Postgres rolled the transaction back and the
+      // same request succeeds when sent again (two offline pushes that lock the same rows in
+      // another order, ADR 0050). Not a bug to report: a retryable 503.
+      return {
+        code: 'service_unavailable',
+        message: 'The request ran into a concurrent one: send it again',
+        headers: { 'retry-after': '1' },
+      };
     case '42501':
       // A row-level policy or a guard of the database refused: the second line of defense.
       return { code: 'forbidden', message: 'The database policies do not allow this' };
@@ -196,7 +211,7 @@ export function classifyError(error: unknown): {
       code: database.code,
       message: database.message,
       details: database.details,
-      headers: {},
+      headers: database.headers ?? {},
       unexpected: false,
     };
   }

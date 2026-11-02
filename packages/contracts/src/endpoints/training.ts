@@ -86,12 +86,12 @@ const sortOrderSchema = z
   .min(0)
   .max(SMALLINT_MAX)
   .meta({ description: 'Posición del bloque en la sesión (ascendente).' });
-const minutesSchema = z
+export const minutesSchema = z
   .int()
   .min(0)
   .max(PARTICIPATION_MINUTES_MAX)
   .meta({ description: 'Minutos que participó.' });
-const contactsSchema = z
+export const contactsSchema = z
   .int()
   .min(0)
   .max(PARTICIPATION_CONTACTS_MAX)

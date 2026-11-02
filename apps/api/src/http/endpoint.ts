@@ -71,6 +71,12 @@ export interface TransactionalHandlerContext<
    * touching data. A denial is answered `403`.
    */
   permissions: RequestPermissions;
+  /**
+   * Set when the offline sync runs the handler (ADR 0050): when the mutation
+   * was recorded on the device (its clock, never ahead of the server's).
+   * Time windows are checked at this instant, not at the sync's.
+   */
+  recordedAt?: Date;
 }
 
 /** Limits of one route; the defaults come from the endpoint (ADR 0031). */
@@ -209,6 +215,77 @@ function requireSupportReason(reason: string | null): string {
 }
 
 /**
+ * Validates the parts of a request with the contract schemas (`z.output`
+ * of each), or throws `400 validation_failed` with every issue, located by
+ * part (`params`, `query`, `body`) under `prefix`.
+ */
+export function parseEndpointInput<E extends EndpointDefinition>(
+  endpoint: E,
+  raw: { params?: unknown; query?: unknown; body?: unknown },
+  prefix: readonly (string | number)[] = [],
+): EndpointRequest<E> {
+  const issues: ValidationIssue[] = [];
+  const input = {
+    params: parsePart(endpoint.params, raw.params, 'params', issues),
+    query: parsePart(endpoint.query, raw.query, 'query', issues),
+    body: parsePart(endpoint.body, raw.body, 'body', issues),
+  } as EndpointRequest<E>;
+  if (issues.length > 0) {
+    throw new HttpError('validation_failed', 'The request does not match the contract', {
+      details: issues.map((issue) => ({ ...issue, path: [...prefix, ...issue.path] })),
+    });
+  }
+  return input;
+}
+
+/** A handler's result checked (and stripped) by the response schema of its endpoint. */
+export function checkResponse<E extends EndpointDefinition>(
+  endpoint: E,
+  result: EndpointResult<E>,
+): unknown {
+  const schema = endpoint.response.schema;
+  if (schema === undefined) return undefined;
+  const parsed = schema.safeParse(result);
+  if (!parsed.success) throw new ResponseContractError(endpoint, parsed.error);
+  return parsed.data;
+}
+
+/** Routes registered on each app, by endpoint: the offline sync runs their handlers. */
+const ROUTES = new WeakMap<
+  FastifyInstance,
+  Map<EndpointDefinition, EndpointRoute<EndpointDefinition>>
+>();
+
+/** A transactional route as registered, to run its handler inside another transaction. */
+export interface TransactionalRoute<E extends EndpointDefinition> {
+  changeReason?: (input: EndpointRequest<E>) => string | null | undefined;
+  handler: (
+    input: EndpointRequest<E>,
+    ctx: TransactionalHandlerContext<E>,
+  ) => Promise<EndpointResult<E>>;
+}
+
+/**
+ * The registered transactional route of `endpoint` (the offline sync, ADR
+ * 0050, runs a mutation through the same handler as the online request).
+ * Throws when the endpoint is not registered on `app` or does not run in
+ * a club transaction.
+ */
+export function transactionalRouteOf<E extends EndpointDefinition>(
+  app: FastifyInstance,
+  endpoint: E,
+): TransactionalRoute<E> {
+  const route = ROUTES.get(app)?.get(endpoint) as EndpointRoute<E> | undefined;
+  if (route === undefined) {
+    throw new Error(`${endpoint.method} ${endpoint.path} is not registered`);
+  }
+  if (!route.transaction || route.scope !== undefined || endpoint.auth !== 'club') {
+    throw new Error(`${endpoint.method} ${endpoint.path} is not a club transactional route`);
+  }
+  return route;
+}
+
+/**
  * Registers an endpoint of the contract catalog: Fastify route, auth guard,
  * input validation with the contract schemas, handler and response check.
  */
@@ -217,6 +294,15 @@ export function registerEndpoint<E extends EndpointDefinition>(
   endpoint: E,
   route: EndpointRoute<E>,
 ): void {
+  let routes = ROUTES.get(app);
+  if (routes === undefined) {
+    routes = new Map();
+    ROUTES.set(app, routes);
+  }
+  if (routes.has(endpoint)) {
+    throw new Error(`${endpoint.method} ${endpoint.path} is already registered`);
+  }
+  routes.set(endpoint, route as unknown as EndpointRoute<EndpointDefinition>);
   const routeClass = route.rateLimit ?? endpointRouteClass(endpoint);
   const bodyLimit = Math.min(
     app.initialConfig.bodyLimit ?? Number.POSITIVE_INFINITY,
@@ -243,17 +329,7 @@ export function registerEndpoint<E extends EndpointDefinition>(
         );
       }
 
-      const issues: ValidationIssue[] = [];
-      const input = {
-        params: parsePart(endpoint.params, request.params, 'params', issues),
-        query: parsePart(endpoint.query, request.query, 'query', issues),
-        body: parsePart(endpoint.body, request.body, 'body', issues),
-      } as EndpointRequest<E>;
-      if (issues.length > 0) {
-        throw new HttpError('validation_failed', 'The request does not match the contract', {
-          details: issues,
-        });
-      }
+      const input = parseEndpointInput(endpoint, request);
 
       const base: HandlerContext<E> = {
         auth: request.auth as EndpointAuthContext<E>,
@@ -261,13 +337,7 @@ export function registerEndpoint<E extends EndpointDefinition>(
         reply,
         log: request.log,
       };
-      const respond = (result: EndpointResult<E>): unknown => {
-        const schema = endpoint.response.schema;
-        if (schema === undefined) return undefined;
-        const parsed = schema.safeParse(result);
-        if (!parsed.success) throw new ResponseContractError(endpoint, parsed.error);
-        return parsed.data;
-      };
+      const respond = (result: EndpointResult<E>): unknown => checkResponse(endpoint, result);
 
       let body: unknown;
       if (route.transaction) {

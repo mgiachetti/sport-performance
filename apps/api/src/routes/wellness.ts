@@ -72,7 +72,7 @@ import {
  * the scope of the permission matrix.
  */
 
-const wellnessColumns = {
+export const wellnessColumns = {
   id: wellness.id,
   playerId: wellness.playerId,
   localDate: wellness.localDate,
@@ -88,7 +88,7 @@ const wellnessColumns = {
   version: rowVersion(wellness.updatedAt),
 };
 
-type WellnessRow = Record<WellnessItem, number | null> & {
+export type WellnessRow = Record<WellnessItem, number | null> & {
   id: string;
   playerId: PlayerId;
   localDate: LocalDate;
@@ -107,7 +107,7 @@ function itemCountOf(row: WellnessRow): WellnessItemCount {
   return row.itemCount;
 }
 
-function wellnessDto(row: WellnessRow): Wellness {
+export function wellnessDto(row: WellnessRow): Wellness {
   const itemCount = itemCountOf(row);
   const scores: Partial<Record<WellnessItem, number>> = {};
   for (const item of WELLNESS_ITEMS) {

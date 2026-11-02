@@ -45,6 +45,8 @@ import {
   seasonRolloverItem,
   speedZoneConfig,
   staffAssignment,
+  syncChange,
+  syncMutation,
   testDefinition,
   testDefinitionMetric,
   testResult,
@@ -706,6 +708,26 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         createdBy: users.admin,
       })
       .returning({ id: rosterImport.id }),
+  );
+  // The offline sync log is written by its trigger (ADR 0050); a pushed mutation by its author.
+  rows.sync_change = await id(
+    db
+      .select({ id: syncChange.id })
+      .from(syncChange)
+      .where(and(eq(syncChange.collection, 'wellness'), eq(syncChange.rowId, rows.wellness))),
+  );
+  rows.sync_mutation = await id(
+    db
+      .insert(syncMutation)
+      .values({
+        ...base,
+        operation: 'wellness.submit',
+        hlc: '001773100800000-000000-0123456789abcdef',
+        receivedHlc: '001773100800000-000000-0123456789abcdef',
+        outcome: 'applied',
+        createdBy: users.admin,
+      })
+      .returning({ id: syncMutation.id }),
   );
 
   return { clubId, slug, users, players: { assigned, other }, rows };
