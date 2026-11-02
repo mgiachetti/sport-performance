@@ -5,7 +5,9 @@ import {
   doublePrecision,
   index,
   pgTable,
+  smallint,
   text,
+  unique,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
@@ -18,7 +20,10 @@ import {
   dominantSideEnum,
   guardianRelationshipEnum,
   heightSourceEnum,
+  parentKindEnum,
+  playerLeaveReasonEnum,
   sexEnum,
+  sportEnum,
   stageBasisEnum,
   stageEnum,
   stageReasonEnum,
@@ -30,6 +35,11 @@ import {
   tenantReference,
   tenantReferenceIndex,
 } from './tenant.js';
+
+/** Longest first or last name of a player. */
+export const PLAYER_NAME_MAX_LENGTH = 80;
+/** Longest note of a player's leave (baja). */
+export const PLAYER_LEAVE_NOTE_MAX_LENGTH = 500;
 
 /**
  * A player of the club. Personal data of a minor: visibility is restricted
@@ -47,34 +57,88 @@ export const player = pgTable(
     birthDate: localDate('birth_date').notNull(),
     /** Sex for maturation formulas and references; not gender identity (ADR 0017). */
     sex: sexEnum('sex').notNull(),
-    positionId: uuid('position_id'),
+    /**
+     * Sport of the player (ADR 0017, ADR 0035). Fixed once created (trigger
+     * `player_sport_guard`): categories and positions must be of this sport.
+     */
+    sport: sportEnum('sport').notNull(),
     dominantSide: dominantSideEnum('dominant_side'),
-    /** Parents' heights for Khamis-Roche (B-203), with their origin (B-315). */
-    motherHeightCm: doublePrecision('mother_height_cm'),
-    motherHeightSource: heightSourceEnum('mother_height_source'),
-    fatherHeightCm: doublePrecision('father_height_cm'),
-    fatherHeightSource: heightSourceEnum('father_height_source'),
-    /** Club days the player joined and left (B-315). */
+    /** Club days the player joined and left (alta y baja, B-315), both inclusive. */
     joinedOn: localDate('joined_on').notNull(),
     leftOn: localDate('left_on'),
+    /** Why the player left; set exactly when `left_on` is. */
+    leftReason: playerLeaveReasonEnum('left_reason'),
+    leftNote: text('left_note'),
+    /** When the leave was recorded: a player who left is archived (ADR 0032). */
+    archivedAt: timestamptz('archived_at'),
   },
   (t) => [
     ...tenantConstraints('player', t),
-    tenantReference('player', t.clubId, t.positionId, position),
-    tenantReferenceIndex('player', t.clubId, t.positionId),
     uniqueIndex('player_club_id_user_id_key')
       .on(t.clubId, t.userId)
       .where(sql`${t.userId} is not null`),
     index('player_name_idx').on(t.clubId, t.lastName, t.firstName),
     check(
-      'player_mother_height',
-      sql`(${t.motherHeightCm} is null) = (${t.motherHeightSource} is null) and (${t.motherHeightCm} is null or (${finite(t.motherHeightCm)} and ${t.motherHeightCm} > 0))`,
+      'player_first_name_format',
+      sql`${t.firstName} = btrim(${t.firstName}) and ${t.firstName} <> '' and char_length(${t.firstName}) <= ${sql.raw(String(PLAYER_NAME_MAX_LENGTH))}`,
     ),
     check(
-      'player_father_height',
-      sql`(${t.fatherHeightCm} is null) = (${t.fatherHeightSource} is null) and (${t.fatherHeightCm} is null or (${finite(t.fatherHeightCm)} and ${t.fatherHeightCm} > 0))`,
+      'player_last_name_format',
+      sql`${t.lastName} = btrim(${t.lastName}) and ${t.lastName} <> '' and char_length(${t.lastName}) <= ${sql.raw(String(PLAYER_NAME_MAX_LENGTH))}`,
     ),
     check('player_membership_period', sql`${t.leftOn} is null or ${t.leftOn} >= ${t.joinedOn}`),
+    check(
+      'player_leave',
+      sql`(${t.leftOn} is null) = (${t.leftReason} is null) and (${t.leftOn} is null) = (${t.archivedAt} is null) and (${t.leftNote} is null or (${t.leftOn} is not null and char_length(${t.leftNote}) between 1 and ${sql.raw(String(PLAYER_LEAVE_NOTE_MAX_LENGTH))}))`,
+    ),
+  ],
+);
+
+/**
+ * Positions a player plays (B-315), in order: `sort_order = 0` is the main
+ * one. Only positions of the player's sport (trigger `player_position_sport`).
+ * A current attribute, not history: editing the profile replaces the rows.
+ */
+export const playerPosition = pgTable(
+  'player_position',
+  {
+    ...tenantColumns(),
+    playerId: uuid('player_id').notNull().$type<PlayerId>(),
+    positionId: uuid('position_id').notNull(),
+    sortOrder: smallint('sort_order').notNull(),
+  },
+  (t) => [
+    ...tenantConstraints('player_position', t),
+    tenantReference('player_position', t.clubId, t.playerId, player),
+    tenantReference('player_position', t.clubId, t.positionId, position),
+    unique('player_position_player_position_key').on(t.clubId, t.playerId, t.positionId),
+    unique('player_position_player_order_key').on(t.clubId, t.playerId, t.sortOrder),
+    index('player_position_position_idx').on(t.clubId, t.positionId),
+    check('player_position_sort_order', sql`${t.sortOrder} >= 0`),
+  ],
+);
+
+/**
+ * Height of each biological parent, for Khamis-Roche (B-203), with its
+ * origin (B-315): measured by the staff or reported. One row per parent.
+ */
+export const playerParentHeight = pgTable(
+  'player_parent_height',
+  {
+    ...tenantColumns(),
+    playerId: uuid('player_id').notNull().$type<PlayerId>(),
+    parent: parentKindEnum('parent').notNull(),
+    heightCm: doublePrecision('height_cm').notNull(),
+    source: heightSourceEnum('source').notNull(),
+  },
+  (t) => [
+    ...tenantConstraints('player_parent_height', t),
+    tenantReference('player_parent_height', t.clubId, t.playerId, player),
+    unique('player_parent_height_player_parent_key').on(t.clubId, t.playerId, t.parent),
+    check(
+      'player_parent_height_cm',
+      sql`${finite(t.heightCm)} and ${t.heightCm} > 0 and ${t.heightCm} < 300`,
+    ),
   ],
 );
 

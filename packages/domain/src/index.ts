@@ -73,6 +73,24 @@ export {
   type TestResultStatus,
 } from './test-result.js';
 export {
+  DOMINANT_SIDES,
+  HEIGHT_SOURCES,
+  PARENTS,
+  PLAYER_LEAVE_REASONS,
+  isDominantSide,
+  isHeightSource,
+  isParent,
+  isPlayerLeaveReason,
+  parseDominantSide,
+  parseHeightSource,
+  parseParent,
+  parsePlayerLeaveReason,
+  type DominantSide,
+  type HeightSource,
+  type Parent,
+  type PlayerLeaveReason,
+} from './player.js';
+export {
   CHANGE_OPERATIONS,
   CHANGE_REASON_MAX_LENGTH,
   CHANGE_SOURCES,

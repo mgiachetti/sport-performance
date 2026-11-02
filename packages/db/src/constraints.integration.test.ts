@@ -71,6 +71,7 @@ describe.skipIf(!hasDatabase)('schema constraints (Postgres 16)', () => {
           lastName: 'Pérez',
           birthDate: day('2011-05-04'),
           sex: 'male',
+          sport: 'rugby',
           joinedOn: day('2024-03-01'),
         },
         {
@@ -79,6 +80,7 @@ describe.skipIf(!hasDatabase)('schema constraints (Postgres 16)', () => {
           lastName: 'Gómez',
           birthDate: day('2010-01-20'),
           sex: 'female',
+          sport: 'rugby',
           joinedOn: day('2024-03-01'),
         },
       ])
@@ -142,8 +144,8 @@ describe.skipIf(!hasDatabase)('schema constraints (Postgres 16)', () => {
   it('requires club_id on club tables', async () => {
     const error = await pgErrorOf(
       t.pool.query(
-        `insert into player (first_name, last_name, birth_date, sex, joined_on)
-         values ('Sin', 'Club', '2011-01-01', 'male', '2024-01-01')`,
+        `insert into player (first_name, last_name, birth_date, sex, sport, joined_on)
+         values ('Sin', 'Club', '2011-01-01', 'male', 'rugby', '2024-01-01')`,
       ),
     );
     expect(error.code).toBe('23502');

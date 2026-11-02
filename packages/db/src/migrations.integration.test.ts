@@ -10,11 +10,15 @@ import {
   CONSENT_TYPES,
   DEVICE_BROWSERS,
   DEVICE_OPERATING_SYSTEMS,
+  DOMINANT_SIDES,
   EXPOSURE_CONTEXTS,
+  HEIGHT_SOURCES,
   MATURITY_OFFSET_EQUATIONS,
   MEASUREMENT_METHODS,
   MEMBERSHIP_ROLES,
   SESSION_CLIENT_TYPES,
+  PARENTS,
+  PLAYER_LEAVE_REASONS,
   SEXES,
   SPEED_ZONE_KINDS,
   SPORTS,
@@ -166,6 +170,10 @@ describe.skipIf(!hasDatabase)('migrations (Postgres 16)', () => {
       session_client_type: SESSION_CLIENT_TYPES,
       device_os: DEVICE_OPERATING_SYSTEMS,
       device_browser: DEVICE_BROWSERS,
+      dominant_side: DOMINANT_SIDES,
+      height_source: HEIGHT_SOURCES,
+      parent_kind: PARENTS,
+      player_leave_reason: PLAYER_LEAVE_REASONS,
     };
     const enums = await rows<{ name: string; labels: string[] }>(
       `select t.typname as name, array_agg(e.enumlabel::text order by e.enumsortorder)::text[] as labels

@@ -38,6 +38,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0032](0032-convenciones-de-endpoints.md) | Convenciones de endpoints: autorización, contexto de la transacción, soporte, listas, altas idempotentes, concurrencia y archivado | Aceptado |
 | [0033](0033-sesiones-activas-por-dispositivo.md) | Sesiones activas por dispositivo y aviso de ingreso nuevo | Aceptado |
 | [0034](0034-asignaciones-del-staff-y-membresias.md) | Asignaciones del staff y membresías: vigencia, fin, superposición y cambio de rol | Aceptado |
+| [0035](0035-jugadores-y-plantel.md) | Jugadores y plantel: deporte del jugador, posiciones, altura de los padres, alta y baja, y pases de categoría | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 

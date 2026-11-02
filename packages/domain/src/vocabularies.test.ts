@@ -1,13 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DOMINANT_SIDES,
   DomainValidationError,
+  HEIGHT_SOURCES,
   MEMBERSHIP_ROLES,
+  PARENTS,
+  PLAYER_LEAVE_REASONS,
   TEST_NOT_DONE_REASONS,
   TEST_RESULT_STATUSES,
+  isDominantSide,
+  isHeightSource,
   isMembershipRole,
+  isParent,
+  isPlayerLeaveReason,
   isTestNotDoneReason,
   isTestResultStatus,
+  parseDominantSide,
+  parseHeightSource,
   parseMembershipRole,
+  parseParent,
+  parsePlayerLeaveReason,
   parseTestNotDoneReason,
   parseTestResultStatus,
 } from './index.js';
@@ -30,6 +42,15 @@ const cases = [
     values: TEST_NOT_DONE_REASONS,
     is: isTestNotDoneReason,
     parse: parseTestNotDoneReason,
+  },
+  { name: 'dominant side', values: DOMINANT_SIDES, is: isDominantSide, parse: parseDominantSide },
+  { name: 'height source', values: HEIGHT_SOURCES, is: isHeightSource, parse: parseHeightSource },
+  { name: 'parent', values: PARENTS, is: isParent, parse: parseParent },
+  {
+    name: 'player leave reason',
+    values: PLAYER_LEAVE_REASONS,
+    is: isPlayerLeaveReason,
+    parse: parsePlayerLeaveReason,
   },
 ] as const;
 

@@ -48,7 +48,7 @@ Nunca `drizzle-kit push` ni `drizzle-kit migrate` contra una base compartida. Un
 | `auth.ts` | `user`, `session`, `account`, `verification`: esquema core de Better Auth (ids `text` con UUID generado por la base), `is_superadmin` global. Sin `club_id`. |
 | `tenant.ts` | `club` (raíz del tenant: zona horaria, marca, módulos) y las convenciones de toda tabla del club. |
 | `organization.ts` | `membership` (usuario × club × rol), `season`, `category` (deporte + rama + franja de edad), `position` (por deporte), `staff_assignment` (categoría o deporte). |
-| `players.ts` | `player` (sexo obligatorio, altura de los padres con origen), `player_category` (historia), `guardian`, `consent`, `player_stage` (historia y fijaciones). |
+| `players.ts` | `player` (sexo y deporte obligatorios; alta y baja con motivo), `player_position` (posiciones en orden, la principal primero), `player_parent_height` (altura de cada padre con origen), `player_category` (historia), `guardian`, `consent`, `player_stage` (historia y fijaciones). B-315, [ADR 0035](../../docs/adr/0035-jugadores-y-plantel.md). |
 | `catalog.ts` | `metric_definition` (con `catapult_aliases`), `test_definition` (una fila por versión de protocolo) y `test_definition_metric`, `battery_config`, `reference_value`, `speed_zone_config`, `device`. |
 | `testing.ts` | `test_window` (V1–V4), `test_session`, `test_result` (`done` / `not_done` con motivo, método, evaluador, dispositivo, condiciones), `test_result_value` (varias métricas e intentos, solo se agregan o se anulan), `anthro_measurement`. |
 | `training.ts` | `training_session` (entrenamiento o partido), `drill`, `participation` (`srpe_au` generado), `wellness`, `external_metric`, `gym_program`, `gym_set`. |

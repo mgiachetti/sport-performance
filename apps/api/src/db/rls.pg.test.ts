@@ -81,8 +81,8 @@ describeWithPostgres('RLS through the API data layer (Postgres)', (url) => {
       admin,
     ]);
     const player = await one(
-      `insert into player (club_id, first_name, last_name, birth_date, sex, joined_on)
-       values ($1, 'Juan', $2, '2011-05-04', 'male', '2024-03-01') returning id`,
+      `insert into player (club_id, first_name, last_name, birth_date, sex, sport, joined_on)
+       values ($1, 'Juan', $2, '2011-05-04', 'male', 'rugby', '2024-03-01') returning id`,
       [id, slug],
     );
     return { id: parseClubId(id), admin: parseUserId(admin), player };

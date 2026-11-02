@@ -42,6 +42,7 @@ Variables: [`.env.example`](.env.example). Se validan al arrancar; si falta o es
 | `GET /v1/club`, `PATCH /v1/club` | Perfil y marca del club activo (lectura: todo miembro; edición: la administración, con `version`). |
 | `GET /v1/club/branches`, `POST /v1/club/branches`, `POST …/{id}/archive`, `POST …/{id}/restore` | Deportes y ramas del club; habilitar una siembra sus posiciones, categorías y batería. |
 | `GET /v1/categories`, `POST /v1/categories`, `GET`/`PATCH /v1/categories/{id}`, `POST …/{id}/archive`, `POST …/{id}/restore` | Categorías (el staff ve sus asignadas; la administración edita). |
+| `GET`/`POST /v1/players`, `GET`/`PATCH /v1/players/{id}`, `POST …/{id}/archive` (baja), `POST …/{id}/restore`, `GET`/`POST …/{id}/categories`, `PATCH …/{id}/categories/{membershipId}`, `GET …/{id}/parent-heights`, `PUT …/{id}/parent-heights/{parent}` | Plantel (B-315, ADR 0035): ficha, posiciones, alta y baja, pases de categoría y altura de los padres con origen. |
 | `GET /v1/positions` | Posiciones por deporte (todo miembro). |
 
 ## Sesión y club
