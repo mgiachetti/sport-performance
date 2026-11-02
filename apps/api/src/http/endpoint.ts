@@ -7,7 +7,16 @@ import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest }
 import type { z } from 'zod';
 import { tenantContextOf, type AuthContext, type Membership } from '../auth/context.js';
 import { tenantDatabase, type TenantDatabase, type TransactionClient } from '../db/database.js';
+import { endpointRouteClass, type RouteClass } from '../security/rate-limit.js';
 import { HttpError } from './errors.js';
+
+/**
+ * Body limit of a route class, below the global `BODY_LIMIT_BYTES`: the
+ * public endpoints that change state take an email, a code or a token.
+ */
+export const ROUTE_CLASS_BODY_LIMIT_BYTES: Partial<Record<RouteClass, number>> = {
+  auth: 16 * 1024,
+};
 
 type Parsed<Schema> = Schema extends z.ZodType ? z.output<Schema> : undefined;
 
@@ -55,6 +64,14 @@ export interface TransactionalHandlerContext<
   db: TenantDatabase;
 }
 
+/** Limits of one route; the defaults come from the endpoint (ADR 0031). */
+export interface EndpointRouteLimits {
+  /** Class of the general rate limits; default from the endpoint's auth and method. */
+  rateLimit?: RouteClass;
+  /** Largest body; default the class's, never above the global `BODY_LIMIT_BYTES`. */
+  bodyLimitBytes?: number;
+}
+
 /**
  * How an endpoint of the catalog is served. `transaction: true` runs the
  * handler (and the response check) inside one transaction with the caller's
@@ -62,18 +79,20 @@ export interface TransactionalHandlerContext<
  * the contract rolls it back. Endpoints that do not touch the database say
  * `transaction: false`.
  */
-export type EndpointRoute<E extends EndpointDefinition> =
-  | {
-      transaction: true;
-      handler: (
-        input: EndpointRequest<E>,
-        ctx: TransactionalHandlerContext<E>,
-      ) => Promise<EndpointResult<E>>;
-    }
-  | {
-      transaction: false;
-      handler: (input: EndpointRequest<E>, ctx: HandlerContext<E>) => Promise<EndpointResult<E>>;
-    };
+export type EndpointRoute<E extends EndpointDefinition> = EndpointRouteLimits &
+  (
+    | {
+        transaction: true;
+        handler: (
+          input: EndpointRequest<E>,
+          ctx: TransactionalHandlerContext<E>,
+        ) => Promise<EndpointResult<E>>;
+      }
+    | {
+        transaction: false;
+        handler: (input: EndpointRequest<E>, ctx: HandlerContext<E>) => Promise<EndpointResult<E>>;
+      }
+  );
 
 /** `/v1/clubs/{clubSlug}/theme` → `/v1/clubs/:clubSlug/theme`. */
 export function fastifyPath(path: string): string {
@@ -117,9 +136,16 @@ export function registerEndpoint<E extends EndpointDefinition>(
   endpoint: E,
   route: EndpointRoute<E>,
 ): void {
+  const routeClass = route.rateLimit ?? endpointRouteClass(endpoint);
+  const bodyLimit = Math.min(
+    app.initialConfig.bodyLimit ?? Number.POSITIVE_INFINITY,
+    route.bodyLimitBytes ?? ROUTE_CLASS_BODY_LIMIT_BYTES[routeClass] ?? Number.POSITIVE_INFINITY,
+  );
   app.route({
     method: endpoint.method,
     url: fastifyPath(endpoint.path),
+    config: { rateLimit: routeClass },
+    ...(Number.isFinite(bodyLimit) && { bodyLimit }),
     handler: async (request, reply) => {
       if (endpoint.auth !== 'public' && request.auth === null) {
         throw new HttpError('unauthenticated', 'This endpoint needs a session');

@@ -98,7 +98,7 @@ export const createInvitation = defineEndpoint({
     'Solo `admin` del club activo. Manda el email con el link y devuelve los links. `categoryIds` (solo para `coach`, `sc` y `medical`) se convierten en asignaciones de staff al aceptar. Invitar de nuevo al mismo email con el mismo rol anula el link anterior.',
   tags: ['invitations'],
   auth: 'club',
-  body: z.object({
+  body: z.strictObject({
     email: emailSchema,
     role: membershipRoleSchema,
     categoryIds: z.array(categoryIdSchema).max(50).default([]),
@@ -136,7 +136,7 @@ export const revokeInvitation = defineEndpoint({
     'Solo `admin` del club activo. El link deja de servir. Una invitación ya aceptada no se anula: `conflict` (para sacar a alguien se cierra su membresía).',
   tags: ['invitations'],
   auth: 'club',
-  params: z.object({ invitationId: invitationIdSchema }),
+  params: z.strictObject({ invitationId: invitationIdSchema }),
   response: { status: 204, description: 'Invitación anulada.', schema: undefined },
   errors: ['not_found', 'conflict'],
 });
@@ -149,7 +149,7 @@ export const previewInvitation = defineEndpoint({
     'Público: la app lo pide al abrir el link, antes del login, para mostrar el club, el rol y si se puede aceptar. Limitado por IP.',
   tags: ['invitations'],
   auth: 'public',
-  body: z.object({ token: invitationTokenSchema }),
+  body: z.strictObject({ token: invitationTokenSchema }),
   response: { status: 200, description: 'Invitación.', schema: invitationPreviewSchema },
   errors: ['not_found', 'rate_limited'],
 });
@@ -162,7 +162,7 @@ export const acceptInvitation = defineEndpoint({
     'Con sesión del mismo email invitado (si no, `forbidden`). Crea la membresía y las asignaciones de staff. Vencida, anulada o ya usada: `conflict`. Si la membresía ya existía, la devuelve sin duplicarla.',
   tags: ['invitations'],
   auth: 'session',
-  body: z.object({ token: invitationTokenSchema }),
+  body: z.strictObject({ token: invitationTokenSchema }),
   response: {
     status: 200,
     description: 'Membresía creada.',

@@ -125,6 +125,7 @@
 - **B-330 Importación de padrón** (nuevo) · `area:api`. CSV o Excel de jugadores, tutores y categorías, con validación, vista previa y detección de duplicados.
 - **B-331 Importación de históricos** (nuevo) · `area:api`. Resultados de temporadas anteriores desde planillas, con método "histórico" para no mezclarlos sin aviso.
 - **B-332 Seguridad de la API** (nuevo) · `area:api` `security`. Rate limiting, headers, CORS, validación estricta, manejo de secretos, revisión OWASP antes de producción.
+- **B-333 Sesiones activas por dispositivo** (nuevo) · `area:api` `security`. Listar y cerrar sesiones propias (web y mobile), cierre por un admin al dar de baja a un miembro y aviso por email de un ingreso nuevo. Sale de la revisión OWASP de B-332.
 
 ## M4 · Web del staff
 

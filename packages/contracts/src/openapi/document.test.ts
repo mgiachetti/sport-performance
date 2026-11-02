@@ -95,7 +95,7 @@ describe('buildOpenApiDocument (API catalog)', () => {
 
 describe('buildOpenApiDocument (generic features)', () => {
   const Player = z
-    .object({
+    .strictObject({
       id: z.uuid(),
       name: z.string(),
       heightCm: z.number().positive(),
@@ -110,7 +110,7 @@ describe('buildOpenApiDocument (generic features)', () => {
       summary: 'List players',
       tags: ['clubs'],
       auth: 'session',
-      params: z.object({ clubId: z.uuid() }),
+      params: z.strictObject({ clubId: z.uuid() }),
       query: pageQuerySchema.extend({ search: z.string().optional() }),
       response: { status: 200, description: 'Page', schema: pageOf(Player) },
       errors: ['forbidden'],
@@ -121,7 +121,7 @@ describe('buildOpenApiDocument (generic features)', () => {
       summary: 'Create player',
       tags: ['clubs'],
       auth: 'session',
-      params: z.object({ clubId: z.uuid() }),
+      params: z.strictObject({ clubId: z.uuid() }),
       body: Player,
       response: { status: 201, description: 'Created', schema: Player },
       errors: ['conflict'],
@@ -133,7 +133,7 @@ describe('buildOpenApiDocument (generic features)', () => {
       tags: ['clubs'],
       auth: 'session',
       deprecated: true,
-      params: z.object({ playerId: z.uuid() }),
+      params: z.strictObject({ playerId: z.uuid() }),
       response: { status: 204, description: 'Deleted', schema: undefined },
       errors: ['not_found'],
     }),
@@ -188,7 +188,12 @@ describe('buildOpenApiDocument (generic features)', () => {
     expect(del?.security).toEqual([{ sessionCookie: [] }, { bearerToken: [] }]);
     expect(del?.deprecated).toBe(true);
     expect(del?.responses['204']).toEqual({ description: 'Deleted' });
-    expect(Object.keys(del?.responses ?? {})).toEqual(['204', '400', '401', '404', '500']);
+    expect(Object.keys(del?.responses ?? {})).toEqual(['204', '400', '401', '404', '429', '500']);
+    expect(del?.responses['429']?.headers?.['Retry-After']?.schema).toEqual({
+      type: 'integer',
+      minimum: 1,
+    });
+    expect(del?.responses['404']?.headers).toBeUndefined();
     expect(Object.keys(document.components.securitySchemes)).toEqual([
       'sessionCookie',
       'bearerToken',
@@ -211,7 +216,7 @@ describe('buildOpenApiDocument (generic features)', () => {
     expect(get?.parameters?.map((p) => [p.name, p.in, p.required])).toEqual([
       ['x-membership-id', 'header', false],
     ]);
-    expect(Object.keys(get?.responses ?? {})).toEqual(['200', '401', '403', '500']);
+    expect(Object.keys(get?.responses ?? {})).toEqual(['200', '401', '403', '429', '500']);
     expect(get?.security).toEqual([{ sessionCookie: [] }, { bearerToken: [] }]);
   });
 

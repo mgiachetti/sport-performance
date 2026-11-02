@@ -4,7 +4,12 @@ import { z } from 'zod';
 import { defineEndpoint, type EndpointCatalog } from '../endpoint.js';
 import type { ClubTheme, Health } from '../endpoints/index.js';
 import { pageOf, pageQuerySchema } from '../primitives/pagination.js';
-import { createApiClient, type FetchLike, type FetchRequestInit } from './client.js';
+import {
+  createApiClient,
+  parseRetryAfter,
+  type FetchLike,
+  type FetchRequestInit,
+} from './client.js';
 import { ApiContractError, ApiError, ApiNetworkError } from './errors.js';
 
 interface Recorded {
@@ -146,6 +151,34 @@ describe('createApiClient (API catalog)', () => {
     });
   });
 
+  it('exposes Retry-After of a rate-limited answer', async () => {
+    const { fetch } = mockFetch(
+      jsonResponse(
+        429,
+        { error: { code: 'rate_limited', message: 'Too many requests' } },
+        { 'retry-after': '42' },
+      ),
+      jsonResponse(429, { error: { code: 'rate_limited', message: 'Burnt code' } }),
+    );
+    const api = createApiClient({ baseUrl: 'https://api.example.com', fetch });
+
+    await expect(api.getHealth()).rejects.toMatchObject({ code: 'rate_limited', retryAfterS: 42 });
+    await expect(api.getHealth()).rejects.toMatchObject({
+      code: 'rate_limited',
+      retryAfterS: undefined,
+    });
+  });
+
+  it('parses both forms of Retry-After', () => {
+    const now = () => Date.parse('2026-11-01T12:00:00.000Z');
+    expect(parseRetryAfter('120', now)).toBe(120);
+    expect(parseRetryAfter(' 7 ', now)).toBe(7);
+    expect(parseRetryAfter('Sun, 01 Nov 2026 12:00:30 GMT', now)).toBe(30);
+    expect(parseRetryAfter('Sun, 01 Nov 2026 11:00:00 GMT', now)).toBe(0);
+    expect(parseRetryAfter('soon', now)).toBeUndefined();
+    expect(parseRetryAfter(null, now)).toBeUndefined();
+  });
+
   it('derives a code from the status when there is no envelope', async () => {
     const { fetch } = mockFetch(jsonResponse(502, '<html>Bad gateway</html>'));
     const api = createApiClient({ baseUrl: 'https://api.example.com', fetch });
@@ -216,7 +249,7 @@ describe('createApiClient (API catalog)', () => {
 });
 
 describe('createApiClient (custom catalog)', () => {
-  const item = z.object({ id: z.uuid(), name: z.string() });
+  const item = z.strictObject({ id: z.uuid(), name: z.string() });
   const catalog = {
     listItems: defineEndpoint({
       method: 'GET',
@@ -224,7 +257,7 @@ describe('createApiClient (custom catalog)', () => {
       summary: 'List',
       tags: ['clubs'],
       auth: 'session',
-      params: z.object({ clubId: z.string() }),
+      params: z.strictObject({ clubId: z.string() }),
       query: pageQuerySchema.extend({ tag: z.array(z.string()).optional() }),
       response: { status: 200, description: 'Page', schema: pageOf(item) },
       errors: [],
@@ -245,7 +278,7 @@ describe('createApiClient (custom catalog)', () => {
       summary: 'Delete',
       tags: ['clubs'],
       auth: 'session',
-      params: z.object({ itemId: z.uuid() }),
+      params: z.strictObject({ itemId: z.uuid() }),
       response: { status: 204, description: 'Deleted', schema: undefined },
       errors: [],
     }),

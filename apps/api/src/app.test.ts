@@ -16,7 +16,13 @@ import { fastifyPath, registerEndpoint } from './http/endpoint.js';
 import { HttpError } from './http/errors.js';
 import { IMPLEMENTED_ENDPOINTS, PENDING_ENDPOINTS } from './routes/index.js';
 import { offlineAuthModule } from './testing/identity.js';
-import { fakeDatabase, recordingReporter, testApp, testAuthContext } from './testing/support.js';
+import {
+  fakeDatabase,
+  recordingReporter,
+  testApp,
+  testAuthContext,
+  testConfig,
+} from './testing/support.js';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -30,9 +36,9 @@ const echoEndpoint = defineEndpoint({
   summary: 'Echo',
   tags: ['system'],
   auth: 'public',
-  params: z.object({ id: z.uuid() }),
-  query: z.object({ limit: z.coerce.number().int().min(1).max(10).default(5) }),
-  body: z.object({ heightCm: z.number().positive() }),
+  params: z.strictObject({ id: z.uuid() }),
+  query: z.strictObject({ limit: z.coerce.number().int().min(1).max(10).default(5) }),
+  body: z.strictObject({ heightCm: z.number().positive() }),
   response: {
     status: 201,
     description: 'Echo',
@@ -207,12 +213,7 @@ describe('error envelope', () => {
 
   it('maps Fastify client errors to the envelope', async () => {
     const { app } = await start({
-      config: {
-        version: 'test',
-        trustProxyHops: 0,
-        bodyLimitBytes: 1024,
-        health: { databaseTimeoutMs: 500 },
-      },
+      config: { ...testConfig, version: 'test', bodyLimitBytes: 1024 },
     });
     const id = '0192e7a0-5c1a-7b7e-9f3a-2d4c6b8a1e0f';
     const badJson = await app.inject({
@@ -230,8 +231,8 @@ describe('error envelope', () => {
       headers: { 'content-type': 'application/json' },
       payload: JSON.stringify({ heightCm: 1, padding: 'x'.repeat(2048) }),
     });
-    expect(tooLarge.statusCode).toBe(400);
-    expect(envelope(tooLarge.body).error.code).toBe('bad_request');
+    expect(tooLarge.statusCode).toBe(413);
+    expect(envelope(tooLarge.body).error.code).toBe('payload_too_large');
 
     const wrongType = await app.inject({
       method: 'POST',

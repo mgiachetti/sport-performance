@@ -17,12 +17,15 @@ export { createIdentityStore, type ActiveMembership, type IdentityStore } from '
 export { createAuthModule, type AuthModule, type CreateAuthModuleOptions } from './auth/module.js';
 export {
   AUTH_RATE_LIMITS,
+  createMemoryRateLimiter,
   createPgRateLimiter,
+  type RateLimitCheck,
   type RateLimiter,
   type RateLimitRule,
 } from './auth/rate-limit.js';
 export {
   ConfigError,
+  configSummary,
   envSchema,
   loadConfig,
   loadSentryConfig,
@@ -66,10 +69,20 @@ export {
   type EndpointRequest,
   type EndpointResult,
   type EndpointRoute,
+  type EndpointRouteLimits,
   type HandlerContext,
   type TransactionalHandlerContext,
 } from './http/endpoint.js';
 export { HttpError } from './http/errors.js';
+export { createSecurityHeaders, SECURITY_HEADERS } from './security/headers.js';
+export {
+  DEFAULT_ROUTE_CLASS_LIMITS,
+  ROUTE_CLASSES,
+  createGeneralRateLimit,
+  endpointRouteClass,
+  type RouteClass,
+  type RouteClassLimits,
+} from './security/rate-limit.js';
 export { disabledErrorReporter, type ErrorReporter } from './observability/error-reporter.js';
 export { createLogger } from './observability/logger.js';
 

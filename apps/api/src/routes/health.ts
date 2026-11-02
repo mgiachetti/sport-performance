@@ -37,7 +37,9 @@ export function registerHealthRoutes(app: FastifyInstance, options: HealthOption
   };
 
   // Probes run often: keep them out of the info logs unless they fail.
-  app.get('/health/live', { logLevel: 'warn' }, () => Promise.resolve(healthy()));
-  app.get('/health/ready', { logLevel: 'warn' }, ready);
+  // Probes are exempt from the rate limits: a limited probe would get a healthy replica restarted.
+  const probe = { logLevel: 'warn', config: { rateLimit: 'exempt' } } as const;
+  app.get('/health/live', probe, () => Promise.resolve(healthy()));
+  app.get('/health/ready', probe, ready);
   registerEndpoint(app, getHealth, { transaction: false, handler: ready });
 }

@@ -18,6 +18,19 @@ export const REDACTED_PATHS = [
   '*.password',
   '*.token',
   '*.email',
+  // Secrets and credentials under any name they travel with (ADR 0031).
+  '*.secret',
+  '*.apiKey',
+  '*.resendApiKey',
+  '*.authorization',
+  '*.cookie',
+  '*["set-cookie"]',
+  '*.sessionToken',
+  '*.accessToken',
+  '*.refreshToken',
+  '*.otp',
+  '*.connectionString',
+  '*.databaseUrl',
 ];
 
 /** Path without the query string: query values may carry personal data. */

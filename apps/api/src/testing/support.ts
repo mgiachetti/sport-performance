@@ -93,6 +93,16 @@ export const testConfig: BuildAppOptions['config'] = {
   trustProxyHops: 0,
   bodyLimitBytes: 1024 * 1024,
   health: { databaseTimeoutMs: 500 },
+  http: {
+    requestTimeoutMs: 30_000,
+    headersTimeoutMs: 10_000,
+    keepAliveTimeoutMs: 72_000,
+    connectionTimeoutMs: 60_000,
+    maxConnections: 2048,
+    maxHeaderSizeBytes: 16_384,
+  },
+  rateLimit: { enabled: true, timeoutMs: 500 },
+  securityHeaders: { hsts: false },
 };
 
 export async function testApp(

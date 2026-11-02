@@ -11,6 +11,12 @@ export class ApiError extends Error {
   readonly code: ErrorCode | (string & {});
   readonly details: ValidationIssue[];
   readonly requestId: string | undefined;
+  /**
+   * Seconds to wait before retrying, from `Retry-After` (`429 rate_limited`
+   * of a window limit). `undefined` when the server sent none: a burnt
+   * sign-in code is `429` without it (request a new code instead of waiting).
+   */
+  readonly retryAfterS: number | undefined;
 
   constructor(args: {
     operationId: string;
@@ -19,6 +25,7 @@ export class ApiError extends Error {
     message: string;
     details?: ValidationIssue[] | undefined;
     requestId?: string | undefined;
+    retryAfterS?: number | undefined;
   }) {
     super(args.message);
     this.operationId = args.operationId;
@@ -26,6 +33,7 @@ export class ApiError extends Error {
     this.code = args.code;
     this.details = args.details ?? [];
     this.requestId = args.requestId;
+    this.retryAfterS = args.retryAfterS;
   }
 }
 

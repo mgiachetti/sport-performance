@@ -130,4 +130,16 @@ describe('email transports', () => {
     const down = failing(() => Promise.reject(new Error('ECONNRESET')));
     await expect(down.send(message)).rejects.toBeInstanceOf(EmailDeliveryError);
   });
+
+  it('resend: gives up after the timeout instead of holding the request', async () => {
+    const hung = new ResendEmailTransport({
+      apiKey: 'unused-placeholder-key',
+      from: 'x@example.com',
+      client: { emails: { send: () => new Promise(() => undefined) } } as never,
+      timeoutMs: 20,
+    });
+    const error = await hung.send(message).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(EmailDeliveryError);
+    expect(((error as Error).cause as Error).message).toBe('no answer in 20 ms');
+  });
 });

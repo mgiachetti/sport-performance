@@ -8,7 +8,7 @@ export const PAGE_LIMIT_MAX = 100;
  * encodes the sort key of the last item); clients only pass back `nextCursor`.
  * Cursor pagination is stable under concurrent inserts, unlike offsets.
  */
-export const pageQuerySchema = z.object({
+export const pageQuerySchema = z.strictObject({
   cursor: z
     .string()
     .min(1)

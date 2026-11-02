@@ -1,6 +1,8 @@
 import { z } from 'zod';
+import { databaseUrlProblems, secretProblems } from '../security/secrets.js';
 
 const integer = (min: number, max: number) => z.coerce.number().int().min(min).max(max);
+const booleanFlag = z.enum(['true', 'false']).transform((value) => value === 'true');
 const httpUrl = z.url({ protocol: /^https?$/ });
 
 /** `https://app.example.com,http://localhost:5173` → origins without trailing slash. */
@@ -49,7 +51,27 @@ export const envSchema = z
      * where the client IP keys the per-IP sign-in limits (ADR 0028).
      */
     TRUST_PROXY_HOPS: integer(0, 10).optional(),
-    BODY_LIMIT_BYTES: integer(1024, 50 * 1024 * 1024).default(1024 * 1024),
+    /** Largest JSON body. Files never go through the API: they go to the bucket with signed URLs (B-325). */
+    BODY_LIMIT_BYTES: integer(1024, 10 * 1024 * 1024).default(1024 * 1024),
+
+    // HTTP server timeouts and connection limits (ADR 0031)
+    /** Whole request (headers + body) must arrive within this; slow-loris defense. */
+    HTTP_REQUEST_TIMEOUT_MS: integer(1000, 300_000).default(30_000),
+    /** Headers must arrive within this; at most `HTTP_REQUEST_TIMEOUT_MS`. */
+    HTTP_HEADERS_TIMEOUT_MS: integer(1000, 120_000).default(10_000),
+    /** Idle keep-alive connections are closed after this; above the proxy's idle timeout. */
+    HTTP_KEEP_ALIVE_TIMEOUT_MS: integer(1000, 600_000).default(72_000),
+    /** A socket with no activity for this long is destroyed (a stuck request included). */
+    HTTP_CONNECTION_TIMEOUT_MS: integer(1000, 600_000).default(60_000),
+    /** Concurrent sockets per replica; past it new connections are refused. */
+    HTTP_MAX_CONNECTIONS: integer(10, 100_000).default(2048),
+    /** Request line + headers. Bounds URLs and query strings too. */
+    HTTP_MAX_HEADER_SIZE_BYTES: integer(4096, 65_536).default(16_384),
+
+    // General rate limits (ADR 0031). `false` only for load tests in a non-production environment.
+    RATE_LIMIT_ENABLED: booleanFlag.default(true),
+    /** Past this the counter store is considered down and requests go through. */
+    RATE_LIMIT_TIMEOUT_MS: integer(50, 10_000).default(500),
     DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
     DATABASE_POOL_MAX: integer(1, 100).default(10),
     DATABASE_CONNECT_TIMEOUT_MS: integer(100, 60_000).default(5000),
@@ -98,7 +120,55 @@ export const envSchema = z
         message: 'required with RESEND_API_KEY',
       });
     }
+    if (env.HTTP_HEADERS_TIMEOUT_MS > env.HTTP_REQUEST_TIMEOUT_MS) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['HTTP_HEADERS_TIMEOUT_MS'],
+        message: 'must not exceed HTTP_REQUEST_TIMEOUT_MS',
+      });
+    }
     if (env.NODE_ENV !== 'production') return;
+    // Secrets of production: long, unpredictable, not the example values (ADR 0031).
+    for (const message of secretProblems(env.AUTH_SECRET)) {
+      ctx.addIssue({ code: 'custom', path: ['AUTH_SECRET'], message });
+    }
+    if (env.RESEND_API_KEY !== undefined && env.RESEND_API_KEY.length < 20) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['RESEND_API_KEY'],
+        message: 'is too short to be a Resend API key',
+      });
+    }
+    for (const variable of ['DATABASE_URL', 'AUTH_DATABASE_URL'] as const) {
+      for (const message of databaseUrlProblems(env[variable])) {
+        ctx.addIssue({ code: 'custom', path: [variable], message });
+      }
+    }
+    if (env.DATABASE_URL === env.AUTH_DATABASE_URL) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['AUTH_DATABASE_URL'],
+        message: 'must be a different login than DATABASE_URL',
+      });
+    }
+    if (!env.RATE_LIMIT_ENABLED) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['RATE_LIMIT_ENABLED'],
+        message: 'cannot be disabled in production',
+      });
+    }
+    // The session cookie only travels to https web origins in production.
+    for (const origin of env.WEB_ORIGINS ?? []) {
+      if (!origin.startsWith('https://')) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['WEB_ORIGINS'],
+          message: 'every origin must be https in production',
+        });
+        break;
+      }
+    }
     // In production the identity flows cannot fall back to local defaults.
     for (const variable of ['RESEND_API_KEY', 'AUTH_BASE_URL', 'WEB_APP_URL'] as const) {
       if (env[variable] === undefined) {
@@ -142,6 +212,10 @@ export interface ApiConfig {
   port: number;
   trustProxyHops: number;
   bodyLimitBytes: number;
+  http: HttpServerConfig;
+  rateLimit: RateLimitConfig;
+  /** Response headers of ADR 0031. */
+  securityHeaders: { hsts: boolean };
   log: { level: LogLevel };
   database: {
     url: string;
@@ -155,6 +229,20 @@ export interface ApiConfig {
   sentry: SentryConfig | null;
   auth: AuthConfig;
   email: EmailConfig;
+}
+
+export interface HttpServerConfig {
+  requestTimeoutMs: number;
+  headersTimeoutMs: number;
+  keepAliveTimeoutMs: number;
+  connectionTimeoutMs: number;
+  maxConnections: number;
+  maxHeaderSizeBytes: number;
+}
+
+export interface RateLimitConfig {
+  enabled: boolean;
+  timeoutMs: number;
 }
 
 export interface AuthConfig {
@@ -182,6 +270,34 @@ export interface EmailConfig {
   from: string;
 }
 
+/**
+ * What the API logs about its configuration at startup: limits, timeouts,
+ * origins and which integrations are on. No secret, no connection string.
+ */
+export function configSummary(config: ApiConfig) {
+  return {
+    nodeEnv: config.nodeEnv,
+    version: config.version,
+    trustProxyHops: config.trustProxyHops,
+    bodyLimitBytes: config.bodyLimitBytes,
+    http: config.http,
+    rateLimit: config.rateLimit,
+    securityHeaders: config.securityHeaders,
+    database: {
+      poolMax: config.database.poolMax,
+      statementTimeoutMs: config.database.statementTimeoutMs,
+    },
+    auth: {
+      baseUrl: config.auth.baseUrl,
+      secureCookies: config.auth.secureCookies,
+      webOrigins: config.auth.webOrigins,
+      poolMax: config.auth.database.poolMax,
+    },
+    email: { resend: config.email.resendApiKey !== null },
+    sentry: config.sentry !== null,
+  };
+}
+
 /** The environment is invalid. The message names variables and problems, never values. */
 export class ConfigError extends Error {
   override readonly name = 'ConfigError';
@@ -191,10 +307,13 @@ export class ConfigError extends Error {
     const variables = [...new Set(issues.map((issue) => String(issue.path[0])))];
     const lines = variables.map((variable) => {
       if (env[variable] === undefined) return `${variable}: required`;
-      const codes = issues
-        .filter((issue) => String(issue.path[0]) === variable)
-        .map((issue) => issue.code);
-      return `${variable}: invalid (${[...new Set(codes)].join(', ')})`;
+      const own = issues.filter((issue) => String(issue.path[0]) === variable);
+      // Our own (custom) messages are written without values; zod's are not shown.
+      const messages = own.filter((issue) => issue.code === 'custom').map((issue) => issue.message);
+      const codes = own.filter((issue) => issue.code !== 'custom').map((issue) => issue.code);
+      const parts: string[] = [...new Set(codes)];
+      if (messages.length > 0) parts.push(...new Set(messages));
+      return `${variable}: invalid (${parts.join('; ')})`;
     });
     super(`Invalid environment configuration:\n  ${lines.join('\n  ')}`);
     this.variables = variables;
@@ -250,6 +369,16 @@ export function loadConfig(env: Env = process.env): ApiConfig {
     port: e.PORT,
     trustProxyHops: e.TRUST_PROXY_HOPS ?? 0,
     bodyLimitBytes: e.BODY_LIMIT_BYTES,
+    http: {
+      requestTimeoutMs: e.HTTP_REQUEST_TIMEOUT_MS,
+      headersTimeoutMs: e.HTTP_HEADERS_TIMEOUT_MS,
+      keepAliveTimeoutMs: e.HTTP_KEEP_ALIVE_TIMEOUT_MS,
+      connectionTimeoutMs: e.HTTP_CONNECTION_TIMEOUT_MS,
+      maxConnections: e.HTTP_MAX_CONNECTIONS,
+      maxHeaderSizeBytes: e.HTTP_MAX_HEADER_SIZE_BYTES,
+    },
+    rateLimit: { enabled: e.RATE_LIMIT_ENABLED, timeoutMs: e.RATE_LIMIT_TIMEOUT_MS },
+    securityHeaders: { hsts: e.NODE_ENV === 'production' },
     log: { level: e.LOG_LEVEL },
     database: {
       url: e.DATABASE_URL,

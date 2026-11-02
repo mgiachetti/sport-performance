@@ -68,7 +68,7 @@ export const getClubTheme = defineEndpoint({
     'Público: la web y la app lo piden antes del login para mostrar la marca del club. No expone datos de personas.',
   tags: ['clubs'],
   auth: 'public',
-  params: z.object({ clubSlug: clubSlugSchema }),
+  params: z.strictObject({ clubSlug: clubSlugSchema }),
   response: { status: 200, description: 'Tema del club.', schema: clubThemeSchema },
   errors: ['not_found'],
 });

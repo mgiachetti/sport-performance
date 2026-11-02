@@ -1,11 +1,17 @@
+import { randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { ConfigError, loadConfig, loadSentryConfig } from './env.js';
+import { memoryLogger } from '../testing/support.js';
+import { ConfigError, configSummary, loadConfig, loadSentryConfig } from './env.js';
 
 const DATABASE_URL = 'postgres://api:pa55word@localhost:5432/sport_performance';
 const AUTH_DATABASE_URL = 'postgres://auth:pa55word@localhost:5432/sport_performance';
 const AUTH_SECRET = 'a-test-secret-of-at-least-32-characters!!';
 /** Obviously fake: never anything shaped like a real Resend key. */
 const RESEND_KEY_PLACEHOLDER = 'placeholder-resend-key';
+/** Production-grade values, generated per run so no strong-looking secret is committed. */
+const strongSecret = () => randomBytes(48).toString('base64url');
+const strongDatabaseUrl = (user: string) =>
+  `postgres://${user}:${randomBytes(24).toString('base64url')}@db.internal:5432/sport_performance`;
 
 function configError(env: Record<string, string>): ConfigError {
   try {
@@ -26,6 +32,16 @@ describe('loadConfig', () => {
       port: 3000,
       trustProxyHops: 0,
       bodyLimitBytes: 1024 * 1024,
+      http: {
+        requestTimeoutMs: 30_000,
+        headersTimeoutMs: 10_000,
+        keepAliveTimeoutMs: 72_000,
+        connectionTimeoutMs: 60_000,
+        maxConnections: 2048,
+        maxHeaderSizeBytes: 16_384,
+      },
+      rateLimit: { enabled: true, timeoutMs: 500 },
+      securityHeaders: { hsts: false },
       log: { level: 'info' },
       database: {
         url: DATABASE_URL,
@@ -120,17 +136,148 @@ describe('loadConfig', () => {
 
 describe('auth and email configuration', () => {
   const production = {
-    DATABASE_URL,
-    AUTH_SECRET,
+    DATABASE_URL: strongDatabaseUrl('api'),
+    AUTH_SECRET: strongSecret(),
     NODE_ENV: 'production',
     RESEND_API_KEY: RESEND_KEY_PLACEHOLDER,
     EMAIL_FROM: 'Sport Performance <no-reply@sport.example.com>',
     AUTH_BASE_URL: 'https://api.sport.example.com/',
     WEB_APP_URL: 'https://app.sport.example.com/',
     WEB_ORIGINS: 'https://app.sport.example.com, https://staff.sport.example.com/',
-    AUTH_DATABASE_URL: 'postgres://auth:pw@localhost:5432/sport_performance',
+    AUTH_DATABASE_URL: strongDatabaseUrl('auth'),
     TRUST_PROXY_HOPS: '1',
   };
+
+  it('logs a summary of the configuration without any secret', () => {
+    const config = loadConfig({
+      ...production,
+      SENTRY_DSN: 'https://public@o1.ingest.sentry.io/1',
+    });
+    const logs = memoryLogger();
+    logs.logger.info({ config: configSummary(config) }, 'api ready');
+    const raw = logs.raw();
+    expect(raw).toContain('"maxConnections":2048');
+    for (const secret of [
+      production.AUTH_SECRET,
+      production.RESEND_API_KEY,
+      production.DATABASE_URL,
+      production.AUTH_DATABASE_URL,
+      new URL(production.DATABASE_URL).password,
+      'o1.ingest.sentry.io',
+    ]) {
+      expect(raw).not.toContain(secret);
+    }
+  });
+
+  it('turns HSTS on in production only', () => {
+    expect(loadConfig(production).securityHeaders).toEqual({ hsts: true });
+    expect(loadConfig({ DATABASE_URL, AUTH_DATABASE_URL, AUTH_SECRET }).securityHeaders).toEqual({
+      hsts: false,
+    });
+  });
+
+  it('refuses weak, placeholder or example secrets in production, without printing them', () => {
+    const cases = [
+      'change-me-to-a-long-random-string-of-48-characters',
+      'a'.repeat(64),
+      'abababababababababababababababababababab',
+      '0123456789abcdef',
+    ];
+    for (const value of cases) {
+      const error = configError({ ...production, AUTH_SECRET: value });
+      expect(error.variables).toEqual(['AUTH_SECRET']);
+      expect(error.message).not.toContain(value);
+    }
+    expect(configError({ ...production, AUTH_SECRET: 'a'.repeat(64) }).message).toContain(
+      'too predictable',
+    );
+    expect(
+      configError({
+        ...production,
+        AUTH_SECRET: 'change-me-to-a-long-random-string-of-48-characters',
+      }).message,
+    ).toContain('placeholder');
+    // The same weak values are fine in development (the example `.env` uses one).
+    expect(() =>
+      loadConfig({
+        DATABASE_URL,
+        AUTH_DATABASE_URL,
+        AUTH_SECRET: 'change-me-to-a-long-random-string-of-48-characters',
+      }),
+    ).not.toThrow();
+  });
+
+  it('refuses database logins without a strong password in production', () => {
+    const weak = 'postgres://sp_api:change-me-local-only@db.internal:5432/sport_performance';
+    const error = configError({ ...production, DATABASE_URL: weak });
+    expect(error.variables).toEqual(['DATABASE_URL']);
+    expect(error.message).not.toContain('change-me-local-only');
+    expect(
+      configError({
+        ...production,
+        AUTH_DATABASE_URL: 'postgres://sp_auth@db.internal:5432/sport_performance',
+      }).message,
+    ).toContain('needs a password');
+    expect(
+      configError({ ...production, AUTH_DATABASE_URL: 'postgres://a:short@db.internal/x' })
+        .variables,
+    ).toEqual(['AUTH_DATABASE_URL']);
+    expect(
+      configError({ ...production, AUTH_DATABASE_URL: production.DATABASE_URL }).message,
+    ).toContain('different login');
+  });
+
+  it('refuses a short Resend key, http web origins and disabled limits in production', () => {
+    expect(configError({ ...production, RESEND_API_KEY: 'too-short-key' }).variables).toEqual([
+      'RESEND_API_KEY',
+    ]);
+    const origins = configError({
+      ...production,
+      WEB_ORIGINS: 'https://app.sport.example.com,http://staff.sport.example.com',
+    });
+    expect(origins.variables).toEqual(['WEB_ORIGINS']);
+    expect(origins.message).toContain('https');
+    expect(configError({ ...production, RATE_LIMIT_ENABLED: 'false' }).variables).toEqual([
+      'RATE_LIMIT_ENABLED',
+    ]);
+    expect(
+      loadConfig({ DATABASE_URL, AUTH_DATABASE_URL, AUTH_SECRET, RATE_LIMIT_ENABLED: 'false' })
+        .rateLimit.enabled,
+    ).toBe(false);
+    expect(
+      configError({ DATABASE_URL, AUTH_DATABASE_URL, AUTH_SECRET, RATE_LIMIT_ENABLED: 'yes' })
+        .variables,
+    ).toEqual(['RATE_LIMIT_ENABLED']);
+  });
+
+  it('reads HTTP timeouts and keeps the headers timeout within the request timeout', () => {
+    const config = loadConfig({
+      DATABASE_URL,
+      AUTH_DATABASE_URL,
+      AUTH_SECRET,
+      HTTP_REQUEST_TIMEOUT_MS: '20000',
+      HTTP_HEADERS_TIMEOUT_MS: '5000',
+      HTTP_MAX_CONNECTIONS: '100',
+    });
+    expect(config.http).toMatchObject({
+      requestTimeoutMs: 20_000,
+      headersTimeoutMs: 5000,
+      maxConnections: 100,
+    });
+    const error = configError({
+      DATABASE_URL,
+      AUTH_DATABASE_URL,
+      AUTH_SECRET,
+      HTTP_REQUEST_TIMEOUT_MS: '5000',
+      HTTP_HEADERS_TIMEOUT_MS: '10000',
+    });
+    expect(error.variables).toEqual(['HTTP_HEADERS_TIMEOUT_MS']);
+    expect(error.message).toContain('must not exceed HTTP_REQUEST_TIMEOUT_MS');
+    expect(
+      configError({ DATABASE_URL, AUTH_DATABASE_URL, AUTH_SECRET, BODY_LIMIT_BYTES: '104857600' })
+        .variables,
+    ).toEqual(['BODY_LIMIT_BYTES']);
+  });
 
   it('reads a production configuration', () => {
     const config = loadConfig(production);
