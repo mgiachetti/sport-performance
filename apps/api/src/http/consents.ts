@@ -28,7 +28,8 @@ import { clubToday } from './permissions.js';
  *   `image`, the result itself only `data`).
  *
  * "Current" has one definition, in the database: `app.current_consent_types`
- * (signed, not revoked), which the medical schema uses too.
+ * (signed, not revoked and, once the player is of age, not a guardian's
+ * signature past the grace period, B-311), which the medical schema uses too.
  */
 
 /**

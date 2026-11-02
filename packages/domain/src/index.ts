@@ -291,6 +291,7 @@ export {
 } from './percentiles/references.js';
 // Consents (B-312) and the permission matrix (B-303).
 export {
+  ADULT_CONSENT_GRACE_DAYS,
   AGE_OF_MAJORITY_YEARS,
   CONSENT_SIGNERS,
   CONSENT_STATES,
@@ -298,12 +299,16 @@ export {
   consentSignerOfRole,
   consentStates,
   currentConsentTypes,
+  guardianConsentsLapseOn,
+  guardianConsentsLapsed,
   isConsentSigner,
   isConsentType,
   isCurrentConsent,
+  majorityDate,
   parseConsentSigner,
   parseConsentType,
   requiredConsentSigner,
+  type ConsentHolder,
   type ConsentRecord,
   type ConsentSigner,
   type ConsentState,

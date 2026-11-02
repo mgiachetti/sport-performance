@@ -6777,11 +6777,163 @@
         }
       }
     },
+    "/v1/guardians/{guardianId}/adult-confirmation": {
+      "post": {
+        "operationId": "confirmGuardianAsAdult",
+        "summary": "Mantener el acceso de un tutor (jugador/a mayor)",
+        "description": "Solo el propio jugador/a, mayor de edad (`guardian_link.review`, B-311): decide que este tutor siga viendo sus datos. El tutor recupera solo la lectura (resumen, disponibilidad, consentimientos, vínculos); lo que la matriz reserva a menores (firmar, revocar, códigos de ingreso, alturas, datos médicos) sigue negado. Idempotente. Un menor, otro rol u otro jugador/a: `forbidden`; vínculo terminado: `conflict`.",
+        "tags": [
+          "guardians"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "guardianId",
+            "in": "path",
+            "required": true,
+            "description": "Id de vínculo de tutor (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "El vínculo confirmado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardianLink"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error.conflict"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "withdrawGuardianAdultConfirmation",
+        "summary": "Retirar el acceso de un tutor (jugador/a mayor)",
+        "description": "Solo el propio jugador/a, mayor de edad (`guardian_link.review`, B-311): el tutor deja de ver sus datos; el vínculo sigue (lo ve el tutor, sin datos) y se puede volver a confirmar. Para terminarlo: `POST /v1/guardians/{guardianId}/end`. Idempotente. Vínculo terminado: `conflict`.",
+        "tags": [
+          "guardians"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "guardianId",
+            "in": "path",
+            "required": true,
+            "description": "Id de vínculo de tutor (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "El vínculo sin confirmar.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardianLink"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error.conflict"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
     "/v1/guardians/{guardianId}/end": {
       "post": {
         "operationId": "endGuardian",
         "summary": "Terminar un vínculo de tutor",
-        "description": "Solo la administración. Deja de valer desde hoy (día del club); si empezaba hoy o después, no llega a valer. No se borra: queda en la historia. Idempotente.",
+        "description": "La administración, o el propio jugador/a mayor de edad (`guardian_link.review`, B-311). Deja de valer desde hoy (día del club); si empezaba hoy o después, no llega a valer. Se anulan los códigos e invitaciones que ese tutor dejó abiertos. No se borra: queda en la historia. Idempotente.",
         "tags": [
           "guardians"
         ],
@@ -7375,7 +7527,7 @@
       "get": {
         "operationId": "listMyChildren",
         "summary": "Mis hijos/as",
-        "description": "Solo con rol `parent`: los jugadores/as con los que el tutor tiene un vínculo vigente en el club activo. Cualquier otro rol: `forbidden`.",
+        "description": "Solo con rol `parent`: los jugadores/as con los que el tutor tiene un vínculo vigente en el club activo, también un hijo/a mayor que no mantuvo su acceso (`ofAge: true`, `adultConfirmed: false`), para que el tutor entienda por qué ya no lo ve. Cualquier otro rol: `forbidden`.",
         "tags": [
           "guardians",
           "me"
@@ -18194,6 +18346,10 @@
             "type": "boolean",
             "description": "Si el jugador/a ya tiene su propia cuenta."
           },
+          "adultConfirmed": {
+            "type": "boolean",
+            "description": "Si el hijo/a, ya mayor, decidió mantener el acceso de este tutor. Con `ofAge: true` y `false`, el tutor no ve sus datos: solo este vínculo."
+          },
           "canManageAccess": {
             "type": "boolean",
             "description": "Si este tutor puede invitarlo/a o generarle un código de ingreso (`player_account.invite`)."
@@ -18208,9 +18364,10 @@
           "guardianId",
           "relationship",
           "hasAccount",
+          "adultConfirmed",
           "canManageAccess"
         ],
-        "description": "Un hijo/a con vínculo vigente con el tutor."
+        "description": "Un hijo/a con vínculo vigente con el tutor. De un hijo/a mayor que no mantuvo el acceso solo se muestran nombre y fecha de nacimiento."
       },
       "ChildPage": {
         "type": "object",
@@ -19030,10 +19187,12 @@
         "enum": [
           "granted",
           "outdated",
+          "adult_signature_required",
+          "lapsed",
           "revoked",
           "missing"
         ],
-        "description": "`granted`: vigente sobre el texto actual. `outdated`: vigente, pero sobre una versión anterior del texto (sigue valiendo hasta que se revoque; conviene firmar la actual). `revoked`: revocado. `missing`: nunca firmado."
+        "description": "`granted`: vigente sobre el texto actual. `outdated`: vigente, pero sobre una versión anterior del texto (sigue valiendo hasta que se revoque; conviene firmar la actual). `adult_signature_required`: el jugador/a ya es mayor y solo vale la firma de su tutor, que sigue valiendo hasta `guardianSignaturesLapseOn`; tiene que firmar el propio jugador/a (B-311). `lapsed`: solo queda la firma del tutor y ya pasó ese día: no vale. `revoked`: revocado. `missing`: nunca firmado."
       },
       "ConsentType": {
         "type": "string",
@@ -19062,7 +19221,7 @@
                 "type": "null"
               }
             ],
-            "description": "El consentimiento vigente más reciente, si hay."
+            "description": "El consentimiento que vale: el propio del jugador/a mayor si lo firmó, si no el vigente más reciente. `null` si ninguno vale."
           },
           "currentDocument": {
             "anyOf": [
@@ -20322,6 +20481,23 @@
             "type": "boolean",
             "description": "Si vale hoy (día del club)."
           },
+          "adultConfirmedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cuándo el jugador/a, ya mayor de edad, decidió mantener el acceso de este tutor (B-311); `null` si no lo confirmó. Sin confirmación, el vínculo deja de dar acceso al cumplir 18."
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -20352,6 +20528,7 @@
           "validFrom",
           "validTo",
           "current",
+          "adultConfirmedAt",
           "createdAt",
           "updatedAt",
           "version"
@@ -21942,6 +22119,15 @@
             "description": "Quién tiene que firmar hoy: el tutor si es menor, el jugador si es mayor.",
             "$ref": "#/components/schemas/ConsentSigner"
           },
+          "guardianSignaturesLapseOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Día del club desde el que las firmas del tutor dejan de valer: 30 días después de cumplir 18 (B-311). Antes de ese día el jugador/a mayor tiene que firmar las propias.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
           "types": {
             "type": "array",
             "items": {
@@ -21954,6 +22140,7 @@
           "playerId",
           "playerOfAge",
           "requiredSigner",
+          "guardianSignaturesLapseOn",
           "types"
         ]
       },

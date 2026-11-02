@@ -142,6 +142,8 @@ describe('@sport-performance/contracts entry point', () => {
       'createPlayerGuardian',
       'updateGuardian',
       'endGuardian',
+      'confirmGuardianAsAdult',
+      'withdrawGuardianAdultConfirmation',
       'listMyChildren',
       'invitePlayer',
       'issuePlayerAccessCode',

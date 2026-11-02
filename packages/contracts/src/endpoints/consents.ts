@@ -2,7 +2,7 @@ import { CONSENT_SIGNERS, CONSENT_STATES, CONSENT_TYPES } from '@sport-performan
 import { z } from 'zod';
 import { defineEndpoint } from '../endpoint.js';
 import { clientUuidSchema, sortQuerySchema } from '../primitives/conventions.js';
-import { dateTimeSchema } from '../primitives/dates.js';
+import { dateTimeSchema, localDateSchema } from '../primitives/dates.js';
 import { idOf, playerIdSchema, userIdSchema } from '../primitives/ids.js';
 import { pageOf, pageQuerySchema } from '../primitives/pagination.js';
 import { localeSchema } from './clubs.js';
@@ -35,7 +35,7 @@ export const consentSignerSchema = z.enum(CONSENT_SIGNERS).meta({
 export const consentStateSchema = z.enum(CONSENT_STATES).meta({
   id: 'ConsentState',
   description:
-    '`granted`: vigente sobre el texto actual. `outdated`: vigente, pero sobre una versión anterior del texto (sigue valiendo hasta que se revoque; conviene firmar la actual). `revoked`: revocado. `missing`: nunca firmado.',
+    '`granted`: vigente sobre el texto actual. `outdated`: vigente, pero sobre una versión anterior del texto (sigue valiendo hasta que se revoque; conviene firmar la actual). `adult_signature_required`: el jugador/a ya es mayor y solo vale la firma de su tutor, que sigue valiendo hasta `guardianSignaturesLapseOn`; tiene que firmar el propio jugador/a (B-311). `lapsed`: solo queda la firma del tutor y ya pasó ese día: no vale. `revoked`: revocado. `missing`: nunca firmado.',
 });
 
 export const consentDocumentIdSchema = idOf('texto de consentimiento');
@@ -108,9 +108,10 @@ export const consentTypeStatusSchema = z
   .object({
     type: consentTypeSchema,
     state: consentStateSchema,
-    consent: consentSchema
-      .nullable()
-      .meta({ description: 'El consentimiento vigente más reciente, si hay.' }),
+    consent: consentSchema.nullable().meta({
+      description:
+        'El consentimiento que vale: el propio del jugador/a mayor si lo firmó, si no el vigente más reciente. `null` si ninguno vale.',
+    }),
     currentDocument: consentDocumentSummarySchema
       .nullable()
       .meta({ description: 'Texto vigente del tipo; `null` si el club no publicó ninguno.' }),
@@ -127,6 +128,10 @@ export const playerConsentsSchema = z
     playerOfAge: z.boolean().meta({ description: 'Mayor de edad en el día del club.' }),
     requiredSigner: consentSignerSchema.meta({
       description: 'Quién tiene que firmar hoy: el tutor si es menor, el jugador si es mayor.',
+    }),
+    guardianSignaturesLapseOn: localDateSchema.meta({
+      description:
+        'Día del club desde el que las firmas del tutor dejan de valer: 30 días después de cumplir 18 (B-311). Antes de ese día el jugador/a mayor tiene que firmar las propias.',
     }),
     types: z
       .array(consentTypeStatusSchema)

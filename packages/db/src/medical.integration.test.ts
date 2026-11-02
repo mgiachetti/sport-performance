@@ -678,13 +678,36 @@ describe.skipIf(!hasDatabase)('medical schema and audit (Postgres 16)', () => {
           signedBy: a.users.parent,
         });
       }
-      await t.pool.query(`update player set birth_date = '2000-01-01' where id = $1`, [
-        a.players.assigned,
-      ]);
+      // Of age ten days ago: within the grace period the guardian's signature still counts
+      // for the player (B-311), and the guardian, who was not kept, reads nothing.
+      await t.pool.query(
+        `update player set birth_date = (current_date - interval '18 years' - interval '10 days')::date where id = $1`,
+        [a.players.assigned],
+      );
       try {
         expect(await injuryIds(as(a, 'parent'))).toEqual([]);
         expect(await injuryIds(as(a, 'player'))).toContain(injuryA);
+        // Long of age: the guardian's signature lapsed; the adult's own one counts.
+        await t.pool.query(`update player set birth_date = '2000-01-01' where id = $1`, [
+          a.players.assigned,
+        ]);
+        expect(await injuryIds(as(a, 'player'))).toEqual([]);
+        await t.db.insert(consent).values({
+          clubId: a.clubId,
+          playerId: a.players.assigned,
+          type: 'health',
+          documentVersion: '2026-02',
+          signerKind: 'player',
+          signedBy: a.users.player,
+        });
+        expect(await injuryIds(as(a, 'player'))).toContain(injuryA);
+        expect(await injuryIds(as(a, 'parent'))).toEqual([]);
       } finally {
+        await t.pool.query(
+          `update consent set revoked_at = now(), revoked_by = signed_by
+            where club_id = $1 and player_id = $2 and signer_kind = 'player' and revoked_at is null`,
+          [a.clubId, a.players.assigned],
+        );
         await t.pool.query(`update player set birth_date = '2011-05-04' where id = $1`, [
           a.players.assigned,
         ]);

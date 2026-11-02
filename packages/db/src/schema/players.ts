@@ -181,6 +181,16 @@ export const guardian = pgTable(
     validFrom: localDate('valid_from').notNull(),
     /** Closed when the link ends, for example when the player comes of age and revokes it (B-311). */
     validTo: localDate('valid_to'),
+    /**
+     * The adult player kept this guardian's access (B-311, ADR 0048). Without
+     * it, the link stops giving access the day the player turns 18. Set and
+     * cleared only through `app.review_guardian`, by the player themself.
+     */
+    adultConfirmedAt: timestamptz('adult_confirmed_at'),
+    /** Who confirmed (the player's account; `NULL` only if deleted afterwards). */
+    adultConfirmedBy: text('adult_confirmed_by').references(() => user.id, {
+      onDelete: 'set null',
+    }),
   },
   (t) => [
     ...tenantConstraints('guardian', t),
@@ -195,6 +205,10 @@ export const guardian = pgTable(
      * by mistake) must stop counting at once, and never counted (ADR 0042).
      */
     check('guardian_validity', sql`${t.validTo} is null or ${t.validTo} >= ${t.validFrom}`),
+    check(
+      'guardian_adult_confirmation',
+      sql`${t.adultConfirmedBy} is null or ${t.adultConfirmedAt} is not null`,
+    ),
   ],
 );
 
@@ -342,9 +356,10 @@ export const consent = pgTable(
     tenantReference('consent', t.clubId, t.documentId, consentDocument),
     tenantReferenceIndex('consent', t.clubId, t.documentId),
     index('consent_player_idx').on(t.clubId, t.playerId, t.type),
-    // One current signature of a text per player: signing it again is a conflict.
+    // One current signature of a text per player and signer kind: signing it again is a
+    // conflict, but the adult signs the text their guardian signed (B-311).
     uniqueIndex('consent_current_document_key')
-      .on(t.clubId, t.playerId, t.documentId)
+      .on(t.clubId, t.playerId, t.documentId, t.signerKind)
       .where(sql`${t.revokedAt} is null and ${t.documentId} is not null`),
     check(
       'consent_revocation',

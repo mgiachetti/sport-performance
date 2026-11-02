@@ -148,7 +148,10 @@ describe.skipIf(!hasDatabase)('RLS by role (Postgres 16)', () => {
       expect(await ids(context, 'select id from device')).toEqual([]);
       expect(await ids(context, 'select id from alert')).toEqual([]);
       expect(await ids(context, 'select user_id as id from membership')).toEqual([a.users.player]);
-      expect(await ids(context, 'select id from "user"')).toEqual([a.users.player]);
+      // Themselves, and the guardians of their own player (by name, B-311).
+      expect(await ids(context, 'select id from "user"')).toEqual(
+        [a.users.player, a.users.parent].sort(),
+      );
     });
 
     it('player: reports their own wellness, never someone else’s, and cannot write tests', async () => {

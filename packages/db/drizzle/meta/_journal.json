@@ -162,6 +162,13 @@
       "when": 1793650542174,
       "tag": "0022_roster_import",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793651116962,
+      "tag": "0023_adult_player",
+      "breakpoints": true
     }
   ]
 }
