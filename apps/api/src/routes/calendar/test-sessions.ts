@@ -5,6 +5,7 @@ import {
   listTestSessions,
   restoreTestSession,
   updateTestSession,
+  type TestSession,
 } from '@sport-performance/contracts';
 import { testSession } from '@sport-performance/db/schema';
 import {
@@ -14,7 +15,8 @@ import {
   type LocalDate,
   type Sport,
 } from '@sport-performance/domain';
-import { and, eq, gte, inArray, isNotNull, lte, or, type SQL } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNotNull, lte, or, sql, type SQL } from 'drizzle-orm';
+import type { PgUpdateSetSource } from 'drizzle-orm/pg-core';
 import type { FastifyInstance } from 'fastify';
 import type { TenantDatabase } from '../../db/database.js';
 import { registerEndpoint } from '../../http/endpoint.js';
@@ -22,6 +24,7 @@ import { HttpError } from '../../http/errors.js';
 import { keysetPage, type KeysetSpec } from '../../http/pagination.js';
 import type { RequestPermissions } from '../../http/permissions.js';
 import { insertIdempotent, updateAtVersion, versionMatches } from '../../http/writes.js';
+import { isClubStaff, toConditions } from '../tests/model.js';
 import {
   dayKey,
   invalid,
@@ -40,8 +43,30 @@ import {
  * Scheduled test days (B-317): a category's day of tests, optionally in a
  * window of its season. `test_session.manage` (the S&C staff of the
  * category and the administration) schedules, reschedules, cancels and
- * restores them; running them and recording results is B-320.
+ * restores them, and runs them (B-320: status, conditions and the evaluator
+ * in charge); the results of the day are `routes/test-sessions.ts`.
  */
+
+type RunStatus = Exclude<TestSession['status'], 'cancelled'>;
+
+/** Status changes of `PATCH` that run the day (B-320); cancel and restore have their endpoints. */
+const RUN_TRANSITIONS: Readonly<Record<RunStatus, readonly RunStatus[]>> = {
+  scheduled: ['in_progress'],
+  in_progress: ['completed', 'scheduled'],
+  completed: ['in_progress'],
+};
+
+/** `validation_failed` on `evaluatorId` unless it is a current staff member of the club. */
+async function checkEvaluator(
+  db: TenantDatabase,
+  clubId: ClubId,
+  evaluatorId: string | null | undefined,
+): Promise<void> {
+  if (evaluatorId === undefined || evaluatorId === null) return;
+  if (!(await isClubStaff(db, clubId, evaluatorId))) {
+    invalid(['body', 'evaluatorId'], 'The evaluator is not on the staff of the club');
+  }
+}
 
 const TEST_SESSION_KEYS: KeysetSpec<TestSessionRow, 'scheduledOn' | 'createdAt'> = {
   fields: {
@@ -226,6 +251,7 @@ export function registerTestSessionRoutes(app: FastifyInstance): void {
       if (previous !== undefined) return testSessionDto(previous);
 
       if (target.archivedAt !== null) invalid(['body', 'categoryId'], 'The category is archived');
+      await checkEvaluator(db, clubId, body.evaluatorId);
       if (body.testWindowId !== undefined) {
         await checkWindowFor(db, clubId, body.testWindowId, target.sport, body.scheduledOn, {
           kind: 'field',
@@ -247,7 +273,9 @@ export function registerTestSessionRoutes(app: FastifyInstance): void {
                 testWindowId: body.testWindowId ?? null,
                 scheduledOn: body.scheduledOn,
                 location: body.location ?? null,
+                conditions: body.conditions === undefined ? {} : toConditions(body.conditions),
                 notes: body.notes ?? null,
+                evaluatorId: body.evaluatorId ?? null,
                 createdBy: caller.userId,
                 updatedBy: caller.userId,
               })
@@ -273,12 +301,38 @@ export function registerTestSessionRoutes(app: FastifyInstance): void {
         params.testSessionId,
         'manage',
       );
-      if (current.status !== 'scheduled') {
-        throw new HttpError('conflict', `A test day that is ${current.status} is not rescheduled`);
+      if (current.status === 'cancelled') {
+        throw new HttpError('conflict', 'A cancelled test day is not edited: restore it first');
       }
       const scheduledOn = body.scheduledOn ?? current.scheduledOn;
       const testWindowId =
         body.testWindowId === undefined ? current.testWindowId : body.testWindowId;
+      const reschedules =
+        scheduledOn !== current.scheduledOn || testWindowId !== current.testWindowId;
+      if (reschedules && current.status !== 'scheduled') {
+        throw new HttpError('conflict', `A test day that is ${current.status} is not rescheduled`);
+      }
+      await checkEvaluator(db, clubId, body.evaluatorId);
+      let lifecycle: PgUpdateSetSource<typeof testSession> = {};
+      if (body.status !== undefined && body.status !== current.status) {
+        if (!RUN_TRANSITIONS[current.status].includes(body.status)) {
+          throw new HttpError(
+            'conflict',
+            `A test day cannot go from ${current.status} to ${body.status}`,
+          );
+        }
+        if (body.status === 'in_progress') {
+          lifecycle = {
+            status: body.status,
+            startedAt: current.startedAt ?? sql`now()`,
+            completedAt: null,
+          };
+        } else if (body.status === 'completed') {
+          lifecycle = { status: body.status, completedAt: sql`now()` };
+        } else {
+          lifecycle = { status: body.status, startedAt: null, completedAt: null };
+        }
+      }
       if (
         testWindowId !== null &&
         (testWindowId !== current.testWindowId || scheduledOn !== current.scheduledOn)
@@ -299,7 +353,10 @@ export function registerTestSessionRoutes(app: FastifyInstance): void {
                 ...(body.scheduledOn !== undefined && { scheduledOn: body.scheduledOn }),
                 ...(body.testWindowId !== undefined && { testWindowId: body.testWindowId }),
                 ...(body.location !== undefined && { location: body.location }),
+                ...(body.conditions !== undefined && { conditions: toConditions(body.conditions) }),
                 ...(body.notes !== undefined && { notes: body.notes }),
+                ...(body.evaluatorId !== undefined && { evaluatorId: body.evaluatorId }),
+                ...lifecycle,
                 updatedBy: caller.userId,
               })
               .where(and(where, versionMatches(testSession.updatedAt, body.version)))

@@ -100,6 +100,16 @@ import {
   listWellness,
   submitWellness,
 } from './wellness.js';
+import {
+  addTestResultEntries,
+  createTestResult,
+  getTestResult,
+  listPlayerTestMetric,
+  listTestResults,
+  recordTestSessionResults,
+  updateTestResult,
+  voidTestResultEntries,
+} from './tests.js';
 
 export * from './auth.js';
 export * from './calendar.js';
@@ -115,6 +125,7 @@ export * from './staff-assignments.js';
 export * from './players.js';
 export * from './training.js';
 export * from './wellness.js';
+export * from './tests.js';
 
 /**
  * Every endpoint of the API, keyed by operationId. The API registers its
@@ -215,6 +226,14 @@ export const apiEndpoints = {
   correctWellness,
   listWellness,
   getWellness,
+  recordTestSessionResults,
+  listTestResults,
+  getTestResult,
+  createTestResult,
+  updateTestResult,
+  addTestResultEntries,
+  voidTestResultEntries,
+  listPlayerTestMetric,
 } as const satisfies EndpointCatalog;
 
 export type ApiEndpoints = typeof apiEndpoints;

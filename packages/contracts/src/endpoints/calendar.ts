@@ -18,7 +18,7 @@ import {
   sportSchema,
 } from '../primitives/conventions.js';
 import { dateTimeSchema, localDateSchema } from '../primitives/dates.js';
-import { categoryIdSchema, idOf } from '../primitives/ids.js';
+import { categoryIdSchema, idOf, userIdSchema } from '../primitives/ids.js';
 import { pageOf, pageQuerySchema } from '../primitives/pagination.js';
 import { changeReasonSchema } from './change-history.js';
 
@@ -73,6 +73,38 @@ export const testSessionStatusSchema = z.enum(TEST_SESSION_STATUSES).meta({
   description:
     '`scheduled` (programado), `in_progress` (en curso), `completed` (cerrado) o `cancelled` (suspendido).',
 });
+
+/** Status changes of `PATCH`, that run the day (B-320); suspending it is `…/cancel`. */
+export const TEST_SESSION_RUN_STATUSES = ['scheduled', 'in_progress', 'completed'] as const;
+export const testSessionRunStatusSchema = z.enum(TEST_SESSION_RUN_STATUSES).meta({
+  description:
+    '`scheduled → in_progress → completed`, volver a `scheduled` un día en curso y reabrir uno cerrado (`completed → in_progress`).',
+});
+
+const TEST_CONDITION_LABEL_MAX_LENGTH = 120;
+const TEST_CONDITION_NOTES_MAX_LENGTH = 1000;
+
+const conditionsShape = {
+  surface: trimmedText(TEST_CONDITION_LABEL_MAX_LENGTH)
+    .optional()
+    .meta({ examples: ['césped natural'] }),
+  footwear: trimmedText(TEST_CONDITION_LABEL_MAX_LENGTH)
+    .optional()
+    .meta({ examples: ['botines'] }),
+  weather: trimmedText(TEST_CONDITION_LABEL_MAX_LENGTH)
+    .optional()
+    .meta({ examples: ['soleado, sin viento'] }),
+  temperatureC: z.number().min(-40).max(60).optional(),
+  standardizedWarmUp: z.boolean().optional(),
+  notes: trimmedText(TEST_CONDITION_NOTES_MAX_LENGTH).optional(),
+};
+
+/** Conditions of a day or a result (principle 4: same surface, footwear and warm-up). */
+export const testConditionsInputSchema = z.strictObject(conditionsShape).meta({
+  description:
+    'Condiciones de la medición: superficie, calzado, clima, temperatura, entrada en calor.',
+});
+export const testConditionsSchema = z.object(conditionsShape).meta({ id: 'TestConditions' });
 
 export const fixtureVenueSchema = z.enum(FIXTURE_VENUES).meta({
   id: 'FixtureVenue',
@@ -143,7 +175,12 @@ export const testSessionSchema = z
     scheduledOn: localDateSchema,
     status: testSessionStatusSchema,
     location: locationSchema.nullable(),
+    conditions: testConditionsSchema,
     notes: notesSchema.nullable(),
+    evaluatorId: userIdSchema.nullable().meta({
+      description:
+        'Evaluador responsable; evaluador por defecto de los resultados del día (B-320).',
+    }),
     startedAt: dateTimeSchema.nullable(),
     completedAt: dateTimeSchema.nullable(),
     createdAt: dateTimeSchema,
@@ -431,7 +468,7 @@ export const createTestSession = defineEndpoint({
   path: '/v1/test-sessions',
   summary: 'Programar un día de test',
   description:
-    'La administración y el `sc` de la categoría. La categoría tiene que estar activa; la ventana (opcional) activa, del mismo deporte y con el día adentro (`validation_failed`). Idempotente por `clientUuid`.',
+    'La administración y el `sc` de la categoría. La categoría tiene que estar activa; la ventana (opcional) activa, del mismo deporte y con el día adentro; el evaluador, un miembro vigente del staff del club (`validation_failed`). Idempotente por `clientUuid`.',
   tags: ['calendar'],
   auth: 'club',
   body: z.strictObject({
@@ -440,7 +477,9 @@ export const createTestSession = defineEndpoint({
     scheduledOn: localDateSchema,
     testWindowId: testWindowIdSchema.optional(),
     location: locationSchema.optional(),
+    conditions: testConditionsInputSchema.optional(),
     notes: notesSchema.optional(),
+    evaluatorId: userIdSchema.optional(),
   }),
   response: { status: 201, description: 'Día de test programado.', schema: testSessionSchema },
   errors: ['not_found', 'conflict'],
@@ -449,9 +488,9 @@ export const createTestSession = defineEndpoint({
 export const updateTestSession = defineEndpoint({
   method: 'PATCH',
   path: '/v1/test-sessions/{testSessionId}',
-  summary: 'Reprogramar un día de test',
+  summary: 'Reprogramar, editar o correr un día de test',
   description:
-    'La administración y el `sc` de la categoría, mientras está `scheduled` (si no, `conflict`). Cambiar un dato ya cargado (el día, la ventana, el lugar o las notas) es una corrección y pide `changeReason` (ADR 0030). `version` desactualizada: `conflict`.',
+    'La administración y el `sc` de la categoría. El día y la ventana se cambian solo mientras está `scheduled`; el lugar, las condiciones, las notas y el evaluador, mientras no está suspendido (si no, `conflict`). `status` corre el día (B-320): `scheduled → in_progress → completed`, volver a `scheduled` uno en curso y reabrir uno cerrado (`completed → in_progress`); `startedAt` y `completedAt` los fija el servidor; suspender y restaurar son `…/cancel` y `…/restore`. Cambiar un dato ya cargado es una corrección y pide `changeReason` (ADR 0030). `version` desactualizada o transición inválida: `conflict`.',
   tags: ['calendar'],
   auth: 'club',
   params: testSessionParams,
@@ -459,8 +498,11 @@ export const updateTestSession = defineEndpoint({
     version: expectedVersionSchema,
     scheduledOn: localDateSchema.optional(),
     testWindowId: testWindowIdSchema.nullable().optional(),
+    status: testSessionRunStatusSchema.optional(),
     location: locationSchema.nullable().optional(),
+    conditions: testConditionsInputSchema.optional(),
     notes: notesSchema.nullable().optional(),
+    evaluatorId: userIdSchema.nullable().optional(),
     changeReason: changeReasonSchema.optional(),
   }),
   response: { status: 200, description: 'El día de test actualizado.', schema: testSessionSchema },

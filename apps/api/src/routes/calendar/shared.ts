@@ -6,6 +6,7 @@ import {
   season,
   testSession,
   testWindow,
+  type TestConditions,
 } from '@sport-performance/db/schema';
 import {
   isTestWindowNumber,
@@ -261,7 +262,9 @@ export const testSessionColumns = {
   scheduledOn: testSession.scheduledOn,
   status: testSession.status,
   location: testSession.location,
+  conditions: testSession.conditions,
   notes: testSession.notes,
+  evaluatorId: testSession.evaluatorId,
   startedAt: testSession.startedAt,
   completedAt: testSession.completedAt,
   createdAt: testSession.createdAt,
@@ -277,7 +280,9 @@ export interface TestSessionRow {
   scheduledOn: LocalDate;
   status: TestSessionStatus;
   location: string | null;
+  conditions: TestConditions;
   notes: string | null;
+  evaluatorId: string | null;
   startedAt: Date | null;
   completedAt: Date | null;
   createdAt: Date;
@@ -294,7 +299,9 @@ export function testSessionDto(row: TestSessionRow): TestSession {
     scheduledOn: row.scheduledOn,
     status: row.status,
     location: row.location,
+    conditions: row.conditions,
     notes: row.notes,
+    evaluatorId: row.evaluatorId as TestSession['evaluatorId'],
     startedAt: row.startedAt?.toISOString() ?? null,
     completedAt: row.completedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),

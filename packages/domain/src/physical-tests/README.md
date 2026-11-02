@@ -9,6 +9,7 @@ Fórmulas de puntuación de la batería de tests. Funciones puras, sin I/O; las 
 | `sprint.ts` | Velocidad de un tramo, Vmax 20–40 `= 20 / (t40 − t20)` por intento, validación de parciales (t10 < t20 < t40), mejor de cada parcial y de la Vmax. | `sprint_10_s`, `sprint_20_s`, `sprint_40_s`, `sprint_vmax_ms` |
 | `cod505.ts` | Mejor tiempo por lado y asimetría `|izq − der| / lado más rápido × 100` (Bishop et al. 2018), con el lado más rápido aparte. | `cod505_left_s`, `cod505_right_s`, `cod505_asymmetry_pct` |
 | `strength.ts` | e1RM de Epley con RIR `peso × (1 + (reps + RIR)/30)`, avisos de protocolo (3–5 reps, RIR ≥ 2 por defecto), mejor e1RM entre series, fuerza relativa al peso corporal. | `e1rm_kg`, `relative_strength_kg_kg` |
+| `recording.ts` | Carga de resultados (B-320, ADR 0039): entradas crudas por test (`scoreTestEntry`: splits del sprint → Vmax, tiempo de vuelo o cuadros → altura, etapa del 30-15 → VIFT, serie → e1RM con avisos), parámetros del protocolo de cada versión (`testScoringSettings`), puntaje por métrica (`scoreResultMetrics`), métricas del resultado (`deriveResultMetrics`: asimetría del 505, fuerza relativa), reglas de etapa (`batteryIncludesTest`, `testApplicability`, `strengthMetricAllowed`) y avisos al comparar (`testComparisonWarnings`). | las de cada test |
 | `ift3015.ts` | VIFT del 30-15 IFT (8 km/h + 0,5 km/h por etapa de 45 s, Buchheit 2008) desde la última etapa completada y distancia de pasadas a un % de la VIFT. | `vift_kmh` |
 
 ## Decisiones

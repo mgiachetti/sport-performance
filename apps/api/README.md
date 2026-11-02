@@ -48,6 +48,9 @@ Variables: [`.env.example`](.env.example). Se validan al arrancar; si falta o es
 | `POST /v1/training-sessions/{id}/drills`, `PATCH`/`DELETE /v1/drills/{id}` | Bloques con nivel de contacto. |
 | `POST /v1/training-sessions/{id}/participations/batch`, `PATCH /v1/participations/{id}`, `GET /v1/participations` | Participación: carga masiva idempotente por fila, correcciones con `changeReason`, listas por alcance. |
 | `POST /v1/training-sessions/{id}/rpe`, `GET /v1/me/training-sessions` | RPE del jugador dentro de su ventana y sus sesiones pendientes ([ADR 0037](../../docs/adr/0037-sesiones-participacion-y-rpe.md)). |
+| `POST /v1/test-sessions/{id}/results` | Carga por lote de la cancha de un día de test, todo o nada (ADR 0039). El día se programa y se corre (estado, condiciones, evaluador) con los endpoints del calendario. |
+| `GET`/`POST /v1/test-results`, `GET`/`PATCH /v1/test-results/{id}`, `POST …/{id}/entries`, `POST …/{id}/void` | Resultados con entradas crudas puntuadas por el dominio, reglas de etapa de la batería, `not_done` con motivo (`injured` se ve `unavailable` salvo para `medical`) y anulación con motivo. |
+| `GET /v1/players/{id}/test-metrics/{metricCode}` | Serie de una métrica del jugador con el aviso de métodos, versiones o equipos distintos. |
 
 ## Sesión y club
 
