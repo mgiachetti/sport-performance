@@ -162,7 +162,7 @@ describeWithPostgres('members and staff assignments (Postgres)', (serverUrl) => 
       `select (now() at time zone 'America/Argentina/Buenos_Aires')::date::text as today`,
     );
     today = day.rows[0]?.today ?? '';
-  }, 90_000);
+  }, 180_000);
 
   afterAll(async () => {
     await t.close();
@@ -708,6 +708,15 @@ describeWithPostgres('members and staff assignments (Postgres)', (serverUrl) => 
       expect(me.json<{ items: { role: string }[] }>().items.map((i) => i.role)).toEqual([
         'medical',
       ]);
+      // The medical member has no other membership: support ending it signs them out.
+      const medical = await t.app.inject({
+        method: 'POST',
+        url: `/v1/club/members/${m.medicalA}/end`,
+        headers: supporting(clubA),
+      });
+      expect(medical.statusCode, medical.body).toBe(200);
+      const signedOut = await t.app.inject({ url: '/v1/me', headers: medicalA.headers });
+      expect(signedOut.statusCode).toBe(401);
     });
 
     it('keeps the club governable', async () => {

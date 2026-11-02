@@ -2414,7 +2414,7 @@
       "post": {
         "operationId": "endMember",
         "summary": "Terminar una membresía",
-        "description": "Solo la administración. Fija `endedAt` ahora y termina sus asignaciones del staff en la misma transacción; desde el request siguiente la persona ya no actúa con ella. Idempotente. La propia membresía o el último admin del club: `conflict`.",
+        "description": "Solo la administración. Fija `endedAt` ahora y termina sus asignaciones del staff en la misma transacción; desde el request siguiente la persona ya no actúa con ella, y si no le queda ninguna membresía activa se cierran todas sus sesiones (B-333). Idempotente. La propia membresía o el último admin del club: `conflict`.",
         "tags": [
           "members"
         ],

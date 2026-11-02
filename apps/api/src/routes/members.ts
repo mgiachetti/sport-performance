@@ -6,7 +6,12 @@ import {
   type Member,
 } from '@sport-performance/contracts';
 import { membership, user } from '@sport-performance/db/schema';
-import type { ClubId, MembershipRole } from '@sport-performance/domain';
+import {
+  parseUserId,
+  type ClubId,
+  type MembershipRole,
+  type UserId,
+} from '@sport-performance/domain';
 import { and, asc, eq, ilike, isNull, lte, or, sql, type SQL } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { TenantDatabase } from '../db/database.js';
@@ -153,7 +158,10 @@ async function endMembership(
  * Runs after a membership ended, inside its request (B-333). The API wires
  * it to close the sessions of a member left without any membership.
  */
-export type MembershipEndedHook = (caller: ClubAuthContext, membershipId: string) => Promise<void>;
+export type MembershipEndedHook = (
+  caller: ClubAuthContext,
+  ended: { readonly id: string; readonly userId: UserId },
+) => Promise<void>;
 
 export interface MemberRoutesOptions {
   onMembershipEnded?: MembershipEndedHook | undefined;
@@ -259,7 +267,10 @@ export function registerMemberRoutes(
       if (!target.active) return memberDto(target);
       await assertGovernable(db, caller, target, target.role === 'admin');
       await endMembership(db, caller, target);
-      await options.onMembershipEnded?.(caller, target.id);
+      await options.onMembershipEnded?.(caller, {
+        id: target.id,
+        userId: parseUserId(target.userId),
+      });
       return memberDto(await readMember(db, clubId, target.id));
     },
   });
