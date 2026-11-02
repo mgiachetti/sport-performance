@@ -45,6 +45,12 @@ export const CLUB_SHORT_NAME_MAX_LENGTH = 16;
 /** Club-level switches (B-322: active modules). Unknown keys are ignored. */
 export interface ClubSettings {
   readonly modules?: Readonly<Record<string, boolean>>;
+  /**
+   * Parameters of the values the worker derives (B-326): load windows,
+   * wellness baseline and maturation. Partial JSON validated by
+   * `resolveDerivedParameters` of the domain; missing keys take the defaults.
+   */
+  readonly derived?: Readonly<Record<string, unknown>>;
 }
 
 /** `created_*`, `updated_*` and `client_uuid`, shared by `club` and every club table. */

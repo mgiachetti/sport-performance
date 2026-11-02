@@ -34,10 +34,16 @@ const CLUB_TABLES = (Object.values(schema) as unknown[])
   .sort();
 
 /**
- * Club tables the application never updates (no UPDATE grant): the change history (ADR 0030)
- * and the published consent texts (ADR 0043).
+ * Club tables the application never updates (no UPDATE grant): the change history (ADR 0030),
+ * the published consent texts (ADR 0043) and what the worker derives (ADR 0045).
  */
-const APPEND_ONLY_TABLES = ['change_history', 'consent_document'];
+const APPEND_ONLY_TABLES = [
+  'change_history',
+  'consent_document',
+  'derived_refresh',
+  'player_load_daily',
+  'player_wellness_daily',
+];
 
 async function pgCode(promise: Promise<unknown>): Promise<string | undefined> {
   try {

@@ -3,6 +3,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { readMigrationFiles, type MigrationMeta } from 'drizzle-orm/migrator';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import pg from 'pg';
+import { installJobQueue } from './job-queue.js';
 
 /**
  * Migration runner (ADR 0004, ADR 0023). Used by the deploy of the API and
@@ -22,6 +23,8 @@ import pg from 'pg';
  * - Must connect as the role that owns the tables (`MIGRATIONS_DATABASE_URL`),
  *   never as a connection role, which has no DDL privileges (ADR 0026). It
  *   must be a superuser or have BYPASSRLS: migration 0004 checks it.
+ * - Then installs or upgrades the job queue (pg-boss, schema `pgboss`) and
+ *   its grants, under the same lock (ADR 0045): the worker never migrates it.
  */
 
 /** Folder with the SQL migrations and drizzle-kit's journal, shipped with the package. */
@@ -42,6 +45,12 @@ export interface RunMigrationsOptions {
   readonly connectionString: string;
   /** Defaults to {@link MIGRATIONS_FOLDER}. */
   readonly migrationsFolder?: string;
+  /**
+   * Install or upgrade the job queue after the SQL migrations (default
+   * `true`). Only tests of the runner itself, over other migration folders,
+   * turn it off.
+   */
+  readonly jobQueue?: boolean;
 }
 
 export interface MigrationReport {
@@ -54,6 +63,8 @@ export interface MigrationReport {
    * example during a rolling deploy or a rollback). Not an error.
    */
   readonly unknown: number;
+  /** pg-boss schema version after the run; `null` when the queue was not installed. */
+  readonly jobQueueVersion: number | null;
 }
 
 /** A pending migration is older than the latest applied one, or an applied file changed. */
@@ -130,10 +141,15 @@ export async function runMigrations(options: RunMigrationsOptions): Promise<Migr
         migrationsTable: MIGRATIONS_TABLE,
       });
       const after = await readApplied(client);
+      const jobQueueVersion =
+        options.jobQueue === false
+          ? null
+          : await installJobQueue({ connectionString: options.connectionString, client });
       report = {
         applied: after.length - before.length,
         total: after.length,
         unknown: after.filter((m) => !localHashes.has(m.hash)).length,
+        jobQueueVersion,
       };
     } catch (error) {
       // If the connection dropped, unlocking fails too (and the session lock

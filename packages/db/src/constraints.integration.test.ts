@@ -7,6 +7,7 @@ import {
   anthroMeasurement,
   category,
   clubBranch,
+  khamisRocheTable,
   club,
   membership,
   metricDefinition,
@@ -483,16 +484,46 @@ describe.skipIf(!hasDatabase)('schema constraints (Postgres 16)', () => {
       measuredOn: day('2026-02-10'),
       heightCm: 160,
     };
+    const [table] = await t.db
+      .insert(khamisRocheTable)
+      .values({
+        clubId: clubA,
+        code: 'khamis_roche_test',
+        citation: 'Test table',
+        verification: 'unverified',
+        verificationNotes: 'Constraint test.',
+      })
+      .returning({ id: khamisRocheTable.id });
+    const prediction = { predictedAdultHeightCm: 175, khamisRocheTableId: must(table).id };
     for (const values of [
       { phvOffsetYears: Number.POSITIVE_INFINITY, maturityOffsetEquation: 'mirwald_2002' as const },
-      { adultHeightPct: Number.NaN },
-      { adultHeightPct: 0 },
+      { adultHeightPct: Number.NaN, ...prediction },
+      { adultHeightPct: 0, ...prediction },
     ]) {
       const error = await pgErrorOf(t.db.insert(anthroMeasurement).values({ ...row, ...values }));
       expect(error.constraint).toBe('anthro_measurement_derived_finite');
     }
+    // The % of adult height comes with its prediction and the table it was computed with.
+    for (const values of [
+      { adultHeightPct: 91.4 },
+      { adultHeightPct: 91.4, predictedAdultHeightCm: 175 },
+      { predictedAdultHeightCm: 175 },
+      { adultHeightPct: 91.4, ...prediction, predictedAdultHeightCm: 0 },
+    ]) {
+      const error = await pgErrorOf(t.db.insert(anthroMeasurement).values({ ...row, ...values }));
+      expect(error.constraint).toBe('anthro_measurement_khamis_roche');
+    }
+    expect(
+      (
+        await pgErrorOf(
+          t.db
+            .insert(anthroMeasurement)
+            .values({ ...row, growthVelocityCmYear: Number.POSITIVE_INFINITY }),
+        )
+      ).constraint,
+    ).toBe('anthro_measurement_growth_velocity_finite');
     // A late measurement may exceed a low prediction.
-    await t.db.insert(anthroMeasurement).values({ ...row, adultHeightPct: 101.2 });
+    await t.db.insert(anthroMeasurement).values({ ...row, adultHeightPct: 101.2, ...prediction });
   });
 
   it('keeps emails unique regardless of case', async () => {

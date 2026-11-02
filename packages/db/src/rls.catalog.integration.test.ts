@@ -34,11 +34,14 @@ const AUTH_TABLES = [
 ];
 /**
  * The only club tables the application may DELETE from: `drill` (a plan, ADR 0026) and
- * `player_position` (a current attribute, replaced when a profile is edited, ADR 0035).
+ * `player_position` (a current attribute, replaced when a profile is edited, ADR 0035);
+ * the worker, only its derived tables.
  */
 const DELETABLE = {
   [DATABASE_ROLES.app]: ['drill', 'player_position'],
   [DATABASE_ROLES.auth]: AUTH_TABLES,
+  // The worker's derived cache and its outbox (ADR 0045): rebuilt from the source rows.
+  [DATABASE_ROLES.worker]: ['derived_refresh', 'player_load_daily', 'player_wellness_daily'],
 };
 const IMMUTABLE_COLUMNS = ['id', 'club_id', 'created_at', 'created_by', 'client_uuid'];
 
@@ -250,7 +253,10 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
       'app.player_takes_access_codes',
       'app.redeem_player_access',
       'app.visible_player_ids',
+      'app.worker_clubs',
       'public.change_history_record',
+      'public.derived_refresh_mark',
+      'public.derived_refresh_trigger',
       'public.player_sport_matches',
       'public.unit_matches_metric',
     ]);
@@ -258,6 +264,39 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
       expect(row.config, row.fn).toContain('search_path=pg_catalog, pg_temp');
       expect(row.public_exec, row.fn).toBe(false);
     }
+  });
+
+  it('only the worker reaches the job queue, without DDL (ADR 0045)', async () => {
+    const schemas = await t.pool.query<{ role: string; privilege: string }>(
+      `select r.rolname as role, p.privilege
+         from pg_roles r cross join unnest(array['USAGE', 'CREATE']) as p(privilege)
+        where r.rolname = any($1::text[]) and has_schema_privilege(r.oid, 'pgboss', p.privilege)
+        order by 1, 2`,
+      [ROLES],
+    );
+    expect(schemas.rows).toEqual([{ role: DATABASE_ROLES.worker, privilege: 'USAGE' }]);
+    const tables = await t.pool.query<{ table: string; privilege: string }>(
+      `select c.relname as table, p.privilege
+         from pg_class c join pg_namespace n on n.oid = c.relnamespace
+         cross join unnest(array['TRUNCATE', 'REFERENCES', 'TRIGGER']) as p(privilege)
+        where n.nspname = 'pgboss' and c.relkind in ('r', 'p')
+          and has_table_privilege($1, c.oid, p.privilege)`,
+      [DATABASE_ROLES.worker],
+    );
+    expect(tables.rows).toEqual([]);
+    const job = await t.pool.query<{ worker: boolean }>(
+      `select has_table_privilege($1, 'pgboss.job', 'SELECT, INSERT, UPDATE, DELETE') as worker`,
+      [DATABASE_ROLES.worker],
+    );
+    expect(job.rows[0]?.worker).toBe(true);
+    const functions = await t.pool.query<{ fn: string }>(
+      `select p.proname as fn from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'pgboss' and (has_function_privilege('public', p.oid, 'EXECUTE')
+              or has_function_privilege($1, p.oid, 'EXECUTE')
+              or has_function_privilege($2, p.oid, 'EXECUTE'))`,
+      [DATABASE_ROLES.app, DATABASE_ROLES.auth],
+    );
+    expect(functions.rows).toEqual([]);
   });
 
   it('the append-only guard of test_result_value covers every column of the table', async () => {

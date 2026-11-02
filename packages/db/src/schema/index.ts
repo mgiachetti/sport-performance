@@ -26,6 +26,7 @@ export * from './training.js';
 export * from './calendar.js';
 export * from './alerts.js';
 export * from './maturation.js';
+export * from './derived.js';
 export * from './access.js';
 export * from './medical.js';
 export * from './history.js';

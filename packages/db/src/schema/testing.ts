@@ -26,6 +26,7 @@ import {
 } from './enums.js';
 import { device, metricDefinition, testDefinition } from './catalog.js';
 import { category, season } from './organization.js';
+import { khamisRocheTable } from './maturation.js';
 import { player } from './players.js';
 import {
   tenantColumns,
@@ -283,6 +284,11 @@ export const anthroMeasurement = pgTable(
      * how far is a plausibility warning of the domain, not an invariant.
      */
     adultHeightPct: doublePrecision('adult_height_pct'),
+    /** Khamis-Roche predicted adult height, with the table it was computed with. */
+    predictedAdultHeightCm: doublePrecision('predicted_adult_height_cm'),
+    khamisRocheTableId: uuid('khamis_roche_table_id'),
+    /** Growth velocity from the previous measurement in range (cm/year, B-203). */
+    growthVelocityCmYear: doublePrecision('growth_velocity_cm_year'),
     derivedAt: timestamptz('derived_at'),
   },
   (t) => [
@@ -290,6 +296,8 @@ export const anthroMeasurement = pgTable(
     tenantReference('anthro_measurement', t.clubId, t.playerId, player),
     tenantReference('anthro_measurement', t.clubId, t.testSessionId, testSession),
     tenantReferenceIndex('anthro_measurement', t.clubId, t.testSessionId),
+    tenantReference('anthro_measurement', t.clubId, t.khamisRocheTableId, khamisRocheTable),
+    tenantReferenceIndex('anthro_measurement', t.clubId, t.khamisRocheTableId),
     index('anthro_measurement_player_idx').on(t.clubId, t.playerId, t.measuredOn),
     check(
       'anthro_measurement_has_value',
@@ -306,6 +314,14 @@ export const anthroMeasurement = pgTable(
     check(
       'anthro_measurement_maturation',
       sql`(${t.phvOffsetYears} is null) = (${t.maturityOffsetEquation} is null)`,
+    ),
+    check(
+      'anthro_measurement_khamis_roche',
+      sql`(${t.adultHeightPct} is null) = (${t.predictedAdultHeightCm} is null) and (${t.adultHeightPct} is null) = (${t.khamisRocheTableId} is null) and (${t.predictedAdultHeightCm} is null or (${finite(t.predictedAdultHeightCm)} and ${t.predictedAdultHeightCm} > 0))`,
+    ),
+    check(
+      'anthro_measurement_growth_velocity_finite',
+      sql`${t.growthVelocityCmYear} is null or ${finite(t.growthVelocityCmYear)}`,
     ),
     check(
       'anthro_measurement_derived_finite',

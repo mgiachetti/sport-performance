@@ -25,6 +25,8 @@ export {
 export { acuteChronicWorkloadRatio, ewmaLambda, ewmaSeriesAu, nextEwmaAu } from './ewma.js';
 export { fosterMonotony, type MonotonySummary } from './monotony.js';
 export {
+  ACWR_STATUSES,
+  MONOTONY_STATUSES,
   computeLoadSeries,
   dailyLoadsFromSessions,
   fillDailyLoads,

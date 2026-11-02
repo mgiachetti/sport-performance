@@ -10,7 +10,8 @@ import { migrationsConnectionString, runMigrations } from '../migrate.js';
 try {
   const report = await runMigrations({ connectionString: migrationsConnectionString() });
   process.stdout.write(
-    `Migrations: ${String(report.applied)} applied, ${String(report.total)} in the database.\n`,
+    `Migrations: ${String(report.applied)} applied, ${String(report.total)} in the database; ` +
+      `job queue at version ${String(report.jobQueueVersion)}.\n`,
   );
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);

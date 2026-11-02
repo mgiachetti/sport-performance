@@ -20,6 +20,7 @@ export {
   type MigrationReport,
   type RunMigrationsOptions,
 } from './migrate.js';
+export { JOB_QUEUE_SCHEMA, installJobQueue, type InstallJobQueueOptions } from './job-queue.js';
 export {
   DATABASE_ROLES,
   DATABASE_ROLE_KINDS,

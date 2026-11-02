@@ -195,6 +195,48 @@ describe.skipIf(!hasDatabase)('RLS by role (Postgres 16)', () => {
       expect(await pgCode(run(as('admin'), sign(a.users.admin, a.players.assigned)))).toBe('42501');
     });
 
+    it('derived values (ADR 0044): the player scope reads them, pending marks are staff only, nobody in the API writes them', async () => {
+      const derived = (context: TestContext) =>
+        ids(context, 'select player_id as id from player_load_daily');
+      expect(await derived(as('player'))).toEqual([a.players.assigned]);
+      expect(await derived(as('parent'))).toEqual([a.players.assigned]);
+      expect(await derived(as('coach'))).toEqual([a.players.assigned]);
+      expect(await derived(as('coachM17'))).toEqual([]);
+      expect(await ids(as('player'), 'select player_id as id from player_wellness_daily')).toEqual([
+        a.players.assigned,
+      ]);
+      // The fixture's participation and wellness marked both players.
+      expect(await ids(as('player'), 'select player_id as id from derived_refresh')).toEqual([]);
+      expect(await ids(as('coach'), 'select player_id as id from derived_refresh')).toEqual([
+        a.players.assigned,
+      ]);
+      for (const table of ['player_load_daily', 'player_wellness_daily', 'derived_refresh']) {
+        expect(
+          await pgCode(
+            run(as('admin'), (client) =>
+              client.query(`update "${table}" set updated_at = now() where id = $1`, [
+                must(a.rows[table]),
+              ]),
+            ),
+          ),
+        ).toBe('42501');
+        expect(
+          await pgCode(
+            run(as('admin'), (client) =>
+              client.query(`delete from "${table}" where id = $1`, [must(a.rows[table])]),
+            ),
+          ),
+        ).toBe('42501');
+      }
+      // The trigger helpers and the worker's club list are not callable from the API.
+      for (const sql of [
+        'select * from app.worker_clubs()',
+        `select public.derived_refresh_mark(null, '{}', null, null, false)`,
+      ]) {
+        expect(await pgCode(run(as('admin'), (client) => client.query(sql)))).toBe('42501');
+      }
+    });
+
     it('coach: the players of their assigned categories only', async () => {
       expect(await players(as('coach'))).toEqual([a.players.assigned]);
       expect(await players(as('coachM17'))).toEqual([a.players.other]);

@@ -13,6 +13,7 @@ import {
   clubBranch,
   consent,
   consentDocument,
+  derivedRefresh,
   device,
   drill,
   externalMetric,
@@ -31,9 +32,11 @@ import {
   player,
   playerAccessCode,
   playerCategory,
+  playerLoadDaily,
   playerParentHeight,
   playerPosition,
   playerStage,
+  playerWellnessDaily,
   position,
   referenceValue,
   season,
@@ -541,6 +544,48 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
       .where(
         and(eq(changeHistory.tableName, 'wellness'), eq(changeHistory.recordId, rows.wellness)),
       ),
+  );
+  // The participation and the wellness above marked the player for the worker (ADR 0045).
+  rows.derived_refresh = await id(
+    db
+      .select({ id: derivedRefresh.id })
+      .from(derivedRefresh)
+      .where(and(eq(derivedRefresh.clubId, clubId), eq(derivedRefresh.playerId, assigned))),
+  );
+  rows.player_load_daily = await id(
+    db
+      .insert(playerLoadDaily)
+      .values({
+        ...base,
+        playerId: assigned,
+        localDate: day('2026-03-10'),
+        loadAu: 300,
+        hasData: true,
+        sessionsN: 1,
+        pendingRpeN: 0,
+        historyDays: 1,
+        acuteEwmaAu: 300,
+        chronicEwmaAu: 300,
+        acwrStatus: 'insufficient_history',
+        missingDaysAcute: 0,
+        missingDaysChronic: 0,
+        windowLoadAu: 300,
+        monotonyStatus: 'insufficient_history',
+      })
+      .returning({ id: playerLoadDaily.id }),
+  );
+  rows.player_wellness_daily = await id(
+    db
+      .insert(playerWellnessDaily)
+      .values({
+        ...base,
+        playerId: assigned,
+        localDate: day('2026-03-10'),
+        itemCount: 3,
+        meanScore: 11 / 3,
+        baselineSamples: 0,
+      })
+      .returning({ id: playerWellnessDaily.id }),
   );
   rows.external_metric = await id(
     db

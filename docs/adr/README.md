@@ -49,6 +49,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0043](0043-consentimientos.md) | Consentimientos: textos versionados del club, firma del titular, revocación y `consent_required` | Aceptado |
 | [0044](0044-archivos-urls-firmadas-y-retencion.md) | Archivos: bucket S3 con URLs firmadas, tabla `file`, permisos por tipo y retención | Aceptado |
 | [0045](0045-compatibilidad-de-versiones-de-la-app.md) | Compatibilidad de versiones: versión de la API, `runtimeVersion`, versión mínima de la app y "actualizá la app" | Aceptado |
+| [0045](0045-worker-cola-outbox-y-tablas-derivadas.md) | Worker: pg-boss instalado por las migraciones, outbox de recálculos por triggers y tablas derivadas | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 

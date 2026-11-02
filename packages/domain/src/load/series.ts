@@ -78,7 +78,8 @@ export function fillDailyLoads({ loads, from, to }: DailyLoadRangeInput): DailyL
  * - `zero_chronic_load`: enough history but no chronic load (the ratio is
  *   undefined).
  */
-export type AcwrStatus = 'ok' | 'insufficient_history' | 'zero_chronic_load';
+export const ACWR_STATUSES = ['ok', 'insufficient_history', 'zero_chronic_load'] as const;
+export type AcwrStatus = (typeof ACWR_STATUSES)[number];
 
 /**
  * - `ok`: monotony and strain are valid.
@@ -86,7 +87,8 @@ export type AcwrStatus = 'ok' | 'insufficient_history' | 'zero_chronic_load';
  * - `zero_variance`: every day of the window has the same load (including a
  *   window of rest), so the monotony is undefined.
  */
-export type MonotonyStatus = 'ok' | 'insufficient_history' | 'zero_variance';
+export const MONOTONY_STATUSES = ['ok', 'insufficient_history', 'zero_variance'] as const;
+export type MonotonyStatus = (typeof MONOTONY_STATUSES)[number];
 
 export interface DailyLoadMetrics extends DailyLoad {
   /**
