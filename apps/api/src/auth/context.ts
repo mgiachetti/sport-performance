@@ -28,7 +28,12 @@ export interface AuthContext {
   readonly name: string;
   /** Global support role (ADR 0007): not a membership, and it does not bypass RLS (ADR 0006). */
   readonly isSuperadmin: boolean;
-  readonly session: { readonly id: string; readonly expiresAt: Date };
+  readonly session: {
+    readonly id: string;
+    /** When the session was opened (a sign-in): recent enough for deleting the account? */
+    readonly createdAt: Date;
+    readonly expiresAt: Date;
+  };
   /**
    * The selected membership: the one named by `X-Membership-Id`, or the only
    * active one when the header is absent. `null` when the user has none, has

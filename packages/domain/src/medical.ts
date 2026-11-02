@@ -137,8 +137,8 @@ export const MEDICAL_NOTE_VISIBILITIES = ['medical', 'shared'] as const;
 export type MedicalNoteVisibility = (typeof MEDICAL_NOTE_VISIBILITIES)[number];
 export const isMedicalNoteVisibility = memberGuard(MEDICAL_NOTE_VISIBILITIES);
 
-/** Operations recorded in `medical.access_log`. There is no delete: nothing is deleted. */
-export const MEDICAL_ACCESS_ACTIONS = ['read', 'insert', 'update'] as const;
+/** Operations recorded in `medical.access_log`. `delete` only happens in the erasure of a player (ADR 0051). */
+export const MEDICAL_ACCESS_ACTIONS = ['read', 'insert', 'update', 'delete'] as const;
 export type MedicalAccessAction = (typeof MEDICAL_ACCESS_ACTIONS)[number];
 export const isMedicalAccessAction = memberGuard(MEDICAL_ACCESS_ACTIONS);
 

@@ -102,6 +102,16 @@ import {
   getFileDownload,
   listFiles,
 } from './files.js';
+import {
+  cancelDataSubjectRequest,
+  deleteMyAccount,
+  executeErasure,
+  exportPlayerData,
+  getDataSubjectRequest,
+  listDataSubjectRequests,
+  rejectDataSubjectRequest,
+  requestPlayerErasure,
+} from './data-subject-rights.js';
 import { getHealth } from './health.js';
 import {
   acceptInvitation,
@@ -208,6 +218,7 @@ export * from './configuration-speed-zones.js';
 export * from './guardians.js';
 export * from './consents.js';
 export * from './files.js';
+export * from './data-subject-rights.js';
 export * from './health.js';
 export * from './invitations.js';
 export * from './me.js';
@@ -397,6 +408,14 @@ export const apiEndpoints = {
   getRosterImport,
   pushSyncMutations,
   pullSyncChanges,
+  exportPlayerData,
+  requestPlayerErasure,
+  listDataSubjectRequests,
+  getDataSubjectRequest,
+  cancelDataSubjectRequest,
+  rejectDataSubjectRequest,
+  executeErasure,
+  deleteMyAccount,
 } as const satisfies EndpointCatalog;
 
 export type ApiEndpoints = typeof apiEndpoints;

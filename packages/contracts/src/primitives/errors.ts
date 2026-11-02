@@ -20,6 +20,11 @@ export const ERROR_STATUS = {
    * so the UI can ask the holder to sign.
    */
   consent_required: 403,
+  /**
+   * The operation needs a session opened a moment ago (deleting the account,
+   * B-329): the client asks for a new sign-in code and retries.
+   */
+  reauthentication_required: 403,
   not_found: 404,
   conflict: 409,
   payload_too_large: 413,

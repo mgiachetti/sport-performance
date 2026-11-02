@@ -65,7 +65,11 @@ export function testAuthContext(
     email: 'test@example.com',
     name: 'Test',
     isSuperadmin: false,
-    session: { id: 'test-session', expiresAt: new Date(Date.now() + 60_000) },
+    session: {
+      id: 'test-session',
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 60_000),
+    },
     membership:
       membership === null
         ? null

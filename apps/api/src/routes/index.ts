@@ -18,6 +18,10 @@ import { registerSpeedZoneRoutes } from './configuration-speed-zones.js';
 import { registerGuardianRoutes } from './guardians.js';
 import { registerConsentRoutes } from './consents.js';
 import { registerFileRoutes } from './files.js';
+import {
+  registerAccountDeletionRoute,
+  registerDataSubjectRightsRoutes,
+} from './data-subject-rights.js';
 import { registerHealthRoutes, type HealthOptions } from './health.js';
 import { registerInvitationRoutes } from './invitations.js';
 import { registerMeRoutes } from './me.js';
@@ -210,6 +214,14 @@ export const IMPLEMENTED_ENDPOINTS = [
   'getRosterImport',
   'pushSyncMutations',
   'pullSyncChanges',
+  'exportPlayerData',
+  'requestPlayerErasure',
+  'listDataSubjectRequests',
+  'getDataSubjectRequest',
+  'cancelDataSubjectRequest',
+  'rejectDataSubjectRequest',
+  'executeErasure',
+  'deleteMyAccount',
 ] as const satisfies readonly (keyof ApiEndpoints)[];
 
 /** Declared in the contract but served by a later issue (`'#N (B-xxx): why'`). */
@@ -254,11 +266,13 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerConsentRoutes(app);
   registerFileRoutes(app, options.files);
   registerRosterImportRoutes(app);
+  registerDataSubjectRightsRoutes(app);
   // Last of the club data: the push runs the handlers of the routes above.
   registerSyncRoutes(app);
   if (options.auth !== undefined) {
     registerAuthRoutes(app, options.auth);
     registerMeRoutes(app, options.auth);
+    registerAccountDeletionRoute(app);
     registerSessionRoutes(app, options.auth);
     registerInvitationRoutes(app, options.auth);
     const auth = options.auth;

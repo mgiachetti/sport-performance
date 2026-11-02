@@ -34,3 +34,4 @@ export * from './history.js';
 export * from './files.js';
 export * from './imports.js';
 export * from './sync.js';
+export * from './data-subject.js';

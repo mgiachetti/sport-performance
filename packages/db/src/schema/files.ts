@@ -86,10 +86,12 @@ export const file = pgTable(
       'file_name_format',
       sql`${t.fileName} is null or (${t.fileName} = btrim(${t.fileName}) and char_length(${t.fileName}) between 1 and ${sql.raw(String(FILE_NAME_MAX_LENGTH))} and ${t.fileName} !~ '[[:cntrl:]/\\\\"]')`,
     ),
-    // What a file belongs to follows its kind (`FILE_KIND_POLICIES[kind].subject`).
+    // What a file belongs to follows its kind (`FILE_KIND_POLICIES[kind].subject`). A
+    // deleted file of an erased player loses its player (`app.erase_player`, ADR 0051): the
+    // row stays, without them, until the retention job removes the object.
     check(
       'file_subject',
-      sql`(${t.kind} in (${kindList(PLAYER_KINDS)})) = (${t.playerId} is not null) and (${t.categoryId} is null or ${t.kind} in (${kindList(CATEGORY_KINDS)}))`,
+      sql`((${t.kind} in (${kindList(PLAYER_KINDS)})) = (${t.playerId} is not null) or (${t.status} = 'deleted' and ${t.playerId} is null)) and (${t.categoryId} is null or ${t.kind} in (${kindList(CATEGORY_KINDS)}))`,
     ),
     check(
       'file_lifecycle',

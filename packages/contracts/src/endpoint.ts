@@ -84,6 +84,8 @@ export const API_TAGS = {
   imports:
     'Importación del padrón desde una planilla: vista previa, duplicados y registro (B-330).',
   sync: 'Sincronización sin conexión: cola de mutaciones con reloj lógico híbrido y cambios por cursor.',
+  privacy:
+    'Derechos del titular (Ley 25.326): exportación de todos los datos, pedidos de supresión y borrado de la cuenta.',
 } as const satisfies Record<string, string>;
 
 export type ApiTag = keyof typeof API_TAGS;

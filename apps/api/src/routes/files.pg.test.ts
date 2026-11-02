@@ -846,6 +846,53 @@ describeWithStorage('files (Postgres + MinIO)', (serverUrl, storageUrl) => {
       expect((await purge(clubA, afterEveryUploadUrl())).purged).toBe(0);
     });
 
+    it('purges the videos of an erased player (B-329): the row stays, without the player', async () => {
+      const erased = await insertPlayer(clubA, m15, 'Suprimido');
+      for (const type of ['data', 'image']) {
+        await database.admin.query(
+          `insert into consent (club_id, player_id, type, document_version, signer_kind, signed_by)
+           values ($1, $2, $3, '2026-01', 'guardian', $4)`,
+          [clubA, erased, type, parentA.userId],
+        );
+      }
+      const body = Buffer.from(`erased ${randomBytes(64).toString('hex')}`);
+      const uploaded = await uploadedFile(scA, videoPayload(erased, body), body);
+      const key = `clubs/${clubA}/cmj_video/${uploaded.id}`;
+      expect(await bucket.keys()).toContain(key);
+
+      const request = await database.admin.query<{ id: string }>(
+        `insert into data_subject_request (club_id, player_id, kind, status, requested_by, requester_role)
+         values ($1, $2, 'erasure', 'pending', $3, 'admin') returning id`,
+        [clubA, erased, adminA.userId],
+      );
+      const executed = await t.app.inject({
+        method: 'POST',
+        url: `/v1/data-subject-requests/${request.rows[0]?.id ?? ''}/execute`,
+        headers: adminA.headers,
+        payload: { playerId: erased },
+      });
+      expect(executed.statusCode, executed.body).toBe(200);
+      expect(executed.json<{ erasedRows: Record<string, number> }>().erasedRows).toMatchObject({
+        'public.file': 1,
+        'public.player': 1,
+      });
+      const row = await database.admin.query<{
+        status: string;
+        player_id: string | null;
+        file_name: string | null;
+      }>('select status, player_id, file_name from file where id = $1', [uploaded.id]);
+      expect(row.rows[0]).toEqual({ status: 'deleted', player_id: null, file_name: null });
+      // The object waits for every upload URL of it to be dead, then the job removes it.
+      expect(await bucket.keys()).toContain(key);
+      expect((await purge(clubA, afterEveryUploadUrl())).failed).toBe(0);
+      expect(await bucket.keys()).not.toContain(key);
+      const purged = await database.admin.query<{ purged: boolean }>(
+        'select purged_at is not null as purged from file where id = $1',
+        [uploaded.id],
+      );
+      expect(purged.rows[0]?.purged).toBe(true);
+    });
+
     it('removes what a late PUT uploads after a pending file is deleted', async () => {
       const body = Buffer.from(`late jump ${randomBytes(16).toString('hex')}`);
       const created = (await create(scA, videoPayload(consenting, body))).json<CreatedBody>();

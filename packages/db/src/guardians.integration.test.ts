@@ -256,8 +256,9 @@ describe.skipIf(!hasDatabase)('guardians and player access (Postgres 16)', () =>
 
     it('checks the issuer again: a guardian of an adult or an ended link gives no access', async () => {
       await issue(child, a.users.parent, 'adult');
+      // Two days past 18: of age whatever the club's day is against the server's (UTC) date.
       await t.pool.query(
-        `update player set birth_date = now()::date - interval '18 years' where id = $1`,
+        `update player set birth_date = now()::date - interval '18 years' - interval '2 days' where id = $1`,
         [child],
       );
       expect((await redeem(sha256('code-adult'), null)).outcome).toBe('not_allowed');

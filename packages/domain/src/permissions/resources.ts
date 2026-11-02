@@ -106,6 +106,12 @@ export const PERMISSION_RESOURCES = {
    * (Ley 25.326, art. 14) or sharing with a third party.
    */
   data_export: { target: 'player', medical: false, actions: ['export'] },
+  /**
+   * Erasure of a player's data (Ley 25.326, art. 16; B-329): the holder or
+   * the administration asks (`request`) and sees the requests (`read`); only
+   * the administration, the club being the controller, erases (`execute`).
+   */
+  data_erasure: { target: 'player', medical: false, actions: ['read', 'request', 'execute'] },
 } as const satisfies Readonly<
   Record<
     string,
