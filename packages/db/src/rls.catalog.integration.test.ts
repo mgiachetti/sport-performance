@@ -226,6 +226,7 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
       'app.invitation_by_token',
       'app.is_superadmin',
       'app.visible_player_ids',
+      'public.change_history_record',
       'public.unit_matches_metric',
     ]);
     for (const row of rows) {

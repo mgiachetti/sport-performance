@@ -21,6 +21,7 @@ Contrato HTTP de la API (B-106): esquemas `zod` de requests y responses, catálo
 - **Errores:** todo status no 2xx responde `{ error: { code, message, requestId?, details? } }`. Catálogo y status en `ERROR_STATUS`; la API arma la respuesta con `apiError(code, message, { requestId, details })` y `toValidationIssues(issues, ['body'])`. La UI traduce por `code`; `message` es para desarrolladores.
 - **Paginación:** query `pageQuerySchema` (`cursor?`, `limit` 1–100, por defecto 50) y respuesta `pageOf(item)` → `{ items, nextCursor }`.
 - **Auth:** `auth: 'public'` (sin sesión), `'session'` (usuario con sesión: cookie en la web, `Authorization: Bearer` en mobile) o `'club'` (sesión + membresía elegida con el header `X-Membership-Id`, `MEMBERSHIP_HEADER`; implícita si el usuario tiene una sola). Implícitos: `unauthenticated` para `session` y `club`, `forbidden` para `club` ([ADR 0025](../../docs/adr/0025-auth-membresias-e-invitaciones-en-la-api.md)).
+- **Historial de cambios** (B-305, [ADR 0030](../../docs/adr/0030-historial-de-cambios.md)): `changeHistoryEntrySchema`, `changeHistoryPageSchema` y `changeHistoryQuerySchema` para las lecturas, y `changeReasonSchema` para el motivo que mandan las escrituras que corrigen datos ya cargados. Todavía sin endpoints: llegan con cada recurso.
 - **Compatibilidad:** las respuestas son objetos abiertos; agregar campos o códigos de error no rompe clientes. Quitar o renombrar requiere versión nueva (`/v2`).
 
 ## Agregar un endpoint

@@ -99,3 +99,5 @@ export type MedicalNote = typeof schema.medicalNote.$inferSelect;
 export type NewMedicalNote = typeof schema.medicalNote.$inferInsert;
 /** Written by the database only (functions and triggers). */
 export type MedicalAccessLogEntry = typeof schema.medicalAccessLog.$inferSelect;
+/** Read-only: rows are written by the database trigger (ADR 0030), never inserted. */
+export type ChangeHistoryRow = typeof schema.changeHistory.$inferSelect;

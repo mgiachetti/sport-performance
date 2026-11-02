@@ -1,7 +1,7 @@
 /**
  * Drizzle schema of the server database (public schema). The `medical`
- * schema (#35) and the change history (#36) are added by their own
- * migrations on top of these tables; RLS, grants, connection roles and the
+ * schema (#35) is added by its own migrations on top of these tables; the
+ * change history (#36) is `history.ts`; RLS, grants, connection roles and the
  * `app.*` functions are in migration `0004_rls_and_roles` (ADR 0026).
  */
 export * from './enums.js';
@@ -25,3 +25,4 @@ export * from './alerts.js';
 export * from './maturation.js';
 export * from './access.js';
 export * from './medical.js';
+export * from './history.js';

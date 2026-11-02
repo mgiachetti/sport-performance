@@ -33,6 +33,9 @@ const CLUB_TABLES = (Object.values(schema) as unknown[])
   .map((config) => config.name)
   .sort();
 
+/** Club tables the application never updates (no UPDATE grant): the change history (ADR 0030). */
+const APPEND_ONLY_TABLES = ['change_history'];
+
 async function pgCode(promise: Promise<unknown>): Promise<string | undefined> {
   try {
     await promise;
@@ -138,13 +141,17 @@ describe.skipIf(!hasDatabase)('RLS isolation between clubs (Postgres 16)', () =>
 
     it('an admin of club A cannot update, delete or insert rows of club B', async () => {
       const foreignRow = must(b.rows[table]);
-      await inContext(app.pool, adminOf(a), async (client) => {
-        const updated = await client.query(
-          `update "${table}" set updated_at = now() where id = $1`,
-          [foreignRow],
-        );
-        expect(updated.rowCount).toBe(0);
-      });
+      const updated = await pgCode(
+        inContext(app.pool, adminOf(a), async (client) => {
+          const result = await client.query(
+            `update "${table}" set updated_at = now() where id = $1`,
+            [foreignRow],
+          );
+          if (result.rowCount !== 0) throw new Error(`updated ${String(result.rowCount)} rows`);
+        }),
+      );
+      // Append-only tables have no UPDATE grant (42501); the others hide the row.
+      expect(updated).toBe(APPEND_ONLY_TABLES.includes(table) ? '42501' : 'no error');
       const deleted = await pgCode(
         inContext(app.pool, adminOf(a), async (client) => {
           const result = await client.query(`delete from "${table}" where id = $1`, [foreignRow]);

@@ -1,6 +1,6 @@
 # @sport-performance/db
 
-Esquema de PostgreSQL 16 en Drizzle ORM, migraciones SQL versionadas, el runner de migraciones, RLS y los roles de conexión, y los seeds (ADR 0004, 0006, 0007, 0010, 0015, 0017, [0023](../../docs/adr/0023-convenciones-del-esquema-de-base.md), [0026](../../docs/adr/0026-roles-de-conexion-y-politicas-rls.md) y [0027](../../docs/adr/0027-seeds-y-bootstrap-de-club.md)).
+Esquema de PostgreSQL 16 en Drizzle ORM, migraciones SQL versionadas, el runner de migraciones, RLS y los roles de conexión, y los seeds (ADR 0004, 0006, 0007, 0010, 0015, 0017, [0023](../../docs/adr/0023-convenciones-del-esquema-de-base.md), [0026](../../docs/adr/0026-roles-de-conexion-y-politicas-rls.md), [0027](../../docs/adr/0027-seeds-y-bootstrap-de-club.md) y [0030](../../docs/adr/0030-historial-de-cambios.md)).
 
 ## Uso
 
@@ -53,6 +53,7 @@ Nunca `drizzle-kit push` ni `drizzle-kit migrate` contra una base compartida. Un
 | `testing.ts` | `test_window` (V1–V4), `test_session`, `test_result` (`done` / `not_done` con motivo, método, evaluador, dispositivo, condiciones), `test_result_value` (varias métricas e intentos, solo se agregan o se anulan), `anthro_measurement`. |
 | `training.ts` | `training_session` (entrenamiento o partido), `drill`, `participation` (`srpe_au` generado), `wellness`, `external_metric`, `gym_program`, `gym_set`. |
 | `alerts.ts` | `alert_rule` (la `AlertRule` del dominio como datos), `alert`. |
+| `history.ts` | `change_history`: historial de cambios de resultados, sesiones y mediciones (B-305, ADR 0030), con sus enums. Lo escribe un trigger, nunca la aplicación. |
 | `maturation.ts` | `khamis_roche_table` (procedencia y estado de verificación) y `khamis_roche_coefficient` (por sexo y edad): los coeficientes de Khamis-Roche como datos (B-203, B-306). |
 | `access.ts` | `invitation` (invitación por link: email, rol, vencimiento, solo el SHA-256 del token; aceptada o anulada, nunca las dos), `invitation_category` (alcance por categoría que se convierte en `staff_assignment`) y `auth_rate_limit` (contadores de intentos del ingreso, global, claves HMAC). B-309, [ADR 0028](../../docs/adr/0028-auth-membresias-e-invitaciones-en-la-api.md). |
 | `medical.ts` | Esquema `medical` (B-304, [ADR 0029](../../docs/adr/0029-esquema-medical-acceso-y-auditoria.md)): `injury`, `concussion` + `concussion_stage` (GRTP, alta obligatoria), `hold` (bloqueo para entrenamiento y partido), `note` (append-only, `medical` o `shared`) y `access_log` (append-only). Las referencias entre filas médicas llevan el jugador: `(club_id, x_id, player_id)`. |
@@ -81,6 +82,7 @@ Convenciones (ADR 0023): `club_id NOT NULL` y auditoría (`created_at`, `updated
 - `app.not_done_reason_for_viewer(reason)` muestra `injured` como `unavailable` a todo rol que no sea `medical`.
 - El log no se modifica ni se borra, tampoco como dueño. El worker no llega al esquema.
 - Invitaciones (B-309, [ADR 0028](../../docs/adr/0028-auth-membresias-e-invitaciones-en-la-api.md)): `invitation` e `invitation_category` las leen y escriben solo `admin` y `superadmin` del club, y de una invitación la API solo puede cambiar su anulación (grant de `UPDATE` por columna). Un solo link abierto por club, email y rol (`invitation_pending_key`) y una sola asignación abierta por membresía y categoría (`staff_assignment_open_category_key`). Quien abre el link todavía no es miembro: `app.invitation_by_token(hash)` y `app.accept_invitation(hash)` (`SECURITY DEFINER`, solo para `sport_performance_app`) encuentran exactamente la invitación de ese hash; aceptar exige `app.user_id` sin club, valida estado y email en la base y crea la membresía y las asignaciones de staff.
+- `change_history`: solo `SELECT` para la API y el worker; sin `INSERT`, `UPDATE` ni `DELETE` para nadie más que el trigger (ver [Historial de cambios](#historial-de-cambios)).
 - Las migraciones corren como superusuario o con `BYPASSRLS`.
 
 Puesta en marcha local:
@@ -93,6 +95,27 @@ MIGRATIONS_DATABASE_URL=postgres://postgres:postgres@localhost:5432/sport_perfor
   pnpm --filter @sport-performance/db db:provision-login
 # y en apps/api: DATABASE_URL=postgres://sp_api:<contraseña>@localhost:5432/sport_performance
 ```
+
+## Historial de cambios
+
+Todo `UPDATE` o `DELETE` de `test_session`, `test_result`, `test_result_value`, `anthro_measurement`, `training_session`, `participation`, `wellness`, `external_metric` y `gym_set` (`CHANGE_TRACKED_TABLES` del dominio) deja una fila en `change_history`, escrita por el trigger `change_history_record` (migración `0008_change_history`, ADR 0030): columnas cambiadas con valor anterior y nuevo, autor (`app.user_id`), fecha, motivo, request id, rol validado y origen (`app` / `worker` / `system`).
+
+```ts
+import { listRecordChangeHistory, setChangeContext } from '@sport-performance/db';
+
+// Dentro de la transacción del request, después del contexto de tenant y antes de escribir:
+await setChangeContext(db, { reason: body.reason, requestId: request.id });
+await db.update(schema.testResult).set({ notes }).where(eq(schema.testResult.id, id));
+
+// Lectura (RLS: el staff que ve al jugador), del más nuevo al más viejo, paginada por `seq`:
+const { entries, nextBeforeSeq } = await listRecordChangeHistory(db, { tableName: 'test_result', recordId: id });
+```
+
+- **Motivo obligatorio** cuando la API corrige un dato ya cargado (borra, o cambia una columna que tenía valor): sin `app.change_reason` la sentencia falla con `23514` / `change_history_reason_required`. Completar un valor vacío (el RPE del jugador, una anulación) y las columnas de ciclo de vida o derivadas no lo piden. El worker y el dueño quedan registrados; para ellos es opcional.
+- `test_result_value` sigue append-only: se anula y se agrega otro valor; la anulación queda en el historial con su `void_reason`.
+- Inmutable: guard que rechaza todo `UPDATE`/`DELETE`, también al dueño, salvo el `ON DELETE SET NULL` del autor.
+- Lectura: `test_result.not_done_reason = 'injured'` sale como `unavailable` para todo rol que no sea `medical` (`app.not_done_reason_for_viewer`, ADR 0029).
+- El esquema `medical` no se sigue: tiene su propio log (`medical.access_log`, ADR 0029).
 
 ## Seeds
 
@@ -113,7 +136,7 @@ Volver a correr solo inserta lo que falta y nunca actualiza: no pisa lo que el c
 
 ## Fuera de este paquete por ahora
 
-Historial de cambios (#36), datos de prueba y club demo (#38), columnas HLC y marcas de borrado para la sincronización (B-323), tablas `*_daily` del worker (B-326) y la tabla de importaciones de Catapult (B-601; `external_metric.import_id` ya existe).
+Datos de prueba y club demo (#38), columnas HLC y marcas de borrado para la sincronización (B-323), tablas `*_daily` del worker (B-326) y la tabla de importaciones de Catapult (B-601; `external_metric.import_id` ya existe).
 
 ## Tests
 
@@ -122,4 +145,4 @@ docker run -d --rm --name pg-dev -e POSTGRES_PASSWORD=postgres -p 5432:5432 post
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres pnpm --filter @sport-performance/db test
 ```
 
-Cada archivo de integración (`*.integration.test.ts`) crea su propia base temporal y la borra al terminar. Sin `DATABASE_URL` se saltean localmente; en CI (`CI` definido) fallan. Los tests cubren: migración desde cero, idempotencia y concurrencia del runner, convenciones por introspección (de las definiciones y de la base migrada), enums = dominio, índices de las claves compuestas, `CHECK`s, triggers (`updated_at`, `test_result_value` append-only, unidad = la de la métrica), RLS (catálogo: toda tabla forzada, roles sin privilegios, grants mínimos; aislamiento entre clubes por cada tabla con `club_id` enumerada desde la base; fail-closed; conexiones del pool; alcance por rol, `superadmin` con acceso de soporte registrado, worker y Better Auth), esquema `medical` (catálogo sin lecturas directas, escrituras por rol, asignación y consentimiento, lecturas y disponibilidad por rol, una fila de log por cada lectura y escritura, log inmutable, aislamiento entre clubes, reglas del GRTP y del alta), sincronía esquema ↔ migraciones (`drizzle-kit generate` sin cambios), compatibilidad con Better Auth (alta de usuario con su adaptador de Drizzle) y seeds (bootstrap desde cero, re-corrida y corridas concurrentes sin cambios, ediciones del club preservadas, Khamis-Roche leída de la base igual a la del dominio, bootstrap con el rol de la aplicación como superadmin, comando `db:seed`).
+Cada archivo de integración (`*.integration.test.ts`) crea su propia base temporal y la borra al terminar. Sin `DATABASE_URL` se saltean localmente; en CI (`CI` definido) fallan. Los tests cubren: migración desde cero, idempotencia y concurrencia del runner, convenciones por introspección (de las definiciones y de la base migrada), enums = dominio, índices de las claves compuestas, `CHECK`s, triggers (`updated_at`, `test_result_value` append-only, unidad = la de la métrica), RLS (catálogo: toda tabla forzada, roles sin privilegios, grants mínimos; aislamiento entre clubes por cada tabla con `club_id` enumerada desde la base; fail-closed; conexiones del pool; alcance por rol, `superadmin` con acceso de soporte registrado, worker y Better Auth), esquema `medical` (catálogo sin lecturas directas, escrituras por rol, asignación y consentimiento, lecturas y disponibilidad por rol, una fila de log por cada lectura y escritura, log inmutable, aislamiento entre clubes, reglas del GRTP y del alta), sincronía esquema ↔ migraciones (`drizzle-kit generate` sin cambios), compatibilidad con Better Auth (alta de usuario con su adaptador de Drizzle), historial de cambios (qué se registra, motivo obligatorio y opcional, `test_result_value` append-only, visibilidad por rol, inmutabilidad también para el dueño, borrado del autor, worker, paginación, triggers en exactamente las tablas seguidas) y seeds (bootstrap desde cero, re-corrida y corridas concurrentes sin cambios, ediciones del club preservadas, Khamis-Roche leída de la base igual a la del dominio, bootstrap con el rol de la aplicación como superadmin, comando `db:seed`).

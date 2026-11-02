@@ -28,7 +28,7 @@ const tenantTables = allTables
 const tenantTableNames = new Set(tenantTables.map(qualified));
 
 describe('schema conventions', () => {
-  it('defines the B-301 model, the B-306 reference tables and the B-309 access tables', () => {
+  it('defines the B-301 model, the B-306 reference tables, the B-309 access tables and the B-305 history', () => {
     const names = tables.map((t) => t.name).sort();
     expect(names).toEqual(
       [
@@ -39,6 +39,7 @@ describe('schema conventions', () => {
         'auth_rate_limit',
         'battery_config',
         'category',
+        'change_history',
         'club',
         'consent',
         'device',
