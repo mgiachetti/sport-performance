@@ -81,6 +81,8 @@ export const API_TAGS = {
     'Consentimientos (Ley 25.326): textos versionados, firma, revocación y estado por jugador.',
   files:
     'Archivos subidos al bucket con URLs firmadas: videos del CMJ, escudo, informes y planillas.',
+  imports:
+    'Importación del padrón desde una planilla: vista previa, duplicados y registro (B-330).',
 } as const satisfies Record<string, string>;
 
 export type ApiTag = keyof typeof API_TAGS;

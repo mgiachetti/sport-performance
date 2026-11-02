@@ -79,6 +79,7 @@ describe('schema conventions', () => {
         'player_wellness_daily',
         'position',
         'reference_value',
+        'roster_import',
         'season',
         'session',
         'speed_zone_config',
