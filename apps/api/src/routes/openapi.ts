@@ -12,7 +12,7 @@ export const OPENAPI_PATH = '/openapi.json';
 export function registerOpenApiRoute(app: FastifyInstance): OpenApiDocument {
   const document = buildOpenApiDocument();
   const body = JSON.stringify(document);
-  app.get(OPENAPI_PATH, (_request, reply) =>
+  app.get(OPENAPI_PATH, { config: { appVersionCheck: 'skip' } }, (_request, reply) =>
     reply
       .type('application/json; charset=utf-8')
       .header('cache-control', 'public, max-age=300')

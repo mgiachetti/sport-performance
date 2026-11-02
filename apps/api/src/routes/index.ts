@@ -3,6 +3,10 @@ import type { FastifyInstance } from 'fastify';
 import { revokeSessionsOfEndedMembership } from '../auth/member-sessions.js';
 import type { AuthModule } from '../auth/module.js';
 import type { FilesModule } from '../files/module.js';
+import {
+  registerAppCompatibilityRoutes,
+  type AppCompatibilityOptions,
+} from './app-compatibility.js';
 import { registerAuthRoutes } from './auth.js';
 import { registerCalendarRoutes } from './calendar/index.js';
 import { registerCategoryRoutes } from './categories.js';
@@ -36,6 +40,7 @@ import { registerTestSessionResultRoutes } from './test-sessions.js';
  */
 export const IMPLEMENTED_ENDPOINTS = [
   'getHealth',
+  'getAppCompatibility',
   'sendSignInCode',
   'verifySignInCode',
   'signOut',
@@ -196,7 +201,7 @@ type Unaccounted = Exclude<keyof ApiEndpoints, (typeof IMPLEMENTED_ENDPOINTS)[nu
 /** Compile-time check: every endpoint of the contract is either served or pending. */
 export const everyEndpointAccounted: [Unaccounted] extends [never] ? true : Unaccounted = true;
 
-export interface RoutesOptions extends HealthOptions {
+export interface RoutesOptions extends HealthOptions, AppCompatibilityOptions {
   /**
    * Identity endpoints (`/v1/auth`, `/v1/me`, `/v1/invitations`). Always
    * present in the process (`main.ts`); unit tests of the core build the app
@@ -210,6 +215,7 @@ export interface RoutesOptions extends HealthOptions {
 export function registerRoutes(app: FastifyInstance, options: RoutesOptions): void {
   registerOpenApiRoute(app);
   registerHealthRoutes(app, options);
+  registerAppCompatibilityRoutes(app, options);
   // Club data: they need no auth module (the theme is public; the rest answer 401 without it).
   registerClubRoutes(app, options.files);
   registerCategoryRoutes(app);

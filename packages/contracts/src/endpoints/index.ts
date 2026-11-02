@@ -1,4 +1,5 @@
 import type { EndpointCatalog } from '../endpoint.js';
+import { getAppCompatibility } from './app-compatibility.js';
 import { sendSignInCode, signOut, verifySignInCode } from './auth.js';
 import {
   archiveFixture,
@@ -175,6 +176,7 @@ import {
   voidTestResultEntries,
 } from './tests.js';
 
+export * from './app-compatibility.js';
 export * from './auth.js';
 export * from './calendar.js';
 export * from './categories.js';
@@ -207,6 +209,7 @@ export * from './tests.js';
  */
 export const apiEndpoints = {
   getHealth,
+  getAppCompatibility,
   sendSignInCode,
   verifySignInCode,
   signOut,

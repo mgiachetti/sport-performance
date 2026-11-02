@@ -9,6 +9,7 @@ describe('@sport-performance/contracts entry point', () => {
   it('exports the catalog, the client and the primitives', () => {
     expect(Object.keys(contracts.apiEndpoints)).toEqual([
       'getHealth',
+      'getAppCompatibility',
       'sendSignInCode',
       'verifySignInCode',
       'signOut',
@@ -167,6 +168,11 @@ describe('@sport-performance/contracts entry point', () => {
     expect(typeof contracts.createApiClient).toBe('function');
     expect(typeof contracts.defineEndpoint).toBe('function');
     expect(contracts.ERROR_STATUS.not_found).toBe(404);
+    expect(contracts.ERROR_STATUS.app_update_required).toBe(426);
+    expect(contracts.API_VERSION_HEADER).toBe('x-api-version');
+    expect(contracts.CLIENT_PLATFORM_HEADER).toBe('x-client-platform');
+    expect(contracts.CLIENT_VERSION_HEADER).toBe('x-client-version');
+    expect(contracts.CLIENT_RUNTIME_VERSION_HEADER).toBe('x-client-runtime-version');
   });
 
   it('does not ship the OpenAPI generator in the client entry', () => {

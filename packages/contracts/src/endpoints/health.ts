@@ -28,4 +28,5 @@ export const getHealth = defineEndpoint({
   auth: 'public',
   response: { status: 200, description: 'Servicio operativo.', schema: healthSchema },
   errors: ['service_unavailable'],
+  skipAppVersionCheck: true,
 });

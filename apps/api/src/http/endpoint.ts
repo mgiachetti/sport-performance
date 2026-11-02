@@ -225,7 +225,10 @@ export function registerEndpoint<E extends EndpointDefinition>(
   app.route({
     method: endpoint.method,
     url: fastifyPath(endpoint.path),
-    config: { rateLimit: routeClass },
+    config: {
+      rateLimit: routeClass,
+      ...(endpoint.skipAppVersionCheck === true && { appVersionCheck: 'skip' as const }),
+    },
     ...(Number.isFinite(bodyLimit) && { bodyLimit }),
     handler: async (request, reply) => {
       if (endpoint.auth !== 'public' && request.auth === null) {

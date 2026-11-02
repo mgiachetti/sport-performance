@@ -189,7 +189,15 @@ describe('buildOpenApiDocument (generic features)', () => {
     expect(del?.security).toEqual([{ sessionCookie: [] }, { bearerToken: [] }]);
     expect(del?.deprecated).toBe(true);
     expect(del?.responses['204']).toEqual({ description: 'Deleted' });
-    expect(Object.keys(del?.responses ?? {})).toEqual(['204', '400', '401', '404', '429', '500']);
+    expect(Object.keys(del?.responses ?? {})).toEqual([
+      '204',
+      '400',
+      '401',
+      '404',
+      '426',
+      '429',
+      '500',
+    ]);
     expect(del?.responses['429']?.headers?.['Retry-After']?.schema).toEqual({
       type: 'integer',
       minimum: 1,
@@ -217,7 +225,15 @@ describe('buildOpenApiDocument (generic features)', () => {
     expect(get?.parameters?.map((p) => [p.name, p.in, p.required])).toEqual([
       ['x-membership-id', 'header', false],
     ]);
-    expect(Object.keys(get?.responses ?? {})).toEqual(['200', '401', '403', '429', '500']);
+    expect(Object.keys(get?.responses ?? {})).toEqual([
+      '200',
+      '400',
+      '401',
+      '403',
+      '426',
+      '429',
+      '500',
+    ]);
     expect(get?.security).toEqual([{ sessionCookie: [] }, { bearerToken: [] }]);
   });
 

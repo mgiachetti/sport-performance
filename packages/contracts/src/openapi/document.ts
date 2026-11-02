@@ -10,13 +10,19 @@ import {
 } from '../endpoint.js';
 import { apiEndpoints } from '../endpoints/index.js';
 import { ERROR_STATUS, errorEnvelopeSchema, type ErrorCode } from '../primitives/errors.js';
+import {
+  API_VERSION_HEADER,
+  CLIENT_PLATFORM_HEADER,
+  CLIENT_RUNTIME_VERSION_HEADER,
+  CLIENT_VERSION_HEADER,
+  CONTRACT_VERSION,
+} from '../versioning.js';
 
 export type JsonSchema = Record<string, unknown>;
 
 type Io = 'input' | 'output';
 
-/** Semver of the contract; bump minor on additive changes, major together with the `/vN` prefix. */
-export const CONTRACT_VERSION = '0.1.0';
+export { CONTRACT_VERSION } from '../versioning.js';
 
 export interface OpenApiParameter {
   name: string;
@@ -315,7 +321,11 @@ export function buildOpenApiDocument(
       version: options.version ?? CONTRACT_VERSION,
       description:
         options.description ??
-        'API de Sport Performance. Generado desde `@sport-performance/contracts`; no editar a mano.',
+        [
+          'API de Sport Performance. Generado desde `@sport-performance/contracts`; no editar a mano.',
+          '',
+          `Versionado (ADR 0020, ADR 0045): el prefijo \`/v1\` es el major del contrato y cada respuesta trae \`${API_VERSION_HEADER}\` con su semver. La app manda \`${CLIENT_PLATFORM_HEADER}\` (\`ios\` | \`android\`), \`${CLIENT_VERSION_HEADER}\` (versión nativa, \`MAJOR.MINOR.PATCH\`) y \`${CLIENT_RUNTIME_VERSION_HEADER}\` (\`runtimeVersion\` de EAS Update) en cada request; la web no los manda. Con una versión menor a la mínima de su plataforma la API responde \`426 app_update_required\` en todos los endpoints salvo los de estado y \`GET /v1/app/compatibility\`; headers mal formados son \`400 validation_failed\`.`,
+        ].join('\n'),
     },
     tags: Object.entries(API_TAGS).map(([name, description]) => ({ name, description })),
     paths,

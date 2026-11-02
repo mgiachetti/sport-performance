@@ -2,13 +2,13 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Sport Performance API",
-    "version": "0.1.0",
-    "description": "API de Sport Performance. Generado desde `@sport-performance/contracts`; no editar a mano."
+    "version": "0.2.0",
+    "description": "API de Sport Performance. Generado desde `@sport-performance/contracts`; no editar a mano.\n\nVersionado (ADR 0020, ADR 0045): el prefijo `/v1` es el major del contrato y cada respuesta trae `x-api-version` con su semver. La app manda `x-client-platform` (`ios` | `android`), `x-client-version` (versión nativa, `MAJOR.MINOR.PATCH`) y `x-client-runtime-version` (`runtimeVersion` de EAS Update) en cada request; la web no los manda. Con una versión menor a la mínima de su plataforma la API responde `426 app_update_required` en todos los endpoints salvo los de estado y `GET /v1/app/compatibility`; headers mal formados son `400 validation_failed`."
   },
   "tags": [
     {
       "name": "system",
-      "description": "Estado del servicio."
+      "description": "Estado del servicio y compatibilidad de versiones de la app."
     },
     {
       "name": "auth",
@@ -76,6 +76,86 @@
     }
   ],
   "paths": {
+    "/v1/app/compatibility": {
+      "get": {
+        "operationId": "getAppCompatibility",
+        "summary": "Compatibilidad de la versión de la app",
+        "description": "Público y sin sesión: la app lo pide al abrir y al volver a primer plano, y cuando cualquier llamada responde `426 app_update_required`. Nunca responde `426`. La política es la misma para todos los clubes (una sola app, ADR 0014). Cacheable unos minutos.",
+        "tags": [
+          "system"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "platform",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AppPlatform"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AppVersion"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estado de la versión.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppCompatibility"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/auth/email-otp": {
       "post": {
         "operationId": "sendSignInCode",
@@ -134,6 +214,16 @@
           },
           "413": {
             "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -279,6 +369,16 @@
           },
           "413": {
             "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -440,6 +540,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -492,8 +602,28 @@
           "204": {
             "description": "Sesión cerrada."
           },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -689,6 +819,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -870,6 +1010,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -1035,6 +1185,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -1149,6 +1309,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1333,6 +1503,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -1447,6 +1627,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1587,6 +1777,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -1658,6 +1858,16 @@
               }
             }
           },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Error: `unauthenticated`.",
             "content": {
@@ -1680,6 +1890,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1916,6 +2136,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -2071,6 +2301,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -2216,6 +2456,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -2338,6 +2588,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -2452,6 +2712,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2636,6 +2906,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -2750,6 +3030,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2882,6 +3172,16 @@
           },
           "409": {
             "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3056,6 +3356,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -3189,6 +3499,16 @@
           },
           "403": {
             "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3417,6 +3737,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -3498,6 +3828,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3659,6 +3999,16 @@
           },
           "403": {
             "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4025,6 +4375,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -4138,6 +4498,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4333,6 +4703,16 @@
           },
           "413": {
             "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4554,6 +4934,16 @@
           },
           "403": {
             "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4801,6 +5191,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -4914,6 +5314,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5129,6 +5539,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -5261,6 +5681,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -5385,6 +5815,16 @@
           },
           "409": {
             "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5553,6 +5993,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -5624,6 +6074,16 @@
               }
             }
           },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Error: `unauthenticated`.",
             "content": {
@@ -5636,6 +6096,16 @@
           },
           "403": {
             "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5807,6 +6277,16 @@
           },
           "413": {
             "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6032,6 +6512,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -6236,6 +6726,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -6349,6 +6849,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6546,6 +7056,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -6678,6 +7198,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -6802,6 +7332,16 @@
           },
           "409": {
             "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6970,6 +7510,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -7122,6 +7672,16 @@
           },
           "403": {
             "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7298,6 +7858,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -7412,6 +7982,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7620,6 +8200,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -7735,6 +8325,16 @@
           },
           "409": {
             "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7929,6 +8529,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -8060,6 +8670,16 @@
           },
           "413": {
             "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8200,6 +8820,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -8322,6 +8952,16 @@
           },
           "409": {
             "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8454,6 +9094,16 @@
           },
           "409": {
             "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8596,6 +9246,16 @@
           },
           "409": {
             "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8832,6 +9492,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -9037,6 +9707,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -9151,6 +9831,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -9398,6 +10088,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -9512,6 +10212,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -9644,6 +10354,16 @@
           },
           "409": {
             "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -9818,6 +10538,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -9932,6 +10662,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10150,6 +10890,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -10321,6 +11071,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -10448,6 +11208,16 @@
           },
           "409": {
             "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10596,6 +11366,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -10699,6 +11479,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -10758,8 +11548,28 @@
               }
             }
           },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10907,6 +11717,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -10966,8 +11786,28 @@
               }
             }
           },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -11094,6 +11934,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -11199,6 +12049,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -11258,8 +12118,28 @@
               }
             }
           },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -11426,6 +12306,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -11584,6 +12474,16 @@
           },
           "403": {
             "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -11782,6 +12682,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -11968,6 +12878,16 @@
           },
           "413": {
             "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -12173,6 +13093,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -12369,6 +13299,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -12483,6 +13423,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -12703,6 +13653,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -12862,6 +13822,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -12984,6 +13954,16 @@
           },
           "409": {
             "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13120,6 +14100,16 @@
           },
           "409": {
             "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13304,6 +14294,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -13455,6 +14455,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13635,6 +14645,16 @@
           },
           "413": {
             "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13841,6 +14861,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -13955,6 +14985,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -14128,6 +15168,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -14250,6 +15300,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -14425,6 +15485,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -14567,6 +15637,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -14743,6 +15823,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -14929,6 +16019,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -15104,6 +16204,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -15228,6 +16338,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -15415,6 +16535,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -15529,6 +16659,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -15757,6 +16897,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -15897,6 +17047,16 @@
           },
           "403": {
             "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -16121,6 +17281,16 @@
           },
           "403": {
             "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -16373,6 +17543,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -16487,6 +17667,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -16697,6 +17887,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -16811,6 +18011,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -16943,6 +18153,16 @@
           },
           "409": {
             "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -17127,6 +18347,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -17284,6 +18514,16 @@
           },
           "403": {
             "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -17463,6 +18703,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -17577,6 +18827,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -17772,6 +19032,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -17904,6 +19174,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -18028,6 +19308,16 @@
           },
           "409": {
             "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -18212,6 +19502,16 @@
           },
           "413": {
             "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -18408,6 +19708,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -18582,6 +19892,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -18696,6 +20016,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -18889,6 +20219,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -19003,6 +20343,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -19236,6 +20586,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -19375,6 +20735,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -19489,6 +20859,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -19804,6 +21184,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -19962,6 +21352,16 @@
           },
           "413": {
             "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -20135,6 +21535,16 @@
           },
           "413": {
             "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -20341,6 +21751,16 @@
           },
           "403": {
             "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -20584,6 +22004,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -20698,6 +22128,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -20986,6 +22426,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -21118,6 +22568,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -21242,6 +22702,16 @@
           },
           "409": {
             "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -21408,6 +22878,16 @@
           },
           "413": {
             "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -21596,6 +23076,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -21728,6 +23218,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -21852,6 +23352,16 @@
           },
           "409": {
             "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -22062,6 +23572,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -22252,6 +23772,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -22366,6 +23896,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -22615,6 +24155,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -22729,6 +24279,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -22881,6 +24441,16 @@
           },
           "413": {
             "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -23058,6 +24628,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -23172,6 +24752,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -23339,6 +24929,16 @@
           },
           "413": {
             "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -23537,6 +25137,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -23687,6 +25297,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -23801,6 +25421,16 @@
           },
           "404": {
             "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -23977,6 +25607,16 @@
               }
             }
           },
+          "426": {
+            "description": "Error: `app_update_required`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "429": {
             "description": "Error: `rate_limited`.",
             "headers": {
@@ -24048,6 +25688,16 @@
               }
             }
           },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
           "401": {
             "description": "Error: `unauthenticated`.",
             "content": {
@@ -24070,6 +25720,16 @@
           },
           "409": {
             "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "Error: `app_update_required`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -24857,6 +26517,114 @@
         },
         "additionalProperties": false,
         "description": "A quién aplica: tienen que coincidir todas las dimensiones presentes; una dimensión ausente es \"todos\"."
+      },
+      "ApiVersionInfo": {
+        "type": "object",
+        "properties": {
+          "contractVersion": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Semver del contrato (`info.version` del OpenAPI, header `X-Api-Version`).",
+            "examples": [
+              "0.2.0"
+            ]
+          },
+          "serverVersion": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Versión desplegada del servidor (semver o sha).",
+            "examples": [
+              "a1b2c3d"
+            ]
+          }
+        },
+        "required": [
+          "contractVersion",
+          "serverVersion"
+        ]
+      },
+      "AppCompatibility": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/AppCompatibilityStatus"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/AppPlatform"
+          },
+          "version": {
+            "description": "La versión consultada.",
+            "$ref": "#/components/schemas/AppVersion"
+          },
+          "minVersion": {
+            "description": "Versión más vieja que la API todavía atiende en esta plataforma.",
+            "$ref": "#/components/schemas/AppVersion"
+          },
+          "latestVersion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AppVersion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Última versión publicada en la tienda; `null` si no se anunció."
+          },
+          "storeUrl": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Link a la app en la tienda de la plataforma; `null` si no está configurado.",
+            "examples": [
+              "https://apps.apple.com/app/id0000000000"
+            ]
+          },
+          "api": {
+            "$ref": "#/components/schemas/ApiVersionInfo"
+          }
+        },
+        "required": [
+          "status",
+          "platform",
+          "version",
+          "minVersion",
+          "latestVersion",
+          "storeUrl",
+          "api"
+        ],
+        "description": "Si una versión de la app puede usar la API, y adónde actualizarla."
+      },
+      "AppCompatibilityStatus": {
+        "type": "string",
+        "enum": [
+          "supported",
+          "update_available",
+          "update_required"
+        ],
+        "description": "`supported`: al día. `update_available`: funciona, pero hay una versión nueva en la tienda (aviso descartable). `update_required`: ya no es compatible; la API responde `426 app_update_required` y la app muestra la pantalla de \"actualizá la app\"."
+      },
+      "AppPlatform": {
+        "type": "string",
+        "enum": [
+          "ios",
+          "android"
+        ],
+        "description": "Plataforma de la app: `ios` o `android` (la web siempre sirve el último build)."
+      },
+      "AppVersion": {
+        "type": "string",
+        "pattern": "^(0|[1-9]\\d{0,5})\\.(0|[1-9]\\d{0,5})\\.(0|[1-9]\\d{0,5})$",
+        "description": "Versión nativa del binario de la app, `MAJOR.MINOR.PATCH` (sin sufijos).",
+        "examples": [
+          "1.4.0"
+        ]
       },
       "BatteryCadenceWeeks": {
         "type": "object",
@@ -26872,6 +28640,7 @@
           "not_found",
           "conflict",
           "payload_too_large",
+          "app_update_required",
           "rate_limited",
           "internal_error",
           "service_unavailable"

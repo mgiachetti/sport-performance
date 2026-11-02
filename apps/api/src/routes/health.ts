@@ -38,7 +38,11 @@ export function registerHealthRoutes(app: FastifyInstance, options: HealthOption
 
   // Probes run often: keep them out of the info logs unless they fail.
   // Probes are exempt from the rate limits: a limited probe would get a healthy replica restarted.
-  const probe = { logLevel: 'warn', config: { rateLimit: 'exempt' } } as const;
+  // Any app version reaches them (ADR 0045): they describe the process, not the contract.
+  const probe = {
+    logLevel: 'warn',
+    config: { rateLimit: 'exempt', appVersionCheck: 'skip' },
+  } as const;
   app.get('/health/live', probe, () => Promise.resolve(healthy()));
   app.get('/health/ready', probe, ready);
   registerEndpoint(app, getHealth, { transaction: false, handler: ready });

@@ -59,7 +59,7 @@ export type SuccessStatus = 200 | 201 | 202 | 204;
 
 /** OpenAPI tags. Every endpoint belongs to at least one. */
 export const API_TAGS = {
-  system: 'Estado del servicio.',
+  system: 'Estado del servicio y compatibilidad de versiones de la app.',
   auth: 'Ingreso con código por email (OTP) y sesiones.',
   me: 'El usuario de la sesión: perfil y membresías (selector de club).',
   invitations: 'Invitaciones por link a un club.',
@@ -122,6 +122,13 @@ export interface EndpointDefinition {
    */
   errors: readonly ErrorCode[];
   deprecated?: boolean;
+  /**
+   * `true`: the app reaches this endpoint even when its version is no longer
+   * supported (ADR 0045), because it needs it to know what to do (health,
+   * `GET /v1/app/compatibility`). Every other endpoint checks the client
+   * headers of the app and may answer `426 app_update_required`.
+   */
+  skipAppVersionCheck?: true;
 }
 
 /** Names of the `{param}` placeholders of a path, as a union. */
@@ -187,6 +194,11 @@ export function endpointErrorCodes(endpoint: EndpointDefinition): ErrorCode[] {
   if (endpoint.body) codes.add('payload_too_large');
   if (endpoint.auth !== 'public') codes.add('unauthenticated');
   if (endpoint.auth === 'club') codes.add('forbidden');
+  if (endpoint.skipAppVersionCheck !== true) {
+    // Malformed client headers of the app (400) or an unsupported app version (426), ADR 0045.
+    codes.add('validation_failed');
+    codes.add('app_update_required');
+  }
   // Every endpoint is under the general per-IP and per-user limits (ADR 0031).
   codes.add('rate_limited');
   codes.add('internal_error');

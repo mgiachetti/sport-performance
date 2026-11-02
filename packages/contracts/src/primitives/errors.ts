@@ -23,6 +23,12 @@ export const ERROR_STATUS = {
   not_found: 404,
   conflict: 409,
   payload_too_large: 413,
+  /**
+   * The app binary is older than the minimum supported version of its
+   * platform (B-324, ADR 0045): the app shows the "actualizá la app" screen
+   * and asks `GET /v1/app/compatibility` for the store link.
+   */
+  app_update_required: 426,
   rate_limited: 429,
   internal_error: 500,
   service_unavailable: 503,

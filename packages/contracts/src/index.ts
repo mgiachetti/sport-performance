@@ -7,6 +7,7 @@ export * from './client/client.js';
 export * from './client/errors.js';
 export * from './endpoint.js';
 export * from './strict-input.js';
+export * from './versioning.js';
 export * from './endpoints/index.js';
 // Schemas without an endpoint yet (B-305): not in the catalog.
 export * from './endpoints/change-history.js';

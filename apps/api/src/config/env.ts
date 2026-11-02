@@ -1,4 +1,11 @@
-import { FILE_UPLOAD_URL_MAX_TTL_S } from '@sport-performance/domain';
+import {
+  APP_PLATFORMS,
+  APP_VERSION_PATTERN,
+  FILE_UPLOAD_URL_MAX_TTL_S,
+  compareAppVersions,
+  isAppVersion,
+  type AppPlatform,
+} from '@sport-performance/domain';
 import {
   storageConfigOf,
   storageEnvProblems,
@@ -11,6 +18,9 @@ import { databaseUrlProblems, secretProblems } from '../security/secrets.js';
 const integer = (min: number, max: number) => z.coerce.number().int().min(min).max(max);
 const booleanFlag = z.enum(['true', 'false']).transform((value) => value === 'true');
 const httpUrl = z.url({ protocol: /^https?$/ });
+const httpsUrl = z.url({ protocol: /^https$/ });
+/** Native version of the mobile app: `MAJOR.MINOR.PATCH`. */
+const appVersion = z.string().regex(APP_VERSION_PATTERN);
 
 /** `https://app.example.com,http://localhost:5173` → origins without trailing slash. */
 const originList = z
@@ -109,6 +119,17 @@ export const envSchema = z
       .regex(/^[a-z][a-z0-9+.-]{1,31}$/)
       .default('sportperformance'),
 
+    // Versions of the mobile app (B-324, ADR 0045): one policy per store, for every club.
+    /** Oldest native version the API serves; older apps get `426 app_update_required`. */
+    MOBILE_MIN_VERSION_IOS: appVersion.default('0.0.0'),
+    MOBILE_MIN_VERSION_ANDROID: appVersion.default('0.0.0'),
+    /** Newest version in the store: older apps (at or above the minimum) see a dismissible notice. */
+    MOBILE_LATEST_VERSION_IOS: appVersion.optional(),
+    MOBILE_LATEST_VERSION_ANDROID: appVersion.optional(),
+    /** Link of the app in each store, for the "actualizá la app" screen. */
+    MOBILE_STORE_URL_IOS: httpsUrl.optional(),
+    MOBILE_STORE_URL_ANDROID: httpsUrl.optional(),
+
     // Email (Resend + React Email)
     /** Empty = emails are written to the log instead of sent (development only). */
     RESEND_API_KEY: z.string().min(10).max(256).optional(),
@@ -146,6 +167,19 @@ export const envSchema = z
         path: ['HTTP_HEADERS_TIMEOUT_MS'],
         message: 'must not exceed HTTP_REQUEST_TIMEOUT_MS',
       });
+    }
+    for (const platform of APP_PLATFORMS) {
+      const suffix = platform.toUpperCase() as Uppercase<AppPlatform>;
+      const latest = env[`MOBILE_LATEST_VERSION_${suffix}`];
+      const min = env[`MOBILE_MIN_VERSION_${suffix}`];
+      // Refinements run even when a field failed: compare only well-formed versions.
+      if (isAppVersion(latest) && isAppVersion(min) && compareAppVersions(latest, min) < 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [`MOBILE_LATEST_VERSION_${suffix}`],
+          message: `must not be older than MOBILE_MIN_VERSION_${suffix}`,
+        });
+      }
     }
     if (env.NODE_ENV !== 'production') return;
     // Secrets of production: long, unpredictable, not the example values (ADR 0031).
@@ -250,6 +284,8 @@ export interface ApiConfig {
   auth: AuthConfig;
   email: EmailConfig;
   files: FilesConfig;
+  /** Versions policy of the mobile app, by platform (ADR 0045). */
+  mobileApp: MobileAppConfig;
 }
 
 export interface FilesConfig {
@@ -259,6 +295,17 @@ export interface FilesConfig {
   downloadUrlTtlS: number;
   logoUrlTtlS: number;
 }
+
+/** Versions policy of the app in one store. */
+export interface MobileAppPolicy {
+  minVersion: string;
+  /** `null`: no newer version announced, so no soft notice. */
+  latestVersion: string | null;
+  /** `null` until the app is published in that store. */
+  storeUrl: string | null;
+}
+
+export type MobileAppConfig = Readonly<Record<AppPlatform, MobileAppPolicy>>;
 
 export interface HttpServerConfig {
   requestTimeoutMs: number;
@@ -332,6 +379,7 @@ export function configSummary(config: ApiConfig) {
       downloadUrlTtlS: config.files.downloadUrlTtlS,
       logoUrlTtlS: config.files.logoUrlTtlS,
     },
+    mobileApp: config.mobileApp,
     sentry: config.sentry !== null,
   };
 }
@@ -448,6 +496,18 @@ export function loadConfig(env: Env = process.env): ApiConfig {
       uploadUrlTtlS: e.FILE_UPLOAD_URL_TTL_S,
       downloadUrlTtlS: e.FILE_DOWNLOAD_URL_TTL_S,
       logoUrlTtlS: e.FILE_LOGO_URL_TTL_S,
+    },
+    mobileApp: {
+      ios: {
+        minVersion: e.MOBILE_MIN_VERSION_IOS,
+        latestVersion: e.MOBILE_LATEST_VERSION_IOS ?? null,
+        storeUrl: e.MOBILE_STORE_URL_IOS ?? null,
+      },
+      android: {
+        minVersion: e.MOBILE_MIN_VERSION_ANDROID,
+        latestVersion: e.MOBILE_LATEST_VERSION_ANDROID ?? null,
+        storeUrl: e.MOBILE_STORE_URL_ANDROID ?? null,
+      },
     },
   };
 }

@@ -104,6 +104,10 @@ export const testConfig: BuildAppOptions['config'] = {
   },
   rateLimit: { enabled: true, timeoutMs: 500 },
   securityHeaders: { hsts: false },
+  mobileApp: {
+    ios: { minVersion: '0.0.0', latestVersion: null, storeUrl: null },
+    android: { minVersion: '0.0.0', latestVersion: null, storeUrl: null },
+  },
 };
 
 export async function testApp(
