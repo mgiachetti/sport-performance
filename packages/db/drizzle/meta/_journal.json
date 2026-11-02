@@ -50,6 +50,13 @@
       "when": 1793583517127,
       "tag": "0006_invitations_and_auth_rate_limit",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793584902856,
+      "tag": "0007_medical_schema",
+      "breakpoints": true
     }
   ]
 }

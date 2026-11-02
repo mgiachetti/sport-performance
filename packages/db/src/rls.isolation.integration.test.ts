@@ -27,6 +27,8 @@ import { seedClubFixture, type ClubFixture } from './testing/tenant-fixture.js';
 const CLUB_TABLES = (Object.values(schema) as unknown[])
   .filter((value): value is PgTable => is(value as object, PgTable))
   .map((table) => getTableConfig(table))
+  // The `medical` schema has its own access model and tests (medical.integration.test.ts).
+  .filter((config) => config.schema === undefined)
   .filter((config) => config.columns.some((column) => column.name === 'club_id'))
   .map((config) => config.name)
   .sort();

@@ -35,6 +35,12 @@ export const TENANT_SETTING_NAMES = {
   clubId: 'app.club_id',
   userId: 'app.user_id',
   role: 'app.role',
+  /**
+   * Id of the request (the one of its logs, ADR 0016), read by
+   * `app.current_request_id()`. Medical access and the superadmin's support
+   * access are refused without it (ADR 0029).
+   */
+  requestId: 'app.request_id',
 } as const;
 
 /** The connection is not a valid login for the expected role. Never contains secrets. */

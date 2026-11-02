@@ -123,6 +123,13 @@ export interface TestContext {
   readonly clubId?: string | null;
   readonly userId?: string | null;
   readonly role?: string | null;
+  /** `app.request_id`; defaults to a fresh id. `null` leaves it unset. */
+  readonly requestId?: string | null;
+  /**
+   * Records the superadmin's support access (`app.begin_support_access`) with
+   * this reason right after setting the context, as the API does.
+   */
+  readonly supportReason?: string;
 }
 
 /**
@@ -140,9 +147,20 @@ export async function inContext<T>(
     await client.query(
       `select set_config('${TENANT_SETTING_NAMES.clubId}', $1, true),
               set_config('${TENANT_SETTING_NAMES.userId}', $2, true),
-              set_config('${TENANT_SETTING_NAMES.role}', $3, true)`,
-      [context.clubId ?? '', context.userId ?? '', context.role ?? ''],
+              set_config('${TENANT_SETTING_NAMES.role}', $3, true),
+              set_config('${TENANT_SETTING_NAMES.requestId}', $4, true)`,
+      [
+        context.clubId ?? '',
+        context.userId ?? '',
+        context.role ?? '',
+        context.requestId === undefined
+          ? `req-${randomBytes(6).toString('hex')}`
+          : (context.requestId ?? ''),
+      ],
     );
+    if (context.supportReason !== undefined) {
+      await client.query('select app.begin_support_access($1)', [context.supportReason]);
+    }
     const result = await work(client);
     await client.query('commit');
     return result;

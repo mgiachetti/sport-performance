@@ -317,7 +317,7 @@ describe.skipIf(!hasDatabase)('RLS by role (Postgres 16)', () => {
     });
 
     it('a superadmin lists and creates clubs, but sees no club data', async () => {
-      const context = { userId: superadminId };
+      const context = { userId: superadminId, supportReason: 'Alta de club' };
       expect(await ids(context, 'select id from club')).toEqual(
         expect.arrayContaining([a.clubId, b.clubId]),
       );
@@ -388,7 +388,12 @@ describe.skipIf(!hasDatabase)('RLS by role (Postgres 16)', () => {
       expect(await ids(as('admin'), 'select id from invitation')).toEqual(own);
       expect(
         await ids(
-          { clubId: a.clubId, userId: superadminId, role: 'superadmin' },
+          {
+            clubId: a.clubId,
+            userId: superadminId,
+            role: 'superadmin',
+            supportReason: 'Soporte: invitaciones',
+          },
           'select id from invitation',
         ),
       ).toEqual(own);
@@ -586,8 +591,15 @@ describe.skipIf(!hasDatabase)('RLS by role (Postgres 16)', () => {
   });
 
   describe('superadmin in a club', () => {
+    const support = {
+      clubId: '',
+      userId: '',
+      role: 'superadmin',
+      supportReason: 'Soporte: ticket 42',
+    };
+
     it('acts as admin of the club it supports', async () => {
-      const context = { clubId: a.clubId, userId: superadminId, role: 'superadmin' };
+      const context = { ...support, clubId: a.clubId, userId: superadminId };
       expect(await players(context)).toEqual([a.players.assigned, a.players.other].sort());
       expect(await players({ ...context, clubId: b.clubId })).toEqual(
         [b.players.assigned, b.players.other].sort(),
@@ -596,6 +608,94 @@ describe.skipIf(!hasDatabase)('RLS by role (Postgres 16)', () => {
 
     it('requires the is_superadmin flag', async () => {
       expect(await players(as('admin', 'superadmin'))).toEqual([]);
+      expect(
+        await pgCode(
+          run({ ...as('admin', 'superadmin'), supportReason: 'x' }, (client) =>
+            client.query('select 1'),
+          ),
+        ),
+      ).toBe('42501');
+    });
+
+    it('acts only after recording the support access of the transaction (ADR 0029)', async () => {
+      // Without the record: nothing, in a club or without one.
+      expect(await players({ clubId: a.clubId, userId: superadminId, role: 'superadmin' })).toEqual(
+        [],
+      );
+      expect(await ids({ userId: superadminId }, 'select id from club')).toEqual([]);
+      // A record for club B does not open club A, and a record without club does not
+      // open any club.
+      await run({ clubId: b.clubId, userId: superadminId, requestId: 'req-b' }, async (client) => {
+        await client.query(`select app.begin_support_access('Soporte en B')`);
+        await client.query(
+          `select set_config('app.club_id', $1, true), set_config('app.role', 'superadmin', true)`,
+          [a.clubId],
+        );
+        expect((await client.query('select id from player')).rowCount).toBe(0);
+      });
+      await run({ userId: superadminId, supportReason: 'Registro' }, async (client) => {
+        await client.query(
+          `select set_config('app.club_id', $1, true), set_config('app.role', 'superadmin', true)`,
+          [a.clubId],
+        );
+        expect((await client.query('select id from player')).rowCount).toBe(0);
+      });
+      // The record of an earlier transaction does not carry over.
+      expect(await players({ clubId: a.clubId, userId: superadminId, role: 'superadmin' })).toEqual(
+        [],
+      );
+    });
+
+    it('records who, which club, why, which request and when', async () => {
+      const requestId = 'req-support-audit';
+      await run({ ...support, clubId: a.clubId, userId: superadminId, requestId }, async (client) =>
+        client.query('select 1'),
+      );
+      const { rows } = await t.pool.query<Record<string, unknown>>(
+        `select user_id, club_id, reason, request_id, db_role, started_at is not null as timed
+           from support.access_log where request_id = $1`,
+        [requestId],
+      );
+      expect(rows).toEqual([
+        {
+          user_id: superadminId,
+          club_id: a.clubId,
+          reason: support.supportReason,
+          request_id: requestId,
+          db_role: app.login,
+          timed: true,
+        },
+      ]);
+    });
+
+    it('needs a reason and a request id', async () => {
+      for (const context of [
+        { ...support, clubId: a.clubId, userId: superadminId, supportReason: ' ' },
+        { ...support, clubId: a.clubId, userId: superadminId, requestId: null },
+      ]) {
+        expect(await pgCode(run(context, (client) => client.query('select 1')))).toMatch(
+          /^(23514|42501)$/,
+        );
+      }
+    });
+
+    it('the support log is append-only and out of reach of the application', async () => {
+      for (const sql of ['select * from support.access_log', 'delete from support.access_log']) {
+        expect(
+          await pgCode(
+            run({ ...support, clubId: a.clubId, userId: superadminId }, (client) =>
+              client.query(sql),
+            ),
+          ),
+        ).toBe('42501');
+      }
+      for (const sql of [
+        'update support.access_log set reason = $$x$$',
+        'delete from support.access_log',
+        'truncate support.access_log',
+      ]) {
+        expect(await pgCode(t.pool.query(sql)), sql).toBe('42501');
+      }
     });
 
     it('the flag cannot be granted through the application roles', async () => {

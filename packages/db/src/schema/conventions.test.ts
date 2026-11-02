@@ -9,14 +9,23 @@ import * as schema from './index.js';
  * `migrations.integration.test.ts`.
  */
 
-const tables = (Object.values(schema) as unknown[])
+const allTables = (Object.values(schema) as unknown[])
   .filter((value): value is PgTable => is(value as object, PgTable))
   .map((table) => getTableConfig(table));
+/** Tables of the `public` schema; the `medical` schema (ADR 0029) is checked below. */
+const tables = allTables.filter((t) => t.schema === undefined);
+const medicalTables = allTables.filter((t) => t.schema === 'medical');
+const qualified = (t: { schema?: string | undefined; name: string }) =>
+  t.schema === undefined ? t.name : `${t.schema}.${t.name}`;
 
 /** Global tables: identity (ADR 0007), sign-in attempt counters and the tenant root. */
 const GLOBAL_TABLES = ['user', 'session', 'account', 'verification', 'auth_rate_limit', 'club'];
-const tenantTables = tables.filter((t) => !GLOBAL_TABLES.includes(t.name));
-const tenantTableNames = new Set(tenantTables.map((t) => t.name));
+/** Append-only audit logs: club scoped, but not club tables in the ADR 0023 sense. */
+const LOG_TABLES = ['medical.access_log'];
+const tenantTables = allTables
+  .filter((t) => !GLOBAL_TABLES.includes(t.name) || t.schema !== undefined)
+  .filter((t) => !LOG_TABLES.includes(qualified(t)));
+const tenantTableNames = new Set(tenantTables.map(qualified));
 
 describe('schema conventions', () => {
   it('defines the B-301 model, the B-306 reference tables and the B-309 access tables', () => {
@@ -68,7 +77,18 @@ describe('schema conventions', () => {
     );
   });
 
-  it.each(tenantTables.map((t) => [t.name, t] as const))(
+  it('defines the B-304 medical tables in their own schema', () => {
+    expect(medicalTables.map((t) => t.name).sort()).toEqual([
+      'access_log',
+      'concussion',
+      'concussion_stage',
+      'hold',
+      'injury',
+      'note',
+    ]);
+  });
+
+  it.each(tenantTables.map((t) => [qualified(t), t] as const))(
     '%s has club_id, a uuid id and the audit columns',
     (_name, table) => {
       const columns = new Map(table.columns.map((c) => [c.name, c]));
@@ -88,21 +108,25 @@ describe('schema conventions', () => {
     },
   );
 
-  it.each(tenantTables.map((t) => [t.name, t] as const))(
+  it.each(tenantTables.map((t) => [qualified(t), t] as const))(
     '%s references other club tables through (club_id, id)',
     (_name, table) => {
       for (const fk of table.foreignKeys) {
         const reference = fk.reference();
-        const target = getTableConfig(reference.foreignTable).name;
+        const target = qualified(getTableConfig(reference.foreignTable));
         if (!tenantTableNames.has(target)) continue;
         expect(reference.columns.map((c) => c.name)[0], fk.getName()).toBe('club_id');
-        expect(reference.foreignColumns.map((c) => c.name)).toEqual(['club_id', 'id']);
+        // Medical rows also carry the player: (club_id, id, player_id), ADR 0029.
+        const foreign = reference.foreignColumns.map((c) => c.name);
+        expect(foreign.slice(0, 2), fk.getName()).toEqual(['club_id', 'id']);
+        if (foreign.length > 2)
+          expect(foreign, fk.getName()).toEqual(['club_id', 'id', 'player_id']);
       }
     },
   );
 
   it('keeps every constraint and index name within the Postgres limit', () => {
-    for (const table of tables) {
+    for (const table of allTables) {
       const names = [
         ...table.foreignKeys.map((fk) => fk.getName()),
         ...table.uniqueConstraints.map((u) => u.getName() ?? ''),

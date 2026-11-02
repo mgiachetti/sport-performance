@@ -81,7 +81,7 @@ media.read               self+image            -               assigned+image  a
 media.upload             -                     -               -               assigned+image  -                club+image  club+image
 media.delete             -                     -               -               assigned        -                club        club
 availability.read        self                  guardian        assigned        assigned        assigned         club        club
-medical_record.read      -                     -               -               -               assigned         -           -
+medical_record.read      self+health           guardian+health+minor -               -               assigned         -           -
 medical_record.record    -                     -               -               -               assigned+health  -           -
 medical_record.update    -                     -               -               -               assigned+health  -           -
 medical_block.read       -                     -               -               -               assigned         -           -
@@ -590,10 +590,23 @@ describe('listScope and decide agree on obligations', () => {
 describe('privacy invariants (independent of the specification)', () => {
   const allowedCells = cells.filter((c) => c.rule.effect === 'allow');
 
-  it('only the medical role touches health data', () => {
+  it('only the medical role writes health data; holders only read their own, with consent', () => {
     const medical = allowedCells.filter((c) => PERMISSION_RESOURCES[c.kind].medical);
     expect(medical.length).toBeGreaterThan(0);
-    for (const cell of medical) expect(cell.role, `${cell.kind}.${cell.action}`).toBe('medical');
+    for (const cell of medical) {
+      const key = `${cell.kind}.${cell.action}`;
+      if (cell.role === 'medical') continue;
+      // ADR 0029: the right of access of the holder (Ley 25.326, art. 14).
+      expect(key, cell.role).toBe('medical_record.read');
+      expect(['player', 'parent']).toContain(cell.role);
+      expect(cell.rule.effect === 'allow' && cell.rule.consents, key).toContain('health');
+      expect(cell.rule.effect === 'allow' && cell.rule.scope, key).toBe(
+        cell.role === 'player' ? 'self' : 'guardian',
+      );
+    }
+    for (const role of ['coach', 'sc', 'admin', 'superadmin'] as const) {
+      expect(medical.filter((c) => c.role === role)).toEqual([]);
+    }
   });
 
   it('a player sees named rankings and own percentiles only through the stage conditions', () => {
@@ -603,16 +616,15 @@ describe('privacy invariants (independent of the specification)', () => {
     expect(percentile.effect === 'allow' && percentile.conditions).toContain('own_percentiles');
   });
 
-  it('parents never see rankings, percentiles or health', () => {
-    for (const kind of [
-      'named_ranking',
-      'percentile',
-      'medical_record',
-      'medical_block',
-    ] as const) {
+  it("parents never see rankings or percentiles, and of health only a minor's record", () => {
+    for (const kind of ['named_ranking', 'percentile', 'medical_block'] as const) {
       for (const cell of cells.filter((c) => c.kind === kind)) {
         expect(cell.role === 'parent' ? cell.rule.effect : 'deny').toBe('deny');
       }
+    }
+    for (const cell of cells.filter((c) => c.kind === 'medical_record' && c.role === 'parent')) {
+      if (cell.action !== 'read') expect(cell.rule.effect, cell.action).toBe('deny');
+      else expect(cell.rule.effect === 'allow' && cell.rule.conditions).toContain('minor');
     }
   });
 

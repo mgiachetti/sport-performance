@@ -146,6 +146,12 @@ export async function bootstrapClub(
 
   return db.transaction(async (tx) => {
     await tx.execute(sql`select set_config('app.club_id', ${clubId}, true)`);
+    // A superadmin creating the club (B-313) acts in it from here on: the support access
+    // to the new club is recorded first, or `app.current_role()` does not grant it (ADR 0029).
+    await tx.execute(
+      sql`select app.begin_support_access('Configuración inicial del club (bootstrap)')
+           where current_setting('app.role', true) = 'superadmin'`,
+    );
     await tx.execute(
       sql`select pg_advisory_xact_lock(${BOOTSTRAP_LOCK_NAMESPACE}, hashtext(${clubId}))`,
     );
