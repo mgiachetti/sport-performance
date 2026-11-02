@@ -67,6 +67,35 @@ export const esAR = {
   'auth.otp.tooManyAttempts': 'Probaste demasiadas veces. Pedí un código nuevo.',
   'auth.rateLimited': 'Hiciste muchos intentos seguidos. Esperá unos minutos y probá de nuevo.',
 
+  // Active sessions per device (B-333)
+  'session.title': 'Sesiones activas',
+  'session.current': 'Esta sesión',
+  'session.clientType.web': 'Web',
+  'session.clientType.mobile': 'App',
+  'session.signedInAt': 'Ingresó el {date}',
+  'session.lastUsedAt': 'Último uso: {date}',
+  'session.revoke': 'Cerrar esta sesión',
+  'session.revokeOthers': 'Cerrar las demás sesiones',
+  'session.revokeOthers.confirm':
+    'Se van a cerrar todas tus sesiones menos esta. En esos dispositivos vas a tener que ingresar de nuevo.',
+  'session.revoked':
+    '{count, plural, =0 {No había otras sesiones abiertas.} one {Se cerró # sesión.} other {Se cerraron # sesiones.}}',
+  'device.label': '{browser} en {os}',
+  'device.unknown': 'Dispositivo sin identificar',
+  'device.os.ios': 'iOS',
+  'device.os.android': 'Android',
+  'device.os.macos': 'macOS',
+  'device.os.windows': 'Windows',
+  'device.os.linux': 'Linux',
+  'device.os.chromeos': 'ChromeOS',
+  'device.browser.chrome': 'Chrome',
+  'device.browser.safari': 'Safari',
+  'device.browser.firefox': 'Firefox',
+  'device.browser.edge': 'Edge',
+  'device.browser.opera': 'Opera',
+  'device.browser.samsung_internet': 'Samsung Internet',
+  'device.browser.app': 'la app',
+
   // Club selector and invitations
   'club.select.title': 'Elegí el club',
   'club.select.asRole': '{clubName} · {role}',
@@ -103,6 +132,13 @@ export const esAR = {
   'email.invitation.expires': 'El link vence el {date} y sirve una sola vez.',
   'email.invitation.fallback': 'Si el botón no anda, copiá este link en el navegador:',
   'email.invitation.ignore': 'Si no esperabas esta invitación, ignorá este correo.',
+  'email.newSignIn.subject': 'Ingreso nuevo a tu cuenta',
+  'email.newSignIn.preview': 'Se ingresó a tu cuenta de {appName} desde un dispositivo nuevo',
+  'email.newSignIn.heading': 'Ingreso nuevo a tu cuenta',
+  'email.newSignIn.body': 'Se ingresó a tu cuenta desde un dispositivo nuevo: {device}, el {date}.',
+  'email.newSignIn.ifYou': 'Si fuiste vos, no tenés que hacer nada.',
+  'email.newSignIn.ifNotYou':
+    'Si no fuiste vos, entrá a la app o a la web, abrí Sesiones activas y cerrá esa sesión. Para ingresar hace falta el código que llega a este correo: revisá quién más puede leerlo.',
 
   // Roles
   'role.player': 'Jugador/a',

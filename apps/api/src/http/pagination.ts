@@ -31,8 +31,16 @@ export interface SortKey<Row> {
 
 export interface KeysetSpec<Row, Field extends string> {
   readonly fields: Readonly<Record<Field, SortKey<Row>>>;
-  /** The id column (`uuid`) and its value in a row: the tie-breaker. */
-  readonly id: { readonly column: AnyColumn; readonly value: (row: Row) => string };
+  /**
+   * The id column and its value in a row: the tie-breaker. The value is
+   * always a UUID; `text` for a column that stores it as text (Better
+   * Auth's tables, ADR 0010), `uuid` by default.
+   */
+  readonly id: {
+    readonly column: AnyColumn;
+    readonly value: (row: Row) => string;
+    readonly type?: 'uuid' | 'text';
+  };
 }
 
 export interface KeysetQuery<Field extends string> {
@@ -160,7 +168,7 @@ export function keysetPage<Row, Field extends string>(
       type: key.type,
     });
     const comparison = descending ? sql`<` : sql`>`;
-    where = sql`(${expression}, ${spec.id.column}) ${comparison} (${keyParameter(key.type, value)}, ${id}::uuid)`;
+    where = sql`(${expression}, ${spec.id.column}) ${comparison} (${keyParameter(key.type, value)}, ${spec.id.type === 'text' ? sql`${id}::text` : sql`${id}::uuid`})`;
   }
 
   return {

@@ -14,9 +14,24 @@ import {
 
 const ROLES = Object.values(DATABASE_ROLES);
 /** Global tables: the identity of Better Auth, its attempt counters and the tenant root. */
-const GLOBAL_TABLES = ['account', 'auth_rate_limit', 'club', 'session', 'user', 'verification'];
-/** What Better Auth's role reaches (ADR 0028: the sign-in attempt counters too). */
-const AUTH_TABLES = ['account', 'auth_rate_limit', 'session', 'user', 'verification'];
+const GLOBAL_TABLES = [
+  'account',
+  'auth_rate_limit',
+  'club',
+  'known_device',
+  'session',
+  'user',
+  'verification',
+];
+/** What Better Auth's role reaches (ADR 0028: the attempt counters; ADR 0033: known devices). */
+const AUTH_TABLES = [
+  'account',
+  'auth_rate_limit',
+  'known_device',
+  'session',
+  'user',
+  'verification',
+];
 /** The only club table the application may DELETE from (a drill is a plan, ADR 0026). */
 const DELETABLE = { [DATABASE_ROLES.app]: ['drill'], [DATABASE_ROLES.auth]: AUTH_TABLES };
 const IMMUTABLE_COLUMNS = ['id', 'club_id', 'created_at', 'created_by', 'client_uuid'];
@@ -157,7 +172,7 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
     expect(rows).toEqual([]);
   });
 
-  it('the API and the worker have no access to sessions, accounts, verifications or attempt counters', async () => {
+  it('the API and the worker have no access to sessions, accounts, verifications, attempt counters or known devices', async () => {
     const { rows } = await t.pool.query<{ role: string; table: string }>(
       `select r.rolname as role, c.relname as table
          from pg_class c join pg_namespace n on n.oid = c.relnamespace cross join pg_roles r
@@ -166,7 +181,7 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
           and has_table_privilege(r.oid, c.oid, 'SELECT, INSERT, UPDATE, DELETE')`,
       [
         [DATABASE_ROLES.app, DATABASE_ROLES.worker],
-        ['session', 'account', 'verification', 'auth_rate_limit'],
+        ['session', 'account', 'verification', 'auth_rate_limit', 'known_device'],
       ],
     );
     expect(rows).toEqual([]);

@@ -29,6 +29,7 @@ import {
   revokeInvitation,
 } from './invitations.js';
 import { getMe, listMyMemberships } from './me.js';
+import { listMySessions, revokeMyOtherSessions, revokeMySession } from './sessions.js';
 
 export * from './auth.js';
 export * from './categories.js';
@@ -37,6 +38,7 @@ export * from './clubs.js';
 export * from './health.js';
 export * from './invitations.js';
 export * from './me.js';
+export * from './sessions.js';
 
 /**
  * Every endpoint of the API, keyed by operationId. The API registers its
@@ -50,6 +52,9 @@ export const apiEndpoints = {
   signOut,
   getMe,
   listMyMemberships,
+  listMySessions,
+  revokeMySession,
+  revokeMyOtherSessions,
   createInvitation,
   listInvitations,
   revokeInvitation,

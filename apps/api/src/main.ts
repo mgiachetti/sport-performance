@@ -102,9 +102,13 @@ async function main(): Promise<void> {
   });
 
   // Ended rate-limit windows are reset on the next attempt; pruning only keeps the table small.
+  // Expired sessions and devices unused for 400 days are pruned on the same timer (ADR 0033).
   const pruneTimer = setInterval(() => {
     auth.rateLimiter.prune().catch((error: unknown) => {
       logger.warn({ err: error }, 'pruning auth rate limits failed');
+    });
+    auth.sessions.prune().catch((error: unknown) => {
+      logger.warn({ err: error }, 'pruning sessions and known devices failed');
     });
   }, RATE_LIMIT_PRUNE_INTERVAL_MS);
   pruneTimer.unref();

@@ -19,7 +19,15 @@ const qualified = (t: { schema?: string | undefined; name: string }) =>
   t.schema === undefined ? t.name : `${t.schema}.${t.name}`;
 
 /** Global tables: identity (ADR 0007), sign-in attempt counters and the tenant root. */
-const GLOBAL_TABLES = ['user', 'session', 'account', 'verification', 'auth_rate_limit', 'club'];
+const GLOBAL_TABLES = [
+  'user',
+  'session',
+  'account',
+  'verification',
+  'auth_rate_limit',
+  'known_device',
+  'club',
+];
 /** Append-only audit logs: club scoped, but not club tables in the ADR 0023 sense. */
 const LOG_TABLES = ['medical.access_log'];
 const tenantTables = allTables
@@ -49,6 +57,7 @@ describe('schema conventions', () => {
         'guardian',
         'khamis_roche_coefficient',
         'khamis_roche_table',
+        'known_device',
         'gym_program',
         'gym_set',
         'invitation',

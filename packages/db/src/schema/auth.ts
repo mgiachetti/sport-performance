@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
-import { boolean, index, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core';
+import { boolean, check, index, pgTable, primaryKey, text, uniqueIndex } from 'drizzle-orm/pg-core';
 import { timestamptz } from './columns.js';
+import { deviceBrowserEnum, deviceOsEnum, sessionClientTypeEnum } from './enums.js';
 
 /**
  * Global identity tables (ADR 0007, ADR 0010).
@@ -79,8 +80,49 @@ export const session = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
+    /**
+     * Columns of "Sesiones activas" (B-333, ADR 0033), Better Auth additional
+     * fields that only the API sets (`input: false`): how the session travels,
+     * the coarse device derived from the `User-Agent` at sign-in (the raw
+     * header and the IP are never stored) and when it was last used, which
+     * the API refreshes at most every few minutes.
+     */
+    clientType: sessionClientTypeEnum('client_type').notNull(),
+    deviceOs: deviceOsEnum('device_os'),
+    deviceBrowser: deviceBrowserEnum('device_browser'),
+    lastSeenAt: timestamptz('last_seen_at').notNull().defaultNow(),
   },
-  (t) => [index('session_user_id_idx').on(t.userId)],
+  (t) => [
+    index('session_user_id_idx').on(t.userId),
+    // The IP and the raw User-Agent of minors' devices are not kept (ADR 0033). Better Auth
+    // writes '' when it has none.
+    check('session_no_ip_address', sql`coalesce(${t.ipAddress}, '') = ''`),
+    check('session_no_user_agent', sql`coalesce(${t.userAgent}, '') = ''`),
+  ],
+);
+
+/**
+ * Devices a user already signed in from (B-333, ADR 0033), to email "ingreso
+ * nuevo" only for the others. The device id is a random UUID the device keeps
+ * (an `HttpOnly` cookie on the web, secure storage in the app); only its
+ * SHA-256 is stored. Unused for 400 days, a device is forgotten. RLS: only
+ * Better Auth's role (`sport_performance_auth`).
+ */
+export const knownDevice = pgTable(
+  'known_device',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    deviceHash: text('device_hash').notNull(),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+    lastSeenAt: timestamptz('last_seen_at').notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ name: 'known_device_pkey', columns: [t.userId, t.deviceHash] }),
+    check('known_device_hash_format', sql`${t.deviceHash} ~ '^[0-9a-f]{64}$'`),
+    index('known_device_last_seen_at_idx').on(t.lastSeenAt),
+  ],
 );
 
 export const account = pgTable(

@@ -78,6 +78,10 @@ describe.skipIf(!hasDatabase)('Better Auth over the migrated database (Postgres 
       user: {
         additionalFields: { isSuperadmin: { type: 'boolean', input: false, defaultValue: false } },
       },
+      // `session.client_type` is required (ADR 0033); the API sets it per sign-in.
+      session: {
+        additionalFields: { clientType: { type: 'string', input: false, defaultValue: 'web' } },
+      },
       logger: { disabled: true },
     });
 

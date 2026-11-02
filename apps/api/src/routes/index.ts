@@ -8,6 +8,7 @@ import { registerHealthRoutes, type HealthOptions } from './health.js';
 import { registerInvitationRoutes } from './invitations.js';
 import { registerMeRoutes } from './me.js';
 import { registerOpenApiRoute } from './openapi.js';
+import { registerSessionRoutes } from './sessions.js';
 
 /**
  * Endpoints of the contract the API serves, by operationId. Adding an
@@ -21,6 +22,9 @@ export const IMPLEMENTED_ENDPOINTS = [
   'signOut',
   'getMe',
   'listMyMemberships',
+  'listMySessions',
+  'revokeMySession',
+  'revokeMyOtherSessions',
   'createInvitation',
   'listInvitations',
   'revokeInvitation',
@@ -69,6 +73,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   if (options.auth !== undefined) {
     registerAuthRoutes(app, options.auth);
     registerMeRoutes(app, options.auth);
+    registerSessionRoutes(app, options.auth);
     registerInvitationRoutes(app, options.auth);
   }
 }

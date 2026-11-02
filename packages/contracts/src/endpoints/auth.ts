@@ -2,7 +2,7 @@ import { MEMBERSHIP_ROLES } from '@sport-performance/domain';
 import { z } from 'zod';
 import { defineEndpoint } from '../endpoint.js';
 import { dateTimeSchema } from '../primitives/dates.js';
-import { clubIdSchema, idOf, slugSchema, userIdSchema } from '../primitives/ids.js';
+import { clubIdSchema, idOf, slugSchema, userIdSchema, uuidSchema } from '../primitives/ids.js';
 
 /** Digits of the sign-in code sent by email (ADR 0010). */
 export const SIGN_IN_CODE_LENGTH = 6;
@@ -118,7 +118,7 @@ export const verifySignInCode = defineEndpoint({
   path: '/v1/auth/email-otp/verify',
   summary: 'Ingresar con el código',
   description:
-    'Verifica el código y abre una sesión. La web usa `transport: "cookie"` (cookie `HttpOnly`); mobile usa `"bearer"` y guarda el token en el almacenamiento seguro. Código incorrecto o vencido: `unauthenticated`. Cada código admite 3 intentos; después, `rate_limited` sin `Retry-After`: no hay que esperar sino pedir otro código. Los límites por email y por IP también responden `rate_limited`, con `Retry-After`.',
+    'Verifica el código y abre una sesión. La web usa `transport: "cookie"` (cookie `HttpOnly`); mobile usa `"bearer"` y guarda el token en el almacenamiento seguro. Un ingreso desde un dispositivo que la cuenta no usó antes se avisa por email (salvo al crear la cuenta). Código incorrecto o vencido: `unauthenticated`. Cada código admite 3 intentos; después, `rate_limited` sin `Retry-After`: no hay que esperar sino pedir otro código. Los límites por email y por IP también responden `rate_limited`, con `Retry-After`.',
   tags: ['auth'],
   auth: 'public',
   body: z.strictObject({
@@ -128,6 +128,10 @@ export const verifySignInCode = defineEndpoint({
       .enum(SESSION_TRANSPORTS)
       .default('cookie')
       .meta({ description: 'Cómo viaja la sesión: cookie (web) o token bearer (mobile).' }),
+    deviceId: uuidSchema.optional().meta({
+      description:
+        'Solo mobile: UUID aleatorio que la app genera una vez por instalación y guarda en el almacenamiento seguro. Sirve para avisar por email solo de los ingresos desde un dispositivo nuevo; sin él, cada ingreso se avisa. La web no lo manda: el servidor usa una cookie `HttpOnly` propia.',
+    }),
   }),
   response: { status: 200, description: 'Sesión abierta.', schema: signedInSchema },
   errors: ['unauthenticated', 'rate_limited'],

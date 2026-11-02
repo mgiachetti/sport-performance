@@ -71,6 +71,13 @@
       "when": 1793587596514,
       "tag": "0009_clubs_branches_and_brand",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793590443630,
+      "tag": "0010_sessions_and_known_devices",
+      "breakpoints": true
     }
   ]
 }

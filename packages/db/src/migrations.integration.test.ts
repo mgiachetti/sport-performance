@@ -8,10 +8,13 @@ import {
   COEFFICIENT_VERIFICATION_STATUSES,
   CONSENT_SIGNERS,
   CONSENT_TYPES,
+  DEVICE_BROWSERS,
+  DEVICE_OPERATING_SYSTEMS,
   EXPOSURE_CONTEXTS,
   MATURITY_OFFSET_EQUATIONS,
   MEASUREMENT_METHODS,
   MEMBERSHIP_ROLES,
+  SESSION_CLIENT_TYPES,
   SEXES,
   SPEED_ZONE_KINDS,
   SPORTS,
@@ -27,7 +30,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runMigrations } from './migrate.js';
 import { createEmptyDatabase, hasDatabase, type TestDatabase } from './testing/database.js';
 
-const GLOBAL_TABLES = ['user', 'session', 'account', 'verification', 'auth_rate_limit', 'club'];
+const GLOBAL_TABLES = [
+  'user',
+  'session',
+  'account',
+  'verification',
+  'auth_rate_limit',
+  'known_device',
+  'club',
+];
 
 describe.skipIf(!hasDatabase)('migrations (Postgres 16)', () => {
   let database: TestDatabase;
@@ -146,6 +157,9 @@ describe.skipIf(!hasDatabase)('migrations (Postgres 16)', () => {
       change_tracked_table: CHANGE_TRACKED_TABLES,
       change_operation: CHANGE_OPERATIONS,
       change_source: CHANGE_SOURCES,
+      session_client_type: SESSION_CLIENT_TYPES,
+      device_os: DEVICE_OPERATING_SYSTEMS,
+      device_browser: DEVICE_BROWSERS,
     };
     const enums = await rows<{ name: string; labels: string[] }>(
       `select t.typname as name, array_agg(e.enumlabel::text order by e.enumsortorder)::text[] as labels

@@ -1,9 +1,20 @@
 import { sendSignInCode, signOut, verifySignInCode } from '@sport-performance/contracts';
-import { parseUserId } from '@sport-performance/domain';
+import { DEFAULT_CLUB_TIME_ZONE, parseUserId, type UserId } from '@sport-performance/domain';
 import { isAPIError } from 'better-auth/api';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { forwardSetCookie, sessionHeaders } from '../auth/authenticate.js';
-import { generateSignInCode, SIGN_IN_CODE_EXPIRES_IN_S } from '../auth/better-auth.js';
+import {
+  generateSignInCode,
+  signInWithCode,
+  SIGN_IN_CODE_EXPIRES_IN_S,
+} from '../auth/better-auth.js';
+import {
+  describeSessionClient,
+  newDeviceId,
+  readDeviceCookie,
+  setDeviceCookie,
+  type SessionClient,
+} from '../auth/device.js';
 import type { AuthModule } from '../auth/module.js';
 import { enforceRateLimits } from '../auth/rate-limit.js';
 import { EmailDeliveryError } from '../email/transport.js';
@@ -54,6 +65,42 @@ async function createdSessionExpiry(
 }
 
 /**
+ * After a sign-in: remembers the device and, when the account had not used
+ * it (or it has no id), emails a "new sign-in" notice (B-333, ADR 0033). A
+ * brand-new account gets no notice: its first device is the one that just
+ * created it. Best effort: the session is already open, so a failure here is
+ * logged (ids only, ADR 0016) and the sign-in still succeeds.
+ */
+async function noticeNewDevice(
+  auth: AuthModule,
+  log: FastifyBaseLogger,
+  signedIn: {
+    userId: UserId;
+    email: string;
+    deviceId: string | undefined;
+    client: SessionClient;
+    userCreated: boolean;
+  },
+): Promise<void> {
+  try {
+    const known =
+      signedIn.deviceId === undefined
+        ? false
+        : (await auth.sessions.rememberDevice(signedIn.userId, signedIn.deviceId)).known;
+    if (known || signedIn.userCreated) return;
+    const memberships = await auth.identity.activeMemberships(signedIn.userId);
+    await auth.mailer.sendNewSignIn({
+      to: signedIn.email,
+      device: { os: signedIn.client.deviceOs, browser: signedIn.client.deviceBrowser },
+      at: auth.now(),
+      timeZone: memberships[0]?.clubTimeZone ?? DEFAULT_CLUB_TIME_ZONE,
+    });
+  } catch (error) {
+    log.error({ err: error, userId: signedIn.userId }, 'new sign-in notice failed');
+  }
+}
+
+/**
  * `/v1/auth/*`: sign in with a code by email and sign out (ADR 0010, ADR
  * 0028). They call Better Auth's server API, so answers keep the contract's
  * envelope; the session cookie Better Auth sets is forwarded as is.
@@ -91,23 +138,37 @@ export function registerAuthRoutes(app: FastifyInstance, auth: AuthModule): void
         [limits.verifyByIp, request.ip],
         [limits.verifyByEmail, email],
       ]);
+      const client = describeSessionClient(body.transport, request.headers['user-agent']);
+      // The web's device id lives in an HttpOnly cookie of ours; the app sends its own.
+      const deviceId =
+        body.transport === 'cookie'
+          ? (readDeviceCookie(request, auth.secureCookies) ?? newDeviceId())
+          : body.deviceId;
       let result;
       try {
-        result = await betterAuth.api.signInEmailOTP({
-          body: { email, otp: body.code },
-          returnHeaders: true,
-        });
+        result = await signInWithCode(betterAuth, { email, code: body.code, client });
       } catch (error) {
         throw otpError(error);
       }
       const { user, token } = result.response;
+      const userId = parseUserId(user.id);
       const expiresAt = await createdSessionExpiry(betterAuth, token);
-      if (body.transport === 'cookie') forwardSetCookie(reply, result.headers);
+      if (body.transport === 'cookie') {
+        forwardSetCookie(reply, result.headers);
+        if (deviceId !== undefined) setDeviceCookie(reply, deviceId, auth.secureCookies);
+      }
+      await noticeNewDevice(auth, request.log, {
+        userId,
+        email: user.email,
+        deviceId,
+        client,
+        userCreated: result.userCreated,
+      });
       // No caching of a response that may carry a session token.
       void reply.header('cache-control', 'no-store');
       return {
         user: {
-          id: parseUserId(user.id),
+          id: userId,
           email: user.email,
           name: user.name,
           isSuperadmin: (user as { isSuperadmin?: unknown }).isSuperadmin === true,

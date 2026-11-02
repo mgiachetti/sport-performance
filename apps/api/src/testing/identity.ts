@@ -176,6 +176,17 @@ export interface SignedIn {
   userId: UserId;
   /** Headers that authenticate the next requests (cookie or bearer). */
   headers: Record<string, string>;
+  /** The verify response (cookies, body). */
+  response: LightMyRequestResponse;
+}
+
+export interface SignInOptions {
+  /** `User-Agent` of the verify request. */
+  userAgent?: string;
+  /** Mobile: the app's device id. */
+  deviceId?: string;
+  /** Web: `Cookie` of the verify request (the device id cookie of an earlier sign-in). */
+  cookie?: string;
 }
 
 /** Requests a code, reads it from the memory transport and verifies it. */
@@ -183,6 +194,7 @@ export async function signIn(
   t: IdentityTestApp,
   email: string,
   transport: 'cookie' | 'bearer' = 'cookie',
+  options: SignInOptions = {},
 ): Promise<SignedIn> {
   const sent = await t.app.inject({
     method: 'POST',
@@ -193,7 +205,16 @@ export async function signIn(
   const verified = await t.app.inject({
     method: 'POST',
     url: '/v1/auth/email-otp/verify',
-    payload: { email, code: lastCode(t.emails, email), transport },
+    payload: {
+      email,
+      code: lastCode(t.emails, email),
+      transport,
+      ...(options.deviceId !== undefined && { deviceId: options.deviceId }),
+    },
+    headers: {
+      ...(options.userAgent !== undefined && { 'user-agent': options.userAgent }),
+      ...(options.cookie !== undefined && { cookie: options.cookie }),
+    },
   });
   expect(verified.statusCode).toBe(200);
   const body = verified.json<{ user: { id: string }; session: { token: string | null } }>();
@@ -203,6 +224,7 @@ export async function signIn(
       transport === 'bearer'
         ? { authorization: `Bearer ${body.session.token ?? ''}` }
         : { cookie: cookieHeader(verified) },
+    response: verified,
   };
 }
 

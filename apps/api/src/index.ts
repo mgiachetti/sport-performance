@@ -16,6 +16,11 @@ export { createBetterAuth, generateSignInCode, type SportAuth } from './auth/bet
 export { createIdentityStore, type ActiveMembership, type IdentityStore } from './auth/identity.js';
 export { createAuthModule, type AuthModule, type CreateAuthModuleOptions } from './auth/module.js';
 export {
+  revokeSessionsOfEndedMembership,
+  type EndedMembershipSessions,
+} from './auth/member-sessions.js';
+export { createSessionStore, type SessionRow, type SessionStore } from './auth/sessions.js';
+export {
   AUTH_RATE_LIMITS,
   createMemoryRateLimiter,
   createPgRateLimiter,

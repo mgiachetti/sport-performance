@@ -1,4 +1,4 @@
-import { parseClubId, parseUuid } from '@sport-performance/domain';
+import { DEFAULT_CLUB_TIME_ZONE, parseClubId, parseUuid } from '@sport-performance/domain';
 import type { FastifyRequest } from 'fastify';
 import { describe, expect, it } from 'vitest';
 import { HttpError } from '../http/errors.js';
@@ -24,6 +24,7 @@ const membership = (id: string): ActiveMembership => ({
   clubId: parseClubId('0192e7a0-5c1a-7b7e-9f3a-2d4c6b8a1e0f'),
   clubSlug: 'orc',
   clubName: 'Olivos Rugby Club',
+  clubTimeZone: DEFAULT_CLUB_TIME_ZONE,
   role: 'coach',
   startedAt: new Date('2026-01-01T00:00:00.000Z'),
 });
