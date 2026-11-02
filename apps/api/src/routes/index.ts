@@ -24,6 +24,7 @@ import { registerMeRoutes } from './me.js';
 import { registerMemberRoutes } from './members.js';
 import { registerOpenApiRoute } from './openapi.js';
 import { registerReferenceValueRoutes } from './reference-values.js';
+import { registerRosterImportRoutes } from './roster-imports.js';
 import { registerSessionRoutes } from './sessions.js';
 import { registerStaffAssignmentRoutes } from './staff-assignments.js';
 import { registerPlayerRoutes } from './players.js';
@@ -192,6 +193,10 @@ export const IMPLEMENTED_ENDPOINTS = [
   'getFile',
   'getFileDownload',
   'deleteFile',
+  'previewRosterImport',
+  'importRoster',
+  'listRosterImports',
+  'getRosterImport',
 ] as const satisfies readonly (keyof ApiEndpoints)[];
 
 /** Declared in the contract but served by a later issue (`'#N (B-xxx): why'`). */
@@ -234,6 +239,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerModuleRoutes(app);
   registerConsentRoutes(app);
   registerFileRoutes(app, options.files);
+  registerRosterImportRoutes(app);
   if (options.auth !== undefined) {
     registerAuthRoutes(app, options.auth);
     registerMeRoutes(app, options.auth);

@@ -73,6 +73,10 @@
     {
       "name": "files",
       "description": "Archivos subidos al bucket con URLs firmadas: videos del CMJ, escudo, informes y planillas."
+    },
+    {
+      "name": "imports",
+      "description": "Importación del padrón desde una planilla: vista previa, duplicados y registro (B-330)."
     }
   ],
   "paths": {
@@ -11728,6 +11732,364 @@
         }
       }
     },
+    "/v1/roster-imports": {
+      "get": {
+        "operationId": "listRosterImports",
+        "summary": "Importaciones de padrón",
+        "description": "La administración: quién importó, cuándo y cuántas filas creó, actualizó u omitió.",
+        "tags": [
+          "imports"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `createdAt`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "-createdAt",
+              "type": "string",
+              "enum": [
+                "createdAt",
+                "-createdAt"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de importaciones.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterImportPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.bad_request.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "importRoster",
+        "summary": "Importar un padrón",
+        "description": "La administración. Todo o nada: si alguna fila no vale (las mismas reglas que la vista previa) o tiene una coincidencia posible sin decisión, `validation_failed` con el detalle por fila y no se escribe nada. No crea un duplicado exacto ni actualiza a un jugador dado de baja; `update` con un `playerId` que no es candidato de la fila: `validation_failed`; con `version` desactualizada: `conflict`. Crear da de alta con posiciones y categoría inicial desde el alta; actualizar cambia el lado dominante y las posiciones si vienen, y agrega la categoría solo si no tiene ninguna vigente (un cambio de categoría es un pase). Los tutores con un `parent` activo del club se vinculan; los demás vuelven en `invitationsToSend` (la importación no manda emails). Idempotente por `clientUuid`: el mismo cuerpo devuelve el mismo resultado (`X-Idempotent-Replay: true`); otro cuerpo con el mismo `clientUuid`: `conflict`.",
+        "tags": [
+          "imports"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientUuid": {
+                    "$ref": "#/components/schemas/ClientUuid"
+                  },
+                  "sport": {
+                    "description": "Deporte de las filas que no traen el suyo.",
+                    "$ref": "#/components/schemas/Sport"
+                  },
+                  "rows": {
+                    "minItems": 1,
+                    "maxItems": 1000,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/RosterImportRow"
+                    }
+                  }
+                },
+                "required": [
+                  "clientUuid",
+                  "rows"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Padrón importado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterImportResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error.conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/roster-imports/{rosterImportId}": {
+      "get": {
+        "operationId": "getRosterImport",
+        "summary": "Una importación de padrón",
+        "description": "La administración, con el resultado por fila. De otro club: `not_found`.",
+        "tags": [
+          "imports"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "rosterImportId",
+            "in": "path",
+            "required": true,
+            "description": "Id de importación de padrón (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "La importación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterImport"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/roster-imports/preview": {
+      "post": {
+        "operationId": "previewRosterImport",
+        "summary": "Vista previa de una importación de padrón",
+        "description": "La administración (`data_import.run` y `player_profile.create`). No escribe nada. Valida cada fila contra el club (rama habilitada, categoría activa de la rama, posiciones del deporte, fechas no futuras), busca duplicados en el archivo y en el club (también dados de baja) y dice qué pasaría con cada fila y cada tutor. Hasta 1000 filas.",
+        "tags": [
+          "imports"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sport": {
+                    "description": "Deporte de las filas que no traen el suyo.",
+                    "$ref": "#/components/schemas/Sport"
+                  },
+                  "rows": {
+                    "minItems": 1,
+                    "maxItems": 1000,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/RosterImportRow"
+                    }
+                  }
+                },
+                "required": [
+                  "rows"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "La vista previa.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterImportPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
     "/v1/seasons": {
       "get": {
         "operationId": "listSeasons",
@@ -22388,6 +22750,781 @@
         "required": [
           "revoked"
         ]
+      },
+      "RosterGuardianOutcome": {
+        "type": "string",
+        "enum": [
+          "linked",
+          "already_linked",
+          "invitation_pending",
+          "invite",
+          "skipped"
+        ],
+        "description": "`linked` (el email es de un `parent` activo del club: queda vinculado), `already_linked`, `invitation_pending` (ya hay una invitación abierta), `invite` (hay que invitarlo: la importación no manda emails) o `skipped` (nadie a quien vincular: fila omitida sin jugador, o jugador dado de baja)."
+      },
+      "RosterImport": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de importación de padrón (UUID, RFC 9562)."
+          },
+          "clientUuid": {
+            "$ref": "#/components/schemas/ClientUuid"
+          },
+          "rowCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "createdCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "updatedCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "skippedCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "guardiansLinkedCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "invitationsToSendCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "createdBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de usuario (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Quién importó (`null`: cuenta borrada)."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RosterImportRowOutcome"
+            },
+            "description": "Resultado por fila: ids y resultados, nunca nombres ni emails."
+          }
+        },
+        "required": [
+          "id",
+          "clientUuid",
+          "rowCount",
+          "createdCount",
+          "updatedCount",
+          "skippedCount",
+          "guardiansLinkedCount",
+          "invitationsToSendCount",
+          "createdBy",
+          "createdAt",
+          "rows"
+        ]
+      },
+      "RosterImportAction": {
+        "type": "string",
+        "enum": [
+          "create",
+          "skip",
+          "update"
+        ],
+        "description": "`create` (alta nueva), `skip` (no cambia la ficha; los tutores igual se vinculan al jugador encontrado) o `update` (completa la ficha de un jugador encontrado)."
+      },
+      "RosterImportGuardian": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "description": "Email. El servidor lo guarda y lo compara en minúsculas.",
+            "examples": [
+              "ana@example.com"
+            ]
+          },
+          "relationship": {
+            "$ref": "#/components/schemas/GuardianRelationship"
+          }
+        },
+        "required": [
+          "email",
+          "relationship"
+        ],
+        "additionalProperties": false
+      },
+      "RosterImportPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RosterImportSummary"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "RosterImportPreview": {
+        "type": "object",
+        "properties": {
+          "rowCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "invalidCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "resolutionRequiredCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "createCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "updateCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "skipCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "guardiansToLinkCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "invitationsToSendCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RosterPreviewRow"
+            }
+          }
+        },
+        "required": [
+          "rowCount",
+          "invalidCount",
+          "resolutionRequiredCount",
+          "createCount",
+          "updateCount",
+          "skipCount",
+          "guardiansToLinkCount",
+          "invitationsToSendCount",
+          "rows"
+        ]
+      },
+      "RosterImportResolution": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "action": {
+                "type": "string",
+                "const": "create"
+              }
+            },
+            "required": [
+              "action"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "action": {
+                "type": "string",
+                "const": "skip"
+              }
+            },
+            "required": [
+              "action"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "action": {
+                "type": "string",
+                "const": "update"
+              },
+              "playerId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Uno de los candidatos de la vista previa."
+              },
+              "version": {
+                "description": "Versión que el cliente leyó (`version` de la respuesta). Si no es la actual: `409 conflict`.",
+                "$ref": "#/components/schemas/ResourceVersion"
+              }
+            },
+            "required": [
+              "action",
+              "playerId",
+              "version"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "description": "Decisión del staff para la fila. Sin decisión: sin coincidencias se crea, con una exacta se omite, con una posible es `validation_failed` (`resolution_required`)."
+      },
+      "RosterImportResult": {
+        "type": "object",
+        "properties": {
+          "import": {
+            "$ref": "#/components/schemas/RosterImport"
+          },
+          "invitationsToSend": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RosterInvitationToSend"
+            }
+          }
+        },
+        "required": [
+          "import",
+          "invitationsToSend"
+        ]
+      },
+      "RosterImportRow": {
+        "type": "object",
+        "properties": {
+          "sourceRow": {
+            "description": "Fila de la planilla (para los mensajes); no se guarda.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "firstName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "lastName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "birthDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "sex": {
+            "$ref": "#/components/schemas/Sex"
+          },
+          "sport": {
+            "description": "Por defecto, el del lote.",
+            "$ref": "#/components/schemas/Sport"
+          },
+          "category": {
+            "description": "Categoría inicial: el nombre de una categoría activa de la rama del jugador o su franja de edad (`M15`) si hay una sola. Sin tildes ni mayúsculas que importen.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "positions": {
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "description": "Posiciones del deporte por código (`hooker`) o por la etiqueta del club, la principal primero."
+          },
+          "dominantSide": {
+            "$ref": "#/components/schemas/DominantSide"
+          },
+          "joinedOn": {
+            "description": "Día de alta; por defecto, hoy en la zona del club.",
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "guardians": {
+            "maxItems": 2,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RosterImportGuardian"
+            },
+            "description": "Hasta 2 tutores por jugador."
+          },
+          "resolution": {
+            "$ref": "#/components/schemas/RosterImportResolution"
+          }
+        },
+        "required": [
+          "firstName",
+          "lastName",
+          "birthDate",
+          "sex"
+        ],
+        "additionalProperties": false
+      },
+      "RosterImportRowOutcome": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "sourceRow": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "result": {
+            "$ref": "#/components/schemas/RosterRowResult"
+          },
+          "playerId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de jugador/a (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "El jugador creado, actualizado o encontrado; `null` si se omitió sin coincidencia."
+          },
+          "guardians": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RosterGuardianOutcome"
+            }
+          }
+        },
+        "required": [
+          "index",
+          "sourceRow",
+          "result",
+          "playerId",
+          "guardians"
+        ]
+      },
+      "RosterImportSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de importación de padrón (UUID, RFC 9562)."
+          },
+          "clientUuid": {
+            "$ref": "#/components/schemas/ClientUuid"
+          },
+          "rowCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "createdCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "updatedCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "skippedCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "guardiansLinkedCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "invitationsToSendCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "createdBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de usuario (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Quién importó (`null`: cuenta borrada)."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "clientUuid",
+          "rowCount",
+          "createdCount",
+          "updatedCount",
+          "skippedCount",
+          "guardiansLinkedCount",
+          "invitationsToSendCount",
+          "createdBy",
+          "createdAt"
+        ]
+      },
+      "RosterInvitationToSend": {
+        "type": "object",
+        "properties": {
+          "rowIndex": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "guardianIndex": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "description": "Email. El servidor lo guarda y lo compara en minúsculas.",
+            "examples": [
+              "ana@example.com"
+            ]
+          },
+          "relationship": {
+            "$ref": "#/components/schemas/GuardianRelationship"
+          }
+        },
+        "required": [
+          "rowIndex",
+          "guardianIndex",
+          "playerId",
+          "email",
+          "relationship"
+        ],
+        "description": "Invitación a enviar con `POST /v1/invitations` (rol `parent`, `playerId` y `relationship`)."
+      },
+      "RosterMatch": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "possible"
+            ]
+          },
+          "reason": {
+            "$ref": "#/components/schemas/RosterMatchReason"
+          },
+          "firstName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "lastName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "birthDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "sex": {
+            "$ref": "#/components/schemas/Sex"
+          },
+          "sport": {
+            "$ref": "#/components/schemas/Sport"
+          },
+          "currentCategoryIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Id de categoría (UUID, RFC 9562)."
+            }
+          },
+          "archived": {
+            "type": "boolean",
+            "description": "Dado de baja: se restaura antes de actualizarlo."
+          },
+          "version": {
+            "description": "Para decidir `update`.",
+            "$ref": "#/components/schemas/ResourceVersion"
+          }
+        },
+        "required": [
+          "playerId",
+          "kind",
+          "reason",
+          "firstName",
+          "lastName",
+          "birthDate",
+          "sex",
+          "sport",
+          "currentCategoryIds",
+          "archived",
+          "version"
+        ]
+      },
+      "RosterMatchReason": {
+        "type": "string",
+        "enum": [
+          "same_name_and_birth_date",
+          "swapped_names",
+          "same_last_name_and_birth_date",
+          "similar_name",
+          "same_name_close_birth_date"
+        ],
+        "description": "Por qué una fila puede ser un jugador del club: `same_name_and_birth_date` (coincidencia exacta), `swapped_names`, `same_last_name_and_birth_date`, `similar_name` (un error de tipeo) o `same_name_close_birth_date` (fecha cercana o con día y mes invertidos). Siempre dentro del mismo deporte."
+      },
+      "RosterPreviewGuardian": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "description": "Email. El servidor lo guarda y lo compara en minúsculas.",
+            "examples": [
+              "ana@example.com"
+            ]
+          },
+          "relationship": {
+            "$ref": "#/components/schemas/GuardianRelationship"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/RosterGuardianOutcome"
+          }
+        },
+        "required": [
+          "email",
+          "relationship",
+          "outcome"
+        ]
+      },
+      "RosterPreviewRow": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "sourceRow": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationIssue"
+            },
+            "description": "Problemas de la fila (`[\"body\", \"rows\", i, campo]`); vacía si vale."
+          },
+          "action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RosterImportAction"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que haría la importación; `null` si la fila no vale o falta decidir."
+          },
+          "resolutionRequired": {
+            "type": "boolean",
+            "description": "Hay una coincidencia posible y la fila no trae decisión."
+          },
+          "categoryId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de categoría (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "positionIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Id de posición (UUID, RFC 9562)."
+            }
+          },
+          "matches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RosterMatch"
+            },
+            "description": "Exactas primero."
+          },
+          "duplicateOfIndex": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Otra fila del archivo con la misma persona."
+          },
+          "guardians": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RosterPreviewGuardian"
+            }
+          }
+        },
+        "required": [
+          "index",
+          "sourceRow",
+          "issues",
+          "action",
+          "resolutionRequired",
+          "categoryId",
+          "positionIds",
+          "matches",
+          "duplicateOfIndex",
+          "guardians"
+        ]
+      },
+      "RosterRowResult": {
+        "type": "string",
+        "enum": [
+          "created",
+          "skipped",
+          "updated"
+        ],
+        "description": "Qué pasó con la fila: `created`, `updated` o `skipped`."
       },
       "RpeWindow": {
         "type": "object",

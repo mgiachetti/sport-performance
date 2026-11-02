@@ -39,6 +39,7 @@ import {
   playerWellnessDaily,
   position,
   referenceValue,
+  rosterImport,
   season,
   speedZoneConfig,
   staffAssignment,
@@ -660,6 +661,26 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
       .insert(invitationCategory)
       .values({ ...base, invitationId: rows.invitation, categoryId: m15 })
       .returning({ id: invitationCategory.id }),
+  );
+
+  rows.roster_import = await id(
+    db
+      .insert(rosterImport)
+      .values({
+        ...base,
+        requestSha256: createHash('sha256').update(`fixture-roster-import-${slug}`).digest('hex'),
+        rowCount: 1,
+        createdCount: 1,
+        updatedCount: 0,
+        skippedCount: 0,
+        guardiansLinkedCount: 0,
+        invitationsToSendCount: 0,
+        outcomes: [
+          { index: 0, sourceRow: 2, result: 'created', playerId: assigned, guardians: [] },
+        ],
+        createdBy: users.admin,
+      })
+      .returning({ id: rosterImport.id }),
   );
 
   return { clubId, slug, users, players: { assigned, other }, rows };

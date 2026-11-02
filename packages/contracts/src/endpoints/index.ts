@@ -119,6 +119,12 @@ import {
   restoreReferenceValue,
   updateReferenceValue,
 } from './reference-values.js';
+import {
+  getRosterImport,
+  importRoster,
+  listRosterImports,
+  previewRosterImport,
+} from './roster-imports.js';
 import { listMySessions, revokeMyOtherSessions, revokeMySession } from './sessions.js';
 import { changeMemberRole, endMember, getMember, listMembers } from './members.js';
 import {
@@ -194,6 +200,7 @@ export * from './health.js';
 export * from './invitations.js';
 export * from './me.js';
 export * from './reference-values.js';
+export * from './roster-imports.js';
 export * from './sessions.js';
 export * from './members.js';
 export * from './staff-assignments.js';
@@ -361,6 +368,10 @@ export const apiEndpoints = {
   getFile,
   getFileDownload,
   deleteFile,
+  previewRosterImport,
+  importRoster,
+  listRosterImports,
+  getRosterImport,
 } as const satisfies EndpointCatalog;
 
 export type ApiEndpoints = typeof apiEndpoints;

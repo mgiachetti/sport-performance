@@ -390,3 +390,5 @@ export {
 } from './files.js';
 // App versions and compatibility (B-324).
 export * from './app-version/index.js';
+// Roster import: spreadsheets and duplicate detection (B-330).
+export * from './roster-import/index.js';
