@@ -53,6 +53,11 @@ Variables: [`.env.example`](.env.example). Se validan al arrancar; si falta o es
 | `GET /v1/players/{id}/test-metrics/{metricCode}` | Serie de una métrica del jugador con el aviso de métodos, versiones o equipos distintos. |
 | `GET`/`POST /v1/reference-values`, `GET`/`PATCH /v1/reference-values/{id}`, `POST …/{id}/archive`, `POST …/{id}/restore`, `POST /v1/reference-values/import` | Referencias de primera (el staff lee; `sc` y la administración cargan, corrigen e importan; ADR 0040). |
 | `GET /v1/players/{playerId}/first-team-references` | La referencia de primera que aplica al jugador por métrica (el propio jugador, el staff asignado, la administración). |
+| `GET`/`POST /v1/players/{id}/guardians`, `PATCH /v1/guardians/{id}`, `POST …/{id}/end` | Tutores de un jugador/a (la administración vincula; ven la administración, el jugador/a y sus tutores). |
+| `GET /v1/me/children` | Los hijos/as del tutor (`parent`) en el club activo. |
+| `POST /v1/players/{id}/invitations` | El tutor de un menor (o la administración) invita al jugador/a por email. |
+| `POST`/`GET /v1/players/{id}/access-codes`, `DELETE …/{codeId}` | Código y link de un solo uso (15 min) para el dispositivo de un jugador/a sin email. |
+| `POST /v1/auth/player-access` | Público: canjea el código o el link y abre la sesión mobile del jugador/a (ADR 0042). |
 
 ## Sesión y club
 
@@ -84,6 +89,7 @@ Variables: [`.env.example`](.env.example). Se validan al arrancar; si falta o es
 | `src/auth/` | Better Auth (`better-auth.ts`), el hook de sesión y selector de club (`authenticate.ts`), membresías e invitaciones fuera del contexto de un club (`identity.ts`), límites de intentos en Postgres (`rate-limit.ts`), guard de origen (`origin-guard.ts`) y el módulo que los junta (`module.ts`). |
 | `src/email/` | `EmailTransport` (Resend, memoria, log), plantillas React Email y `Mailer`. |
 | `src/invitations/` | Tokens, links (deep link y universal link) y estado de las invitaciones. |
+| `src/guardians/` | Códigos de ingreso de los jugadores/as sin email: generación, normalización, HMAC, links y estado (ADR 0042). |
 | `src/http/endpoint.ts` | `registerEndpoint`: ruta del catálogo con validación de entrada y salida, y la transacción del request (contexto, request id, motivo de corrección, soporte del superadmin). |
 | `src/http/permissions.ts` | El sujeto de la matriz de permisos por request y `authorize` / `listScope` (ADR 0025, 0032). |
 | `src/http/pagination.ts` | `keysetPage`: paginación por cursor con orden permitido y filtros atados al cursor. |

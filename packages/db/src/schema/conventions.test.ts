@@ -67,6 +67,7 @@ describe('schema conventions', () => {
         'metric_definition',
         'participation',
         'player',
+        'player_access_code',
         'player_category',
         'player_parent_height',
         'player_position',

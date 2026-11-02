@@ -1,5 +1,10 @@
 import { sendSignInCode, signOut, verifySignInCode } from '@sport-performance/contracts';
-import { DEFAULT_CLUB_TIME_ZONE, parseUserId, type UserId } from '@sport-performance/domain';
+import {
+  DEFAULT_CLUB_TIME_ZONE,
+  isUndeliverableEmail,
+  parseUserId,
+  type UserId,
+} from '@sport-performance/domain';
 import { isAPIError } from 'better-auth/api';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { forwardSetCookie, sessionHeaders } from '../auth/authenticate.js';
@@ -52,7 +57,7 @@ function otpError(error: unknown): unknown {
 }
 
 /** Expiry of the session Better Auth just created for `token`, as stored. */
-async function createdSessionExpiry(
+export async function createdSessionExpiry(
   betterAuth: AuthModule['betterAuth'],
   token: string,
 ): Promise<Date> {
@@ -71,7 +76,7 @@ async function createdSessionExpiry(
  * created it. Best effort: the session is already open, so a failure here is
  * logged (ids only, ADR 0016) and the sign-in still succeeds.
  */
-async function noticeNewDevice(
+export async function noticeNewDevice(
   auth: AuthModule,
   log: FastifyBaseLogger,
   signedIn: {
@@ -87,7 +92,9 @@ async function noticeNewDevice(
       signedIn.deviceId === undefined
         ? false
         : (await auth.sessions.rememberDevice(signedIn.userId, signedIn.deviceId)).known;
-    if (known || signedIn.userCreated) return;
+    // An account without email (a player signed in by their guardian's code, ADR 0042) has
+    // nowhere to send it; the guardian sees the code's use in its list.
+    if (known || signedIn.userCreated || isUndeliverableEmail(signedIn.email)) return;
     const memberships = await auth.identity.activeMemberships(signedIn.userId);
     await auth.mailer.sendNewSignIn({
       to: signedIn.email,
@@ -116,6 +123,9 @@ export function registerAuthRoutes(app: FastifyInstance, auth: AuthModule): void
         [limits.signInCodeByIp, request.ip],
         [limits.signInCodeByEmail, email],
       ]);
+      // Accounts without email (`.invalid`, ADR 0042) never get a code: the answer is the
+      // same as for any other address, and nothing can be delivered there anyway.
+      if (isUndeliverableEmail(email)) return { expiresInS: SIGN_IN_CODE_EXPIRES_IN_S };
       try {
         const code = await generateSignInCode(betterAuth, email);
         await auth.mailer.sendSignInCode({

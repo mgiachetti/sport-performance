@@ -28,6 +28,22 @@ export const AUTH_RATE_LIMITS = {
   invitationByIp: { name: 'invitation_ip', max: 30, windowS: 15 * 60 },
   /** Invitations accepted by one signed-in user (on top of the IP limit). */
   invitationAcceptByUser: { name: 'invitation_accept_user', max: 10, windowS: 15 * 60 },
+  /**
+   * Player access codes typed from one IP (B-310, ADR 0042). A code has ~40
+   * bits and lives 15 minutes; with these limits guessing any open code is
+   * out of reach (see the ADR).
+   */
+  playerAccessCodeByIp: { name: 'player_access_code_ip', max: 10, windowS: 15 * 60 },
+  /**
+   * Player access codes typed across the whole platform (subject `all`):
+   * bounds a guess distributed over many IPs. Only the code: the link
+   * (256-bit token) cannot be guessed and keeps working under a flood.
+   */
+  playerAccessCodeGlobal: { name: 'player_access_code_all', max: 1000, windowS: 15 * 60 },
+  /** Player access links opened from one IP. */
+  playerAccessLinkByIp: { name: 'player_access_link_ip', max: 30, windowS: 15 * 60 },
+  /** Access codes and player invitations a guardian (or admin) issues. */
+  playerAccessIssueByUser: { name: 'player_access_issue_user', max: 20, windowS: 15 * 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type AuthRateLimits = Record<keyof typeof AUTH_RATE_LIMITS, RateLimitRule>;

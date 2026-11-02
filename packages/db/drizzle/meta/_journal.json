@@ -127,6 +127,13 @@
       "when": 1793631781460,
       "tag": "0017_battery_and_speed_zone_archive",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793632477880,
+      "tag": "0018_guardians_and_player_access",
+      "breakpoints": true
     }
   ]
 }

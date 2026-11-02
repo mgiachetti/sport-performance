@@ -189,7 +189,73 @@ export const guardian = pgTable(
       .on(t.clubId, t.playerId, t.userId)
       .where(sql`${t.validTo} is null`),
     index('guardian_user_id_idx').on(t.userId),
-    validityCheck('guardian_validity', t.validFrom, t.validTo),
+    /**
+     * Unlike other validity ranges, an empty one (`valid_to = valid_from`) is
+     * allowed: a link ended on the day it starts (a wrong guardian, linked
+     * by mistake) must stop counting at once, and never counted (ADR 0042).
+     */
+    check('guardian_validity', sql`${t.validTo} is null or ${t.validTo} >= ${t.validFrom}`),
+  ],
+);
+
+/**
+ * Access of a player without email (B-310, ADR 0042): a guardian (or the
+ * administration) issues a short **code** to type and a **link** to open on
+ * the player's device; redeeming either one, once, opens a session of the
+ * player's account (creating it on first use). Only hashes are stored: the
+ * HMAC-SHA-256 of the code with the auth secret (8 characters are too few
+ * for a plain hash to resist a dump) and the SHA-256 of the 256-bit token.
+ *
+ * Short-lived (the API issues them for 15 minutes; the database caps them at
+ * one hour), single use, one open per player. Rows stay as the record of who
+ * gave access to whom and when it was used. RLS (migration 0020): the
+ * administration and the player's guardians; redeeming goes through
+ * `app.redeem_player_access()` (`SECURITY DEFINER`).
+ */
+export const playerAccessCode = pgTable(
+  'player_access_code',
+  {
+    ...tenantColumns(),
+    playerId: uuid('player_id').notNull().$type<PlayerId>(),
+    /** Lowercase hex HMAC-SHA-256 of the normalized code. */
+    codeHash: text('code_hash').notNull(),
+    /** Lowercase hex SHA-256 of the token of the link. */
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: timestamptz('expires_at').notNull(),
+    consumedAt: timestamptz('consumed_at'),
+    /** The player's account that redeemed it (`NULL` only if deleted afterwards). */
+    consumedBy: text('consumed_by').references(() => user.id, { onDelete: 'set null' }),
+    revokedAt: timestamptz('revoked_at'),
+    revokedBy: text('revoked_by').references(() => user.id, { onDelete: 'set null' }),
+  },
+  (t) => [
+    ...tenantConstraints('player_access_code', t),
+    tenantReference('player_access_code', t.clubId, t.playerId, player),
+    unique('player_access_code_code_hash_key').on(t.codeHash),
+    unique('player_access_code_token_hash_key').on(t.tokenHash),
+    /** One open code per player: issuing a new one revokes the previous one. */
+    uniqueIndex('player_access_code_open_key')
+      .on(t.clubId, t.playerId)
+      .where(sql`${t.consumedAt} is null and ${t.revokedAt} is null`),
+    index('player_access_code_player_idx').on(t.clubId, t.playerId, t.createdAt),
+    check('player_access_code_code_hash_format', sql`${t.codeHash} ~ '^[0-9a-f]{64}$'`),
+    check('player_access_code_token_hash_format', sql`${t.tokenHash} ~ '^[0-9a-f]{64}$'`),
+    check(
+      'player_access_code_expiry',
+      sql`${t.expiresAt} > ${t.createdAt} and ${t.expiresAt} <= ${t.createdAt} + interval '1 hour'`,
+    ),
+    check(
+      'player_access_code_single_outcome',
+      sql`${t.consumedAt} is null or ${t.revokedAt} is null`,
+    ),
+    check(
+      'player_access_code_consumed_by',
+      sql`${t.consumedBy} is null or ${t.consumedAt} is not null`,
+    ),
+    check(
+      'player_access_code_revoked_by',
+      sql`${t.revokedBy} is null or ${t.revokedAt} is not null`,
+    ),
   ],
 );
 

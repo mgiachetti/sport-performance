@@ -5,12 +5,25 @@ import {
   previewInvitation,
   revokeInvitation,
   STAFF_ROLES,
+  type CreatedInvitation,
   type Invitation as InvitationDto,
   type InvitationStatus,
   type ValidationIssue,
 } from '@sport-performance/contracts';
-import { category, club, invitation, invitationCategory } from '@sport-performance/db/schema';
-import type { ClubId, MembershipRole } from '@sport-performance/domain';
+import {
+  category,
+  club,
+  invitation,
+  invitationCategory,
+  player,
+} from '@sport-performance/db/schema';
+import type {
+  CategoryId,
+  ClubId,
+  GuardianRelationship,
+  MembershipRole,
+  PlayerId,
+} from '@sport-performance/domain';
 import { and, eq, gt, inArray, isNotNull, isNull, lte, sql, type SQL } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { membershipSummary } from '../auth/identity.js';
@@ -32,8 +45,8 @@ import {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Who manages invitations. Until the permissions matrix (#34, B-305) lands,
- * only the club's `admin`.
+ * Who manages the club's invitations: only its `admin` (a guardian invites
+ * their child through `POST /v1/players/{id}/invitations`, B-310).
  */
 function requireInvitationManager(caller: ClubAuthContext): void {
   if (caller.membership.role !== 'admin') {
@@ -45,6 +58,8 @@ interface InvitationRow {
   id: string;
   email: string;
   role: MembershipRole;
+  playerId: PlayerId | null;
+  guardianRelationship: GuardianRelationship | null;
   expiresAt: Date;
   createdAt: Date;
   acceptedAt: Date | null;
@@ -55,6 +70,8 @@ const invitationColumns = {
   id: invitation.id,
   email: invitation.email,
   role: invitation.role,
+  playerId: invitation.playerId,
+  guardianRelationship: invitation.guardianRelationship,
   expiresAt: invitation.expiresAt,
   createdAt: invitation.createdAt,
   acceptedAt: invitation.acceptedAt,
@@ -67,6 +84,8 @@ function toDto(row: InvitationRow, categoryIds: readonly string[], now: Date): I
     email: row.email,
     role: row.role,
     categoryIds: [...categoryIds] as InvitationDto['categoryIds'],
+    playerId: row.playerId,
+    relationship: row.guardianRelationship,
     status: invitationStatus(row, now),
     expiresAt: row.expiresAt.toISOString(),
     createdAt: row.createdAt.toISOString(),
@@ -128,6 +147,115 @@ const INVITATION_KEYS: KeysetSpec<InvitationRow, 'createdAt' | 'expiresAt'> = {
   id: { column: invitation.id, value: (row) => row.id },
 };
 
+/** What {@link issueInvitation} needs: the contract's input, already validated by the caller. */
+export interface InvitationRequest {
+  email: string;
+  role: MembershipRole;
+  categoryIds: readonly CategoryId[];
+  playerId: PlayerId | null;
+  relationship: GuardianRelationship | null;
+  expiresInDays: number;
+}
+
+/**
+ * Creates an invitation and emails its link, in the request transaction
+ * (ADR 0028). Inviting again (same email, role and player) replaces the
+ * previous link. Shared by the administration (`POST /v1/invitations`) and
+ * by a guardian inviting their child (`POST /v1/players/{id}/invitations`,
+ * B-310): the caller authorizes and validates first; RLS lets a `parent`
+ * write only `player` invitations of their children.
+ */
+export async function issueInvitation(
+  db: TenantDatabase,
+  auth: AuthModule,
+  caller: ClubAuthContext,
+  request: InvitationRequest,
+): Promise<CreatedInvitation> {
+  const { clubId } = caller.membership;
+  const email = request.email.toLowerCase();
+  const [clubRow] = await db
+    .select({ name: club.name, timeZone: club.timeZone })
+    .from(club)
+    .where(eq(club.id, clubId));
+  if (clubRow === undefined) throw new HttpError('not_found', 'Club not found');
+
+  const now = auth.now();
+  // Inviting again (same email, role and player) replaces the previous link. Two people
+  // inviting the same person at once run one after the other (the second revokes the
+  // first's link): `invitation_pending_key` allows one open link per club, email, role and
+  // player.
+  await db.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`invitation:${clubId}:${email}:${request.role}:${request.playerId ?? ''}`}, 0))`,
+  );
+  await db
+    .update(invitation)
+    .set({ revokedAt: now, revokedBy: caller.userId, updatedBy: caller.userId })
+    .where(
+      and(
+        eq(invitation.clubId, clubId),
+        eq(invitation.email, email),
+        eq(invitation.role, request.role),
+        request.playerId === null
+          ? isNull(invitation.playerId)
+          : eq(invitation.playerId, request.playerId),
+        isNull(invitation.acceptedAt),
+        isNull(invitation.revokedAt),
+      ),
+    );
+
+  const token = generateInvitationToken();
+  const [row] = await db
+    .insert(invitation)
+    .values({
+      clubId,
+      email,
+      role: request.role,
+      playerId: request.playerId,
+      guardianRelationship: request.relationship,
+      tokenHash: hashInvitationToken(token),
+      expiresAt: new Date(now.getTime() + request.expiresInDays * DAY_MS),
+      createdBy: caller.userId,
+      updatedBy: caller.userId,
+    })
+    .returning(invitationColumns);
+  if (row === undefined) throw new Error('createInvitation: insert returned no row');
+  if (request.categoryIds.length > 0) {
+    await db.insert(invitationCategory).values(
+      request.categoryIds.map((categoryId) => ({
+        clubId,
+        invitationId: row.id,
+        categoryId,
+        createdBy: caller.userId,
+        updatedBy: caller.userId,
+      })),
+    );
+  }
+
+  const links = invitationLinks(token, auth.links);
+  try {
+    // Inside the transaction: if the email cannot be sent, the invitation is not created.
+    // Trade-off (ADR 0028): a commit failing after the send leaves a dead link; moves to
+    // a pg-boss job enqueued in this transaction once the worker exists (ADR 0011).
+    await auth.mailer.sendInvitation({
+      to: email,
+      clubName: clubRow.name,
+      role: request.role,
+      inviterName: caller.name,
+      url: links.web,
+      expiresAt: row.expiresAt,
+      timeZone: clubRow.timeZone,
+    });
+  } catch (error) {
+    if (error instanceof EmailDeliveryError) {
+      throw new HttpError('service_unavailable', 'The invitation email could not be sent', {
+        cause: error,
+      });
+    }
+    throw error;
+  }
+  return { invitation: toDto(row, [...request.categoryIds].sort(), now), links };
+}
+
 /** `/v1/invitations`: invitations by link to a club (ADR 0007, ADR 0028). */
 export function registerInvitationRoutes(app: FastifyInstance, auth: AuthModule): void {
   registerEndpoint(app, createInvitation, {
@@ -135,7 +263,6 @@ export function registerInvitationRoutes(app: FastifyInstance, auth: AuthModule)
     handler: async ({ body }, { db, auth: caller }) => {
       requireInvitationManager(caller);
       const { clubId } = caller.membership;
-      const email = body.email.toLowerCase();
       const categoryIds = [...new Set(body.categoryIds)];
 
       const issues: ValidationIssue[] = [];
@@ -167,87 +294,52 @@ export function registerInvitationRoutes(app: FastifyInstance, auth: AuthModule)
           }
         });
       }
+      // About a player (B-310, ADR 0042): their own account (`player`), or a guardian link
+      // (`parent`, with its relationship).
+      if (body.playerId !== undefined && body.role !== 'player' && body.role !== 'parent') {
+        issues.push({
+          path: ['body', 'playerId'],
+          code: 'custom',
+          message: 'Only player and parent invitations are about a player',
+        });
+      }
+      const opensLink = body.role === 'parent' && body.playerId !== undefined;
+      if (opensLink !== (body.relationship !== undefined)) {
+        issues.push({
+          path: ['body', 'relationship'],
+          code: 'custom',
+          message: 'A parent invitation about a player takes the relationship; no other does',
+        });
+      }
+      if (body.playerId !== undefined && issues.length === 0) {
+        const [target] = await db
+          .select({ userId: player.userId })
+          .from(player)
+          .where(and(eq(player.clubId, clubId), eq(player.id, body.playerId)));
+        if (target === undefined) {
+          issues.push({
+            path: ['body', 'playerId'],
+            code: 'custom',
+            message: 'Not a player of this club',
+          });
+        } else if (body.role === 'player' && target.userId !== null) {
+          throw new HttpError('conflict', 'The player already has an account');
+        }
+      }
       if (issues.length > 0) {
         throw new HttpError('validation_failed', 'The request does not match the contract', {
           details: issues,
         });
       }
 
-      const [clubRow] = await db
-        .select({ name: club.name, timeZone: club.timeZone })
-        .from(club)
-        .where(eq(club.id, clubId));
-      if (clubRow === undefined) throw new HttpError('not_found', 'Club not found');
-
-      const now = auth.now();
-      // Inviting again (same email and role) replaces the previous link. Two admins inviting
-      // the same person at once run one after the other (the second revokes the first's link):
-      // `invitation_pending_key` allows one open link per club, email and role.
-      await db.execute(
-        sql`select pg_advisory_xact_lock(hashtextextended(${`invitation:${clubId}:${email}:${body.role}`}, 0))`,
-      );
-      await db
-        .update(invitation)
-        .set({ revokedAt: now, revokedBy: caller.userId, updatedBy: caller.userId })
-        .where(
-          and(
-            eq(invitation.clubId, clubId),
-            eq(invitation.email, email),
-            eq(invitation.role, body.role),
-            isNull(invitation.acceptedAt),
-            isNull(invitation.revokedAt),
-          ),
-        );
-
-      const token = generateInvitationToken();
-      const [row] = await db
-        .insert(invitation)
-        .values({
-          clubId,
-          email,
-          role: body.role,
-          tokenHash: hashInvitationToken(token),
-          expiresAt: new Date(now.getTime() + body.expiresInDays * DAY_MS),
-          createdBy: caller.userId,
-          updatedBy: caller.userId,
-        })
-        .returning(invitationColumns);
-      if (row === undefined) throw new Error('createInvitation: insert returned no row');
-      if (categoryIds.length > 0) {
-        await db.insert(invitationCategory).values(
-          categoryIds.map((categoryId) => ({
-            clubId,
-            invitationId: row.id,
-            categoryId,
-            createdBy: caller.userId,
-            updatedBy: caller.userId,
-          })),
-        );
-      }
-
-      const links = invitationLinks(token, auth.links);
-      try {
-        // Inside the transaction: if the email cannot be sent, the invitation is not created.
-        // Trade-off (ADR 0028): a commit failing after the send leaves a dead link; moves to
-        // a pg-boss job enqueued in this transaction once the worker exists (ADR 0011).
-        await auth.mailer.sendInvitation({
-          to: email,
-          clubName: clubRow.name,
-          role: body.role,
-          inviterName: caller.name,
-          url: links.web,
-          expiresAt: row.expiresAt,
-          timeZone: clubRow.timeZone,
-        });
-      } catch (error) {
-        if (error instanceof EmailDeliveryError) {
-          throw new HttpError('service_unavailable', 'The invitation email could not be sent', {
-            cause: error,
-          });
-        }
-        throw error;
-      }
-      return { invitation: toDto(row, [...categoryIds].sort(), now), links };
+      return issueInvitation(db, auth, caller, {
+        email: body.email,
+        role: body.role,
+        categoryIds,
+        playerId: body.playerId ?? null,
+        relationship: body.relationship ?? null,
+        expiresInDays: body.expiresInDays,
+      });
     },
   });
 
@@ -339,6 +431,13 @@ export function registerInvitationRoutes(app: FastifyInstance, auth: AuthModule)
           throw new HttpError('conflict', `The invitation is ${result.status}`);
         case 'wrong_email':
           throw new HttpError('forbidden', 'The invitation is for another email');
+        case 'player_taken':
+          throw new HttpError(
+            'conflict',
+            'The player already has an account, or this account already is another player of the club',
+          );
+        case 'own_guardian':
+          throw new HttpError('conflict', 'A player cannot be their own guardian');
         case 'accepted':
           request.log.info(
             {

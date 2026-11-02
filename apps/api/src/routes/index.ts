@@ -10,6 +10,7 @@ import { registerAlertRuleRoutes } from './configuration-alert-rules.js';
 import { registerBatteryRoutes } from './configuration-battery.js';
 import { registerModuleRoutes } from './configuration-modules.js';
 import { registerSpeedZoneRoutes } from './configuration-speed-zones.js';
+import { registerGuardianRoutes } from './guardians.js';
 import { registerHealthRoutes, type HealthOptions } from './health.js';
 import { registerInvitationRoutes } from './invitations.js';
 import { registerMeRoutes } from './me.js';
@@ -160,6 +161,16 @@ export const IMPLEMENTED_ENDPOINTS = [
   'updateAlertRule',
   'getClubModules',
   'updateClubModules',
+  'listPlayerGuardians',
+  'createPlayerGuardian',
+  'updateGuardian',
+  'endGuardian',
+  'listMyChildren',
+  'invitePlayer',
+  'issuePlayerAccessCode',
+  'listPlayerAccessCodes',
+  'revokePlayerAccessCode',
+  'redeemPlayerAccess',
 ] as const satisfies readonly (keyof ApiEndpoints)[];
 
 /** Declared in the contract but served by a later issue (`'#N (B-xxx): why'`). */
@@ -219,5 +230,6 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
         if (others.length === 0) await auth.sessions.revokeAllOfMember(ended.userId);
       },
     });
+    registerGuardianRoutes(app, options.auth);
   }
 }

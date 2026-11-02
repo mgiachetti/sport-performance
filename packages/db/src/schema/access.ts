@@ -1,4 +1,4 @@
-import type { CategoryId } from '@sport-performance/domain';
+import type { CategoryId, PlayerId } from '@sport-performance/domain';
 import { sql } from 'drizzle-orm';
 import {
   check,
@@ -12,9 +12,15 @@ import {
 } from 'drizzle-orm/pg-core';
 import { user } from './auth.js';
 import { timestamptz } from './columns.js';
-import { membershipRoleEnum } from './enums.js';
+import { guardianRelationshipEnum, membershipRoleEnum } from './enums.js';
 import { category } from './organization.js';
-import { tenantColumns, tenantConstraints, tenantReference } from './tenant.js';
+import { player } from './players.js';
+import {
+  tenantColumns,
+  tenantConstraints,
+  tenantReference,
+  tenantReferenceIndex,
+} from './tenant.js';
 
 /**
  * Access to a club (B-309, ADR 0007, ADR 0028): invitations by link and the
@@ -29,9 +35,15 @@ import { tenantColumns, tenantConstraints, tenantReference } from './tenant.js';
  * expired: never both accepted and revoked, and the application never
  * deletes it (it is the record of who invited whom: `created_by`).
  *
- * RLS (ADR 0026, migration 0006): only `admin` and `superadmin` of the club
- * read and write it. The invitee is not a member yet: the link is looked up
- * and accepted through `app.invitation_by_token()` / `app.accept_invitation()`.
+ * An invitation may be about a player (B-310, ADR 0042): with role `player`
+ * accepting it makes the account the player's own (`player.user_id`); with
+ * role `parent` it also opens the `guardian` link (`guardian_relationship`).
+ *
+ * RLS (ADR 0026, migrations 0006 and 0020): `admin` and `superadmin` of the
+ * club read and write it; a `parent` reads and writes only the `player`
+ * invitations of the players they are guardian of. The invitee is not a
+ * member yet: the link is looked up and accepted through
+ * `app.invitation_by_token()` / `app.accept_invitation()`.
  */
 export const invitation = pgTable(
   'invitation',
@@ -48,18 +60,38 @@ export const invitation = pgTable(
     acceptedBy: text('accepted_by').references(() => user.id, { onDelete: 'set null' }),
     revokedAt: timestamptz('revoked_at'),
     revokedBy: text('revoked_by').references(() => user.id, { onDelete: 'set null' }),
+    /** The player the invitation is about (roles `player` and `parent`, B-310). */
+    playerId: uuid('player_id').$type<PlayerId>(),
+    /** For a `parent` invitation about a player: the link it opens on acceptance. */
+    guardianRelationship: guardianRelationshipEnum('guardian_relationship'),
   },
   (t) => [
     ...tenantConstraints('invitation', t),
+    tenantReference('invitation', t.clubId, t.playerId, player),
     unique('invitation_token_hash_key').on(t.tokenHash),
     /**
-     * At most one open link per email and role in a club (inviting again revokes
-     * the previous one, ADR 0028); also the admin list of pending invitations.
-     * `email` is lowercase (check below), so this is case-insensitive.
+     * At most one open link per email, role and player in a club (inviting
+     * again revokes the previous one, ADR 0028); also the admin list of pending
+     * invitations. `email` is lowercase (check below), so this is
+     * case-insensitive. A mother invited for two children keeps both links.
      */
     uniqueIndex('invitation_pending_key')
-      .on(t.clubId, t.email, t.role)
+      .on(
+        t.clubId,
+        t.email,
+        t.role,
+        sql`coalesce(${t.playerId}, '00000000-0000-0000-0000-000000000000'::uuid)`,
+      )
       .where(sql`${t.acceptedAt} is null and ${t.revokedAt} is null`),
+    tenantReferenceIndex('invitation', t.clubId, t.playerId),
+    check(
+      'invitation_player_role',
+      sql`${t.playerId} is null or ${t.role} in ('player', 'parent')`,
+    ),
+    check(
+      'invitation_guardian_relationship',
+      sql`(${t.guardianRelationship} is not null) = (${t.role} = 'parent' and ${t.playerId} is not null)`,
+    ),
     check('invitation_email_lowercase', sql`${t.email} = lower(${t.email})`),
     check('invitation_token_hash_format', sql`${t.tokenHash} ~ '^[0-9a-f]{64}$'`),
     check('invitation_single_outcome', sql`${t.acceptedAt} is null or ${t.revokedAt} is null`),

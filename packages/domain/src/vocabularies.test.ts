@@ -3,6 +3,7 @@ import {
   DOMINANT_SIDES,
   DomainValidationError,
   HEIGHT_SOURCES,
+  GUARDIAN_RELATIONSHIPS,
   MEMBERSHIP_ROLES,
   PARENTS,
   PLAYER_LEAVE_REASONS,
@@ -10,6 +11,7 @@ import {
   TEST_RESULT_STATUSES,
   isDominantSide,
   isHeightSource,
+  isGuardianRelationship,
   isMembershipRole,
   isParent,
   isPlayerLeaveReason,
@@ -17,6 +19,7 @@ import {
   isTestResultStatus,
   parseDominantSide,
   parseHeightSource,
+  parseGuardianRelationship,
   parseMembershipRole,
   parseParent,
   parsePlayerLeaveReason,
@@ -25,6 +28,12 @@ import {
 } from './index.js';
 
 const cases = [
+  {
+    name: 'guardian relationship',
+    values: GUARDIAN_RELATIONSHIPS,
+    is: isGuardianRelationship,
+    parse: parseGuardianRelationship,
+  },
   {
     name: 'membership role',
     values: MEMBERSHIP_ROLES,

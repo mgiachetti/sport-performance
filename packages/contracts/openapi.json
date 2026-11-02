@@ -61,6 +61,10 @@
     {
       "name": "configuration",
       "description": "Configuración del club: batería de tests, zonas de velocidad, reglas de alerta y módulos activos."
+    },
+    {
+      "name": "guardians",
+      "description": "Tutores, sus hijos/as y el acceso de los jugadores/as menores (código o link del tutor)."
     }
   ],
   "paths": {
@@ -257,6 +261,159 @@
           },
           "401": {
             "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/player-access": {
+      "post": {
+        "operationId": "redeemPlayerAccess",
+        "summary": "Ingresar con el código o el link del tutor",
+        "description": "Público: la app del jugador/a manda el código que tipeó **o** el token del link. Abre una sesión mobile (`bearer`) de la cuenta del jugador/a, y la crea sin email si no la tenía. Un solo uso: código inexistente `not_found`; usado, anulado, vencido o que ya no se puede usar (el tutor dejó de serlo, el jugador/a es mayor, se dio de baja o ya tiene una cuenta con email) `conflict`. Limitado por IP y, para los códigos, también en total.",
+        "tags": [
+          "auth",
+          "guardians"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "code": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9]{4}[- ]?[A-Za-z0-9]{4}$",
+                        "description": "Código de ingreso que generó el tutor: 8 caracteres, sin distinguir mayúsculas, con o sin guion en el medio.",
+                        "examples": [
+                          "K7QM-2XPA"
+                        ]
+                      },
+                      "deviceId": {
+                        "description": "UUID de la instalación de la app (el mismo que en el ingreso por email).",
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "examples": [
+                          "0192e7a0-5c1a-7b7e-9f3a-2d4c6b8a1e0f"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "code"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "token": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9_-]{43}$",
+                        "description": "Token del link de ingreso (último segmento de `sportperformance://player-access/<token>` o `https://…/player-access/<token>`). Viaja en el body, nunca en la URL de la API."
+                      },
+                      "deviceId": {
+                        "description": "UUID de la instalación de la app (el mismo que en el ingreso por email).",
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "examples": [
+                          "0192e7a0-5c1a-7b7e-9f3a-2d4c6b8a1e0f"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "token"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sesión abierta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedIn"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8198,6 +8355,294 @@
         }
       }
     },
+    "/v1/guardians/{guardianId}": {
+      "patch": {
+        "operationId": "updateGuardian",
+        "summary": "Editar un vínculo de tutor",
+        "description": "Solo la administración. Se cambia la relación; la persona y el jugador/a no (se termina el vínculo y se crea otro). `version` desactualizada: `conflict`.",
+        "tags": [
+          "guardians"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "guardianId",
+            "in": "path",
+            "required": true,
+            "description": "Id de vínculo de tutor (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "description": "Versión que el cliente leyó (`version` de la respuesta). Si no es la actual: `409 conflict`.",
+                    "$ref": "#/components/schemas/ResourceVersion"
+                  },
+                  "relationship": {
+                    "$ref": "#/components/schemas/GuardianRelationship"
+                  }
+                },
+                "required": [
+                  "version",
+                  "relationship"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "El vínculo actualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardianLink"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/guardians/{guardianId}/end": {
+      "post": {
+        "operationId": "endGuardian",
+        "summary": "Terminar un vínculo de tutor",
+        "description": "Solo la administración. Deja de valer desde hoy (día del club); si empezaba hoy o después, no llega a valer. No se borra: queda en la historia. Idempotente.",
+        "tags": [
+          "guardians"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "guardianId",
+            "in": "path",
+            "required": true,
+            "description": "Id de vínculo de tutor (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "El vínculo terminado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardianLink"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/health": {
       "get": {
         "operationId": "getHealth",
@@ -8410,7 +8855,7 @@
       "post": {
         "operationId": "createInvitation",
         "summary": "Invitar a alguien al club",
-        "description": "Solo `admin` del club activo. Manda el email con el link y devuelve los links. `categoryIds` (solo para `coach`, `sc` y `medical`) se convierten en asignaciones de staff al aceptar. Invitar de nuevo al mismo email con el mismo rol anula el link anterior.",
+        "description": "Solo `admin` del club activo. Manda el email con el link y devuelve los links. `categoryIds` (solo para `coach`, `sc` y `medical`) se convierten en asignaciones de staff al aceptar. `playerId` (solo para `player` y `parent`, este último con `relationship`) ata la invitación a un jugador/a: su cuenta, o el vínculo de tutor. Invitar de nuevo al mismo email con el mismo rol (y jugador/a) anula el link anterior.",
         "tags": [
           "invitations"
         ],
@@ -8464,6 +8909,21 @@
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                       "description": "Id de categoría (UUID, RFC 9562)."
                     }
+                  },
+                  "playerId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Id de jugador/a (UUID, RFC 9562)."
+                  },
+                  "relationship": {
+                    "type": "string",
+                    "enum": [
+                      "mother",
+                      "father",
+                      "legal_guardian",
+                      "other"
+                    ]
                   },
                   "expiresInDays": {
                     "default": 7,
@@ -8703,7 +9163,7 @@
       "post": {
         "operationId": "acceptInvitation",
         "summary": "Aceptar una invitación",
-        "description": "Con sesión del mismo email invitado (si no, `forbidden`). Crea la membresía y las asignaciones de staff. Vencida, anulada o ya usada: `conflict`. Si la membresía ya existía, la devuelve sin duplicarla.",
+        "description": "Con sesión del mismo email invitado (si no, `forbidden`). Crea la membresía y las asignaciones de staff. Vencida, anulada o ya usada: `conflict`; también una de tutor sobre un jugador/a abierta por la cuenta de ese mismo jugador/a. Si la membresía ya existía, la devuelve sin duplicarla.",
         "tags": [
           "invitations"
         ],
@@ -8971,6 +9431,145 @@
           },
           "401": {
             "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/me/children": {
+      "get": {
+        "operationId": "listMyChildren",
+        "summary": "Mis hijos/as",
+        "description": "Solo con rol `parent`: los jugadores/as con los que el tutor tiene un vínculo vigente en el club activo. Cualquier otro rol: `forbidden`.",
+        "tags": [
+          "guardians",
+          "me"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `name`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "name",
+              "type": "string",
+              "enum": [
+                "name",
+                "-name"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de hijos/as.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChildPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `bad_request`, `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10807,6 +11406,431 @@
         }
       }
     },
+    "/v1/players/{playerId}/access-codes": {
+      "get": {
+        "operationId": "listPlayerAccessCodes",
+        "summary": "Códigos de ingreso de un jugador/a",
+        "description": "El tutor o la administración: quién generó cada código, cuándo y si se usó. Los más nuevos primero.",
+        "tags": [
+          "guardians"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `createdAt`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "-createdAt",
+              "type": "string",
+              "enum": [
+                "createdAt",
+                "-createdAt"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de códigos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerAccessCodePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `bad_request`, `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "issuePlayerAccessCode",
+        "summary": "Generar un código de ingreso para el jugador/a",
+        "description": "El tutor de un menor, o la administración. Para un jugador/a sin email: devuelve un código y un link que abren una sesión en su dispositivo, una sola vez, durante 15 minutos (si no tenía cuenta, se crea al usarlo). Si el jugador/a tiene una cuenta con email, ingresa con ese email: `conflict` (un código nunca abre una cuenta con email); también `conflict` si se dio de baja. Generar otro anula el anterior. No es idempotente a propósito: el código no se guarda, así que un reintento genera otro. Respuesta `no-store`.",
+        "tags": [
+          "guardians"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Código generado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuedPlayerAccessCode"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/players/{playerId}/access-codes/{accessCodeId}": {
+      "delete": {
+        "operationId": "revokePlayerAccessCode",
+        "summary": "Anular un código de ingreso",
+        "description": "El tutor o la administración. El código y su link dejan de servir. Uno ya usado no se anula: `conflict` (para cortar el acceso se cierra la sesión del jugador/a). Idempotente.",
+        "tags": [
+          "guardians"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "accessCodeId",
+            "in": "path",
+            "required": true,
+            "description": "Id de código de ingreso (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Código anulado."
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/players/{playerId}/archive": {
       "post": {
         "operationId": "archivePlayer",
@@ -11659,6 +12683,545 @@
           },
           "500": {
             "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/players/{playerId}/guardians": {
+      "get": {
+        "operationId": "listPlayerGuardians",
+        "summary": "Tutores de un jugador/a",
+        "description": "La administración, el propio jugador/a y sus tutores. El email del tutor solo lo ve la administración. Un jugador/a de otro club o fuera del alcance: `not_found`.",
+        "tags": [
+          "guardians"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "`current` (por defecto: vigentes hoy), `ended` o `all`.",
+            "schema": {
+              "default": "current",
+              "type": "string",
+              "enum": [
+                "current",
+                "ended",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `validFrom`, `createdAt`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "validFrom",
+              "type": "string",
+              "enum": [
+                "validFrom",
+                "-validFrom",
+                "createdAt",
+                "-createdAt"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de vínculos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardianLinkPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `bad_request`, `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createPlayerGuardian",
+        "summary": "Vincular un tutor",
+        "description": "Solo la administración. Vincula una membresía `parent` activa del club con el jugador/a. Idempotente por `clientUuid`; un vínculo abierto de la misma persona con el mismo jugador/a: `conflict`.",
+        "tags": [
+          "guardians"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientUuid": {
+                    "$ref": "#/components/schemas/ClientUuid"
+                  },
+                  "membershipId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Membresía `parent` activa del club (la persona que es tutor)."
+                  },
+                  "relationship": {
+                    "$ref": "#/components/schemas/GuardianRelationship"
+                  },
+                  "validFrom": {
+                    "description": "Por defecto, hoy (día del club).",
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "examples": [
+                      "2026-11-01"
+                    ]
+                  }
+                },
+                "required": [
+                  "membershipId",
+                  "relationship"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Vínculo creado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardianLink"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/players/{playerId}/invitations": {
+      "post": {
+        "operationId": "invitePlayer",
+        "summary": "Invitar al jugador/a por email",
+        "description": "El tutor de un menor, o la administración. Manda el link de invitación (rol `player`) al email del jugador/a; al aceptarla con ese email, la cuenta pasa a ser la del jugador/a. Invitar de nuevo anula el link anterior. Si el jugador/a ya tiene cuenta: `conflict`.",
+        "tags": [
+          "guardians",
+          "invitations"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                    "description": "Email. El servidor lo guarda y lo compara en minúsculas.",
+                    "examples": [
+                      "ana@example.com"
+                    ]
+                  },
+                  "expiresInDays": {
+                    "default": 7,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 30
+                  }
+                },
+                "required": [
+                  "email"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Invitación creada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedInvitation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error: `service_unavailable`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -21874,6 +23437,94 @@
           "Se cargó en el jugador equivocado"
         ]
       },
+      "Child": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "firstName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "lastName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "birthDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "ofAge": {
+            "type": "boolean",
+            "description": "Mayor de edad hoy (18). Con un hijo/a mayor el tutor ya no gestiona su acceso (B-311)."
+          },
+          "guardianId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de vínculo de tutor (UUID, RFC 9562)."
+          },
+          "relationship": {
+            "$ref": "#/components/schemas/GuardianRelationship"
+          },
+          "hasAccount": {
+            "type": "boolean",
+            "description": "Si el jugador/a ya tiene su propia cuenta."
+          },
+          "canManageAccess": {
+            "type": "boolean",
+            "description": "Si este tutor puede invitarlo/a o generarle un código de ingreso (`player_account.invite`)."
+          }
+        },
+        "required": [
+          "playerId",
+          "firstName",
+          "lastName",
+          "birthDate",
+          "ofAge",
+          "guardianId",
+          "relationship",
+          "hasAccount",
+          "canManageAccess"
+        ],
+        "description": "Un hijo/a con vínculo vigente con el tutor."
+      },
+      "ChildPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Child"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
       "ClientUuid": {
         "type": "string",
         "format": "uuid",
@@ -23024,6 +24675,172 @@
         ],
         "additionalProperties": false
       },
+      "GuardianLink": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de vínculo de tutor (UUID, RFC 9562)."
+          },
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "guardian": {
+            "type": "object",
+            "properties": {
+              "userId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de usuario (UUID, RFC 9562)."
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Nombre del tutor; `null` si quien pregunta no puede ver su cuenta."
+              },
+              "email": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                    "description": "Email. El servidor lo guarda y lo compara en minúsculas.",
+                    "examples": [
+                      "ana@example.com"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Email del tutor: solo para la administración del club."
+              }
+            },
+            "required": [
+              "userId",
+              "name",
+              "email"
+            ]
+          },
+          "relationship": {
+            "$ref": "#/components/schemas/GuardianRelationship"
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Día del club desde el que vale.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "validTo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                "examples": [
+                  "2026-11-01"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Día del club desde el que ya no vale (exclusivo); `null` mientras sigue."
+          },
+          "current": {
+            "type": "boolean",
+            "description": "Si vale hoy (día del club)."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "version": {
+            "$ref": "#/components/schemas/ResourceVersion"
+          }
+        },
+        "required": [
+          "id",
+          "playerId",
+          "guardian",
+          "relationship",
+          "validFrom",
+          "validTo",
+          "current",
+          "createdAt",
+          "updatedAt",
+          "version"
+        ]
+      },
+      "GuardianLinkPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GuardianLink"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "GuardianRelationship": {
+        "type": "string",
+        "enum": [
+          "mother",
+          "father",
+          "legal_guardian",
+          "other"
+        ],
+        "description": "Relación del tutor con el jugador/a."
+      },
       "Health": {
         "type": "object",
         "properties": {
@@ -23095,6 +24912,37 @@
               "description": "Id de categoría (UUID, RFC 9562)."
             }
           },
+          "playerId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de jugador/a (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Jugador/a de la invitación (B-310): con rol `player`, la cuenta pasa a ser la suya; con `parent`, se crea el vínculo de tutor."
+          },
+          "relationship": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "mother",
+                  "father",
+                  "legal_guardian",
+                  "other"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Con rol `parent` y `playerId`: la relación del vínculo que se crea al aceptar."
+          },
           "status": {
             "$ref": "#/components/schemas/InvitationStatus"
           },
@@ -23154,6 +25002,8 @@
           "email",
           "role",
           "categoryIds",
+          "playerId",
+          "relationship",
           "status",
           "expiresAt",
           "createdAt",
@@ -23260,6 +25110,31 @@
           "expired"
         ],
         "description": "`pending` se puede aceptar; `accepted` ya se usó; `revoked` la anuló un administrador; `expired` venció sin usarse."
+      },
+      "IssuedPlayerAccessCode": {
+        "type": "object",
+        "properties": {
+          "accessCode": {
+            "$ref": "#/components/schemas/PlayerAccessCode"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^[2-9A-HJKMNP-Z]{4}-[2-9A-HJKMNP-Z]{4}$",
+            "description": "Código para tipear en la app del jugador/a.",
+            "examples": [
+              "K7QM-2XPA"
+            ]
+          },
+          "links": {
+            "$ref": "#/components/schemas/PlayerAccessLinks"
+          }
+        },
+        "required": [
+          "accessCode",
+          "code",
+          "links"
+        ],
+        "description": "El código y los links se devuelven solo acá: el servidor guarda sus hashes. Se usan una sola vez y vencen a los 15 minutos."
       },
       "Locale": {
         "type": "string",
@@ -24197,6 +26072,179 @@
           "createdAt",
           "updatedAt",
           "version"
+        ]
+      },
+      "PlayerAccessCode": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de código de ingreso (UUID, RFC 9562)."
+          },
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "used",
+              "revoked",
+              "expired"
+            ],
+            "description": "`pending` se puede usar; `used` ya abrió una sesión; `revoked` se anuló (a mano o al generar otro); `expired` venció sin usarse."
+          },
+          "issuedBy": {
+            "type": "object",
+            "properties": {
+              "userId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Id de usuario (UUID, RFC 9562)."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "`null` si se borró esa cuenta."
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "userId",
+              "name"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "usedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revokedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "playerId",
+          "status",
+          "issuedBy",
+          "expiresAt",
+          "createdAt",
+          "usedAt",
+          "revokedAt"
+        ]
+      },
+      "PlayerAccessCodePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlayerAccessCode"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "PlayerAccessLinks": {
+        "type": "object",
+        "properties": {
+          "app": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Deep link de la app (Expo).",
+            "examples": [
+              "sportperformance://player-access/kB0x…"
+            ]
+          },
+          "web": {
+            "type": "string",
+            "format": "uri",
+            "description": "Universal link (iOS) / App Link (Android): abre la app si está instalada; si no, la web indica instalarla.",
+            "examples": [
+              "https://app.example.com/player-access/kB0x…"
+            ]
+          }
+        },
+        "required": [
+          "app",
+          "web"
         ]
       },
       "PlayerCategoryMembership": {

@@ -27,6 +27,7 @@ import {
   metricDefinition,
   participation,
   player,
+  playerAccessCode,
   playerCategory,
   playerParentHeight,
   playerPosition,
@@ -257,6 +258,19 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         validFrom: FROM,
       })
       .returning({ id: guardian.id }),
+  );
+  rows.player_access_code = await id(
+    db
+      .insert(playerAccessCode)
+      .values({
+        ...base,
+        playerId: assigned,
+        codeHash: createHash('sha256').update(`fixture-access-code-${slug}`).digest('hex'),
+        tokenHash: createHash('sha256').update(`fixture-access-token-${slug}`).digest('hex'),
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+        createdBy: users.parent,
+      })
+      .returning({ id: playerAccessCode.id }),
   );
   rows.consent = await id(
     db
