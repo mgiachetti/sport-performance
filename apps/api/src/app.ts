@@ -1,5 +1,10 @@
 import cors from '@fastify/cors';
 import {
+  API_VERSION_HEADER,
+  CLIENT_PLATFORM_HEADER,
+  CLIENT_RUNTIME_VERSION_HEADER,
+  CLIENT_VERSION_HEADER,
+  CONTRACT_VERSION,
   IDEMPOTENT_REPLAY_HEADER,
   MEMBERSHIP_HEADER,
   SUPPORT_CLUB_HEADER,
@@ -13,6 +18,7 @@ import type { RateLimiter } from './auth/rate-limit.js';
 import type { ApiConfig } from './config/env.js';
 import type { Database } from './db/database.js';
 import type { FilesModule } from './files/module.js';
+import { createAppVersionCheck } from './http/app-version.js';
 import { createErrorHandler, HttpError, notFoundHandler, sendError } from './http/errors.js';
 import { disabledErrorReporter, type ErrorReporter } from './observability/error-reporter.js';
 import { REQUEST_ID_HEADER, requestIdOf } from './observability/request-id.js';
@@ -49,6 +55,7 @@ export interface BuildAppOptions {
     | 'http'
     | 'rateLimit'
     | 'securityHeaders'
+    | 'mobileApp'
   >;
   db: Database;
   logger: FastifyBaseLogger;
@@ -98,6 +105,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
         })
       : undefined;
   const securityHeaders = createSecurityHeaders(config.securityHeaders);
+  const checkAppVersion = createAppVersionCheck(config.mobileApp);
 
   const app: FastifyInstance = Fastify({
     loggerInstance: options.logger,
@@ -123,6 +131,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     // hook: answer them with the envelope and the security headers, without echoing the path.
     frameworkErrors: (error, request, reply) => {
       void reply.header(REQUEST_ID_HEADER, request.id);
+      void reply.header(API_VERSION_HEADER, CONTRACT_VERSION);
       securityHeaders.apply(reply);
       if (error.code === 'FST_ERR_MAX_PARAM_LENGTH') {
         void sendError(request, reply, 'not_found', 'Route not found');
@@ -150,6 +159,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   // and preflights carry the request id and the security headers too.
   app.addHook('onRequest', async (request, reply) => {
     void reply.header(REQUEST_ID_HEADER, request.id);
+    void reply.header(API_VERSION_HEADER, CONTRACT_VERSION);
     securityHeaders.apply(reply);
   });
 
@@ -167,8 +177,16 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
         SUPPORT_CLUB_HEADER,
         SUPPORT_REASON_HEADER,
         REQUEST_ID_HEADER,
+        CLIENT_PLATFORM_HEADER,
+        CLIENT_VERSION_HEADER,
+        CLIENT_RUNTIME_VERSION_HEADER,
       ],
-      exposedHeaders: [REQUEST_ID_HEADER, 'retry-after', IDEMPOTENT_REPLAY_HEADER],
+      exposedHeaders: [
+        REQUEST_ID_HEADER,
+        'retry-after',
+        IDEMPOTENT_REPLAY_HEADER,
+        API_VERSION_HEADER,
+      ],
       maxAge: 600,
     });
   }
@@ -180,6 +198,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       });
     }
     guardOrigin?.(request);
+    // Before authentication: an app the API no longer serves costs no session lookup (ADR 0045).
+    checkAppVersion(request);
     // The request context hook: Better Auth sets user and membership here (ADR 0028).
     request.auth = await authenticate(request, reply);
     // After authentication, so a caller with a session is also counted per user.
@@ -196,6 +216,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
 
   registerRoutes(app, {
     version: config.version,
+    mobileApp: config.mobileApp,
     databaseTimeoutMs: config.health.databaseTimeoutMs,
     auth: options.auth,
     files: options.files,

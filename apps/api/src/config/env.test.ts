@@ -63,6 +63,10 @@ describe('loadConfig', () => {
       },
       email: { resendApiKey: null, from: 'Sport Performance <no-reply@localhost>' },
       files: { storage: null, uploadUrlTtlS: 900, downloadUrlTtlS: 300, logoUrlTtlS: 3600 },
+      mobileApp: {
+        ios: { minVersion: '0.0.0', latestVersion: null, storeUrl: null },
+        android: { minVersion: '0.0.0', latestVersion: null, storeUrl: null },
+      },
     });
   });
 
@@ -358,6 +362,48 @@ describe('auth and email configuration', () => {
         APP_DEEP_LINK_SCHEME: 'Bad Scheme',
       }).variables,
     ).toEqual(['APP_DEEP_LINK_SCHEME']);
+  });
+
+  it('reads the versions policy of the mobile app by platform', () => {
+    const config = loadConfig({
+      DATABASE_URL,
+      AUTH_DATABASE_URL,
+      AUTH_SECRET,
+      APP_MIN_VERSION_IOS: '1.2.0',
+      APP_LATEST_VERSION_IOS: '1.4.1',
+      APP_STORE_URL_IOS: 'https://apps.apple.com/app/id0000000000',
+      APP_MIN_VERSION_ANDROID: '1.1.0',
+      APP_LATEST_VERSION_ANDROID: '',
+    });
+    expect(config.mobileApp).toEqual({
+      ios: {
+        minVersion: '1.2.0',
+        latestVersion: '1.4.1',
+        storeUrl: 'https://apps.apple.com/app/id0000000000',
+      },
+      android: { minVersion: '1.1.0', latestVersion: null, storeUrl: null },
+    });
+    expect(configSummary(config).mobileApp).toEqual(config.mobileApp);
+  });
+
+  it('validates the versions policy of the mobile app', () => {
+    const base = { DATABASE_URL, AUTH_DATABASE_URL, AUTH_SECRET };
+    expect(configError({ ...base, APP_MIN_VERSION_IOS: '1.2' }).variables).toEqual([
+      'APP_MIN_VERSION_IOS',
+    ]);
+    expect(configError({ ...base, APP_LATEST_VERSION_ANDROID: 'v2.0.0' }).variables).toEqual([
+      'APP_LATEST_VERSION_ANDROID',
+    ]);
+    expect(
+      configError({ ...base, APP_STORE_URL_ANDROID: 'http://play.google.com/x' }).variables,
+    ).toEqual(['APP_STORE_URL_ANDROID']);
+    const older = configError({
+      ...base,
+      APP_MIN_VERSION_IOS: '2.0.0',
+      APP_LATEST_VERSION_IOS: '1.9.9',
+    });
+    expect(older.variables).toEqual(['APP_LATEST_VERSION_IOS']);
+    expect(older.message).toContain('must not be older than APP_MIN_VERSION_IOS');
   });
 });
 

@@ -386,3 +386,5 @@ export {
   type FileStatus,
   type FileSubject,
 } from './files.js';
+// App versions and compatibility (B-324).
+export * from './app-version/index.js';

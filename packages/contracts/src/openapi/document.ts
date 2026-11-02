@@ -9,14 +9,25 @@ import {
   type HttpMethod,
 } from '../endpoint.js';
 import { apiEndpoints } from '../endpoints/index.js';
-import { ERROR_STATUS, errorEnvelopeSchema, type ErrorCode } from '../primitives/errors.js';
+import {
+  ERROR_CODES,
+  ERROR_STATUS,
+  errorEnvelopeSchema,
+  type ErrorCode,
+} from '../primitives/errors.js';
+import {
+  API_VERSION_HEADER,
+  CLIENT_PLATFORM_HEADER,
+  CLIENT_RUNTIME_VERSION_HEADER,
+  CLIENT_VERSION_HEADER,
+  CONTRACT_VERSION,
+} from '../versioning.js';
 
 export type JsonSchema = Record<string, unknown>;
 
 type Io = 'input' | 'output';
 
-/** Semver of the contract; bump minor on additive changes, major together with the `/vN` prefix. */
-export const CONTRACT_VERSION = '0.1.0';
+export { CONTRACT_VERSION } from '../versioning.js';
 
 export interface OpenApiParameter {
   name: string;
@@ -35,14 +46,17 @@ export interface OpenApiOperation {
   security: Record<string, string[]>[];
   parameters?: OpenApiParameter[];
   requestBody?: { required: true; content: { 'application/json': { schema: JsonSchema } } };
-  responses: Record<
-    string,
-    {
-      description: string;
-      headers?: Record<string, { description: string; schema: JsonSchema }>;
-      content?: Record<string, { schema: JsonSchema }>;
-    }
-  >;
+  responses: Record<string, OpenApiResponse | OpenApiReference>;
+}
+
+export interface OpenApiResponse {
+  description: string;
+  headers?: Record<string, { description: string; schema: JsonSchema }>;
+  content?: Record<string, { schema: JsonSchema }>;
+}
+
+export interface OpenApiReference {
+  $ref: string;
 }
 
 export interface OpenApiDocument {
@@ -52,6 +66,8 @@ export interface OpenApiDocument {
   paths: Record<string, Partial<Record<Lowercase<HttpMethod>, OpenApiOperation>>>;
   components: {
     schemas: Record<string, JsonSchema>;
+    /** Error responses, shared by every operation that answers the same codes. */
+    responses: Record<string, OpenApiResponse>;
     securitySchemes: Record<string, JsonSchema>;
   };
 }
@@ -262,6 +278,7 @@ export function buildOpenApiDocument(
   const { schemas, resolve } = collector.finish();
   const envelopeRef = resolve(envelope);
 
+  const errorComponents: Record<string, OpenApiResponse> = {};
   const seen = new Set<string>();
   const paths: OpenApiDocument['paths'] = {};
   const sorted = [...operations].sort(
@@ -301,7 +318,7 @@ export function buildOpenApiDocument(
           description: endpoint.response.description,
           ...(response && { content: { 'application/json': { schema: resolve(response) } } }),
         },
-        ...errorResponses(endpoint, envelopeRef),
+        ...errorResponses(endpoint, envelopeRef, errorComponents),
       },
     };
     const method = endpoint.method.toLowerCase() as Lowercase<HttpMethod>;
@@ -315,12 +332,19 @@ export function buildOpenApiDocument(
       version: options.version ?? CONTRACT_VERSION,
       description:
         options.description ??
-        'API de Sport Performance. Generado desde `@sport-performance/contracts`; no editar a mano.',
+        [
+          'API de Sport Performance. Generado desde `@sport-performance/contracts`; no editar a mano.',
+          '',
+          `Versionado (ADR 0020, ADR 0045): el prefijo \`/v1\` es el major del contrato y cada respuesta trae \`${API_VERSION_HEADER}\` con su semver. La app manda \`${CLIENT_PLATFORM_HEADER}\` (\`ios\` | \`android\`), \`${CLIENT_VERSION_HEADER}\` (versión nativa, \`MAJOR.MINOR.PATCH\`) y \`${CLIENT_RUNTIME_VERSION_HEADER}\` (\`runtimeVersion\` de EAS Update) en cada request; la web no los manda. Con una versión menor a la mínima de su plataforma la API responde \`426 app_update_required\` en todos los endpoints salvo los de estado y \`GET /v1/app/compatibility\`; headers mal formados son \`400 validation_failed\`.`,
+        ].join('\n'),
     },
     tags: Object.entries(API_TAGS).map(([name, description]) => ({ name, description })),
     paths,
     components: {
       schemas,
+      responses: Object.fromEntries(
+        Object.entries(errorComponents).sort(([a], [b]) => a.localeCompare(b, 'en')),
+      ),
       securitySchemes: {
         sessionCookie: {
           type: 'apiKey',
@@ -349,9 +373,18 @@ const RATE_LIMITED_HEADERS = {
   },
 };
 
+const RESPONSE_COMPONENT_PREFIX = '#/components/responses/';
+
+/**
+ * Error responses of an operation, by status. Each one is a `$ref` to a
+ * shared `components.responses` entry named after its codes
+ * (`Error.validation_failed`), so the many endpoints that answer the same
+ * errors (`400`, `401`, `426`, `429`, `500`…) do not repeat them.
+ */
 function errorResponses(
   endpoint: EndpointDefinition,
   envelopeRef: JsonSchema,
+  components: Record<string, OpenApiResponse>,
 ): OpenApiOperation['responses'] {
   const byStatus = new Map<number, ErrorCode[]>();
   for (const code of endpointErrorCodes(endpoint)) {
@@ -361,15 +394,29 @@ function errorResponses(
   return Object.fromEntries(
     [...byStatus.entries()]
       .sort(([a], [b]) => a - b)
-      .map(([status, codes]) => [
-        String(status),
-        {
+      .map(([status, unordered]) => {
+        // Catalog order, so the same codes always share one component.
+        const codes = [...unordered].sort(
+          (a, b) => ERROR_CODES.indexOf(a) - ERROR_CODES.indexOf(b),
+        );
+        const name = ['Error', ...codes].join('.');
+        components[name] ??= {
           description: `Error: ${errorDescription(codes)}.`,
           ...(status === ERROR_STATUS.rate_limited && { headers: RATE_LIMITED_HEADERS }),
           content: { 'application/json': { schema: envelopeRef } },
-        },
-      ]),
+        };
+        return [String(status), { $ref: `${RESPONSE_COMPONENT_PREFIX}${name}` }];
+      }),
   );
+}
+
+/** The response behind a `$ref` of `components.responses`, or the response itself. */
+export function resolveOpenApiResponse(
+  document: OpenApiDocument,
+  response: OpenApiResponse | OpenApiReference | undefined,
+): OpenApiResponse | undefined {
+  if (response === undefined || !('$ref' in response)) return response;
+  return document.components.responses[response.$ref.slice(RESPONSE_COMPONENT_PREFIX.length)];
 }
 
 /** Stable serialization used for the committed `openapi.json`. */

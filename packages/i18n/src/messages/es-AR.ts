@@ -46,6 +46,21 @@ export const esAR = {
   'sync.synced': 'Todo sincronizado',
   'sync.lastSynced': 'Última sincronización: {dateTime}',
   'sync.failed': 'No pudimos sincronizar. Lo volvemos a intentar solos en unos minutos.',
+  'sync.pausedForUpdate':
+    'Sincronización en pausa hasta que actualices la app. Lo que cargues queda guardado en el teléfono.',
+
+  // App versions (B-324): "actualizá la app"
+  'appUpdate.required.title': 'Actualizá la app',
+  'appUpdate.required.body':
+    'La versión {currentVersion} ya no funciona con el servidor. Instalá la {minVersion} o una más nueva para seguir.',
+  'appUpdate.required.action': 'Actualizar',
+  'appUpdate.required.noStoreLink': 'Buscá la app en la tienda de tu teléfono y actualizala.',
+  'appUpdate.required.offline':
+    'Esta versión ya no es compatible. Podés seguir cargando sin conexión: tus datos quedan en el teléfono y se envían cuando actualices la app.',
+  'appUpdate.available.title': 'Hay una versión nueva',
+  'appUpdate.available.body': 'La versión {latestVersion} ya está en la tienda.',
+  'appUpdate.available.action': 'Actualizar',
+  'appUpdate.available.dismiss': 'Más tarde',
 
   // Errors
   'error.generic': 'Algo salió mal. Probá de nuevo.',
@@ -53,6 +68,7 @@ export const esAR = {
   'error.forbidden': 'No tenés permiso para ver esto.',
   'error.notFound': 'No encontramos lo que buscabas.',
   'error.sessionExpired': 'Tu sesión venció. Volvé a ingresar.',
+  'error.appUpdateRequired': 'Esta versión de la app ya no es compatible. Actualizala para seguir.',
   'error.validation.required': 'Este dato es obligatorio.',
   'error.validation.number': 'Ingresá un número válido, con coma decimal (por ejemplo, 1,85).',
   'error.validation.range': 'Ingresá un valor entre {min} y {max}.',

@@ -102,6 +102,7 @@ describe('defineEndpoint', () => {
   it('adds implicit error codes', () => {
     expect(endpointErrorCodes(listItems).sort()).toEqual(
       [
+        'app_update_required',
         'forbidden',
         'internal_error',
         'rate_limited',
@@ -114,12 +115,16 @@ describe('defineEndpoint', () => {
     );
     expect(endpointErrorCodes(deleteItem).sort()).toEqual(
       [
+        'app_update_required',
         'internal_error',
         'not_found',
         'rate_limited',
         'unauthenticated',
         'validation_failed',
       ].sort(),
+    );
+    expect(endpointErrorCodes(apiEndpoints.getAppCompatibility).sort()).toEqual(
+      ['internal_error', 'rate_limited', 'validation_failed'].sort(),
     );
     expect(endpointErrorCodes(apiEndpoints.sendSignInCode)).toContain('payload_too_large');
     expect(endpointErrorCodes(listItems)).not.toContain('payload_too_large');
