@@ -10,7 +10,7 @@ import { afterAll, beforeAll, expect, it } from 'vitest';
 import { describeWithPostgres } from '../testing/support.js';
 import {
   TransactionAbortedError,
-  createPgDatabase,
+  createApiPool,
   databaseFromPool,
   type Database,
   type TransactionClient,
@@ -301,9 +301,13 @@ describeWithPostgres('Database.transaction (Postgres)', (url) => {
   });
 });
 
-describeWithPostgres('createPgDatabase (Postgres)', (url) => {
-  it('applies the statement timeout and the application name', async () => {
-    const db = createPgDatabase({
+describeWithPostgres('createApiPool (Postgres)', (url) => {
+  // Outside a transaction on purpose: the pool also sets
+  // `idle_in_transaction_session_timeout` to the statement timeout, and a
+  // loaded runner can pause longer than 200 ms between `begin` and the next
+  // statement (issue #147).
+  it('applies the statement timeout, the idle-in-transaction timeout and the application name', async () => {
+    const pool = createApiPool({
       url,
       poolMax: 1,
       connectTimeoutMs: 2000,
@@ -311,18 +315,15 @@ describeWithPostgres('createPgDatabase (Postgres)', (url) => {
       applicationName: 'api-test',
     });
     try {
-      const name = await db.transaction(ANONYMOUS_CONTEXT, async (tx) => {
-        const { rows } = await tx.query<{ name: string }>(
-          "select current_setting('application_name') as name",
-        );
-        return rows[0]?.name;
-      });
-      expect(name).toBe('api-test');
-      await expect(
-        db.transaction(ANONYMOUS_CONTEXT, (tx) => tx.query('select pg_sleep(2)')),
-      ).rejects.toMatchObject({ code: '57014' });
+      const { rows } = await pool.query<{ name: string; statement: string; idle: string }>(
+        `select current_setting('application_name') as name,
+                current_setting('statement_timeout') as statement,
+                current_setting('idle_in_transaction_session_timeout') as idle`,
+      );
+      expect(rows[0]).toEqual({ name: 'api-test', statement: '200ms', idle: '200ms' });
+      await expect(pool.query('select pg_sleep(2)')).rejects.toMatchObject({ code: '57014' });
     } finally {
-      await db.close();
+      await pool.end();
     }
   });
 });
