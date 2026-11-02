@@ -213,7 +213,7 @@ export async function createClub(
   name = slug.toUpperCase(),
 ): Promise<ClubId> {
   const result = await admin.query<{ id: string }>(
-    'insert into club (slug, name) values ($1, $2) returning id',
+    'insert into club (slug, name, short_name) values ($1, $2, upper(left($1, 16))) returning id',
     [slug, name],
   );
   return parseClubId(result.rows[0]?.id);
@@ -239,6 +239,11 @@ export async function createCategory(
   clubId: ClubId,
   name: string,
 ): Promise<string> {
+  await admin.query(
+    `insert into club_branch (club_id, sport, sex) values ($1, 'rugby', 'male')
+     on conflict (club_id, sport, sex) do nothing`,
+    [clubId],
+  );
   const result = await admin.query<{ id: string }>(
     `insert into category (club_id, sport, sex, age_band_code, name, default_stage)
      values ($1, 'rugby', 'male', 'm15', $2, 'development') returning id`,

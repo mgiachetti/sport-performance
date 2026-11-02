@@ -59,9 +59,12 @@ export {
   ANONYMOUS_CONTEXT,
   SET_TENANT_CONTEXT_SQL,
   TENANT_SETTINGS,
+  BEGIN_SUPPORT_ACCESS_SQL,
   TenantContextError,
-  tenantContextParameters,
+  transactionParameters,
   type TenantContext,
+  type TransactionParameters,
+  type TransactionSettings,
 } from './db/tenant-context.js';
 export {
   registerEndpoint,

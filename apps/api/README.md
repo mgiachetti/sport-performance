@@ -1,6 +1,6 @@
 # @sport-performance/api
 
-API HTTP: Fastify + `zod` con los contratos de `@sport-performance/contracts`, una transacción por request con `SET LOCAL app.club_id / app.user_id / app.role` para RLS, y Better Auth para el ingreso con código por email. Decisiones en [ADR 0009](../../docs/adr/0009-api-fastify-zod.md), [0010](../../docs/adr/0010-auth-better-auth.md), [0020](../../docs/adr/0020-convenciones-contratos-api.md), [0024](../../docs/adr/0024-estructura-de-la-api.md), [0026](../../docs/adr/0026-roles-de-conexion-y-politicas-rls.md), [0028](../../docs/adr/0028-auth-membresias-e-invitaciones-en-la-api.md) y [0031](../../docs/adr/0031-endurecimiento-de-la-api.md). Revisión OWASP: [`docs/security/api.md`](../../docs/security/api.md).
+API HTTP: Fastify + `zod` con los contratos de `@sport-performance/contracts`, una transacción por request con `SET LOCAL app.club_id / app.user_id / app.role` para RLS, y Better Auth para el ingreso con código por email. Decisiones en [ADR 0009](../../docs/adr/0009-api-fastify-zod.md), [0010](../../docs/adr/0010-auth-better-auth.md), [0020](../../docs/adr/0020-convenciones-contratos-api.md), [0024](../../docs/adr/0024-estructura-de-la-api.md), [0026](../../docs/adr/0026-roles-de-conexion-y-politicas-rls.md), [0028](../../docs/adr/0028-auth-membresias-e-invitaciones-en-la-api.md), [0031](../../docs/adr/0031-endurecimiento-de-la-api.md) y [0032](../../docs/adr/0032-convenciones-de-endpoints.md) (convenciones de endpoints). Revisión OWASP: [`docs/security/api.md`](../../docs/security/api.md).
 
 ## Correr
 
@@ -37,12 +37,19 @@ Variables: [`.env.example`](.env.example). Se validan al arrancar; si falta o es
 | `GET /v1/me`, `GET /v1/me/memberships` | Usuario, superadmin, membresía activa y selector de club. |
 | `POST /v1/invitations`, `GET /v1/invitations`, `DELETE /v1/invitations/{id}` | Invitaciones del club (solo `admin`). |
 | `POST /v1/invitations/preview`, `POST /v1/invitations/accept` | Ver una invitación por su token (público) y aceptarla (con sesión del email invitado). |
+| `GET /v1/clubs/{slug}/theme` | Tema del club (público, antes del login): nombre, sigla y colores con su tinte legible. |
+| `GET /v1/clubs`, `POST /v1/clubs` | Registro de clubes (solo superadmin, con `X-Support-Reason`): lista y alta con la configuración por defecto. |
+| `GET /v1/club`, `PATCH /v1/club` | Perfil y marca del club activo (lectura: todo miembro; edición: la administración, con `version`). |
+| `GET /v1/club/branches`, `POST /v1/club/branches`, `POST …/{id}/archive`, `POST …/{id}/restore` | Deportes y ramas del club; habilitar una siembra sus posiciones, categorías y batería. |
+| `GET /v1/categories`, `POST /v1/categories`, `GET`/`PATCH /v1/categories/{id}`, `POST …/{id}/archive`, `POST …/{id}/restore` | Categorías (el staff ve sus asignadas; la administración edita). |
+| `GET /v1/positions` | Posiciones por deporte (todo miembro). |
 
 ## Sesión y club
 
 - **Web:** `POST /v1/auth/email-otp/verify` con `transport: "cookie"` fija la cookie `HttpOnly` `sp.session_token` (`__Secure-sp.session_token` con `AUTH_BASE_URL` https). El cliente llama con `credentials: 'include'` desde un origen de `WEB_ORIGINS`.
 - **Mobile:** `transport: "bearer"` devuelve `session.token`; va en `Authorization: Bearer <token>` y se guarda en el almacenamiento seguro.
 - **Club:** el cliente manda `X-Membership-Id` con una membresía de `GET /v1/me/memberships` (si el usuario tiene una sola, no hace falta). Los endpoints `auth: 'club'` responden `403` sin una membresía activa elegida. Su club y su rol son el contexto de tenant.
+- **Superadmin (ADR 0029, 0032):** para asistir a un club manda `X-Support-Club-Id: <clubId>` y `X-Support-Reason: <motivo>` (UTF-8 con `encodeURIComponent`, 1 a 500 caracteres) en cada request; en el registro de clubes, solo el motivo. Cada transacción registra el acceso con `app.begin_support_access`; sin motivo, `403`.
 - **En local sin `RESEND_API_KEY`** los emails no se mandan: el código y los links aparecen en el log (`email not sent`).
 - **Deploy (Railway):** en producción la API no arranca sin `AUTH_SECRET`, `AUTH_BASE_URL`, `WEB_APP_URL`, `RESEND_API_KEY`, `EMAIL_FROM`, `AUTH_DATABASE_URL` y `TRUST_PROXY_HOPS` (Railway: 1; `0` se rechaza: la IP sería la del proxy y los límites por IP del ingreso serían globales); cargarlas en el servicio antes de deployar. `WEB_ORIGINS` viene vacío: sin él no se registra CORS y la web no puede llamar a la API con su cookie, así que hay que cargarlo cuando se deploye la web.
 
@@ -67,8 +74,11 @@ Variables: [`.env.example`](.env.example). Se validan al arrancar; si falta o es
 | `src/auth/` | Better Auth (`better-auth.ts`), el hook de sesión y selector de club (`authenticate.ts`), membresías e invitaciones fuera del contexto de un club (`identity.ts`), límites de intentos en Postgres (`rate-limit.ts`), guard de origen (`origin-guard.ts`) y el módulo que los junta (`module.ts`). |
 | `src/email/` | `EmailTransport` (Resend, memoria, log), plantillas React Email y `Mailer`. |
 | `src/invitations/` | Tokens, links (deep link y universal link) y estado de las invitaciones. |
-| `src/http/endpoint.ts` | `registerEndpoint`: ruta del catálogo con validación de entrada y salida. |
-| `src/http/errors.ts` | `HttpError` y el manejo de errores con el sobre del contrato. |
+| `src/http/endpoint.ts` | `registerEndpoint`: ruta del catálogo con validación de entrada y salida, y la transacción del request (contexto, request id, motivo de corrección, soporte del superadmin). |
+| `src/http/permissions.ts` | El sujeto de la matriz de permisos por request y `authorize` / `listScope` (ADR 0025, 0032). |
+| `src/http/pagination.ts` | `keysetPage`: paginación por cursor con orden permitido y filtros atados al cursor. |
+| `src/http/writes.ts` | `insertIdempotent` (`clientUuid`), `rowVersion` / `updateAtVersion` (`409`) y el filtro de archivados. |
+| `src/http/errors.ts` | `HttpError` y el manejo de errores con el sobre del contrato (permisos, unicidad, motivo de corrección, políticas de la base). |
 | `src/observability/` | pino, id de request, Sentry y su scrubbing. |
 | `src/security/` | Límites generales por clase de ruta (`rate-limit.ts`), headers de seguridad (`headers.ts`) y chequeos de secretos de producción (`secrets.ts`). |
 | `src/routes/` | Rutas servidas; lista de endpoints del contrato todavía pendientes. |
@@ -79,19 +89,24 @@ Variables: [`.env.example`](.env.example). Se validan al arrancar; si falta o es
 2. Registrarlo en `src/routes/` y sumarlo a `IMPLEMENTED_ENDPOINTS` (si queda para otro issue, a `PENDING_ENDPOINTS`; si no está en ninguna de las dos, no compila):
 
    ```ts
-   registerEndpoint(app, getClubTheme, {
-     transaction: true, // el handler recibe `tx` y `db` (Drizzle) con el contexto de tenant fijado
+   registerEndpoint(app, updateCategory, {
+     transaction: true, // el handler recibe `tx`, `db` (Drizzle) y `permissions` con el contexto fijado
      // con `auth: 'club'` en el contrato, `auth.membership` no es null en los tipos
-     handler: async ({ params }, { db, auth }) => {
-       const theme = await findTheme(db, params.clubSlug);
-       if (theme === undefined) throw new HttpError('not_found', 'Club not found');
-       return theme; // se valida contra el esquema de respuesta antes de enviarse
+     handler: async ({ params, body }, { db, permissions, auth }) => {
+       const row = await readCategory(db, auth.membership.clubId, params.categoryId); // 404
+       await permissions.authorize('category', 'manage', { category: { id: row.id, sport: row.sport } }); // 403
+       return toDto(
+         await updateAtVersion({ resource: 'Category', update, exists }), // 404 / 409 con `version`
+       ); // se valida contra el esquema de respuesta y se envía después del commit
      },
    });
    ```
 
+   Las convenciones completas (autorización, listas por cursor, altas idempotentes, `version`, archivar, motivo de corrección, soporte del superadmin) están en el [ADR 0032](../../docs/adr/0032-convenciones-de-endpoints.md); `src/routes/categories.ts` es el ejemplo de referencia.
+
 - Toda consulta va por `db` / `tx` (o `app.db.transaction`). Nunca un `pg.Pool` aparte: sin el contexto, RLS no deja ver nada. Las políticas validan el rol contra la membresía (ADR 0026), así que un contexto equivocado tampoco ve nada.
-- Los errores esperados se tiran como `HttpError(code, message)`; cualquier otro error es `500 internal_error`, se loguea y va a Sentry.
+- Los errores esperados se tiran como `HttpError(code, message)`; `PermissionDeniedError` es `403`, una clave única repetida `409`, una corrección sin motivo `400` en `body.changeReason`; cualquier otro error es `500 internal_error`, se loguea y va a Sentry.
+- Nunca `db.transaction()` para abrir otra transacción: en el cliente del request es un savepoint, y un `pg.Pool` aparte no tendría el contexto.
 - Nada de datos personales en logs: ids sí; nombres, emails, métricas de jugadores o datos de salud no (ADR 0016).
 
 ## Tests

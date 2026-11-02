@@ -9,11 +9,13 @@ export { timestamptz, localDate } from './columns.js';
 export * from './auth.js';
 export {
   auditColumns,
+  CLUB_NAME_MAX_LENGTH,
+  CLUB_SHORT_NAME_MAX_LENGTH,
+  STORED_HEX_COLOR_PATTERN,
   club,
   tenantColumns,
   tenantConstraints,
   tenantReference,
-  type ClubBranding,
   type ClubSettings,
 } from './tenant.js';
 export * from './organization.js';

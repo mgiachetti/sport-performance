@@ -2,6 +2,8 @@ import type { ApiEndpoints } from '@sport-performance/contracts';
 import type { FastifyInstance } from 'fastify';
 import type { AuthModule } from '../auth/module.js';
 import { registerAuthRoutes } from './auth.js';
+import { registerCategoryRoutes } from './categories.js';
+import { registerClubRoutes } from './clubs.js';
 import { registerHealthRoutes, type HealthOptions } from './health.js';
 import { registerInvitationRoutes } from './invitations.js';
 import { registerMeRoutes } from './me.js';
@@ -24,17 +26,28 @@ export const IMPLEMENTED_ENDPOINTS = [
   'revokeInvitation',
   'previewInvitation',
   'acceptInvitation',
+  'getClubTheme',
+  'listClubs',
+  'createClub',
+  'getClub',
+  'updateClub',
+  'listClubBranches',
+  'enableClubBranch',
+  'archiveClubBranch',
+  'restoreClubBranch',
+  'listCategories',
+  'getCategory',
+  'createCategory',
+  'updateCategory',
+  'archiveCategory',
+  'restoreCategory',
+  'listPositions',
 ] as const satisfies readonly (keyof ApiEndpoints)[];
 
-/** Declared in the contract but served by a later issue. */
-export const PENDING_ENDPOINTS = {
-  getClubTheme: '#44 (B-313): needs the clubs table of packages/db',
-} as const satisfies Partial<Record<keyof ApiEndpoints, string>>;
+/** Declared in the contract but served by a later issue (`'#N (B-xxx): why'`). */
+export const PENDING_ENDPOINTS: Partial<Record<keyof ApiEndpoints, string>> = {};
 
-type Unaccounted = Exclude<
-  keyof ApiEndpoints,
-  (typeof IMPLEMENTED_ENDPOINTS)[number] | keyof typeof PENDING_ENDPOINTS
->;
+type Unaccounted = Exclude<keyof ApiEndpoints, (typeof IMPLEMENTED_ENDPOINTS)[number]>;
 /** Compile-time check: every endpoint of the contract is either served or pending. */
 export const everyEndpointAccounted: [Unaccounted] extends [never] ? true : Unaccounted = true;
 
@@ -50,6 +63,9 @@ export interface RoutesOptions extends HealthOptions {
 export function registerRoutes(app: FastifyInstance, options: RoutesOptions): void {
   registerOpenApiRoute(app);
   registerHealthRoutes(app, options);
+  // Club data: they need no auth module (the theme is public; the rest answer 401 without it).
+  registerClubRoutes(app);
+  registerCategoryRoutes(app);
   if (options.auth !== undefined) {
     registerAuthRoutes(app, options.auth);
     registerMeRoutes(app, options.auth);

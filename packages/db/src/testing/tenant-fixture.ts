@@ -10,6 +10,7 @@ import {
   category,
   changeHistory,
   club,
+  clubBranch,
   consent,
   device,
   drill,
@@ -101,7 +102,7 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
     (
       await db
         .insert(club)
-        .values({ slug, name: `Club ${slug}` })
+        .values({ slug, name: `Club ${slug}`, shortName: slug.slice(0, 16).toUpperCase() })
         .returning({ id: club.id })
     )[0],
   ).id;
@@ -153,6 +154,12 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
       .returning({ id: testWindow.id }),
   );
   const categoryBase = { ...base, sport: 'rugby' as const, sex: 'male' as const };
+  rows.club_branch = await id(
+    db
+      .insert(clubBranch)
+      .values({ ...base, sport: 'rugby', sex: 'male' })
+      .returning({ id: clubBranch.id }),
+  );
   const m15 = await id(
     db
       .insert(category)

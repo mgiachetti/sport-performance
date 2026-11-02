@@ -323,13 +323,17 @@ describe.skipIf(!hasDatabase)('RLS by role (Postgres 16)', () => {
       );
       expect(await players(context)).toEqual([]);
       await run(context, (client) =>
-        client.query(`insert into club (slug, name) values ('nuevo-club', 'Nuevo club')`),
+        client.query(
+          `insert into club (slug, name, short_name) values ('nuevo-club', 'Nuevo club', 'NC')`,
+        ),
       );
       // A regular user cannot.
       expect(
         await pgCode(
           run({ userId: a.users.admin }, (client) =>
-            client.query(`insert into club (slug, name) values ('otro-club', 'Otro club')`),
+            client.query(
+              `insert into club (slug, name, short_name) values ('otro-club', 'Otro club', 'OC')`,
+            ),
           ),
         ),
       ).toBe('42501');
@@ -710,14 +714,23 @@ describe.skipIf(!hasDatabase)('RLS by role (Postgres 16)', () => {
   });
 
   describe('public club theme', () => {
-    it('serves only the branding by slug, without any context', async () => {
+    it('serves only the brand by slug, without any context', async () => {
       const { rows } = await app.pool.query<Record<string, unknown>>(
         'select * from app.club_theme($1)',
         [a.slug],
       );
       expect(rows).toHaveLength(1);
       expect(Object.keys(must(rows[0])).sort()).toEqual(
-        ['branding', 'id', 'name', 'slug', 'updated_at'].sort(),
+        [
+          'id',
+          'logo_file_id',
+          'name',
+          'primary_color',
+          'secondary_color',
+          'short_name',
+          'slug',
+          'updated_at',
+        ].sort(),
       );
       expect((await app.pool.query('select * from app.club_theme($1)', ['nope'])).rowCount).toBe(0);
     });

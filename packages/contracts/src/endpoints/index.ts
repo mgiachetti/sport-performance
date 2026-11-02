@@ -1,6 +1,25 @@
 import type { EndpointCatalog } from '../endpoint.js';
 import { sendSignInCode, signOut, verifySignInCode } from './auth.js';
+import {
+  archiveCategory,
+  createCategory,
+  getCategory,
+  listCategories,
+  listPositions,
+  restoreCategory,
+  updateCategory,
+} from './categories.js';
 import { getClubTheme } from './club-theme.js';
+import {
+  archiveClubBranch,
+  createClub,
+  enableClubBranch,
+  getClub,
+  listClubBranches,
+  listClubs,
+  restoreClubBranch,
+  updateClub,
+} from './clubs.js';
 import { getHealth } from './health.js';
 import {
   acceptInvitation,
@@ -12,7 +31,9 @@ import {
 import { getMe, listMyMemberships } from './me.js';
 
 export * from './auth.js';
+export * from './categories.js';
 export * from './club-theme.js';
+export * from './clubs.js';
 export * from './health.js';
 export * from './invitations.js';
 export * from './me.js';
@@ -35,6 +56,21 @@ export const apiEndpoints = {
   previewInvitation,
   acceptInvitation,
   getClubTheme,
+  listClubs,
+  createClub,
+  getClub,
+  updateClub,
+  listClubBranches,
+  enableClubBranch,
+  archiveClubBranch,
+  restoreClubBranch,
+  listCategories,
+  getCategory,
+  createCategory,
+  updateCategory,
+  archiveCategory,
+  restoreCategory,
+  listPositions,
 } as const satisfies EndpointCatalog;
 
 export type ApiEndpoints = typeof apiEndpoints;

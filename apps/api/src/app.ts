@@ -1,5 +1,10 @@
 import cors from '@fastify/cors';
-import { MEMBERSHIP_HEADER } from '@sport-performance/contracts';
+import {
+  IDEMPOTENT_REPLAY_HEADER,
+  MEMBERSHIP_HEADER,
+  SUPPORT_CLUB_HEADER,
+  SUPPORT_REASON_HEADER,
+} from '@sport-performance/contracts';
 import Fastify, { LogController, type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import { anonymous, type Authenticate } from './auth/context.js';
 import type { AuthModule } from './auth/module.js';
@@ -149,8 +154,15 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       origin: [...options.auth.webOrigins],
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-      allowedHeaders: ['content-type', 'authorization', MEMBERSHIP_HEADER, REQUEST_ID_HEADER],
-      exposedHeaders: [REQUEST_ID_HEADER, 'retry-after'],
+      allowedHeaders: [
+        'content-type',
+        'authorization',
+        MEMBERSHIP_HEADER,
+        SUPPORT_CLUB_HEADER,
+        SUPPORT_REASON_HEADER,
+        REQUEST_ID_HEADER,
+      ],
+      exposedHeaders: [REQUEST_ID_HEADER, 'retry-after', IDEMPOTENT_REPLAY_HEADER],
       maxAge: 600,
     });
   }

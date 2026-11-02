@@ -41,6 +41,7 @@ describe('schema conventions', () => {
         'category',
         'change_history',
         'club',
+        'club_branch',
         'consent',
         'device',
         'drill',
@@ -117,8 +118,14 @@ describe('schema conventions', () => {
         const target = qualified(getTableConfig(reference.foreignTable));
         if (!tenantTableNames.has(target)) continue;
         expect(reference.columns.map((c) => c.name)[0], fk.getName()).toBe('club_id');
-        // Medical rows also carry the player: (club_id, id, player_id), ADR 0029.
         const foreign = reference.foreignColumns.map((c) => c.name);
+        // A category hangs from its branch by the branch's natural key (B-313, ADR 0032):
+        // its `sport` and `sex` are the branch, so no `branch_id` can disagree with them.
+        if (target === 'club_branch') {
+          expect(foreign, fk.getName()).toEqual(['club_id', 'sport', 'sex']);
+          continue;
+        }
+        // Medical rows also carry the player: (club_id, id, player_id), ADR 0029.
         expect(foreign.slice(0, 2), fk.getName()).toEqual(['club_id', 'id']);
         if (foreign.length > 2)
           expect(foreign, fk.getName()).toEqual(['club_id', 'id', 'player_id']);

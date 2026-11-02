@@ -1,8 +1,12 @@
-import { MEMBERSHIP_HEADER } from '@sport-performance/contracts';
-import { isUuid, parseUserId } from '@sport-performance/domain';
+import {
+  MEMBERSHIP_HEADER,
+  SUPPORT_CLUB_HEADER,
+  SUPPORT_REASON_HEADER,
+} from '@sport-performance/contracts';
+import { isUuid, parseChangeReason, parseClubId, parseUserId } from '@sport-performance/domain';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { SportAuth } from './better-auth.js';
-import type { Authenticate, AuthContext } from './context.js';
+import type { Authenticate, AuthContext, Membership } from './context.js';
 import type { ActiveMembership, IdentityStore } from './identity.js';
 
 /** Request headers Better Auth needs to find the session: nothing else is handed to it. */
@@ -51,6 +55,43 @@ export function selectMembership(
 }
 
 /**
+ * `X-Support-Reason`: UTF-8, percent-encoded (`encodeURIComponent`), 1 to 500
+ * characters once decoded and trimmed (the rule of the support access log).
+ * `null` when absent or invalid: the transaction helper then refuses to act
+ * as superadmin.
+ */
+export function parseSupportReason(header: string | string[] | undefined): string | null {
+  if (typeof header !== 'string' || header === '') return null;
+  try {
+    return parseChangeReason(decodeURIComponent(header));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The club a superadmin supports (`X-Support-Club-Id`, ADR 0029). Only a
+ * superadmin may send it, and never with `X-Membership-Id`: anything else
+ * is rejected (`club` endpoints answer `403`). `undefined` when absent.
+ */
+export function selectSupportClub(
+  isSuperadmin: boolean,
+  header: string | string[] | undefined,
+  membershipHeader: string | string[] | undefined,
+): { membership: Membership | null; rejected: boolean } | undefined {
+  if (header === undefined || header === '') return undefined;
+  const wanted = typeof header === 'string' ? header.toLowerCase() : undefined;
+  const hasMembershipHeader = membershipHeader !== undefined && membershipHeader !== '';
+  if (!isSuperadmin || hasMembershipHeader || wanted === undefined || !isUuid(wanted)) {
+    return { membership: null, rejected: true };
+  }
+  return {
+    membership: { membershipId: null, clubId: parseClubId(wanted), role: 'superadmin' },
+    rejected: false,
+  };
+}
+
+/**
  * {@link Authenticate} over Better Auth: the session comes from the cookie
  * (web) or `Authorization: Bearer` (mobile, through Better Auth's bearer
  * plugin), the memberships from the identity store. A refreshed session
@@ -68,22 +109,40 @@ export function createSessionAuthenticate(auth: SportAuth, identity: IdentitySto
     if (!headers.has('authorization')) forwardSetCookie(reply, result.headers);
 
     const userId = parseUserId(found.user.id);
-    const memberships = await identity.activeMemberships(userId);
-    const { membership, rejected } = selectMembership(
-      memberships,
+    const isSuperadmin = found.user.isSuperadmin === true;
+    const support = selectSupportClub(
+      isSuperadmin,
+      request.headers[SUPPORT_CLUB_HEADER],
       request.headers[MEMBERSHIP_HEADER],
     );
+    let selected: { membership: Membership | null; rejected: boolean };
+    if (support !== undefined) {
+      selected = support;
+    } else {
+      const memberships = await identity.activeMemberships(userId);
+      const { membership, rejected } = selectMembership(
+        memberships,
+        request.headers[MEMBERSHIP_HEADER],
+      );
+      selected = {
+        membership:
+          membership === null
+            ? null
+            : { membershipId: membership.id, clubId: membership.clubId, role: membership.role },
+        rejected,
+      };
+    }
     return {
       userId,
       email: found.user.email,
       name: found.user.name,
-      isSuperadmin: found.user.isSuperadmin === true,
+      isSuperadmin,
       session: { id: found.session.id, expiresAt: new Date(found.session.expiresAt) },
-      membership:
-        membership === null
-          ? null
-          : { membershipId: membership.id, clubId: membership.clubId, role: membership.role },
-      membershipRejected: rejected,
+      membership: selected.membership,
+      membershipRejected: selected.rejected,
+      supportReason: isSuperadmin
+        ? parseSupportReason(request.headers[SUPPORT_REASON_HEADER])
+        : null,
     };
   };
 }

@@ -1,4 +1,5 @@
 import { DEFAULT_CLUB_TIME_ZONE, type ClubId, type TimeZone } from '@sport-performance/domain';
+import { defaultBrand } from '@sport-performance/ui-tokens';
 import { sql } from 'drizzle-orm';
 import {
   check,
@@ -31,13 +32,15 @@ import { timestamptz } from './columns.js';
  *   `app_admin.secure_club_table()` in the migration that creates it.
  */
 
-/** Branding applied at runtime (ADR 0014). Colors are `#RRGGBB`. */
-export interface ClubBranding {
-  readonly logoUrl?: string;
-  readonly primaryColor?: string;
-  readonly secondaryColor?: string;
-  readonly backgroundColor?: string;
-}
+/**
+ * Pattern of the stored brand colors: `#rrggbb`, lowercase (the API
+ * normalizes with `normalizeHex` of `@sport-performance/ui-tokens`).
+ */
+export const STORED_HEX_COLOR_PATTERN = '^#[0-9a-f]{6}$';
+
+/** Longest club name and short name (the theme contract, `packages/contracts`). */
+export const CLUB_NAME_MAX_LENGTH = 120;
+export const CLUB_SHORT_NAME_MAX_LENGTH = 16;
 
 /** Club-level switches (B-322: active modules). Unknown keys are ignored. */
 export interface ClubSettings {
@@ -76,13 +79,50 @@ export const club = pgTable(
      * the tzdata of each runtime.
      */
     timeZone: text('time_zone').notNull().default(DEFAULT_CLUB_TIME_ZONE).$type<TimeZone>(),
-    branding: jsonb('branding').notNull().default({}).$type<ClubBranding>(),
+    /** Initials for small spaces (`ORC`), 1 to 16 characters. */
+    shortName: text('short_name').notNull(),
+    /**
+     * BCP 47 tag of the club's UI and formats (`es-AR`, ADR 0019). The API
+     * only accepts `SUPPORTED_LOCALES` of `packages/i18n`; the `CHECK` only
+     * the shape, so adding a locale needs no migration.
+     */
+    locale: text('locale').notNull().default('es-AR'),
+    /**
+     * Brand colors applied at runtime (ADR 0014): `primary` drives fills and
+     * the player series, `secondary` is the second jersey color. The
+     * readable ink on each one is derived by `packages/ui-tokens`, never
+     * stored. Defaults: the ORC palette, the product default.
+     */
+    primaryColor: text('primary_color').notNull().default(defaultBrand.primary),
+    secondaryColor: text('secondary_color').notNull().default(defaultBrand.secondary),
+    /**
+     * Crest: id of the uploaded file (B-325, #56). No foreign key until the
+     * file table exists; the theme serves no logo while it is `NULL`.
+     */
+    logoFileId: uuid('logo_file_id'),
     settings: jsonb('settings').notNull().default({}).$type<ClubSettings>(),
     ...auditColumns(),
   },
   (t) => [
     unique('club_client_uuid_key').on(t.clientUuid),
     check('club_slug_format', sql`${t.slug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'`),
+    check(
+      'club_name_format',
+      sql`${t.name} = btrim(${t.name}) and ${t.name} <> '' and char_length(${t.name}) <= ${sql.raw(String(CLUB_NAME_MAX_LENGTH))}`,
+    ),
+    check(
+      'club_short_name_format',
+      sql`${t.shortName} = btrim(${t.shortName}) and ${t.shortName} <> '' and char_length(${t.shortName}) <= ${sql.raw(String(CLUB_SHORT_NAME_MAX_LENGTH))}`,
+    ),
+    check('club_locale_format', sql`${t.locale} ~ '^[a-z]{2}(-[A-Z]{2})?$'`),
+    check(
+      'club_primary_color_format',
+      sql`${t.primaryColor} ~ ${sql.raw(`'${STORED_HEX_COLOR_PATTERN}'`)}`,
+    ),
+    check(
+      'club_secondary_color_format',
+      sql`${t.secondaryColor} ~ ${sql.raw(`'${STORED_HEX_COLOR_PATTERN}'`)}`,
+    ),
   ],
 );
 

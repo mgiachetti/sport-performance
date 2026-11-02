@@ -11,6 +11,7 @@ export * from './endpoints/index.js';
 // Schemas without an endpoint yet (B-305): not in the catalog.
 export * from './endpoints/change-history.js';
 export * from './primitives/color.js';
+export * from './primitives/conventions.js';
 export * from './primitives/dates.js';
 export * from './primitives/errors.js';
 export * from './primitives/ids.js';

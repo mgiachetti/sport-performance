@@ -5,9 +5,12 @@ import {
 } from '@sport-performance/db';
 import type pg from 'pg';
 import {
+  BEGIN_SUPPORT_ACCESS_SQL,
   SET_TENANT_CONTEXT_SQL,
-  tenantContextParameters,
+  SupportAccessError,
+  transactionParameters,
   type TenantContext,
+  type TransactionSettings,
 } from './tenant-context.js';
 
 /**
@@ -25,13 +28,18 @@ export type TransactionClient = pg.PoolClient;
 export interface Database {
   /**
    * Runs `work` in a transaction whose first statement sets `app.club_id`,
-   * `app.user_id` and `app.role` with `SET LOCAL` semantics. Commits when
-   * `work` resolves, rolls back when it throws. The settings die with the
+   * `app.user_id`, `app.role`, `app.request_id` and `app.change_reason` with
+   * `SET LOCAL` semantics; a superadmin context then records its support
+   * access (`app.begin_support_access`, ADR 0029) before `work` runs.
+   * Commits when `work` resolves, rolls back when it throws: the result is
+   * only returned after the commit (ADR 0032: nothing reaches the client from
+   * a transaction that did not commit). The settings die with the
    * transaction, so the pooled connection never carries them to another request.
    */
   transaction<T>(
     context: TenantContext,
     work: (client: TransactionClient) => Promise<T>,
+    settings?: TransactionSettings,
   ): Promise<T>;
   /** Resolves when the database answers a trivial query within `timeoutMs`. */
   ping(timeoutMs: number): Promise<void>;
@@ -67,9 +75,13 @@ export interface PgDatabaseOptions {
 /** Wraps a `pg.Pool` you own (tests, or `packages/db` sharing its pool). */
 export function databaseFromPool(pool: pg.Pool): Database {
   return {
-    async transaction<T>(context: TenantContext, work: (client: TransactionClient) => Promise<T>) {
+    async transaction<T>(
+      context: TenantContext,
+      work: (client: TransactionClient) => Promise<T>,
+      settings?: TransactionSettings,
+    ) {
       // Validate before checking out a connection: a bad context never reaches the database.
-      const parameters = tenantContextParameters(context);
+      const parameters = transactionParameters(context, settings);
       const client = await pool.connect();
       let broken: Error | undefined;
       // The pool only listens for errors of idle clients. A connection lost while
@@ -81,7 +93,21 @@ export function databaseFromPool(pool: pg.Pool): Database {
       client.on('error', onError);
       try {
         await client.query('begin');
-        await client.query(SET_TENANT_CONTEXT_SQL, parameters);
+        await client.query(SET_TENANT_CONTEXT_SQL, [...parameters.settings]);
+        if (parameters.supportReason !== null) {
+          try {
+            await client.query(BEGIN_SUPPORT_ACCESS_SQL, [parameters.supportReason]);
+          } catch (error) {
+            // 23503: the club does not exist; 42501: not a superadmin (anymore).
+            const code = (error as { code?: unknown }).code;
+            if (code === '23503' || code === '42501') {
+              throw new SupportAccessError('The support access could not be recorded', {
+                cause: error,
+              });
+            }
+            throw error;
+          }
+        }
         const result = await work(client);
         const commit = await client.query('commit');
         // Postgres answers COMMIT of an aborted transaction with ROLLBACK, not an error.
@@ -157,12 +183,41 @@ const drizzleByClient = new WeakMap<TransactionClient, TenantDatabase>();
  * in that transaction, with its tenant context. Cached per pooled connection,
  * so building the schema's relational config happens once per connection, not
  * once per request.
+ *
+ * Its `transaction()` is a **savepoint** of the request transaction, never a
+ * `BEGIN`/`COMMIT` of its own: Drizzle's would send `COMMIT` on the request's
+ * connection and end the request transaction (and its tenant context) early.
+ * So code written for a Drizzle transaction (`bootstrapClub`, which nests
+ * its work) runs atomically inside the request.
  */
 export function tenantDatabase(client: TransactionClient): TenantDatabase {
   let db = drizzleByClient.get(client);
   if (db === undefined) {
-    db = createDatabase(client);
+    db = withSavepointTransactions(client, createDatabase(client));
     drizzleByClient.set(client, db);
   }
+  return db;
+}
+
+function withSavepointTransactions(client: TransactionClient, db: TenantDatabase): TenantDatabase {
+  let depth = 0;
+  const transaction = async <T>(work: (tx: TenantDatabase) => Promise<T>): Promise<T> => {
+    depth += 1;
+    const name = `sp_request_${String(depth)}`;
+    await client.query(`savepoint ${name}`);
+    try {
+      const result = await work(db);
+      await client.query(`release savepoint ${name}`);
+      return result;
+    } catch (error) {
+      await client.query(`rollback to savepoint ${name}`);
+      throw error;
+    } finally {
+      depth -= 1;
+    }
+  };
+  // Same signature for callers; the nested `tx` is this client (no `rollback()` helper:
+  // throw to roll the savepoint back).
+  Object.defineProperty(db, 'transaction', { value: transaction });
   return db;
 }

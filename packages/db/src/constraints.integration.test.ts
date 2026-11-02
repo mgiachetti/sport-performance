@@ -6,6 +6,7 @@ import {
   alertRule,
   anthroMeasurement,
   category,
+  clubBranch,
   club,
   membership,
   metricDefinition,
@@ -49,12 +50,17 @@ describe.skipIf(!hasDatabase)('schema constraints (Postgres 16)', () => {
     const clubs = await db
       .insert(club)
       .values([
-        { slug: 'orc', name: 'Olivos Rugby Club' },
-        { slug: 'other-club', name: 'Otro club' },
+        { slug: 'orc', name: 'Olivos Rugby Club', shortName: 'ORC' },
+        { slug: 'other-club', name: 'Otro club', shortName: 'OC' },
       ])
       .returning({ id: club.id });
     clubA = must(clubs[0]).id;
     clubB = must(clubs[1]).id;
+    // Every category hangs from a branch of its club (B-313).
+    await db.insert(clubBranch).values([
+      { clubId: clubA, sport: 'rugby', sex: 'male' },
+      { clubId: clubB, sport: 'rugby', sex: 'male' },
+    ]);
 
     const players = await db
       .insert(player)

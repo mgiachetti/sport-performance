@@ -7,8 +7,10 @@ import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest }
 import type { z } from 'zod';
 import { tenantContextOf, type AuthContext, type Membership } from '../auth/context.js';
 import { tenantDatabase, type TenantDatabase, type TransactionClient } from '../db/database.js';
+import type { TenantContext, TransactionSettings } from '../db/tenant-context.js';
 import { endpointRouteClass, type RouteClass } from '../security/rate-limit.js';
 import { HttpError } from './errors.js';
+import { requestPermissions, type RequestPermissions, type RequestScope } from './permissions.js';
 
 /**
  * Body limit of a route class, below the global `BODY_LIMIT_BYTES`: the
@@ -59,9 +61,16 @@ export interface TransactionalHandlerContext<
   tx: TransactionClient;
   /**
    * Typed Drizzle client (`@sport-performance/db`) over `tx`: same
-   * transaction, same tenant context, so RLS applies to every query.
+   * transaction, same tenant context, so RLS applies to every query. Its
+   * `transaction()` is a savepoint of the request transaction.
    */
   db: TenantDatabase;
+  /**
+   * The permission matrix for this caller (ADR 0025, ADR 0032): every
+   * handler calls `authorize` (one resource) or `listScope` (a list) before
+   * touching data. A denial is answered `403`.
+   */
+  permissions: RequestPermissions;
 }
 
 /** Limits of one route; the defaults come from the endpoint (ADR 0031). */
@@ -83,6 +92,17 @@ export type EndpointRoute<E extends EndpointDefinition> = EndpointRouteLimits &
   (
     | {
         transaction: true;
+        /**
+         * `registry`: a superadmin on the registry of clubs (no club in the
+         * context, role `superadmin`, support access without club, ADR 0029).
+         * Only for `session` endpoints; anyone else gets `403`.
+         */
+        scope?: 'registry';
+        /**
+         * The reason of a correction (`changeReason` of the body, ADR 0030),
+         * set as `app.change_reason` for the whole transaction.
+         */
+        changeReason?: (input: EndpointRequest<E>) => string | null | undefined;
         handler: (
           input: EndpointRequest<E>,
           ctx: TransactionalHandlerContext<E>,
@@ -127,6 +147,66 @@ export class ResponseContractError extends Error {
   }
 }
 
+function requestScope(
+  endpoint: EndpointDefinition,
+  routeScope: 'registry' | undefined,
+): RequestScope {
+  if (routeScope === 'registry') {
+    if (endpoint.auth !== 'session') {
+      throw new Error(
+        `${endpoint.method} ${endpoint.path}: the registry scope is for session endpoints`,
+      );
+    }
+    return 'registry';
+  }
+  return endpoint.auth === 'club' ? 'club' : 'none';
+}
+
+/**
+ * Tenant context and settings of the request transaction (ADR 0032): the
+ * caller's club and role, the request id, the change reason and, for a
+ * superadmin, the support reason that `app.begin_support_access` records.
+ * A superadmin without a support reason does not act (`403`).
+ */
+function transactionOf(
+  request: FastifyRequest,
+  scope: RequestScope,
+  changeReason: string | null | undefined,
+): { context: TenantContext; settings: TransactionSettings } {
+  const auth = request.auth;
+  const settings: TransactionSettings = {
+    requestId: request.id,
+    changeReason: changeReason ?? null,
+  };
+  if (scope === 'registry') {
+    if (!auth?.isSuperadmin) {
+      throw new HttpError('forbidden', 'Only a superadmin manages the registry of clubs');
+    }
+    return {
+      context: { clubId: null, userId: auth.userId, role: 'superadmin' },
+      settings: { ...settings, supportReason: requireSupportReason(auth.supportReason) },
+    };
+  }
+  const context = tenantContextOf(auth);
+  if (context.role === 'superadmin') {
+    return {
+      context,
+      settings: { ...settings, supportReason: requireSupportReason(auth?.supportReason ?? null) },
+    };
+  }
+  return { context, settings };
+}
+
+function requireSupportReason(reason: string | null): string {
+  if (reason === null) {
+    throw new HttpError(
+      'forbidden',
+      'A superadmin acts only with X-Support-Reason (UTF-8, percent-encoded, 1 to 500 characters)',
+    );
+  }
+  return reason;
+}
+
 /**
  * Registers an endpoint of the contract catalog: Fastify route, auth guard,
  * input validation with the contract schemas, handler and response check.
@@ -154,7 +234,7 @@ export function registerEndpoint<E extends EndpointDefinition>(
         throw new HttpError(
           'forbidden',
           request.auth.membershipRejected
-            ? 'X-Membership-Id is not an active membership of this user'
+            ? 'X-Membership-Id is not an active membership of this user, or X-Support-Club-Id is not allowed'
             : 'Select a club: send X-Membership-Id (GET /v1/me/memberships)',
         );
       }
@@ -185,11 +265,25 @@ export function registerEndpoint<E extends EndpointDefinition>(
         return parsed.data;
       };
 
-      const body = route.transaction
-        ? await app.db.transaction(tenantContextOf(request.auth), async (tx) =>
-            respond(await route.handler(input, { ...base, tx, db: tenantDatabase(tx) })),
-          )
-        : respond(await route.handler(input, base));
+      let body: unknown;
+      if (route.transaction) {
+        const scope = requestScope(endpoint, route.scope);
+        const { context, settings } = transactionOf(request, scope, route.changeReason?.(input));
+        // The response is built inside the transaction (a result outside the contract rolls
+        // it back) but only sent after the commit: a transaction that did not commit never
+        // reaches the client (ADR 0029: medical reads are logged in that same transaction).
+        body = await app.db.transaction(
+          context,
+          async (tx) => {
+            const db = tenantDatabase(tx);
+            const permissions = requestPermissions(db, request.auth, scope);
+            return respond(await route.handler(input, { ...base, tx, db, permissions }));
+          },
+          settings,
+        );
+      } else {
+        body = respond(await route.handler(input, base));
+      }
 
       void reply.code(endpoint.response.status);
       return endpoint.response.status === 204 ? reply.send() : body;

@@ -99,7 +99,13 @@ describe.skipIf(!hasDatabase)('seeds (Postgres 16)', () => {
       name: 'Olivos Rugby Club',
       timeZone: 'America/Argentina/Buenos_Aires',
     });
-    expect(row?.branding.primaryColor).toBe('#f1882a');
+    expect(row).toMatchObject({
+      shortName: 'ORC',
+      locale: 'es-AR',
+      primaryColor: '#f1882a',
+      secondaryColor: '#050505',
+      logoFileId: null,
+    });
   });
 
   it('seeds the whole metric dictionary with Catapult aliases', async () => {
@@ -258,8 +264,8 @@ describe.skipIf(!hasDatabase)('seeds (Postgres 16)', () => {
     const [a, b] = await t.db
       .insert(club)
       .values([
-        { slug: 'concurrent-a', name: 'Club A' },
-        { slug: 'concurrent-b', name: 'Club B' },
+        { slug: 'concurrent-a', name: 'Club A', shortName: 'A' },
+        { slug: 'concurrent-b', name: 'Club B', shortName: 'B' },
       ])
       .returning({ id: club.id });
     const branches = [{ sport: 'rugby', sex: 'male' }] as const;
@@ -284,7 +290,7 @@ describe.skipIf(!hasDatabase)('seeds (Postgres 16)', () => {
   it('never overwrites what the club edited', async () => {
     const [editedClub] = await t.db
       .insert(club)
-      .values({ slug: 'edited', name: 'Club editado' })
+      .values({ slug: 'edited', name: 'Club editado', shortName: 'ED' })
       .returning({ id: club.id });
     const clubId = must(editedClub).id;
     const branches = [{ sport: 'hockey', sex: 'female' }] as const;
@@ -412,7 +418,7 @@ describe.skipIf(!hasDatabase)('seeds (Postgres 16)', () => {
       t.db.transaction(async (tx) => {
         const [created] = await tx
           .insert(club)
-          .values({ slug: 'rolled-back', name: 'Club que no se crea' })
+          .values({ slug: 'rolled-back', name: 'Club que no se crea', shortName: 'RB' })
           .returning({ id: club.id });
         const report = await bootstrapClub(tx, {
           clubId: must(created).id,
@@ -449,7 +455,7 @@ describe.skipIf(!hasDatabase)('seeds (Postgres 16)', () => {
           await tx.execute(sql`select app.begin_support_access('Alta de club')`);
           const [created] = await tx
             .insert(club)
-            .values({ slug: 'via-app', name: 'Club creado por la API' })
+            .values({ slug: 'via-app', name: 'Club creado por la API', shortName: 'API' })
             .onConflictDoNothing({ target: club.slug })
             .returning({ id: club.id });
           const clubId =
@@ -483,7 +489,7 @@ describe.skipIf(!hasDatabase)('seeds (Postgres 16)', () => {
     });
     expect(other.created).toBe(true);
     expect(other.summary).toMatch(
-      /^Seed cli-club: club created; \d+ rows inserted \(metricDefinitions /,
+      /^Seed cli-club: club created; \d+ rows inserted \(branches 2, metricDefinitions /,
     );
   });
 });

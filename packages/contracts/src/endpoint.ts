@@ -23,6 +23,32 @@ export type EndpointAuth = 'public' | 'session' | 'club';
 export const MEMBERSHIP_HEADER = 'x-membership-id';
 
 /**
+ * Header with the club a superadmin supports (ADR 0029, ADR 0032). A
+ * superadmin is not a member: on `club` endpoints they act in this club as
+ * `superadmin`, instead of a membership. Sent by anyone else, or together
+ * with {@link MEMBERSHIP_HEADER}, it is `403 forbidden`.
+ */
+export const SUPPORT_CLUB_HEADER = 'x-support-club-id';
+
+/**
+ * Why the superadmin acts (ADR 0029): required on every request of a
+ * superadmin acting in a club ({@link SUPPORT_CLUB_HEADER}) and on the
+ * registry of clubs; recorded in the support access log. UTF-8,
+ * percent-encoded (`encodeURIComponent`), 1 to {@link SUPPORT_REASON_MAX_LENGTH}
+ * characters once decoded. Missing or invalid: `403 forbidden`.
+ */
+export const SUPPORT_REASON_HEADER = 'x-support-reason';
+
+/** Longest support reason (the `access_log_reason` check of the database). */
+export const SUPPORT_REASON_MAX_LENGTH = 500;
+
+/**
+ * Response header of an idempotent create (ADR 0032) answered with the row a
+ * previous request with the same `clientUuid` created: `true`.
+ */
+export const IDEMPOTENT_REPLAY_HEADER = 'x-idempotent-replay';
+
+/**
  * Prefix of the session cookies the API sets for the web (`sp.session_token`,
  * `__Secure-sp.session_token` over HTTPS). Mobile never sees them: it uses the
  * bearer token.
@@ -37,7 +63,8 @@ export const API_TAGS = {
   auth: 'Ingreso con código por email (OTP) y sesiones.',
   me: 'El usuario de la sesión: perfil y membresías (selector de club).',
   invitations: 'Invitaciones por link a un club.',
-  clubs: 'Clubes y su marca (white-label).',
+  clubs: 'Clubes, su marca (white-label) y sus ramas (deporte y sexo).',
+  categories: 'Categorías por rama y franja de edad, y posiciones por deporte.',
 } as const satisfies Record<string, string>;
 
 export type ApiTag = keyof typeof API_TAGS;

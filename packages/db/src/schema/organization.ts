@@ -2,6 +2,7 @@ import type { CategoryId } from '@sport-performance/domain';
 import { sql } from 'drizzle-orm';
 import {
   check,
+  foreignKey,
   index,
   pgTable,
   smallint,
@@ -74,6 +75,27 @@ export const season = pgTable(
 );
 
 /**
+ * A program of the club: a sport and its branch (`sex`, ADR 0017), e.g. men's
+ * rugby and women's hockey for ORC. Enabling one seeds its configuration
+ * (`bootstrapClub`, B-306); disabling archives it (`archived_at`) with its
+ * categories, never deletes it. Every category belongs to one (composite
+ * foreign key `(club_id, sport, sex)`).
+ */
+export const clubBranch = pgTable(
+  'club_branch',
+  {
+    ...tenantColumns(),
+    sport: sportEnum('sport').notNull(),
+    sex: sexEnum('sex').notNull(),
+    archivedAt: timestamptz('archived_at'),
+  },
+  (t) => [
+    ...tenantConstraints('club_branch', t),
+    unique('club_branch_club_id_sport_sex_key').on(t.clubId, t.sport, t.sex),
+  ],
+);
+
+/**
  * A club category ("M15 rugby"), with its sport and branch (`sex`, ADR
  * 0017). Every category maps to a domain age band (`age_band_code`, `m15`)
  * so history stays comparable across clubs and sports.
@@ -94,8 +116,18 @@ export const category = pgTable(
   },
   (t) => [
     ...tenantConstraints('category', t),
+    /** Also the index of the reference to the branch (its leading columns). */
     unique('category_club_id_sport_sex_name_key').on(t.clubId, t.sport, t.sex, t.name),
+    foreignKey({
+      name: 'category_branch_fkey',
+      columns: [t.clubId, t.sport, t.sex],
+      foreignColumns: [clubBranch.clubId, clubBranch.sport, clubBranch.sex],
+    }).onDelete('restrict'),
     codeCheck('category_age_band_code_format', t.ageBandCode),
+    check(
+      'category_name_format',
+      sql`${t.name} = btrim(${t.name}) and ${t.name} <> '' and char_length(${t.name}) <= 60`,
+    ),
   ],
 );
 
