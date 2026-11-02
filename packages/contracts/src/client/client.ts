@@ -212,8 +212,22 @@ function scalarToString(value: unknown): string {
   return isScalar(value) ? String(value) : '';
 }
 
+/** `Retry-After` in seconds (`429`, `503`); the HTTP-date form is converted from now. */
+export function parseRetryAfter(
+  value: string | null,
+  now: () => number = Date.now,
+): number | undefined {
+  if (value === null) return undefined;
+  const trimmed = value.trim();
+  if (/^[0-9]+$/.test(trimmed)) return Number(trimmed);
+  const at = Date.parse(trimmed);
+  if (Number.isNaN(at)) return undefined;
+  return Math.max(0, Math.ceil((at - now()) / 1000));
+}
+
 function toApiError(operationId: string, response: FetchResponseLike, text: string): ApiError {
   const headerRequestId = response.headers.get(REQUEST_ID_HEADER) ?? undefined;
+  const retryAfterS = parseRetryAfter(response.headers.get('retry-after'));
   let json: unknown;
   try {
     json = JSON.parse(text) as unknown;
@@ -230,6 +244,7 @@ function toApiError(operationId: string, response: FetchResponseLike, text: stri
       message,
       details,
       requestId: requestId ?? headerRequestId,
+      retryAfterS,
     });
   }
   return new ApiError({
@@ -238,5 +253,6 @@ function toApiError(operationId: string, response: FetchResponseLike, text: stri
     code: errorCodeForStatus(response.status),
     message: `${operationId}: HTTP ${String(response.status)} without an error envelope`,
     requestId: headerRequestId,
+    retryAfterS,
   });
 }

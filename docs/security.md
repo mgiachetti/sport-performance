@@ -1,6 +1,6 @@
 # Seguridad del repositorio
 
-Qué protege al repo, qué falta activar y cómo. Decisión y motivos en [ADR 0021](adr/0021-seguridad-del-repo.md). Para reportar una vulnerabilidad, ver [`.github/SECURITY.md`](../.github/SECURITY.md).
+Qué protege al repo, qué falta activar y cómo. La revisión de seguridad de la API (OWASP API Top 10 y ASVS) está en [`security/api.md`](security/api.md). Decisión y motivos en [ADR 0021](adr/0021-seguridad-del-repo.md). Para reportar una vulnerabilidad, ver [`.github/SECURITY.md`](../.github/SECURITY.md).
 
 ## Estado
 

@@ -37,7 +37,11 @@ export interface OpenApiOperation {
   requestBody?: { required: true; content: { 'application/json': { schema: JsonSchema } } };
   responses: Record<
     string,
-    { description: string; content?: Record<string, { schema: JsonSchema }> }
+    {
+      description: string;
+      headers?: Record<string, { description: string; schema: JsonSchema }>;
+      content?: Record<string, { schema: JsonSchema }>;
+    }
   >;
 }
 
@@ -336,6 +340,15 @@ export function buildOpenApiDocument(
   };
 }
 
+/** Headers of a `429`: the general and the sign-in limits say how long to wait (ADR 0028, ADR 0031). */
+const RATE_LIMITED_HEADERS = {
+  'Retry-After': {
+    description:
+      'Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).',
+    schema: { type: 'integer', minimum: 1 },
+  },
+};
+
 function errorResponses(
   endpoint: EndpointDefinition,
   envelopeRef: JsonSchema,
@@ -352,6 +365,7 @@ function errorResponses(
         String(status),
         {
           description: `Error: ${errorDescription(codes)}.`,
+          ...(status === ERROR_STATUS.rate_limited && { headers: RATE_LIMITED_HEADERS }),
           content: { 'application/json': { schema: envelopeRef } },
         },
       ]),

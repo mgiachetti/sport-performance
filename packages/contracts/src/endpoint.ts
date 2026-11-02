@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 import type { ErrorCode } from './primitives/errors.js';
+import { nonStrictObjectPaths } from './strict-input.js';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -72,8 +73,9 @@ export interface EndpointDefinition {
   response: EndpointResponse;
   /**
    * Error codes this endpoint can answer besides the implicit ones
-   * (`internal_error` always, `validation_failed` when it takes input,
-   * `unauthenticated` when it needs a session, `forbidden` when it needs a club).
+   * (`internal_error` and `rate_limited` always, `validation_failed` when it
+   * takes input, `payload_too_large` when it takes a body, `unauthenticated`
+   * when it needs a session, `forbidden` when it needs a club).
    */
   errors: readonly ErrorCode[];
   deprecated?: boolean;
@@ -104,7 +106,8 @@ export function pathParamNames(path: string): string[] {
 
 /**
  * Declares an endpoint. Checks (at compile time and at load time) that the
- * path placeholders and the params schema agree.
+ * path placeholders and the params schema agree, and (at load time) that
+ * every input schema rejects unknown keys at every level.
  */
 export function defineEndpoint<const E extends EndpointDefinition>(
   endpoint: E & ValidatePathParams<E>,
@@ -114,6 +117,15 @@ export function defineEndpoint<const E extends EndpointDefinition>(
   if (declared.join(',') !== inPath.join(',')) {
     throw new Error(
       `Endpoint ${endpoint.method} ${endpoint.path}: params [${declared.join(', ')}] do not match path placeholders [${inPath.join(', ')}]`,
+    );
+  }
+  const loose = (['params', 'query', 'body'] as const).flatMap((part) => {
+    const schema = endpoint[part];
+    return schema === undefined ? [] : nonStrictObjectPaths(schema, part);
+  });
+  if (loose.length > 0) {
+    throw new Error(
+      `Endpoint ${endpoint.method} ${endpoint.path}: input objects must be strict (z.strictObject): ${loose.join(', ')}`,
     );
   }
   if (endpoint.response.status === 204 && endpoint.response.schema !== undefined) {
@@ -129,8 +141,11 @@ export function defineEndpoint<const E extends EndpointDefinition>(
 export function endpointErrorCodes(endpoint: EndpointDefinition): ErrorCode[] {
   const codes = new Set<ErrorCode>(endpoint.errors);
   if (endpoint.params ?? endpoint.query ?? endpoint.body) codes.add('validation_failed');
+  if (endpoint.body) codes.add('payload_too_large');
   if (endpoint.auth !== 'public') codes.add('unauthenticated');
   if (endpoint.auth === 'club') codes.add('forbidden');
+  // Every endpoint is under the general per-IP and per-user limits (ADR 0031).
+  codes.add('rate_limited');
   codes.add('internal_error');
   return [...codes];
 }

@@ -12,7 +12,12 @@ import {
 import { selectMembership, sessionHeaders } from './authenticate.js';
 import type { ActiveMembership } from './identity.js';
 import { createOriginGuard } from './origin-guard.js';
-import { enforceRateLimits, rateLimitKey, type RateLimiter } from './rate-limit.js';
+import {
+  createMemoryRateLimiter,
+  enforceRateLimits,
+  rateLimitKey,
+  type RateLimiter,
+} from './rate-limit.js';
 
 const membership = (id: string): ActiveMembership => ({
   id: parseUuid(id),
@@ -99,11 +104,13 @@ describe('rate limits', () => {
 
   it('throws 429 with the longest Retry-After when any limit is over', async () => {
     const limiter: RateLimiter = {
-      hit: (_rule, subject) =>
+      hit: (checks) =>
         Promise.resolve(
-          subject === 'over'
-            ? { allowed: false, retryAfterS: 42 }
-            : { allowed: true, retryAfterS: 10 },
+          checks.map(([, subject]) =>
+            subject === 'over'
+              ? { allowed: false, retryAfterS: 42 }
+              : { allowed: true, retryAfterS: 10 },
+          ),
         ),
       prune: () => Promise.resolve(0),
     };
@@ -115,6 +122,32 @@ describe('rate limits', () => {
     expect(error).toBeInstanceOf(HttpError);
     expect((error as HttpError).code).toBe('rate_limited');
     expect((error as HttpError).headers).toEqual({ 'retry-after': '42' });
+  });
+
+  it('counts in memory with fixed windows, once per distinct counter', async () => {
+    let now = 0;
+    const limiter = createMemoryRateLimiter('secret', () => now);
+    const twice = { name: 'twice', max: 2, windowS: 60 };
+    expect(
+      await limiter.hit([
+        [twice, 'a'],
+        [twice, 'a'],
+        [twice, 'b'],
+      ]),
+    ).toEqual([
+      { allowed: true, retryAfterS: 60 },
+      { allowed: true, retryAfterS: 60 },
+      { allowed: true, retryAfterS: 60 },
+    ]);
+    now = 30_000;
+    expect(await limiter.hit([[twice, 'a']])).toEqual([{ allowed: true, retryAfterS: 30 }]);
+    expect(await limiter.hit([[twice, 'a']])).toEqual([{ allowed: false, retryAfterS: 30 }]);
+    now = 60_000;
+    expect(await limiter.hit([[twice, 'a']])).toEqual([{ allowed: true, retryAfterS: 60 }]);
+    expect(await limiter.hit([])).toEqual([]);
+    now = 200_000;
+    expect(await limiter.prune()).toBe(2);
+    expect(limiter.size()).toBe(0);
   });
 });
 

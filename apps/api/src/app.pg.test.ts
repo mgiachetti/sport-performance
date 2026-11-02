@@ -37,7 +37,7 @@ const writeEndpoint = defineEndpoint({
   summary: 'Writes a row and answers outside the contract',
   tags: ['system'],
   auth: 'public',
-  body: z.object({ table: z.string().regex(/^api_tx_[0-9a-f]{32}$/) }),
+  body: z.strictObject({ table: z.string().regex(/^api_tx_[0-9a-f]{32}$/) }),
   response: { status: 201, description: 'Never', schema: z.object({ ok: z.literal(true) }) },
   errors: [],
 });

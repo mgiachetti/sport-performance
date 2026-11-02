@@ -1,6 +1,6 @@
 # @sport-performance/api
 
-API HTTP: Fastify + `zod` con los contratos de `@sport-performance/contracts`, una transacción por request con `SET LOCAL app.club_id / app.user_id / app.role` para RLS, y Better Auth para el ingreso con código por email. Decisiones en [ADR 0009](../../docs/adr/0009-api-fastify-zod.md), [0010](../../docs/adr/0010-auth-better-auth.md), [0020](../../docs/adr/0020-convenciones-contratos-api.md), [0024](../../docs/adr/0024-estructura-de-la-api.md), [0026](../../docs/adr/0026-roles-de-conexion-y-politicas-rls.md) y [0028](../../docs/adr/0028-auth-membresias-e-invitaciones-en-la-api.md).
+API HTTP: Fastify + `zod` con los contratos de `@sport-performance/contracts`, una transacción por request con `SET LOCAL app.club_id / app.user_id / app.role` para RLS, y Better Auth para el ingreso con código por email. Decisiones en [ADR 0009](../../docs/adr/0009-api-fastify-zod.md), [0010](../../docs/adr/0010-auth-better-auth.md), [0020](../../docs/adr/0020-convenciones-contratos-api.md), [0024](../../docs/adr/0024-estructura-de-la-api.md), [0026](../../docs/adr/0026-roles-de-conexion-y-politicas-rls.md), [0028](../../docs/adr/0028-auth-membresias-e-invitaciones-en-la-api.md) y [0031](../../docs/adr/0031-endurecimiento-de-la-api.md). Revisión OWASP: [`docs/security/api.md`](../../docs/security/api.md).
 
 ## Correr
 
@@ -46,6 +46,14 @@ Variables: [`.env.example`](.env.example). Se validan al arrancar; si falta o es
 - **En local sin `RESEND_API_KEY`** los emails no se mandan: el código y los links aparecen en el log (`email not sent`).
 - **Deploy (Railway):** en producción la API no arranca sin `AUTH_SECRET`, `AUTH_BASE_URL`, `WEB_APP_URL`, `RESEND_API_KEY`, `EMAIL_FROM`, `AUTH_DATABASE_URL` y `TRUST_PROXY_HOPS` (Railway: 1; `0` se rechaza: la IP sería la del proxy y los límites por IP del ingreso serían globales); cargarlas en el servicio antes de deployar. `WEB_ORIGINS` viene vacío: sin él no se registra CORS y la web no puede llamar a la API con su cookie, así que hay que cargarlo cuando se deploye la web.
 
+## Seguridad (ADR 0031)
+
+- **Límites generales** en todo request, por IP y por usuario, por clase de ruta (`public`, `auth`, `read`, `write`, `upload`, `exempt`); `429 rate_limited` con `Retry-After`. La clase sale del contrato (nivel de auth y método) y se puede fijar con `rateLimit` en `registerEndpoint`. Usan la tabla `auth_rate_limit` (claves HMAC) y fallan abiertos si la base no responde en `RATE_LIMIT_TIMEOUT_MS`. Valores en `src/security/rate-limit.ts` y en [`docs/security/api.md`](../../docs/security/api.md).
+- **Headers** en toda respuesta: CSP `default-src 'none'`, `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, COOP/CORP, `Cache-Control: no-store` (una ruta cacheable pone el suyo) y HSTS en producción. Nunca `Server` ni `X-Powered-By`.
+- **Tamaños:** `BODY_LIMIT_BYTES` (1 MiB) y 16 KiB para los endpoints públicos que cambian estado (`bodyLimitBytes` en `registerEndpoint` para otro valor); `413 payload_too_large`. Los archivos nunca pasan por la API (URLs firmadas, #56).
+- **Timeouts:** `HTTP_REQUEST_TIMEOUT_MS`, `HTTP_HEADERS_TIMEOUT_MS`, `HTTP_KEEP_ALIVE_TIMEOUT_MS`, `HTTP_CONNECTION_TIMEOUT_MS`, `HTTP_MAX_CONNECTIONS`, `HTTP_MAX_HEADER_SIZE_BYTES`.
+- **Secretos en producción:** `AUTH_SECRET` de 32+ caracteres, 128+ bits estimados y sin pinta de ejemplo (`openssl rand -base64 48`); logins de base con contraseña de 16+ caracteres y distintos entre sí. Si no, la API no arranca y el error nombra la variable, nunca el valor.
+
 ## Estructura
 
 | Archivo | |
@@ -62,6 +70,7 @@ Variables: [`.env.example`](.env.example). Se validan al arrancar; si falta o es
 | `src/http/endpoint.ts` | `registerEndpoint`: ruta del catálogo con validación de entrada y salida. |
 | `src/http/errors.ts` | `HttpError` y el manejo de errores con el sobre del contrato. |
 | `src/observability/` | pino, id de request, Sentry y su scrubbing. |
+| `src/security/` | Límites generales por clase de ruta (`rate-limit.ts`), headers de seguridad (`headers.ts`) y chequeos de secretos de producción (`secrets.ts`). |
 | `src/routes/` | Rutas servidas; lista de endpoints del contrato todavía pendientes. |
 
 ## Agregar un endpoint

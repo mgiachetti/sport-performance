@@ -6,7 +6,7 @@
 import { createDatabase } from '@sport-performance/db';
 import { buildApp } from './app.js';
 import { createAuthModule } from './auth/module.js';
-import { ConfigError, loadConfig } from './config/env.js';
+import { ConfigError, configSummary, loadConfig } from './config/env.js';
 import {
   assertConnectionRole,
   DatabaseRoleError,
@@ -130,7 +130,10 @@ async function main(): Promise<void> {
   installProcessHandlers(process, shutdown, logger, reporter);
 
   await app.listen({ host: config.host, port: config.port });
-  logger.info({ sentry: reporter.enabled, email: transport.name }, 'api ready');
+  logger.info(
+    { sentry: reporter.enabled, email: transport.name, config: configSummary(config) },
+    'api ready',
+  );
 }
 
 await main();

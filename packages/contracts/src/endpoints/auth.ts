@@ -108,7 +108,7 @@ export const sendSignInCode = defineEndpoint({
     'Manda un código de un solo uso al email. Responde igual exista o no la cuenta (la cuenta se crea al verificar el código). Pedir un código nuevo invalida el anterior. Limitado por email y por IP.',
   tags: ['auth'],
   auth: 'public',
-  body: z.object({ email: emailSchema }),
+  body: z.strictObject({ email: emailSchema }),
   response: { status: 202, description: 'Código enviado.', schema: signInCodeSentSchema },
   errors: ['rate_limited', 'service_unavailable'],
 });
@@ -121,7 +121,7 @@ export const verifySignInCode = defineEndpoint({
     'Verifica el código y abre una sesión. La web usa `transport: "cookie"` (cookie `HttpOnly`); mobile usa `"bearer"` y guarda el token en el almacenamiento seguro. Código incorrecto o vencido: `unauthenticated`. Cada código admite 3 intentos; después, `rate_limited` sin `Retry-After`: no hay que esperar sino pedir otro código. Los límites por email y por IP también responden `rate_limited`, con `Retry-After`.',
   tags: ['auth'],
   auth: 'public',
-  body: z.object({
+  body: z.strictObject({
     email: emailSchema,
     code: signInCodeSchema,
     transport: z
