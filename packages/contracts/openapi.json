@@ -49,6 +49,10 @@
     {
       "name": "wellness",
       "description": "Bienestar antes de entrenar: una carga por jugador y día del club."
+    },
+    {
+      "name": "tests",
+      "description": "Días de test, resultados con sus intentos y series comparables (B-320)."
     }
   ],
   "paths": {
@@ -8467,6 +8471,226 @@
         }
       }
     },
+    "/v1/players/{playerId}/test-metrics/{metricCode}": {
+      "get": {
+        "operationId": "listPlayerTestMetric",
+        "summary": "Serie de una métrica de test de un jugador",
+        "description": "El puntaje de la métrica en cada resultado `done` del jugador, con cómo se midió y el aviso cuando se mezclan métodos, versiones del protocolo, equipos o ejercicios de fuerza (principio 4). Mismo alcance que los resultados.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "metricCode",
+            "in": "path",
+            "required": true,
+            "description": "Código canónico de la métrica (`cmj_height_cm`).",
+            "schema": {
+              "type": "string",
+              "examples": [
+                "cmj_height_cm"
+              ]
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "method",
+            "in": "query",
+            "required": false,
+            "description": "Solo un método (para comparar sin mezclar).",
+            "schema": {
+              "$ref": "#/components/schemas/MeasurementMethod"
+            }
+          },
+          {
+            "name": "exercise",
+            "in": "query",
+            "required": false,
+            "description": "Solo un ejercicio de fuerza (para comparar sin mezclar).",
+            "schema": {
+              "type": "string",
+              "examples": [
+                "trap_bar_deadlift"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `measuredOn`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "measuredOn",
+              "type": "string",
+              "enum": [
+                "measuredOn",
+                "-measuredOn"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de la serie y la comparación de todo el rango.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestMetricSeries"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `bad_request`, `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/positions": {
       "get": {
         "operationId": "listPositions",
@@ -10499,6 +10723,1138 @@
         }
       }
     },
+    "/v1/test-results": {
+      "get": {
+        "operationId": "listTestResults",
+        "summary": "Resultados de tests",
+        "description": "El staff ve los jugadores de sus asignaciones, la administración todo el club y el jugador los suyos. `injured` se ve `unavailable` salvo para `medical`.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "playerId",
+            "in": "query",
+            "required": false,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "testSessionId",
+            "in": "query",
+            "required": false,
+            "description": "Id de día de test (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "testCode",
+            "in": "query",
+            "required": false,
+            "description": "Código del test (`sprint_40`).",
+            "schema": {
+              "type": "string",
+              "examples": [
+                "sprint_40"
+              ]
+            }
+          },
+          {
+            "name": "testDefinitionId",
+            "in": "query",
+            "required": false,
+            "description": "Id de versión del protocolo de un test (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "done",
+                "not_done"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `measuredOn`, `createdAt`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "-measuredOn",
+              "type": "string",
+              "enum": [
+                "measuredOn",
+                "-measuredOn",
+                "createdAt",
+                "-createdAt"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de resultados.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestResultPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `bad_request`, `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createTestResult",
+        "summary": "Cargar un resultado",
+        "description": "Con consentimiento de datos vigente del jugador; `sc` en sus asignaciones y la administración. Un `done` solo para tests de la batería vigente de la etapa del jugador (deporte, sexo, etapa a la fecha y categoría), nunca con cargas máximas en M13/M14 y, en fuerza, solo las métricas de su evaluación (técnica, 1RM estimado o directo): lo que no corresponde se carga `not_done` con `not_applicable_to_stage`. Idempotente por `clientUuid`.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestResultInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Resultado cargado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/test-results/{testResultId}": {
+      "get": {
+        "operationId": "getTestResult",
+        "summary": "Un resultado de test",
+        "description": "Con sus entradas (también las anuladas) y el puntaje de cada métrica.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testResultId",
+            "in": "path",
+            "required": true,
+            "description": "Id de resultado de test (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "El resultado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateTestResult",
+        "summary": "Corregir un resultado",
+        "description": "Método, evaluador, dispositivo, ejercicio, condiciones, notas, fecha y estado. Cambiar un dato ya cargado pide `changeReason` (ADR 0030). Pasar a `not_done` exige anular antes las entradas; pasar a `done` exige `method`. `version` desactualizada: `conflict`. Las entradas no se editan: se anulan.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testResultId",
+            "in": "path",
+            "required": true,
+            "description": "Id de resultado de test (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "description": "Versión que el cliente leyó (`version` de la respuesta). Si no es la actual: `409 conflict`.",
+                    "$ref": "#/components/schemas/ResourceVersion"
+                  },
+                  "changeReason": {
+                    "$ref": "#/components/schemas/ChangeReason"
+                  },
+                  "measuredOn": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                    "examples": [
+                      "2026-11-01"
+                    ]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "done",
+                      "not_done"
+                    ]
+                  },
+                  "notDoneReason": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/TestNotDoneReason"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "notDoneNote": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "method": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/MeasurementMethod"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "evaluatorId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "description": "Id de usuario (UUID, RFC 9562)."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "deviceId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "description": "Id de dispositivo (UUID, RFC 9562)."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "exercise": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "description": "Ejercicio de un resultado de fuerza, en `snake_case`.",
+                        "examples": [
+                          "trap_bar_deadlift"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "conditions": {
+                    "type": "object",
+                    "properties": {
+                      "surface": {
+                        "examples": [
+                          "césped natural"
+                        ],
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "footwear": {
+                        "examples": [
+                          "botines"
+                        ],
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "weather": {
+                        "examples": [
+                          "soleado, sin viento"
+                        ],
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "temperatureC": {
+                        "type": "number",
+                        "minimum": -40,
+                        "maximum": 60
+                      },
+                      "standardizedWarmUp": {
+                        "type": "boolean"
+                      },
+                      "notes": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "Condiciones de la medición: superficie, calzado, clima, temperatura, entrada en calor."
+                  },
+                  "notes": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "version"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "El resultado corregido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/test-results/{testResultId}/entries": {
+      "post": {
+        "operationId": "addTestResultEntries",
+        "summary": "Agregar intentos a un resultado",
+        "description": "Solo a un resultado `done`. Cada entrada es idempotente por su `clientUuid`. Las métricas derivadas del resultado se recalculan en la misma transacción. Un valor único que ya existe para la métrica: `conflict` (anularlo primero).",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testResultId",
+            "in": "path",
+            "required": true,
+            "description": "Id de resultado de test (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "entries": {
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/TestEntryInput"
+                    }
+                  }
+                },
+                "required": [
+                  "entries"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "El resultado con sus entradas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/test-results/{testResultId}/void": {
+      "post": {
+        "operationId": "voidTestResultEntries",
+        "summary": "Anular entradas de un resultado",
+        "description": "La corrección de un intento (append-only): se anulan todos sus valores con el motivo (1 a 500 caracteres), que queda en el historial, y se recalculan las derivadas. Idempotente: anular una entrada ya anulada no hace nada. Las entradas `derived` no se anulan a mano.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testResultId",
+            "in": "path",
+            "required": true,
+            "description": "Id de resultado de test (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "entryIds": {
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "description": "Id de entrada de un resultado de test (UUID, RFC 9562)."
+                    }
+                  },
+                  "reason": {
+                    "$ref": "#/components/schemas/ChangeReason"
+                  }
+                },
+                "required": [
+                  "entryIds",
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "El resultado con las entradas anuladas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error: `payload_too_large`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/test-sessions": {
       "get": {
         "operationId": "listTestSessions",
@@ -10707,7 +12063,7 @@
       "post": {
         "operationId": "createTestSession",
         "summary": "Programar un día de test",
-        "description": "La administración y el `sc` de la categoría. La categoría tiene que estar activa; la ventana (opcional) activa, del mismo deporte y con el día adentro (`validation_failed`). Idempotente por `clientUuid`.",
+        "description": "La administración y el `sc` de la categoría. La categoría tiene que estar activa; la ventana (opcional) activa, del mismo deporte y con el día adentro; el evaluador, un miembro vigente del staff del club (`validation_failed`). Idempotente por `clientUuid`.",
         "tags": [
           "calendar"
         ],
@@ -10771,11 +12127,61 @@
                       "Cancha 2, sede Munro"
                     ]
                   },
+                  "conditions": {
+                    "type": "object",
+                    "properties": {
+                      "surface": {
+                        "examples": [
+                          "césped natural"
+                        ],
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "footwear": {
+                        "examples": [
+                          "botines"
+                        ],
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "weather": {
+                        "examples": [
+                          "soleado, sin viento"
+                        ],
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "temperatureC": {
+                        "type": "number",
+                        "minimum": -40,
+                        "maximum": 60
+                      },
+                      "standardizedWarmUp": {
+                        "type": "boolean"
+                      },
+                      "notes": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "Condiciones de la medición: superficie, calzado, clima, temperatura, entrada en calor."
+                  },
                   "notes": {
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 2000,
                     "description": "Notas."
+                  },
+                  "evaluatorId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Id de usuario (UUID, RFC 9562)."
                   }
                 },
                 "required": [
@@ -11013,8 +12419,8 @@
       },
       "patch": {
         "operationId": "updateTestSession",
-        "summary": "Reprogramar un día de test",
-        "description": "La administración y el `sc` de la categoría, mientras está `scheduled` (si no, `conflict`). Cambiar un dato ya cargado (el día, la ventana, el lugar o las notas) es una corrección y pide `changeReason` (ADR 0030). `version` desactualizada: `conflict`.",
+        "summary": "Reprogramar, editar o correr un día de test",
+        "description": "La administración y el `sc` de la categoría. El día y la ventana se cambian solo mientras está `scheduled`; el lugar, las condiciones, las notas y el evaluador, mientras no está suspendido (si no, `conflict`). `status` corre el día (B-320): `scheduled → in_progress → completed`, volver a `scheduled` uno en curso y reabrir uno cerrado (`completed → in_progress`); `startedAt` y `completedAt` los fija el servidor; suspender y restaurar son `…/cancel` y `…/restore`. Cambiar un dato ya cargado es una corrección y pide `changeReason` (ADR 0030). `version` desactualizada o transición inválida: `conflict`.",
         "tags": [
           "calendar"
         ],
@@ -11082,6 +12488,15 @@
                       }
                     ]
                   },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "scheduled",
+                      "in_progress",
+                      "completed"
+                    ],
+                    "description": "`scheduled → in_progress → completed`, volver a `scheduled` un día en curso y reabrir uno cerrado (`completed → in_progress`)."
+                  },
                   "location": {
                     "anyOf": [
                       {
@@ -11098,6 +12513,50 @@
                       }
                     ]
                   },
+                  "conditions": {
+                    "type": "object",
+                    "properties": {
+                      "surface": {
+                        "examples": [
+                          "césped natural"
+                        ],
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "footwear": {
+                        "examples": [
+                          "botines"
+                        ],
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "weather": {
+                        "examples": [
+                          "soleado, sin viento"
+                        ],
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "temperatureC": {
+                        "type": "number",
+                        "minimum": -40,
+                        "maximum": 60
+                      },
+                      "standardizedWarmUp": {
+                        "type": "boolean"
+                      },
+                      "notes": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "Condiciones de la medición: superficie, calzado, clima, temperatura, entrada en calor."
+                  },
                   "notes": {
                     "anyOf": [
                       {
@@ -11105,6 +12564,19 @@
                         "minLength": 1,
                         "maxLength": 2000,
                         "description": "Notas."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "evaluatorId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "description": "Id de usuario (UUID, RFC 9562)."
                       },
                       {
                         "type": "null"
@@ -11450,6 +12922,172 @@
           },
           "409": {
             "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error: `rate_limited`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos hasta que se abre la ventana del límite. Falta solo cuando esperar no sirve (un código de ingreso con sus intentos agotados: hay que pedir otro).",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error: `internal_error`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/test-sessions/{testSessionId}/results": {
+      "post": {
+        "operationId": "recordTestSessionResults",
+        "summary": "Cargar resultados de un día de test por lote",
+        "description": "Carga de la cancha: hasta 200 resultados (varios jugadores y tests) en una transacción, todo o nada. Cada resultado es idempotente por `clientUuid` (`replayed` dice si ya estaba). Con consentimiento de datos vigente del jugador; `sc` en sus asignaciones y la administración. Un `done` solo para tests de la batería vigente de la etapa del jugador (deporte, sexo, etapa a la fecha y categoría), nunca con cargas máximas en M13/M14 y, en fuerza, solo las métricas de su evaluación (técnica, 1RM estimado o directo): lo que no corresponde se carga `not_done` con `not_applicable_to_stage`. Un día cancelado no recibe resultados: `conflict`.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testSessionId",
+            "in": "path",
+            "required": true,
+            "description": "Id de día de test (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "results": {
+                    "minItems": 1,
+                    "maxItems": 200,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/TestSessionResultInput"
+                    }
+                  }
+                },
+                "required": [
+                  "results"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Resultados cargados, en el orden del pedido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestSessionResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error: `validation_failed`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error: `unauthenticated`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error: `forbidden`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error: `not_found`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error: `conflict`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error: `payload_too_large`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -15745,6 +17383,18 @@
           "activeMembership"
         ]
       },
+      "MeasurementMethod": {
+        "type": "string",
+        "enum": [
+          "manual",
+          "video",
+          "photocell",
+          "pod",
+          "app",
+          "historical"
+        ],
+        "description": "Cómo se midió (principio 4): `manual`, `video`, `photocell`, `pod`, `app` o `historical`. Nunca se comparan métodos distintos sin aviso."
+      },
       "Member": {
         "type": "object",
         "properties": {
@@ -17434,6 +19084,1260 @@
         ],
         "description": "Etapa de desarrollo: `foundation` (M13/M14), `development` (M15/M16), `performance` (M17/M19)."
       },
+      "TestComparison": {
+        "type": "object",
+        "properties": {
+          "methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MeasurementMethod"
+            }
+          },
+          "protocolVersions": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "deviceIds": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Id de dispositivo (UUID, RFC 9562)."
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "exercises": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "description": "Ejercicio de un resultado de fuerza, en `snake_case`.",
+                  "examples": [
+                    "trap_bar_deadlift"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "mixed_methods",
+                "mixed_protocol_versions",
+                "mixed_devices",
+                "mixed_exercises"
+              ]
+            },
+            "description": "Sobre todo el rango filtrado (no solo la página): `mixed_methods`, `mixed_protocol_versions`, para tests que solo se comparan con el mismo equipo (reacción) `mixed_devices` y, en fuerza, `mixed_exercises` (el código de la métrica, como `e1rm_kg`, no lleva el ejercicio). La UI los muestra siempre junto a los datos."
+          }
+        },
+        "required": [
+          "methods",
+          "protocolVersions",
+          "deviceIds",
+          "exercises",
+          "warnings"
+        ]
+      },
+      "TestConditions": {
+        "type": "object",
+        "properties": {
+          "surface": {
+            "examples": [
+              "césped natural"
+            ],
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "footwear": {
+            "examples": [
+              "botines"
+            ],
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "weather": {
+            "examples": [
+              "soleado, sin viento"
+            ],
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "temperatureC": {
+            "type": "number",
+            "minimum": -40,
+            "maximum": 60
+          },
+          "standardizedWarmUp": {
+            "type": "boolean"
+          },
+          "notes": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        }
+      },
+      "TestEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de entrada de un resultado de test (UUID, RFC 9562)."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "value",
+              "sprint_splits",
+              "cmj_flight_time",
+              "cmj_video_frames",
+              "ift_stage",
+              "strength_set",
+              "derived"
+            ],
+            "description": "`derived`: métrica del resultado recalculada por el servidor (asimetría, fuerza relativa)."
+          },
+          "attemptNumber": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recordedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "inputs": {
+            "anyOf": [
+              {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo que tipeó el evaluador para una entrada cruda; `null` para un valor directo."
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Id de valor (UUID, RFC 9562)."
+                },
+                "metricCode": {
+                  "type": "string",
+                  "description": "Código canónico de la métrica (`cmj_height_cm`).",
+                  "examples": [
+                    "cmj_height_cm"
+                  ]
+                },
+                "unit": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "value": {
+                  "type": "number"
+                },
+                "computed": {
+                  "type": "boolean",
+                  "description": "Lo calculó el servidor (no se tipeó)."
+                }
+              },
+              "required": [
+                "id",
+                "metricCode",
+                "unit",
+                "value",
+                "computed"
+              ]
+            }
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "reps_below_protocol",
+                "reps_above_protocol",
+                "rir_below_protocol"
+              ]
+            },
+            "description": "Avisos de protocolo (una serie fuera de 3–5 reps o con RIR < 2). No bloquean."
+          },
+          "voided": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                    "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                    "examples": [
+                      "2026-11-01T12:00:00.000Z"
+                    ]
+                  },
+                  "by": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "description": "Id de usuario (UUID, RFC 9562)."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "at",
+                  "by",
+                  "reason"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "attemptNumber",
+          "recordedAt",
+          "inputs",
+          "values",
+          "issues",
+          "voided"
+        ]
+      },
+      "TestEntryInput": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "value"
+              },
+              "clientUuid": {
+                "description": "UUID de la entrada generado por el cliente (cola offline): reenviarla no la duplica. Es el `id` de la entrada.",
+                "$ref": "#/components/schemas/ClientUuid"
+              },
+              "attemptNumber": {
+                "description": "Número de intento (etiqueta del evaluador). Sin número, la entrada es el valor único del resultado.",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "recordedAt": {
+                "description": "Cuándo se registró en la cancha (ordena intentos de varios dispositivos).",
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "metricCode": {
+                "type": "string",
+                "description": "Código canónico de la métrica (`cmj_height_cm`).",
+                "examples": [
+                  "cmj_height_cm"
+                ]
+              },
+              "value": {
+                "type": "number",
+                "minimum": -1000000,
+                "maximum": 1000000
+              }
+            },
+            "required": [
+              "kind",
+              "metricCode",
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "sprint_splits"
+              },
+              "clientUuid": {
+                "description": "UUID de la entrada generado por el cliente (cola offline): reenviarla no la duplica. Es el `id` de la entrada.",
+                "$ref": "#/components/schemas/ClientUuid"
+              },
+              "attemptNumber": {
+                "description": "Número de intento (etiqueta del evaluador). Sin número, la entrada es el valor único del resultado.",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "recordedAt": {
+                "description": "Cuándo se registró en la cancha (ordena intentos de varios dispositivos).",
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "split10S": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000
+              },
+              "split20S": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000
+              },
+              "split40S": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000
+              }
+            },
+            "required": [
+              "kind",
+              "split20S",
+              "split40S"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "cmj_flight_time"
+              },
+              "clientUuid": {
+                "description": "UUID de la entrada generado por el cliente (cola offline): reenviarla no la duplica. Es el `id` de la entrada.",
+                "$ref": "#/components/schemas/ClientUuid"
+              },
+              "attemptNumber": {
+                "description": "Número de intento (etiqueta del evaluador). Sin número, la entrada es el valor único del resultado.",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "recordedAt": {
+                "description": "Cuándo se registró en la cancha (ordena intentos de varios dispositivos).",
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "flightTimeS": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000
+              }
+            },
+            "required": [
+              "kind",
+              "flightTimeS"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "cmj_video_frames"
+              },
+              "clientUuid": {
+                "description": "UUID de la entrada generado por el cliente (cola offline): reenviarla no la duplica. Es el `id` de la entrada.",
+                "$ref": "#/components/schemas/ClientUuid"
+              },
+              "attemptNumber": {
+                "description": "Número de intento (etiqueta del evaluador). Sin número, la entrada es el valor único del resultado.",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "recordedAt": {
+                "description": "Cuándo se registró en la cancha (ordena intentos de varios dispositivos).",
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "takeoffFrame": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "landingFrame": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "frameRateFps": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000
+              }
+            },
+            "required": [
+              "kind",
+              "takeoffFrame",
+              "landingFrame",
+              "frameRateFps"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "ift_stage"
+              },
+              "clientUuid": {
+                "description": "UUID de la entrada generado por el cliente (cola offline): reenviarla no la duplica. Es el `id` de la entrada.",
+                "$ref": "#/components/schemas/ClientUuid"
+              },
+              "attemptNumber": {
+                "description": "Número de intento (etiqueta del evaluador). Sin número, la entrada es el valor único del resultado.",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "recordedAt": {
+                "description": "Cuándo se registró en la cancha (ordena intentos de varios dispositivos).",
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "lastCompletedStage": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              }
+            },
+            "required": [
+              "kind",
+              "lastCompletedStage"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "strength_set"
+              },
+              "clientUuid": {
+                "description": "UUID de la entrada generado por el cliente (cola offline): reenviarla no la duplica. Es el `id` de la entrada.",
+                "$ref": "#/components/schemas/ClientUuid"
+              },
+              "attemptNumber": {
+                "description": "Número de intento (etiqueta del evaluador). Sin número, la entrada es el valor único del resultado.",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "recordedAt": {
+                "description": "Cuándo se registró en la cancha (ordena intentos de varios dispositivos).",
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "loadKg": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000
+              },
+              "reps": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "rir": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 20
+              }
+            },
+            "required": [
+              "kind",
+              "loadKg",
+              "reps",
+              "rir"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "description": "Un intento como lo carga el evaluador. `value`: el valor de una métrica en su unidad; el resto son entradas crudas que el servidor convierte con las fórmulas del dominio (sprint: t10/t20/t40 y Vmax 20–40; CMJ: tiempo de vuelo o cuadros de video, `h = g·t²/8`; 30-15 IFT: última etapa → VIFT; fuerza: serie peso/reps/RIR → e1RM de Epley con RIR). Las métricas derivadas no se cargan a mano."
+      },
+      "TestMetricPoint": {
+        "type": "object",
+        "properties": {
+          "testResultId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de resultado de test (UUID, RFC 9562)."
+          },
+          "testSessionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de día de test (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "testDefinitionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de versión del protocolo de un test (UUID, RFC 9562)."
+          },
+          "protocolVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "measuredOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "value": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1
+          },
+          "aggregation": {
+            "type": "string",
+            "enum": [
+              "best",
+              "mean",
+              "single"
+            ]
+          },
+          "attemptCount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "method": {
+            "$ref": "#/components/schemas/MeasurementMethod"
+          },
+          "deviceId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de dispositivo (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "exercise": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Ejercicio de un resultado de fuerza, en `snake_case`.",
+                "examples": [
+                  "trap_bar_deadlift"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ejercicio de fuerza del resultado (`null` en los demás tests)."
+          }
+        },
+        "required": [
+          "testResultId",
+          "testSessionId",
+          "testDefinitionId",
+          "protocolVersion",
+          "measuredOn",
+          "value",
+          "unit",
+          "aggregation",
+          "attemptCount",
+          "method",
+          "deviceId",
+          "exercise"
+        ]
+      },
+      "TestMetricScore": {
+        "type": "object",
+        "properties": {
+          "metricCode": {
+            "type": "string",
+            "description": "Código canónico de la métrica (`cmj_height_cm`).",
+            "examples": [
+              "cmj_height_cm"
+            ]
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1
+          },
+          "value": {
+            "type": "number"
+          },
+          "aggregation": {
+            "type": "string",
+            "enum": [
+              "best",
+              "mean",
+              "single"
+            ],
+            "description": "Cómo se redujeron los intentos (de la definición del test), o `single`."
+          },
+          "attemptCount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "derived": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "metricCode",
+          "unit",
+          "value",
+          "aggregation",
+          "attemptCount",
+          "derived"
+        ]
+      },
+      "TestMetricSeries": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestMetricPoint"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          },
+          "comparison": {
+            "$ref": "#/components/schemas/TestComparison"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "comparison"
+        ]
+      },
+      "TestNotDoneReason": {
+        "type": "string",
+        "enum": [
+          "absent",
+          "injured",
+          "not_applicable_to_stage",
+          "other"
+        ],
+        "description": "Por qué no se hizo: `absent`, `injured` (nunca el diagnóstico), `not_applicable_to_stage` u `other` (con nota)."
+      },
+      "TestNotDoneReasonView": {
+        "type": "string",
+        "enum": [
+          "absent",
+          "injured",
+          "not_applicable_to_stage",
+          "other",
+          "unavailable"
+        ],
+        "description": "Motivo como lo ve quien lee: `injured` se ve `unavailable` para todo rol que no sea `medical`."
+      },
+      "TestResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de resultado de test (UUID, RFC 9562)."
+          },
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "testDefinitionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de versión del protocolo de un test (UUID, RFC 9562)."
+          },
+          "testCode": {
+            "type": "string",
+            "description": "Código del test (`sprint_40`).",
+            "examples": [
+              "sprint_40"
+            ]
+          },
+          "protocolVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "testSessionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de día de test (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "measuredOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "done",
+              "not_done"
+            ]
+          },
+          "notDoneReason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TestNotDoneReasonView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notDoneNote": {
+            "description": "Nota del motivo; no se muestra con `unavailable`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "method": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeasurementMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evaluatorId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de usuario (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deviceId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de dispositivo (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "exercise": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Ejercicio de un resultado de fuerza, en `snake_case`.",
+                "examples": [
+                  "trap_bar_deadlift"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "conditions": {
+            "$ref": "#/components/schemas/TestConditions"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestEntry"
+            }
+          },
+          "scores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestMetricScore"
+            },
+            "description": "Puntaje de cada métrica con las entradas válidas."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "version": {
+            "$ref": "#/components/schemas/ResourceVersion"
+          }
+        },
+        "required": [
+          "id",
+          "playerId",
+          "testDefinitionId",
+          "testCode",
+          "protocolVersion",
+          "testSessionId",
+          "measuredOn",
+          "status",
+          "notDoneReason",
+          "notDoneNote",
+          "method",
+          "evaluatorId",
+          "deviceId",
+          "exercise",
+          "conditions",
+          "notes",
+          "entries",
+          "scores",
+          "createdAt",
+          "updatedAt",
+          "version"
+        ]
+      },
+      "TestResultInput": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "done"
+              },
+              "clientUuid": {
+                "$ref": "#/components/schemas/ClientUuid"
+              },
+              "playerId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de jugador/a (UUID, RFC 9562)."
+              },
+              "testDefinitionId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de versión del protocolo de un test (UUID, RFC 9562)."
+              },
+              "measuredOn": {
+                "description": "Por defecto, la fecha del día de test. Obligatoria sin día de test.",
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "examples": [
+                  "2026-11-01"
+                ]
+              },
+              "evaluatorId": {
+                "description": "Por defecto, el evaluador del día de test o quien carga. `null` solo si se desconoce (históricos).",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Id de usuario (UUID, RFC 9562)."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "deviceId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de dispositivo (UUID, RFC 9562)."
+              },
+              "exercise": {
+                "description": "Obligatorio en fuerza.",
+                "type": "string",
+                "examples": [
+                  "trap_bar_deadlift"
+                ]
+              },
+              "conditions": {
+                "description": "Por defecto, las del día de test.",
+                "type": "object",
+                "properties": {
+                  "surface": {
+                    "examples": [
+                      "césped natural"
+                    ],
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "footwear": {
+                    "examples": [
+                      "botines"
+                    ],
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "weather": {
+                    "examples": [
+                      "soleado, sin viento"
+                    ],
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "temperatureC": {
+                    "type": "number",
+                    "minimum": -40,
+                    "maximum": 60
+                  },
+                  "standardizedWarmUp": {
+                    "type": "boolean"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  }
+                },
+                "additionalProperties": false
+              },
+              "notes": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "method": {
+                "$ref": "#/components/schemas/MeasurementMethod"
+              },
+              "entries": {
+                "minItems": 1,
+                "maxItems": 50,
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TestEntryInput"
+                }
+              },
+              "testSessionId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de día de test (UUID, RFC 9562)."
+              }
+            },
+            "required": [
+              "status",
+              "playerId",
+              "testDefinitionId",
+              "method",
+              "entries"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "not_done"
+              },
+              "clientUuid": {
+                "$ref": "#/components/schemas/ClientUuid"
+              },
+              "playerId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de jugador/a (UUID, RFC 9562)."
+              },
+              "testDefinitionId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de versión del protocolo de un test (UUID, RFC 9562)."
+              },
+              "measuredOn": {
+                "description": "Por defecto, la fecha del día de test. Obligatoria sin día de test.",
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "examples": [
+                  "2026-11-01"
+                ]
+              },
+              "evaluatorId": {
+                "description": "Por defecto, el evaluador del día de test o quien carga. `null` solo si se desconoce (históricos).",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Id de usuario (UUID, RFC 9562)."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "deviceId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de dispositivo (UUID, RFC 9562)."
+              },
+              "exercise": {
+                "description": "Obligatorio en fuerza.",
+                "type": "string",
+                "examples": [
+                  "trap_bar_deadlift"
+                ]
+              },
+              "conditions": {
+                "description": "Por defecto, las del día de test.",
+                "type": "object",
+                "properties": {
+                  "surface": {
+                    "examples": [
+                      "césped natural"
+                    ],
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "footwear": {
+                    "examples": [
+                      "botines"
+                    ],
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "weather": {
+                    "examples": [
+                      "soleado, sin viento"
+                    ],
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "temperatureC": {
+                    "type": "number",
+                    "minimum": -40,
+                    "maximum": 60
+                  },
+                  "standardizedWarmUp": {
+                    "type": "boolean"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  }
+                },
+                "additionalProperties": false
+              },
+              "notes": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "notDoneReason": {
+                "$ref": "#/components/schemas/TestNotDoneReason"
+              },
+              "notDoneNote": {
+                "description": "Obligatoria con `other`.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "method": {
+                "$ref": "#/components/schemas/MeasurementMethod"
+              },
+              "testSessionId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de día de test (UUID, RFC 9562)."
+              }
+            },
+            "required": [
+              "status",
+              "playerId",
+              "testDefinitionId",
+              "notDoneReason"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "TestResultPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestResult"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
       "TestSession": {
         "type": "object",
         "properties": {
@@ -17501,6 +20405,9 @@
               }
             ]
           },
+          "conditions": {
+            "$ref": "#/components/schemas/TestConditions"
+          },
           "notes": {
             "anyOf": [
               {
@@ -17513,6 +20420,20 @@
                 "type": "null"
               }
             ]
+          },
+          "evaluatorId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de usuario (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Evaluador responsable; evaluador por defecto de los resultados del día (B-320)."
           },
           "startedAt": {
             "anyOf": [
@@ -17576,7 +20497,9 @@
           "scheduledOn",
           "status",
           "location",
+          "conditions",
           "notes",
+          "evaluatorId",
           "startedAt",
           "completedAt",
           "createdAt",
@@ -17610,6 +20533,292 @@
         "required": [
           "items",
           "nextCursor"
+        ]
+      },
+      "TestSessionResultInput": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "done"
+              },
+              "clientUuid": {
+                "$ref": "#/components/schemas/ClientUuid"
+              },
+              "playerId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de jugador/a (UUID, RFC 9562)."
+              },
+              "testDefinitionId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de versión del protocolo de un test (UUID, RFC 9562)."
+              },
+              "measuredOn": {
+                "description": "Por defecto, la fecha del día de test. Obligatoria sin día de test.",
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "examples": [
+                  "2026-11-01"
+                ]
+              },
+              "evaluatorId": {
+                "description": "Por defecto, el evaluador del día de test o quien carga. `null` solo si se desconoce (históricos).",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Id de usuario (UUID, RFC 9562)."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "deviceId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de dispositivo (UUID, RFC 9562)."
+              },
+              "exercise": {
+                "description": "Obligatorio en fuerza.",
+                "type": "string",
+                "examples": [
+                  "trap_bar_deadlift"
+                ]
+              },
+              "conditions": {
+                "description": "Por defecto, las del día de test.",
+                "type": "object",
+                "properties": {
+                  "surface": {
+                    "examples": [
+                      "césped natural"
+                    ],
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "footwear": {
+                    "examples": [
+                      "botines"
+                    ],
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "weather": {
+                    "examples": [
+                      "soleado, sin viento"
+                    ],
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "temperatureC": {
+                    "type": "number",
+                    "minimum": -40,
+                    "maximum": 60
+                  },
+                  "standardizedWarmUp": {
+                    "type": "boolean"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  }
+                },
+                "additionalProperties": false
+              },
+              "notes": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "method": {
+                "$ref": "#/components/schemas/MeasurementMethod"
+              },
+              "entries": {
+                "minItems": 1,
+                "maxItems": 50,
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TestEntryInput"
+                }
+              }
+            },
+            "required": [
+              "status",
+              "playerId",
+              "testDefinitionId",
+              "method",
+              "entries"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "const": "not_done"
+              },
+              "clientUuid": {
+                "$ref": "#/components/schemas/ClientUuid"
+              },
+              "playerId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de jugador/a (UUID, RFC 9562)."
+              },
+              "testDefinitionId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de versión del protocolo de un test (UUID, RFC 9562)."
+              },
+              "measuredOn": {
+                "description": "Por defecto, la fecha del día de test. Obligatoria sin día de test.",
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "examples": [
+                  "2026-11-01"
+                ]
+              },
+              "evaluatorId": {
+                "description": "Por defecto, el evaluador del día de test o quien carga. `null` solo si se desconoce (históricos).",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Id de usuario (UUID, RFC 9562)."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "deviceId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de dispositivo (UUID, RFC 9562)."
+              },
+              "exercise": {
+                "description": "Obligatorio en fuerza.",
+                "type": "string",
+                "examples": [
+                  "trap_bar_deadlift"
+                ]
+              },
+              "conditions": {
+                "description": "Por defecto, las del día de test.",
+                "type": "object",
+                "properties": {
+                  "surface": {
+                    "examples": [
+                      "césped natural"
+                    ],
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "footwear": {
+                    "examples": [
+                      "botines"
+                    ],
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "weather": {
+                    "examples": [
+                      "soleado, sin viento"
+                    ],
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "temperatureC": {
+                    "type": "number",
+                    "minimum": -40,
+                    "maximum": 60
+                  },
+                  "standardizedWarmUp": {
+                    "type": "boolean"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  }
+                },
+                "additionalProperties": false
+              },
+              "notes": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "notDoneReason": {
+                "$ref": "#/components/schemas/TestNotDoneReason"
+              },
+              "notDoneNote": {
+                "description": "Obligatoria con `other`.",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "method": {
+                "$ref": "#/components/schemas/MeasurementMethod"
+              }
+            },
+            "required": [
+              "status",
+              "playerId",
+              "testDefinitionId",
+              "notDoneReason"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "TestSessionResults": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "result": {
+                  "$ref": "#/components/schemas/TestResult"
+                },
+                "replayed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "result",
+                "replayed"
+              ]
+            }
+          }
+        },
+        "required": [
+          "results"
         ]
       },
       "TestSessionStatus": {

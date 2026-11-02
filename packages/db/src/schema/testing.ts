@@ -13,7 +13,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { user } from './auth.js';
-import { finite } from './checks.js';
+import { codeCheck, finite } from './checks.js';
 import { localDate, timestamptz } from './columns.js';
 import {
   maturityOffsetEquationEnum,
@@ -95,6 +95,11 @@ export const testSession = pgTable(
     location: text('location'),
     conditions: jsonb('conditions').notNull().default({}).$type<TestConditions>(),
     notes: text('notes'),
+    /**
+     * Evaluator in charge of the day (B-320): the default evaluator of its
+     * results. `NULL` until assigned, or when the account is deleted.
+     */
+    evaluatorId: text('evaluator_id').references(() => user.id, { onDelete: 'set null' }),
     startedAt: timestamptz('started_at'),
     completedAt: timestamptz('completed_at'),
   },
@@ -104,6 +109,7 @@ export const testSession = pgTable(
     tenantReferenceIndex('test_session', t.clubId, t.testWindowId),
     tenantReference('test_session', t.clubId, t.categoryId, category),
     tenantReferenceIndex('test_session', t.clubId, t.categoryId),
+    index('test_session_evaluator_id_idx').on(t.evaluatorId),
     index('test_session_scheduled_on_idx').on(t.clubId, t.scheduledOn),
     check(
       'test_session_completion',
@@ -142,11 +148,19 @@ export const testResult = pgTable(
     /** `NULL` only when unknown (historical imports). */
     evaluatorId: text('evaluator_id').references(() => user.id, { onDelete: 'set null' }),
     deviceId: uuid('device_id'),
+    /**
+     * Exercise of a strength result (`trap_bar_deadlift`, `bench_press`,
+     * `pull_up`): the metric codes do not carry it (`e1rm_kg`), so one
+     * strength result per exercise. `NULL` for every other test.
+     */
+    exercise: text('exercise'),
     conditions: jsonb('conditions').notNull().default({}).$type<TestConditions>(),
     notes: text('notes'),
   },
   (t) => [
     ...tenantConstraints('test_result', t),
+    // NULL passes a CHECK: the format applies when there is an exercise.
+    codeCheck('test_result_exercise_format', t.exercise),
     tenantReference('test_result', t.clubId, t.playerId, player),
     tenantReference('test_result', t.clubId, t.testDefinitionId, testDefinition),
     tenantReference('test_result', t.clubId, t.testSessionId, testSession),
@@ -193,6 +207,19 @@ export const testResultValue = pgTable(
     testResultId: uuid('test_result_id').notNull(),
     metricDefinitionId: uuid('metric_definition_id').notNull(),
     attemptNumber: smallint('attempt_number'),
+    /**
+     * The raw entry the value comes from (B-320): every value computed from
+     * one entry (t10, t20, t40 and the Vmax of a sprint attempt) shares it,
+     * and voiding an entry voids all of them.
+     */
+    entryId: uuid('entry_id').notNull().defaultRandom(),
+    /**
+     * What the evaluator typed when the value was computed by the server
+     * (`{ "kind": "strength_set", "loadKg": 60, "reps": 5, "rir": 2 }`, a
+     * flight time, video frames, the last IFT stage); `NULL` for a value
+     * typed as is. Frozen like the value.
+     */
+    inputs: jsonb('inputs').$type<Readonly<Record<string, unknown>>>(),
     value: doublePrecision('value').notNull(),
     /** Unit the value was recorded in; equal to `metric_definition.unit` when inserted. */
     unit: unitEnum('unit').notNull(),
@@ -208,6 +235,11 @@ export const testResultValue = pgTable(
     tenantReference('test_result_value', t.clubId, t.metricDefinitionId, metricDefinition),
     index('test_result_value_result_idx').on(t.clubId, t.testResultId),
     index('test_result_value_metric_idx').on(t.clubId, t.metricDefinitionId),
+    index('test_result_value_entry_idx').on(t.clubId, t.testResultId, t.entryId),
+    check(
+      'test_result_value_inputs_object',
+      sql`${t.inputs} is null or jsonb_typeof(${t.inputs}) = 'object'`,
+    ),
     uniqueIndex('test_result_value_result_level_key')
       .on(t.clubId, t.testResultId, t.metricDefinitionId)
       .where(sql`${t.attemptNumber} is null and ${t.voidedAt} is null`),
