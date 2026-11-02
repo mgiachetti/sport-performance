@@ -1,4 +1,4 @@
-# 0045. Worker: pg-boss instalado por las migraciones, outbox de recálculos por triggers y tablas derivadas
+# 0046. Worker: pg-boss instalado por las migraciones, outbox de recálculos por triggers y tablas derivadas
 
 - Estado: Aceptado
 - Fecha: 2026-11-02
