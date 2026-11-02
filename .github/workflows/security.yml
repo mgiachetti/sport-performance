@@ -1,4 +1,4 @@
-# Repository security checks (B-107): secret scanning over the whole history
+# Repository security checks (B-107): secret scanning over the history reachable from HEAD
 # and dependency audit. See docs/security.md.
 name: security
 
@@ -42,9 +42,14 @@ jobs:
           tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" gitleaks
           "$RUNNER_TEMP/gitleaks" version
 
-      - name: Scan full git history
+      # Scan every commit reachable from the checked-out ref (for a PR: main plus
+      # the PR's commits). Without --log-opts gitleaks runs `git log --all`, so a
+      # false positive on any other open branch would fail every PR. Branches are
+      # squash-merged, so only the reachable history can ever land on main.
+      - name: Scan git history reachable from HEAD
         run: |
           "$RUNNER_TEMP/gitleaks" git . \
+            --log-opts="HEAD" \
             --config .gitleaks.toml \
             --redact \
             --no-banner \

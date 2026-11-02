@@ -163,7 +163,7 @@ describe('security workflow', () => {
     );
   });
 
-  it('scans the whole history with a pinned, checksum-verified gitleaks', () => {
+  it('scans the history reachable from HEAD with a pinned, checksum-verified gitleaks', () => {
     const secrets = asObject(jobs.secrets, 'secrets job');
     const env = asObject(secrets.env, 'secrets env');
     expect(env.GITLEAKS_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
@@ -178,6 +178,8 @@ describe('security workflow', () => {
     expect(script).toMatch(/gitleaks" git \./);
     expect(script).toContain('--config .gitleaks.toml');
     expect(script).toContain('--redact');
+    // Scope: main + the PR's commits, never other branches (git log --all).
+    expect(script).toContain('--log-opts="HEAD"');
   });
 
   it('audits dependencies for high and critical advisories', () => {

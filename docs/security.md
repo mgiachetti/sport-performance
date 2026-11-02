@@ -9,7 +9,7 @@ Qué protege al repo, qué falta activar y cómo. La revisión de seguridad de l
 | Dependabot alerts | Ajustes del repo | Activo |
 | Dependabot security updates | Ajustes del repo | Activo |
 | Dependabot version updates (npm/pnpm y GitHub Actions) | `.github/dependabot.yml` | Activo |
-| Escaneo de secretos (gitleaks, todo el historial) | `.github/workflows/security.yml` | Activo |
+| Escaneo de secretos (gitleaks, todo el historial alcanzable desde `HEAD`: `main` + el PR) | `.github/workflows/security.yml` | Activo |
 | `pnpm audit` (alta y crítica) | `.github/workflows/security.yml` | Activo |
 | Política de workflows (permisos, SHA, sin `pull_request_target`) | `packages/config/test/repo-security.test.ts` | Activo |
 | CodeQL | `.github/workflows/codeql.yml` | Listo; se saltea mientras el repo sea privado sin Advanced Security |
@@ -64,7 +64,7 @@ gitleaks queda igual en CI como segunda capa.
 Con Docker, desde la raíz del repo (misma versión y configuración que CI):
 
 ```sh
-docker run --rm -v "$PWD:/repo" -w /repo zricethezav/gitleaks:v8.30.1 git . --config .gitleaks.toml --redact
+docker run --rm -v "$PWD:/repo" -w /repo zricethezav/gitleaks:v8.30.1 git . --log-opts="HEAD" --config .gitleaks.toml --redact
 ```
 
 Si aparece un secreto: **rotarlo primero** (darlo por comprometido), después limpiarlo del historial. Un falso positivo se resuelve con una allowlist acotada y comentada en `.gitleaks.toml`, nunca ignorando directorios de código.
