@@ -1,4 +1,4 @@
-# Repository security checks (B-107): secret scanning over the whole history
+# Repository security checks (B-107): secret scanning over the history reachable from HEAD
 # and dependency audit. See docs/security.md.
 name: security
 

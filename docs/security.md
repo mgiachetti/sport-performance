@@ -64,7 +64,7 @@ gitleaks queda igual en CI como segunda capa.
 Con Docker, desde la raíz del repo (misma versión y configuración que CI):
 
 ```sh
-docker run --rm -v "$PWD:/repo" -w /repo zricethezav/gitleaks:v8.30.1 git . --config .gitleaks.toml --redact
+docker run --rm -v "$PWD:/repo" -w /repo zricethezav/gitleaks:v8.30.1 git . --log-opts="HEAD" --config .gitleaks.toml --redact
 ```
 
 Si aparece un secreto: **rotarlo primero** (darlo por comprometido), después limpiarlo del historial. Un falso positivo se resuelve con una allowlist acotada y comentada en `.gitleaks.toml`, nunca ignorando directorios de código.
