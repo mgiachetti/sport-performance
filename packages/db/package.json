@@ -25,6 +25,10 @@
     "./seeds": {
       "types": "./dist/seeds/index.d.ts",
       "default": "./dist/seeds/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/temporary-database.d.ts",
+      "default": "./dist/testing/temporary-database.js"
     }
   },
   "bin": {

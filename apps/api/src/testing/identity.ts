@@ -6,14 +6,8 @@
  * `sport_performance_app`, Better Auth's as one of `sport_performance_auth`.
  * The owner connection only arranges and inspects rows.
  */
-import { randomBytes } from 'node:crypto';
-import {
-  assertConnectionRole,
-  createDatabase,
-  provisionLoginRole,
-  type DatabaseRoleKind,
-} from '@sport-performance/db';
-import { runMigrations } from '@sport-performance/db/migrate';
+import { assertConnectionRole, createDatabase } from '@sport-performance/db';
+import { createTemporaryDatabase, type TemporaryDatabase } from '@sport-performance/db/testing';
 import { parseClubId, parseUserId, type ClubId, type UserId } from '@sport-performance/domain';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import pg from 'pg';
@@ -33,6 +27,9 @@ export interface TestDatabase {
   authUrl: string;
   /** Owner connection for arranging and inspecting rows (bypasses RLS and the API). */
   admin: pg.Pool;
+  /** The throwaway database; pools over it are tracked so `drop()` closes them first. */
+  temporary: TemporaryDatabase;
+  /** Closes every tracked pool (waiting for its sockets), drops the database and the logins. */
   drop: () => Promise<void>;
 }
 
@@ -41,45 +38,21 @@ export interface TestDatabase {
  * of `serverUrl`) and one fresh login per connection role of the API.
  */
 export async function createTestDatabase(serverUrl: string): Promise<TestDatabase> {
-  const suffix = randomBytes(6).toString('hex');
-  const name = `sp_api_test_${suffix}`;
-  const server = new pg.Client({ connectionString: serverUrl });
-  await server.connect();
-  await server.query(`create database "${name}"`);
-  await server.end();
-  const parsed = new URL(serverUrl);
-  parsed.pathname = `/${name}`;
-  const ownerUrl = parsed.toString();
-  await runMigrations({ connectionString: ownerUrl });
-
-  const logins: string[] = [];
-  const loginUrl = async (role: DatabaseRoleKind) => {
-    const login = `sp_test_api_${role}_${suffix}`;
-    const password = randomBytes(24).toString('hex');
-    // Roles are cluster-wide: provisioned on the server, dropped with the database.
-    await provisionLoginRole({ connectionString: serverUrl, login, password, role });
-    logins.push(login);
-    const url = new URL(ownerUrl);
-    url.username = login;
-    url.password = password;
-    return url.toString();
-  };
-  const appUrl = await loginUrl('app');
-  const authUrl = await loginUrl('auth');
-  const admin = new pg.Pool({ connectionString: ownerUrl, max: 2 });
-  return {
-    appUrl,
-    authUrl,
-    admin,
-    drop: async () => {
-      await admin.end();
-      const client = new pg.Client({ connectionString: serverUrl });
-      await client.connect();
-      await client.query(`drop database if exists "${name}" with (force)`);
-      for (const login of logins) await client.query(`drop role if exists "${login}"`);
-      await client.end();
-    },
-  };
+  const temporary = await createTemporaryDatabase({ serverUrl, prefix: 'sp_api_test' });
+  try {
+    const app = await temporary.login('app');
+    const auth = await temporary.login('auth');
+    return {
+      appUrl: app.connectionString,
+      authUrl: auth.connectionString,
+      admin: temporary.pool({ max: 2 }),
+      temporary,
+      drop: temporary.drop,
+    };
+  } catch (error) {
+    await temporary.drop().catch(() => undefined);
+    throw error;
+  }
 }
 
 export const TEST_WEB_ORIGIN = 'https://web.example.com';
@@ -115,12 +88,15 @@ export async function startIdentityApp(
   } = {},
 ): Promise<IdentityTestApp> {
   const pgOptions = { poolMax: 4, connectTimeoutMs: 5000, statementTimeoutMs: 15_000 };
-  const pool = createApiPool({ ...pgOptions, url: database.appUrl, applicationName: 'api-test' });
-  const authPool = createApiPool({
-    ...pgOptions,
-    url: database.authUrl,
-    applicationName: 'api-test-auth',
-  });
+  // Tracked, so dropping the database waits for their sockets (issue #147).
+  const pool = database.temporary.track(
+    createApiPool({ ...pgOptions, url: database.appUrl, applicationName: 'api-test' }),
+    'api',
+  );
+  const authPool = database.temporary.track(
+    createApiPool({ ...pgOptions, url: database.authUrl, applicationName: 'api-test-auth' }),
+    'api-auth',
+  );
   // The same startup check as main.ts: the flows below run as the real roles.
   await assertConnectionRole(pool, 'app');
   await assertConnectionRole(authPool, 'auth');
