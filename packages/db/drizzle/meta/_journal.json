@@ -57,6 +57,13 @@
       "when": 1793584902856,
       "tag": "0007_medical_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793586338688,
+      "tag": "0008_change_history",
+      "breakpoints": true
     }
   ]
 }

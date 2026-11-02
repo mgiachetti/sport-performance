@@ -1,5 +1,8 @@
 import {
   ALERT_RULE_KINDS,
+  CHANGE_OPERATIONS,
+  CHANGE_SOURCES,
+  CHANGE_TRACKED_TABLES,
   ALERT_SEVERITIES,
   ATTEMPT_AGGREGATIONS,
   COEFFICIENT_VERIFICATION_STATUSES,
@@ -140,6 +143,9 @@ describe.skipIf(!hasDatabase)('migrations (Postgres 16)', () => {
       consent_type: CONSENT_TYPES,
       consent_signer: CONSENT_SIGNERS,
       coefficient_verification: COEFFICIENT_VERIFICATION_STATUSES,
+      change_tracked_table: CHANGE_TRACKED_TABLES,
+      change_operation: CHANGE_OPERATIONS,
+      change_source: CHANGE_SOURCES,
     };
     const enums = await rows<{ name: string; labels: string[] }>(
       `select t.typname as name, array_agg(e.enumlabel::text order by e.enumsortorder)::text[] as labels

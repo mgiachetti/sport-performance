@@ -49,6 +49,22 @@ export {
   type TestNotDoneReason,
   type TestResultStatus,
 } from './test-result.js';
+export {
+  CHANGE_OPERATIONS,
+  CHANGE_REASON_MAX_LENGTH,
+  CHANGE_SOURCES,
+  CHANGE_TRACKED_TABLES,
+  isChangeOperation,
+  isChangeSource,
+  isChangeTrackedTable,
+  parseChangeOperation,
+  parseChangeReason,
+  parseChangeSource,
+  parseChangeTrackedTable,
+  type ChangeOperation,
+  type ChangeSource,
+  type ChangeTrackedTable,
+} from './change-history.js';
 
 export {
   STANDARD_GRAVITY_MS2,

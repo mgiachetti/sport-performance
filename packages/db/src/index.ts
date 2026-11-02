@@ -33,3 +33,17 @@ export {
   type ProvisionLoginRoleOptions,
 } from './roles.js';
 export type * from './types.js';
+export {
+  CHANGE_HISTORY_PAGE_LIMIT_DEFAULT,
+  CHANGE_HISTORY_PAGE_LIMIT_MAX,
+  CHANGE_SETTING_NAMES,
+  ChangeContextError,
+  listPlayerChangeHistory,
+  listRecordChangeHistory,
+  setChangeContext,
+  type ChangeContext,
+  type ChangeHistoryEntry,
+  type ChangeHistoryPage,
+  type ChangeHistoryPageOptions,
+  type ChangedValue,
+} from './history.js';

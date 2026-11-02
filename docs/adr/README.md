@@ -33,6 +33,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0027](0027-seeds-y-bootstrap-de-club.md) | Seeds y bootstrap de club | Aceptado |
 | [0028](0028-auth-membresias-e-invitaciones-en-la-api.md) | Auth, membresías e invitaciones en la API | Aceptado |
 | [0029](0029-esquema-medical-acceso-y-auditoria.md) | Esquema `medical`: acceso por funciones auditadas, disponibilidad derivada y soporte del superadmin auditado | Aceptado |
+| [0030](0030-historial-de-cambios.md) | Historial de cambios por triggers en una tabla del club append-only | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { ClubId, LocalDate, PlayerId } from '@sport-performance/domain';
+import { and, eq } from 'drizzle-orm';
 import type { Database } from '../client.js';
 import {
   alert,
@@ -7,6 +8,7 @@ import {
   anthroMeasurement,
   batteryConfig,
   category,
+  changeHistory,
   club,
   consent,
   device,
@@ -445,6 +447,16 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
     db.insert(wellness).values(wellnessOf(assigned)).returning({ id: wellness.id }),
   );
   await db.insert(wellness).values(wellnessOf(other));
+  // A corrected wellness entry: the trigger records the change (ADR 0030).
+  await db.update(wellness).set({ sleep: 5 }).where(eq(wellness.id, rows.wellness));
+  rows.change_history = await id(
+    db
+      .select({ id: changeHistory.id })
+      .from(changeHistory)
+      .where(
+        and(eq(changeHistory.tableName, 'wellness'), eq(changeHistory.recordId, rows.wellness)),
+      ),
+  );
   rows.external_metric = await id(
     db
       .insert(externalMetric)
