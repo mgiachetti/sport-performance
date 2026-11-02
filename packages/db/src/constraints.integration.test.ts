@@ -632,12 +632,41 @@ describe.skipIf(!hasDatabase)('schema constraints (Postgres 16)', () => {
       playerId: playerA,
       kind: 'wellness_low' as const,
       severity: 'warning' as const,
+      currentSeverity: 'warning' as const,
       localDate: day('2026-03-02'),
+      lastSeenOn: day('2026-03-02'),
       observedOn: day('2026-03-02'),
       values: { score: 3.2, threshold: 3.3 },
     };
     await t.db.insert(alert).values(row);
     expect((await pgErrorOf(t.db.insert(alert).values(row))).code).toBe('23505');
+    // One active episode per rule and player, whatever day it was raised.
+    const second = await pgErrorOf(
+      t.db
+        .insert(alert)
+        .values({ ...row, localDate: day('2026-03-05'), lastSeenOn: day('2026-03-05') }),
+    );
+    expect(second.constraint).toBe('alert_active_key');
+    // The days of an episode are in order, and the current severity never exceeds the peak.
+    const backwards = await pgErrorOf(
+      t.db.insert(alert).values({
+        ...row,
+        localDate: day('2026-03-06'),
+        lastSeenOn: day('2026-03-05'),
+        resolvedOn: day('2026-03-07'),
+      }),
+    );
+    expect(backwards.constraint).toBe('alert_episode_days');
+    const peak = await pgErrorOf(
+      t.db.insert(alert).values({
+        ...row,
+        localDate: day('2026-03-06'),
+        lastSeenOn: day('2026-03-06'),
+        resolvedOn: day('2026-03-07'),
+        currentSeverity: 'critical',
+      }),
+    );
+    expect(peak.constraint).toBe('alert_current_severity');
     const badCode = await pgErrorOf(
       t.db.insert(alertRule).values({
         clubId: clubA,

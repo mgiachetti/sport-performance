@@ -1,15 +1,16 @@
 # @sport-performance/worker
 
-Jobs en segundo plano con pg-boss (cola sobre la misma Postgres, ADR 0011, ADR 0045). Hoy: el recálculo de los valores derivados para el panel (B-326); las alertas (B-327) y las notificaciones (B-328) se suman como pasos del mismo recálculo y en las mismas colas.
+Jobs en segundo plano con pg-boss (cola sobre la misma Postgres, ADR 0011, ADR 0045). Hoy: el recálculo de los valores derivados para el panel (B-326) y la generación de alertas (B-327, ADR 0053) como paso del mismo recálculo; las notificaciones (B-328) se suman en las mismas colas.
 
 ## Cómo funciona
 
 1. **Marca en la transacción del dato.** Los triggers de la base (`derived_refresh_trigger`, migración `0021`) marcan al jugador en `derived_refresh` cuando cambia una participación, una sesión, un bienestar, una antropometría, la altura de los padres, el jugador o `club.settings.derived`, sin importar quién escribe (API, sync offline, importaciones). Si la transacción se revierte, no hay marca.
 2. **De la marca a la cola.** Al commit sale `pg_notify('sport_performance_derived_refresh', club_id)`; el worker la escucha y encola `derived-refresh-club` para ese club (política `stately`: a lo sumo un job en cola y uno activo por club). Un cron cada minuto (`derived-sweep`) encola los clubes con marcas pendientes por si se perdió una notificación, y el worker hace lo mismo al arrancar.
 3. **Recálculo por club.** Cada job fija `app.club_id` y, por cada jugador marcado, en su propia transacción: serie de carga (`player_load_daily`, `computeLoadSeries` del dominio), bienestar contra la media móvil propia (`player_wellness_daily`) y maduración (en `anthro_measurement`). Cierra la marca solo si nadie la renovó mientras calculaba (compare-and-delete sobre `requested_at`).
-4. **Cada noche.** Un cron cada hora (`derived-daily`) encola todos los clubes; cada uno extiende hasta **hoy en su zona horaria** las series que terminan antes (el EWMA decae aunque no haya carga).
+4. **Cada noche.** Un cron cada hora (`derived-daily`) encola todos los clubes; cada uno extiende hasta **hoy en su zona horaria** las series que terminan antes (el EWMA decae aunque no haya carga) y evalúa las alertas de los jugadores cuyo último día evaluado es anterior a hoy.
+5. **Alertas** (B-327, [ADR 0053](../../docs/adr/0053-alertas-episodios-eventos-y-revision.md)). Al final de cada recálculo de un jugador, en la misma transacción, `evaluatePlayerAlerts` (`src/alerts/`) evalúa las reglas del club (`alert_rule`, validadas con `parseAlertRule`; una inválida hace fallar el job) para hoy con lo que se acaba de derivar y mueve el episodio de cada regla con `nextAlertEpisode` del dominio: abre, sigue, escala, resuelve o reabre. Cada cambio deja un `alert_event` (trigger). Un CMJ, una regla, la etapa, la categoría o el deporte marcan `derived_refresh.alerts` para evaluar aunque no cambie ningún derivado.
 
-5. **Retención de archivos** (B-325, ADR 0044). Una vez por día (`files-daily`, 06:17 UTC) se encola `files-purge-club` por club, que corre `purgeExpiredFiles` de `@sport-performance/storage` con el contexto del club; si quedan más, encola otra pasada. Sin las variables `STORAGE_*` (solo fuera de producción) el job queda apagado.
+6. **Retención de archivos** (B-325, ADR 0044). Una vez por día (`files-daily`, 06:17 UTC) se encola `files-purge-club` por club, que corre `purgeExpiredFiles` de `@sport-performance/storage` con el contexto del club; si quedan más, encola otra pasada. Sin las variables `STORAGE_*` (solo fuera de producción) el job queda apagado.
 
 Un jugador que falla no frena al resto; el job falla al final, pg-boss lo reintenta con backoff exponencial y, después del último intento, lo deja en `derived-refresh-club-dead`.
 

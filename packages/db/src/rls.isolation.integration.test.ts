@@ -40,9 +40,11 @@ const CLUB_TABLES = (Object.values(schema) as unknown[])
  * of historical results (ADR 0052).
  */
 const APPEND_ONLY_TABLES = [
+  'alert_event',
   'change_history',
   'consent_document',
   'derived_refresh',
+  'player_alert_evaluation',
   'player_load_daily',
   'player_wellness_daily',
   'roster_import',

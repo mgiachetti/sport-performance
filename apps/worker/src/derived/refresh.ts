@@ -20,6 +20,12 @@ import { and, asc, eq, gte, isNull, lte, or, sql } from 'drizzle-orm';
 import type pg from 'pg';
 import type { Logger } from 'pino';
 import { inClubTransaction, type ClubTransaction } from '../database.js';
+import {
+  evaluatePlayerAlerts,
+  readAlertRules,
+  readAlertsDue,
+  type ClubAlertRule,
+} from '../alerts/evaluate.js';
 import { planLoadDaily, type LoadDailyRow } from './load-rows.js';
 
 const {
@@ -391,7 +397,12 @@ export async function refreshPlayer(
   deps: RefreshDependencies,
   clubId: ClubId,
   work: PlayerRefresh,
-  options: { readonly requestId?: string; readonly khamisRoche?: KhamisRocheReference | null } = {},
+  options: {
+    readonly requestId?: string;
+    readonly khamisRoche?: KhamisRocheReference | null;
+    /** The club's alert rules, when the caller already read them (one read per job). */
+    readonly alertRules?: readonly ClubAlertRule[];
+  } = {},
 ): Promise<void> {
   const now = deps.now?.() ?? new Date();
   await inClubTransaction(
@@ -406,6 +417,7 @@ export async function refreshPlayer(
         .select({
           id: player.id,
           sex: player.sex,
+          sport: player.sport,
           birthDate: player.birthDate,
           leftOn: player.leftOn,
         })
@@ -429,6 +441,9 @@ export async function refreshPlayer(
               : await readKhamisRoche(tx, clubId, state.parameters.maturation.khamisRocheTableCode);
           await refreshMaturation(tx, clubId, subject, state, khamisRoche, now);
         }
+        // Alerts read what was just derived (ADR 0053): every recalculation evaluates them.
+        const rules = options.alertRules ?? (await readAlertRules(tx));
+        await evaluatePlayerAlerts(tx, clubId, subject, state.today, rules, now);
       }
       if (work.requestedAt !== null) {
         await tx.client.query(
@@ -444,6 +459,7 @@ export async function refreshPlayer(
 function merge(
   pending: readonly PlayerRefresh[],
   stale: readonly PlayerRefresh[],
+  alertsDue: readonly PlayerId[] = [],
 ): PlayerRefresh[] {
   const byPlayer = new Map(pending.map((p) => [p.playerId, p]));
   for (const s of stale) {
@@ -455,6 +471,18 @@ function merge(
       (s.loadFrom !== null && compareLocalDates(s.loadFrom, p.loadFrom) < 0)
     ) {
       byPlayer.set(s.playerId, { ...p, loadFrom: s.loadFrom });
+    }
+  }
+  // The daily evaluation of alerts: nothing to recalculate, only today's evaluation.
+  for (const playerId of alertsDue) {
+    if (!byPlayer.has(playerId)) {
+      byPlayer.set(playerId, {
+        playerId,
+        loadFrom: null,
+        wellnessFrom: null,
+        maturation: false,
+        requestedAt: null,
+      });
     }
   }
   return [...byPlayer.values()];
@@ -479,6 +507,7 @@ export async function refreshClub(
   let today: LocalDate | null = null;
   let remaining = false;
   let khamisRoche: KhamisRocheReference | null | undefined;
+  let alertRules: readonly ClubAlertRule[] | undefined;
   const failedPlayers = new Set<PlayerId>();
 
   for (let round = 0; round < MAX_ROUNDS; round++) {
@@ -490,9 +519,12 @@ export async function refreshClub(
         clubId,
         state.parameters.maturation.khamisRocheTableCode,
       );
+      // An invalid rule fails the job loudly, like invalid derived settings.
+      alertRules ??= await readAlertRules(tx);
       const pending = await readPending(tx);
       const stale = round === 0 ? await readStale(tx, state.today) : [];
-      return { state, pending, work: merge(pending, stale) };
+      const alertsDue = round === 0 ? await readAlertsDue(tx, state.today) : [];
+      return { state, pending, work: merge(pending, stale, alertsDue) };
     });
     if (batch === null) {
       logger.warn('club not found; nothing to refresh');
@@ -506,6 +538,7 @@ export async function refreshClub(
         await refreshPlayer(deps, clubId, item, {
           ...(requestId && { requestId }),
           khamisRoche: khamisRoche ?? null,
+          ...(alertRules !== undefined && { alertRules }),
         });
         players += 1;
       } catch (error) {

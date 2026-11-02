@@ -45,6 +45,12 @@ export const derivedRefresh = pgTable(
     wellnessFrom: localDate('wellness_from'),
     /** Recalculate the maturation of every measurement of the player. */
     maturation: boolean('maturation').notNull().default(false),
+    /**
+     * Re-evaluate the player's alerts (B-327, ADR 0053) although no derived
+     * value changed: a CMJ, a rule, the stage or the category. Every
+     * recalculation of a player evaluates its alerts anyway.
+     */
+    alerts: boolean('alerts').notNull().default(false),
     /** Time of the latest write that marked it (`clock_timestamp()`). */
     requestedAt: timestamptz('requested_at').notNull().defaultNow(),
   },
@@ -55,7 +61,7 @@ export const derivedRefresh = pgTable(
     index('derived_refresh_requested_idx').on(t.clubId, t.requestedAt),
     check(
       'derived_refresh_something',
-      sql`${t.loadFrom} is not null or ${t.wellnessFrom} is not null or ${t.maturation}`,
+      sql`${t.loadFrom} is not null or ${t.wellnessFrom} is not null or ${t.maturation} or ${t.alerts}`,
     ),
   ],
 );
