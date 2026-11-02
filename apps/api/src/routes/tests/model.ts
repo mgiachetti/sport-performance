@@ -22,6 +22,7 @@ import {
 import {
   CONSENT_TYPES,
   DEFAULT_AGE_BANDS,
+  compareLocalDates,
   DomainValidationError,
   RESULT_LEVEL_DERIVED_METRICS,
   deriveResultMetrics,
@@ -153,6 +154,44 @@ export async function isClubStaff(
   return row !== undefined;
 }
 
+/** The users among `userIds` that are current staff members of the club (one query). */
+export async function clubStaffIds(
+  db: TenantDatabase,
+  clubId: ClubId,
+  userIds: readonly string[],
+): Promise<Set<string>> {
+  const ids = [...new Set(userIds)];
+  if (ids.length === 0) return new Set();
+  const rows = await db
+    .selectDistinct({ userId: membership.userId })
+    .from(membership)
+    .where(
+      and(
+        eq(membership.clubId, clubId),
+        inArray(membership.userId, ids),
+        inArray(membership.role, [...STAFF_ROLES]),
+        lte(membership.startedAt, sql`now()`),
+        or(isNull(membership.endedAt), gt(membership.endedAt, sql`now()`)),
+      ),
+    );
+  return new Set(rows.map((row) => row.userId));
+}
+
+/** The devices among `deviceIds` that exist in the club (one query). */
+export async function existingDeviceIds(
+  db: TenantDatabase,
+  clubId: ClubId,
+  deviceIds: readonly string[],
+): Promise<Set<string>> {
+  const ids = [...new Set(deviceIds)];
+  if (ids.length === 0) return new Set();
+  const rows = await db
+    .select({ id: device.id })
+    .from(device)
+    .where(and(eq(device.clubId, clubId), inArray(device.id, ids)));
+  return new Set(rows.map((row) => row.id));
+}
+
 export async function deviceExists(
   db: TenantDatabase,
   clubId: ClubId,
@@ -195,13 +234,30 @@ async function loadPlayerUncached(
   clubId: ClubId,
   playerId: string,
 ): Promise<PlayerContext | undefined> {
-  const [row] = await db
+  return (await loadPlayers(db, clubId, [playerId])).get(playerId);
+}
+
+/**
+ * {@link loadPlayer} for many players at once (three queries): the players
+ * the caller sees and that have been in a category, by id.
+ */
+export async function loadPlayers(
+  db: TenantDatabase,
+  clubId: ClubId,
+  playerIds: readonly string[],
+): Promise<Map<string, PlayerContext>> {
+  const contexts = new Map<string, PlayerContext>();
+  const ids = [...new Set(playerIds)] as PlayerId[];
+  if (ids.length === 0) return contexts;
+  const rows = await db
     .select({ id: player.id, sex: player.sex })
     .from(player)
-    .where(and(eq(player.clubId, clubId), eq(player.id, playerId as PlayerId)));
-  if (row === undefined) return undefined;
+    .where(and(eq(player.clubId, clubId), inArray(player.id, ids)));
+  if (rows.length === 0) return contexts;
+  const visible = rows.map((row) => row.id);
   const categories = await db
     .select({
+      playerId: playerCategory.playerId,
       categoryId: playerCategory.categoryId,
       sport: category.sport,
       current: sql<boolean>`${playerCategory.validFrom} <= app.club_today() and (${playerCategory.validTo} is null or ${playerCategory.validTo} > app.club_today())`,
@@ -211,27 +267,36 @@ async function loadPlayerUncached(
       category,
       and(eq(category.clubId, playerCategory.clubId), eq(category.id, playerCategory.categoryId)),
     )
-    .where(and(eq(playerCategory.clubId, clubId), eq(playerCategory.playerId, row.id)))
+    .where(and(eq(playerCategory.clubId, clubId), inArray(playerCategory.playerId, visible)))
     .orderBy(desc(playerCategory.validFrom));
-  const current = categories.filter((c) => c.current);
-  const sport = current[0]?.sport ?? categories[0]?.sport;
-  if (sport === undefined) return undefined;
   const consents = await db
-    .selectDistinct({ type: consent.type })
+    .selectDistinct({ playerId: consent.playerId, type: consent.type })
     .from(consent)
     .where(
-      and(eq(consent.clubId, clubId), eq(consent.playerId, row.id), isNull(consent.revokedAt)),
+      and(
+        eq(consent.clubId, clubId),
+        inArray(consent.playerId, visible),
+        isNull(consent.revokedAt),
+      ),
     );
-  return {
-    id: row.id,
-    sex: row.sex,
-    facts: {
+  for (const row of rows) {
+    const own = categories.filter((c) => c.playerId === row.id);
+    const current = own.filter((c) => c.current);
+    const sport = current[0]?.sport ?? own[0]?.sport;
+    if (sport === undefined) continue;
+    const signed = consents.filter((c) => c.playerId === row.id);
+    contexts.set(row.id, {
       id: row.id,
-      sport,
-      categoryIds: current.map((c) => c.categoryId),
-      consents: CONSENT_TYPES.filter((type: ConsentType) => consents.some((c) => c.type === type)),
-    },
-  };
+      sex: row.sex,
+      facts: {
+        id: row.id,
+        sport,
+        categoryIds: current.map((c) => c.categoryId),
+        consents: CONSENT_TYPES.filter((type: ConsentType) => signed.some((c) => c.type === type)),
+      },
+    });
+  }
+  return contexts;
 }
 
 export interface StageContext {
@@ -241,11 +306,95 @@ export interface StageContext {
   readonly ageBand: (typeof DEFAULT_AGE_BANDS)[number];
 }
 
+/** What the stage of a player on a day is computed from (see {@link stageContextOn}). */
+export interface StageSources {
+  readonly categories: readonly {
+    readonly playerId: PlayerId;
+    readonly id: CategoryId;
+    readonly sport: Sport;
+    readonly ageBandCode: string;
+    readonly defaultStage: Stage;
+    readonly sortOrder: number;
+    readonly validFrom: LocalDate;
+    readonly validTo: LocalDate | null;
+  }[];
+  readonly stages: readonly {
+    readonly playerId: PlayerId;
+    readonly stage: Stage;
+    readonly validFrom: LocalDate;
+    readonly validTo: LocalDate | null;
+  }[];
+}
+
+const validOn = (row: { validFrom: LocalDate; validTo: LocalDate | null }, on: LocalDate) =>
+  compareLocalDates(row.validFrom, on) <= 0 &&
+  (row.validTo === null || compareLocalDates(row.validTo, on) > 0);
+
+/** The categories and stages of the players over time (two queries), for {@link stageContextOn}. */
+export async function loadStageSources(
+  db: TenantDatabase,
+  clubId: ClubId,
+  playerIds: readonly PlayerId[],
+): Promise<StageSources> {
+  const ids = [...new Set(playerIds)];
+  if (ids.length === 0) return { categories: [], stages: [] };
+  const categories = await db
+    .select({
+      playerId: playerCategory.playerId,
+      id: category.id,
+      sport: category.sport,
+      ageBandCode: category.ageBandCode,
+      defaultStage: category.defaultStage,
+      sortOrder: category.sortOrder,
+      validFrom: playerCategory.validFrom,
+      validTo: playerCategory.validTo,
+    })
+    .from(playerCategory)
+    .innerJoin(
+      category,
+      and(eq(category.clubId, playerCategory.clubId), eq(category.id, playerCategory.categoryId)),
+    )
+    .where(and(eq(playerCategory.clubId, clubId), inArray(playerCategory.playerId, ids)))
+    .orderBy(asc(category.sortOrder));
+  const stages = await db
+    .select({
+      playerId: playerStage.playerId,
+      stage: playerStage.stage,
+      validFrom: playerStage.validFrom,
+      validTo: playerStage.validTo,
+    })
+    .from(playerStage)
+    .where(and(eq(playerStage.clubId, clubId), inArray(playerStage.playerId, ids)))
+    .orderBy(desc(playerStage.validFrom));
+  return { categories, stages };
+}
+
 /**
  * Category, stage and age band of a player on a day: the category valid that
  * day (the test day's category if the player is in it), the stage valid that
  * day (`player_stage`, by maturation or pinned) or else the category's.
  */
+export function stageContextOn(
+  sources: StageSources,
+  playerId: PlayerId,
+  on: LocalDate,
+  preferredCategoryId: CategoryId | null,
+): StageContext | undefined {
+  const categories = sources.categories.filter((c) => c.playerId === playerId && validOn(c, on));
+  const chosen = categories.find((c) => c.id === preferredCategoryId) ?? categories[0];
+  if (chosen === undefined) return undefined;
+  const ageBand = DEFAULT_AGE_BANDS.find((band) => band.code === chosen.ageBandCode);
+  if (ageBand === undefined) return undefined;
+  const pinned = sources.stages.find((s) => s.playerId === playerId && validOn(s, on));
+  return {
+    categoryId: chosen.id,
+    sport: chosen.sport,
+    stage: pinned?.stage ?? chosen.defaultStage,
+    ageBand,
+  };
+}
+
+/** {@link stageContextOn} of one player, read for the request. */
 export async function stageContext(
   db: TenantDatabase,
   clubId: ClubId,
@@ -253,50 +402,12 @@ export async function stageContext(
   on: LocalDate,
   preferredCategoryId: CategoryId | null,
 ): Promise<StageContext | undefined> {
-  const categories = await db
-    .select({
-      id: category.id,
-      sport: category.sport,
-      ageBandCode: category.ageBandCode,
-      defaultStage: category.defaultStage,
-    })
-    .from(playerCategory)
-    .innerJoin(
-      category,
-      and(eq(category.clubId, playerCategory.clubId), eq(category.id, playerCategory.categoryId)),
-    )
-    .where(
-      and(
-        eq(playerCategory.clubId, clubId),
-        eq(playerCategory.playerId, playerId),
-        lte(playerCategory.validFrom, on),
-        or(isNull(playerCategory.validTo), gt(playerCategory.validTo, on)),
-      ),
-    )
-    .orderBy(asc(category.sortOrder));
-  const chosen = categories.find((c) => c.id === preferredCategoryId) ?? categories[0];
-  if (chosen === undefined) return undefined;
-  const ageBand = DEFAULT_AGE_BANDS.find((band) => band.code === chosen.ageBandCode);
-  if (ageBand === undefined) return undefined;
-  const [pinned] = await db
-    .select({ stage: playerStage.stage })
-    .from(playerStage)
-    .where(
-      and(
-        eq(playerStage.clubId, clubId),
-        eq(playerStage.playerId, playerId),
-        lte(playerStage.validFrom, on),
-        or(isNull(playerStage.validTo), gt(playerStage.validTo, on)),
-      ),
-    )
-    .orderBy(desc(playerStage.validFrom))
-    .limit(1);
-  return {
-    categoryId: chosen.id,
-    sport: chosen.sport,
-    stage: pinned?.stage ?? chosen.defaultStage,
-    ageBand,
-  };
+  return stageContextOn(
+    await loadStageSources(db, clubId, [playerId]),
+    playerId,
+    on,
+    preferredCategoryId,
+  );
 }
 
 /** Battery rows of a sport and test (the domain filters scope and validity). */
@@ -306,6 +417,17 @@ export async function batteryRows(
   sport: Sport,
   testCode: string,
 ): Promise<BatteryRow[]> {
+  return batteryRowsOf(db, clubId, [testCode], sport);
+}
+
+/** Battery rows of some tests, of every sport or of one (the domain filters scope and validity). */
+export async function batteryRowsOf(
+  db: TenantDatabase,
+  clubId: ClubId,
+  testCodes: readonly string[],
+  sport?: Sport,
+): Promise<BatteryRow[]> {
+  if (testCodes.length === 0) return [];
   return db
     .select({
       sport: batteryConfig.sport,
@@ -320,8 +442,8 @@ export async function batteryRows(
     .where(
       and(
         eq(batteryConfig.clubId, clubId),
-        eq(batteryConfig.sport, sport),
-        eq(batteryConfig.testCode, testCode),
+        sport === undefined ? undefined : eq(batteryConfig.sport, sport),
+        inArray(batteryConfig.testCode, [...testCodes]),
         // A withdrawn entry never applied (B-322, ADR 0041).
         isNull(batteryConfig.archivedAt),
       ),
@@ -335,20 +457,40 @@ export async function bodyMassKgOn(
   playerId: PlayerId,
   on: LocalDate,
 ): Promise<number | null> {
-  const [row] = await db
-    .select({ weightKg: anthroMeasurement.weightKg })
-    .from(anthroMeasurement)
-    .where(
-      and(
-        eq(anthroMeasurement.clubId, clubId),
-        eq(anthroMeasurement.playerId, playerId),
-        lte(anthroMeasurement.measuredOn, on),
-        sql`${anthroMeasurement.weightKg} is not null`,
-      ),
-    )
-    .orderBy(desc(anthroMeasurement.measuredOn), desc(anthroMeasurement.createdAt))
-    .limit(1);
-  return row?.weightKg ?? null;
+  return (await loadBodyMasses(db, clubId, [playerId]))(playerId, on);
+}
+
+/**
+ * The body masses of the players (one query), as a function of a player and
+ * a day: the one measured last on or before it, for relative strength.
+ */
+export async function loadBodyMasses(
+  db: TenantDatabase,
+  clubId: ClubId,
+  playerIds: readonly PlayerId[],
+): Promise<(playerId: PlayerId, on: LocalDate) => number | null> {
+  const ids = [...new Set(playerIds)];
+  const rows =
+    ids.length === 0
+      ? []
+      : await db
+          .select({
+            playerId: anthroMeasurement.playerId,
+            measuredOn: anthroMeasurement.measuredOn,
+            weightKg: anthroMeasurement.weightKg,
+          })
+          .from(anthroMeasurement)
+          .where(
+            and(
+              eq(anthroMeasurement.clubId, clubId),
+              inArray(anthroMeasurement.playerId, ids),
+              sql`${anthroMeasurement.weightKg} is not null`,
+            ),
+          )
+          .orderBy(desc(anthroMeasurement.measuredOn), desc(anthroMeasurement.createdAt));
+  return (playerId, on) =>
+    rows.find((row) => row.playerId === playerId && compareLocalDates(row.measuredOn, on) <= 0)
+      ?.weightKg ?? null;
 }
 
 // ─── Test definitions (protocol versions) ────────────────────────────────────────────
@@ -381,8 +523,20 @@ export async function loadDefinition(
   definitionId: string,
   cache: Map<string, DefinitionInfo | undefined>,
 ): Promise<DefinitionInfo | undefined> {
-  if (cache.has(definitionId)) return cache.get(definitionId);
-  const [row] = await db
+  if (!cache.has(definitionId)) await loadDefinitions(db, clubId, [definitionId], cache);
+  return cache.get(definitionId);
+}
+
+/** {@link loadDefinition} for many protocol versions at once (two queries), into `cache`. */
+export async function loadDefinitions(
+  db: TenantDatabase,
+  clubId: ClubId,
+  definitionIds: readonly string[],
+  cache: Map<string, DefinitionInfo | undefined>,
+): Promise<void> {
+  const ids = [...new Set(definitionIds)].filter((id) => !cache.has(id));
+  if (ids.length === 0) return;
+  const rows = await db
     .select({
       id: testDefinition.id,
       code: testDefinition.code,
@@ -395,40 +549,57 @@ export async function loadDefinition(
       validTo: testDefinition.validTo,
     })
     .from(testDefinition)
-    .where(and(eq(testDefinition.clubId, clubId), eq(testDefinition.id, definitionId)));
-  if (row === undefined) {
-    cache.set(definitionId, undefined);
-    return undefined;
+    .where(and(eq(testDefinition.clubId, clubId), inArray(testDefinition.id, ids)));
+  const metrics =
+    rows.length === 0
+      ? []
+      : await db
+          .select({
+            testDefinitionId: testDefinitionMetric.testDefinitionId,
+            id: metricDefinition.id,
+            code: metricDefinition.code,
+            unit: metricDefinition.unit,
+            direction: metricDefinition.direction,
+            isDerived: testDefinitionMetric.isDerived,
+          })
+          .from(testDefinitionMetric)
+          .innerJoin(
+            metricDefinition,
+            and(
+              eq(metricDefinition.clubId, testDefinitionMetric.clubId),
+              eq(metricDefinition.id, testDefinitionMetric.metricDefinitionId),
+            ),
+          )
+          .where(
+            and(
+              eq(testDefinitionMetric.clubId, clubId),
+              inArray(
+                testDefinitionMetric.testDefinitionId,
+                rows.map((row) => row.id),
+              ),
+            ),
+          )
+          .orderBy(asc(testDefinitionMetric.sortOrder));
+  for (const id of ids) cache.set(id, undefined);
+  for (const row of rows) {
+    cache.set(row.id, {
+      ...row,
+      metrics: new Map(
+        metrics
+          .filter((m) => m.testDefinitionId === row.id)
+          .map((m) => [
+            m.code,
+            {
+              id: m.id,
+              code: m.code,
+              unit: m.unit,
+              direction: m.direction,
+              isDerived: m.isDerived,
+            },
+          ]),
+      ),
+    });
   }
-  const metrics = await db
-    .select({
-      id: metricDefinition.id,
-      code: metricDefinition.code,
-      unit: metricDefinition.unit,
-      direction: metricDefinition.direction,
-      isDerived: testDefinitionMetric.isDerived,
-    })
-    .from(testDefinitionMetric)
-    .innerJoin(
-      metricDefinition,
-      and(
-        eq(metricDefinition.clubId, testDefinitionMetric.clubId),
-        eq(metricDefinition.id, testDefinitionMetric.metricDefinitionId),
-      ),
-    )
-    .where(
-      and(
-        eq(testDefinitionMetric.clubId, clubId),
-        eq(testDefinitionMetric.testDefinitionId, row.id),
-      ),
-    )
-    .orderBy(asc(testDefinitionMetric.sortOrder));
-  const info: DefinitionInfo = {
-    ...row,
-    metrics: new Map(metrics.map((m) => [m.code, m])),
-  };
-  cache.set(definitionId, info);
-  return info;
 }
 
 export function sameDeviceOnly(definition: DefinitionInfo): boolean {
@@ -493,6 +664,102 @@ export interface EntryWriteContext {
 }
 
 /**
+ * Scores one entry into the values to insert (pure: no query). Issues go to
+ * `issues`; `resultLevel` holds the metrics with a result-level value of the
+ * result (stored or earlier in the request) and is updated.
+ */
+export function scoreEntry(
+  ctx: EntryWriteContext,
+  entry: TestEntryInputBody,
+  entryId: string,
+  at: IssuePath,
+  resultLevel: Set<string>,
+  issues: ValidationIssue[],
+): (typeof testResultValue.$inferInsert)[] {
+  const settings = testScoringSettings(ctx.definition.protocol.parameters);
+  const input = domainEntry(entry);
+  let scored;
+  try {
+    scored = scoreTestEntry(ctx.definition.code, input, settings);
+  } catch (error) {
+    if (error instanceof DomainValidationError) {
+      issues.push(issue(at, error.message));
+      return [];
+    }
+    throw error;
+  }
+  const inputs = rawInputs(input);
+  const entryRows: (typeof testResultValue.$inferInsert)[] = [];
+  let entryHasIssues = false;
+  for (const value of scored.values) {
+    const metric = ctx.definition.metrics.get(value.metricCode);
+    if (metric === undefined) {
+      // A computed metric the club's protocol version does not keep is not stored.
+      if (value.computed && entry.kind !== 'value') continue;
+      entryHasIssues = true;
+      issues.push(
+        issue(
+          entry.kind === 'value' ? [...at, 'metricCode'] : at,
+          `The metric ${value.metricCode} is not part of this protocol version`,
+        ),
+      );
+      continue;
+    }
+    if (entry.kind === 'value' && metric.isDerived) {
+      entryHasIssues = true;
+      issues.push(
+        issue([...at, 'metricCode'], `${metric.code} is computed by the server, never typed in`),
+      );
+      continue;
+    }
+    if (
+      ctx.strengthAssessment !== null &&
+      !strengthMetricAllowed(metric.code, ctx.strengthAssessment)
+    ) {
+      entryHasIssues = true;
+      issues.push(
+        issue(
+          at,
+          `${metric.code} is not recorded in the stage of the player (${ctx.strengthAssessment}): record the test as not_done with not_applicable_to_stage`,
+        ),
+      );
+      continue;
+    }
+    if (entry.attemptNumber === undefined) {
+      if (resultLevel.has(metric.id)) {
+        entryHasIssues = true;
+        issues.push(
+          issue(
+            [...at, 'attemptNumber'],
+            `The result already has a value of ${metric.code} without attempt number: void it first or number the attempts`,
+          ),
+        );
+        continue;
+      }
+      resultLevel.add(metric.id);
+    }
+    entryRows.push({
+      clubId: ctx.clubId,
+      clientUuid: valueClientUuid(entryId, metric.code),
+      testResultId: ctx.resultId,
+      metricDefinitionId: metric.id,
+      attemptNumber: entry.attemptNumber ?? null,
+      entryId,
+      inputs,
+      value: value.value,
+      unit: metric.unit,
+      ...(entry.recordedAt !== undefined && { recordedAt: new Date(entry.recordedAt) }),
+      createdBy: ctx.userId,
+      updatedBy: ctx.userId,
+    });
+  }
+  if (entryRows.length === 0 && !entryHasIssues) {
+    issues.push(issue(at, 'None of the metrics of this entry are part of this protocol version'));
+  }
+  return entryRows;
+}
+
+/**
  * Scores and inserts entries (append-only). An entry whose `clientUuid` is
  * already recorded in this result is skipped (a replay); in another result
  * (or in one the caller cannot see) it is a `conflict`. Invalid entries are
@@ -508,7 +775,6 @@ export async function insertEntries(
   path: IssuePath,
 ): Promise<void> {
   const issues: ValidationIssue[] = [];
-  const settings = testScoringSettings(ctx.definition.protocol.parameters);
   const rows: (typeof testResultValue.$inferInsert)[] = [];
   const seen = new Set<string>();
   // Metrics with a valid result-level value (no attempt number), stored or in this request.
@@ -546,86 +812,7 @@ export async function insertEntries(
         throw new HttpError('conflict', 'This entry clientUuid was already used');
       }
     }
-    const input = domainEntry(entry);
-    let scored;
-    try {
-      scored = scoreTestEntry(ctx.definition.code, input, settings);
-    } catch (error) {
-      if (error instanceof DomainValidationError) {
-        issues.push(issue(at, error.message));
-        continue;
-      }
-      throw error;
-    }
-    const inputs = rawInputs(input);
-    const entryRows: (typeof testResultValue.$inferInsert)[] = [];
-    let entryHasIssues = false;
-    for (const value of scored.values) {
-      const metric = ctx.definition.metrics.get(value.metricCode);
-      if (metric === undefined) {
-        // A computed metric the club's protocol version does not keep is not stored.
-        if (value.computed && entry.kind !== 'value') continue;
-        entryHasIssues = true;
-        issues.push(
-          issue(
-            entry.kind === 'value' ? [...at, 'metricCode'] : at,
-            `The metric ${value.metricCode} is not part of this protocol version`,
-          ),
-        );
-        continue;
-      }
-      if (entry.kind === 'value' && metric.isDerived) {
-        entryHasIssues = true;
-        issues.push(
-          issue([...at, 'metricCode'], `${metric.code} is computed by the server, never typed in`),
-        );
-        continue;
-      }
-      if (
-        ctx.strengthAssessment !== null &&
-        !strengthMetricAllowed(metric.code, ctx.strengthAssessment)
-      ) {
-        entryHasIssues = true;
-        issues.push(
-          issue(
-            at,
-            `${metric.code} is not recorded in the stage of the player (${ctx.strengthAssessment}): record the test as not_done with not_applicable_to_stage`,
-          ),
-        );
-        continue;
-      }
-      if (entry.attemptNumber === undefined) {
-        if (resultLevel.has(metric.id)) {
-          entryHasIssues = true;
-          issues.push(
-            issue(
-              [...at, 'attemptNumber'],
-              `The result already has a value of ${metric.code} without attempt number: void it first or number the attempts`,
-            ),
-          );
-          continue;
-        }
-        resultLevel.add(metric.id);
-      }
-      entryRows.push({
-        clubId: ctx.clubId,
-        clientUuid: valueClientUuid(entryId, metric.code),
-        testResultId: ctx.resultId,
-        metricDefinitionId: metric.id,
-        attemptNumber: entry.attemptNumber ?? null,
-        entryId,
-        inputs,
-        value: value.value,
-        unit: metric.unit,
-        ...(entry.recordedAt !== undefined && { recordedAt: new Date(entry.recordedAt) }),
-        createdBy: ctx.userId,
-        updatedBy: ctx.userId,
-      });
-    }
-    if (entryRows.length === 0 && !entryHasIssues) {
-      issues.push(issue(at, 'None of the metrics of this entry are part of this protocol version'));
-    }
-    rows.push(...entryRows);
+    rows.push(...scoreEntry(ctx, entry, entryId, at, resultLevel, issues));
   }
   throwIssues(issues);
   if (rows.length === 0) return;
@@ -671,6 +858,44 @@ export const VALUE_ORDER = [
 /** Reason recorded when the server voids a derived value it recalculates. */
 export const DERIVED_RECALCULATION_REASON = 'Recalculado: cambiaron los intentos del resultado';
 
+/** The metrics derived at result level (505 asymmetry, relative strength) the version keeps. */
+export function derivableMetrics(definition: DefinitionInfo): string[] {
+  return (RESULT_LEVEL_DERIVED_METRICS[definition.code] ?? []).filter(
+    (code) => definition.metrics.get(code)?.isDerived === true,
+  );
+}
+
+/**
+ * The result-level derived values of a result from its valid values (pure):
+ * `next` by metric code, and the metrics they come from (`from`).
+ */
+export function deriveResultValues(
+  definition: DefinitionInfo,
+  values: readonly { metricCode: string; value: number; attemptNumber: number | null }[],
+  bodyMassKg: number | null,
+): { next: Map<string, number>; from: string[] } {
+  const derivedSet = new Set<string>(derivableMetrics(definition));
+  const inputs = values.filter((v) => !derivedSet.has(v.metricCode));
+  const scores = new Map(
+    scoreResultMetrics(inputs, (code) => scoringRule(definition, code)).map((s) => [
+      s.metricCode,
+      s.value,
+    ]),
+  );
+  const next = new Map(
+    deriveResultMetrics(definition.code, scores, { bodyMassKg }).map((d) => [
+      d.metricCode as string,
+      d.value,
+    ]),
+  );
+  return { next, from: [...scores.keys()] };
+}
+
+/** `inputs` of a derived value: the metrics it comes from. */
+export function derivedInputs(from: readonly string[], code: string): Record<string, unknown> {
+  return { kind: 'derived', from: from.filter((k) => k !== code) };
+}
+
 /**
  * Recomputes the result-level derived metrics (505 asymmetry, relative
  * strength) from the valid values: an outdated one is voided and the new one
@@ -681,9 +906,7 @@ export async function recomputeDerived(
   ctx: { clubId: ClubId; userId: UserId; definition: DefinitionInfo },
   result: { id: string; playerId: PlayerId; measuredOn: LocalDate },
 ): Promise<void> {
-  const derivable = (RESULT_LEVEL_DERIVED_METRICS[ctx.definition.code] ?? []).filter(
-    (code) => ctx.definition.metrics.get(code)?.isDerived === true,
-  );
+  const derivable = derivableMetrics(ctx.definition);
   if (derivable.length === 0) return;
   const values = await db
     .select({
@@ -708,24 +931,11 @@ export async function recomputeDerived(
       ),
     )
     .orderBy(...VALUE_ORDER);
-  const derivedSet = new Set<string>(derivable);
-  const inputs = values.filter((v) => !derivedSet.has(v.metricCode));
-  const scores = new Map(
-    scoreResultMetrics(inputs, (code) => scoringRule(ctx.definition, code)).map((s) => [
-      s.metricCode,
-      s.value,
-    ]),
-  );
   const bodyMassKg =
     ctx.definition.code === 'strength'
       ? await bodyMassKgOn(db, ctx.clubId, result.playerId, result.measuredOn)
       : null;
-  const next = new Map(
-    deriveResultMetrics(ctx.definition.code, scores, { bodyMassKg }).map((d) => [
-      d.metricCode as string,
-      d.value,
-    ]),
-  );
+  const { next, from } = deriveResultValues(ctx.definition, values, bodyMassKg);
   for (const code of derivable) {
     const metric = ctx.definition.metrics.get(code);
     if (metric === undefined) continue;
@@ -761,7 +971,7 @@ export async function recomputeDerived(
         testResultId: result.id,
         metricDefinitionId: metric.id,
         attemptNumber: null,
-        inputs: { kind: 'derived', from: [...scores.keys()].filter((k) => k !== code) },
+        inputs: derivedInputs(from, code),
         value,
         unit: metric.unit,
         createdBy: ctx.userId,
@@ -808,6 +1018,7 @@ export const testResultColumns = {
   exercise: testResult.exercise,
   conditions: testResult.conditions,
   notes: testResult.notes,
+  importId: testResult.importId,
   createdAt: testResult.createdAt,
   updatedAt: testResult.updatedAt,
   version: rowVersion(testResult.updatedAt),
@@ -832,9 +1043,30 @@ export interface TestResultRow {
   exercise: string | null;
   conditions: TestConditions;
   notes: string | null;
+  importId: string | null;
   createdAt: Date;
   updatedAt: Date;
   version: string;
+}
+
+/** Result rows (visible to the caller) with their protocol version, in no order. */
+export async function readTestResultRows(
+  db: TenantDatabase,
+  clubId: ClubId,
+  testResultIds: readonly string[],
+): Promise<TestResultRow[]> {
+  if (testResultIds.length === 0) return [];
+  return db
+    .select(testResultColumns)
+    .from(testResult)
+    .innerJoin(
+      testDefinition,
+      and(
+        eq(testDefinition.clubId, testResult.clubId),
+        eq(testDefinition.id, testResult.testDefinitionId),
+      ),
+    )
+    .where(and(eq(testResult.clubId, clubId), inArray(testResult.id, [...testResultIds])));
 }
 
 /** The result row (visible to the caller), joined with its protocol version. */
@@ -984,6 +1216,7 @@ function resultDto(row: TestResultRow, values: readonly ValueRow[]): TestResult 
     exercise: row.exercise,
     conditions: row.conditions,
     notes: row.notes,
+    importId: row.importId as TestResult['importId'],
     entries: [...entries].flatMap(([entryId, rows]) => {
       const first = rows[0];
       if (first === undefined) return [];

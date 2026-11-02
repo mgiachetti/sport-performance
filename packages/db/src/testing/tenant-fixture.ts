@@ -50,6 +50,7 @@ import {
   syncMutation,
   testDefinition,
   testDefinitionMetric,
+  testImport,
   testResult,
   testResultValue,
   testSession,
@@ -475,6 +476,29 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
       })
       .returning({ id: testResultValue.id }),
   );
+  rows.test_import = await id(
+    db
+      .insert(testImport)
+      .values({
+        ...base,
+        source: 'Planilla 2025',
+        rowCount: 1,
+        createdCount: 1,
+        skippedCount: 0,
+        bodySha256: '0'.repeat(64),
+      })
+      .returning({ id: testImport.id }),
+  );
+  // A historical result of the import (B-331).
+  await db.insert(testResult).values({
+    ...base,
+    playerId: assigned,
+    testDefinitionId: rows.test_definition,
+    measuredOn: day('2025-07-10'),
+    status: 'done',
+    method: 'historical',
+    importId: rows.test_import,
+  });
   // The other player has results too, so scoped roles can be checked against them.
   await db.insert(testResult).values({
     ...base,

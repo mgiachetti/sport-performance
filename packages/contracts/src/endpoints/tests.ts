@@ -45,6 +45,8 @@ export const TEST_BATCH_MAX = 200;
 export const TEST_ATTEMPT_NUMBER_MAX = 50;
 
 export const testResultIdSchema = idOf('resultado de test');
+/** Id of an import of historical results (B-331): here, as results name their import. */
+export const testImportIdSchema = idOf('importación de históricos');
 export const testEntryIdSchema = idOf('entrada de un resultado de test');
 export const testDefinitionIdSchema = idOf('versión del protocolo de un test');
 export const deviceIdSchema = idOf('dispositivo');
@@ -102,11 +104,15 @@ export const testNotDoneReasonViewSchema = z.enum([...TEST_NOT_DONE_REASONS, 'un
 
 const positive = z.number().positive().max(1_000_000);
 
-const entryCommon = {
+const entryClientUuid = {
   clientUuid: clientUuidSchema.optional().meta({
     description:
       'UUID de la entrada generado por el cliente (cola offline): reenviarla no la duplica. Es el `id` de la entrada.',
   }),
+};
+
+/** Fields of every entry but its `clientUuid`. */
+export const testEntryAttemptFields = {
   attemptNumber: z.int().min(1).max(TEST_ATTEMPT_NUMBER_MAX).optional().meta({
     description:
       'Número de intento (etiqueta del evaluador). Sin número, la entrada es el valor único del resultado.',
@@ -116,47 +122,56 @@ const entryCommon = {
   }),
 };
 
-export const testEntryInputSchema = z
-  .discriminatedUnion('kind', [
+export const TEST_ENTRY_INPUT_DESCRIPTION =
+  'Un intento como lo carga el evaluador. `value`: el valor de una métrica en su unidad; el resto son entradas crudas que el servidor convierte con las fórmulas del dominio (sprint: t10/t20/t40 y Vmax 20–40; CMJ: tiempo de vuelo o cuadros de video, `h = g·t²/8`; 30-15 IFT: última etapa → VIFT; fuerza: serie peso/reps/RIR → e1RM de Epley con RIR). Las métricas derivadas no se cargan a mano.';
+
+/**
+ * The kinds of entry, with `common` fields in each: the entries of a result
+ * (with their `clientUuid`) and those of an import (without: the server
+ * derives them from the batch, ADR 0052).
+ */
+export function testEntryInputVariants<const Common extends z.ZodRawShape>(common: Common) {
+  return z.discriminatedUnion('kind', [
     z.strictObject({
       kind: z.literal('value'),
-      ...entryCommon,
+      ...common,
       metricCode: metricCodeSchema,
       value: z.number().min(-1_000_000).max(1_000_000),
     }),
     z.strictObject({
       kind: z.literal('sprint_splits'),
-      ...entryCommon,
+      ...common,
       split10S: positive.optional(),
       split20S: positive,
       split40S: positive,
     }),
-    z.strictObject({ kind: z.literal('cmj_flight_time'), ...entryCommon, flightTimeS: positive }),
+    z.strictObject({ kind: z.literal('cmj_flight_time'), ...common, flightTimeS: positive }),
     z.strictObject({
       kind: z.literal('cmj_video_frames'),
-      ...entryCommon,
+      ...common,
       takeoffFrame: z.int().min(0).max(10_000_000),
       landingFrame: z.int().min(0).max(10_000_000),
       frameRateFps: positive,
     }),
     z.strictObject({
       kind: z.literal('ift_stage'),
-      ...entryCommon,
+      ...common,
       lastCompletedStage: z.int().min(1).max(100),
     }),
     z.strictObject({
       kind: z.literal('strength_set'),
-      ...entryCommon,
+      ...common,
       loadKg: positive,
       reps: z.int().min(1).max(100),
       rir: z.number().min(0).max(20),
     }),
-  ])
-  .meta({
-    id: 'TestEntryInput',
-    description:
-      'Un intento como lo carga el evaluador. `value`: el valor de una métrica en su unidad; el resto son entradas crudas que el servidor convierte con las fórmulas del dominio (sprint: t10/t20/t40 y Vmax 20–40; CMJ: tiempo de vuelo o cuadros de video, `h = g·t²/8`; 30-15 IFT: última etapa → VIFT; fuerza: serie peso/reps/RIR → e1RM de Epley con RIR). Las métricas derivadas no se cargan a mano.',
-  });
+  ]);
+}
+
+export const testEntryInputSchema = testEntryInputVariants({
+  ...entryClientUuid,
+  ...testEntryAttemptFields,
+}).meta({ id: 'TestEntryInput', description: TEST_ENTRY_INPUT_DESCRIPTION });
 
 /** An entry as the API receives it (validated). */
 export type TestEntryInputBody = z.output<typeof testEntryInputSchema>;
@@ -227,6 +242,9 @@ export const testResultSchema = z
     exercise: exerciseCodeSchema.nullable(),
     conditions: testConditionsSchema,
     notes: z.string().nullable(),
+    importId: testImportIdSchema.nullable().meta({
+      description: 'La importación de históricos de la que salió (B-331); `null` si se cargó acá.',
+    }),
     entries: z.array(testEntrySchema),
     scores: z.array(testMetricScoreSchema).meta({
       description: 'Puntaje de cada métrica con las entradas válidas.',
@@ -313,6 +331,9 @@ export const listTestResults = defineEndpoint({
     testCode: testCodeSchema.optional(),
     testDefinitionId: testDefinitionIdSchema.optional(),
     status: z.enum(['done', 'not_done']).optional(),
+    importId: testImportIdSchema
+      .optional()
+      .meta({ description: 'Solo los resultados de una importación de históricos.' }),
     from: localDateSchema.optional(),
     to: localDateSchema.optional(),
     sort: sortQuerySchema(['measuredOn', 'createdAt'], '-measuredOn'),
@@ -379,7 +400,7 @@ export const updateTestResult = defineEndpoint({
   path: '/v1/test-results/{testResultId}',
   summary: 'Corregir un resultado',
   description:
-    'Método, evaluador, dispositivo, ejercicio, condiciones, notas, fecha y estado. Cambiar un dato ya cargado pide `changeReason` (ADR 0030). Pasar a `not_done` exige anular antes las entradas; pasar a `done` exige `method`. `version` desactualizada: `conflict`. Las entradas no se editan: se anulan.',
+    'Método, evaluador, dispositivo, ejercicio, condiciones, notas, fecha y estado. Cambiar un dato ya cargado pide `changeReason` (ADR 0030). Pasar a `not_done` exige anular antes las entradas; pasar a `done` exige `method`. Un resultado importado (`importId`, ADR 0052) sigue `done` y `historical`, y cambiarle la fecha no aplica las reglas de etapa de la batería (como en la importación). `version` desactualizada: `conflict`. Las entradas no se editan: se anulan.',
   tags: ['tests'],
   auth: 'club',
   params: testResultParams,

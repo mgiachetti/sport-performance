@@ -4,6 +4,7 @@ import {
   check,
   doublePrecision,
   index,
+  integer,
   jsonb,
   pgTable,
   smallint,
@@ -119,6 +120,46 @@ export const testSession = pgTable(
   ],
 );
 
+/** Longest source of an import ("Planilla V3 2024 M15.xlsx"). */
+export const TEST_IMPORT_SOURCE_MAX_LENGTH = 200;
+
+/**
+ * An import of historical results from spreadsheets (B-331, ADR 0052): where
+ * the numbers came from, how many rows the batch had and what it created.
+ * Every result it created points to it (`test_result.import_id`) and is
+ * `historical`, so the series never mixes them silently with what the
+ * platform measured (principle 4). A record of what was loaded: never
+ * updated nor deleted.
+ */
+export const testImport = pgTable(
+  'test_import',
+  {
+    ...tenantColumns(),
+    source: text('source').notNull(),
+    rowCount: integer('row_count').notNull(),
+    createdCount: integer('created_count').notNull(),
+    skippedCount: integer('skipped_count').notNull(),
+    /**
+     * SHA-256 (hex) of the batch as received, canonical JSON: a replay of the
+     * `clientUuid` with another batch is a conflict, not the first import.
+     */
+    bodySha256: text('body_sha256').notNull(),
+  },
+  (t) => [
+    ...tenantConstraints('test_import', t),
+    index('test_import_created_idx').on(t.clubId, t.createdAt),
+    check(
+      'test_import_source_format',
+      sql`${t.source} = btrim(${t.source}) and ${t.source} <> '' and char_length(${t.source}) <= ${sql.raw(String(TEST_IMPORT_SOURCE_MAX_LENGTH))}`,
+    ),
+    check('test_import_body_sha256_format', sql`${t.bodySha256} ~ '^[0-9a-f]{64}$'`),
+    check(
+      'test_import_counts',
+      sql`${t.rowCount} >= 1 and ${t.createdCount} >= 0 and ${t.skippedCount} >= 0 and ${t.createdCount} + ${t.skippedCount} = ${t.rowCount}`,
+    ),
+  ],
+);
+
 /**
  * A player's result in one test version. `not_done` is a result too, with
  * its reason (B-320): absent, injured (never the diagnosis), not applicable to
@@ -157,9 +198,20 @@ export const testResult = pgTable(
     exercise: text('exercise'),
     conditions: jsonb('conditions').notNull().default({}).$type<TestConditions>(),
     notes: text('notes'),
+    /**
+     * The import of historical results it came from (B-331); `NULL` for a
+     * result recorded in the platform. Set on insert, never changed.
+     */
+    importId: uuid('import_id'),
   },
   (t) => [
     ...tenantConstraints('test_result', t),
+    tenantReference('test_result', t.clubId, t.importId, testImport),
+    tenantReferenceIndex('test_result', t.clubId, t.importId),
+    check(
+      'test_result_import_historical',
+      sql`${t.importId} is null or (${t.status} = 'done' and ${t.method} = 'historical' and ${t.testSessionId} is null)`,
+    ),
     // NULL passes a CHECK: the format applies when there is an exercise.
     codeCheck('test_result_exercise_format', t.exercise),
     tenantReference('test_result', t.clubId, t.playerId, player),

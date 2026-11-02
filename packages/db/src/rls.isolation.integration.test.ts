@@ -36,7 +36,8 @@ const CLUB_TABLES = (Object.values(schema) as unknown[])
 /**
  * Club tables the application never updates (no UPDATE grant): the change history (ADR 0030),
  * the published consent texts (ADR 0043), what the worker derives (ADR 0046), the record of
- * roster imports (ADR 0047) and the offline sync log and mutations (ADR 0050).
+ * roster imports (ADR 0047), the offline sync log and mutations (ADR 0050) and the imports
+ * of historical results (ADR 0052).
  */
 const APPEND_ONLY_TABLES = [
   'change_history',
@@ -47,6 +48,7 @@ const APPEND_ONLY_TABLES = [
   'roster_import',
   'sync_change',
   'sync_mutation',
+  'test_import',
 ];
 
 async function pgCode(promise: Promise<unknown>): Promise<string | undefined> {

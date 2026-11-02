@@ -137,7 +137,7 @@ describe.skipIf(!hasDatabase)('RLS by role (Postgres 16)', () => {
       const context = as('player');
       expect(await players(context)).toEqual([a.players.assigned]);
       expect(await wellnessPlayers(context)).toEqual([a.players.assigned]);
-      expect(await ids(context, 'select player_id as id from test_result')).toEqual([
+      expect(await ids(context, 'select distinct player_id as id from test_result')).toEqual([
         a.players.assigned,
       ]);
       expect(await ids(context, 'select id from test_result_value')).toEqual([
@@ -238,6 +238,44 @@ describe.skipIf(!hasDatabase)('RLS by role (Postgres 16)', () => {
       ]) {
         expect(await pgCode(run(as('admin'), (client) => client.query(sql)))).toBe('42501');
       }
+    });
+
+    it('imports of historical results: sc and the administration only, never updated (B-331)', async () => {
+      const imports = (context: TestContext) => ids(context, 'select id from test_import');
+      for (const who of ['sc', 'admin'] as const) {
+        expect(await imports(as(who))).toEqual([must(a.rows.test_import)]);
+      }
+      for (const who of ['coach', 'medical', 'player', 'parent'] as const) {
+        expect(await imports(as(who))).toEqual([]);
+      }
+      const insert = (client: pg.ClientBase) =>
+        client.query(
+          `insert into test_import (club_id, source, row_count, created_count, skipped_count, body_sha256)
+           values ($1, 'Planilla', 1, 1, 0, repeat('0', 64))`,
+          [a.clubId],
+        );
+      await run(as('sc'), insert);
+      expect(await pgCode(run(as('coach'), insert))).toBe('42501');
+      expect(
+        await pgCode(
+          run(as('admin'), (client) => client.query(`update test_import set source = 'Otra'`)),
+        ),
+      ).toBe('42501');
+      expect(
+        await pgCode(
+          run(as('admin'), (client) => client.query(`update test_result set import_id = null`)),
+        ),
+      ).toBe('42501');
+      // A result of an import is historical, done and outside a test day.
+      expect(
+        await pgCode(
+          t.pool.query(
+            `insert into test_result (club_id, player_id, test_definition_id, measured_on, status, method, import_id)
+             values ($1, $2, $3, '2025-03-01', 'done', 'manual', $4)`,
+            [a.clubId, a.players.assigned, a.rows.test_definition, a.rows.test_import],
+          ),
+        ),
+      ).toBe('23514');
     });
 
     it('coach: the players of their assigned categories only', async () => {

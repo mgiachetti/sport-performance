@@ -91,6 +91,7 @@ describe('schema conventions', () => {
         'sync_mutation',
         'test_definition',
         'test_definition_metric',
+        'test_import',
         'test_result',
         'test_result_value',
         'test_session',

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { IDEMPOTENT_REPLAY_HEADER } from '@sport-performance/contracts';
 import type { ArchiveStatus } from '@sport-performance/contracts';
 import { isNotNull, isNull, sql, type AnyColumn, type SQL } from 'drizzle-orm';
@@ -96,4 +97,40 @@ export function archiveStatusFilter(archivedAt: AnyColumn, status: ArchiveStatus
 /** Marks a response that returns what an earlier, identical request created. */
 export function markReplay(reply: FastifyReply): void {
   void reply.header(IDEMPOTENT_REPLAY_HEADER, 'true');
+}
+
+/**
+ * `client_uuid` of row `index` of a batch (an import): a UUIDv8 (RFC 9562,
+ * custom) from the SHA-256 of the batch's `clientUuid`, `kind` (the table
+ * the rows go to, or a finer key) and the index. Re-sending the same batch
+ * finds the same rows; two kinds never collide.
+ */
+export function batchRowClientUuid(batchClientUuid: string, kind: string, index: number): string {
+  const hex = createHash('sha256')
+    .update(`${batchClientUuid.toLowerCase()}:${kind}:${String(index)}`)
+    .digest('hex');
+  // RFC 9562 version 8 (custom), variant 10.
+  const variant = ((parseInt(hex.charAt(16), 16) & 0x3) | 0x8).toString(16);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-8${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
+/** JSON with the keys of every object sorted: the same value, the same text. */
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+/**
+ * SHA-256 (hex) of a batch as parsed, in canonical JSON: stored with the batch
+ * so that re-sending its `clientUuid` with another body is told apart from a
+ * replay of the same one.
+ */
+export function batchBodySha256(body: unknown): string {
+  return createHash('sha256').update(canonicalJson(body)).digest('hex');
 }
