@@ -52,10 +52,12 @@ const ownAndStaffRead: RoleRules = { ...staffRead, player: self };
  * - **player**: their own profile, results, load, wellness and RPE (which
  *   they submit with a data consent); own percentiles from M15; rankings with
  *   names never in M13–M16, always their own value against the anonymised
- *   group reference instead; their own consents once of age.
+ *   group reference instead; once of age, their own consents and whether
+ *   each guardian keeps access (B-311).
  * - **parent**: through a guardian link, the summarised profile, availability
  *   and consents (signed while the player is a minor), parents' heights and
- *   the account of a player without email. Never rankings; of health, only
+ *   the account of a player without email. Once the player is of age, only
+ *   what does not need a minor, and only if the adult kept the link (B-311). Never rankings; of health, only
  *   the record of a minor with a health consent (read only, ADR 0029).
  * - **coach**: assigned categories: panel, roster, sessions, participation.
  * - **sc**: assigned categories: test days, results, anthropometry, gym, CMJ
@@ -152,6 +154,8 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
   guardian_link: {
     read: { ...administration, player: self, parent: guardian },
     manage: administration,
+    // Only the adult decides on their guardians' access (B-311): never the administration.
+    review: { ...nobody, player: allow('self', 'adult') },
   },
   player_account: {
     invite: { ...administration, parent: allow('guardian', 'minor') },

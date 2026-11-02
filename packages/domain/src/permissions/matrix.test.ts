@@ -51,6 +51,7 @@ player_profile.archive   -                     -               -               -
 player_summary.read      self                  guardian        assigned        assigned        assigned         club        club
 guardian_link.read       self                  guardian        -               -               -                club        club
 guardian_link.manage     -                     -               -               -               -                club        club
+guardian_link.review     self+adult            -               -               -               -                -           -
 player_account.invite    -                     guardian+minor  -               -               -                club        club
 consent.read             self                  guardian        assigned        assigned        assigned         club        club
 consent.sign             self+adult            guardian+minor  -               -               -                -           -

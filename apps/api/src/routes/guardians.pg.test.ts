@@ -332,8 +332,8 @@ describeWithPostgres('guardians and accounts of minors (Postgres)', (serverUrl) 
       expect((await issue(coachA, sofia)).statusCode).toBe(403);
       expect((await issue(fatherA, sofia)).statusCode).toBe(404);
       expect((await issue(adminB, sofia)).statusCode).toBe(404);
-      // A guardian of an adult no longer manages their access (B-311 hook).
-      expect((await issue(fatherA, martin)).statusCode).toBe(403);
+      // A guardian of an adult who did not keep the link no longer sees them (B-311).
+      expect((await issue(fatherA, martin)).statusCode).toBe(404);
     });
 
     it('the code opens a bearer session of a new account without email, in the club', async () => {
@@ -543,8 +543,9 @@ describeWithPostgres('guardians and accounts of minors (Postgres)', (serverUrl) 
 
     it('refuses the guardian of an adult, the staff and other clubs', async () => {
       const payload = { email: 'martin@example.com' };
+      // The adult did not keep the link: out of reach (B-311).
       expect((await post(`/v1/players/${martin}/invitations`, fatherA, payload)).statusCode).toBe(
-        403,
+        404,
       );
       expect((await post(`/v1/players/${sofia}/invitations`, coachA, payload)).statusCode).toBe(
         403,

@@ -174,6 +174,8 @@ export const IMPLEMENTED_ENDPOINTS = [
   'createPlayerGuardian',
   'updateGuardian',
   'endGuardian',
+  'confirmGuardianAsAdult',
+  'withdrawGuardianAdultConfirmation',
   'listMyChildren',
   'invitePlayer',
   'issuePlayerAccessCode',

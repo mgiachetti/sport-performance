@@ -54,6 +54,10 @@ export const guardianLinkSchema = z
       description: 'Día del club desde el que ya no vale (exclusivo); `null` mientras sigue.',
     }),
     current: z.boolean().meta({ description: 'Si vale hoy (día del club).' }),
+    adultConfirmedAt: dateTimeSchema.nullable().meta({
+      description:
+        'Cuándo el jugador/a, ya mayor de edad, decidió mantener el acceso de este tutor (B-311); `null` si no lo confirmó. Sin confirmación, el vínculo deja de dar acceso al cumplir 18.',
+    }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     version: resourceVersionSchema,
@@ -73,12 +77,20 @@ export const childSchema = z
     guardianId: guardianIdSchema,
     relationship: guardianRelationshipSchema,
     hasAccount: z.boolean().meta({ description: 'Si el jugador/a ya tiene su propia cuenta.' }),
+    adultConfirmed: z.boolean().meta({
+      description:
+        'Si el hijo/a, ya mayor, decidió mantener el acceso de este tutor. Con `ofAge: true` y `false`, el tutor no ve sus datos: solo este vínculo.',
+    }),
     canManageAccess: z.boolean().meta({
       description:
         'Si este tutor puede invitarlo/a o generarle un código de ingreso (`player_account.invite`).',
     }),
   })
-  .meta({ id: 'Child', description: 'Un hijo/a con vínculo vigente con el tutor.' });
+  .meta({
+    id: 'Child',
+    description:
+      'Un hijo/a con vínculo vigente con el tutor. De un hijo/a mayor que no mantuvo el acceso solo se muestran nombre y fecha de nacimiento.',
+  });
 
 /**
  * Characters of an access code: digits and uppercase letters without the ones
@@ -247,7 +259,7 @@ export const endGuardian = defineEndpoint({
   path: '/v1/guardians/{guardianId}/end',
   summary: 'Terminar un vínculo de tutor',
   description:
-    'Solo la administración. Deja de valer desde hoy (día del club); si empezaba hoy o después, no llega a valer. No se borra: queda en la historia. Idempotente.',
+    'La administración, o el propio jugador/a mayor de edad (`guardian_link.review`, B-311). Deja de valer desde hoy (día del club); si empezaba hoy o después, no llega a valer. Se anulan los códigos e invitaciones que ese tutor dejó abiertos. No se borra: queda en la historia. Idempotente.',
   tags: ['guardians'],
   auth: 'club',
   params: guardianParams,
@@ -255,12 +267,38 @@ export const endGuardian = defineEndpoint({
   errors: ['not_found'],
 });
 
+export const confirmGuardianAsAdult = defineEndpoint({
+  method: 'POST',
+  path: '/v1/guardians/{guardianId}/adult-confirmation',
+  summary: 'Mantener el acceso de un tutor (jugador/a mayor)',
+  description:
+    'Solo el propio jugador/a, mayor de edad (`guardian_link.review`, B-311): decide que este tutor siga viendo sus datos. El tutor recupera solo la lectura (resumen, disponibilidad, consentimientos, vínculos); lo que la matriz reserva a menores (firmar, revocar, códigos de ingreso, alturas, datos médicos) sigue negado. Idempotente. Un menor, otro rol u otro jugador/a: `forbidden`; vínculo terminado: `conflict`.',
+  tags: ['guardians'],
+  auth: 'club',
+  params: guardianParams,
+  response: { status: 200, description: 'El vínculo confirmado.', schema: guardianLinkSchema },
+  errors: ['not_found', 'conflict'],
+});
+
+export const withdrawGuardianAdultConfirmation = defineEndpoint({
+  method: 'DELETE',
+  path: '/v1/guardians/{guardianId}/adult-confirmation',
+  summary: 'Retirar el acceso de un tutor (jugador/a mayor)',
+  description:
+    'Solo el propio jugador/a, mayor de edad (`guardian_link.review`, B-311): el tutor deja de ver sus datos; el vínculo sigue (lo ve el tutor, sin datos) y se puede volver a confirmar. Para terminarlo: `POST /v1/guardians/{guardianId}/end`. Idempotente. Vínculo terminado: `conflict`.',
+  tags: ['guardians'],
+  auth: 'club',
+  params: guardianParams,
+  response: { status: 200, description: 'El vínculo sin confirmar.', schema: guardianLinkSchema },
+  errors: ['not_found', 'conflict'],
+});
+
 export const listMyChildren = defineEndpoint({
   method: 'GET',
   path: '/v1/me/children',
   summary: 'Mis hijos/as',
   description:
-    'Solo con rol `parent`: los jugadores/as con los que el tutor tiene un vínculo vigente en el club activo. Cualquier otro rol: `forbidden`.',
+    'Solo con rol `parent`: los jugadores/as con los que el tutor tiene un vínculo vigente en el club activo, también un hijo/a mayor que no mantuvo su acceso (`ofAge: true`, `adultConfirmed: false`), para que el tutor entienda por qué ya no lo ve. Cualquier otro rol: `forbidden`.',
   tags: ['guardians', 'me'],
   auth: 'club',
   query: pageQuerySchema.extend({

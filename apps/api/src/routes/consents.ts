@@ -17,6 +17,8 @@ import {
   CONSENT_TYPES,
   consentSignerOfRole,
   consentStates,
+  guardianConsentsLapseOn,
+  guardianConsentsLapsed,
   permittedActions,
   requiredConsentSigner,
   type ClubId,
@@ -24,14 +26,13 @@ import {
   type ConsentType,
   type CurrentConsentDocument,
   type PermissionSubject,
-  type PlayerFacts,
   type PlayerId,
   type UserId,
 } from '@sport-performance/domain';
 import { and, eq, isNull, sql, type SQL } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { TenantDatabase } from '../db/database.js';
-import { requirePlayerFacts } from '../http/consents.js';
+import { requirePlayerFacts, type LoadedPlayer } from '../http/consents.js';
 import { registerEndpoint } from '../http/endpoint.js';
 import { HttpError } from '../http/errors.js';
 import { keysetPage, type KeysetSpec } from '../http/pagination.js';
@@ -190,7 +191,7 @@ async function typeStatuses(
   db: TenantDatabase,
   clubId: ClubId,
   subject: PermissionSubject,
-  facts: PlayerFacts,
+  { facts, birthDate, today }: LoadedPlayer,
   types: readonly ConsentType[] = CONSENT_TYPES,
 ): Promise<ConsentTypeStatus[]> {
   const consents = await db.select(consentColumns).from(consent).where(ofPlayer(clubId, facts.id));
@@ -207,7 +208,12 @@ async function typeStatuses(
   }).filter((action) =>
     (CONSENT_ACTIONS as readonly string[]).includes(action),
   ) as (typeof CONSENT_ACTIONS)[number][];
-  return consentStates(consents, current, now)
+  // The majority (B-311) on the club's day, as `app.current_consent_types` computes it.
+  const holder = {
+    ofAge: facts.ofAge ?? false,
+    guardianConsentsLapsed: guardianConsentsLapsed(birthDate, today),
+  };
+  return consentStates(consents, current, now, holder)
     .filter((state) => types.includes(state.type))
     .map((state) => {
       const document = documents.get(state.type);
@@ -303,14 +309,16 @@ export function registerConsentRoutes(app: FastifyInstance): void {
     transaction: true,
     handler: async ({ params }, { db, permissions, auth: caller }) => {
       const { clubId } = caller.membership;
-      const { facts } = await requirePlayerFacts(db, clubId, params.playerId);
+      const loaded = await requirePlayerFacts(db, clubId, params.playerId);
+      const { facts } = loaded;
       await permissions.authorize('consent', 'read', { player: facts });
       const ofAge = facts.ofAge ?? false;
       return {
         playerId: facts.id,
         playerOfAge: ofAge,
         requiredSigner: requiredConsentSigner(ofAge),
-        types: await typeStatuses(db, clubId, await permissions.subject(), facts),
+        guardianSignaturesLapseOn: guardianConsentsLapseOn(loaded.birthDate),
+        types: await typeStatuses(db, clubId, await permissions.subject(), loaded),
       };
     },
   });
@@ -377,6 +385,7 @@ export function registerConsentRoutes(app: FastifyInstance): void {
           'This is not the current version of the consent text: sign the current one',
         );
       }
+      // Once per text and signer: the adult signs the text their guardian signed (B-311).
       const [already] = await db
         .select({ id: consent.id })
         .from(consent)
@@ -384,6 +393,7 @@ export function registerConsentRoutes(app: FastifyInstance): void {
           and(
             ofPlayer(clubId, facts.id),
             eq(consent.documentId, document.id),
+            eq(consent.signerKind, signerKind),
             isNull(consent.revokedAt),
           ),
         );
@@ -422,7 +432,8 @@ export function registerConsentRoutes(app: FastifyInstance): void {
     transaction: true,
     handler: async ({ params }, { db, permissions, auth: caller }) => {
       const { clubId } = caller.membership;
-      const { facts } = await requirePlayerFacts(db, clubId, params.playerId);
+      const loaded = await requirePlayerFacts(db, clubId, params.playerId);
+      const { facts } = loaded;
       await permissions.authorize('consent', 'revoke', { player: facts });
       await db
         .update(consent)
@@ -435,7 +446,7 @@ export function registerConsentRoutes(app: FastifyInstance): void {
         db,
         clubId,
         await permissions.subject(),
-        { ...facts, consents },
+        { ...loaded, facts: { ...facts, consents } },
         [params.type],
       );
       if (status === undefined) throw new Error('revokeConsent: no status for the type');

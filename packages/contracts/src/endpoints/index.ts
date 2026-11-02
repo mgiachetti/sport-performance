@@ -72,6 +72,7 @@ import {
   updateClub,
 } from './clubs.js';
 import {
+  confirmGuardianAsAdult,
   createPlayerGuardian,
   endGuardian,
   invitePlayer,
@@ -82,6 +83,7 @@ import {
   redeemPlayerAccess,
   revokePlayerAccessCode,
   updateGuardian,
+  withdrawGuardianAdultConfirmation,
 } from './guardians.js';
 import {
   getConsentDocument,
@@ -349,6 +351,8 @@ export const apiEndpoints = {
   createPlayerGuardian,
   updateGuardian,
   endGuardian,
+  confirmGuardianAsAdult,
+  withdrawGuardianAdultConfirmation,
   listMyChildren,
   invitePlayer,
   issuePlayerAccessCode,

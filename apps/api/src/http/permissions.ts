@@ -93,11 +93,12 @@ export async function loadPermissionSubject(
           playerId: guardian.playerId,
           validFrom: guardian.validFrom,
           validTo: guardian.validTo,
+          confirmedByAdultPlayer: sql<boolean>`${guardian.adultConfirmedAt} is not null`,
         })
         .from(guardian)
         .where(and(eq(guardian.clubId, membership.clubId), eq(guardian.userId, auth.userId)));
-      // Majority confirmation (B-311) is not modelled yet: no link is confirmed, so the
-      // matrix denies a guardian of an adult player (fail closed).
+      // Once the player is of age, an unconfirmed link only reaches what the matrix gives
+      // without the player's facts (nothing): the adult decides (B-311, ADR 0048).
       return { ...base, guardianships: currentGuardianships(rows, today) };
     }
     case 'admin':

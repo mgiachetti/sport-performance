@@ -520,13 +520,18 @@ export function registerPlayerRoutes(app: FastifyInstance): void {
           inScope = inArray(player.id, [...scope.playerIds]);
           break;
       }
-      // A guardian's access ends at the player's majority unless the adult confirms it:
-      // only minors, decided in SQL so pages stay full.
-      // TODO(B-311): also the adult wards whose guardianship has `confirmedByAdultPlayer`
-      // (GET of one player already allows them through the matrix).
+      // A guardian's access ends at the player's majority unless the adult kept the link
+      // (B-311): minors, or the adults who confirmed it, decided in SQL so pages stay full.
+      // RLS (`app.visible_player_ids`) applies the same rule.
+      const confirmedByAdult = (subject.guardianships ?? [])
+        .filter((g) => g.confirmedByAdultPlayer)
+        .map((g) => g.playerId);
       const minorsOnly =
         kind === 'player_summary'
-          ? sql`${player.birthDate} > (${CLUB_TODAY} - make_interval(years => ${AGE_OF_MAJORITY_YEARS}))::date`
+          ? or(
+              sql`${player.birthDate} > (${CLUB_TODAY} - make_interval(years => ${AGE_OF_MAJORITY_YEARS}))::date`,
+              confirmedByAdult.length > 0 ? inArray(player.id, confirmedByAdult) : undefined,
+            )
           : undefined;
 
       const search =

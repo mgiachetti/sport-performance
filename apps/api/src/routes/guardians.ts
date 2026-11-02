@@ -1,4 +1,5 @@
 import {
+  confirmGuardianAsAdult,
   createPlayerGuardian,
   endGuardian,
   invitePlayer,
@@ -10,6 +11,7 @@ import {
   redeemPlayerAccess,
   revokePlayerAccessCode,
   updateGuardian,
+  withdrawGuardianAdultConfirmation,
   type Child,
   type GuardianLink,
   type GuardianLinkStatus,
@@ -175,7 +177,8 @@ async function authorizedPlayer(
   permissions: RequestPermissions,
   clubId: ClubId,
   playerId: PlayerId,
-  check: { kind: 'guardian_link'; action: 'read' | 'manage' } | { kind: 'player_account' },
+  check:
+    { kind: 'guardian_link'; action: 'read' | 'manage' | 'review' } | { kind: 'player_account' },
 ): Promise<{ row: PlayerRow; today: LocalDate }> {
   const row = await readPlayer(db, clubId, playerId);
   const today = await clubToday(db);
@@ -206,6 +209,7 @@ interface GuardianRow {
   relationship: GuardianRelationship;
   validFrom: LocalDate;
   validTo: LocalDate | null;
+  adultConfirmedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   version: string;
@@ -220,6 +224,7 @@ const guardianColumns = {
   relationship: guardian.relationship,
   validFrom: guardian.validFrom,
   validTo: guardian.validTo,
+  adultConfirmedAt: guardian.adultConfirmedAt,
   createdAt: guardian.createdAt,
   updatedAt: guardian.updatedAt,
   version: rowVersion(guardian.updatedAt),
@@ -251,6 +256,7 @@ function guardianDto(row: GuardianRow, today: LocalDate, withEmail: boolean): Gu
     validFrom: row.validFrom,
     validTo: row.validTo,
     current: isCurrentOn(row, today),
+    adultConfirmedAt: row.adultConfirmedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     version: row.version,
@@ -340,7 +346,7 @@ const CODE_ATTEMPTS = 5;
 
 // ─── Children ────────────────────────────────────────────────────────────
 
-interface ChildRow {
+interface ChildRow extends Record<string, unknown> {
   guardianId: string;
   relationship: GuardianRelationship;
   playerId: PlayerId;
@@ -348,14 +354,21 @@ interface ChildRow {
   lastName: string;
   birthDate: LocalDate;
   hasAccount: boolean;
+  adultConfirmed: boolean;
   sortName: string;
 }
 
-const childSortName = sql<string>`${player.lastName} || ' ' || ${player.firstName}`;
+/**
+ * Rows of `app.guardian_children()` (alias `w`): the caller's current links
+ * with the little a guardian may know of each child whatever their age. RLS
+ * hides an adult who did not keep the link from the guardian (B-311), so a
+ * plain join with `player` would drop them from the list.
+ */
+const childSortName = sql<string>`w.last_name || ' ' || w.first_name`;
 
 const CHILD_KEYS: KeysetSpec<ChildRow, 'name'> = {
   fields: { name: { column: childSortName, type: 'text', value: (r) => r.sortName } },
-  id: { column: guardian.id, value: (r) => r.guardianId },
+  id: { column: sql`w.guardian_id`, value: (r) => r.guardianId },
 };
 
 /** The caller's own guardianships: a `parent` of the club, nobody else. */
@@ -495,10 +508,63 @@ export function registerGuardianRoutes(app: FastifyInstance, auth: AuthModule): 
     },
   });
 
+  /**
+   * The adult player's decision on one of their guardians (B-311, ADR 0048):
+   * the matrix (`guardian_link.review`), then `app.review_guardian`, which
+   * checks it all again and is the only writer of the confirmation.
+   */
+  async function reviewLink(
+    db: TenantDatabase,
+    permissions: RequestPermissions,
+    clubId: ClubId,
+    guardianId: string,
+    decision: 'confirm' | 'withdraw' | 'end',
+  ): Promise<GuardianLink> {
+    const link = await readGuardian(db, clubId, guardianId);
+    const { today } = await authorizedPlayer(db, permissions, clubId, link.playerId, {
+      kind: 'guardian_link',
+      action: 'review',
+    });
+    const { rows } = await db.execute<{ outcome: string }>(
+      sql`select app.review_guardian(${guardianId}::uuid, ${decision}) as outcome`,
+    );
+    const outcome = rows[0]?.outcome;
+    switch (outcome) {
+      case 'ok':
+        break;
+      case 'ended':
+        throw new HttpError('conflict', 'The guardian link already ended');
+      case 'not_found':
+        throw new HttpError('not_found', 'Guardian link not found');
+      case 'minor':
+        // The matrix let a minor through: the database refuses (fail closed).
+        throw new HttpError('forbidden', 'Only the player, once of age, decides');
+      default:
+        throw new Error(`review_guardian: unexpected outcome ${String(outcome)}`);
+    }
+    return guardianDto(await readGuardian(db, clubId, guardianId), today, false);
+  }
+
+  registerEndpoint(app, confirmGuardianAsAdult, {
+    transaction: true,
+    handler: async ({ params }, { db, permissions, auth: caller }) =>
+      reviewLink(db, permissions, caller.membership.clubId, params.guardianId, 'confirm'),
+  });
+
+  registerEndpoint(app, withdrawGuardianAdultConfirmation, {
+    transaction: true,
+    handler: async ({ params }, { db, permissions, auth: caller }) =>
+      reviewLink(db, permissions, caller.membership.clubId, params.guardianId, 'withdraw'),
+  });
+
   registerEndpoint(app, endGuardian, {
     transaction: true,
     handler: async ({ params }, { db, permissions, auth: caller }) => {
       const { clubId } = caller.membership;
+      // The adult player ends their own guardian's link (B-311); everyone else needs `manage`.
+      if (caller.membership.role === 'player') {
+        return reviewLink(db, permissions, clubId, params.guardianId, 'end');
+      }
       const { link, today } = await managedLink(db, permissions, clubId, params.guardianId);
       if (link.validTo !== null && compareLocalDates(link.validTo, today) <= 0) {
         return guardianDto(link, today, true);
@@ -552,33 +618,15 @@ export function registerGuardianRoutes(app: FastifyInstance, auth: AuthModule): 
         return { items: [], nextCursor: null };
       }
       const today = await clubToday(db);
-      const rows = await db
-        .select({
-          guardianId: guardian.id,
-          relationship: guardian.relationship,
-          playerId: player.id,
-          firstName: player.firstName,
-          lastName: player.lastName,
-          birthDate: player.birthDate,
-          hasAccount: sql<boolean>`${player.userId} is not null`,
-          sortName: childSortName,
-        })
-        .from(guardian)
-        .innerJoin(
-          player,
-          and(eq(player.clubId, guardian.clubId), eq(player.id, guardian.playerId)),
-        )
-        .where(
-          and(
-            eq(guardian.clubId, clubId),
-            eq(guardian.userId, caller.userId),
-            inArray(guardian.playerId, [...scope.playerIds]),
-            linkStatusFilter('current', today),
-            plan.where,
-          ),
-        )
-        .orderBy(...plan.orderBy)
-        .limit(plan.limit);
+      const { rows } = await db.execute<ChildRow>(sql`
+        select w.guardian_id as "guardianId", w.relationship, w.player_id as "playerId",
+               w.first_name as "firstName", w.last_name as "lastName",
+               w.birth_date::text as "birthDate", w.has_account as "hasAccount",
+               w.adult_confirmed as "adultConfirmed", ${childSortName} as "sortName"
+          from app.guardian_children() w
+         where ${plan.where ?? sql`true`}
+         order by ${sql.join(plan.orderBy, sql`, `)}
+         limit ${plan.limit}`);
       const subject = await permissions.subject();
       const facts = await playerFacts(
         db,
@@ -597,6 +645,7 @@ export function registerGuardianRoutes(app: FastifyInstance, auth: AuthModule): 
           guardianId: row.guardianId as Child['guardianId'],
           relationship: row.relationship,
           hasAccount: row.hasAccount,
+          adultConfirmed: row.adultConfirmed,
           canManageAccess:
             playerFactsOfRow !== undefined &&
             can(subject, 'invite', { kind: 'player_account', clubId, player: playerFactsOfRow }),

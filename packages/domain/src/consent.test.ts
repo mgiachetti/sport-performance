@@ -1,14 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ADULT_CONSENT_GRACE_DAYS,
   CONSENT_STATES,
   consentSignerOfRole,
   consentStates,
   currentConsentTypes,
+  guardianConsentsLapseOn,
+  guardianConsentsLapsed,
   isCurrentConsent,
+  majorityDate,
   requiredConsentSigner,
   type ConsentRecord,
 } from './consent.js';
 import { ROLES } from './role.js';
+import { isOfAge } from './permissions/subject.js';
+import { addDays, parseLocalDate } from './time.js';
 
 const NOW = new Date('2026-11-02T12:00:00Z');
 const at = (iso: string) => new Date(iso);
@@ -18,6 +24,7 @@ function record(overrides: Partial<ConsentRecord> = {}): ConsentRecord {
     type: 'data',
     documentId: 'doc-data-1',
     documentVersion: '2026-01',
+    signerKind: 'guardian',
     signedAt: at('2026-03-01T10:00:00Z'),
     revokedAt: null,
     ...overrides,
@@ -75,7 +82,14 @@ describe('current consents', () => {
 
 describe('consentStates', () => {
   it('has the four states', () => {
-    expect(CONSENT_STATES).toEqual(['granted', 'outdated', 'revoked', 'missing']);
+    expect(CONSENT_STATES).toEqual([
+      'granted',
+      'outdated',
+      'adult_signature_required',
+      'lapsed',
+      'revoked',
+      'missing',
+    ]);
   });
 
   it('tells granted, outdated, revoked and missing apart', () => {
@@ -123,5 +137,96 @@ describe('consentStates', () => {
     const legacy = record({ type: 'image', documentId: null, documentVersion: '2026-01' });
     expect(consentStates([legacy], documents, NOW)[1]?.state).toBe('granted');
     expect(consentStates([legacy], {}, NOW)[1]?.state).toBe('outdated');
+  });
+});
+
+describe('majority (B-311)', () => {
+  const d = parseLocalDate;
+
+  it('the majority is the 18th birthday; 29 February turns 18 on 1 March of a common year', () => {
+    expect(majorityDate(d('2008-11-02'))).toBe('2026-11-02');
+    expect(majorityDate(d('2008-02-29'))).toBe('2026-03-01');
+    expect(majorityDate(d('2012-02-29'))).toBe('2030-03-01');
+    expect(majorityDate(d('2014-02-28'))).toBe('2032-02-28');
+  });
+
+  it('matches isOfAge on both sides of the birthday', () => {
+    for (const birth of ['2008-02-29', '2008-03-01', '2008-12-31', '2009-01-01'].map(d)) {
+      const majority = majorityDate(birth);
+      expect(isOfAge(birth, majority)).toBe(true);
+      expect(isOfAge(birth, addDays(majority, -1))).toBe(false);
+    }
+  });
+
+  it('a guardian signature lapses ADULT_CONSENT_GRACE_DAYS after the majority', () => {
+    expect(ADULT_CONSENT_GRACE_DAYS).toBe(30);
+    const birth = d('2008-10-01');
+    expect(guardianConsentsLapseOn(birth)).toBe('2026-10-31');
+    expect(guardianConsentsLapsed(birth, d('2026-10-30'))).toBe(false);
+    expect(guardianConsentsLapsed(birth, d('2026-10-31'))).toBe(true);
+    // The same as "of age 30 days ago", the definition of the database.
+    for (const today of ['2026-10-30', '2026-10-31', '2026-11-01'].map(d)) {
+      expect(guardianConsentsLapsed(birth, today)).toBe(
+        isOfAge(birth, addDays(today, -ADULT_CONSENT_GRACE_DAYS)),
+      );
+    }
+  });
+});
+
+describe('consent states once the player is of age (B-311)', () => {
+  const adultInGrace = { ofAge: true, guardianConsentsLapsed: false };
+  const adultLapsed = { ofAge: true, guardianConsentsLapsed: true };
+  const onCurrentText = { documentId: 'doc-data-2', documentVersion: '2026-11' };
+
+  it('a minor: a guardian signature is granted, as before', () => {
+    const [data] = consentStates([record(onCurrentText)], documents, NOW);
+    expect(data?.state).toBe('granted');
+  });
+
+  it('an adult with only a guardian signature: it counts and asks the adult to sign', () => {
+    const guardianSigned = record(onCurrentText);
+    const [data] = consentStates([guardianSigned], documents, NOW, adultInGrace);
+    expect(data).toEqual({
+      type: 'data',
+      state: 'adult_signature_required',
+      current: guardianSigned,
+    });
+    expect(currentConsentTypes([guardianSigned], NOW, adultInGrace)).toEqual(['data']);
+  });
+
+  it('past the grace period the guardian signature lapses: it no longer counts', () => {
+    const guardianSigned = record(onCurrentText);
+    expect(isCurrentConsent(guardianSigned, NOW, adultLapsed)).toBe(false);
+    const [data] = consentStates([guardianSigned], documents, NOW, adultLapsed);
+    expect(data).toEqual({ type: 'data', state: 'lapsed', current: null });
+    expect(currentConsentTypes([guardianSigned], NOW, adultLapsed)).toEqual([]);
+  });
+
+  it('a revoked guardian signature is revoked, not lapsed', () => {
+    const revoked = record({ ...onCurrentText, revokedAt: at('2026-10-01T00:00:00Z') });
+    expect(consentStates([revoked], documents, NOW, adultLapsed)[0]?.state).toBe('revoked');
+  });
+
+  it("the adult's own signature wins over a more recent guardian one", () => {
+    const own = record({
+      ...onCurrentText,
+      signerKind: 'player',
+      signedAt: at('2026-10-01T00:00:00Z'),
+    });
+    const guardianSigned = record({ ...onCurrentText, signedAt: at('2026-10-15T00:00:00Z') });
+    for (const holder of [adultInGrace, adultLapsed]) {
+      const [data] = consentStates([guardianSigned, own], documents, NOW, holder);
+      expect(data).toEqual({ type: 'data', state: 'granted', current: own });
+    }
+  });
+
+  it("the adult's own signature on an older text is outdated, and still counts", () => {
+    const own = record({ signerKind: 'player' });
+    const [data] = consentStates([own], documents, NOW, adultLapsed);
+    expect(data?.state).toBe('outdated');
+  });
+
+  it('a player signature never lapses', () => {
+    expect(isCurrentConsent(record({ signerKind: 'player' }), NOW, adultLapsed)).toBe(true);
   });
 });
