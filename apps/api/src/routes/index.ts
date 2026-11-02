@@ -1,5 +1,6 @@
 import type { ApiEndpoints } from '@sport-performance/contracts';
 import type { FastifyInstance } from 'fastify';
+import { revokeSessionsOfEndedMembership } from '../auth/member-sessions.js';
 import type { AuthModule } from '../auth/module.js';
 import { registerAuthRoutes } from './auth.js';
 import { registerCategoryRoutes } from './categories.js';
@@ -7,8 +8,10 @@ import { registerClubRoutes } from './clubs.js';
 import { registerHealthRoutes, type HealthOptions } from './health.js';
 import { registerInvitationRoutes } from './invitations.js';
 import { registerMeRoutes } from './me.js';
+import { registerMemberRoutes } from './members.js';
 import { registerOpenApiRoute } from './openapi.js';
 import { registerSessionRoutes } from './sessions.js';
+import { registerStaffAssignmentRoutes } from './staff-assignments.js';
 
 /**
  * Endpoints of the contract the API serves, by operationId. Adding an
@@ -46,6 +49,16 @@ export const IMPLEMENTED_ENDPOINTS = [
   'archiveCategory',
   'restoreCategory',
   'listPositions',
+  'listMembers',
+  'getMember',
+  'changeMemberRole',
+  'endMember',
+  'listStaffAssignments',
+  'listMyStaffAssignments',
+  'getStaffAssignment',
+  'createStaffAssignment',
+  'updateStaffAssignment',
+  'endStaffAssignment',
 ] as const satisfies readonly (keyof ApiEndpoints)[];
 
 /** Declared in the contract but served by a later issue (`'#N (B-xxx): why'`). */
@@ -70,10 +83,28 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   // Club data: they need no auth module (the theme is public; the rest answer 401 without it).
   registerClubRoutes(app);
   registerCategoryRoutes(app);
+  registerStaffAssignmentRoutes(app);
   if (options.auth !== undefined) {
     registerAuthRoutes(app, options.auth);
     registerMeRoutes(app, options.auth);
     registerSessionRoutes(app, options.auth);
     registerInvitationRoutes(app, options.auth);
+    const auth = options.auth;
+    registerMemberRoutes(app, {
+      // B-333: a member left without any membership is signed out everywhere.
+      onMembershipEnded: async (caller, ended) => {
+        if (caller.membership.membershipId !== null) {
+          await revokeSessionsOfEndedMembership(auth, caller, ended.id);
+          return;
+        }
+        // A supporting superadmin: `revokeSessionsOfEndedMembership` reads the membership in a
+        // transaction of its own, which a superadmin cannot open without the support reason.
+        // The route already authorized the end and resolved the member: same rule, here.
+        const others = (await auth.identity.activeMemberships(ended.userId)).filter(
+          (membership) => membership.id !== ended.id,
+        );
+        if (others.length === 0) await auth.sessions.revokeAllOfMember(ended.userId);
+      },
+    });
   }
 }

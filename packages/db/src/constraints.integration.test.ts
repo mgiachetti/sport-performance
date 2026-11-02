@@ -525,6 +525,18 @@ describe.skipIf(!hasDatabase)('schema constraints (Postgres 16)', () => {
       }),
     );
     expect(assignment.constraint).toBe('staff_assignment_one_target');
+
+    // An assignment ended before it started keeps an empty range (ADR 0034); an inverted one is rejected.
+    const target = { clubId: clubA, membershipId: must(first).id, sport: 'rugby' as const };
+    await t.db
+      .insert(staffAssignment)
+      .values({ ...target, validFrom: day('2026-03-01'), validTo: day('2026-03-01') });
+    const inverted = await pgErrorOf(
+      t.db
+        .insert(staffAssignment)
+        .values({ ...target, validFrom: day('2026-03-02'), validTo: day('2026-03-01') }),
+    );
+    expect(inverted.constraint).toBe('staff_assignment_validity');
   });
 
   it('rejects inverted validity ranges', async () => {

@@ -65,6 +65,7 @@ export const API_TAGS = {
   invitations: 'Invitaciones por link a un club.',
   clubs: 'Clubes, su marca (white-label) y sus ramas (deporte y sexo).',
   categories: 'Categorías por rama y franja de edad, y posiciones por deporte.',
+  members: 'Miembros del club, sus roles y las asignaciones del staff (qué ve cada uno).',
 } as const satisfies Record<string, string>;
 
 export type ApiTag = keyof typeof API_TAGS;
