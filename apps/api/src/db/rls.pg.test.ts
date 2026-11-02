@@ -31,15 +31,17 @@ interface Club {
   player: string;
 }
 
-const playersEndpoint = defineEndpoint({
-  method: 'GET',
-  path: '/v1/test/players',
-  summary: 'Players the caller can see, read with the Drizzle client',
-  tags: ['system'],
-  auth: 'public',
-  response: { status: 200, description: 'Ids', schema: z.object({ ids: z.array(z.string()) }) },
-  errors: [],
-});
+/** The same read acting in a club (`club`) and without a caller (`public`, always anonymous). */
+const playersEndpoint = (auth: 'club' | 'public') =>
+  defineEndpoint({
+    method: 'GET',
+    path: auth === 'public' ? '/v1/test/players/public' : '/v1/test/players',
+    summary: 'Players the caller can see, read with the Drizzle client',
+    tags: ['system'],
+    auth,
+    response: { status: 200, description: 'Ids', schema: z.object({ ids: z.array(z.string()) }) },
+    errors: [],
+  });
 
 function headerAuth(request: FastifyRequest): Promise<AuthContext | null> {
   const user = request.headers['x-test-user'];
@@ -128,13 +130,15 @@ describeWithPostgres('RLS through the API data layer (Postgres)', (url) => {
       db,
       authenticate: headerAuth,
       register: (instance) => {
-        registerEndpoint(instance, playersEndpoint, {
-          transaction: true,
-          handler: async (_input, { db: orm }) => {
-            const rows = await orm.select({ id: schema.player.id }).from(schema.player);
-            return { ids: rows.map((r) => r.id) };
-          },
-        });
+        for (const auth of ['club', 'public'] as const) {
+          registerEndpoint(instance, playersEndpoint(auth), {
+            transaction: true,
+            handler: async (_input, { db: orm }) => {
+              const rows = await orm.select({ id: schema.player.id }).from(schema.player);
+              return { ids: rows.map((r) => r.id) };
+            },
+          });
+        }
       },
     }));
     // Creating the database and running every migration takes a few seconds.
@@ -173,13 +177,19 @@ describeWithPostgres('RLS through the API data layer (Postgres)', (url) => {
   it('runs the Drizzle client of a handler inside the request transaction', async () => {
     const as = (club: Club | null) =>
       app.inject({
-        url: '/v1/test/players',
+        url: club === null ? '/v1/test/players/public' : '/v1/test/players',
         headers: club === null ? {} : { 'x-test-user': club.admin, 'x-test-club': club.id },
       });
     const [anonymous, ofA, ofB] = await Promise.all([as(null), as(a), as(b)]);
     expect(anonymous.json()).toEqual({ ids: [] });
     expect(ofA.json()).toEqual({ ids: [a.player] });
     expect(ofB.json()).toEqual({ ids: [b.player] });
+    // A public endpoint runs anonymous even with a caller: RLS shows it nothing.
+    const publicOfA = await app.inject({
+      url: '/v1/test/players/public',
+      headers: { 'x-test-user': a.admin, 'x-test-club': a.id },
+    });
+    expect(publicOfA.json()).toEqual({ ids: [] });
   });
 
   it('never leaks a context through a pooled connection, even one set at session level', async () => {

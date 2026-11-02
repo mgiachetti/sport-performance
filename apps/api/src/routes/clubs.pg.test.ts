@@ -176,8 +176,10 @@ describeWithPostgres('clubs, branches and categories (Postgres)', (serverUrl) =>
         `select club_id, reason from support.access_log where request_id = 'req-create-club-a'
           order by logged_at`,
       );
-      expect(log.rows.map((r) => r.club_id)).toEqual([null, clubA.id]);
-      expect(log.rows[0]?.reason).toBe('Alta del club pedida por la comisión directiva');
+      expect(log.rows).toEqual([
+        { club_id: null, reason: 'Alta del club pedida por la comisión directiva' },
+        { club_id: clubA.id, reason: 'Alta del club pedida por la comisión directiva' },
+      ]);
     });
 
     it('replays the same create by clientUuid without duplicating', async () => {
@@ -452,6 +454,23 @@ describeWithPostgres('clubs, branches and categories (Postgres)', (serverUrl) =>
       const missing = await t.app.inject({ url: '/v1/clubs/no-existe/theme' });
       expect(missing.statusCode).toBe(404);
     });
+
+    it('runs anonymous whoever calls: no support access for a signed-in superadmin', async () => {
+      for (const headers of [
+        { ...superadmin.headers, 'x-request-id': 'req-theme-superadmin' },
+        supporting(clubB.id, { 'x-request-id': 'req-theme-supporting' }),
+        adminB.headers,
+      ]) {
+        const response = await t.app.inject({ url: `/v1/clubs/${clubA.slug}/theme`, headers });
+        expect(response.statusCode, response.body).toBe(200);
+        expect(response.json<{ clubId: string }>().clubId).toBe(clubA.id);
+      }
+      const log = await database.admin.query(
+        `select 1 from support.access_log
+          where request_id in ('req-theme-superadmin', 'req-theme-supporting')`,
+      );
+      expect(log.rows).toHaveLength(0);
+    });
   });
 
   describe('branches', () => {
@@ -490,6 +509,53 @@ describeWithPostgres('clubs, branches and categories (Postgres)', (serverUrl) =>
       expect(again.statusCode).toBe(201);
       expect(again.headers['x-idempotent-replay']).toBe('true');
       expect(again.json<BranchBody>().id).toBe(branch.id);
+
+      // Another create of the active branch (another clientUuid, or none) is a conflict.
+      for (const payload of [
+        { clientUuid: randomUUID(), sport: 'rugby', sex: 'female' },
+        { sport: 'rugby', sex: 'female' },
+        { sport: 'rugby', sex: 'male' },
+      ]) {
+        const other = await t.app.inject({
+          method: 'POST',
+          url: '/v1/club/branches',
+          headers: adminA.headers,
+          payload,
+        });
+        expect(other.statusCode, JSON.stringify(payload)).toBe(409);
+        expect(errorOf(other).code).toBe('conflict');
+        expect(other.headers['x-idempotent-replay']).toBeUndefined();
+      }
+      expect(await categoriesOf(adminA, '?sport=rugby&sex=female')).toHaveLength(6);
+    });
+
+    it('records one support access with the reason of a superadmin enabling a branch', async () => {
+      const created = await t.app.inject({
+        method: 'POST',
+        url: '/v1/clubs',
+        headers: registry(),
+        payload: { ...createClubPayload('club-c'), branches: [{ sport: 'rugby', sex: 'male' }] },
+      });
+      expect(created.statusCode, created.body).toBe(201);
+      const clubC = created.json<{ club: ClubBody }>().club;
+      const response = await t.app.inject({
+        method: 'POST',
+        url: '/v1/club/branches',
+        headers: supporting(clubC.id, { 'x-request-id': 'req-enable-branch-c' }),
+        payload: { sport: 'hockey', sex: 'female' },
+      });
+      expect(response.statusCode, response.body).toBe(201);
+      const log = await database.admin.query<{ club_id: string; reason: string }>(
+        `select club_id, reason from support.access_log where request_id = 'req-enable-branch-c'`,
+      );
+      expect(log.rows).toEqual([
+        { club_id: clubC.id, reason: 'Alta del club pedida por la comisión directiva' },
+      ]);
+      const seeded = await database.admin.query<{ n: string }>(
+        `select count(*) as n from category where club_id = $1 and sport = 'hockey'`,
+        [clubC.id],
+      );
+      expect(seeded.rows[0]?.n).toBe('6');
     });
 
     it('archives a branch with its categories, and restores it', async () => {
@@ -522,6 +588,19 @@ describeWithPostgres('clubs, branches and categories (Postgres)', (serverUrl) =>
       });
       expect(create.statusCode).toBe(400);
       expect(errorOf(create).details?.[0]?.path).toEqual(['body', 'sport']);
+      // Its categories are archived with it, and read-only until restored.
+      const [archivedCategory] = await categoriesOf(
+        adminA,
+        '?sport=rugby&sex=female&status=archived',
+      );
+      const edit = await t.app.inject({
+        method: 'PATCH',
+        url: `/v1/categories/${archivedCategory?.id ?? ''}`,
+        headers: adminA.headers,
+        payload: { version: archivedCategory?.version, name: 'Editada archivada' },
+      });
+      expect(edit.statusCode, edit.body).toBe(409);
+      expect(errorOf(edit).message).toBe('The category is archived: restore it first');
 
       const restored = await t.app.inject({
         method: 'POST',
@@ -676,13 +755,30 @@ describeWithPostgres('clubs, branches and categories (Postgres)', (serverUrl) =>
         url: `/v1/categories/${category.id}/archive`,
         headers: adminA.headers,
       });
-      expect(archive.json<CategoryBody>().archivedAt).not.toBeNull();
+      const archivedCategory = archive.json<CategoryBody>();
+      expect(archivedCategory.archivedAt).not.toBeNull();
+      const editArchived = await t.app.inject({
+        method: 'PATCH',
+        url: `/v1/categories/${category.id}`,
+        headers: adminA.headers,
+        payload: { version: archivedCategory.version, name: 'Sub 13 archivada' },
+      });
+      expect(editArchived.statusCode).toBe(409);
+      expect(errorOf(editArchived).code).toBe('conflict');
       const restore = await t.app.inject({
         method: 'POST',
         url: `/v1/categories/${category.id}/restore`,
         headers: adminA.headers,
       });
-      expect(restore.json<CategoryBody>().archivedAt).toBeNull();
+      const restored = restore.json<CategoryBody>();
+      expect(restored).toMatchObject({ archivedAt: null, name: 'Sub 13' });
+      const editRestored = await t.app.inject({
+        method: 'PATCH',
+        url: `/v1/categories/${category.id}`,
+        headers: adminA.headers,
+        payload: { version: restored.version, name: 'Sub-13' },
+      });
+      expect(editRestored.statusCode, editRestored.body).toBe(200);
     });
 
     it('hides the categories of another club', async () => {

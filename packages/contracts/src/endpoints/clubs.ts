@@ -232,7 +232,7 @@ export const enableClubBranch = defineEndpoint({
   path: '/v1/club/branches',
   summary: 'Habilitar un deporte y rama',
   description:
-    'Solo la administración. Siembra la configuración por defecto de la rama (posiciones del deporte, categorías M13 a M19, batería). Habilitar una rama activa devuelve la existente; una archivada se restaura con `POST /v1/club/branches/{branchId}/restore` (`conflict`).',
+    'Solo la administración. Siembra la configuración por defecto de la rama (posiciones del deporte, categorías M13 a M19, batería). Repetir el pedido con el mismo `clientUuid` devuelve la rama con `X-Idempotent-Replay: true`; habilitar una rama ya activa con otro pedido es `conflict`, y una archivada también (se restaura con `POST /v1/club/branches/{branchId}/restore`).',
   tags: ['clubs'],
   auth: 'club',
   body: z.strictObject({

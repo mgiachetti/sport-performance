@@ -189,7 +189,9 @@ export function registerCategoryRoutes(app: FastifyInstance): void {
           scope.sports.length > 0 ? inArray(category.sport, [...scope.sports]) : undefined,
         );
       } else if (scope.kind !== 'club') {
-        // No rule of `category.read` scopes by player: deny instead of guessing.
+        // No rule of `category.read` grants a `players` (or `platform`) scope: such a scope
+        // would see no category until a rule says how it maps to them, so an empty page,
+        // as for `none` (fail closed without a `403`: the role itself was allowed).
         return { items: [], nextCursor: null };
       }
       const rows = await db
@@ -286,7 +288,18 @@ export function registerCategoryRoutes(app: FastifyInstance): void {
     transaction: true,
     handler: async ({ params, body }, { db, permissions, auth: caller }) => {
       const { clubId } = caller.membership;
-      await authorizedCategory(db, permissions, clubId, params.categoryId, 'manage');
+      const current = await authorizedCategory(
+        db,
+        permissions,
+        clubId,
+        params.categoryId,
+        'manage',
+      );
+      // Archived (alone or with its branch) is read-only until restored: a change there
+      // would not be seen in any active list, nor offered to the branch when it comes back.
+      if (current.archivedAt !== null) {
+        throw new HttpError('conflict', 'The category is archived: restore it first');
+      }
       const where = and(eq(category.clubId, clubId), eq(category.id, params.categoryId));
       const row = await updateAtVersion({
         resource: 'Category',
@@ -299,7 +312,14 @@ export function registerCategoryRoutes(app: FastifyInstance): void {
                 ...(body.sortOrder !== undefined && { sortOrder: body.sortOrder }),
                 updatedBy: caller.userId,
               })
-              .where(and(where, versionMatches(category.updatedAt, body.version)))
+              // Archived after the read above: `exists` finds it, so it is a `409` too.
+              .where(
+                and(
+                  where,
+                  isNull(category.archivedAt),
+                  versionMatches(category.updatedAt, body.version),
+                ),
+              )
               .returning(categoryColumns)
           )[0],
         exists: async () =>

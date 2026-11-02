@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { defineEndpoint } from '../endpoint.js';
+import { sortQuerySchema } from '../primitives/conventions.js';
 import { dateTimeSchema } from '../primitives/dates.js';
 import { categoryIdSchema, idOf } from '../primitives/ids.js';
 import { pageOf, pageQuerySchema } from '../primitives/pagination.js';
@@ -116,10 +117,13 @@ export const listInvitations = defineEndpoint({
   method: 'GET',
   path: '/v1/invitations',
   summary: 'Invitaciones del club',
-  description: 'Solo `admin` del club activo. Las más nuevas primero.',
+  description: 'Solo `admin` del club activo. Por defecto, las más nuevas primero.',
   tags: ['invitations'],
   auth: 'club',
-  query: pageQuerySchema.extend({ status: invitationStatusSchema.optional() }),
+  query: pageQuerySchema.extend({
+    status: invitationStatusSchema.optional(),
+    sort: sortQuerySchema(['createdAt', 'expiresAt'], '-createdAt'),
+  }),
   response: {
     status: 200,
     description: 'Página de invitaciones.',

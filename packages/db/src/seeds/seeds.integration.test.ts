@@ -405,6 +405,11 @@ describe.skipIf(!hasDatabase)('seeds (Postgres 16)', () => {
         ],
       }),
     ).rejects.toThrow(/Duplicate branch/);
+    for (const supportReason of ['   ', 'x'.repeat(501)]) {
+      await expect(
+        bootstrapClub(t.db, { clubId: orc, branches: ORC_TENANT.branches, supportReason }),
+      ).rejects.toThrow(/supportReason/);
+    }
     await expect(
       bootstrapClub(t.db, {
         clubId: '00000000-0000-4000-8000-000000000000' as ClubId,

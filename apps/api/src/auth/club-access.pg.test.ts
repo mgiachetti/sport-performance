@@ -516,6 +516,40 @@ describeWithPostgres(
         });
         expect(bad.statusCode).toBe(400);
         expect(bad.json<Envelope>().error.code).toBe('bad_request');
+
+        // Other orders, and a cursor only for the sort and filters it was made for.
+        const byExpiry = await t.app.inject({
+          url: '/v1/invitations?limit=100&sort=expiresAt',
+          headers: asAdmin(),
+        });
+        expect(byExpiry.statusCode, byExpiry.body).toBe(200);
+        const expiries = byExpiry
+          .json<{ items: { expiresAt: string }[] }>()
+          .items.map((item) => item.expiresAt);
+        expect(expiries).toHaveLength(items.length);
+        expect([...expiries].sort()).toEqual(expiries);
+        const oldest = await t.app.inject({
+          url: '/v1/invitations?limit=100&sort=createdAt',
+          headers: asAdmin(),
+        });
+        expect(
+          oldest.json<{ items: { createdAt: string }[] }>().items.map((item) => item.createdAt),
+        ).toEqual([...times].reverse());
+        const firstPage = await fetchPage(null);
+        for (const query of ['status=pending', 'sort=createdAt']) {
+          const reused = await t.app.inject({
+            url: `/v1/invitations?limit=2&${query}&cursor=${firstPage.nextCursor ?? ''}`,
+            headers: asAdmin(),
+          });
+          expect(reused.statusCode, query).toBe(400);
+          expect(reused.json<Envelope>().error.code).toBe('bad_request');
+        }
+        const badSort = await t.app.inject({
+          url: '/v1/invitations?sort=email',
+          headers: asAdmin(),
+        });
+        expect(badSort.statusCode).toBe(400);
+        expect(badSort.json<Envelope>().error.code).toBe('validation_failed');
       });
     });
   },
