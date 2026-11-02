@@ -299,6 +299,16 @@ export {
   type ConsentSigner,
   type ConsentType,
 } from './consent.js';
+// Guardians and accounts of minors without email (B-310).
+export {
+  GUARDIAN_RELATIONSHIPS,
+  NO_EMAIL_ACCOUNT_DOMAIN,
+  isGuardianRelationship,
+  isUndeliverableEmail,
+  noEmailAccountAddress,
+  parseGuardianRelationship,
+  type GuardianRelationship,
+} from './guardian.js';
 export * from './permissions/index.js';
 // Medical module vocabularies (B-304, ADR 0008, ADR 0029).
 export {

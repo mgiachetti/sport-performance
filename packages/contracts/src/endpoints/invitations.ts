@@ -1,8 +1,9 @@
+import { GUARDIAN_RELATIONSHIPS } from '@sport-performance/domain';
 import { z } from 'zod';
 import { defineEndpoint } from '../endpoint.js';
 import { sortQuerySchema } from '../primitives/conventions.js';
 import { dateTimeSchema } from '../primitives/dates.js';
-import { categoryIdSchema, idOf } from '../primitives/ids.js';
+import { categoryIdSchema, idOf, playerIdSchema } from '../primitives/ids.js';
 import { pageOf, pageQuerySchema } from '../primitives/pagination.js';
 import { clubSummarySchema, emailSchema, membershipRoleSchema, membershipSchema } from './auth.js';
 
@@ -38,6 +39,13 @@ export const invitationSchema = z
     email: emailSchema,
     role: membershipRoleSchema,
     categoryIds: z.array(categoryIdSchema),
+    playerId: playerIdSchema.nullable().meta({
+      description:
+        'Jugador/a de la invitación (B-310): con rol `player`, la cuenta pasa a ser la suya; con `parent`, se crea el vínculo de tutor.',
+    }),
+    relationship: z.enum(GUARDIAN_RELATIONSHIPS).nullable().meta({
+      description: 'Con rol `parent` y `playerId`: la relación del vínculo que se crea al aceptar.',
+    }),
     status: invitationStatusSchema,
     expiresAt: dateTimeSchema,
     createdAt: dateTimeSchema,
@@ -96,13 +104,15 @@ export const createInvitation = defineEndpoint({
   path: '/v1/invitations',
   summary: 'Invitar a alguien al club',
   description:
-    'Solo `admin` del club activo. Manda el email con el link y devuelve los links. `categoryIds` (solo para `coach`, `sc` y `medical`) se convierten en asignaciones de staff al aceptar. Invitar de nuevo al mismo email con el mismo rol anula el link anterior.',
+    'Solo `admin` del club activo. Manda el email con el link y devuelve los links. `categoryIds` (solo para `coach`, `sc` y `medical`) se convierten en asignaciones de staff al aceptar. `playerId` (solo para `player` y `parent`, este último con `relationship`) ata la invitación a un jugador/a: su cuenta, o el vínculo de tutor. Invitar de nuevo al mismo email con el mismo rol (y jugador/a) anula el link anterior.',
   tags: ['invitations'],
   auth: 'club',
   body: z.strictObject({
     email: emailSchema,
     role: membershipRoleSchema,
     categoryIds: z.array(categoryIdSchema).max(50).default([]),
+    playerId: playerIdSchema.optional(),
+    relationship: z.enum(GUARDIAN_RELATIONSHIPS).optional(),
     expiresInDays: z
       .int()
       .min(1)
@@ -163,7 +173,7 @@ export const acceptInvitation = defineEndpoint({
   path: '/v1/invitations/accept',
   summary: 'Aceptar una invitación',
   description:
-    'Con sesión del mismo email invitado (si no, `forbidden`). Crea la membresía y las asignaciones de staff. Vencida, anulada o ya usada: `conflict`. Si la membresía ya existía, la devuelve sin duplicarla.',
+    'Con sesión del mismo email invitado (si no, `forbidden`). Crea la membresía y las asignaciones de staff. Vencida, anulada o ya usada: `conflict`; también una de tutor sobre un jugador/a abierta por la cuenta de ese mismo jugador/a. Si la membresía ya existía, la devuelve sin duplicarla.',
   tags: ['invitations'],
   auth: 'session',
   body: z.strictObject({ token: invitationTokenSchema }),

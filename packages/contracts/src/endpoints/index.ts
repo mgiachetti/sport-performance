@@ -70,6 +70,18 @@ import {
   restoreClubBranch,
   updateClub,
 } from './clubs.js';
+import {
+  createPlayerGuardian,
+  endGuardian,
+  invitePlayer,
+  issuePlayerAccessCode,
+  listMyChildren,
+  listPlayerAccessCodes,
+  listPlayerGuardians,
+  redeemPlayerAccess,
+  revokePlayerAccessCode,
+  updateGuardian,
+} from './guardians.js';
 import { getHealth } from './health.js';
 import {
   acceptInvitation,
@@ -156,6 +168,7 @@ export * from './configuration-battery.js';
 export * from './configuration-common.js';
 export * from './configuration-modules.js';
 export * from './configuration-speed-zones.js';
+export * from './guardians.js';
 export * from './health.js';
 export * from './invitations.js';
 export * from './me.js';
@@ -303,6 +316,16 @@ export const apiEndpoints = {
   updateAlertRule,
   getClubModules,
   updateClubModules,
+  listPlayerGuardians,
+  createPlayerGuardian,
+  updateGuardian,
+  endGuardian,
+  listMyChildren,
+  invitePlayer,
+  issuePlayerAccessCode,
+  listPlayerAccessCodes,
+  revokePlayerAccessCode,
+  redeemPlayerAccess,
 } as const satisfies EndpointCatalog;
 
 export type ApiEndpoints = typeof apiEndpoints;

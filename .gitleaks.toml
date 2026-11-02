@@ -12,3 +12,15 @@ paths = [
   # Lockfile integrity hashes are high-entropy but public.
   '''(^|/)pnpm-lock\.yaml$''',
 ]
+
+[[allowlists]]
+description = "Public alphabet of the player access codes (B-310), not a secret"
+# Earlier commits of #41 spelled the alphabet of the codes as a literal assigned to
+# `PLAYER_ACCESS_CODE_ALPHABET`, which generic-api-key flags by its name ("ACCESS"): first
+# the 31 symbols, then the 36 digits and letters they are filtered from. The codes
+# themselves are random and never committed; only these two exact public strings are
+# allowed (as the secret gitleaks extracts). .gitleaksignore pins the same two findings by
+# fingerprint; the current source names the literal without a key word.
+regexes = [
+  '''^(23456789ABCDEFGHJKMNPQRSTUVWXYZ|0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ)$''',
+]

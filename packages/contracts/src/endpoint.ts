@@ -75,6 +75,8 @@ export const API_TAGS = {
   references: 'Referencias de primera por métrica, deporte, sexo y alcance (B-321).',
   configuration:
     'Configuración del club: batería de tests, zonas de velocidad, reglas de alerta y módulos activos.',
+  guardians:
+    'Tutores, sus hijos/as y el acceso de los jugadores/as menores (código o link del tutor).',
 } as const satisfies Record<string, string>;
 
 export type ApiTag = keyof typeof API_TAGS;

@@ -3,6 +3,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import type { AuthConfig } from '../config/env.js';
 import type { Database } from '../db/database.js';
 import type { Mailer } from '../email/mailer.js';
+import { hashAccessCode } from '../guardians/access-codes.js';
 import type { InvitationLinkOptions } from '../invitations/tokens.js';
 import { createSessionAuthenticate } from './authenticate.js';
 import { createBetterAuth, type SportAuth } from './better-auth.js';
@@ -27,6 +28,11 @@ export interface AuthModule {
   readonly limits: AuthRateLimits;
   readonly mailer: Mailer;
   readonly links: InvitationLinkOptions;
+  /**
+   * HMAC-SHA-256 (hex) of a normalized player access code with the auth
+   * secret: what `player_access_code.code_hash` stores (ADR 0042).
+   */
+  readonly hashAccessCode: (normalizedCode: string) => string;
   /** Web origins allowed to send the session cookie (CORS and the origin guard). */
   readonly webOrigins: readonly string[];
   /** Origin of the API itself, also trusted by the origin guard. */
@@ -79,6 +85,7 @@ export function createAuthModule(options: CreateAuthModuleOptions): AuthModule {
     limits: { ...AUTH_RATE_LIMITS, ...options.limits },
     mailer: options.mailer,
     links: config.links,
+    hashAccessCode: (code) => hashAccessCode(config.secret, code),
     webOrigins: config.webOrigins,
     apiOrigin: new URL(config.baseUrl).origin,
     secureCookies: config.secureCookies,

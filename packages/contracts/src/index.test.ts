@@ -137,6 +137,16 @@ describe('@sport-performance/contracts entry point', () => {
       'updateAlertRule',
       'getClubModules',
       'updateClubModules',
+      'listPlayerGuardians',
+      'createPlayerGuardian',
+      'updateGuardian',
+      'endGuardian',
+      'listMyChildren',
+      'invitePlayer',
+      'issuePlayerAccessCode',
+      'listPlayerAccessCodes',
+      'revokePlayerAccessCode',
+      'redeemPlayerAccess',
     ]);
     expect(contracts.MEMBERSHIP_HEADER).toBe('x-membership-id');
     expect(contracts.SUPPORT_CLUB_HEADER).toBe('x-support-club-id');

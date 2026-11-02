@@ -40,7 +40,28 @@ export type AcceptInvitationResult =
   | { readonly kind: 'accepted'; readonly membership: ActiveMembership; readonly created: boolean }
   | { readonly kind: 'not_found' }
   | { readonly kind: 'unavailable'; readonly status: Exclude<InvitationStatus, 'pending'> }
-  | { readonly kind: 'wrong_email' };
+  | { readonly kind: 'wrong_email' }
+  /** About a player who already has another account, or the user already is another player. */
+  | { readonly kind: 'player_taken' }
+  /** A parent invitation about a player, opened by that player's own account. */
+  | { readonly kind: 'own_guardian' };
+
+/** What redeeming a player access code did (B-310, ADR 0042). */
+export type RedeemPlayerAccessResult =
+  | {
+      readonly kind: 'redeemed';
+      readonly userId: UserId;
+      readonly clubId: ClubId;
+      readonly membershipId: Uuid;
+      readonly userCreated: boolean;
+      /** The code just used up, for the logs. */
+      readonly accessCodeId: Uuid;
+    }
+  | { readonly kind: 'not_found' }
+  | {
+      readonly kind: 'unavailable';
+      readonly reason: 'consumed' | 'revoked' | 'expired' | 'not_allowed' | 'has_account';
+    };
 
 /**
  * Identity flows that run before (or across) a club context (ADR 0028), on
@@ -63,6 +84,15 @@ export interface IdentityStore {
     tokenHash: string,
     caller: { readonly userId: UserId },
   ): Promise<AcceptInvitationResult>;
+  /**
+   * Redeems a player access code by the hash of the code or of the token of
+   * its link (exactly one): `app.redeem_player_access()` (`SECURITY
+   * DEFINER`, migration 0020) spends it and returns the player's account,
+   * created without email on first use, with its `player` membership.
+   */
+  redeemPlayerAccess(
+    hash: { readonly codeHash: string } | { readonly tokenHash: string },
+  ): Promise<RedeemPlayerAccessResult>;
   /**
    * The user of a membership of the context's club, in any state (ended
    * too), as the club policies show it to the context's role; `undefined`
@@ -128,8 +158,24 @@ interface InvitationByTokenRow extends Record<string, unknown> {
   revoked_at: Date | null;
 }
 
+interface RedeemPlayerAccessRow extends Record<string, unknown> {
+  outcome:
+    'redeemed' | 'not_found' | 'consumed' | 'revoked' | 'expired' | 'not_allowed' | 'has_account';
+  player_user_id: string | null;
+  player_club_id: string | null;
+  player_membership_id: string | null;
+  user_created: boolean;
+  access_code_id: string | null;
+}
+
 interface AcceptInvitationRow extends Record<string, unknown> {
-  outcome: 'joined' | 'not_found' | 'wrong_email' | Exclude<InvitationStatus, 'pending'>;
+  outcome:
+    | 'joined'
+    | 'not_found'
+    | 'wrong_email'
+    | 'player_taken'
+    | 'own_guardian'
+    | Exclude<InvitationStatus, 'pending'>;
   joined_membership_id: string | null;
   membership_created: boolean;
 }
@@ -182,6 +228,8 @@ export function createIdentityStore(appDb: Database): IdentityStore {
         switch (row.outcome) {
           case 'not_found':
           case 'wrong_email':
+          case 'player_taken':
+          case 'own_guardian':
             return { kind: row.outcome } as const;
           case 'accepted':
           case 'revoked':
@@ -197,6 +245,46 @@ export function createIdentityStore(appDb: Database): IdentityStore {
               kind: 'accepted',
               membership: joined,
               created: row.membership_created,
+            } as const;
+          }
+        }
+      }),
+
+    redeemPlayerAccess: (hash) =>
+      // No user and no club: the code is the capability (the function checks it all).
+      run(null, async (db) => {
+        const codeHash = 'codeHash' in hash ? hash.codeHash : null;
+        const tokenHash = 'tokenHash' in hash ? hash.tokenHash : null;
+        const { rows } = await db.execute<RedeemPlayerAccessRow>(
+          sql`select * from app.redeem_player_access(${codeHash}, ${tokenHash})`,
+        );
+        const row = rows[0];
+        if (row === undefined) throw new Error('redeem_player_access returned no row');
+        switch (row.outcome) {
+          case 'not_found':
+            return { kind: 'not_found' } as const;
+          case 'consumed':
+          case 'revoked':
+          case 'expired':
+          case 'not_allowed':
+          case 'has_account':
+            return { kind: 'unavailable', reason: row.outcome } as const;
+          case 'redeemed': {
+            if (
+              row.player_user_id === null ||
+              row.player_club_id === null ||
+              row.player_membership_id === null ||
+              row.access_code_id === null
+            ) {
+              throw new Error('redeem_player_access redeemed without an account');
+            }
+            return {
+              kind: 'redeemed',
+              userId: parseUserId(row.player_user_id),
+              clubId: parseClubId(row.player_club_id),
+              membershipId: parseUuid(row.player_membership_id),
+              userCreated: row.user_created,
+              accessCodeId: parseUuid(row.access_code_id),
             } as const;
           }
         }

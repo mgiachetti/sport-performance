@@ -80,6 +80,25 @@ export async function signInWithCode(
 }
 
 /**
+ * Opens a session of `userId` without an email code: the player's device
+ * redeeming the code or link a guardian issued (B-310, ADR 0042), already
+ * checked and spent by `app.redeem_player_access`. Same session as a code
+ * sign-in (expiry, client columns, bearer token): it goes through Better
+ * Auth's own adapter and session hooks. Returns the session token.
+ */
+export async function openSessionForUser(
+  auth: SportAuth,
+  input: { userId: string; client: SessionClient },
+): Promise<string> {
+  const context = await auth.$context;
+  const scope: SignInScope = { client: input.client, userCreated: false };
+  const session = await signInScope.run(scope, () =>
+    context.internalAdapter.createSession(input.userId),
+  );
+  return session.token;
+}
+
+/**
  * Better Auth inside the API (ADR 0010, ADR 0028), over the identity tables of
  * `packages/db`. Only its server API (`auth.api.*`) is used: the HTTP routes
  * are our own contract endpoints (`/v1/auth/*`), so its router, its CSRF
@@ -146,7 +165,9 @@ export function createBetterAuth(options: BetterAuthOptions) {
           before: (session) => {
             const scope = signInScope.getStore();
             if (scope === undefined) {
-              return Promise.reject(new Error('sessions are only opened through signInWithCode'));
+              return Promise.reject(
+                new Error('sessions are only opened through signInWithCode or openSessionForUser'),
+              );
             }
             const { client } = scope;
             return Promise.resolve({

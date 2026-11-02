@@ -13,6 +13,7 @@ import {
   HEIGHT_SOURCES,
   FIXTURE_STATUSES,
   FIXTURE_VENUES,
+  GUARDIAN_RELATIONSHIPS,
   MATURITY_OFFSET_EQUATIONS,
   MEASUREMENT_METHODS,
   MEMBERSHIP_ROLES,
@@ -144,8 +145,8 @@ export const playerLeaveReasonEnum = pgEnum('player_leave_reason', PLAYER_LEAVE_
 // Vocabularies that only exist in the database for now.
 // ---------------------------------------------------------------------------
 
-/** Relationship of a guardian with the player (B-310). */
-export const GUARDIAN_RELATIONSHIPS = ['mother', 'father', 'legal_guardian', 'other'] as const;
+/** Relationship of a guardian with the player (B-310); the domain's vocabulary since B-310. */
+export { GUARDIAN_RELATIONSHIPS };
 export const guardianRelationshipEnum = pgEnum('guardian_relationship', GUARDIAN_RELATIONSHIPS);
 
 /** Shared hardware (Phase 2) and the player pod (Phase 3). */
