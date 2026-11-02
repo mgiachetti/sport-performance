@@ -1,4 +1,9 @@
-import pg from 'pg';
+import {
+  createDatabase,
+  createPool,
+  type Database as DrizzleDatabase,
+} from '@sport-performance/db';
+import type pg from 'pg';
 import {
   SET_TENANT_CONTEXT_SQL,
   tenantContextParameters,
@@ -119,20 +124,45 @@ export function databaseFromPool(pool: pg.Pool): Database {
   };
 }
 
-/** Creates the pool of the API and its {@link Database}. */
-export function createPgDatabase(options: PgDatabaseOptions): Database {
-  const pool = new pg.Pool({
+/**
+ * The pool of the API, from `@sport-performance/db`. `options.url` must be a
+ * login of `sport_performance_app` (ADR 0025): `main.ts` checks it with
+ * `assertConnectionRole` before serving.
+ */
+export function createApiPool(options: PgDatabaseOptions): pg.Pool {
+  return createPool({
     connectionString: options.url,
     max: options.poolMax,
-    connectionTimeoutMillis: options.connectTimeoutMs,
-    statement_timeout: options.statementTimeoutMs,
+    connectionTimeoutMs: options.connectTimeoutMs,
+    statementTimeoutMs: options.statementTimeoutMs,
     // A request that dies mid-transaction must not hold locks forever.
-    idle_in_transaction_session_timeout: options.statementTimeoutMs,
-    application_name: options.applicationName ?? 'sport-performance-api',
+    idleInTransactionTimeoutMs: options.statementTimeoutMs,
+    applicationName: options.applicationName ?? 'sport-performance-api',
+    ...(options.onIdleError === undefined ? {} : { onIdleError: options.onIdleError }),
   });
-  // Without a listener, an error on an idle client crashes the process.
-  pool.on('error', (error) => {
-    options.onIdleError?.(error);
-  });
-  return databaseFromPool(pool);
+}
+
+/** Creates the pool of the API and its {@link Database}. */
+export function createPgDatabase(options: PgDatabaseOptions): Database {
+  return databaseFromPool(createApiPool(options));
+}
+
+/** Typed Drizzle client of `@sport-performance/db`, bound to one transaction. */
+export type TenantDatabase = DrizzleDatabase;
+
+const drizzleByClient = new WeakMap<TransactionClient, TenantDatabase>();
+
+/**
+ * The Drizzle client over the connection of a transaction: its queries run
+ * in that transaction, with its tenant context. Cached per pooled connection,
+ * so building the schema's relational config happens once per connection, not
+ * once per request.
+ */
+export function tenantDatabase(client: TransactionClient): TenantDatabase {
+  let db = drizzleByClient.get(client);
+  if (db === undefined) {
+    db = createDatabase(client);
+    drizzleByClient.set(client, db);
+  }
+  return db;
 }

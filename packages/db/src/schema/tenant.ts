@@ -25,9 +25,10 @@ import { timestamptz } from './columns.js';
  * - References between club tables use {@link tenantReference}: a composite
  *   foreign key `(club_id, x_id) → x (club_id, id)`, so a row of club A can
  *   never point to a player, category or session of club B, whatever the RLS
- *   policies (#33) say.
- * - RLS, `app.current_club_id()` and grants are added on top by #33, in SQL
- *   migrations, for every table that has `club_id`.
+ *   policies say.
+ * - RLS, `app.current_club_id()` and grants are added on top in SQL
+ *   migrations (ADR 0025): every table that has `club_id` calls
+ *   `app_admin.secure_club_table()` in the migration that creates it.
  */
 
 /** Branding applied at runtime (ADR 0014). Colors are `#RRGGBB`. */

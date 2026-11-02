@@ -6,7 +6,7 @@ import {
 import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { z } from 'zod';
 import { tenantContextOf, type AuthContext } from '../auth/context.js';
-import type { TransactionClient } from '../db/database.js';
+import { tenantDatabase, type TenantDatabase, type TransactionClient } from '../db/database.js';
 import { HttpError } from './errors.js';
 
 type Parsed<Schema> = Schema extends z.ZodType ? z.output<Schema> : undefined;
@@ -40,6 +40,11 @@ export interface TransactionalHandlerContext<
 > extends HandlerContext<E> {
   /** Connection of the request transaction, with the tenant context already set. */
   tx: TransactionClient;
+  /**
+   * Typed Drizzle client (`@sport-performance/db`) over `tx`: same
+   * transaction, same tenant context, so RLS applies to every query.
+   */
+  db: TenantDatabase;
 }
 
 /**
@@ -140,7 +145,7 @@ export function registerEndpoint<E extends EndpointDefinition>(
 
       const body = route.transaction
         ? await app.db.transaction(tenantContextOf(request.auth), async (tx) =>
-            respond(await route.handler(input, { ...base, tx })),
+            respond(await route.handler(input, { ...base, tx, db: tenantDatabase(tx) })),
           )
         : respond(await route.handler(input, base));
 

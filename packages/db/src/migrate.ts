@@ -20,7 +20,8 @@ import pg from 'pg';
  *   an applied migration file was edited (its hash changes). Applied
  *   migrations are immutable: fix forward with a new one.
  * - Must connect as the role that owns the tables (`MIGRATIONS_DATABASE_URL`),
- *   never as the application role, which has no DDL privileges (#33).
+ *   never as a connection role, which has no DDL privileges (ADR 0025). It
+ *   must be a superuser or have BYPASSRLS: migration 0004 checks it.
  */
 
 /** Folder with the SQL migrations and drizzle-kit's journal, shipped with the package. */

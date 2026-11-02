@@ -181,6 +181,9 @@ importers:
       '@sport-performance/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@sport-performance/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@sport-performance/domain':
         specifier: workspace:*
         version: link:../../packages/domain

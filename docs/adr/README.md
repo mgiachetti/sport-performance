@@ -29,6 +29,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0023](0023-convenciones-del-esquema-de-base.md) | Convenciones del esquema de base y del runner de migraciones | Aceptado |
 | [0024](0024-estructura-de-la-api.md) | Estructura de la API: transacción con contexto de tenant, errores, probes y apagado | Aceptado |
 | [0025](0025-matriz-de-permisos.md) | Matriz de permisos declarativa en el dominio | Aceptado |
+| [0025](0025-roles-de-conexion-y-politicas-rls.md) | Roles de conexión, funciones `app.*` y políticas RLS por club y rol | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 

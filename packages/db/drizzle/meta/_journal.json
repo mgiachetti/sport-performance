@@ -29,6 +29,13 @@
       "when": 1793574196887,
       "tag": "0003_append_only_and_unit_triggers",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793576088278,
+      "tag": "0004_rls_and_roles",
+      "breakpoints": true
     }
   ]
 }

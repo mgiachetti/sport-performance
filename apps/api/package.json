@@ -21,6 +21,7 @@
   "dependencies": {
     "@sentry/node": "11.10.0",
     "@sport-performance/contracts": "workspace:*",
+    "@sport-performance/db": "workspace:*",
     "@sport-performance/domain": "workspace:*",
     "fastify": "5.12.7",
     "pg": "8.23.1",
