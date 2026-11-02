@@ -12,6 +12,7 @@ import {
   club,
   clubBranch,
   consent,
+  consentDocument,
   device,
   drill,
   externalMetric,
@@ -272,6 +273,18 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
       })
       .returning({ id: playerAccessCode.id }),
   );
+  rows.consent_document = await id(
+    db
+      .insert(consentDocument)
+      .values({
+        ...base,
+        type: 'data',
+        version: '2026-01',
+        title: 'Datos personales',
+        body: 'Texto del consentimiento de datos.',
+      })
+      .returning({ id: consentDocument.id }),
+  );
   rows.consent = await id(
     db
       .insert(consent)
@@ -280,6 +293,7 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         playerId: assigned,
         type: 'data',
         documentVersion: '2026-01',
+        documentId: rows.consent_document,
         signerKind: 'guardian',
         signedBy: users.parent,
       })

@@ -259,10 +259,59 @@ export const playerAccessCode = pgTable(
   ],
 );
 
+/** Longest version tag of a consent text (`2026-11`, `v2`). */
+export const CONSENT_DOCUMENT_VERSION_MAX_LENGTH = 40;
+/** Pattern of a consent text version: letters, digits, `.`, `_` and `-`, starting with a letter or digit. */
+export const CONSENT_DOCUMENT_VERSION_PATTERN = '^[A-Za-z0-9][A-Za-z0-9._-]*$';
+
 /**
- * A signed consent (Ley 25.326, B-312). Rows are evidence: revoking sets
- * `revoked_*`, a new version of the text is a new row. Without a current
- * consent of a type, data of that type is not collected.
+ * A published version of a consent text of the club (B-312, ADR 0043): what
+ * the signer reads. Immutable once inserted (trigger `consent_document_guard`,
+ * also for the owner): a new text is a new version, and the current one of
+ * each type is the last published. `body_sha256` is computed by the database
+ * (trigger) so the evidence does not depend on the client.
+ */
+export const consentDocument = pgTable(
+  'consent_document',
+  {
+    ...tenantColumns(),
+    type: consentTypeEnum('type').notNull(),
+    /** Version tag shown to the signer and stored with each consent (`consent.document_version`). */
+    version: text('version').notNull(),
+    /** BCP 47 tag of the text (`es-AR`, ADR 0019). */
+    locale: text('locale').notNull().default('es-AR'),
+    title: text('title').notNull(),
+    /** Plain text with blank lines between paragraphs. */
+    body: text('body').notNull(),
+    /**
+     * SHA-256 of `body` (UTF-8, hex). Always computed by the guard trigger on
+     * insert, whatever the client sends (`sha256` over text is not immutable
+     * for a generated column).
+     */
+    bodySha256: text('body_sha256').notNull().default(''),
+    publishedAt: timestamptz('published_at').notNull().defaultNow(),
+  },
+  (t) => [
+    ...tenantConstraints('consent_document', t),
+    uniqueIndex('consent_document_version_key').on(t.clubId, t.type, t.version),
+    index('consent_document_current_idx').on(t.clubId, t.type, t.publishedAt),
+    check(
+      'consent_document_version_format',
+      sql`${t.version} ~ ${sql.raw(`'${CONSENT_DOCUMENT_VERSION_PATTERN}'`)} and char_length(${t.version}) <= ${sql.raw(String(CONSENT_DOCUMENT_VERSION_MAX_LENGTH))}`,
+    ),
+    check('consent_document_locale_format', sql`${t.locale} ~ '^[a-z]{2}(-[A-Z]{2})?$'`),
+    check(
+      'consent_document_text',
+      sql`${t.title} = btrim(${t.title}) and ${t.title} <> '' and btrim(${t.body}) <> ''`,
+    ),
+  ],
+);
+
+/**
+ * A signed consent (Ley 25.326, B-312, ADR 0043). Rows are evidence: after
+ * the insert only the revocation (`revoked_*`, once) changes (trigger
+ * `consent_guard`); a new version of the text is a new row. Without a
+ * current consent of a type, data of that type is not collected.
  */
 export const consent = pgTable(
   'consent',
@@ -272,6 +321,12 @@ export const consent = pgTable(
     type: consentTypeEnum('type').notNull(),
     /** Version of the consent text that was shown (B-312). */
     documentVersion: text('document_version').notNull(),
+    /**
+     * The text that was signed. `NULL` only for rows recorded before the
+     * texts were stored (B-312); the API always sets it, and the guard
+     * checks that `type` and `document_version` are the document's.
+     */
+    documentId: uuid('document_id'),
     signerKind: consentSignerEnum('signer_kind').notNull(),
     /** Legal evidence: the signer's account cannot be deleted while the row exists. */
     signedBy: text('signed_by')
@@ -284,7 +339,13 @@ export const consent = pgTable(
   (t) => [
     ...tenantConstraints('consent', t),
     tenantReference('consent', t.clubId, t.playerId, player),
+    tenantReference('consent', t.clubId, t.documentId, consentDocument),
+    tenantReferenceIndex('consent', t.clubId, t.documentId),
     index('consent_player_idx').on(t.clubId, t.playerId, t.type),
+    // One current signature of a text per player: signing it again is a conflict.
+    uniqueIndex('consent_current_document_key')
+      .on(t.clubId, t.playerId, t.documentId)
+      .where(sql`${t.revokedAt} is null and ${t.documentId} is not null`),
     check(
       'consent_revocation',
       sql`(${t.revokedAt} is null) = (${t.revokedBy} is null) and (${t.revokedAt} is null or ${t.revokedAt} >= ${t.signedAt})`,

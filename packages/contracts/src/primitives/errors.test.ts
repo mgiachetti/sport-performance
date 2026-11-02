@@ -55,8 +55,8 @@ describe('error envelope', () => {
   });
 
   it('rejects unknown codes in the strict schema but not in the read schema', () => {
-    const future = { error: { code: 'consent_required', message: 'Needs consent' } };
+    const future = { error: { code: 'stage_restricted', message: 'Not for this stage' } };
     expect(errorEnvelopeSchema.safeParse(future).success).toBe(false);
-    expect(errorEnvelopeReadSchema.parse(future).error.code).toBe('consent_required');
+    expect(errorEnvelopeReadSchema.parse(future).error.code).toBe('stage_restricted');
   });
 });

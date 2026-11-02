@@ -21,6 +21,12 @@ export {
   type ClubBranch,
 } from './bootstrap.js';
 export { batterySeeds, type BatterySeed, type TestWindowNumber } from './battery.js';
+export {
+  DEFAULT_CONSENT_DOCUMENT_LOCALE,
+  DEFAULT_CONSENT_DOCUMENT_VERSION,
+  consentDocumentSeeds,
+  type ConsentDocumentSeed,
+} from './consent-documents.js';
 export { DEFAULT_CATAPULT_ALIASES, normalizeCatapultAlias } from './catapult-aliases.js';
 export type { SeedExecutor } from './executor.js';
 export {

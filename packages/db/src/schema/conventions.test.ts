@@ -51,6 +51,7 @@ describe('schema conventions', () => {
         'club',
         'club_branch',
         'consent',
+        'consent_document',
         'device',
         'drill',
         'external_metric',

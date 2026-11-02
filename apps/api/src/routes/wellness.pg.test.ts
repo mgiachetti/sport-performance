@@ -298,7 +298,17 @@ describeWithPostgres('wellness (Postgres)', (serverUrl) => {
     });
 
     it('is only for a player with a data consent', async () => {
-      for (const caller of [playerNoConsent, adminA, coachM15, parent15]) {
+      // The player without a current data consent is told what to sign (B-312, ADR 0043).
+      const noConsent = await t.app.inject({
+        url: '/v1/wellness/today',
+        headers: playerNoConsent.headers,
+      });
+      expect(noConsent.statusCode, noConsent.body).toBe(403);
+      expect(errorOf(noConsent).code).toBe('consent_required');
+      expect(errorOf(noConsent).details?.map((issue) => issue.path)).toEqual([
+        ['consents', 'data'],
+      ]);
+      for (const caller of [adminA, coachM15, parent15]) {
         const response = await t.app.inject({ url: '/v1/wellness/today', headers: caller.headers });
         expect(response.statusCode, response.body).toBe(403);
         expect(errorOf(response).message).toBe('You are not allowed to do this');

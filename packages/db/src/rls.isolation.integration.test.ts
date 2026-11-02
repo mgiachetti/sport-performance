@@ -33,8 +33,11 @@ const CLUB_TABLES = (Object.values(schema) as unknown[])
   .map((config) => config.name)
   .sort();
 
-/** Club tables the application never updates (no UPDATE grant): the change history (ADR 0030). */
-const APPEND_ONLY_TABLES = ['change_history'];
+/**
+ * Club tables the application never updates (no UPDATE grant): the change history (ADR 0030)
+ * and the published consent texts (ADR 0043).
+ */
+const APPEND_ONLY_TABLES = ['change_history', 'consent_document'];
 
 async function pgCode(promise: Promise<unknown>): Promise<string | undefined> {
   try {
