@@ -43,7 +43,8 @@ export const monotonyStatusSchema = z.enum(MONOTONY_STATUSES).meta({
 
 export const availabilityStatusSchema = z.enum(AVAILABILITY_STATUSES).meta({
   id: 'AvailabilityStatus',
-  description: '`available`, `limited` o `unavailable`. Nunca la causa.',
+  description:
+    'Disponibilidad derivada: `available`, `limited` (entrena con restricciones) o `unavailable`. Nunca la causa.',
 });
 
 const weekRangeSchema = z

@@ -232,6 +232,13 @@
       "when": 1793701020727,
       "tag": "0032_demo_club_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793705290602,
+      "tag": "0033_player_profile_reads",
+      "breakpoints": true
     }
   ]
 }

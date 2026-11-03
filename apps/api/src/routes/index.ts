@@ -33,6 +33,7 @@ import { registerRosterImportRoutes } from './roster-imports.js';
 import { registerSessionRoutes } from './sessions.js';
 import { registerStaffAssignmentRoutes } from './staff-assignments.js';
 import { registerPlayerRoutes } from './players.js';
+import { registerPlayerProfileRoutes } from './player-profile.js';
 import { registerSeasonRolloverRoutes } from './season-rollovers.js';
 import { registerParticipationRoutes } from './participations.js';
 import { registerTrainingSessionRoutes } from './training-sessions.js';
@@ -179,6 +180,11 @@ export const IMPLEMENTED_ENDPOINTS = [
   'restoreReferenceValue',
   'importReferenceValues',
   'getPlayerFirstTeamReferences',
+  'getPlayerDailyMonitoring',
+  'getPlayerMaturation',
+  'getPlayerAvailability',
+  'getPlayerPercentiles',
+  'getPlayerTestEvolution',
   'listBatteryEntries',
   'getEffectiveBattery',
   'getBatteryEntry',
@@ -267,6 +273,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerCategoryRoutes(app);
   registerStaffAssignmentRoutes(app);
   registerPlayerRoutes(app);
+  registerPlayerProfileRoutes(app);
   registerSeasonRolloverRoutes(app);
   registerCalendarRoutes(app);
   registerTrainingSessionRoutes(app);

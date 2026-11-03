@@ -31,6 +31,7 @@ const CLINICAL_TABLES = ['concussion', 'concussion_stage', 'hold', 'injury', 'no
 const MEDICAL_TABLES = [...CLINICAL_TABLES, 'access_log'].sort();
 const ENTRY_POINTS = [
   'availability',
+  'availability_history',
   'may_write',
   'read_concussion_stages',
   'read_concussions',
@@ -826,6 +827,73 @@ describe.skipIf(!hasDatabase)('medical schema and audit (Postgres 16)', () => {
           actor_role: 'coach',
         }),
       ]);
+    });
+
+    it('gives the history day by day, without the cause, and logs one read', async () => {
+      const requestId = `req-${randomUUID()}`;
+      const rows = await select<{
+        on_date: string;
+        training: string;
+        match: string;
+        overall: string;
+      }>(
+        as(b, 'coach', { requestId }),
+        `select on_date::text as on_date, training, match, overall
+           from medical.availability_history($1, '2026-02-27', '2026-03-02')`,
+        [b.players.assigned],
+      );
+      expect(rows).toEqual([
+        { on_date: '2026-02-27', training: 'available', match: 'available', overall: 'available' },
+        { on_date: '2026-02-28', training: 'available', match: 'available', overall: 'available' },
+        {
+          on_date: '2026-03-01',
+          training: 'limited',
+          match: 'unavailable',
+          overall: 'unavailable',
+        },
+        {
+          on_date: '2026-03-02',
+          training: 'limited',
+          match: 'unavailable',
+          overall: 'unavailable',
+        },
+      ]);
+      expect(await logOf(requestId)).toEqual([
+        expect.objectContaining({
+          player_id: b.players.assigned,
+          resource: 'availability',
+          action: 'read',
+          record_ids: [],
+          actor_role: 'coach',
+        }),
+      ]);
+    });
+
+    it('gives no history of a player out of scope, and logs the attempt', async () => {
+      const requestId = `req-${randomUUID()}`;
+      const rows = await select(
+        as(b, 'coachM17', { requestId }),
+        `select * from medical.availability_history($1, '2026-03-01', '2026-03-02')`,
+        [b.players.assigned],
+      );
+      expect(rows).toEqual([]);
+      expect(await logOf(requestId)).toEqual([
+        expect.objectContaining({ player_id: b.players.assigned, record_ids: [] }),
+      ]);
+      expect(
+        await code(
+          as(b, 'coach'),
+          `select * from medical.availability_history($1, '2026-03-02', '2026-03-01')`,
+          [b.players.assigned],
+        ),
+      ).toBe('22023');
+      expect(
+        await code(
+          as(b, 'coach'),
+          `select * from medical.availability_history($1, '2024-01-01', '2026-03-01')`,
+          [b.players.assigned],
+        ),
+      ).toBe('22023');
     });
 
     it('follows the graduated return to play after a concussion', async () => {
