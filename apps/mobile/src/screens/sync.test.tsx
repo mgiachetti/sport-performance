@@ -33,7 +33,7 @@ function issue(overrides: Partial<SyncIssue> = {}): SyncIssue {
     recordedAt: NOW,
     createdAt: NOW,
     ...overrides,
-  } as SyncIssue;
+  };
 }
 
 describe('SyncIndicator', () => {

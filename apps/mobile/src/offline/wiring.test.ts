@@ -19,13 +19,15 @@ function fakeEngine() {
     nextAttemptAt: null,
   };
   const calls: string[] = [];
+  const requestSync = vi.fn();
+  const syncNow = vi.fn(() => Promise.resolve({ status: 'synced', pushed: 0, pulled: 0 } as const));
   const engine = {
     getStatus: () => status,
     subscribe: (listener: () => void) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    requestSync: vi.fn(),
+    requestSync,
     setScope: vi.fn((scope: SyncScopeRef | null) => {
       calls.push(`scope:${scope?.membershipId ?? 'none'}`);
       status = { ...status, membershipId: scope?.membershipId ?? null };
@@ -36,9 +38,9 @@ function fakeEngine() {
       calls.push('wipe');
       return Promise.resolve();
     }),
-    syncNow: vi.fn(() => Promise.resolve({ status: 'synced', pushed: 0, pulled: 0 } as const)),
+    syncNow,
   };
-  return { engine: engine as unknown as SyncEngine & typeof engine, calls };
+  return { engine: engine as unknown as SyncEngine, calls, requestSync, syncNow };
 }
 
 function fakeSession(initial: SessionState) {
@@ -99,17 +101,17 @@ describe('sync and the session', () => {
 
 describe('sync triggers', () => {
   it('syncs now on the foreground and when the network comes back, and periodically', () => {
-    const { engine } = fakeEngine();
-    let active: ((value: boolean) => void) | null = null;
-    let connectivity: ((value: boolean) => void) | null = null;
+    const { engine, requestSync } = fakeEngine();
+    const sources: { active?: (value: boolean) => void; connectivity?: (value: boolean) => void } =
+      {};
     const intervals: { task: () => void; ms: number; cleared: boolean }[] = [];
     const stop = startSyncTriggers(engine, {
       onAppActive: (listener) => {
-        active = listener;
+        sources.active = listener;
         return () => undefined;
       },
       onConnectivity: (listener) => {
-        connectivity = listener;
+        sources.connectivity = listener;
         return () => undefined;
       },
       setInterval: (task, ms) => {
@@ -123,18 +125,18 @@ describe('sync triggers', () => {
     });
     expect(intervals.map((i) => i.ms)).toEqual([FOREGROUND_SYNC_INTERVAL_MS]);
     intervals[0]?.task();
-    expect(engine.requestSync).toHaveBeenLastCalledWith();
+    expect(requestSync).toHaveBeenLastCalledWith();
 
-    connectivity?.(true);
-    expect(engine.requestSync).toHaveBeenCalledTimes(1);
-    connectivity?.(false);
-    connectivity?.(true);
-    expect(engine.requestSync).toHaveBeenLastCalledWith({ force: true });
+    sources.connectivity?.(true);
+    expect(requestSync).toHaveBeenCalledTimes(1);
+    sources.connectivity?.(false);
+    sources.connectivity?.(true);
+    expect(requestSync).toHaveBeenLastCalledWith({ force: true });
 
-    active?.(false);
+    sources.active?.(false);
     expect(intervals[0]?.cleared).toBe(true);
-    active?.(true);
-    expect(engine.requestSync).toHaveBeenLastCalledWith({ force: true });
+    sources.active?.(true);
+    expect(requestSync).toHaveBeenLastCalledWith({ force: true });
     expect(intervals).toHaveLength(2);
     stop();
     expect(intervals[1]?.cleared).toBe(true);
@@ -143,20 +145,20 @@ describe('sync triggers', () => {
 
 describe('background sync', () => {
   it('waits for the session and the scope, then runs one cycle', async () => {
-    const { engine } = fakeEngine();
+    const { engine, syncNow } = fakeEngine();
     const session = fakeSession({ status: 'starting' });
     bindSyncToSession(engine, session, () => undefined);
     const run = runBackgroundSync({ session, sync: engine }, 1_000);
     session.set(signedIn);
     expect(await run).toBe(true);
-    expect(engine.syncNow).toHaveBeenCalledTimes(1);
+    expect(syncNow).toHaveBeenCalledTimes(1);
   });
 
   it('does nothing without a session', async () => {
-    const { engine } = fakeEngine();
+    const { engine, syncNow } = fakeEngine();
     const session = fakeSession({ status: 'signedOut', notice: null });
     expect(await runBackgroundSync({ session, sync: engine }, 1_000)).toBe(false);
-    expect(engine.syncNow).not.toHaveBeenCalled();
+    expect(syncNow).not.toHaveBeenCalled();
   });
 });
 
