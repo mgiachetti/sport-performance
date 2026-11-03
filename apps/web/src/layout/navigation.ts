@@ -65,6 +65,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: 'settings',
     permission: { kind: 'configuration', action: 'read' },
   }),
+  navItem({
+    to: '/admin',
+    labelKey: 'admin.nav',
+    icon: 'club',
+    permission: { kind: 'membership', action: 'read' },
+  }),
 ];
 
 /** Entries the subject may open somewhere in what it sees. */

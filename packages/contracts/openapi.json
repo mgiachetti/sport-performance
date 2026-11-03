@@ -30838,7 +30838,7 @@
             "items": {
               "$ref": "#/components/schemas/ValidationIssue"
             },
-            "description": "Problemas de la fila (`[\"body\", \"rows\", i, campo]`); vacía si vale."
+            "description": "Problemas de la fila (`[\"body\", \"rows\", i, campo]`); vacía si vale. `code` es estable para mostrarlo en el idioma del cliente: `future_date`, `joined_before_birth`, `duplicate_row`, `resolution_required`, `already_exists`, `already_exists_archived`, `not_a_match`, `player_archived`, `branch_not_enabled`, `category_not_found`, `category_ambiguous`, `branch_without_categories`, `category_transfer`, `position_not_found`, `position_repeated`, `self_guardian`."
           },
           "action": {
             "anyOf": [
