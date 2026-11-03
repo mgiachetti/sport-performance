@@ -53,6 +53,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: 'field',
     permission: { kind: 'training_session', action: 'read' },
   }),
+  navItem({
+    to: '/calendar',
+    labelKey: 'calendar.nav',
+    icon: 'calendar',
+    permission: { kind: 'season', action: 'read' },
+  }),
 ];
 
 /** Entries the subject may open somewhere in what it sees. */

@@ -167,3 +167,29 @@ export function formatLocalDateLong(
   const format = getDateTimeFormat(options.locale ?? DEFAULT_LOCALE, 'UTC' as TimeZone, 'long');
   return assembleLong(partsOf(format, noonUtc), options);
 }
+
+const monthFormats = new Map<Locale, Intl.DateTimeFormat>();
+
+/**
+ * A calendar month: `noviembre de 2026` (`month` is 1–12). Pure calendar handling, like
+ * {@link formatLocalDate}: no time zone can shift it to the neighbouring month.
+ */
+export function formatLocalMonth(
+  year: number,
+  month: number,
+  options: { readonly locale?: Locale } = {},
+): string {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+    throw new RangeError(`Invalid month: ${String(year)}-${String(month)}`);
+  }
+  const locale = options.locale ?? DEFAULT_LOCALE;
+  let format = monthFormats.get(locale);
+  if (format === undefined) {
+    format = new Intl.DateTimeFormat(locale, { timeZone: 'UTC', year: 'numeric', month: 'long' });
+    monthFormats.set(locale, format);
+  }
+  const noonUtc = new Date(Date.UTC(year, month - 1, 15, 12));
+  noonUtc.setUTCFullYear(year);
+  const parts = partsOf(format, noonUtc);
+  return `${parts.month ?? ''} de ${parts.year ?? String(year)}`;
+}

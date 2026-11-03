@@ -1,6 +1,7 @@
 import { mobileMessagesEsAR } from './mobile.js';
 import { webPanelMessagesEsAR } from './web-panel.js';
 import { webPlayerMessagesEsAR } from './web-player.js';
+import { webCalendarMessagesEsAR } from './web-calendar.js';
 import { webMessagesEsAR } from './web.js';
 import { webTrainingMessagesEsAR } from './web-training.js';
 import { webFieldSessionMessagesEsAR } from './web-field-session.js';
@@ -381,6 +382,7 @@ export const sourceMessageFiles = {
   'web-player.ts': webPlayerMessagesEsAR,
   'web-training.ts': webTrainingMessagesEsAR,
   'web-field-session.ts': webFieldSessionMessagesEsAR,
+  'web-calendar.ts': webCalendarMessagesEsAR,
   'mobile.ts': mobileMessagesEsAR,
 } as const;
 
@@ -392,5 +394,6 @@ export const esAR = {
   ...webPlayerMessagesEsAR,
   ...webTrainingMessagesEsAR,
   ...webFieldSessionMessagesEsAR,
+  ...webCalendarMessagesEsAR,
   ...mobileMessagesEsAR,
 } as const;
