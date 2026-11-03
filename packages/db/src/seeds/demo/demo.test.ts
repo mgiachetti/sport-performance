@@ -1,6 +1,7 @@
 import {
   DEFAULT_AGE_BANDS,
   DEFAULT_ALERT_RULES,
+  FIELD_METRIC_CODES,
   STRENGTH_METRICS_BY_ASSESSMENT,
   addDays,
   computeLoadSeries,
@@ -240,6 +241,25 @@ describe('the demo dataset', () => {
       const get = (code: string) => values.find((v) => v.metricCode === code)?.value ?? Number.NaN;
       expect(get('sprint_10_s')).toBeLessThan(get('sprint_20_s'));
       expect(get('sprint_vmax_ms')).toBeCloseTo(20 / (get('sprint_40_s') - get('sprint_20_s')), 9);
+    }
+  });
+
+  it('gives the M17 and M19 rugby sessions their Catapult totals, only for who took part', () => {
+    expect(data.externalMetrics.length).toBeGreaterThan(0);
+    const sessions = new Map(data.trainingSessions.map((s) => [s.id, s]));
+    const played = new Map(
+      data.participations.map((p) => [`${p.trainingSessionId}:${p.playerId}`, p]),
+    );
+    for (const m of data.externalMetrics) {
+      const session = sessions.get(m.trainingSessionId);
+      expect(session?.sport).toBe('rugby');
+      expect(['m17', 'm19']).toContain(session?.category.ageBandCode);
+      expect(FIELD_METRIC_CODES).toContain(m.metricCode);
+      expect(m.localDate).toBe(session?.localDate);
+      expect(Number.isFinite(m.value) && m.value >= 0).toBe(true);
+      const participation = played.get(`${m.trainingSessionId}:${m.playerId}`);
+      expect(participation?.minutes ?? 0).toBeGreaterThan(0);
+      if (m.metricCode === 'vmax_pct') expect(m.value).toBeLessThanOrEqual(100);
     }
   });
 

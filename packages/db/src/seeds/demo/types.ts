@@ -227,6 +227,23 @@ export interface DemoParticipation {
   readonly localDate: LocalDate;
 }
 
+/**
+ * A field metric of a session (B-408): the total of one Catapult export row,
+ * as the importer (B-601) will write it (`drill_id` empty, `external_ref` of
+ * the activity and player).
+ */
+export interface DemoExternalMetric {
+  readonly id: string;
+  readonly clientUuid: string;
+  readonly trainingSessionId: string;
+  readonly playerId: string;
+  readonly metricCode: string;
+  readonly localDate: LocalDate;
+  readonly value: number;
+  readonly source: 'catapult';
+  readonly externalRef: string;
+}
+
 export interface DemoWellness {
   readonly id: string;
   readonly clientUuid: string;
@@ -360,6 +377,8 @@ export interface DemoDataset {
   readonly fixtures: readonly DemoFixture[];
   readonly trainingSessions: readonly DemoTrainingSession[];
   readonly participations: readonly DemoParticipation[];
+  /** Catapult totals of the M17 and M19 rugby sessions (field session view, B-408). */
+  readonly externalMetrics: readonly DemoExternalMetric[];
   readonly wellness: readonly DemoWellness[];
   readonly testSessions: readonly DemoTestSession[];
   readonly testResults: readonly DemoTestResult[];

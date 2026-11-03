@@ -52,6 +52,7 @@ import type {
   DemoDataset,
   DemoDeparture,
   DemoEntry,
+  DemoExternalMetric,
   DemoFixture,
   DemoGuardian,
   DemoHold,
@@ -1143,6 +1144,7 @@ export function generateDemoDataset(options: DemoOptions): DemoDataset {
   // Sessions, participation and RPE (B-318), wellness (B-319).
   const trainingSessions: DemoTrainingSession[] = [];
   const participations: DemoParticipation[] = [];
+  const externalMetrics: DemoExternalMetric[] = [];
   const wellness: DemoWellness[] = [];
   const matchDays = new Set<string>();
   for (const date of localDateRange(dailyFrom, o.asOf)) {
@@ -1197,13 +1199,15 @@ export function generateDemoDataset(options: DemoOptions): DemoDataset {
           if (slot.kind === 'match') matchDays.add(`${branch.sport}:${band.code}:${date}`);
           // RPE is reported after the session: today's sessions have none yet.
           if (!before(date, o.asOf)) continue;
-          participations.push(
-            ...sessionParticipation(ctx, session, slot, roster, stage, {
-              availability,
-              loadPhase,
-              absentBlock,
-            }),
-          );
+          const rows = sessionParticipation(ctx, session, slot, roster, stage, {
+            availability,
+            loadPhase,
+            absentBlock,
+          });
+          participations.push(...rows);
+          if (branch.sport === 'rugby' && SENIOR_BANDS.includes(band.code)) {
+            externalMetrics.push(...sessionFieldMetrics(ctx, session, rows, roster));
+          }
         }
         // Wellness before training (and on rest days, less often).
         const { itemCount, items } = wellnessItemSetForStage(stage);
@@ -1475,6 +1479,7 @@ export function generateDemoDataset(options: DemoOptions): DemoDataset {
     fixtures,
     trainingSessions,
     participations,
+    externalMetrics,
     wellness,
     testSessions,
     testResults,
@@ -1581,6 +1586,61 @@ function sessionParticipation(
     if (index < starters) out.push(row(plan, 'full', slot.minutes, pr));
     else out.push(row(plan, 'partial', pr.int(10, Math.round(slot.minutes / 2)), pr));
   });
+  return out;
+}
+
+/**
+ * Catapult totals of a session for the players who took part (B-408): the
+ * metrics of the canonical dictionary an OpenField export brings, with the
+ * shape of a junior rugby session (backs run more and faster, forwards have
+ * more contacts; matches are more intense). The relative ones use the
+ * player's own Vmax, as Catapult does with its "% Max Velocity".
+ */
+function sessionFieldMetrics(
+  ctx: Context,
+  session: DemoTrainingSession,
+  rows: readonly DemoParticipation[],
+  roster: readonly PlayerPlan[],
+): DemoExternalMetric[] {
+  const plans = new Map(roster.map((plan) => [plan.id, plan]));
+  const match = session.kind === 'match';
+  const out: DemoExternalMetric[] = [];
+  for (const row of rows) {
+    const plan = plans.get(row.playerId);
+    if (plan === undefined || row.minutes === null || row.minutes === 0) continue;
+    const r = randomFor(ctx.ns, 'field_metric', session.id, plan.key);
+    const forward = plan.line === 'forwards';
+    const age = decimalAgeYears(plan.birthDate, session.localDate);
+    const ownVmaxMs = byAge(age, 6.6, 8.6) + (forward ? -0.4 : 0.2) + 0.25 * plan.traits.speed;
+    const metresPerMin = (match ? 72 : 58) + (forward ? -6 : 4) + r.normal(0, 5);
+    const distM = Math.max(200, metresPerMin * row.minutes);
+    const vmaxMs = ownVmaxMs * r.float(0.82, 0.97);
+    const hsrShare = (match ? 0.08 : 0.05) * (forward ? 0.6 : 1.2) * (1 + r.normal(0, 0.2));
+    const values: Record<string, number> = {
+      dist_m: Math.round(distM),
+      dist_m_min: round(distM / row.minutes, 1),
+      hsr_abs_m: Math.max(0, Math.round(distM * hsrShare)),
+      hsr_rel_m: Math.max(0, Math.round(distM * hsrShare * 1.7)),
+      vmax_ms: round(vmaxMs, 2),
+      vmax_pct: round((vmaxMs / ownVmaxMs) * 100, 1),
+      acc_n: Math.max(0, Math.round((row.minutes / 60) * r.normal(match ? 32 : 24, 5))),
+      dec_n: Math.max(0, Math.round((row.minutes / 60) * r.normal(match ? 36 : 26, 5))),
+      accel_load_au: Math.round(distM * 0.11 * (1 + r.normal(0, 0.08))),
+    };
+    if (row.contactsN !== null) values.contacts_n = row.contactsN;
+    for (const [metricCode, value] of Object.entries(values)) {
+      out.push({
+        ...ids(ctx, 'external_metric', session.id, plan.key, metricCode),
+        trainingSessionId: session.id,
+        playerId: plan.id,
+        metricCode,
+        localDate: session.localDate,
+        value,
+        source: 'catapult',
+        externalRef: `demo:${session.id}:${plan.key}`,
+      });
+    }
+  }
   return out;
 }
 

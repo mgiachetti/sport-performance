@@ -4,6 +4,7 @@ import {
   CANONICAL_METRIC_CODES,
   CANONICAL_TEST_CODES,
   DomainValidationError,
+  FIELD_METRIC_CODES,
   UNITLESS_NAME_METRIC_CODES,
   canonicalMetricCode,
   canonicalMetricsOfTest,
@@ -155,5 +156,20 @@ describe('canonical metrics', () => {
     const code: MetricCode = canonicalMetricCode('vmax_ms');
     expect(code).toBe('vmax_ms');
     expect(CANONICAL_METRIC_CODES).toHaveLength(entries.length);
+  });
+
+  it('lists the field metrics in dictionary order, and only them', () => {
+    expect(FIELD_METRIC_CODES.slice(0, 4)).toEqual([
+      'dist_m',
+      'dist_m_min',
+      'hsr_abs_m',
+      'hsr_rel_m',
+    ]);
+    expect(FIELD_METRIC_CODES).toContain('accel_load_au');
+    expect(FIELD_METRIC_CODES).not.toContain('cmj_height_cm');
+    for (const code of FIELD_METRIC_CODES) {
+      const metric: CanonicalMetric = CANONICAL_METRICS[code];
+      expect(metric.source, code).toBe('field');
+    }
   });
 });

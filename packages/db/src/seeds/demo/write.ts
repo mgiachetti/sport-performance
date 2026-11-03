@@ -29,7 +29,7 @@ import {
   testSession,
   testWindow,
 } from '../../schema/testing.js';
-import { participation, trainingSession, wellness } from '../../schema/training.js';
+import { externalMetric, participation, trainingSession, wellness } from '../../schema/training.js';
 import { bootstrapClub, type BootstrapClubReport } from '../bootstrap.js';
 import type { SeedExecutor } from '../executor.js';
 import { SEEDED_PROTOCOL_VERSION } from '../test-definitions.js';
@@ -122,7 +122,8 @@ export async function seedDemoClub(
         primaryColor: data.club.primaryColor,
         secondaryColor: data.club.secondaryColor,
         isDemo: true,
-        settings: { demo: { seed: data.club.seed } },
+        // Field metrics are on (B-408): the demo shows the session view with its Catapult data.
+        settings: { demo: { seed: data.club.seed }, modules: { gps: true } },
       })
       .onConflictDoNothing({ target: club.slug })
       .returning({ id: club.id });
@@ -476,6 +477,26 @@ async function writeDataset(
       rpe: p.rpe,
       rpeReportedAt: p.rpeReportedAt,
     })),
+  );
+  inserted.externalMetrics = await insertRows(
+    tx,
+    externalMetric,
+    data.externalMetrics.map((m) => {
+      const metric = must(metrics.get(m.metricCode), `metric ${m.metricCode}`);
+      return {
+        id: m.id,
+        clientUuid: m.clientUuid,
+        clubId,
+        playerId: m.playerId as PlayerId,
+        trainingSessionId: m.trainingSessionId,
+        metricDefinitionId: metric.id,
+        localDate: m.localDate,
+        value: m.value,
+        unit: metric.unit,
+        source: m.source,
+        externalRef: m.externalRef,
+      };
+    }),
   );
   inserted.wellness = await insertRows(
     tx,

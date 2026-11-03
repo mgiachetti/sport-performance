@@ -23,7 +23,8 @@ export type IconName =
   | 'plus'
   | 'arrowUp'
   | 'arrowDown'
-  | 'trash';
+  | 'trash'
+  | 'field';
 
 const PATHS: Record<IconName, readonly string[]> = {
   ok: ['M20 6 9 17l-5-5'],
@@ -49,6 +50,7 @@ const PATHS: Record<IconName, readonly string[]> = {
   arrowUp: ['M12 19V5', 'm5 12 7-7 7 7'],
   arrowDown: ['M12 5v14', 'm19 12-7 7-7-7'],
   trash: ['M3 6h18', 'M8 6V4h8v2', 'M6 6l1 15h10l1-15'],
+  field: ['M3 17l5-6 4 3 4-7 5 5', 'M3 21h18'],
 };
 
 export function Icon({

@@ -10,6 +10,9 @@ import { isSessionExpired } from './api/errors';
 import { ensureQuery, meQuery } from './api/queries';
 import type { AppServices } from './app/services';
 import { ensureClubSelection, loadActiveClub } from './club/load';
+import { FieldSessionPage } from './field-sessions/FieldSessionPage';
+import { FieldSessionsPage } from './field-sessions/FieldSessionsPage';
+import { parseFieldSessionsSearch } from './field-sessions/search';
 import { parseScopeSearch } from './club/scope';
 import { ClubLayout } from './layout/ClubLayout';
 import { RootLayout } from './layout/RootLayout';
@@ -48,7 +51,8 @@ export interface RouterContext {
  *         ├── /panel          weekly panel (?week&group)
  *         ├── /players        roster of what the user sees (B-404)
  *         ├── /players/$id    profile of a player (B-404)
- *         └── /sessions       training sessions and matches (B-407): list, new, one
+ *         ├── /sessions       training sessions and matches (B-407): list, new, one
+ *         └── /field-sessions sessions with field data (?kind) and /$trainingSessionId (B-408)
  * ```
  *
  * A new screen is a child of `_club` (it inherits session, club, theme and
@@ -182,6 +186,24 @@ export const sessionDetailRoute = createRoute({
   component: SessionDetailPage,
 });
 
+export const fieldSessionsRoute = createRoute({
+  getParentRoute: () => clubRoute,
+  path: '/field-sessions',
+});
+
+export const fieldSessionsIndexRoute = createRoute({
+  getParentRoute: () => fieldSessionsRoute,
+  path: '/',
+  validateSearch: parseFieldSessionsSearch,
+  component: FieldSessionsPage,
+});
+
+export const fieldSessionRoute = createRoute({
+  getParentRoute: () => fieldSessionsRoute,
+  path: '/$trainingSessionId',
+  component: FieldSessionPage,
+});
+
 export const routeTree = rootRoute.addChildren([
   loginRoute,
   authedRoute.addChildren([
@@ -193,6 +215,7 @@ export const routeTree = rootRoute.addChildren([
       playersRoute,
       playerProfileRoute,
       sessionsRoute.addChildren([sessionsIndexRoute, newSessionRoute, sessionDetailRoute]),
+      fieldSessionsRoute.addChildren([fieldSessionsIndexRoute, fieldSessionRoute]),
     ]),
   ]),
 ]);

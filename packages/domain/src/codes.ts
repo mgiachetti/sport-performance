@@ -226,6 +226,12 @@ export type CanonicalMetricCode = keyof typeof CANONICAL_METRICS;
 
 export const CANONICAL_METRIC_CODES = Object.keys(CANONICAL_METRICS) as CanonicalMetricCode[];
 
+/** Canonical field metrics (Catapult equivalence), in dictionary order: the columns of a session view. */
+export const FIELD_METRIC_CODES = CANONICAL_METRIC_CODES.filter((code) => {
+  const metric: CanonicalMetric = CANONICAL_METRICS[code];
+  return metric.source === 'field';
+});
+
 /** Established codes that keep their name without a unit suffix. */
 export const UNITLESS_NAME_METRIC_CODES = [
   'hr_avg',
