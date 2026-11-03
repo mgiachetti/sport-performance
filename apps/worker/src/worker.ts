@@ -7,6 +7,7 @@ import type { Logger } from 'pino';
 import { refreshClub, type RefreshDependencies } from './derived/refresh.js';
 import { purgeClubFiles } from './files.js';
 import { runClubNotifications, type DeliveryDependencies } from './notifications/index.js';
+import { runClubReports } from './reports/job.js';
 import { startRefreshListener, type RefreshListener } from './listener.js';
 import type { ErrorReporter } from './observability.js';
 import {
@@ -14,6 +15,7 @@ import {
   enqueueClubJob,
   enqueueClubRefresh,
   listClubs,
+  listReportClubs,
   parseRefreshClubJob,
   setUpQueues,
 } from './queues.js';
@@ -86,7 +88,7 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
     notifications: options.notifications !== null,
   });
   if (options.storage === null) {
-    logger.warn('no bucket configured (STORAGE_*): the file retention job is off');
+    logger.warn('no bucket configured (STORAGE_*): the file retention and report jobs are off');
   }
 
   const deps: RefreshDependencies = {
@@ -155,6 +157,33 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
         await enqueueClubJob(boss, QUEUES.filesPurgeClub, clubId);
       }
     });
+
+    // PDF reports of players (B-602, ADR 0069): rendered and uploaded to the bucket.
+    await boss.work(
+      QUEUES.playerReportsClub,
+      { localConcurrency: options.clubConcurrency, pollingIntervalSeconds },
+      async ([job]: Job<unknown>[]) => {
+        if (job === undefined) return;
+        const { clubId } = parseRefreshClubJob(job.data);
+        try {
+          const report = await runClubReports(
+            { pool: options.pool, storage, logger, ...(options.now && { now: options.now }) },
+            clubId,
+            { jobId: job.id },
+          );
+          if (report.more) await enqueueClubJob(boss, QUEUES.playerReportsClub, clubId);
+        } catch (error) {
+          logger.error({ err: error, clubId, jobId: job.id }, 'player reports failed');
+          reporter.capture(error, { job: QUEUES.playerReportsClub, jobId: job.id, clubId });
+          throw error;
+        }
+      },
+    );
+    await boss.work(QUEUES.playerReportsSweep, { pollingIntervalSeconds }, async () => {
+      for (const clubId of await listReportClubs(options.pool)) {
+        await enqueueClubJob(boss, QUEUES.playerReportsClub, clubId);
+      }
+    });
   }
 
   const notifications = options.notifications;
@@ -194,10 +223,20 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
     onClub: async (clubId: ClubId) => {
       await enqueueClubRefresh(boss, clubId);
     },
+    ...(storage !== null && {
+      onReportClub: async (clubId: ClubId) => {
+        await enqueueClubJob(boss, QUEUES.playerReportsClub, clubId);
+      },
+    }),
   });
   await listener.ready;
   // Catch up at start: marks written while the worker was down.
   for (const clubId of await listClubs(options.pool, true)) await enqueueClubRefresh(boss, clubId);
+  if (storage !== null) {
+    for (const clubId of await listReportClubs(options.pool)) {
+      await enqueueClubJob(boss, QUEUES.playerReportsClub, clubId);
+    }
+  }
 
   return {
     boss,

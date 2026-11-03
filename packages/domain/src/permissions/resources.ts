@@ -112,6 +112,13 @@ export const PERMISSION_RESOURCES = {
    */
   data_export: { target: 'player', medical: false, actions: ['export'] },
   /**
+   * The PDF report of a player for a test window (B-602, ADR 0069): for the
+   * player and their family. The staff asks for it (`generate`); the player,
+   * the guardian, the assigned staff and the administration read and download
+   * it (`read`).
+   */
+  player_report: { target: 'player', medical: false, actions: ['read', 'generate'] },
+  /**
    * Erasure of a player's data (Ley 25.326, art. 16; B-329): the holder or
    * the administration asks (`request`) and sees the requests (`read`); only
    * the administration, the club being the controller, erases (`execute`).

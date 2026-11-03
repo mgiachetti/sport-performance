@@ -74,6 +74,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0068](0068-planilla-del-dia-de-test.md) | Planilla del día de test: una lectura con estaciones, plantel y anterior; carga con la vista previa del dominio | Aceptado |
 | [0069](0069-base-local-y-motor-de-sincronizacion-mobile.md) | Base local y motor de sincronización de la app mobile: SQLite cifrado, cola con vista optimista, ciclos con backoff y borrado al cerrar sesión | Aceptado |
 | [0070](0070-senales-del-30-15-ift-en-la-app.md) | Señales del 30-15 IFT en la app: cronograma puro en el dominio, tonos sintetizados, planificador sin deriva y corrida que sobrevive al cierre | Aceptado |
+| [0069](0069-informe-pdf-del-jugador-por-ventana.md) | Informe PDF del jugador por ventana: instantánea en la API, render en el worker y archivo `pdf_report` | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 

@@ -37,6 +37,7 @@ import {
   participation,
   player,
   playerAccessCode,
+  playerReport,
   playerCategory,
   playerLoadDaily,
   playerParentHeight,
@@ -553,6 +554,18 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         caption: 'Posición de salida',
       })
       .returning({ id: testProtocolMedia.id }),
+  );
+  rows.player_report = await id(
+    db
+      .insert(playerReport)
+      .values({
+        ...base,
+        playerId: assigned,
+        testWindowId: rows.test_window,
+        formatVersion: 1,
+        content: {},
+      })
+      .returning({ id: playerReport.id }),
   );
   rows.anthro_measurement = await id(
     db

@@ -253,6 +253,13 @@
       "when": 1793712413762,
       "tag": "0035_protocol_media",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793714317188,
+      "tag": "0036_player_reports",
+      "breakpoints": true
     }
   ]
 }

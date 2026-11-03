@@ -58,6 +58,33 @@ export interface ObjectStorage {
   stat(key: string): Promise<StoredObject | null>;
   /** Removes the object. Idempotent: removing a missing object succeeds. */
   remove(key: string): Promise<void>;
+  /**
+   * Writes an object the server produced itself (the worker's PDF reports,
+   * B-602): the bucket checks the SHA-256 of the body, so a corrupted
+   * upload is refused. Overwrites an object under the same key.
+   */
+  put(request: PutRequest): Promise<void>;
+  /**
+   * Reads an object of at most `maxBytes` (the crest of the club for a
+   * report); `null` when there is none. Throws when it is bigger.
+   */
+  get(key: string, maxBytes: number): Promise<Uint8Array | null>;
+}
+
+export interface PutRequest {
+  readonly key: string;
+  readonly contentType: string;
+  readonly body: Uint8Array;
+  /** Base64 SHA-256 of `body`. */
+  readonly checksumSha256: string;
+}
+
+/** An object bigger than the caller allowed (`ObjectStorage.get`). */
+export class ObjectTooLargeError extends Error {
+  constructor(readonly maxBytes: number) {
+    super(`The object is bigger than ${String(maxBytes)} bytes`);
+    this.name = 'ObjectTooLargeError';
+  }
 }
 
 /**

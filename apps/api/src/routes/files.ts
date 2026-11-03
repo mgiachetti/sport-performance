@@ -52,7 +52,7 @@ import { protocolMediaInUse } from './test-definitions.js';
  * |---------------|------------------|----------------------|-----------------------|
  * | `club_logo`   | `club.update`    | `club.read`          | `club.update`         |
  * | `cmj_video`   | `media.upload`   | `media.read`         | `media.delete`        |
- * | `pdf_report`  | (the worker)     | `player_summary.read`| `player_profile.archive` |
+ * | `pdf_report`  | (the worker)     | `player_report.read` | `player_profile.archive` |
  * | `data_import` | `data_import.run`| `data_import.run`    | `data_import.run`     |
  * | `protocol_media` | `configuration.update` | `configuration.read` | `configuration.update` |
  *
@@ -81,7 +81,7 @@ const FILE_PERMISSIONS: Record<FileKind, Record<FileAction, FilePermission | nul
   pdf_report: {
     // Written by the worker (B-602), never uploaded by a person.
     upload: null,
-    read: { kind: 'player_summary', action: 'read' },
+    read: { kind: 'player_report', action: 'read' },
     delete: { kind: 'player_profile', action: 'archive' },
   },
   data_import: {

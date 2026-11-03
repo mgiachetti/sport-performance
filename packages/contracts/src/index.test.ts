@@ -221,6 +221,9 @@ describe('@sport-performance/contracts entry point', () => {
       'rejectDataSubjectRequest',
       'executeErasure',
       'deleteMyAccount',
+      'requestPlayerReport',
+      'listPlayerReports',
+      'getPlayerReport',
     ]);
     expect(contracts.MEMBERSHIP_HEADER).toBe('x-membership-id');
     expect(contracts.SUPPORT_CLUB_HEADER).toBe('x-support-club-id');

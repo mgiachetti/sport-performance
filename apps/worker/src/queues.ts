@@ -26,6 +26,11 @@ export const QUEUES = {
   notificationsClubDead: 'notifications-club-dead',
   /** Every minute: every club's notifications (due times are minutes apart). */
   notificationsSweep: 'notifications-sweep',
+  /** Render the pending PDF reports of one club (B-602, ADR 0069). */
+  playerReportsClub: 'player-reports-club',
+  playerReportsClubDead: 'player-reports-club-dead',
+  /** Every minute: the clubs with due reports (a lost notification, a retry's backoff). */
+  playerReportsSweep: 'player-reports-sweep',
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -107,6 +112,26 @@ export const QUEUE_DEFINITIONS: readonly Queue[] = [
     expireInSeconds: 2 * MINUTE,
     deleteAfterSeconds: DAY,
   },
+  { name: QUEUES.playerReportsClubDead, policy: 'standard', deleteAfterSeconds: 30 * DAY },
+  {
+    // Each report has its own attempts and backoff; a job retry only covers a crash.
+    name: QUEUES.playerReportsClub,
+    policy: 'stately',
+    retryLimit: 3,
+    retryDelay: 30,
+    retryBackoff: true,
+    retryDelayMax: 15 * MINUTE,
+    expireInSeconds: 10 * MINUTE,
+    deleteAfterSeconds: DAY,
+    deadLetter: QUEUES.playerReportsClubDead,
+  },
+  {
+    name: QUEUES.playerReportsSweep,
+    policy: 'stately',
+    retryLimit: 0,
+    expireInSeconds: 2 * MINUTE,
+    deleteAfterSeconds: DAY,
+  },
 ];
 
 /** Cron schedules (UTC; each club job computes "the day" in the club's own zone). */
@@ -120,8 +145,14 @@ export const NOTIFICATION_SCHEDULES = [
   { queue: QUEUES.notificationsSweep, cron: '* * * * *' },
 ] as const;
 
-/** File retention: once a day, only when the bucket is configured. */
-export const FILE_SCHEDULES = [{ queue: QUEUES.filesDaily, cron: '17 6 * * *' }] as const;
+/**
+ * Bucket jobs, only when the bucket is configured: file retention once a
+ * day, and the sweep of the player reports every minute.
+ */
+export const FILE_SCHEDULES = [
+  { queue: QUEUES.filesDaily, cron: '17 6 * * *' },
+  { queue: QUEUES.playerReportsSweep, cron: '* * * * *' },
+] as const;
 
 export interface RefreshClubJob {
   readonly clubId: ClubId;
@@ -190,6 +221,14 @@ export async function enqueueClubJob(
 interface WorkerClubRow {
   readonly club_id: ClubId;
   readonly has_pending_refresh: boolean;
+}
+
+/** The clubs with a pending report that is due (`app.worker_report_clubs()`, B-602). */
+export async function listReportClubs(pool: pg.Pool): Promise<ClubId[]> {
+  const { rows } = await pool.query<{ club_id: ClubId }>(
+    'select club_id from app.worker_report_clubs()',
+  );
+  return rows.map((r) => r.club_id);
 }
 
 /**

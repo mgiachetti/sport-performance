@@ -14,9 +14,11 @@ export {
 } from './config.js';
 export { createS3Storage, type S3StorageOptions } from './s3.js';
 export {
+  ObjectTooLargeError,
   contentDisposition,
   type DownloadRequest,
   type ObjectStorage,
+  type PutRequest,
   type SignedDownload,
   type SignedUpload,
   type StoredObject,

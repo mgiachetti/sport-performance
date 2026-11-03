@@ -50,6 +50,8 @@ function fakeStorage(removed: string[]): ObjectStorage {
     presignUpload: unused,
     presignDownload: unused,
     stat: unused,
+    put: unused,
+    get: unused,
     remove: (key: string) => {
       removed.push(key);
       return Promise.resolve();
@@ -612,6 +614,7 @@ describe.skipIf(!hasDatabase)('worker and derived values (Postgres 16)', () => {
         'derived-daily',
         'derived-sweep',
         'files-daily',
+        'player-reports-sweep',
       ]);
     } finally {
       await running.stop(10_000);
