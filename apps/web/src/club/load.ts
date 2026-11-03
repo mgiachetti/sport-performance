@@ -10,7 +10,14 @@ import {
   myAssignmentsQuery,
 } from '../api/queries';
 import type { AppServices } from '../app/services';
-import { ASSIGNED_ROLES, isStaffRole } from './active-club';
+import { childrenQuery } from '../guardian/queries';
+import {
+  ASSIGNED_ROLES,
+  GUARDIAN_HOME,
+  isGuardianPath,
+  isGuardianRole,
+  isStaffRole,
+} from './active-club';
 
 function toClubs(href: string, unavailable: boolean) {
   return redirect({
@@ -55,6 +62,26 @@ export async function ensureClubSelection(
 }
 
 /**
+ * `beforeLoad` of the club layout, after the selection: keeps each role in
+ * its area before any screen loads data (ADR 0065). A guardian outside the
+ * family area goes to it; anyone else in it goes to the home of the club.
+ * Players stay where they are: the layout shows them "use the app".
+ */
+export async function ensureAreaOfRole(
+  services: AppServices,
+  current: ClubSelection,
+  pathname: string,
+): Promise<void> {
+  const { api, queryClient } = services;
+  const me = await ensureQuery(queryClient, meQuery(api, current));
+  const role = current.kind === 'membership' ? me.activeMembership?.role : 'superadmin';
+  if (role === undefined) return; // `loadActiveClub` sends a stale membership to the selector.
+  const inFamilyArea = isGuardianPath(pathname);
+  if (isGuardianRole(role) && !inFamilyArea) throw redirect({ to: GUARDIAN_HOME });
+  if (!isGuardianRole(role) && inFamilyArea) throw redirect({ to: '/' });
+}
+
+/**
  * `loader` of the club layout: everything `ActiveClub` is built from, in the
  * query cache before the layout renders (it reads them with suspense, so
  * refetches update it in place).
@@ -81,5 +108,6 @@ export async function loadActiveClub(
     isStaffRole(role)
       ? ensureQuery(queryClient, myAssignmentsQuery(api, current, ASSIGNED_ROLES.includes(role)))
       : null,
+    isGuardianRole(role) ? ensureQuery(queryClient, childrenQuery(api, current)) : null,
   ]);
 }

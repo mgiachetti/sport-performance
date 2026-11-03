@@ -45,6 +45,7 @@ interface ChildBody {
   firstName: string;
   ofAge: boolean;
   adultConfirmed: boolean;
+  categories: { name: string }[];
   canManageAccess: boolean;
 }
 
@@ -284,6 +285,8 @@ describeWithPostgres('coming of age (Postgres)', (serverUrl) => {
         ['Martín', true, false, false],
         ['Tomás', false, false, true],
       ]);
+      // Not even the category of the adult who did not keep the access.
+      expect(children.find((c) => c.firstName === 'Martín')?.categories).toEqual([]);
       const listed = (await get('/v1/players', father)).json<Page<{ id: string }>>().items;
       expect(listed.map((p) => p.id)).toEqual([tomas]);
     });
@@ -333,6 +336,7 @@ describeWithPostgres('coming of age (Postgres)', (serverUrl) => {
         ofAge: true,
         adultConfirmed: true,
         canManageAccess: false,
+        categories: [{ name: 'M19' }],
       });
       // Signing, revoking and issuing access codes still need a minor.
       const signed = await post(`/v1/players/${martin}/consents`, father, {

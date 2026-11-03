@@ -184,7 +184,7 @@ describe('club selection', () => {
     expect(window.localStorage.getItem('sp.web.membership')).toBeNull();
   });
 
-  it('sends players and guardians to the app without loading club data', async () => {
+  it('sends players to the app without loading club data', async () => {
     const { api } = renderApp({
       handlers: signedIn({ memberships: [fixtures.membership('player')] }),
     });

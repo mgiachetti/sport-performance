@@ -18,7 +18,8 @@ La API se levanta como dice [su README](../api/README.md#correr); en desarrollo 
 | `src/router.tsx` | Árbol de rutas: `/login`, `_authed` (sesión), `/clubs`, `/support`, `_club` (layout del club) y sus pantallas. |
 | `src/app/` | `createWebApp` (stores, cliente, caché, router), `App` (providers) y `useServices()`. |
 | `src/api/` | Cliente web (`createWebApiClient`), selección de club y sus headers, estado de conexión, errores (`describeError`), política de reintentos y consultas compartidas (`queries.ts`). |
-| `src/club/` | `ActiveClub` (`useActiveClub()`), carga y validación del club, deporte y categoría (`useScope()`). |
+| `src/club/` | `ActiveClub` (`useActiveClub()`), carga y validación del club, área por rol, deporte y categoría (`useScope()`). |
+| `src/guardian/` | Área de familia del tutor (`/family`, [ADR 0065](../../docs/adr/0065-area-de-familia-en-la-web.md)): sus hijos/as, ficha resumida, consentimientos y altura de los padres. |
 | `src/permissions/` | `useCan`, `<Can>`, `<RequirePermission>`, `canSomewhere` sobre la matriz de `packages/domain`. |
 | `src/layout/` | Shell del club (`AppShell`), navegación (`navigation.ts`), selectores de alcance y de colores. |
 | `src/pages/` | Ingreso, selector de club, soporte, inicio, "la web es para el staff", 404 y error. `pages/panel/`: panel semanal (B-403, [ADR 0059](../../docs/adr/0059-panel-semanal-lectura-agregada-y-bio-banding.md)). |
@@ -33,6 +34,10 @@ La API se levanta como dice [su README](../api/README.md#correr); en desarrollo 
 | `src/calendar/` | Calendario de temporada (B-406): grilla del mes y lista, temporadas y ventanas, días de test y fixture. |
 | `src/test/` | Setup de Vitest, API falsa, fixtures y `renderApp`. |
 
+## Quién ve qué
+
+Staff (`coach`, `sc`, `medical`, `admin`, superadmin en soporte): las pantallas del club. Tutor (`parent`): solo el área de familia (`/family`), con su propia navegación (`GUARDIAN_NAV_ITEMS`) y sin selector de deporte y categoría; el `beforeLoad` del club lo manda ahí (y al staff fuera de ahí) antes de que cargue ninguna pantalla. Jugador: "usá la app".
+
 ## Agregar una pantalla
 
 1. **Ruta:** hija de `clubRoute` en `src/router.tsx` (hereda sesión, club, tema y `?sport&category`). Los search params propios se validan con `validateSearch`.
@@ -43,7 +48,8 @@ La API se levanta como dice [su README](../api/README.md#correr); en desarrollo 
 6. **Textos:** en `packages/i18n` (es-AR, vos); fechas y cifras con sus formateadores y `useActiveClub().club.timeZone`. Estados siempre con ícono y texto (`Notice`).
 7. **Errores:** `<ErrorNotice error={query.error} />`; el error boundary de la ruta cubre lo que tire una consulta con suspense.
 8. **Página:** `<Page title=…>` pone el título del documento y mueve el foco al navegar.
-9. **Tests:** `renderApp({ path, handlers: { ...signedIn({ memberships: [membership('sc')] }), listTests: () => page([...]) } })` y Testing Library por rol y texto. Los fixtures pasan por la validación del cliente: tienen que cumplir el contrato. `api.callsTo('operationId')` muestra qué se pidió con qué headers.
+9. **Para la familia:** hija de `familyRoute` (`/family/...`), entrada en `GUARDIAN_NAV_ITEMS`, textos en `web-guardian.ts` (`guardian.*`); los hijos/as y el sujeto vienen de `useActiveClub().children`.
+10. **Tests:** `renderApp({ path, handlers: { ...signedIn({ memberships: [membership('sc')] }), listTests: () => page([...]) } })` y Testing Library por rol y texto. Los fixtures pasan por la validación del cliente: tienen que cumplir el contrato. `api.callsTo('operationId')` muestra qué se pidió con qué headers.
 
 ## Tests
 

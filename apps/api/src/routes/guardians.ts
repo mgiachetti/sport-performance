@@ -116,6 +116,11 @@ async function readPlayer(
   return row;
 }
 
+/** Facts of the matrix plus the names of the current categories (what `GET /v1/me/children` shows). */
+interface PlayerFactsWithCategories extends PlayerFacts {
+  readonly categories: Child['categories'];
+}
+
 /**
  * Facts of the matrix (ADR 0025) for some players on the club's day: their
  * current categories, a sport and whether they are of age. Consents are not
@@ -129,13 +134,14 @@ async function playerFacts(
   clubId: ClubId,
   players: readonly Pick<PlayerRow, 'id' | 'birthDate'>[],
   today: LocalDate,
-): Promise<Map<PlayerId, PlayerFacts>> {
-  const facts = new Map<PlayerId, PlayerFacts>();
+): Promise<Map<PlayerId, PlayerFactsWithCategories>> {
+  const facts = new Map<PlayerId, PlayerFactsWithCategories>();
   if (players.length === 0) return facts;
   const rows = await db
     .select({
       playerId: playerCategory.playerId,
       categoryId: playerCategory.categoryId,
+      categoryName: category.name,
       sport: category.sport,
       validFrom: playerCategory.validFrom,
       validTo: playerCategory.validTo,
@@ -166,6 +172,7 @@ async function playerFacts(
       sport,
       categoryIds: current.map((r) => r.categoryId),
       ofAge: isOfAge(row.birthDate, today),
+      categories: current.map((r) => ({ id: r.categoryId, name: r.categoryName, sport: r.sport })),
     });
   }
   return facts;
@@ -636,16 +643,20 @@ export function registerGuardianRoutes(app: FastifyInstance, auth: AuthModule): 
       );
       return plan.page(rows, (row): Child => {
         const playerFactsOfRow = facts.get(row.playerId);
+        const ofAge = isOfAge(row.birthDate, today);
+        // An adult who did not keep the guardian's access shows only the link (B-311).
+        const visible = !ofAge || row.adultConfirmed;
         return {
           playerId: row.playerId,
           firstName: row.firstName,
           lastName: row.lastName,
           birthDate: row.birthDate,
-          ofAge: isOfAge(row.birthDate, today),
+          ofAge,
           guardianId: row.guardianId as Child['guardianId'],
           relationship: row.relationship,
           hasAccount: row.hasAccount,
           adultConfirmed: row.adultConfirmed,
+          categories: visible ? (playerFactsOfRow?.categories ?? []) : [],
           canManageAccess:
             playerFactsOfRow !== undefined &&
             can(subject, 'invite', { kind: 'player_account', clubId, player: playerFactsOfRow }),

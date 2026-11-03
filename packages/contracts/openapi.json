@@ -24504,6 +24504,13 @@
             "type": "boolean",
             "description": "Si el hijo/a, ya mayor, decidió mantener el acceso de este tutor. Con `ofAge: true` y `false`, el tutor no ve sus datos: solo este vínculo."
           },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChildCategory"
+            },
+            "description": "Categorías vigentes hoy (día del club), para la ficha resumida: el tutor no lee el catálogo de categorías. Vacío si no tiene ninguna o si el tutor ya no ve sus datos."
+          },
           "canManageAccess": {
             "type": "boolean",
             "description": "Si este tutor puede invitarlo/a o generarle un código de ingreso (`player_account.invite`)."
@@ -24519,9 +24526,34 @@
           "relationship",
           "hasAccount",
           "adultConfirmed",
+          "categories",
           "canManageAccess"
         ],
         "description": "Un hijo/a con vínculo vigente con el tutor. De un hijo/a mayor que no mantuvo el acceso solo se muestran nombre y fecha de nacimiento."
+      },
+      "ChildCategory": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de categoría (UUID, RFC 9562)."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sport": {
+            "$ref": "#/components/schemas/Sport"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "sport"
+        ],
+        "description": "Una categoría vigente del hijo/a."
       },
       "ChildPage": {
         "type": "object",

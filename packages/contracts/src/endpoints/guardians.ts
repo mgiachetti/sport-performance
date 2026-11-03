@@ -6,9 +6,16 @@ import {
   expectedVersionSchema,
   resourceVersionSchema,
   sortQuerySchema,
+  sportSchema,
 } from '../primitives/conventions.js';
 import { dateTimeSchema, localDateSchema } from '../primitives/dates.js';
-import { idOf, playerIdSchema, userIdSchema, uuidSchema } from '../primitives/ids.js';
+import {
+  categoryIdSchema,
+  idOf,
+  playerIdSchema,
+  userIdSchema,
+  uuidSchema,
+} from '../primitives/ids.js';
 import { pageOf, pageQuerySchema } from '../primitives/pagination.js';
 import { emailSchema, membershipIdSchema, signedInSchema } from './auth.js';
 import {
@@ -64,6 +71,14 @@ export const guardianLinkSchema = z
   })
   .meta({ id: 'GuardianLink' });
 
+export const childCategorySchema = z
+  .object({
+    id: categoryIdSchema,
+    name: z.string().min(1),
+    sport: sportSchema,
+  })
+  .meta({ id: 'ChildCategory', description: 'Una categoría vigente del hijo/a.' });
+
 export const childSchema = z
   .object({
     playerId: playerIdSchema,
@@ -80,6 +95,10 @@ export const childSchema = z
     adultConfirmed: z.boolean().meta({
       description:
         'Si el hijo/a, ya mayor, decidió mantener el acceso de este tutor. Con `ofAge: true` y `false`, el tutor no ve sus datos: solo este vínculo.',
+    }),
+    categories: z.array(childCategorySchema).meta({
+      description:
+        'Categorías vigentes hoy (día del club), para la ficha resumida: el tutor no lee el catálogo de categorías. Vacío si no tiene ninguna o si el tutor ya no ve sus datos.',
     }),
     canManageAccess: z.boolean().meta({
       description:
