@@ -29,7 +29,8 @@ export type IconName =
   | 'flag'
   | 'chevronLeft'
   | 'chevronRight'
-  | 'settings';
+  | 'settings'
+  | 'ruler';
 
 const PATHS: Record<IconName, readonly string[]> = {
   ok: ['M20 6 9 17l-5-5'],
@@ -64,6 +65,7 @@ const PATHS: Record<IconName, readonly string[]> = {
     'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z',
     'M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2',
   ],
+  ruler: ['M3 17 17 3l4 4L7 21l-4-4Z', 'M7 13l2 2', 'M10 10l2 2', 'M13 7l2 2'],
 };
 
 export function Icon({

@@ -41,6 +41,7 @@
   },
   "devDependencies": {
     "@sport-performance/config": "workspace:*",
+    "@sport-performance/worker": "workspace:*",
     "@types/node": "26.6.6",
     "@types/pg": "8.23.1",
     "@types/react": "19.3.0",

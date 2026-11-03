@@ -478,6 +478,701 @@
         }
       }
     },
+    "/v1/anthro-measurements": {
+      "get": {
+        "operationId": "listAnthroMeasurements",
+        "summary": "Mediciones antropométricas",
+        "description": "El staff ve los jugadores de sus asignaciones, la administración todo el club y el jugador las suyas. `categoryId` filtra por la categoría del jugador el día de cada medición.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "playerId",
+            "in": "query",
+            "required": false,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "query",
+            "required": false,
+            "description": "Id de categoría (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "testSessionId",
+            "in": "query",
+            "required": false,
+            "description": "Id de día de test (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `measuredOn`, `createdAt`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "-measuredOn",
+              "type": "string",
+              "enum": [
+                "measuredOn",
+                "-measuredOn",
+                "createdAt",
+                "-createdAt"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de mediciones.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthroMeasurementPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.bad_request.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "recordAnthroMeasurements",
+        "summary": "Cargar mediciones antropométricas por lote",
+        "description": "El día de mediciones: hasta 200 mediciones (varios jugadores) en una transacción, todo o nada; los errores de todas las filas vuelven juntos en `body.measurements.<i>.<campo>`. Cada medición es idempotente por `clientUuid` (`replayed` dice si ya estaba). `sc` en sus asignaciones y la administración, con consentimiento de datos vigente del jugador. Un jugador sin consentimiento de datos es un problema de su fila (`consent_required` en `body.measurements.<i>.playerId`). Al menos un valor; talla sentado menor que la talla; Σ de pliegues ISAK solo en la etapa `performance` (M17/M19) del jugador ese día. Un día de test cancelado no recibe mediciones (`conflict`). La maduración la calcula el worker después del commit.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "measurements": {
+                    "minItems": 1,
+                    "maxItems": 200,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/AnthroMeasurementInput"
+                    }
+                  }
+                },
+                "required": [
+                  "measurements"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Mediciones cargadas, en el orden del pedido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthroMeasurementBatch"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error.conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/anthro-measurements/{anthroMeasurementId}": {
+      "get": {
+        "operationId": "getAnthroMeasurement",
+        "summary": "Una medición antropométrica",
+        "description": "Mismo alcance que la lista.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "anthroMeasurementId",
+            "in": "path",
+            "required": true,
+            "description": "Id de medición antropométrica (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "La medición.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthroMeasurement"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateAnthroMeasurement",
+        "summary": "Corregir una medición antropométrica",
+        "description": "`sc` en sus asignaciones y la administración, con consentimiento de datos vigente del jugador. Se manda la `version` leída (`conflict` si cambió) y el motivo (`changeReason`, queda en el historial de cambios). `null` borra un valor. Al menos un valor; talla sentado menor que la talla; Σ de pliegues ISAK solo en la etapa `performance` (M17/M19) del jugador ese día. Una medición de un día de test solo cambia de fecha a la del día. La maduración se recalcula.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "anthroMeasurementId",
+            "in": "path",
+            "required": true,
+            "description": "Id de medición antropométrica (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "description": "Versión que el cliente leyó (`version` de la respuesta). Si no es la actual: `409 conflict`.",
+                    "$ref": "#/components/schemas/ResourceVersion"
+                  },
+                  "changeReason": {
+                    "$ref": "#/components/schemas/ChangeReason"
+                  },
+                  "measuredOn": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                    "examples": [
+                      "2026-11-01"
+                    ]
+                  },
+                  "heightCm": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 250
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "sittingHeightCm": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 150
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "weightKg": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 250
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "skinfoldsSumMm": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 600
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "manual",
+                      "video",
+                      "photocell",
+                      "pod",
+                      "app"
+                    ]
+                  },
+                  "evaluatorId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "description": "Id de usuario (UUID, RFC 9562)."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "conditions": {
+                    "type": "object",
+                    "properties": {
+                      "surface": {
+                        "examples": [
+                          "césped natural"
+                        ],
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "footwear": {
+                        "examples": [
+                          "botines"
+                        ],
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "weather": {
+                        "examples": [
+                          "soleado, sin viento"
+                        ],
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      },
+                      "temperatureC": {
+                        "type": "number",
+                        "minimum": -40,
+                        "maximum": 60
+                      },
+                      "standardizedWarmUp": {
+                        "type": "boolean"
+                      },
+                      "notes": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "Condiciones de la medición: superficie, calzado, clima, temperatura, entrada en calor."
+                  },
+                  "notes": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "version",
+                  "changeReason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "La medición corregida.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthroMeasurement"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error.conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/anthro-measurements/preview": {
+      "post": {
+        "operationId": "previewAnthroMeasurements",
+        "summary": "Maduración al instante de mediciones sin guardar",
+        "description": "Mientras se tipea la planilla: offset de PHV, talla adulta predicha y su %, y velocidad de crecimiento de hasta 200 mediciones, con la misma función del dominio, los parámetros del club y la tabla Khamis-Roche sembrada que usa el worker, y la historia del jugador. No escribe nada (cuenta en el presupuesto de lecturas). Dice por qué falta cada valor y qué valores están fuera del rango plausible. Se puede mandar todo el plantel, con o sin valores (la planilla vacía ya muestra a quién le falta la altura de los padres). `sc` en sus asignaciones y la administración, con consentimiento de datos vigente del jugador. Un jugador sin consentimiento de datos vuelve con `blockedBy` y sin cálculo.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "measurements": {
+                    "minItems": 1,
+                    "maxItems": 200,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "playerId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "description": "Id de jugador/a (UUID, RFC 9562)."
+                        },
+                        "measuredOn": {
+                          "type": "string",
+                          "format": "date",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                          "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                          "examples": [
+                            "2026-11-01"
+                          ]
+                        },
+                        "heightCm": {
+                          "type": "number",
+                          "exclusiveMinimum": 0,
+                          "maximum": 250
+                        },
+                        "sittingHeightCm": {
+                          "type": "number",
+                          "exclusiveMinimum": 0,
+                          "maximum": 150
+                        },
+                        "weightKg": {
+                          "type": "number",
+                          "exclusiveMinimum": 0,
+                          "maximum": 250
+                        },
+                        "skinfoldsSumMm": {
+                          "type": "number",
+                          "exclusiveMinimum": 0,
+                          "maximum": 600
+                        }
+                      },
+                      "required": [
+                        "playerId",
+                        "measuredOn"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "measurements"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "La maduración de cada medición, en el orden del pedido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnthroPreviewBatch"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
     "/v1/app/compatibility": {
       "get": {
         "operationId": "getAppCompatibility",
@@ -22163,6 +22858,611 @@
         ],
         "description": "Revisión del staff: `open` (pendiente de acuse), `acknowledged` (vista, con nota opcional) o `dismissed` (descartada, con nota)."
       },
+      "AnthroMaturation": {
+        "type": "object",
+        "properties": {
+          "phvOffsetYears": {
+            "description": "Años desde el pico de velocidad de crecimiento (negativo: antes del PHV).",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "maturityOffsetEquation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MaturityOffsetEquation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "predictedAdultHeightCm": {
+            "description": "Talla adulta predicha (Khamis-Roche 1994), con la altura de los padres.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "adultHeightPct": {
+            "description": "% de la talla adulta predicha alcanzado (puede pasar de 100).",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "growthVelocityCmYear": {
+            "description": "Velocidad de crecimiento desde la medición anterior en rango (cm/año).",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "derivedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cuándo la calculó el worker; `null` mientras está pendiente (recién cargada o corregida)."
+          }
+        },
+        "required": [
+          "phvOffsetYears",
+          "maturityOffsetEquation",
+          "predictedAdultHeightCm",
+          "adultHeightPct",
+          "growthVelocityCmYear",
+          "derivedAt"
+        ]
+      },
+      "AnthroMeasurement": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de medición antropométrica (UUID, RFC 9562)."
+          },
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "testSessionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de día de test (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "measuredOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "heightCm": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "sittingHeightCm": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "weightKg": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "skinfoldsSumMm": {
+            "description": "Σ de pliegues ISAK (mm).",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "method": {
+            "$ref": "#/components/schemas/MeasurementMethod"
+          },
+          "evaluatorId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de usuario (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "conditions": {
+            "$ref": "#/components/schemas/TestConditions"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "maturation": {
+            "$ref": "#/components/schemas/AnthroMaturation"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "version": {
+            "$ref": "#/components/schemas/ResourceVersion"
+          }
+        },
+        "required": [
+          "id",
+          "playerId",
+          "testSessionId",
+          "measuredOn",
+          "heightCm",
+          "sittingHeightCm",
+          "weightKg",
+          "skinfoldsSumMm",
+          "method",
+          "evaluatorId",
+          "conditions",
+          "notes",
+          "maturation",
+          "createdAt",
+          "updatedAt",
+          "version"
+        ]
+      },
+      "AnthroMeasurementBatch": {
+        "type": "object",
+        "properties": {
+          "measurements": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "measurement": {
+                  "$ref": "#/components/schemas/AnthroMeasurement"
+                },
+                "replayed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "measurement",
+                "replayed"
+              ]
+            }
+          }
+        },
+        "required": [
+          "measurements"
+        ]
+      },
+      "AnthroMeasurementInput": {
+        "type": "object",
+        "properties": {
+          "clientUuid": {
+            "$ref": "#/components/schemas/ClientUuid"
+          },
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "measuredOn": {
+            "description": "Por defecto, la fecha del día de test (con día de test, tiene que ser esa). Obligatoria sin día de test.",
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "testSessionId": {
+            "description": "El día de test (de la categoría del jugador) en que se midió, si lo hubo.",
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "heightCm": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 250
+          },
+          "sittingHeightCm": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 150
+          },
+          "weightKg": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 250
+          },
+          "skinfoldsSumMm": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 600
+          },
+          "method": {
+            "description": "Por defecto `manual`.",
+            "type": "string",
+            "enum": [
+              "manual",
+              "video",
+              "photocell",
+              "pod",
+              "app"
+            ]
+          },
+          "evaluatorId": {
+            "description": "Por defecto, el evaluador del día de test o quien carga (staff del club).",
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          },
+          "conditions": {
+            "description": "Por defecto, las del día de test.",
+            "type": "object",
+            "properties": {
+              "surface": {
+                "examples": [
+                  "césped natural"
+                ],
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "footwear": {
+                "examples": [
+                  "botines"
+                ],
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "weather": {
+                "examples": [
+                  "soleado, sin viento"
+                ],
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "temperatureC": {
+                "type": "number",
+                "minimum": -40,
+                "maximum": 60
+              },
+              "standardizedWarmUp": {
+                "type": "boolean"
+              },
+              "notes": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              }
+            },
+            "additionalProperties": false
+          },
+          "notes": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "playerId"
+        ],
+        "additionalProperties": false
+      },
+      "AnthroMeasurementPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnthroMeasurement"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "AnthroPlausibility": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "enum": [
+              "heightCm",
+              "sittingHeightCm",
+              "weightKg",
+              "skinfoldsSumMm"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "below",
+              "above"
+            ]
+          },
+          "minValue": {
+            "type": "number"
+          },
+          "maxValue": {
+            "type": "number"
+          },
+          "suggestedValues": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "description": "El mismo número con la coma corrida que cae en el rango (¿quisiste decir…?)."
+          }
+        },
+        "required": [
+          "field",
+          "status",
+          "minValue",
+          "maxValue",
+          "suggestedValues"
+        ],
+        "description": "Un valor fuera del rango plausible para la edad y el sexo. No bloquea la carga."
+      },
+      "AnthroPreview": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "measuredOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "blockedBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "consent_required"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`consent_required`: el jugador no tiene consentimiento de datos vigente; no se calcula nada ni se puede cargar. El resto del plantel sigue."
+          },
+          "ageYears": {
+            "description": "Edad decimal ese día.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Etapa del jugador ese día."
+          },
+          "phvOffsetYears": {
+            "description": "Años desde el pico de velocidad de crecimiento (negativo: antes del PHV).",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "maturityOffsetEquation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MaturityOffsetEquation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "predictedAdultHeightCm": {
+            "description": "Talla adulta predicha (Khamis-Roche 1994), con la altura de los padres.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "adultHeightPct": {
+            "description": "% de la talla adulta predicha alcanzado (puede pasar de 100).",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "growthVelocityCmYear": {
+            "description": "Velocidad de crecimiento desde la medición anterior en rango (cm/año).",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "maturityOffsetVerification": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "verified_against_publication",
+                  "cross_checked_secondary_sources",
+                  "unverified"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Si los coeficientes de la ecuación usada (`maturityOffsetEquation`) están verificados contra la publicación; `null` sin offset. Todo lo que no sea `verified_against_publication` se muestra con aviso."
+          },
+          "gaps": {
+            "type": "object",
+            "properties": {
+              "phvOffset": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MaturationGap"
+                }
+              },
+              "adultHeight": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MaturationGap"
+                }
+              }
+            },
+            "required": [
+              "phvOffset",
+              "adultHeight"
+            ]
+          },
+          "plausibility": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnthroPlausibility"
+            }
+          }
+        },
+        "required": [
+          "playerId",
+          "measuredOn",
+          "blockedBy",
+          "ageYears",
+          "stage",
+          "phvOffsetYears",
+          "maturityOffsetEquation",
+          "predictedAdultHeightCm",
+          "adultHeightPct",
+          "growthVelocityCmYear",
+          "maturityOffsetVerification",
+          "gaps",
+          "plausibility"
+        ]
+      },
+      "AnthroPreviewBatch": {
+        "type": "object",
+        "properties": {
+          "reference": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "verification": {
+                    "type": "string",
+                    "enum": [
+                      "verified_against_publication",
+                      "cross_checked_secondary_sources",
+                      "unverified"
+                    ]
+                  }
+                },
+                "required": [
+                  "code",
+                  "verification"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La tabla Khamis-Roche del club y si sus coeficientes están verificados contra la publicación (todo lo que no sea `verified_against_publication` se muestra con aviso); `null` sin tabla."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnthroPreview"
+            }
+          }
+        },
+        "required": [
+          "reference",
+          "items"
+        ]
+      },
       "ApiVersionInfo": {
         "type": "object",
         "properties": {
@@ -26406,6 +27706,29 @@
         "examples": [
           "15:30"
         ]
+      },
+      "MaturationGap": {
+        "type": "string",
+        "enum": [
+          "invalid_age",
+          "height_missing",
+          "sitting_height_missing",
+          "weight_missing",
+          "parent_heights_missing",
+          "age_outside_reference",
+          "no_reference_table",
+          "prediction_rejected"
+        ],
+        "description": "Por qué falta un valor de maduración: `invalid_age` (medición antes del nacimiento), `height_missing`, `sitting_height_missing` (ninguna ecuación del club calcula el offset solo con la talla), `weight_missing`, `parent_heights_missing` (Khamis-Roche usa la altura de los dos padres), `age_outside_reference` (edad fuera de la tabla), `no_reference_table` (el club no tiene la tabla) o `prediction_rejected` (datos inverosímiles)."
+      },
+      "MaturityOffsetEquation": {
+        "type": "string",
+        "enum": [
+          "mirwald_2002",
+          "moore_2015",
+          "moore_2015_height"
+        ],
+        "description": "Ecuación del offset de maduración: `mirwald_2002`, `moore_2015` o `moore_2015_height` (varones sin talla sentado). Valores de ecuaciones distintas no se mezclan sin aviso."
       },
       "Me": {
         "type": "object",

@@ -188,3 +188,103 @@ export function deriveMaturation(input: MaturationInput): MaturationResult[] {
     };
   });
 }
+
+/**
+ * Why a maturation value of a measurement is missing (B-412): what the staff
+ * can fix on the day of measurements (a height, a weight, the parents'
+ * heights) or why it cannot be computed (age outside the reference table,
+ * the club has no table). Never a guess: the UI shows the reason instead.
+ */
+export const MATURATION_GAPS = [
+  /** The measurement is not after the birth date. */
+  'invalid_age',
+  'height_missing',
+  /** No equation of the chain can do without the sitting height (none is height-only). */
+  'sitting_height_missing',
+  'weight_missing',
+  /** Khamis-Roche needs the height of both biological parents. */
+  'parent_heights_missing',
+  /** The age is outside the rows of the club's Khamis-Roche table for the sex. */
+  'age_outside_reference',
+  /** The club has no seeded Khamis-Roche table with the configured code. */
+  'no_reference_table',
+  /** Every input was there but the prediction was rejected (implausible inputs). */
+  'prediction_rejected',
+] as const;
+export type MaturationGap = (typeof MATURATION_GAPS)[number];
+
+export interface MaturationGaps {
+  /** Why `phvOffsetYears` is `null` (empty when it is set). */
+  readonly phvOffset: readonly MaturationGap[];
+  /** Why `adultHeightPct` is `null` (empty when it is set). */
+  readonly adultHeight: readonly MaturationGap[];
+}
+
+/**
+ * The reasons behind the `null`s of `result`, the {@link deriveMaturation}
+ * of `measurement` with the same player inputs. Every missing input is
+ * listed (not only the first), so the staff fixes them in one pass.
+ * `chain` defaults to the one of `input.params` (see
+ * {@link maturityOffsetEquationChain}).
+ */
+export function maturationGaps(
+  input: Omit<MaturationInput, 'measurements'>,
+  measurement: AnthropometryInput,
+  result: Pick<MaturationResult, 'phvOffsetYears' | 'adultHeightPct'>,
+  chain: readonly MaturityOffsetEquation[] = maturityOffsetEquationChain(
+    (input.params ?? DEFAULT_MATURATION_PARAMS).maturityOffsetEquation,
+    input.sex,
+  ),
+): MaturationGaps {
+  const validAge = daysBetween(input.birthDate, measurement.date) > 0;
+  const height = positive(measurement.heightCm) !== undefined;
+
+  const phvOffset: MaturationGap[] = [];
+  if (result.phvOffsetYears === null) {
+    if (!validAge) phvOffset.push('invalid_age');
+    if (!height) phvOffset.push('height_missing');
+    if (validAge && height) {
+      // Height is there: the inputs that every equation of the chain needs and the day lacks.
+      const required = chain.flatMap((equation) => {
+        const model = MATURITY_OFFSET_MODELS.find(
+          (m) => m.equation === equation && m.sex === input.sex,
+        );
+        return model === undefined ? [] : [maturityOffsetRequiredInputs(model)];
+      });
+      const everyNeeds = (field: 'sittingHeightCm' | 'weightKg') =>
+        required.length > 0 && required.every((inputs) => inputs.includes(field));
+      if (everyNeeds('sittingHeightCm') && positive(measurement.sittingHeightCm) === undefined) {
+        phvOffset.push('sitting_height_missing');
+      }
+      if (everyNeeds('weightKg') && positive(measurement.weightKg) === undefined) {
+        phvOffset.push('weight_missing');
+      }
+      // Every input was there (a sitting height not below the height, for instance).
+      if (phvOffset.length === 0) phvOffset.push('prediction_rejected');
+    }
+  }
+
+  const adultHeight: MaturationGap[] = [];
+  if (result.adultHeightPct === null) {
+    if (!validAge) adultHeight.push('invalid_age');
+    if (!height) adultHeight.push('height_missing');
+    if (positive(measurement.weightKg) === undefined) adultHeight.push('weight_missing');
+    if (
+      positive(input.motherHeightCm) === undefined ||
+      positive(input.fatherHeightCm) === undefined
+    ) {
+      adultHeight.push('parent_heights_missing');
+    }
+    const table = input.khamisRocheTable;
+    if (table === null) {
+      adultHeight.push('no_reference_table');
+    } else if (
+      validAge &&
+      !khamisRocheSupportsAge(input.sex, decimalAgeYears(input.birthDate, measurement.date), table)
+    ) {
+      adultHeight.push('age_outside_reference');
+    }
+    if (adultHeight.length === 0) adultHeight.push('prediction_rejected');
+  }
+  return { phvOffset, adultHeight };
+}

@@ -7,6 +7,7 @@ import {
   addDays,
   decimalAgeYears,
   deriveMaturation,
+  maturationGaps,
   maturityOffset,
   maturityOffsetEquationChain,
   parseLocalDate,
@@ -262,5 +263,106 @@ describe('deriveMaturation', () => {
       ],
     });
     expect(results[2]?.growthVelocityCmYear).toBeCloseTo(3 / (120 / 365.25), 12);
+  });
+});
+
+describe('maturationGaps', () => {
+  const birthDate = d('2012-05-10');
+  const parents = { motherHeightCm: 165, fatherHeightCm: 180 };
+  const measurement = (
+    values: Partial<Omit<AnthropometryInput, 'id' | 'date'>>,
+    date = '2026-05-10',
+  ): AnthropometryInput => ({
+    id: 'x',
+    date: d(date),
+    heightCm: null,
+    sittingHeightCm: null,
+    weightKg: null,
+    ...values,
+  });
+
+  function gapsOf(
+    player: { motherHeightCm: number | null; fatherHeightCm: number | null; table?: null },
+    m: AnthropometryInput,
+    sex: 'male' | 'female' = 'male',
+    bornOn: LocalDate = birthDate,
+  ) {
+    const input = {
+      sex,
+      birthDate: bornOn,
+      motherHeightCm: player.motherHeightCm,
+      fatherHeightCm: player.fatherHeightCm,
+      khamisRocheTable: player.table === null ? null : KHAMIS_ROCHE_1994_TABLE,
+    };
+    const [result] = deriveMaturation({ ...input, measurements: [m] });
+    if (result === undefined) throw new Error('no result');
+    return { result, gaps: maturationGaps(input, m, result) };
+  }
+
+  it('is empty when every value is computed', () => {
+    const { result, gaps } = gapsOf(parents, measurement({ heightCm: 163, weightKg: 52 }));
+    expect(result.phvOffsetYears).not.toBeNull();
+    expect(result.adultHeightPct).not.toBeNull();
+    expect(gaps).toEqual({ phvOffset: [], adultHeight: [] });
+  });
+
+  it('lists every missing input of the day at once', () => {
+    const { gaps } = gapsOf(
+      { motherHeightCm: 165, fatherHeightCm: null },
+      measurement({ weightKg: 52 }),
+    );
+    expect(gaps.phvOffset).toEqual(['height_missing']);
+    expect(gaps.adultHeight).toEqual(['height_missing', 'parent_heights_missing']);
+  });
+
+  it('names the weight and the parents for Khamis-Roche, never the offset', () => {
+    const { result, gaps } = gapsOf(
+      { motherHeightCm: null, fatherHeightCm: null },
+      measurement({ heightCm: 163 }),
+      'female',
+    );
+    expect(result.phvOffsetYears).not.toBeNull();
+    expect(gaps.phvOffset).toEqual([]);
+    expect(gaps.adultHeight).toEqual(['weight_missing', 'parent_heights_missing']);
+  });
+
+  it('tells a club without table and an age outside it apart', () => {
+    expect(
+      gapsOf({ ...parents, table: null }, measurement({ heightCm: 163, weightKg: 52 })).gaps
+        .adultHeight,
+    ).toEqual(['no_reference_table']);
+    expect(
+      gapsOf(parents, measurement({ heightCm: 180, weightKg: 80 }), 'male', d('2000-01-01')).gaps
+        .adultHeight,
+    ).toEqual(['age_outside_reference']);
+  });
+
+  it('flags a measurement before the birth date', () => {
+    const { gaps } = gapsOf(parents, measurement({ heightCm: 163, weightKg: 52 }, '2012-05-01'));
+    expect(gaps.phvOffset).toEqual(['invalid_age']);
+    expect(gaps.adultHeight).toEqual(['invalid_age']);
+  });
+
+  it('names the sitting height when no equation of the chain is height-only', () => {
+    const input = {
+      sex: 'male' as const,
+      birthDate,
+      ...parents,
+      khamisRocheTable: KHAMIS_ROCHE_1994_TABLE,
+    };
+    const m = measurement({ heightCm: 163 });
+    const missing = { phvOffsetYears: null, adultHeightPct: null };
+    expect(maturationGaps(input, m, missing, ['mirwald_2002']).phvOffset).toEqual([
+      'sitting_height_missing',
+      'weight_missing',
+    ]);
+    expect(maturationGaps(input, m, missing, ['moore_2015']).phvOffset).toEqual([
+      'sitting_height_missing',
+    ]);
+    // Every input there and still no value: rejected, never an empty reason.
+    const full = measurement({ heightCm: 163, sittingHeightCm: 85, weightKg: 52 });
+    expect(maturationGaps(input, full, missing, ['mirwald_2002']).phvOffset).toEqual([
+      'prediction_rejected',
+    ]);
   });
 });
