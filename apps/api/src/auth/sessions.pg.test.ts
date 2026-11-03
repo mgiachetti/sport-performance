@@ -7,8 +7,11 @@
  * ends.
  */
 import { randomUUID } from 'node:crypto';
+import { membership } from '@sport-performance/db/schema';
 import { parseUuid, type ClubId, type Role, type UserId } from '@sport-performance/domain';
+import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { tenantDatabase } from '../db/database.js';
 import type { ClubAuthContext } from '../http/endpoint.js';
 import {
   createClub,
@@ -21,6 +24,7 @@ import {
   type TestDatabase,
 } from '../testing/identity.js';
 import { describeWithPostgres, testAuthContext } from '../testing/support.js';
+import { tenantContextOf } from './context.js';
 import { revokeSessionsOfEndedMembership } from './member-sessions.js';
 
 const CHROME_MAC =
@@ -346,6 +350,13 @@ describeWithPostgres('active sessions per device (Better Auth + Postgres)', (ser
       testAuthContext(userId, { clubId, role, membershipId }) as ClubAuthContext;
     const endMembership = (membershipId: string) =>
       database.admin.query('update membership set ended_at = now() where id = $1', [membershipId]);
+    /** Like the endpoint: inside a transaction of the caller (with its support reason). */
+    const revokeOfEnded = (caller: ClubAuthContext, membershipId: string) =>
+      t.db.transaction(
+        tenantContextOf(caller),
+        (tx) => revokeSessionsOfEndedMembership(t.auth, caller, membershipId, tenantDatabase(tx)),
+        { requestId: `test-${randomUUID()}`, supportReason: caller.supportReason },
+      );
 
     beforeAll(async () => {
       clubA = await createClub(database.admin, 'club-baja-a');
@@ -360,8 +371,7 @@ describeWithPostgres('active sessions per device (Better Auth + Postgres)', (ser
       const membershipId = await createMembership(database.admin, web.userId, clubA, 'coach');
       await endMembership(membershipId);
 
-      const result = await revokeSessionsOfEndedMembership(
-        t.auth,
+      const result = await revokeOfEnded(
         adminOf(clubA, admin.userId, adminMembershipId),
         membershipId,
       );
@@ -374,12 +384,59 @@ describeWithPostgres('active sessions per device (Better Auth + Postgres)', (ser
     it('works before the membership is ended too (same transaction as the end)', async () => {
       const member = await signIn(t, email, 'bearer');
       const membershipId = await createMembership(database.admin, member.userId, clubA, 'player');
-      const result = await revokeSessionsOfEndedMembership(
-        t.auth,
+      const result = await revokeOfEnded(
         adminOf(clubA, admin.userId, adminMembershipId),
         membershipId,
       );
       expect(result).toEqual({ outcome: 'revoked', revoked: 1 });
+    });
+
+    it('reads the end made earlier in the same transaction', async () => {
+      const member = await signIn(t, email, 'bearer');
+      const membershipId = await createMembership(database.admin, member.userId, clubA, 'coach');
+      await createMembership(database.admin, member.userId, clubB, 'parent');
+      const caller = adminOf(clubA, admin.userId, adminMembershipId);
+      const result = await t.db.transaction(
+        tenantContextOf(caller),
+        async (tx) => {
+          const db = tenantDatabase(tx);
+          await db
+            .update(membership)
+            .set({ endedAt: sql`now()`, updatedBy: caller.userId })
+            .where(eq(membership.id, membershipId));
+          return revokeSessionsOfEndedMembership(t.auth, caller, membershipId, db);
+        },
+        { requestId: `test-${randomUUID()}` },
+      );
+      expect(result).toEqual({ outcome: 'kept_other_memberships', revoked: 0 });
+      expect((await me(member)).statusCode).toBe(200);
+    });
+
+    it('works for a superadmin supporting the club (issue #161)', async () => {
+      const support = await signIn(t, `soporte-${email}`, 'bearer');
+      await database.admin.query('update "user" set is_superadmin = true where id = $1', [
+        support.userId,
+      ]);
+      const caller: ClubAuthContext = {
+        ...testAuthContext(support.userId),
+        isSuperadmin: true,
+        membership: { membershipId: null, clubId: clubA, role: 'superadmin' },
+        supportReason: 'Baja pedida por el club (ticket 161)',
+      };
+      const member = await signIn(t, email, 'cookie');
+      const membershipId = await createMembership(database.admin, member.userId, clubA, 'sc');
+      await endMembership(membershipId);
+
+      const result = await revokeOfEnded(caller, membershipId);
+      expect(result).toEqual({ outcome: 'revoked', revoked: 1 });
+      expect((await me(member)).statusCode).toBe(401);
+      expect((await me(support)).statusCode).toBe(200);
+      // The read ran in the caller's transaction: one support access recorded, with its reason.
+      const access = await database.admin.query<{ reason: string }>(
+        'select reason from support.access_log where user_id = $1',
+        [support.userId],
+      );
+      expect(access.rows).toEqual([{ reason: 'Baja pedida por el club (ticket 161)' }]);
     });
 
     it('keeps the sessions of a member of another club', async () => {
@@ -388,8 +445,7 @@ describeWithPostgres('active sessions per device (Better Auth + Postgres)', (ser
       await createMembership(database.admin, member.userId, clubB, 'parent');
       await endMembership(membershipId);
 
-      const result = await revokeSessionsOfEndedMembership(
-        t.auth,
+      const result = await revokeOfEnded(
         adminOf(clubA, admin.userId, adminMembershipId),
         membershipId,
       );
@@ -405,8 +461,7 @@ describeWithPostgres('active sessions per device (Better Auth + Postgres)', (ser
       ]);
       const membershipId = await createMembership(database.admin, member.userId, clubA, 'sc');
       await endMembership(membershipId);
-      const result = await revokeSessionsOfEndedMembership(
-        t.auth,
+      const result = await revokeOfEnded(
         adminOf(clubA, admin.userId, adminMembershipId),
         membershipId,
       );
@@ -427,25 +482,13 @@ describeWithPostgres('active sessions per device (Better Auth + Postgres)', (ser
       const inB = await createMembership(database.admin, member.userId, clubB, 'player');
 
       await expect(
-        revokeSessionsOfEndedMembership(
-          t.auth,
-          adminOf(clubA, coach.userId, coachMembershipId, 'coach'),
-          inA,
-        ),
+        revokeOfEnded(adminOf(clubA, coach.userId, coachMembershipId, 'coach'), inA),
       ).rejects.toMatchObject({ code: 'forbidden' });
       await expect(
-        revokeSessionsOfEndedMembership(
-          t.auth,
-          adminOf(clubA, admin.userId, adminMembershipId),
-          inB,
-        ),
+        revokeOfEnded(adminOf(clubA, admin.userId, adminMembershipId), inB),
       ).rejects.toMatchObject({ code: 'not_found' });
       await expect(
-        revokeSessionsOfEndedMembership(
-          t.auth,
-          adminOf(clubA, admin.userId, adminMembershipId),
-          parseUuid(randomUUID()),
-        ),
+        revokeOfEnded(adminOf(clubA, admin.userId, adminMembershipId), parseUuid(randomUUID())),
       ).rejects.toMatchObject({ code: 'not_found' });
       expect((await me(member)).statusCode).toBe(200);
     });

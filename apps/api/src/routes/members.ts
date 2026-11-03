@@ -178,12 +178,15 @@ async function endMembership(
 }
 
 /**
- * Runs after a membership ended, inside its request (B-333). The API wires
- * it to close the sessions of a member left without any membership.
+ * Runs after a membership ended, inside its request (B-333): `db` is the
+ * request transaction, with the caller's tenant context (and, for a
+ * superadmin, their support access already recorded). The API wires it to
+ * close the sessions of a member left without any membership.
  */
 export type MembershipEndedHook = (
   caller: ClubAuthContext,
   ended: { readonly id: string; readonly userId: UserId },
+  db: TenantDatabase,
 ) => Promise<void>;
 
 export interface MemberRoutesOptions {
@@ -294,10 +297,11 @@ export function registerMemberRoutes(
       if (!target.active) return memberDto(target);
       assertGovernable(caller, locked);
       await endMembership(db, caller, target);
-      await options.onMembershipEnded?.(caller, {
-        id: target.id,
-        userId: parseUserId(target.userId),
-      });
+      await options.onMembershipEnded?.(
+        caller,
+        { id: target.id, userId: parseUserId(target.userId) },
+        db,
+      );
       return memberDto(await readMember(db, clubId, target.id));
     },
   });

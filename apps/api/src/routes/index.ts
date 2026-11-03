@@ -295,18 +295,9 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
     const auth = options.auth;
     registerMemberRoutes(app, {
       // B-333: a member left without any membership is signed out everywhere.
-      onMembershipEnded: async (caller, ended) => {
-        if (caller.membership.membershipId !== null) {
-          await revokeSessionsOfEndedMembership(auth, caller, ended.id);
-          return;
-        }
-        // A supporting superadmin: `revokeSessionsOfEndedMembership` reads the membership in a
-        // transaction of its own, which a superadmin cannot open without the support reason.
-        // The route already authorized the end and resolved the member: same rule, here.
-        const others = (await auth.identity.activeMemberships(ended.userId)).filter(
-          (membership) => membership.id !== ended.id,
-        );
-        if (others.length === 0) await auth.sessions.revokeAllOfMember(ended.userId);
+      // Read in the request transaction: a supporting superadmin works the same (issue #161).
+      onMembershipEnded: async (caller, ended, db) => {
+        await revokeSessionsOfEndedMembership(auth, caller, ended.id, db);
       },
     });
     registerGuardianRoutes(app, options.auth);
