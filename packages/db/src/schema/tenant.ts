@@ -51,6 +51,12 @@ export interface ClubSettings {
    * `resolveDerivedParameters` of the domain; missing keys take the defaults.
    */
   readonly derived?: Readonly<Record<string, unknown>>;
+  /**
+   * Parameters of the notifications (B-328): RPE delay and reminder time,
+   * summary lead and allowed hours (also for minors). Partial JSON validated
+   * by `resolveNotificationSettings` of the domain.
+   */
+  readonly notifications?: Readonly<Record<string, unknown>>;
 }
 
 /** `created_*`, `updated_*` and `client_uuid`, shared by `club` and every club table. */

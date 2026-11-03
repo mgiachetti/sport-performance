@@ -429,6 +429,53 @@ function nextDayParts(date: LocalDate): LocalDateParts {
 }
 
 // ---------------------------------------------------------------------------
+// Wall-clock times of the club
+
+export const MINUTES_PER_DAY = 1440;
+
+/** A wall-clock moment of the club: its day and the minute of that day (0–1439). */
+export interface LocalDateTime {
+  readonly date: LocalDate;
+  readonly minuteOfDay: number;
+}
+
+/** The club's day and wall-clock minute of an instant (seconds are truncated). */
+export function localDateTimeInTimeZone(instant: Instant, timeZone: TimeZone): LocalDateTime {
+  const w = wallClock(toEpochMs(instant), timeZone);
+  if (w.year < 1 || w.year > 9999) {
+    throw new DomainValidationError('invalid_instant', INVALID_INSTANT_MESSAGE, instant);
+  }
+  return { date: format(w.year, w.month, w.day), minuteOfDay: w.hour * 60 + w.minute };
+}
+
+/**
+ * The instant the club's wall clock shows `minuteOfDay` on `date`. Handles
+ * DST: a wall time that happens twice (clocks go back) is its first
+ * occurrence; one that does not exist (clocks jump forward) is moved forward
+ * by the jump, so "08:00" in a gap from 08:00 to 09:00 is 09:00.
+ */
+export function instantAtLocalTime(date: LocalDate, minuteOfDay: number, timeZone: TimeZone): Date {
+  assertInteger(minuteOfDay, 'minuteOfDay');
+  if (minuteOfDay < 0 || minuteOfDay >= MINUTES_PER_DAY) {
+    throw new DomainValidationError(
+      'invalid_argument',
+      `minuteOfDay must be from 0 to ${String(MINUTES_PER_DAY - 1)}.`,
+      minuteOfDay,
+    );
+  }
+  const { year, month, day } = localDateParts(date);
+  const wallMs = utcMs(year, month, day) + minuteOfDay * 60_000;
+  const offsetBefore = offsetMs(wallMs - MS_PER_DAY, timeZone);
+  const offsetAfter = offsetMs(wallMs + MS_PER_DAY, timeZone);
+  const candidates = [wallMs - offsetBefore, wallMs - offsetAfter].filter(
+    (t) => offsetMs(t, timeZone) === wallMs - t,
+  );
+  if (candidates.length > 0) return new Date(Math.min(...candidates));
+  // In a gap: the wall time read with the offset before the jump lands after it.
+  return new Date(wallMs - offsetBefore);
+}
+
+// ---------------------------------------------------------------------------
 // Age
 
 /**

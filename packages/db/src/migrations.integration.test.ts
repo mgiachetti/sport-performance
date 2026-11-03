@@ -57,6 +57,7 @@ const GLOBAL_TABLES = [
   'verification',
   'auth_rate_limit',
   'known_device',
+  'push_token',
   'club',
 ];
 

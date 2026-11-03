@@ -23,6 +23,12 @@ import {
   MEASUREMENT_METHODS,
   MEMBERSHIP_ROLES,
   MONOTONY_STATUSES,
+  NOTIFICATION_CHANNELS,
+  NOTIFICATION_KINDS,
+  NOTIFICATION_SKIP_REASONS,
+  NOTIFICATION_STATUSES,
+  PUSH_PLATFORMS,
+  PUSH_TICKET_STATUSES,
   SESSION_CLIENT_TYPES,
   PARENTS,
   PLAYER_LEAVE_REASONS,
@@ -171,6 +177,18 @@ export const seasonRolloverOutcomeEnum = pgEnum(
   'season_rollover_outcome',
   SEASON_ROLLOVER_OUTCOMES,
 );
+/** Notifications (B-328, ADR 0054): kind, channel, delivery state and why it was skipped. */
+export const notificationKindEnum = pgEnum('notification_kind', NOTIFICATION_KINDS);
+export const notificationChannelEnum = pgEnum('notification_channel', NOTIFICATION_CHANNELS);
+export const notificationStatusEnum = pgEnum('notification_status', NOTIFICATION_STATUSES);
+export const notificationSkipReasonEnum = pgEnum(
+  'notification_skip_reason',
+  NOTIFICATION_SKIP_REASONS,
+);
+/** Platform of a device with a push token. */
+export const pushPlatformEnum = pgEnum('push_platform', PUSH_PLATFORMS);
+/** A push ticket until its receipt is read (Expo). */
+export const pushTicketStatusEnum = pgEnum('push_ticket_status', PUSH_TICKET_STATUSES);
 
 // ---------------------------------------------------------------------------
 // Vocabularies that only exist in the database for now.

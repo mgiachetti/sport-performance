@@ -88,6 +88,8 @@ export const API_TAGS = {
   sync: 'Sincronización sin conexión: cola de mutaciones con reloj lógico híbrido y cambios por cursor.',
   privacy:
     'Derechos del titular (Ley 25.326): exportación de todos los datos, pedidos de supresión y borrado de la cuenta.',
+  notifications:
+    'Notificaciones push y por email: el token del dispositivo y las preferencias de cada usuario (B-328).',
 } as const satisfies Record<string, string>;
 
 export type ApiTag = keyof typeof API_TAGS;
