@@ -32,7 +32,7 @@ describe('notification texts (B-328)', () => {
         players: 20,
       }),
     ).toBe(
-      'A las 18:00. Alertas abiertas: ninguna crítica y 2 de atención. Bienestar cargado: 12 de 20.',
+      'A las 18:00. Jugadores con alertas abiertas: ninguno en crítico y 2 en atención. Bienestar cargado: 12 de 20.',
     );
     expect(
       t('notification.pre_training_summary.bodyWithoutWellness', {
@@ -40,6 +40,6 @@ describe('notification texts (B-328)', () => {
         critical: 1,
         warning: 0,
       }),
-    ).toBe('A las 18:00. Alertas abiertas: 1 crítica y ninguna de atención.');
+    ).toBe('A las 18:00. Jugadores con alertas abiertas: 1 en crítico y ninguno en atención.');
   });
 });

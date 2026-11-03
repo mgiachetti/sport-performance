@@ -90,7 +90,12 @@ export function registerNotificationRoutes(app: FastifyInstance): void {
   registerEndpoint(app, updateMyNotificationPreferences, {
     transaction: true,
     handler: async ({ body }, { db, auth: caller }) => {
-      const { clubId, role } = caller.membership;
+      const { clubId, role, membershipId } = caller.membership;
+      // A superadmin supporting the club is not a member: they have no preferences here (and
+      // RLS would refuse the write), so it is a clean 403 rather than a failed insert.
+      if (membershipId === null) {
+        throw new HttpError('forbidden', 'Preferences belong to a membership of the club');
+      }
       const allowed = notificationKindsForRole(role);
       body.preferences.forEach((change, index) => {
         if (!allowed.includes(change.kind)) {

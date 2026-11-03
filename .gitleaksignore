@@ -4,3 +4,7 @@
 # the codes themselves are random and never committed.
 9b7743ab2ab08d402f3d356eb7209b252e7474e3:packages/contracts/src/endpoints/guardians.ts:generic-api-key:84
 567706168dd2b615d6888929c5642ca777182822:packages/contracts/src/endpoints/guardians.ts:generic-api-key:88
+# #173 (B-328): fixed test literals for RESEND_API_KEY in the worker config tests (now built
+# with randomBytes at runtime). Not real keys.
+52337ffb738753ea98c367c8e7aae72c21b3e03d:apps/worker/src/worker.test.ts:generic-api-key:108
+52337ffb738753ea98c367c8e7aae72c21b3e03d:apps/worker/src/worker.test.ts:generic-api-key:122

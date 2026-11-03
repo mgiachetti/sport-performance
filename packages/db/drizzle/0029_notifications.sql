@@ -175,6 +175,9 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'not a live session of the user' USING ERRCODE = '42501';
   END IF;
+  -- Two sessions registering the same token at once: serialized on the token, so the second
+  -- one (with a fresh snapshot after the lock) moves it instead of hitting push_token_token_key.
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('push_token:' || device_token, 0));
   DELETE FROM "public"."push_token" t WHERE t.token = device_token AND t.session_id <> target_session;
   INSERT INTO "public"."push_token" AS t (user_id, session_id, token, platform)
   VALUES (me, target_session, device_token, device_platform)

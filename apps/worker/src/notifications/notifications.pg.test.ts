@@ -338,6 +338,25 @@ describe.skipIf(!hasDatabase)('notifications (Postgres 16)', () => {
       ]);
     });
 
+    it('reminds a minor whose deferred request ended failed: it reached nobody', async () => {
+      const f = await newClub();
+      const minor = await newPlayer(f, { birthDate: '2011-04-15' });
+      await newSession(f, '2026-03-20T23:00:00Z');
+      const s = services();
+      await run(f.clubId, at('2026-03-21T00:51:00Z'), s);
+      // The deferred request gave up (the provider kept failing): it no longer stands in for
+      // the morning reminder.
+      await q(
+        `update notification set status = 'failed', attempts = 3, failure_code = 'HTTP_503'
+          where club_id = $1 and user_id = $2 and kind = 'rpe_request'`,
+        [f.clubId, minor.userId],
+      );
+      await run(f.clubId, at('2026-03-21T11:00:30Z'), s);
+      expect(s.push.sent.map((m) => [m.to, m.title])).toEqual([
+        [minor.token, 'Te falta cargar el RPE'],
+      ]);
+    });
+
     it('skips a deferred request when the player answered meanwhile', async () => {
       const f = await newClub();
       const minor = await newPlayer(f, { birthDate: '2011-04-15' });
@@ -631,7 +650,7 @@ describe.skipIf(!hasDatabase)('notifications (Postgres 16)', () => {
       expect(summaries[0]?.to).not.toBe(withWellness.token);
       expect(summaries[0]?.title).toBe('M15: antes de entrenar');
       expect(summaries[0]?.body).toBe(
-        'A las 18:00. Alertas abiertas: ninguna crítica y 1 de atención. Bienestar cargado: 1 de 2.',
+        'A las 18:00. Jugadores con alertas abiertas: ninguno en crítico y 1 en atención. Bienestar cargado: 1 de 2.',
       );
       const rows = await deliveries(f.clubId);
       expect(rows.filter((r) => r.kind === 'pre_training_summary').map((r) => r.user_id)).toEqual([

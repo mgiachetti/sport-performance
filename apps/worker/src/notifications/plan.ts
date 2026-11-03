@@ -220,7 +220,8 @@ async function planRpe(
   const eligible = candidates.filter((c) => consented.has(c.playerId));
 
   // A reminder is not sent when the request itself went out (or is due) that same morning:
-  // a request deferred to the minors' opening is already the morning nudge.
+  // a request deferred to the minors' opening is already the morning nudge. A request that
+  // ended skipped or failed reached nobody, so it does not stand in for the reminder.
   const reminderIds = reminderDue.map(({ session }) => session.id);
   const latestRequest = new Map<string, Date>();
   if (reminderIds.length > 0) {
@@ -231,6 +232,7 @@ async function planRpe(
     }>(
       `select training_session_id, user_id, max(scheduled_for) as latest from notification
         where kind = 'rpe_request' and training_session_id = any($1::uuid[])
+          and status in ('pending', 'sending', 'sent')
         group by training_session_id, user_id`,
       [reminderIds],
     );

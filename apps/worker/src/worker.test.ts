@@ -105,7 +105,9 @@ describe('loadConfig', () => {
     });
     expect(configSummary(local)).toMatchObject({ notifications: { email: 'log' } });
     expect(loadConfig({ ...base, NOTIFICATIONS: 'off' }).notifications).toBeNull();
-    expect(() => loadConfig({ ...base, RESEND_API_KEY: 're_1234567890abc' })).toThrow(/EMAIL_FROM/);
+    expect(() =>
+      loadConfig({ ...base, RESEND_API_KEY: `re_${randomBytes(8).toString('hex')}` }),
+    ).toThrow(/EMAIL_FROM/);
 
     const production = {
       NODE_ENV: 'production',
@@ -119,7 +121,7 @@ describe('loadConfig', () => {
     expect(() =>
       loadConfig({
         ...production,
-        RESEND_API_KEY: 're_1234567890abcdefghij',
+        RESEND_API_KEY: `re_${randomBytes(12).toString('hex')}`,
         EMAIL_FROM: 'avisos@example.com',
         WEB_APP_URL: 'http://app.example.com',
       }),

@@ -170,9 +170,9 @@ export const esAR = {
   'notification.pre_training_summary.title':
     '{categoryName}: {session, select, match {antes del partido} other {antes de entrenar}}',
   'notification.pre_training_summary.body':
-    'A las {time}. Alertas abiertas: {critical, plural, =0 {ninguna crítica} one {# crítica} other {# críticas}} y {warning, plural, =0 {ninguna de atención} one {# de atención} other {# de atención}}. Bienestar cargado: {wellnessSubmitted} de {players}.',
+    'A las {time}. Jugadores con alertas abiertas: {critical, plural, =0 {ninguno en crítico} one {# en crítico} other {# en crítico}} y {warning, plural, =0 {ninguno en atención} one {# en atención} other {# en atención}}. Bienestar cargado: {wellnessSubmitted} de {players}.',
   'notification.pre_training_summary.bodyWithoutWellness':
-    'A las {time}. Alertas abiertas: {critical, plural, =0 {ninguna crítica} one {# crítica} other {# críticas}} y {warning, plural, =0 {ninguna de atención} one {# de atención} other {# de atención}}.',
+    'A las {time}. Jugadores con alertas abiertas: {critical, plural, =0 {ninguno en crítico} one {# en crítico} other {# en crítico}} y {warning, plural, =0 {ninguno en atención} one {# en atención} other {# en atención}}.',
   'email.notification.cta': 'Abrir en la web',
   'email.notification.openApp': 'Cargalo desde la app, en la sesión.',
   'email.notification.preferences':

@@ -236,5 +236,25 @@ describeWithPostgres('notifications (Postgres)', (serverUrl) => {
       const response = await preferences(coach.headers);
       expect(response.statusCode).toBe(403);
     });
+
+    it('is not for a superadmin supporting the club: they are not a member', async () => {
+      const superadmin = await signIn(t, 'soporte@notif.example.com', 'bearer');
+      await database.admin.query('update "user" set is_superadmin = true where id = $1', [
+        superadmin.userId,
+      ]);
+      const supporting = {
+        ...superadmin.headers,
+        'x-support-club-id': clubA,
+        'x-support-reason': 'Revisión de un reclamo de notificaciones',
+      };
+      const read = await preferences(supporting);
+      expect(read.statusCode, read.body).toBe(200);
+      expect(read.json<{ items: PreferenceBody[] }>().items).toEqual([]);
+      const response = await update(supporting, {
+        preferences: [{ kind: 'critical_alert', push: false }],
+      });
+      expect(response.statusCode, response.body).toBe(403);
+      expect(errorOf(response).code).toBe('forbidden');
+    });
   });
 });
