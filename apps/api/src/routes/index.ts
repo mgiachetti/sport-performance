@@ -48,6 +48,7 @@ import { registerTestResultRoutes } from './test-results.js';
 import { registerTestImportRoutes } from './test-imports.js';
 import { registerTestSessionResultRoutes } from './test-sessions.js';
 import { registerSyncRoutes } from './sync.js';
+import { registerSupportAccessRoutes } from './support-access.js';
 
 /**
  * Endpoints of the contract the API serves, by operationId. Adding an
@@ -77,6 +78,8 @@ export const IMPLEMENTED_ENDPOINTS = [
   'getClubTheme',
   'listClubs',
   'createClub',
+  'listSupportAccess',
+  'listClubSupportAccess',
   'getClub',
   'updateClub',
   'listClubBranches',
@@ -284,6 +287,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerAppCompatibilityRoutes(app, options);
   // Club data: they need no auth module (the theme is public; the rest answer 401 without it).
   registerClubRoutes(app, options.files);
+  registerSupportAccessRoutes(app);
   registerCategoryRoutes(app);
   registerStaffAssignmentRoutes(app);
   registerPlayerRoutes(app);

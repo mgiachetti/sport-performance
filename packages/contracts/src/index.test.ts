@@ -30,6 +30,8 @@ describe('@sport-performance/contracts entry point', () => {
       'getClubTheme',
       'listClubs',
       'createClub',
+      'listSupportAccess',
+      'listClubSupportAccess',
       'getClub',
       'updateClub',
       'listClubBranches',

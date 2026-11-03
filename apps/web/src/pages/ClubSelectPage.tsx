@@ -80,6 +80,12 @@ export function ClubSelectPage() {
         )}
         <div className="sp-form__secondary">
           {me.data?.user.isSuperadmin === true ? (
+            <Link to="/console" className="sp-button sp-button--secondary">
+              <Icon name="club" />
+              <span>{t('console.start')}</span>
+            </Link>
+          ) : null}
+          {me.data?.user.isSuperadmin === true ? (
             <Link
               to="/support"
               search={search.redirect === undefined ? {} : { redirect: search.redirect }}

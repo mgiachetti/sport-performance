@@ -4,6 +4,7 @@ import { ClubSelectionStore } from '../api/club-selection';
 import { createWebApiClient } from '../api/client';
 import { ConnectionStore } from '../api/connection';
 import { createQueryClient } from '../api/query-client';
+import { ConsoleReasonStore } from '../console/console-reason';
 import type { KeyValueStorage } from '../lib/store';
 import { createAppRouter, type AppRouter } from '../router';
 import { ThemeStore } from '../theme/theme-store';
@@ -42,6 +43,13 @@ export function createWebApp(options: CreateAppOptions): WebApp {
     connection,
     ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
   });
+  const consoleApi = createWebApiClient({
+    baseUrl: options.apiUrl,
+    selection: { headers: () => ({}) },
+    connection,
+    ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
+  });
+  const consoleReason = new ConsoleReasonStore(options.storage.session);
 
   let expiring = false;
   const queryClient = createQueryClient({
@@ -58,6 +66,7 @@ export function createWebApp(options: CreateAppOptions): WebApp {
       const location = router.state.location;
       queryClient.clear();
       selection.clearSupport();
+      consoleReason.clear();
       void router
         .navigate({
           to: '/login',
@@ -70,7 +79,15 @@ export function createWebApp(options: CreateAppOptions): WebApp {
     },
   });
 
-  const services: AppServices = { api, queryClient, selection, connection, theme };
+  const services: AppServices = {
+    api,
+    queryClient,
+    selection,
+    connection,
+    theme,
+    consoleApi,
+    consoleReason,
+  };
   // Read lazily by onSessionExpired, which only runs after the router exists.
   const router: AppRouter = createAppRouter(services, options.history);
   return { services, router };

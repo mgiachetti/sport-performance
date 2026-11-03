@@ -44,16 +44,6 @@ import {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/**
- * Who manages the club's invitations: only its `admin` (a guardian invites
- * their child through `POST /v1/players/{id}/invitations`, B-310).
- */
-function requireInvitationManager(caller: ClubAuthContext): void {
-  if (caller.membership.role !== 'admin') {
-    throw new HttpError('forbidden', 'Only an admin of the club manages invitations');
-  }
-}
-
 interface InvitationRow {
   id: string;
   email: string;
@@ -260,8 +250,11 @@ export async function issueInvitation(
 export function registerInvitationRoutes(app: FastifyInstance, auth: AuthModule): void {
   registerEndpoint(app, createInvitation, {
     transaction: true,
-    handler: async ({ body }, { db, auth: caller }) => {
-      requireInvitationManager(caller);
+    handler: async ({ body }, { db, permissions, auth: caller }) => {
+      // The club's administration (its `admin`, or a superadmin supporting it: the first
+      // admin of a new club, B-414). A guardian invites their child through
+      // `POST /v1/players/{id}/invitations` (B-310).
+      await permissions.authorize('membership', 'invite');
       const { clubId } = caller.membership;
       const categoryIds = [...new Set(body.categoryIds)];
 
@@ -345,8 +338,8 @@ export function registerInvitationRoutes(app: FastifyInstance, auth: AuthModule)
 
   registerEndpoint(app, listInvitations, {
     transaction: true,
-    handler: async ({ query }, { db, auth: caller }) => {
-      requireInvitationManager(caller);
+    handler: async ({ query }, { db, permissions, auth: caller }) => {
+      await permissions.authorize('membership', 'read');
       const { clubId } = caller.membership;
       const now = auth.now();
       const plan = keysetPage(INVITATION_KEYS, query, { status: query.status });
@@ -371,8 +364,8 @@ export function registerInvitationRoutes(app: FastifyInstance, auth: AuthModule)
 
   registerEndpoint(app, revokeInvitation, {
     transaction: true,
-    handler: async ({ params }, { db, auth: caller }) => {
-      requireInvitationManager(caller);
+    handler: async ({ params }, { db, permissions, auth: caller }) => {
+      await permissions.authorize('membership', 'revoke');
       const { clubId } = caller.membership;
       const [row] = await db
         .select({ acceptedAt: invitation.acceptedAt, revokedAt: invitation.revokedAt })

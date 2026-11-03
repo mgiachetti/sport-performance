@@ -5,6 +5,7 @@ import { webCalendarMessagesEsAR } from './web-calendar.js';
 import { webAdminMessagesEsAR } from './web-admin.js';
 import { webAnthropometryMessagesEsAR } from './web-anthropometry.js';
 import { webGuardianMessagesEsAR } from './web-guardian.js';
+import { webConsoleMessagesEsAR } from './web-console.js';
 import { webMessagesEsAR } from './web.js';
 import { webTrainingMessagesEsAR } from './web-training.js';
 import { webFieldSessionMessagesEsAR } from './web-field-session.js';
@@ -391,6 +392,7 @@ export const sourceMessageFiles = {
   'web-admin.ts': webAdminMessagesEsAR,
   'web-anthropometry.ts': webAnthropometryMessagesEsAR,
   'web-guardian.ts': webGuardianMessagesEsAR,
+  'web-console.ts': webConsoleMessagesEsAR,
   'mobile.ts': mobileMessagesEsAR,
 } as const;
 
@@ -407,5 +409,6 @@ export const esAR = {
   ...webAdminMessagesEsAR,
   ...webAnthropometryMessagesEsAR,
   ...webGuardianMessagesEsAR,
+  ...webConsoleMessagesEsAR,
   ...mobileMessagesEsAR,
 } as const;

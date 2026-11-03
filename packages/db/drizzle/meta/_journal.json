@@ -239,6 +239,13 @@
       "when": 1793705290602,
       "tag": "0033_player_profile_reads",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793711370220,
+      "tag": "0034_support_access_read",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,141 @@
+/**
+ * Messages of the superadmin console of the staff web (B-414, ADR 0066): club onboarding, active
+ * modules, the first admin's invitation and the support access log (also shown to the
+ * administration of a club). Merged into the `es-AR` source catalog; same rules as `es-AR.ts`.
+ */
+export const webConsoleMessagesEsAR = {
+  // Frame and reason of the console
+  'console.title': 'Consola de superadmin',
+  'console.start': 'Abrir la consola de superadmin',
+  'console.nav.label': 'Secciones de la consola',
+  'console.nav.clubs': 'Clubes',
+  'console.nav.supportAccess': 'Accesos de soporte',
+  'console.exit': 'Salir de la consola',
+  'console.reason.intro':
+    'Todo lo que hagas en la consola queda registrado con tu usuario y este motivo, también lo que solo mirás. Dura hasta que cierres la pestaña.',
+  'console.reason.label': 'Motivo',
+  'console.reason.help':
+    'Por ejemplo: "Alta de Club Atlético San Isidro pedida por su comisión directiva".',
+  'console.reason.required': 'Contá el motivo antes de seguir.',
+  'console.reason.submit': 'Empezar',
+  'console.reason.current': 'Motivo registrado: {reason}',
+  'console.reason.change': 'Cambiar el motivo',
+  'console.loadMore': 'Cargar más',
+
+  // Registry of clubs
+  'console.clubs.title': 'Clubes',
+  'console.clubs.subtitle': 'Registro de clubes de la plataforma.',
+  'console.clubs.new': 'Dar de alta un club',
+  'console.clubs.search.label': 'Buscar por nombre o slug',
+  'console.clubs.empty': 'No hay clubes con esa búsqueda.',
+  'console.clubs.caption': 'Clubes de la plataforma, por nombre',
+  'console.clubs.column.name': 'Club',
+  'console.clubs.column.shortName': 'Sigla',
+  'console.clubs.column.slug': 'Slug',
+  'console.clubs.column.timeZone': 'Zona horaria',
+  'console.clubs.column.createdAt': 'Alta',
+
+  // Onboarding of a club
+  'console.newClub.title': 'Alta de club',
+  'console.newClub.subtitle':
+    'El club se crea con la configuración por defecto: métricas, tests, batería, reglas de alerta, posiciones y categorías M13 a M19 de cada rama.',
+  'console.newClub.name': 'Nombre completo',
+  'console.newClub.shortName': 'Sigla',
+  'console.newClub.shortName.help': 'Hasta 16 caracteres, para los espacios chicos.',
+  'console.newClub.slug': 'Slug',
+  'console.newClub.slug.help':
+    'Va en los links del club: minúsculas, números y guiones. Después solo lo cambia un superadmin.',
+  'console.newClub.timeZone': 'Zona horaria',
+  'console.newClub.timeZone.help':
+    'Zona IANA, por ejemplo America/Argentina/Buenos_Aires. "El día" del club se calcula con ella.',
+  'console.newClub.locale': 'Idioma',
+  'console.newClub.colors.custom': 'Usar colores propios (si no, los del producto)',
+  'console.newClub.colors.primary': 'Color principal',
+  'console.newClub.colors.secondary': 'Segundo color',
+  'console.newClub.branches': 'Deportes y ramas',
+  'console.newClub.branches.help': 'Al menos uno. Se pueden sumar más después.',
+  'console.newClub.submit': 'Dar de alta',
+  'console.newClub.error.invalid': 'Revisá este dato.',
+  'console.newClub.error.slug':
+    'Solo minúsculas, números y guiones, sin guiones al principio ni al final.',
+  'console.newClub.error.slugTaken': 'Ese slug ya lo usa otro club.',
+  'console.newClub.error.timeZone': 'No es una zona horaria IANA válida.',
+  'console.newClub.error.branches': 'Elegí al menos un deporte y rama.',
+  'console.newClub.error.summary': 'Hay datos para revisar.',
+  'console.locale.es_AR': 'Español (Argentina)',
+
+  // Detail of a club
+  'console.club.profile': 'Perfil',
+  'console.club.enterSupport': 'Entrar a {clubName} como soporte',
+  'console.club.field.name': 'Nombre',
+  'console.club.field.shortName': 'Sigla',
+  'console.club.field.slug': 'Slug',
+  'console.club.field.timeZone': 'Zona horaria',
+  'console.club.field.locale': 'Idioma',
+  'console.club.field.colors': 'Colores',
+  'console.club.field.createdAt': 'Alta',
+  'console.club.color': '{name}: {hex}',
+  'console.branch.name': '{sport} {sex}',
+  'console.club.branches.title': 'Deportes y ramas',
+  'console.club.branches.caption': 'Ramas del club',
+  'console.club.branches.column.branch': 'Rama',
+  'console.club.branches.column.status': 'Estado',
+  'console.club.branches.column.actions': 'Acciones',
+  'console.club.branches.status.active': 'Activa',
+  'console.club.branches.status.archived': 'Archivada',
+  'console.club.branches.archive': 'Archivar {branch}',
+  'console.club.branches.restore': 'Restaurar {branch}',
+  'console.club.branches.add.label': 'Habilitar otra rama',
+  'console.club.branches.add.submit': 'Habilitar',
+  'console.club.branches.add.help':
+    'Siembra sus posiciones, las categorías M13 a M19 y la batería por defecto.',
+  'console.club.branches.allEnabled': 'El club ya tiene todas las ramas habilitadas.',
+  'console.club.modules.title': 'Módulos activos',
+  'console.club.modules.help': 'Apagar un módulo no borra datos: deja de mostrarse y de pedirse.',
+  'console.club.modules.save': 'Guardar módulos',
+  'console.club.modules.saved': 'Módulos guardados.',
+  'console.club.modules.unchanged': 'No cambiaste ningún módulo.',
+  'console.club.modules.conflict':
+    'Alguien cambió el club mientras editabas. Cargamos lo último: revisá y guardá de nuevo.',
+  'console.module.wellness': 'Bienestar antes de entrenar',
+  'console.module.gym': 'Gimnasio: rutinas y series',
+  'console.module.gps': 'Métricas de cancha por GPS (Catapult, pods)',
+  'console.module.maturation': 'Maduración y crecimiento (PHV, % de talla adulta)',
+  'console.module.pain_report': 'Reporte de dolor con mapa del cuerpo',
+  'console.module.menstrual_cycle': 'Seguimiento del ciclo menstrual (opt-in)',
+  'console.club.admins.title': 'Administración del club',
+  'console.club.admins.help':
+    'Invitá a quien va a administrar el club: le llega un email con el link para entrar. Desde ahí invita al resto del staff.',
+  'console.club.admins.email': 'Email',
+  'console.club.admins.invite': 'Invitar como administrador/a',
+  'console.club.admins.sent': 'Le mandamos la invitación a {email}.',
+  'console.club.invitations.title': 'Invitaciones pendientes',
+  'console.club.invitations.none': 'No hay invitaciones pendientes.',
+  'console.club.invitations.item': '{email} · {role} · vence el {date}',
+  'console.club.invitations.revoke': 'Anular la invitación de {email}',
+  'console.club.supportAccess.link': 'Ver los accesos de soporte a este club',
+
+  // Support access log (console and club)
+  'supportAccess.nav': 'Accesos de soporte',
+  'supportAccess.title': 'Accesos de soporte',
+  'supportAccess.subtitle.console':
+    'Cada pedido de un superadmin, con el motivo que declaró. El registro no se puede editar ni borrar.',
+  'supportAccess.subtitle.club':
+    'Quién del soporte de la plataforma entró a {clubName}, cuándo y por qué. El registro no se puede editar ni borrar.',
+  'supportAccess.caption': 'Accesos de soporte, los más nuevos primero',
+  'supportAccess.column.when': 'Cuándo',
+  'supportAccess.column.operator': 'Quién',
+  'supportAccess.column.club': 'Dónde',
+  'supportAccess.column.reason': 'Motivo',
+  'supportAccess.column.request': 'Pedido',
+  'supportAccess.registry': 'Registro de clubes',
+  'supportAccess.deletedAccount': 'Cuenta eliminada',
+  'supportAccess.filter.from': 'Desde',
+  'supportAccess.filter.to': 'Hasta',
+  'supportAccess.filter.apply': 'Filtrar',
+  'supportAccess.filter.invalid': 'La fecha "desde" tiene que ser anterior o igual a "hasta".',
+  'supportAccess.filter.club': 'Solo {clubName}',
+  'supportAccess.filter.allClubs': 'Ver todos los clubes',
+  'supportAccess.filter.timeZone': 'Fechas en la zona horaria {timeZone}.',
+  'supportAccess.empty': 'No hay accesos de soporte en ese período.',
+} as const;

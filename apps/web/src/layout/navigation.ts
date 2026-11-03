@@ -85,6 +85,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: 'club',
     permission: { kind: 'membership', action: 'read' },
   }),
+  navItem({
+    to: '/support-access',
+    labelKey: 'supportAccess.nav',
+    icon: 'support',
+    permission: { kind: 'support_access', action: 'read' },
+  }),
 ];
 
 /**

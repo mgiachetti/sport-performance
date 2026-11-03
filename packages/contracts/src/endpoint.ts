@@ -92,6 +92,8 @@ export const API_TAGS = {
     'Derechos del titular (Ley 25.326): exportación de todos los datos, pedidos de supresión y borrado de la cuenta.',
   notifications:
     'Notificaciones push y por email: el token del dispositivo y las preferencias de cada usuario (B-328).',
+  support:
+    'Accesos de soporte del superadmin (auditoría): quién entró a qué club, cuándo y por qué (B-414).',
 } as const satisfies Record<string, string>;
 
 export type ApiTag = keyof typeof API_TAGS;

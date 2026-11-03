@@ -87,6 +87,7 @@ Convenciones (ADR 0023): `club_id NOT NULL` y auditoría (`created_at`, `updated
 - Tests (migración `0015_test_result_entries`, ADR 0039): `test_session.evaluator_id` (evaluador responsable del día), `test_result.exercise` (ejercicio de un resultado de fuerza) y, en `test_result_value`, `entry_id` (los valores de una misma entrada del evaluador) e `inputs` (lo que tipeó cuando el valor lo calculó el servidor), congelados por el guard append-only.
 - `DELETE` solo en `drill`; `test_result_value` es append-only también por grants.
 - `superadmin` solo vale en una transacción que registró su acceso con `app.begin_support_access(motivo)` (`support.access_log`, append-only). Sin `app.request_id` el registro se rechaza.
+- `support.access_log` se lee solo con `app.support_access_entries(...)` (`SECURITY DEFINER`, migración `0034_support_access_read`, [ADR 0066](../../docs/adr/0066-consola-de-superadmin-y-lectura-del-registro-de-soporte.md)): el registro de clubes ve todo; la administración de un club (`admin`, o `superadmin` con su acceso a ese club), solo lo de su club; el resto, `42501`. El esquema `support` sigue sin grants.
 
 ### Esquema `medical` (ADR 0029)
 
