@@ -218,6 +218,13 @@
       "when": 1793684924490,
       "tag": "0030_demo_club",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793686322711,
+      "tag": "0031_sync_change_record_comment",
+      "breakpoints": true
     }
   ]
 }

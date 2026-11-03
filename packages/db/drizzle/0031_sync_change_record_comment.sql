@@ -1,0 +1,5 @@
+-- The trigger of the offline sync's change log (migration 0025, ADR 0050) stamps a field clock
+-- only on what a write authored. Applied migrations are immutable, so the rule that the review
+-- of #167 asked to make explicit lives in the catalog, next to the function (`\df+` shows it).
+COMMENT ON FUNCTION "public"."sync_change_record"() IS
+'Change log of the offline sync (ADR 0050): moves the entry of the row and its scope to the end of the log and stamps the clock (app.sync_hlc, else the server''s) of each editable field the write authored. An update stamps the fields it changed. An insert stamps the fields it set to a value: a NULL in an insert means "nobody wrote this field" and gets no clock, like a default declared in app.sync_defaulted_fields. A field without a clock loses to any real edit. Fields that depend on another (the minutes and contacts of a participation without load) are resolved by the sync engine, not here: a status without load that stays takes the load fields of an edit down with it.';

@@ -221,6 +221,13 @@ describe('errors of the conventions', () => {
       // Retryable, not a bug: no error log (Sentry), a Retry-After.
       expect(response.headers['retry-after']).toBe('1');
       expect(logs.lines().some((l) => l.msg === 'unexpected error')).toBe(false);
+      // Lock contention is visible in the logs: a warning with the SQLSTATE.
+      const line = logs.lines().find((l) => l.msg === 'request ran into a concurrent one');
+      expect(line).toMatchObject({
+        level: 'warn',
+        code: 'service_unavailable',
+        sqlState: fail === 'deadlock' ? '40P01' : '40001',
+      });
     }
     if (fail === 'permission') {
       // The client is not told which rule denied; the logs are.

@@ -249,8 +249,12 @@ export function createErrorHandler(reporter: ErrorReporter) {
       });
     } else {
       // Client errors are expected: no stack, no message (it may echo input). Ids and
-      // names of rules or constraints only, never values.
-      request.log.info(
+      // names of rules or constraints only, never values. A deadlock or a serialization
+      // failure is retryable and not a bug (no Sentry), but it is lock contention worth
+      // watching (two pushes on the same rows, ADR 0050): a warning, not an info.
+      const sqlState = databaseErrorOf(error)?.code;
+      const contention = sqlState === '40P01' || sqlState === '40001';
+      request.log[contention ? 'warn' : 'info'](
         {
           code,
           ...(error instanceof PermissionDeniedError && {
@@ -261,7 +265,7 @@ export function createErrorHandler(reporter: ErrorReporter) {
             constraint: databaseErrorOf(error)?.constraint,
           }),
         },
-        'request rejected',
+        contention ? 'request ran into a concurrent one' : 'request rejected',
       );
     }
     for (const [name, value] of Object.entries(headers)) void reply.header(name, value);
