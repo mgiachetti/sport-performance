@@ -1,7 +1,10 @@
 {
   "extends": "@sport-performance/config/tsconfig/bundler.json",
   "compilerOptions": {
-    "types": ["node"]
+    "jsx": "react-jsx",
+    "declaration": false,
+    "declarationMap": false,
+    "types": ["vite/client", "@testing-library/jest-dom/vitest"]
   },
-  "include": ["src", "vitest.config.ts"]
+  "include": ["src", "vite.config.ts", "vitest.config.ts"]
 }

@@ -1,0 +1,65 @@
+import type { SVGProps } from 'react';
+
+/**
+ * Line icons of the shell (24×24, `currentColor`). Decorative by default
+ * (`aria-hidden`): the text next to them carries the meaning, because a
+ * status is never conveyed by color or icon alone.
+ */
+export type IconName =
+  | 'ok'
+  | 'warning'
+  | 'critical'
+  | 'info'
+  | 'offline'
+  | 'sync'
+  | 'home'
+  | 'club'
+  | 'support'
+  | 'signOut'
+  | 'contrast';
+
+const PATHS: Record<IconName, readonly string[]> = {
+  ok: ['M20 6 9 17l-5-5'],
+  warning: ['M12 3 2 21h20L12 3Z', 'M12 10v5', 'M12 18h.01'],
+  critical: ['M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Z', 'm15 9-6 6', 'm9 9 6 6'],
+  info: ['M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Z', 'M12 11v6', 'M12 7h.01'],
+  offline: ['M2 2l20 20', 'M8.5 16.5a5 5 0 0 1 7 0', 'M5 12.5a10 10 0 0 1 5-2.7', 'M12 20h.01'],
+  sync: [
+    'M21 12a9 9 0 0 1-15.5 6.2L3 16',
+    'M3 12a9 9 0 0 1 15.5-6.2L21 8',
+    'M21 3v5h-5',
+    'M3 21v-5h5',
+  ],
+  home: ['M3 11 12 3l9 8', 'M5 10v10h14V10'],
+  club: ['M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z'],
+  support: ['M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Z', 'M9 9a3 3 0 1 1 3 3v2', 'M12 17h.01'],
+  signOut: ['M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4', 'M10 17l-5-5 5-5', 'M5 12h11'],
+  contrast: ['M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Z', 'M12 2v20'],
+};
+
+export function Icon({
+  name,
+  size = 16,
+  ...rest
+}: { name: IconName; size?: number } & Omit<SVGProps<SVGSVGElement>, 'children'>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+      data-icon={name}
+      {...rest}
+    >
+      {PATHS[name].map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </svg>
+  );
+}

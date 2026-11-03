@@ -1,3 +1,5 @@
+import { webMessagesEsAR } from './web.js';
+
 /**
  * Source catalog: Rioplatense Spanish (vos). Every key exists here first; other locales and club
  * overrides are checked against it.
@@ -10,6 +12,9 @@
  * - Status texts always exist as words: the UI never conveys a state by color alone.
  */
 export const esAR = {
+  // Staff web shell (B-401): kept in its own file
+  ...webMessagesEsAR,
+
   // Shared actions and labels
   'common.save': 'Guardar',
   'common.cancel': 'Cancelar',
