@@ -31,7 +31,12 @@ const STATE_LEVEL: Record<ConsentTypeStatus['state'], StatusLevel> = {
 export type PlayerConsentsState =
   | { readonly status: 'loading' }
   | { readonly status: 'error'; readonly message: string }
-  | { readonly status: 'ready'; readonly consents: PlayerConsents };
+  | {
+      readonly status: 'ready';
+      readonly consents: PlayerConsents;
+      /** The club's, to date the signatures (the device's never). */
+      readonly timeZone: TimeZone;
+    };
 
 export interface PlayerConsentsActions {
   readonly onRead: (documentId: string) => void;
@@ -232,7 +237,6 @@ function DocumentView({
 export function PlayerConsentsScreen({
   state,
   document,
-  timeZone,
   offline,
   busy,
   notice,
@@ -240,10 +244,8 @@ export function PlayerConsentsScreen({
   actions,
 }: {
   readonly state: PlayerConsentsState;
-  /** The text being read before signing. */
+  /** The text being read before signing (opened from the ready list). */
   readonly document: ConsentDocument | null;
-  /** The club's, to date the signatures (the device's never). */
-  readonly timeZone: TimeZone;
   readonly offline: boolean;
   readonly busy: boolean;
   /** "Signed", "revoked", or "kept on…". */
@@ -252,11 +254,11 @@ export function PlayerConsentsScreen({
   readonly actions: PlayerConsentsActions;
 }) {
   const { t } = useTranslator();
-  if (document !== null) {
+  if (document !== null && state.status === 'ready') {
     return (
       <DocumentView
         document={document}
-        timeZone={timeZone}
+        timeZone={state.timeZone}
         busy={busy}
         error={error}
         actions={actions}
@@ -288,7 +290,7 @@ export function PlayerConsentsScreen({
             <TypeCard
               key={status.type}
               status={status}
-              timeZone={timeZone}
+              timeZone={state.timeZone}
               offline={offline}
               busy={busy}
               actions={actions}

@@ -324,9 +324,8 @@ function renderConsents(value: PlayerConsents, offline = false) {
   };
   renderScreen(
     <PlayerConsentsScreen
-      state={{ status: 'ready', consents: value }}
+      state={{ status: 'ready', consents: value, timeZone: TIME_ZONE }}
       document={null}
-      timeZone={TIME_ZONE}
       offline={offline}
       busy={false}
       notice={null}

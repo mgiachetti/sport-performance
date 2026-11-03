@@ -1,6 +1,7 @@
 import { ApiContractError } from '@sport-performance/contracts';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { readCacheKey } from '../offline/read-cache.ts';
 import { useServices, useSession, useSyncStatus } from './app-context.tsx';
 
 /** A read the screen shows: the API's answer, or the last one the phone kept. */
@@ -30,13 +31,15 @@ function useScope(): Scope | null {
 /**
  * An API read that must also work without signal (ADR 0071): the last
  * answer kept in the local database is shown at once, the API is asked in
- * the background and its answer replaces it and is kept for next time. The
- * key names the read and its parameters; both queries are keyed by the
- * membership, so one club never answers another.
+ * the background and its answer replaces it and is kept for next time. Both
+ * queries, and the kept answer, are keyed by the read and its parameters
+ * (`readCacheKey`) and by the membership, so another range or another club
+ * never answers this one.
  */
 export function useOfflineRead<T>(options: {
+  /** The read (`PLAYER_READS`). */
   readonly key: string;
-  /** What else the live answer depends on (the club day): a change asks the API again. */
+  /** Its parameters (the club days of a range): another value is another read. */
   readonly params?: readonly unknown[];
   readonly fetch: (signal: AbortSignal) => Promise<T>;
   readonly enabled?: boolean;
@@ -46,22 +49,20 @@ export function useOfflineRead<T>(options: {
   const scope = useScope();
   const enabled = scope !== null && (options.enabled ?? true);
   const membershipId = scope?.membershipId ?? null;
+  const key = readCacheKey(options.key, options.params);
   const kept = useQuery({
-    queryKey: ['club', membershipId, 'kept', options.key],
-    queryFn: () =>
-      scope === null ? null : services.readCache.get<T>(scope.membershipId, options.key),
+    queryKey: ['club', membershipId, 'kept', key],
+    queryFn: () => (scope === null ? null : services.readCache.get<T>(scope.membershipId, key)),
     enabled,
     staleTime: Infinity,
   });
   const live = useQuery({
-    queryKey: ['club', membershipId, 'live', options.key, ...(options.params ?? [])],
+    queryKey: ['club', membershipId, 'live', key],
     queryFn: async ({ signal }) => {
       const value = await options.fetch(signal);
       const fetchedAt = Date.now();
       if (scope !== null) {
-        await services.readCache
-          .put(scope, options.key, value, fetchedAt)
-          .catch(services.reportError);
+        await services.readCache.put(scope, key, value, fetchedAt).catch(services.reportError);
       }
       return { value, fetchedAt };
     },
@@ -74,6 +75,11 @@ export function useOfflineRead<T>(options: {
     if (contractError !== null) services.reportError(contractError);
   }, [contractError, services]);
 
+  const { refetch: refetchLive } = live;
+  const refetch = useCallback(() => {
+    void refetchLive();
+  }, [refetchLive]);
+
   const cached = kept.data ?? null;
   const value = live.data?.value ?? cached?.value;
   return {
@@ -82,9 +88,7 @@ export function useOfflineRead<T>(options: {
     fromCache: live.data === undefined && cached !== null,
     loading: value === undefined && (live.isPending || kept.isPending) && enabled,
     error: value === undefined && live.isError ? live.error : null,
-    refetch: () => {
-      void live.refetch();
-    },
+    refetch,
   };
 }
 

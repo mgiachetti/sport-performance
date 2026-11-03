@@ -14,7 +14,7 @@ import {
 } from '@sport-performance/domain';
 import { formatDate, formatTime, type Translator } from '@sport-performance/i18n';
 import type { StatusLevel } from '@sport-performance/ui-tokens';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { errorMessage } from '../api/error-message.ts';
 import type { LocalRow, QueuedMutation } from '../offline/local-store.ts';
 import { personalRecords, testHistory } from '../player/records.ts';
@@ -173,6 +173,24 @@ export function PlayerToday({ sync }: { readonly sync?: ReactNode }) {
     },
     `${playerId ?? ''}|${sessionIds.join(',')}`,
   );
+
+  // An acked RPE stays in the queue only for a while (ACKED_OVERLAY_MAX_MS): the
+  // list is asked again as soon as the server has it, so the scale never comes
+  // back from the participation of the previous answer.
+  const ackedRpe = useRef<ReadonlySet<string>>(new Set());
+  const queue = local.value?.queue;
+  const refetchSessions = sessions.refetch;
+  useEffect(() => {
+    if (queue === undefined) return;
+    const acked = new Set(
+      queue
+        .filter((queued) => queued.op === 'rpe.submit' && queued.state === 'acked')
+        .map((queued) => queued.mutationId),
+    );
+    const fresh = [...acked].some((id) => !ackedRpe.current.has(id));
+    ackedRpe.current = acked;
+    if (fresh) refetchSessions();
+  }, [queue, refetchSessions]);
 
   const greetingName =
     me.value?.player.firstName ?? (session.status === 'signedIn' ? session.user.name.trim() : '');
@@ -352,8 +370,10 @@ export function PlayerConsents({ onBack }: { readonly onBack: () => void }) {
   };
 
   let state: PlayerConsentsState;
-  if (consents.value !== undefined) state = { status: 'ready', consents: consents.value };
-  else if (consents.loading || me.loading) state = { status: 'loading' };
+  // The signatures are dated in the club's time zone: the list waits for the profile.
+  if (consents.value !== undefined && timeZone !== null) {
+    state = { status: 'ready', consents: consents.value, timeZone };
+  } else if (consents.loading || me.loading) state = { status: 'loading' };
   else {
     state = {
       status: 'error',
@@ -369,7 +389,6 @@ export function PlayerConsents({ onBack }: { readonly onBack: () => void }) {
     <PlayerConsentsScreen
       state={state}
       document={document}
-      timeZone={timeZone ?? parseTimeZone('America/Argentina/Buenos_Aires')}
       offline={offline}
       busy={busy}
       notice={notice ?? (kept === null ? null : { level: 'warning', text: kept })}

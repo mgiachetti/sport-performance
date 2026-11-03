@@ -12,7 +12,7 @@ import type { RuntimeConfig } from '../config/runtime-config.ts';
 import { reopeningLocalDatabase, type LocalDatabase } from '../offline/db/database.ts';
 import { createSyncEngine, type SyncEngine } from '../offline/engine.ts';
 import { createReadCache, type ReadCache } from '../offline/read-cache.ts';
-import { bindSyncToSession } from '../offline/session-binding.ts';
+import { bindSyncToSession, syncScopeOf } from '../offline/session-binding.ts';
 import type { PreferenceStorage, SecureStorage } from '../platform/storage.ts';
 import { createAppTranslator } from '../ui/i18n.tsx';
 import { createCompatibilityChecker, type AppBuildInfo } from '../version/index.ts';
@@ -172,7 +172,9 @@ export function createAppServices(platform: Platform): AppServices {
     sync,
     iftRunStore,
     iftRunner,
-    readCache: createReadCache(localDatabase),
+    readCache: createReadCache(localDatabase, {
+      activeScope: () => syncScopeOf(session.getState()),
+    }),
     randomUUID: platform.randomUUID,
     reportError,
     dispose() {

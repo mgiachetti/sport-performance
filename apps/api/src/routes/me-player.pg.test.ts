@@ -3,7 +3,7 @@
  * the real connection roles: only the `player` role about themselves, the
  * wellness item set and the permissions of today's stage, and the upcoming
  * test days of their categories with the tests the seeded battery schedules
- * for them.
+ * for them; nothing of another club.
  */
 import type { ClubId } from '@sport-performance/domain';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';
@@ -54,8 +54,12 @@ describeWithPostgres('player app reads (Postgres)', (serverUrl) => {
   let player13: SignedIn;
   let player15: SignedIn;
   let playerNoConsent: SignedIn;
+  let adminB: SignedIn;
+  let playerB: SignedIn;
   let clubA: ClubId;
+  let clubB: ClubId;
   const categories: Record<string, string> = {};
+  const categoriesB: Record<string, string> = {};
   let p13 = '';
   let p15 = '';
   let today = '';
@@ -63,6 +67,8 @@ describeWithPostgres('player app reads (Postgres)', (serverUrl) => {
   let m17Day = '';
   let cancelled = '';
   let past = '';
+  let pB = '';
+  let dayB = '';
 
   const registry = () => ({ ...superadmin.headers, 'x-support-reason': SUPPORT_REASON });
   const post = (caller: SignedIn, url: string, payload: unknown) =>
@@ -77,31 +83,66 @@ describeWithPostgres('player app reads (Postgres)', (serverUrl) => {
     return rows[0]?.day ?? '';
   }
 
+  /**
+   * A birth date `years` old today (the stage comes from the category here,
+   * but the ages stay those of the category if it ever depends on age).
+   */
+  function bornYearsAgo(years: number, monthDay: string): string {
+    return `${String(Number(today.slice(0, 4)) - years)}-${monthDay}`;
+  }
+
+  async function createClub(
+    slug: string,
+  ): Promise<{ id: ClubId; categories: Record<string, string> }> {
+    const created = await t.app.inject({
+      method: 'POST',
+      url: '/v1/clubs',
+      headers: registry(),
+      payload: {
+        slug,
+        name: `Club ${slug}`,
+        shortName: slug.toUpperCase().replace('-', ''),
+        branches: [{ sport: 'rugby', sex: 'male' }],
+      },
+    });
+    expect(created.statusCode, created.body).toBe(201);
+    const id = created.json<{ club: { id: ClubId } }>().club.id;
+    const rows = await database.admin.query<{ id: string; age_band_code: string }>(
+      `select id, age_band_code from category where club_id = $1`,
+      [id],
+    );
+    const byBand: Record<string, string> = {};
+    for (const row of rows.rows) byBand[row.age_band_code] = row.id;
+    return { id, categories: byBand };
+  }
+
   async function insertPlayer(
     user: SignedIn,
     birthDate: string,
     categoryId: string,
     consent: boolean,
+    clubId: ClubId = clubA,
+    signer: SignedIn = adminA,
   ): Promise<string> {
     const created = await database.admin.query<{ id: string }>(
       `insert into player (club_id, user_id, first_name, last_name, birth_date, sex, sport, joined_on)
        values ($1, $2, 'Juan', 'Pérez', $3, 'male', 'rugby', '2020-01-01') returning id`,
-      [clubA, user.userId, birthDate],
+      [clubId, user.userId, birthDate],
     );
     const id = created.rows[0]?.id ?? '';
     await database.admin.query(
       `insert into player_category (club_id, player_id, category_id, valid_from)
        values ($1, $2, $3, '2020-01-01')`,
-      [clubA, id, categoryId],
+      [clubId, id, categoryId],
     );
     if (consent) {
       await database.admin.query(
         `insert into consent (club_id, player_id, type, document_version, signer_kind, signed_by)
          values ($1, $2, 'data', 'v1', 'guardian', $3)`,
-        [clubA, id, adminA.userId],
+        [clubId, id, signer.userId],
       );
     }
-    await createMembership(database.admin, user.userId, clubA, 'player');
+    await createMembership(database.admin, user.userId, clubId, 'player');
     return id;
   }
 
@@ -109,8 +150,9 @@ describeWithPostgres('player app reads (Postgres)', (serverUrl) => {
     categoryId: string,
     scheduledOn: string,
     testWindowId: string | null,
+    admin: SignedIn = adminA,
   ): Promise<string> {
-    const response = await post(adminA, '/v1/test-sessions', {
+    const response = await post(admin, '/v1/test-sessions', {
       categoryId,
       scheduledOn,
       ...(testWindowId !== null && { testWindowId }),
@@ -141,24 +183,12 @@ describeWithPostgres('player app reads (Postgres)', (serverUrl) => {
     player15 = await signIn(t, 'player15@app-a.example.com');
     playerNoConsent = await signIn(t, 'player-nc@app-a.example.com');
 
-    const created = await t.app.inject({
-      method: 'POST',
-      url: '/v1/clubs',
-      headers: registry(),
-      payload: {
-        slug: 'app-a',
-        name: 'Club app-a',
-        shortName: 'APPA',
-        branches: [{ sport: 'rugby', sex: 'male' }],
-      },
-    });
-    expect(created.statusCode, created.body).toBe(201);
-    clubA = created.json<{ club: { id: ClubId } }>().club.id;
-    const rows = await database.admin.query<{ id: string; age_band_code: string }>(
-      `select id, age_band_code from category where club_id = $1`,
-      [clubA],
-    );
-    for (const row of rows.rows) categories[row.age_band_code] = row.id;
+    adminB = await signIn(t, 'admin@app-b.example.com');
+    playerB = await signIn(t, 'player@app-b.example.com');
+
+    const a = await createClub('app-a');
+    clubA = a.id;
+    Object.assign(categories, a.categories);
     await createMembership(database.admin, adminA.userId, clubA, 'admin');
     await createMembership(database.admin, coachA.userId, clubA, 'coach');
 
@@ -167,9 +197,23 @@ describeWithPostgres('player app reads (Postgres)', (serverUrl) => {
       [clubA],
     );
     today = day[0]?.today ?? '';
-    p13 = await insertPlayer(player13, '2013-05-04', categories.m13 ?? '', true);
-    p15 = await insertPlayer(player15, '2011-05-04', categories.m15 ?? '', true);
-    await insertPlayer(playerNoConsent, '2011-08-01', categories.m15 ?? '', false);
+    p13 = await insertPlayer(player13, bornYearsAgo(13, '01-04'), categories.m13 ?? '', true);
+    p15 = await insertPlayer(player15, bornYearsAgo(15, '01-04'), categories.m15 ?? '', true);
+    await insertPlayer(playerNoConsent, bornYearsAgo(15, '02-01'), categories.m15 ?? '', false);
+
+    // Another club, with a player of the same category and a test day of its own.
+    const b = await createClub('app-b');
+    clubB = b.id;
+    Object.assign(categoriesB, b.categories);
+    await createMembership(database.admin, adminB.userId, clubB, 'admin');
+    pB = await insertPlayer(
+      playerB,
+      bornYearsAgo(15, '01-04'),
+      categoriesB.m15 ?? '',
+      true,
+      clubB,
+      adminB,
+    );
 
     const season = await post(adminA, '/v1/seasons', {
       sport: 'rugby',
@@ -193,6 +237,7 @@ describeWithPostgres('player app reads (Postgres)', (serverUrl) => {
     const cancel = await post(adminA, `/v1/test-sessions/${cancelled}/cancel`, {});
     expect(cancel.statusCode, cancel.body).toBe(200);
     past = await scheduleDay(categories.m15 ?? '', await addDays(today, -2), windowId);
+    dayB = await scheduleDay(categoriesB.m15 ?? '', await addDays(today, 7), null, adminB);
   });
 
   afterAll(async () => {
@@ -256,5 +301,19 @@ describeWithPostgres('player app reads (Postgres)', (serverUrl) => {
   it('has nothing for a player of a category without test days', async () => {
     const body = (await get(player13, '/v1/me/test-days')).json<TestDaysBody>();
     expect(body.items).toEqual([]);
+  });
+
+  it('never answers with another club', async () => {
+    // The club A player never sees the day of club B's M15, the same category and date.
+    const days = (await get(player15, '/v1/me/test-days')).json<TestDaysBody>();
+    expect(days.items.map((item) => item.id)).not.toContain(dayB);
+    // The club B player gets their own profile and their own day, nothing of club A.
+    const response = await get(playerB, '/v1/me/player');
+    expect(response.statusCode, response.body).toBe(200);
+    const me = response.json<MyPlayerBody>();
+    expect(me.player.id).toBe(pB);
+    expect(me.categoryId).toBe(categoriesB.m15);
+    const own = (await get(playerB, '/v1/me/test-days')).json<TestDaysBody>();
+    expect(own.items.map((item) => item.id)).toEqual([dayB]);
   });
 });
