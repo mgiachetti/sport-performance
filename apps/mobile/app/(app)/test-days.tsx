@@ -26,7 +26,13 @@ import {
 import { createTestDayController } from '../../src/test-day/controller.ts';
 import { canRunIft3015 } from '../../src/ift/roster.ts';
 import { iftRunForDay } from '../../src/test-day/ift.ts';
-import { clubTimeZone, testDayLists, today, type ClubContext } from '../../src/test-day/data.ts';
+import {
+  SHEET_FRESH_MS,
+  clubTimeZone,
+  testDayLists,
+  today,
+  type ClubContext,
+} from '../../src/test-day/data.ts';
 import type { FieldResult, StationSettings } from '../../src/test-day/model.ts';
 import type { StationView } from '../../src/test-day/controller.ts';
 import { useTranslator } from '../../src/ui/i18n.tsx';
@@ -118,6 +124,13 @@ function TestDaysOf({
         : (context?.categories.find((c) => c.id === categoryId)?.name ?? '—'),
     [context, translator],
   );
+  const windowName = useCallback(
+    (testWindowId: string | null) =>
+      testWindowId === null
+        ? translator.t('testDay.window.none')
+        : (context?.testWindows.find((w) => w.id === testWindowId)?.label ?? '—'),
+    [context, translator],
+  );
 
   const [days, setDays] = useState<readonly TestSession[] | null>(null);
   const [saved, setSaved] = useState<ReadonlyMap<string, number>>(new Map());
@@ -135,8 +148,10 @@ function TestDaysOf({
     };
   }, [controller, day, reloadKey, reportError]);
 
-  // Downloads the sheets of the coming days while there is signal.
+  // Downloads the sheets of the coming days while there is signal, again when
+  // the days change and every time a saved sheet gets old.
   const prefetchKey = days?.map((d) => `${d.id}:${d.version}`).join(',') ?? '';
+  const freshnessSlot = Math.floor(now / SHEET_FRESH_MS);
   useEffect(() => {
     if (days === null || offline) return;
     const abort = new AbortController();
@@ -151,7 +166,7 @@ function TestDaysOf({
     };
     // `days` itself changes on every re-read; its ids and versions decide.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [controller, prefetchKey, day, offline, bump, report]);
+  }, [controller, prefetchKey, freshnessSlot, day, offline, bump, report]);
 
   const [dayId, setDayId] = useState<string | null>(null);
   const [stationCode, setStationCode] = useState<string | null>(null);
@@ -271,7 +286,9 @@ function TestDaysOf({
       <TestDayListScreen
         state={listState}
         categoryName={categoryName}
-        savedSheets={new Set(saved.keys())}
+        windowName={windowName}
+        savedSheets={saved}
+        timeZone={timeZone}
         offline={offline && syncStatus.phase !== 'offline'}
         sync={sync}
         onOpen={(id) => {
@@ -334,7 +351,8 @@ function TestDaysOf({
                     params: { testSessionId: sheet.data.testSession.id },
                   });
                 },
-                onSaved: () => services.iftRunner.discard(),
+                onMarkSaved: services.iftRunner.markSaved,
+                onDiscard: services.iftRunner.discard,
               },
             }
           : {})}

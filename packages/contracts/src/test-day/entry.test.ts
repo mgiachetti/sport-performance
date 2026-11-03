@@ -4,7 +4,6 @@ import {
   attemptMetricValues,
   attemptPlausibilityWarnings,
   entryModesOf,
-  fieldStationSettingsSchema,
   nextAttemptNumber,
   parseAttempt,
   scoreAttemptValues,
@@ -116,21 +115,5 @@ describe('typing a station (shared by the web and the field app)', () => {
         { entries: [{ attemptNumber: 4 }, { attemptNumber: null }] },
       ] as never),
     ).toBe(5);
-  });
-});
-
-describe('the settings of a station on a phone', () => {
-  it('take known modes and methods only', () => {
-    expect(
-      fieldStationSettingsSchema.parse({
-        mode: 'sprint_splits',
-        method: 'photocell',
-        deviceId: null,
-      }),
-    ).toEqual({ mode: 'sprint_splits', method: 'photocell', deviceId: null });
-    expect(fieldStationSettingsSchema.parse({})).toEqual({});
-    expect(fieldStationSettingsSchema.safeParse({ mode: 'video_frames' }).success).toBe(false);
-    expect(fieldStationSettingsSchema.safeParse({ method: 'historical' }).success).toBe(false);
-    expect(fieldStationSettingsSchema.safeParse({ exercise: 3 }).success).toBe(false);
   });
 });

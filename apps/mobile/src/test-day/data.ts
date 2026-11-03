@@ -1,5 +1,4 @@
 import {
-  fieldStationSettingsSchema,
   testDaySheetSchema,
   type ApiClient,
   type TestDaySheet,
@@ -21,6 +20,7 @@ import type { CachedRead, ReadCache, ReadCacheScope, ReadSchema } from '../offli
 import {
   TEST_DAY_OPERATIONS,
   fieldResults,
+  parseStoredStationSettings,
   type FieldResult,
   type FieldWrite,
   type StationSettings,
@@ -52,26 +52,46 @@ export const SHEET_FRESH_MS = 15 * 60_000;
 /** Past days the list shows. */
 export const RECENT_DAYS = 30;
 
-// ─── Club context: time zone and category names ─────────────────────────────────────
+// ─── Club context: time zone, category names and test windows ───────────────────────
 
 export interface ClubContext {
   readonly timeZone: string;
   readonly categories: readonly { readonly id: string; readonly name: string }[];
+  /** The windows of the club's seasons (V1 to V4), so the list of days names them. */
+  readonly testWindows: readonly { readonly id: string; readonly label: string }[];
+}
+
+function namedList(value: unknown, name: 'name' | 'label'): { id: string; name: string }[] | null {
+  if (!Array.isArray(value)) return null;
+  const list: { id: string; name: string }[] = [];
+  for (const item of value as unknown[]) {
+    if (typeof item !== 'object' || item === null) return null;
+    const record = item as Record<string, unknown>;
+    const id = record.id;
+    const text = record[name];
+    if (typeof id !== 'string' || typeof text !== 'string') return null;
+    list.push({ id, name: text });
+  }
+  return list;
 }
 
 export const clubContextSchema: ReadSchema<ClubContext> = {
   safeParse(value) {
     if (typeof value !== 'object' || value === null) return { success: false };
-    const { timeZone, categories } = value as Record<string, unknown>;
-    if (typeof timeZone !== 'string' || !Array.isArray(categories)) return { success: false };
-    const list: { id: string; name: string }[] = [];
-    for (const item of categories as unknown[]) {
-      if (typeof item !== 'object' || item === null) return { success: false };
-      const { id, name } = item as Record<string, unknown>;
-      if (typeof id !== 'string' || typeof name !== 'string') return { success: false };
-      list.push({ id, name });
-    }
-    return { success: true, data: { timeZone, categories: list } };
+    const { timeZone, categories, testWindows } = value as Record<string, unknown>;
+    if (typeof timeZone !== 'string') return { success: false };
+    const categoryList = namedList(categories, 'name');
+    // A context saved before the windows were kept reads with none until the next refresh.
+    const windowList = testWindows === undefined ? [] : namedList(testWindows, 'label');
+    if (categoryList === null || windowList === null) return { success: false };
+    return {
+      success: true,
+      data: {
+        timeZone,
+        categories: categoryList,
+        testWindows: windowList.map(({ id, name }) => ({ id, label: name })),
+      },
+    };
   },
 };
 
@@ -86,7 +106,7 @@ const PAGE_LIMIT = 100;
 const MAX_PAGES = 20;
 
 export async function refreshClubContext(
-  api: Pick<ApiClient, 'getClub' | 'listCategories'>,
+  api: Pick<ApiClient, 'getClub' | 'listCategories' | 'listSeasons'>,
   cache: ReadCache,
   scope: ReadCacheScope,
   signal?: AbortSignal,
@@ -104,7 +124,20 @@ export async function refreshClubContext(
     if (result.nextCursor === null) break;
     cursor = result.nextCursor;
   }
-  const context: ClubContext = { timeZone: club.timeZone, categories };
+  const testWindows: { id: string; label: string }[] = [];
+  cursor = undefined;
+  for (let page = 0; page < MAX_PAGES; page += 1) {
+    const result = await api.listSeasons(
+      { query: { limit: PAGE_LIMIT, status: 'all', ...(cursor === undefined ? {} : { cursor }) } },
+      options,
+    );
+    for (const season of result.items) {
+      testWindows.push(...season.testWindows.map((w) => ({ id: w.id, label: w.label })));
+    }
+    if (result.nextCursor === null) break;
+    cursor = result.nextCursor;
+  }
+  const context: ClubContext = { timeZone: club.timeZone, categories, testWindows };
   await cache.put(scope, CLUB_CONTEXT_KEY, context);
   return context;
 }
@@ -245,17 +278,7 @@ export async function enqueueWrites(
 /** The settings of a station on this phone, checked with their contract. */
 export const stationSettingsSchema: ReadSchema<Partial<StationSettings>> = {
   safeParse(value) {
-    const parsed = fieldStationSettingsSchema.safeParse(value);
-    if (!parsed.success) return { success: false };
-    const { mode, method, deviceId, exercise } = parsed.data;
-    return {
-      success: true,
-      data: {
-        ...(mode === undefined ? {} : { mode }),
-        ...(method === undefined ? {} : { method }),
-        ...(deviceId === undefined ? {} : { deviceId }),
-        ...(exercise === undefined ? {} : { exercise }),
-      },
-    };
+    const parsed = parseStoredStationSettings(value);
+    return parsed === null ? { success: false } : { success: true, data: parsed };
   },
 };

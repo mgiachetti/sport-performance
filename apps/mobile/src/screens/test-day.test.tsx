@@ -16,6 +16,7 @@ import { must } from '../test/must.ts';
 import { renderScreen, translator } from '../test/render.tsx';
 import {
   ANA_ID,
+  BRUNO_ID,
   DIEGO_ID,
   IFT,
   SESSION_ID,
@@ -70,18 +71,26 @@ describe('TestDayListScreen', () => {
       <TestDayListScreen
         state={{ status: 'ready', upcoming: [testSession(), later], recent: [] }}
         categoryName={() => 'M15'}
-        savedSheets={new Set([SESSION_ID])}
+        windowName={(id) => (id === null ? t('testDay.window.none') : 'V2')}
+        savedSheets={new Map([[SESSION_ID, Date.UTC(2026, 3, 14, 12, 0)]])}
+        timeZone={DEFAULT_CLUB_TIME_ZONE}
         offline={false}
         onOpen={onOpen}
       />,
     );
-    expect(screen.getByText(t('fieldTest.day.offlineReady'))).toBeDefined();
+    // The window of each day and when its saved sheet was last updated.
+    expect(
+      screen.getByText(t('fieldTest.day.offlineReadyAt', { date: '14/04/2026 09:00' })),
+    ).toBeDefined();
+    expect(screen.getAllByText(`V2 · ${t('testDay.status.in_progress')}`).length).toBeGreaterThan(
+      0,
+    );
     expect(screen.getByText(t('fieldTest.day.notDownloaded'))).toBeDefined();
     expect(screen.getByText(t('testDay.list.emptyPast'))).toBeDefined();
     fireEvent.click(
       must(
         screen.getAllByRole('button', {
-          name: t('fieldTest.day.open', { date: '14/04/2026', category: 'M15' }),
+          name: t('fieldTest.day.open', { date: '14/04/2026', category: 'M15', window: 'V2' }),
         })[0],
       ),
     );
@@ -209,6 +218,35 @@ describe('StationScreen', () => {
     });
   });
 
+  it('records the players out of their stage once, even with a double tap', async () => {
+    const base = sheetFixture();
+    const sheet = {
+      ...base,
+      players: base.players.map((p) =>
+        p.id === BRUNO_ID
+          ? {
+              ...p,
+              tests: p.tests.map((test) => ({
+                ...test,
+                applicable: false,
+                reason: 'not_in_battery' as const,
+              })),
+            }
+          : p,
+      ),
+    };
+    const { onSubmit } = station(sheet);
+    const button = screen.getByRole('button', {
+      name: t('fieldTest.notApplicable.all', { count: 1 }),
+    });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    await waitFor(() => {
+      expect(screen.getByText(t('fieldTest.notApplicable.saved', { count: 1 }))).toBeDefined();
+    });
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
   it('shows a player without consent but offers nothing to load', () => {
     station(sheetFixture());
     fireEvent.click(
@@ -221,60 +259,109 @@ describe('StationScreen', () => {
   });
 });
 
+function iftStation(
+  stages: readonly { playerId: string; lastCompletedStage: number }[],
+  onSubmit = vi.fn<(writes: readonly FieldWrite[]) => Promise<void>>(() => Promise.resolve()),
+) {
+  const sheet = sheetFixture({ stations: [IFT] });
+  const results = fieldResults({ sheet, synced: [], queue: [], viewer: 'sc' });
+  const rows = sheet.players.map((p) => playerStation(IFT, p, results));
+  const settings = defaultStationSettings(IFT);
+  const onMarkSaved = vi.fn<(playerIds: readonly string[]) => void>();
+  const onDiscard = vi.fn(() => Promise.resolve());
+  renderScreen(
+    <StationScreen
+      sheet={sheet}
+      station={IFT}
+      rows={rows}
+      settings={settings}
+      viewer="sc"
+      writeContext={() => ({
+        sheet,
+        station: IFT,
+        settings,
+        evaluatorId: USER.id,
+        uuid: randomUUID,
+        nowIso: '2026-04-14T13:00:00.000Z',
+      })}
+      onSubmit={onSubmit}
+      onChangeSettings={vi.fn()}
+      onBack={vi.fn()}
+      ift={{
+        run: { status: 'finished', stages, savedCount: 0 },
+        onOpenRunner: vi.fn(),
+        onMarkSaved,
+        onDiscard,
+      }}
+    />,
+  );
+  return { onSubmit, onMarkSaved, onDiscard };
+}
+
 describe('the 30-15 station', () => {
   it('saves the stages the signals left on the phone and then forgets the run', async () => {
-    const sheet = sheetFixture({ stations: [IFT] });
-    const results = fieldResults({ sheet, synced: [], queue: [], viewer: 'sc' });
-    const rows = sheet.players.map((p) => playerStation(IFT, p, results));
-    const settings = defaultStationSettings(IFT);
-    const onSubmit = vi.fn<(writes: readonly FieldWrite[]) => Promise<void>>(() =>
-      Promise.resolve(),
-    );
-    const onSaved = vi.fn(() => Promise.resolve());
-    renderScreen(
-      <StationScreen
-        sheet={sheet}
-        station={IFT}
-        rows={rows}
-        settings={settings}
-        viewer="sc"
-        writeContext={() => ({
-          sheet,
-          station: IFT,
-          settings,
-          evaluatorId: USER.id,
-          uuid: randomUUID,
-          nowIso: '2026-04-14T13:00:00.000Z',
-        })}
-        onSubmit={onSubmit}
-        onChangeSettings={vi.fn()}
-        onBack={vi.fn()}
-        ift={{
-          run: {
-            status: 'finished',
-            stages: [
-              { playerId: ANA_ID, lastCompletedStage: 20 },
-              { playerId: DIEGO_ID, lastCompletedStage: 18 },
-            ],
-          },
-          onOpenRunner: vi.fn(),
-          onSaved,
-        }}
-      />,
-    );
+    const { onSubmit, onMarkSaved, onDiscard } = iftStation([
+      { playerId: ANA_ID, lastCompletedStage: 20 },
+      { playerId: BRUNO_ID, lastCompletedStage: 17 },
+    ]);
     expect(screen.getByText(t('fieldTest.ift.pending', { count: 2 }))).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: t('fieldTest.ift.save') }));
     await waitFor(() => {
-      expect(onSaved).toHaveBeenCalledTimes(1);
+      expect(onDiscard).toHaveBeenCalledTimes(1);
+    });
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onMarkSaved).toHaveBeenCalledWith([ANA_ID, BRUNO_ID]);
+    expect(screen.getByText(t('fieldTest.ift.saved', { count: 2 }))).toBeDefined();
+  });
+
+  it('keeps the run and lists the players it cannot save until the staff dismisses it', async () => {
+    const { onSubmit, onMarkSaved, onDiscard } = iftStation([
+      { playerId: ANA_ID, lastCompletedStage: 20 },
+      { playerId: DIEGO_ID, lastCompletedStage: 18 },
+    ]);
+    // Diego has no consent: his stage is shown for the staff to load by hand.
+    expect(screen.getByText(t('fieldTest.ift.skippedList', { count: 1 }))).toBeDefined();
+    expect(
+      screen.getByText(t('fieldTest.ift.skippedPlayer', { player: 'Juan Díaz', stage: 18 })),
+    ).toBeDefined();
+    expect(screen.queryByRole('button', { name: t('fieldTest.ift.discard') })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: t('fieldTest.ift.save') }));
+    await waitFor(() => {
+      expect(onMarkSaved).toHaveBeenCalledWith([ANA_ID]);
     });
     expect(must(onSubmit.mock.calls[0])[0][0]?.input).toMatchObject({
       body: { results: [{ playerId: ANA_ID, entries: [{ lastCompletedStage: 20 }] }] },
     });
-    // Diego has no consent: left for the staff to load.
+    expect(onDiscard).not.toHaveBeenCalled();
     expect(
       screen.getByText(
         `${t('fieldTest.ift.saved', { count: 1 })} ${t('fieldTest.ift.skipped', { count: 1 })}`,
       ),
     ).toBeDefined();
+  });
+
+  it('offers only to dismiss the run when nothing left can be saved here', async () => {
+    const { onSubmit, onDiscard } = iftStation([{ playerId: DIEGO_ID, lastCompletedStage: 18 }]);
+    expect(screen.queryByRole('button', { name: t('fieldTest.ift.save') })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: t('fieldTest.ift.discard') }));
+    await waitFor(() => {
+      expect(onDiscard).toHaveBeenCalledTimes(1);
+    });
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('keeps the run when the stages could not be queued', async () => {
+    const { onMarkSaved, onDiscard } = iftStation(
+      [{ playerId: ANA_ID, lastCompletedStage: 20 }],
+      vi.fn<(writes: readonly FieldWrite[]) => Promise<void>>(() =>
+        Promise.reject(new Error('disk full')),
+      ),
+    );
+    fireEvent.click(screen.getByRole('button', { name: t('fieldTest.ift.save') }));
+    await waitFor(() => {
+      expect(screen.getByText(t('fieldTest.ift.saveFailed'))).toBeDefined();
+    });
+    expect(onMarkSaved).not.toHaveBeenCalled();
+    expect(onDiscard).not.toHaveBeenCalled();
   });
 });

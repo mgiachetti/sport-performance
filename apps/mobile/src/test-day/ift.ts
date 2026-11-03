@@ -26,7 +26,13 @@ export type IftRunForDay =
   | { readonly status: 'none' }
   /** A run of this category is under way or interrupted: finish it first. */
   | { readonly status: 'running' }
-  | { readonly status: 'finished'; readonly stages: readonly IftStage[] };
+  | {
+      readonly status: 'finished';
+      /** Stages still to save: the players the station has not queued yet. */
+      readonly stages: readonly IftStage[];
+      /** Players of the run whose stage the station already queued. */
+      readonly savedCount: number;
+    };
 
 /** What the 30-15 station of a day can do with the run on the phone. */
 export function iftRunForDay(
@@ -48,14 +54,20 @@ export function iftRunForDay(
   const dayProtocol = ift3015SignalProtocol(station.definition.protocol.parameters);
   if (!sameIftProtocol(run.protocol, dayProtocol)) return { status: 'none' };
   const roster = new Set<string>(sheet.players.map((p) => p.id));
+  const saved = new Set(run.savedPlayerIds);
   const stages = run.players.flatMap((marks) => {
+    if (saved.has(marks.playerId)) return [];
     const result = ift3015PlayerResult(marks, run.protocol);
     // Without stage 1 completed there is no VIFT to record.
     const entry = result?.entry ?? null;
     if (result === null || entry === null || !roster.has(result.playerId)) return [];
     return [{ playerId: result.playerId, lastCompletedStage: entry.lastCompletedStage }];
   });
-  return { status: 'finished', stages };
+  return {
+    status: 'finished',
+    stages,
+    savedCount: run.players.filter((marks) => saved.has(marks.playerId)).length,
+  };
 }
 
 function sameIftProtocol(a: Ift3015SignalProtocol, b: Ift3015SignalProtocol): boolean {

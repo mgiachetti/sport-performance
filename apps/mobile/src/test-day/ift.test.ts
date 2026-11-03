@@ -26,6 +26,7 @@ function run(overrides: Partial<IftRunSnapshot> = {}): IftRunSnapshot {
     runId: 'r1',
     categoryId: CATEGORY_ID,
     testSessionId: SESSION_ID,
+    savedPlayerIds: [],
     protocol: P,
     stage1WallMs: 0,
     status: 'finished',
@@ -52,6 +53,16 @@ describe('the 30-15 run on the phone and the station of a day', () => {
     expect(result.status).toBe('finished');
     if (result.status !== 'finished') return;
     expect(result.stages).toEqual([{ playerId: ANA_ID, lastCompletedStage: 2 }]);
+    expect(result.savedCount).toBe(0);
+  });
+
+  it('leaves out the players whose stage was already queued', () => {
+    const state: IftRunnerState = { status: 'finished', run: run({ savedPlayerIds: [ANA_ID] }) };
+    expect(iftRunForDay(state, SCOPE, daySheet())).toEqual({
+      status: 'finished',
+      stages: [],
+      savedCount: 1,
+    });
   });
 
   it('asks to finish a run under way, and ignores runs of another category or user', () => {

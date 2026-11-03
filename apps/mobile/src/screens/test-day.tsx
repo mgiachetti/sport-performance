@@ -29,13 +29,14 @@ import {
   unitLabelEsAr,
   type Translator,
 } from '@sport-performance/i18n';
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 import {
   FIELD_NOT_DONE_REASONS,
   nextPendingPlayer,
   planAttempt,
   planIftStages,
+  notApplicableCount,
   planNotApplicable,
   planNotDone,
   planVoid,
@@ -216,15 +217,20 @@ function windowLabel(t: T, sheet: Pick<TestDaySheet, 'testWindow'>): string {
 export function TestDayListScreen({
   state,
   categoryName,
+  windowName,
   savedSheets,
+  timeZone,
   offline,
   sync,
   onOpen,
 }: {
   readonly state: TestDayListState;
   readonly categoryName: (categoryId: string | null) => string;
-  /** Days whose sheet is saved on the phone. */
-  readonly savedSheets: ReadonlySet<string>;
+  /** The label of a window (V1 to V4), or «Sin ventana». */
+  readonly windowName: (testWindowId: string | null) => string;
+  /** When the sheet of each day saved on the phone was downloaded (epoch ms), by day. */
+  readonly savedSheets: ReadonlyMap<string, number>;
+  readonly timeZone: TimeZone;
   readonly offline: boolean;
   readonly sync?: ReactNode;
   readonly onOpen: (testSessionId: string) => void;
@@ -232,20 +238,25 @@ export function TestDayListScreen({
   const { t } = useTranslator();
   const day = (session: TestSession) => {
     const category = categoryName(session.categoryId);
+    const window = windowName(session.testWindowId);
     const date = formatLocalDate(session.scheduledOn);
-    const saved = savedSheets.has(session.id);
+    const savedAt = savedSheets.get(session.id);
     return (
       <OpenRow
         key={session.id}
-        label={t('fieldTest.day.open', { date, category })}
+        label={t('fieldTest.day.open', { date, category, window })}
         title={`${date} · ${category}`}
-        detail={t(`testDay.status.${session.status}`)}
+        detail={`${window} · ${t(`testDay.status.${session.status}`)}`}
         onPress={() => {
           onOpen(session.id);
         }}
       >
-        <StatusMessage level={saved ? 'ok' : 'warning'}>
-          {saved ? t('fieldTest.day.offlineReady') : t('fieldTest.day.notDownloaded')}
+        <StatusMessage level={savedAt === undefined ? 'warning' : 'ok'}>
+          {savedAt === undefined
+            ? t('fieldTest.day.notDownloaded')
+            : t('fieldTest.day.offlineReadyAt', {
+                date: formatDateTime(savedAt, { timeZone }),
+              })}
         </StatusMessage>
       </OpenRow>
     );
@@ -1119,18 +1130,85 @@ export function StationScreen({
   readonly ift?: {
     readonly run: IftRunForDay;
     readonly onOpenRunner: () => void;
-    /** The stages were queued: the run can be forgotten. */
-    readonly onSaved: () => Promise<void>;
+    /** The stages of these players were queued: never offered again. */
+    readonly onMarkSaved: (playerIds: readonly string[]) => void;
+    /** Forgets the run: every stage was queued, or the staff dismissed it. */
+    readonly onDiscard: () => Promise<void>;
   };
 }) {
   const translator = useTranslator();
   const { t } = translator;
   const [openId, setOpenId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
   const [savingIft, setSavingIft] = useState(false);
+  const [savingNotApplicable, setSavingNotApplicable] = useState(false);
+  // A second tap before the rows are read again would plan the same writes twice.
+  const iftInFlight = useRef(false);
+  const notApplicableInFlight = useRef(false);
   const cancelled = sheet.testSession.status === 'cancelled';
   const recorded = rows.filter((r) => r.state !== 'empty').length;
-  const notApplicable = planNotApplicable(writeContext(), rows);
+  const notApplicable = notApplicableCount(sheet, rows);
+  // What the 30-15 run left that this station cannot record (planned without drawing ids).
+  const iftStages = ift?.run.status === 'finished' ? ift.run.stages : [];
+  const iftBlocked =
+    iftStages.length === 0
+      ? []
+      : planIftStages({ ...writeContext(), uuid: () => '' }, rows, iftStages).skipped;
+  const iftRecordable = iftStages.length - iftBlocked.length;
+  const nameOf = (playerId: string) => {
+    const player = sheet.players.find((p) => p.id === playerId);
+    return player === undefined ? '—' : playerName(player);
+  };
+
+  const saveIft = async () => {
+    if (ift?.run.status !== 'finished' || iftInFlight.current) return;
+    const planned = planIftStages(writeContext(), rows, ift.run.stages);
+    iftInFlight.current = true;
+    setSavingIft(true);
+    setFailure(null);
+    let saved = 0;
+    try {
+      // Step by step: whatever was queued is marked on the run before the next
+      // one, so a retry after a failure never queues a stage twice.
+      for (const step of planned.steps) {
+        await onSubmit(step.writes);
+        ift.onMarkSaved(step.playerIds);
+        saved += step.playerIds.length;
+      }
+      // The run is forgotten only when nothing is left to load by hand.
+      if (planned.skipped.length === 0) await ift.onDiscard();
+      setNotice(
+        planned.skipped.length === 0
+          ? t('fieldTest.ift.saved', { count: saved })
+          : `${t('fieldTest.ift.saved', { count: saved })} ${t('fieldTest.ift.skipped', { count: planned.skipped.length })}`,
+      );
+    } catch {
+      setNotice(null);
+      setFailure(t('fieldTest.ift.saveFailed'));
+    } finally {
+      iftInFlight.current = false;
+      setSavingIft(false);
+    }
+  };
+
+  const saveNotApplicable = async () => {
+    if (notApplicableInFlight.current) return;
+    const planned = planNotApplicable(writeContext(), rows);
+    if (planned.count === 0) return;
+    notApplicableInFlight.current = true;
+    setSavingNotApplicable(true);
+    setFailure(null);
+    try {
+      await onSubmit(planned.writes);
+      setNotice(t('fieldTest.notApplicable.saved', { count: planned.count }));
+    } catch {
+      setFailure(t('fieldTest.saveFailed'));
+    } finally {
+      notApplicableInFlight.current = false;
+      setSavingNotApplicable(false);
+    }
+  };
 
   const actions: PlayerActions = {
     submit: async (plan, confirmed) => {
@@ -1173,29 +1251,48 @@ export function StationScreen({
           ) : ift.run.status === 'finished' ? (
             <>
               <AppText>{t('fieldTest.ift.pending', { count: ift.run.stages.length })}</AppText>
-              <Button
-                label={t('fieldTest.ift.save')}
-                busy={savingIft}
-                disabled={ift.run.stages.length === 0}
-                onPress={() => {
-                  if (ift.run.status !== 'finished') return;
-                  const planned = planIftStages(writeContext(), rows, ift.run.stages);
-                  const saved = ift.run.stages.length - planned.skipped;
-                  setSavingIft(true);
-                  void onSubmit(planned.writes)
-                    .then(() => ift.onSaved())
-                    .then(() => {
-                      setNotice(
-                        planned.skipped === 0
-                          ? t('fieldTest.ift.saved', { count: saved })
-                          : `${t('fieldTest.ift.saved', { count: saved })} ${t('fieldTest.ift.skipped', { count: planned.skipped })}`,
-                      );
-                    })
-                    .finally(() => {
-                      setSavingIft(false);
-                    });
-                }}
-              />
+              {iftRecordable > 0 ? (
+                <Button
+                  label={t('fieldTest.ift.save')}
+                  busy={savingIft}
+                  onPress={() => {
+                    void saveIft();
+                  }}
+                />
+              ) : null}
+              {iftBlocked.length === 0 ? null : (
+                <>
+                  <StatusMessage level="warning">
+                    {t('fieldTest.ift.skippedList', { count: iftBlocked.length })}
+                  </StatusMessage>
+                  {iftBlocked.map((stage) => (
+                    <AppText key={stage.playerId}>
+                      {t('fieldTest.ift.skippedPlayer', {
+                        player: nameOf(stage.playerId),
+                        stage: stage.lastCompletedStage,
+                      })}
+                    </AppText>
+                  ))}
+                </>
+              )}
+              {iftRecordable > 0 ? null : (
+                <Button
+                  variant="secondary"
+                  label={t('fieldTest.ift.discard')}
+                  busy={savingIft}
+                  onPress={() => {
+                    setSavingIft(true);
+                    ift
+                      .onDiscard()
+                      .catch(() => {
+                        setFailure(t('fieldTest.saveFailed'));
+                      })
+                      .finally(() => {
+                        setSavingIft(false);
+                      });
+                  }}
+                />
+              )}
             </>
           ) : (
             <AppText tone="secondary">{t('fieldTest.ift.hint')}</AppText>
@@ -1206,15 +1303,14 @@ export function StationScreen({
         </Card>
       )}
       {notice === null ? null : <StatusMessage level="ok">{notice}</StatusMessage>}
-      {notApplicable.count > 0 ? (
+      {failure === null ? null : <StatusMessage level="critical">{failure}</StatusMessage>}
+      {notApplicable > 0 ? (
         <Button
           variant="secondary"
-          label={t('fieldTest.notApplicable.all', { count: notApplicable.count })}
+          label={t('fieldTest.notApplicable.all', { count: notApplicable })}
+          busy={savingNotApplicable}
           onPress={() => {
-            const planned = planNotApplicable(writeContext(), rows);
-            void onSubmit(planned.writes).then(() => {
-              setNotice(t('fieldTest.notApplicable.saved', { count: planned.count }));
-            });
+            void saveNotApplicable();
           }}
         />
       ) : null}

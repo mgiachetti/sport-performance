@@ -11,8 +11,8 @@ export const mobileTestDayMessagesEsAR = {
   'fieldTest.list.intro':
     'Elegí el día para cargar los tests en la cancha. Los días de hoy y de la semana se guardan en el teléfono para usarlos sin señal.',
   'fieldTest.list.loading': 'Cargando los días de test…',
-  'fieldTest.day.open': 'Abrir el día de test del {date}, {category}',
-  'fieldTest.day.offlineReady': 'Disponible sin señal',
+  'fieldTest.day.open': 'Abrir el día de test del {date}, {category}, {window}',
+  'fieldTest.day.offlineReadyAt': 'Disponible sin señal · planilla actualizada el {date}',
   'fieldTest.day.notDownloaded': 'Sin descargar: abrilo una vez con señal',
   'fieldTest.day.back': 'Volver a los días de test',
   'fieldTest.day.loading': 'Cargando la planilla del día…',
@@ -69,6 +69,7 @@ export const mobileTestDayMessagesEsAR = {
     '{count, plural, one {Registrar # jugador como «No corresponde a la etapa»} other {Registrar # jugadores como «No corresponde a la etapa»}}',
   'fieldTest.notApplicable.saved':
     '{count, plural, one {# jugador registrado como «No corresponde a la etapa».} other {# jugadores registrados como «No corresponde a la etapa».}}',
+  'fieldTest.saveFailed': 'No se pudo guardar en el teléfono. Probá de nuevo.',
   'fieldTest.changeReason.label': 'Motivo del cambio',
   'fieldTest.changeReason.hint': 'Queda en el historial del resultado.',
   'fieldTest.void.saved': 'Intento anulado. Queda en el historial con su motivo.',
@@ -84,6 +85,12 @@ export const mobileTestDayMessagesEsAR = {
   'fieldTest.ift.save': 'Guardar las etapas del 30-15',
   'fieldTest.ift.saved':
     '{count, plural, one {Se guardó # etapa en el teléfono.} other {Se guardaron # etapas en el teléfono.}}',
+  'fieldTest.ift.skippedList':
+    '{count, plural, one {Esta etapa no se puede guardar desde el 30-15 (sin consentimiento, fuera de su etapa o no realizado): cargala a mano en el jugador y después descartá el 30-15.} other {Estas # etapas no se pueden guardar desde el 30-15 (sin consentimiento, fuera de su etapa o no realizados): cargalas a mano en cada jugador y después descartá el 30-15.}}',
+  'fieldTest.ift.skippedPlayer': '{player}: etapa {stage}',
+  'fieldTest.ift.discard': 'Descartar el 30-15 del teléfono',
+  'fieldTest.ift.saveFailed':
+    'No se pudieron guardar todas las etapas en el teléfono. Las que faltan siguen acá: probá de nuevo.',
   'fieldTest.ift.skipped':
     '{count, plural, one {# jugador no se pudo guardar (sin consentimiento, fuera de su etapa o no realizado): cargalo a mano.} other {# jugadores no se pudieron guardar (sin consentimiento, fuera de su etapa o no realizados): cargalos a mano.}}',
 

@@ -39,7 +39,10 @@ const EVALUATOR_ROLES: readonly MembershipRole[] = ['coach', 'sc', 'medical', 'a
 
 export interface TestDayControllerOptions {
   readonly sync: Pick<SyncEngine, 'store' | 'cache' | 'enqueue'>;
-  readonly api: Pick<ApiClient, 'getClub' | 'listCategories' | 'getTestSessionSheet'>;
+  readonly api: Pick<
+    ApiClient,
+    'getClub' | 'listCategories' | 'listSeasons' | 'getTestSessionSheet'
+  >;
   readonly scope: ReadCacheScope;
   readonly role: MembershipRole;
   readonly randomUUID: () => string;

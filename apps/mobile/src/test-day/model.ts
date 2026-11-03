@@ -7,6 +7,7 @@ import {
   parseAttempt,
   scoreAttemptValues,
   STAFF_METHODS,
+  TYPED_ENTRY_MODES,
   type EntryMode,
   type FieldPlausibilityWarning,
   type FieldProblem,
@@ -480,6 +481,30 @@ export interface StationSettings {
   readonly exercise: string | null;
 }
 
+const isNonEmptyString = (value: unknown): value is string =>
+  typeof value === 'string' && value !== '';
+
+/**
+ * The settings of a station as stored on this phone (ADR 0074), each one
+ * optional; `null` when the stored document no longer fits (another build).
+ * Whether each value still fits the station is checked by
+ * {@link stationSettingsFor} when it is read back.
+ */
+export function parseStoredStationSettings(value: unknown): Partial<StationSettings> | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const { mode, method, deviceId, exercise } = value as Record<string, unknown>;
+  if (mode !== undefined && !(TYPED_ENTRY_MODES as readonly unknown[]).includes(mode)) return null;
+  if (method !== undefined && !(STAFF_METHODS as readonly unknown[]).includes(method)) return null;
+  if (deviceId !== undefined && deviceId !== null && !isNonEmptyString(deviceId)) return null;
+  if (exercise !== undefined && exercise !== null && !isNonEmptyString(exercise)) return null;
+  return {
+    ...(mode === undefined ? {} : { mode: mode as EntryMode }),
+    ...(method === undefined ? {} : { method: method as MeasurementMethod }),
+    ...(deviceId === undefined ? {} : { deviceId }),
+    ...(exercise === undefined ? {} : { exercise }),
+  };
+}
+
 export function defaultStationSettings(station: TestDaySheetStation): StationSettings {
   return {
     mode: entryModesOf(station)[0] ?? 'value',
@@ -741,23 +766,25 @@ export function planNotDone(
   if (row.primary !== null) {
     const why = changeReason.trim();
     if (why === '') return problem({ kind: 'changeReason' });
+    // Every `done` result of the player (several evaluators), not only the
+    // primary one: none of them has a valid attempt left.
     return {
       kind: 'writes',
       warnings: [],
-      writes: [
-        {
-          op: 'test_result.update',
+      writes: row.results
+        .filter((r) => r.status === 'done')
+        .map((r) => ({
+          op: 'test_result.update' as const,
           input: {
-            target: row.primary.target,
+            target: r.target,
             body: {
               changeReason: why,
-              status: 'not_done',
+              status: 'not_done' as const,
               notDoneReason: reason,
               notDoneNote: text === '' ? null : text,
             },
           },
-        },
-      ],
+        })),
     };
   }
   if (row.notDone !== null) return problem({ kind: 'empty' });
@@ -782,14 +809,29 @@ export function planNotDone(
  * Every player the station does not apply to (principle 3) and who has
  * nothing recorded, as «No corresponde a la etapa», in one batch.
  */
+function pendingNotApplicable(
+  sheet: Pick<TestDaySheet, 'testSession'>,
+  rows: readonly PlayerStation[],
+): PlayerStation[] {
+  if (sheet.testSession.status === 'cancelled') return [];
+  return rows.filter(
+    (r) => !r.applicable && r.state === 'empty' && r.player.recording === 'allowed',
+  );
+}
+
+/** How many players {@link planNotApplicable} would record (no ids are drawn). */
+export function notApplicableCount(
+  sheet: Pick<TestDaySheet, 'testSession'>,
+  rows: readonly PlayerStation[],
+): number {
+  return pendingNotApplicable(sheet, rows).length;
+}
+
 export function planNotApplicable(
   context: WriteContext,
   rows: readonly PlayerStation[],
 ): { readonly writes: readonly FieldWrite[]; readonly count: number } {
-  if (context.sheet.testSession.status === 'cancelled') return { writes: [], count: 0 };
-  const pending = rows.filter(
-    (r) => !r.applicable && r.state === 'empty' && r.player.recording === 'allowed',
-  );
+  const pending = pendingNotApplicable(context.sheet, rows);
   if (pending.length === 0) return { writes: [], count: 0 };
   return {
     count: pending.length,
@@ -814,50 +856,74 @@ export function planNotApplicable(
   };
 }
 
+export interface IftStageToRecord {
+  readonly playerId: string;
+  readonly lastCompletedStage: number;
+}
+
+/** A group of writes of the 30-15 station and the players whose stage it records. */
+export interface IftStageStep {
+  readonly playerIds: readonly string[];
+  readonly writes: readonly FieldWrite[];
+}
+
 /**
  * The seam of the 30-15 IFT audio (B-507, #85): the last completed stage
- * of each player of a run, as the writes of the IFT station — a result with
- * the `ift_stage` entry for whoever has none, one more attempt for whoever
- * has. Players that cannot be recorded are left out and counted.
+ * of each player of a run, as the writes of the IFT station — one batch
+ * creating a result with the `ift_stage` entry for whoever has none, one
+ * more attempt for whoever has. Each step says whose stages it records, so
+ * the run can keep track of what was queued if a later step fails. Players
+ * that cannot be recorded here (not in the day, no consent, out of their
+ * stage, recorded as not done) are returned with their stage, for the staff
+ * to load by hand.
  */
 export function planIftStages(
   context: WriteContext,
   rows: readonly PlayerStation[],
-  stages: readonly { readonly playerId: string; readonly lastCompletedStage: number }[],
-): { readonly writes: readonly FieldWrite[]; readonly skipped: number } {
-  const writes: FieldWrite[] = [];
-  let skipped = 0;
+  stages: readonly IftStageToRecord[],
+): { readonly steps: readonly IftStageStep[]; readonly skipped: readonly IftStageToRecord[] } {
+  const steps: IftStageStep[] = [];
+  const skipped: IftStageToRecord[] = [];
   const creates: TestSessionResultInput[] = [];
-  for (const { playerId, lastCompletedStage } of stages) {
-    const row = rows.find((r) => r.player.id === playerId);
+  const created: string[] = [];
+  for (const stage of stages) {
+    const row = rows.find((r) => r.player.id === stage.playerId);
     if (row === undefined) {
-      skipped += 1;
+      skipped.push(stage);
       continue;
     }
     const planned = planAttempt(
       { ...context, settings: { ...context.settings, mode: 'ift_stage' } },
       row,
-      { lastCompletedStage: String(lastCompletedStage) },
+      { lastCompletedStage: String(stage.lastCompletedStage) },
     );
     if (planned.kind !== 'writes') {
-      skipped += 1;
+      skipped.push(stage);
       continue;
     }
+    const added: FieldWrite[] = [];
     for (const write of planned.writes) {
       if (write.op === 'test_session.record_results') creates.push(...write.input.body.results);
-      else writes.push(write);
+      else added.push(write);
     }
+    if (added.length > 0) steps.push({ playerIds: [stage.playerId], writes: added });
+    else created.push(stage.playerId);
   }
   if (creates.length > 0) {
-    writes.unshift({
-      op: 'test_session.record_results',
-      input: {
-        params: { testSessionId: context.sheet.testSession.id },
-        body: { results: creates },
-      },
+    steps.unshift({
+      playerIds: created,
+      writes: [
+        {
+          op: 'test_session.record_results',
+          input: {
+            params: { testSessionId: context.sheet.testSession.id },
+            body: { results: creates },
+          },
+        },
+      ],
     });
   }
-  return { writes, skipped };
+  return { steps, skipped };
 }
 
 /** The attempt values of a typed attempt (for the live preview while typing). */

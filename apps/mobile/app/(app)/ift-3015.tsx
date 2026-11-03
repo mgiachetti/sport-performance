@@ -75,9 +75,9 @@ export default function Ift3015() {
       active = false;
     };
   }, [services, membershipId, testSessionId]);
-  const iftParameters =
-    daySheet?.stations.find((s) => s.testCode === 'ift_3015')?.definition.protocol.parameters ??
-    null;
+  const dayStation = daySheet?.stations.find((s) => s.testCode === 'ift_3015') ?? null;
+  // A protocol version without parameters runs the standard protocol.
+  const iftParameters = dayStation?.definition.protocol.parameters ?? null;
   const chosenCategoryId = pickedCategoryId ?? daySheet?.testSession.categoryId ?? null;
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [audioError, setAudioError] = useState(false);
@@ -261,10 +261,10 @@ export default function Ift3015() {
                 // In roster order: the order the staff sees on the field.
                 playerIds: roster.filter((p) => selected.has(p.id)).map((p) => p.id),
                 categoryId: chosenCategoryId,
-                // Tied to the day only while it runs that day's protocol and category.
+                // Tied to the day only while it runs that day's 30-15 station and category.
                 testSessionId:
                   daySheet !== null &&
-                  iftParameters !== null &&
+                  dayStation !== null &&
                   chosenCategoryId === daySheet.testSession.categoryId
                     ? daySheet.testSession.id
                     : null,

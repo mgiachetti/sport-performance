@@ -12,6 +12,7 @@ import {
   CATEGORY_ID,
   SESSION_ID,
   SPRINT,
+  WINDOW_ID,
   sheet as sheetFixture,
   sprintResult,
   testSession,
@@ -166,11 +167,45 @@ describe('the sheet of a day on the phone', () => {
         nextCursor: null,
       },
     });
+    api.on('GET /v1/seasons', {
+      status: 200,
+      body: {
+        items: [
+          {
+            id: '0192e7a0-5555-7000-8000-000000000001',
+            sport: 'rugby',
+            name: '2026',
+            startsOn: '2026-02-01',
+            endsOn: '2026-11-30',
+            testWindows: [
+              {
+                id: WINDOW_ID,
+                seasonId: '0192e7a0-5555-7000-8000-000000000001',
+                number: 2,
+                label: 'V2',
+                startsOn: '2026-04-01',
+                endsOn: '2026-04-30',
+                archivedAt: null,
+                createdAt: '2026-01-01T00:00:00.000Z',
+                updatedAt: '2026-01-01T00:00:00.000Z',
+                version: '1793586338688123',
+              },
+            ],
+            archivedAt: null,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+            version: '1793586338688123',
+          },
+        ],
+        nextCursor: null,
+      },
+    });
     await controller.refreshClubContext();
     api.setOffline(true);
     expect(await controller.clubContext()).toEqual({
       timeZone: 'America/Argentina/Buenos_Aires',
       categories: [{ id: CATEGORY_ID, name: 'M15' }],
+      testWindows: [{ id: WINDOW_ID, label: 'V2' }],
     });
   });
 });

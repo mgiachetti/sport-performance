@@ -24,10 +24,15 @@ export interface IftRunSnapshot {
   readonly runId: string;
   readonly categoryId: string | null;
   /**
-   * The field test day it was started from (B-505, ADR 0071), or `null` when
+   * The field test day it was started from (B-505, ADR 0074), or `null` when
    * started from Inicio: only that day's 30-15 station can record its stages.
    */
   readonly testSessionId: string | null;
+  /**
+   * Players whose stage the day's 30-15 station already queued (B-505): the
+   * run is kept until the staff dismisses it, and these are never queued twice.
+   */
+  readonly savedPlayerIds: readonly string[];
   readonly protocol: Ift3015SignalProtocol;
   /** Wall-clock time (ms since 1970) of the start of stage 1. */
   readonly stage1WallMs: number;
@@ -127,6 +132,8 @@ export function parseIftRunSnapshot(text: string | null): IftRunSnapshot | null 
   // Absent in runs stored before B-505: started outside any test day.
   const testSessionId = value.testSessionId ?? null;
   if (testSessionId !== null && !isString(testSessionId)) return null;
+  const savedPlayerIds = value.savedPlayerIds ?? [];
+  if (!Array.isArray(savedPlayerIds) || !savedPlayerIds.every(isString)) return null;
   if (!isFiniteNumber(stage1WallMs)) return null;
   if (status !== 'running' && status !== 'finished') return null;
   if (!isFiniteNumber(lastAliveWallMs)) return null;
@@ -142,6 +149,7 @@ export function parseIftRunSnapshot(text: string | null): IftRunSnapshot | null 
     runId,
     categoryId,
     testSessionId,
+    savedPlayerIds,
     protocol,
     stage1WallMs,
     status,

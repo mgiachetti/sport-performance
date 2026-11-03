@@ -25,6 +25,8 @@ import {
   defaultStationSettings,
   fieldResults,
   nextPendingPlayer,
+  notApplicableCount,
+  parseStoredStationSettings,
   planAttempt,
   planIftStages,
   planNotApplicable,
@@ -343,6 +345,7 @@ describe('what an attempt checks', () => {
     });
     const bulk = planNotApplicable(context(sheet), rowsOf(sheet));
     expect(bulk.count).toBe(1);
+    expect(notApplicableCount(sheet, rowsOf(sheet))).toBe(1);
     expect(bulk.writes[0]?.input).toMatchObject({
       body: {
         results: [
@@ -353,6 +356,7 @@ describe('what an attempt checks', () => {
     const after = rowsOf(sheet, SPRINT, fromWrites(bulk.writes));
     expect(after.find((r) => r.player.id === BRUNO_ID)?.state).toBe('not_done');
     expect(planNotApplicable(context(sheet), after).count).toBe(0);
+    expect(notApplicableCount(sheet, after)).toBe(0);
   });
 });
 
@@ -412,6 +416,43 @@ describe('not done', () => {
       problem: { kind: 'hasAttempts' },
     });
   });
+
+  it('moves every done result without valid attempts to not done (several evaluators)', () => {
+    const sheet = sheetFixture();
+    const values = { split20S: '3', split40S: '5' };
+    // Two phones created a result each for Ana, then every attempt was voided.
+    const first = writesOf(planAttempt(context(sheet), must(rowsOf(sheet)[0]), values));
+    const second = writesOf(planAttempt(context(sheet), must(rowsOf(sheet)[0]), values));
+    let queue = fromWrites([...first, ...second]);
+    let [ana] = rowsOf(sheet, SPRINT, queue);
+    expect(ana?.results.filter((r) => r.status === 'done')).toHaveLength(2);
+    for (const attempt of must(ana).attempts) {
+      queue = [
+        ...queue,
+        ...fromWrites(writesOf(planVoid(context(sheet), must(ana), attempt, 'Mal medido'))),
+      ];
+    }
+    [ana] = rowsOf(sheet, SPRINT, queue);
+    expect(ana?.validAttemptCount).toBe(0);
+    const writes = writesOf(planNotDone(context(sheet), must(ana), 'absent', '', 'No vino'));
+    expect(writes.map((w) => w.op)).toEqual(['test_result.update', 'test_result.update']);
+    const [after] = rowsOf(sheet, SPRINT, [...queue, ...fromWrites(writes)]);
+    expect(after?.state).toBe('not_done');
+    expect(after?.results.every((r) => r.status === 'not_done')).toBe(true);
+  });
+});
+
+describe('the settings of a station on this phone', () => {
+  it('take known modes and methods only', () => {
+    expect(
+      parseStoredStationSettings({ mode: 'sprint_splits', method: 'photocell', deviceId: null }),
+    ).toEqual({ mode: 'sprint_splits', method: 'photocell', deviceId: null });
+    expect(parseStoredStationSettings({})).toEqual({});
+    expect(parseStoredStationSettings({ mode: 'video_frames' })).toBeNull();
+    expect(parseStoredStationSettings({ method: 'historical' })).toBeNull();
+    expect(parseStoredStationSettings({ exercise: 3 })).toBeNull();
+    expect(parseStoredStationSettings('nope')).toBeNull();
+  });
 });
 
 describe('the station', () => {
@@ -450,14 +491,17 @@ describe('the station', () => {
   it('records the stages of a 30-15 IFT run of the signals (B-507)', () => {
     const sheet = sheetFixture({ stations: [IFT] });
     const rows = rowsOf(sheet, IFT);
-    const { writes, skipped } = planIftStages(context(sheet, IFT), rows, [
+    const { steps, skipped } = planIftStages(context(sheet, IFT), rows, [
       { playerId: ANA_ID, lastCompletedStage: 20 },
       { playerId: BRUNO_ID, lastCompletedStage: 18 },
       { playerId: DIEGO_ID, lastCompletedStage: 15 },
     ]);
-    expect(skipped).toBe(1);
-    expect(writes).toHaveLength(1);
-    expect(writes[0]?.input).toMatchObject({
+    // Diego has no consent: left out with his stage, for the staff to load by hand.
+    expect(skipped).toEqual([{ playerId: DIEGO_ID, lastCompletedStage: 15 }]);
+    expect(steps).toHaveLength(1);
+    expect(steps[0]?.playerIds).toEqual([ANA_ID, BRUNO_ID]);
+    const write = must(steps[0]?.writes[0]);
+    expect(write.input).toMatchObject({
       body: {
         results: [
           { playerId: ANA_ID, entries: [{ kind: 'ift_stage', lastCompletedStage: 20 }] },
@@ -465,6 +509,23 @@ describe('the station', () => {
         ],
       },
     });
-    expect(() => prepareMutation(must(writes[0]).op, must(writes[0]).input)).not.toThrow();
+    expect(() => prepareMutation(write.op, write.input)).not.toThrow();
+  });
+
+  it('adds the stage as one more attempt, one step per player, to whoever has a result', () => {
+    const sheet = sheetFixture({ stations: [IFT] });
+    const first = planIftStages(context(sheet, IFT), rowsOf(sheet, IFT), [
+      { playerId: ANA_ID, lastCompletedStage: 12 },
+    ]);
+    const queue = fromWrites(first.steps.flatMap((s) => s.writes));
+    const { steps, skipped } = planIftStages(context(sheet, IFT), rowsOf(sheet, IFT, queue), [
+      { playerId: ANA_ID, lastCompletedStage: 14 },
+      { playerId: BRUNO_ID, lastCompletedStage: 18 },
+    ]);
+    expect(skipped).toEqual([]);
+    expect(steps.map((s) => [s.playerIds, s.writes.map((w) => w.op)])).toEqual([
+      [[BRUNO_ID], ['test_session.record_results']],
+      [[ANA_ID], ['test_result.add_entries']],
+    ]);
   });
 });
