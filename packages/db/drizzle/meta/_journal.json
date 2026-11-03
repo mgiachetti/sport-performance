@@ -211,6 +211,13 @@
       "when": 1793678292592,
       "tag": "0029_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1793684924490,
+      "tag": "0030_demo_club",
+      "breakpoints": true
     }
   ]
 }

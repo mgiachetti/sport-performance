@@ -58,6 +58,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0052](0052-importacion-de-historicos.md) | Importación de históricos: resultados `historical` con su importación, vista previa en un savepoint y reglas de etapa como avisos | Aceptado |
 | [0053](0053-alertas-episodios-eventos-y-revision.md) | Alertas: episodios por regla y jugador, eventos append-only y revisión del staff | Aceptado |
 | [0054](0054-notificaciones-push-y-email.md) | Notificaciones: push por Expo y email por Resend desde el worker, sin datos de salud | Aceptado |
+| [0055](0055-club-demo-y-datos-de-prueba.md) | Club demo y datos de prueba: generador determinístico, filas con id estable, `club.is_demo` y guardas contra producción | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 
