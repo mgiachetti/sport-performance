@@ -123,6 +123,12 @@ import {
   rejectDataSubjectRequest,
   requestPlayerErasure,
 } from './data-subject-rights.js';
+import {
+  createClubDataExport,
+  getClubDataExport,
+  getClubDataExportDownload,
+  listClubDataExports,
+} from './club-data-exports.js';
 import { getHealth } from './health.js';
 import {
   acceptInvitation,
@@ -266,6 +272,7 @@ export * from './consents.js';
 export * from './field-sessions.js';
 export * from './files.js';
 export * from './data-subject-rights.js';
+export * from './club-data-exports.js';
 export * from './health.js';
 export * from './invitations.js';
 export * from './me.js';
@@ -512,6 +519,10 @@ export const apiEndpoints = {
   requestPlayerReport,
   listPlayerReports,
   getPlayerReport,
+  createClubDataExport,
+  listClubDataExports,
+  getClubDataExport,
+  getClubDataExportDownload,
 } as const satisfies EndpointCatalog;
 
 export type ApiEndpoints = typeof apiEndpoints;

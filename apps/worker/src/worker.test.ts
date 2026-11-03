@@ -262,7 +262,12 @@ describe('queues', () => {
     expect(FILE_SCHEDULES.map((s) => s.queue)).toEqual([
       QUEUES.filesDaily,
       QUEUES.playerReportsSweep,
+      QUEUES.dataExportSweep,
     ]);
+    const exports = QUEUE_DEFINITIONS.find((q) => q.name === QUEUES.dataExportClub);
+    expect(exports).toMatchObject({ policy: 'stately', deadLetter: QUEUES.dataExportClubDead });
+    // pg-boss gives up on a stuck export job before another run may take the export over.
+    expect(exports?.expireInSeconds).toBeLessThan(30 * 60);
     expect(NOTIFICATION_SCHEDULES.map((s) => s.queue)).toEqual([QUEUES.notificationsSweep]);
     const notifications = QUEUE_DEFINITIONS.find((q) => q.name === QUEUES.notificationsClub);
     expect(notifications).toMatchObject({

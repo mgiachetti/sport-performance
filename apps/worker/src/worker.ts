@@ -5,6 +5,7 @@ import { PgBoss, type Job } from 'pg-boss';
 import type pg from 'pg';
 import type { Logger } from 'pino';
 import { refreshClub, type RefreshDependencies } from './derived/refresh.js';
+import { listExportClubs, runClubExports } from './exports/process.js';
 import { purgeClubFiles } from './files.js';
 import { runClubNotifications, type DeliveryDependencies } from './notifications/index.js';
 import { runClubReports } from './reports/job.js';
@@ -184,6 +185,35 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
         await enqueueClubJob(boss, QUEUES.playerReportsClub, clubId);
       }
     });
+
+    // CSV exports of the club's data (B-608, ADR 0072): they end in the bucket.
+    const exportDeps = {
+      pool: options.pool,
+      storage,
+      logger,
+      ...(options.now && { now: options.now }),
+    };
+    await boss.work(
+      QUEUES.dataExportClub,
+      { localConcurrency: options.clubConcurrency, pollingIntervalSeconds },
+      async ([job]: Job<unknown>[]) => {
+        if (job === undefined) return;
+        const { clubId } = parseRefreshClubJob(job.data);
+        try {
+          const report = await runClubExports(exportDeps, clubId, { jobId: job.id });
+          if (report.more) await enqueueClubJob(boss, QUEUES.dataExportClub, clubId);
+        } catch (error) {
+          logger.error({ err: error, clubId, jobId: job.id }, 'club data export failed');
+          reporter.capture(error, { job: QUEUES.dataExportClub, jobId: job.id, clubId });
+          throw error;
+        }
+      },
+    );
+    await boss.work(QUEUES.dataExportSweep, { pollingIntervalSeconds }, async () => {
+      for (const clubId of await listExportClubs(options.pool)) {
+        await enqueueClubJob(boss, QUEUES.dataExportClub, clubId);
+      }
+    });
   }
 
   const notifications = options.notifications;
@@ -227,6 +257,10 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
       onReportClub: async (clubId: ClubId) => {
         await enqueueClubJob(boss, QUEUES.playerReportsClub, clubId);
       },
+      // A new export request wakes its club's job up; the sweep covers lost notifications.
+      onExportClub: async (clubId: ClubId) => {
+        await enqueueClubJob(boss, QUEUES.dataExportClub, clubId);
+      },
     }),
   });
   await listener.ready;
@@ -235,6 +269,9 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
   if (storage !== null) {
     for (const clubId of await listReportClubs(options.pool)) {
       await enqueueClubJob(boss, QUEUES.playerReportsClub, clubId);
+    }
+    for (const clubId of await listExportClubs(options.pool)) {
+      await enqueueClubJob(boss, QUEUES.dataExportClub, clubId);
     }
   }
 

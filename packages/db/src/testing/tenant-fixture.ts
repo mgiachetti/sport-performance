@@ -13,6 +13,7 @@ import {
   changeHistory,
   club,
   clubBranch,
+  clubDataExport,
   consent,
   consentDocument,
   derivedRefresh,
@@ -866,6 +867,45 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         createdBy: users.parent,
       })
       .returning({ id: dataSubjectRequest.id }),
+  );
+
+  // The administration exported the club's data as CSV (B-608): a ZIP the worker wrote.
+  const exportedAt = new Date();
+  const exportFile = await id(
+    db
+      .insert(file)
+      .values({
+        ...base,
+        kind: 'data_export',
+        status: 'ready',
+        contentType: 'application/zip',
+        sizeBytes: 2048,
+        checksumSha256: '47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=',
+        fileName: `datos-${slug}-2026-03-01.zip`,
+        uploadedAt: exportedAt,
+        expiresAt: new Date(exportedAt.getTime() + 7 * 24 * 60 * 60 * 1000),
+      })
+      .returning({ id: file.id }),
+  );
+  rows.club_data_export = await id(
+    db
+      .insert(clubDataExport)
+      .values({
+        ...base,
+        requestedBy: users.admin,
+        requesterRole: 'admin',
+        status: 'ready',
+        datasets: ['players', 'wellness'],
+        requestedOn: day('2026-03-01'),
+        playerIds: [assigned, other],
+        attempts: 1,
+        startedAt: exportedAt,
+        completedAt: exportedAt,
+        fileId: exportFile,
+        rowCounts: { players: 2, wellness: 1 },
+        createdBy: users.admin,
+      })
+      .returning({ id: clubDataExport.id }),
   );
 
   return { clubId, slug, users, players: { assigned, other }, rows };

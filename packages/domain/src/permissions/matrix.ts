@@ -61,7 +61,7 @@ const ownAndStaffRead: RoleRules = { ...staffRead, player: self };
  *   the record of a minor with a health consent (read only, ADR 0029).
  * - **coach**: assigned categories: panel, roster, sessions, participation.
  * - **sc**: assigned categories: test days, results, anthropometry, gym, CMJ
- *   videos (with an image consent), imports; club configuration.
+ *   videos (with an image consent), imports, CSV exports; club configuration.
  * - **medical**: health data of assigned players, always audited; the rest
  *   of the staff sees availability only, never the cause. The player reads
  *   their own record with a health consent (ADR 0029).
@@ -307,6 +307,14 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
   player_report: {
     read: { ...ownAndStaffRead, parent: guardian },
     generate: { ...administration, sc: assigned },
+  },
+  // The club's data as CSV (B-608, ADR 0072): the administration, the whole club; the S&C
+  // staff, their assigned categories (the analysts of the tests and the load). Each player
+  // in it needs a current data consent, like any export of their data. Never the superadmin:
+  // support does not take a club's data out.
+  club_data_export: {
+    run: { ...nobody, sc: allow('assigned', 'data'), admin: allow('club', 'data') },
+    read: { ...nobody, sc: assigned, admin: club },
   },
   // The holder asks for the erasure (the player once of age, the guardian of a minor), and
   // so may the administration on a request received otherwise; only the administration

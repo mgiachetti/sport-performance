@@ -224,6 +224,10 @@ describe('@sport-performance/contracts entry point', () => {
       'requestPlayerReport',
       'listPlayerReports',
       'getPlayerReport',
+      'createClubDataExport',
+      'listClubDataExports',
+      'getClubDataExport',
+      'getClubDataExportDownload',
     ]);
     expect(contracts.MEMBERSHIP_HEADER).toBe('x-membership-id');
     expect(contracts.SUPPORT_CLUB_HEADER).toBe('x-support-club-id');

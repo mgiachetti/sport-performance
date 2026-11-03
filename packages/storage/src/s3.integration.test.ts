@@ -4,6 +4,7 @@
  * enforces.
  */
 import { createHash } from 'node:crypto';
+import { Readable } from 'node:stream';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ObjectTooLargeError, createS3Storage, type ObjectStorage } from './index.js';
 import { createTestBucket, storageTestUrl, type TestBucket } from './test-bucket.js';
@@ -132,6 +133,45 @@ describeWithStorage('S3 storage (MinIO)', (serverUrl) => {
       }),
     ).rejects.toThrow();
     expect(await storage.stat(`${pdfKey}-bad`)).toBeNull();
+  });
+
+  it('writes an object from the server with its size and checksum checked', async () => {
+    const zip = Buffer.from('PK fake zip of the club data');
+    const target = 'clubs/00000000-0000-4000-8000-0000000000c1/data_export/one';
+    await storage.putObject({
+      key: target,
+      contentType: 'application/zip',
+      sizeBytes: zip.length,
+      checksumSha256: sha256(zip),
+      body: () => Readable.from([zip]),
+    });
+    expect(await storage.stat(target)).toEqual({
+      sizeBytes: zip.length,
+      contentType: 'application/zip',
+      checksumSha256: sha256(zip),
+    });
+    // Another content than the declared one is refused, and nothing is left.
+    const wrong = 'clubs/00000000-0000-4000-8000-0000000000c1/data_export/two';
+    await expect(
+      storage.putObject({
+        key: wrong,
+        contentType: 'application/zip',
+        sizeBytes: zip.length,
+        checksumSha256: sha256(Buffer.from('another body of the same size!!!')),
+        body: () => Readable.from([zip]),
+      }),
+    ).rejects.toThrow();
+    expect(await storage.stat(wrong)).toBeNull();
+    await expect(
+      storage.putObject({
+        key: wrong,
+        contentType: 'application/zip',
+        sizeBytes: 0,
+        checksumSha256: sha256(Buffer.alloc(0)),
+        body: () => Readable.from([]),
+      }),
+    ).rejects.toThrow(RangeError);
+    await storage.remove(target);
   });
 
   it('refuses URLs outside the SigV4 window', async () => {

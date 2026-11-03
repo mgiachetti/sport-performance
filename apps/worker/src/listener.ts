@@ -6,6 +6,8 @@ import type { Logger } from 'pino';
 export const DERIVED_REFRESH_CHANNEL = 'sport_performance_derived_refresh';
 /** Channel a new player report notifies on commit (migration 0036, B-602). Payload: the club id. */
 export const PLAYER_REPORT_CHANNEL = 'sport_performance_player_report';
+/** Channel of the requests of a CSV export (migration 0037, ADR 0072). Payload: the club id. */
+export const DATA_EXPORT_CHANNEL = 'sport_performance_data_export';
 
 export interface RefreshListenerOptions {
   /** A `sport_performance_worker` login. */
@@ -15,6 +17,8 @@ export interface RefreshListenerOptions {
   readonly onClub: (clubId: ClubId) => Promise<void>;
   /** Called for a club with a new player report; without it the channel is not listened to. */
   readonly onReportClub?: (clubId: ClubId) => Promise<void>;
+  /** Called for a club with a new CSV export request; without it the channel is not listened to. */
+  readonly onExportClub?: (clubId: ClubId) => Promise<void>;
   /** Notifications of a club within this window become one call. */
   readonly debounceMs?: number;
   readonly minReconnectMs?: number;
@@ -46,6 +50,9 @@ export function startRefreshListener(options: RefreshListenerOptions): RefreshLi
     ...(options.onReportClub === undefined
       ? []
       : [[PLAYER_REPORT_CHANNEL, options.onReportClub] as const]),
+    ...(options.onExportClub === undefined
+      ? []
+      : [[DATA_EXPORT_CHANNEL, options.onExportClub] as const]),
   ]);
   let client: pg.Client | null = null;
   let stopped = false;

@@ -49,9 +49,26 @@ export interface DownloadRequest {
   readonly contentDisposition: string;
 }
 
+/**
+ * An object the server itself writes (the worker's exports, ADR 0072): the
+ * bytes come from a file of the server, never from a client. The bucket
+ * checks size and SHA-256 like a signed upload.
+ */
+export interface PutObjectRequest {
+  readonly key: string;
+  readonly contentType: string;
+  readonly sizeBytes: number;
+  /** Base64 SHA-256 of the content: the bucket rejects any other body. */
+  readonly checksumSha256: string;
+  /** The content, read once: a stream factory so a retry can read it again. */
+  readonly body: () => NodeJS.ReadableStream;
+}
+
 export interface ObjectStorage {
   /** Signs the upload of exactly one body (type, size and SHA-256 are part of the signature). */
   presignUpload(request: UploadRequest): Promise<SignedUpload>;
+  /** Writes an object from the server (one `PUT`, up to 5 GiB), replacing any under `key`. */
+  putObject(request: PutObjectRequest): Promise<void>;
   /** Signs a short-lived download with the response headers fixed. */
   presignDownload(request: DownloadRequest): Promise<SignedDownload>;
   /** The object's metadata, or `null` when there is no object under `key`. */

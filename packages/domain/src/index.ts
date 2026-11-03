@@ -432,6 +432,8 @@ export * from './roster-import/index.js';
 export * from './sync/index.js';
 // Rights of the data subject: export, erasure and account deletion (B-329).
 export * from './data-subject-rights.js';
+// CSV export of the club's data (B-608).
+export * from './club-data-export.js';
 
 // The PDF report of a player for a test window (B-602).
 export * from './player-report.js';

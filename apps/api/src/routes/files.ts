@@ -55,6 +55,7 @@ import { protocolMediaInUse } from './test-definitions.js';
  * | `pdf_report`  | (the worker)     | `player_report.read` | `player_profile.archive` |
  * | `data_import` | `data_import.run`| `data_import.run`    | `data_import.run`     |
  * | `protocol_media` | `configuration.update` | `configuration.read` | `configuration.update` |
+ * | `data_export` | (the worker)     | `club_data_export.read` | `club_data_export.read` |
  *
  * `media` needs a current image consent of the player to upload or show a
  * video: the matrix checks it with the player's facts.
@@ -94,6 +95,17 @@ const FILE_PERMISSIONS: Record<FileKind, Record<FileAction, FilePermission | nul
     upload: { kind: 'configuration', action: 'update' },
     read: { kind: 'configuration', action: 'read' },
     delete: { kind: 'configuration', action: 'update' },
+  },
+  data_export: {
+    // Written by the worker for whoever asked (B-608, ADR 0072); RLS shows each ZIP to who
+    // reads its export. Here only the administration reaches it (the club scope); the
+    // requester downloads it through `GET /v1/data-exports/{id}/download`.
+    upload: null,
+    read: { kind: 'club_data_export', action: 'read' },
+    // Intended: whoever may read the ZIP may also delete it early. It is a copy of data
+    // that already lives in the platform, so deleting it only takes the copy out of the
+    // bucket before its 7 days; nothing is lost, and asking again writes it anew.
+    delete: { kind: 'club_data_export', action: 'read' },
   },
 };
 
