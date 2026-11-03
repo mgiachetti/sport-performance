@@ -177,12 +177,21 @@ CREATE TRIGGER "alert_event_record" AFTER INSERT OR UPDATE OF "severity", "resol
   FOR EACH ROW EXECUTE FUNCTION "public"."alert_event_record"();
 --> statement-breakpoint
 -- Events are history: nobody changes or removes them, not even the owner. Only a cascade from
--- a deleted player or alert (data subject rights) takes them away.
+-- a deleted player or alert, or the erasure of the player (data subject rights, ADR 0051:
+-- `app.erase_player` deletes the rows of each referencing table itself, in the transaction
+-- that wrote its marker in `app_admin.erasure_in_progress`), takes them away.
 CREATE FUNCTION "public"."alert_event_guard"() RETURNS trigger
 LANGUAGE plpgsql
 SET search_path = pg_catalog, pg_temp AS $$
 BEGIN
   IF TG_OP = 'DELETE' AND pg_trigger_depth() > 1 THEN
+    RETURN OLD;
+  END IF;
+  IF TG_OP = 'DELETE' AND EXISTS (
+       SELECT 1 FROM "app_admin"."erasure_in_progress" e
+        WHERE e.transaction_id = pg_catalog.pg_current_xact_id()
+          AND e.erased_club_id = OLD.club_id
+          AND e.erased_player_id = OLD.player_id) THEN
     RETURN OLD;
   END IF;
   RAISE EXCEPTION 'The events of an alert are append-only'
