@@ -14,6 +14,7 @@ import {
   consent,
   consentDocument,
   derivedRefresh,
+  dataSubjectRequest,
   device,
   drill,
   externalMetric,
@@ -728,6 +729,22 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         createdBy: users.admin,
       })
       .returning({ id: syncMutation.id }),
+  );
+
+  // The guardian asked for the erasure of the assigned player (B-329).
+  rows.data_subject_request = await id(
+    db
+      .insert(dataSubjectRequest)
+      .values({
+        ...base,
+        playerId: assigned,
+        kind: 'erasure',
+        status: 'pending',
+        requestedBy: users.parent,
+        requesterRole: 'parent',
+        createdBy: users.parent,
+      })
+      .returning({ id: dataSubjectRequest.id }),
   );
 
   return { clubId, slug, users, players: { assigned, other }, rows };

@@ -424,3 +424,5 @@ export * from './roster-import/index.js';
 
 // Offline sync: hybrid logical clocks, collections and operations (B-323).
 export * from './sync/index.js';
+// Rights of the data subject: export, erasure and account deletion (B-329).
+export * from './data-subject-rights.js';

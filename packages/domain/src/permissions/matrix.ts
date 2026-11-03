@@ -69,7 +69,7 @@ const ownAndStaffRead: RoleRules = { ...staffRead, player: self };
  *   consents for someone else.
  * - **superadmin**: what an admin can, in the club whose context they fix,
  *   always audited; plus the registry of clubs. Never health data, never
- *   consents, never exporting a player's data.
+ *   consents, never exporting or erasing a player's data.
  *
  * Collecting data of a player (wellness, RPE, results, measurements,
  * participation, parents' heights) needs a current `data` consent; images
@@ -295,6 +295,24 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
       parent: allow('guardian', 'minor'),
       admin: allow('club', 'data'),
     },
+  },
+  // The holder asks for the erasure (the player once of age, the guardian of a minor), and
+  // so may the administration on a request received otherwise; only the administration
+  // erases. Never the superadmin: support does not erase a club's players.
+  data_erasure: {
+    read: {
+      ...nobody,
+      player: allow('self', 'adult'),
+      parent: allow('guardian', 'minor'),
+      admin: club,
+    },
+    request: {
+      ...nobody,
+      player: allow('self', 'adult'),
+      parent: allow('guardian', 'minor'),
+      admin: club,
+    },
+    execute: { ...nobody, admin: club },
   },
 };
 

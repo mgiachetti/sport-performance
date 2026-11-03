@@ -53,6 +53,7 @@ describe('schema conventions', () => {
         'consent',
         'consent_document',
         'derived_refresh',
+        'data_subject_request',
         'device',
         'drill',
         'external_metric',

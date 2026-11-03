@@ -158,7 +158,11 @@ export function createSessionAuthenticate(
       email: found.user.email,
       name: found.user.name,
       isSuperadmin,
-      session: { id: found.session.id, expiresAt: new Date(found.session.expiresAt) },
+      session: {
+        id: found.session.id,
+        createdAt: new Date(found.session.createdAt),
+        expiresAt: new Date(found.session.expiresAt),
+      },
       membership: selected.membership,
       membershipRejected: selected.rejected,
       supportReason: isSuperadmin
