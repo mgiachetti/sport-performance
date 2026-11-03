@@ -7,6 +7,7 @@ import '@fontsource/barlow-condensed/latin-600.css';
 import '@fontsource/barlow-condensed/latin-700.css';
 import '@sport-performance/charts/web/charts.css';
 import './styles/app.css';
+import './styles/screens.css';
 
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';

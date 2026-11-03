@@ -18,7 +18,12 @@ export type IconName =
   | 'club'
   | 'support'
   | 'signOut'
-  | 'contrast';
+  | 'contrast'
+  | 'calendar'
+  | 'plus'
+  | 'arrowUp'
+  | 'arrowDown'
+  | 'trash';
 
 const PATHS: Record<IconName, readonly string[]> = {
   ok: ['M20 6 9 17l-5-5'],
@@ -39,6 +44,11 @@ const PATHS: Record<IconName, readonly string[]> = {
   support: ['M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Z', 'M9 9a3 3 0 1 1 3 3v2', 'M12 17h.01'],
   signOut: ['M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4', 'M10 17l-5-5 5-5', 'M5 12h11'],
   contrast: ['M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Z', 'M12 2v20'],
+  calendar: ['M4 5h16v16H4Z', 'M4 10h16', 'M8 3v4', 'M16 3v4'],
+  plus: ['M12 5v14', 'M5 12h14'],
+  arrowUp: ['M12 19V5', 'm5 12 7-7 7 7'],
+  arrowDown: ['M12 5v14', 'm19 12-7 7-7-7'],
+  trash: ['M3 6h18', 'M8 6V4h8v2', 'M6 6l1 15h10l1-15'],
 };
 
 export function Icon({

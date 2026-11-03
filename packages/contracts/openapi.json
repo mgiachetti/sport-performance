@@ -18794,6 +18794,15 @@
             }
           },
           {
+            "name": "sport",
+            "in": "query",
+            "required": false,
+            "description": "Solo las sesiones de este deporte.",
+            "schema": {
+              "$ref": "#/components/schemas/Sport"
+            }
+          },
+          {
             "name": "kind",
             "in": "query",
             "required": false,
@@ -19614,6 +19623,117 @@
           },
           "400": {
             "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/training-sessions/{trainingSessionId}/roster": {
+      "get": {
+        "operationId": "listTrainingSessionRoster",
+        "summary": "Plantel de una sesión, con su participación y disponibilidad",
+        "description": "Quien puede leer la sesión: los jugadores de su categoría el día de la sesión (día del club) y los que ya tienen participación cargada, dentro de lo que ve por asignación (RLS). Cada fila trae la participación, la disponibilidad derivada para el tipo de sesión (sin la causa; la lectura queda en el log médico) y si quien pide puede cargarla. Ordenado por apellido y nombre. De otro club: `not_found`; fuera del alcance: `forbidden`.",
+        "tags": [
+          "training"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "trainingSessionId",
+            "in": "path",
+            "required": true,
+            "description": "Id de sesión de entrenamiento o partido (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `name`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "name",
+              "type": "string",
+              "enum": [
+                "name",
+                "-name"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página del plantel.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionRosterPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.bad_request.validation_failed"
           },
           "401": {
             "$ref": "#/components/responses/Error.unauthenticated"
@@ -30135,6 +30255,27 @@
         ],
         "description": "`draft` (en revisión), `applied` (aplicado: las categorías ya cambiaron) o `cancelled` (descartado sin aplicar)."
       },
+      "SessionAvailability": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "description": "Para el tipo de la sesión (entrenamiento o partido), el día del club de la sesión.",
+            "$ref": "#/components/schemas/AvailabilityStatus"
+          },
+          "staffNotes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Notas para el staff de los bloqueos vigentes (\"sin contacto\"), escritas por el staff médico sin diagnóstico."
+          }
+        },
+        "required": [
+          "status",
+          "staffNotes"
+        ]
+      },
       "SessionClientType": {
         "type": "string",
         "enum": [
@@ -30150,6 +30291,123 @@
           "match"
         ],
         "description": "`training` (entrenamiento) o `match` (partido): la exposición y la incidencia de lesiones se informan por separado (B-210)."
+      },
+      "SessionRosterEntry": {
+        "type": "object",
+        "properties": {
+          "player": {
+            "$ref": "#/components/schemas/SessionRosterPlayer"
+          },
+          "inCategory": {
+            "type": "boolean",
+            "description": "Si el jugador estaba en la categoría de la sesión ese día; `false`: convocado de otra categoría (tiene participación cargada)."
+          },
+          "participation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Participation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lo cargado; `null` si todavía nadie cargó nada."
+          },
+          "availability": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SessionAvailability"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`null` si quien pide no puede ver la disponibilidad de ese jugador."
+          },
+          "hasDataConsent": {
+            "type": "boolean",
+            "description": "Si tiene consentimiento `data` vigente (sin él no se carga nada)."
+          },
+          "canRecord": {
+            "type": "boolean",
+            "description": "Si quien pide puede cargar su participación ahora (permiso de la matriz y consentimiento vigente). La sesión archivada no acepta cargas aunque diga `true`."
+          }
+        },
+        "required": [
+          "player",
+          "inCategory",
+          "participation",
+          "availability",
+          "hasDataConsent",
+          "canRecord"
+        ]
+      },
+      "SessionRosterPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SessionRosterEntry"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "SessionRosterPlayer": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "firstName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "lastName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "archivedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Baja del club, si la tuvo."
+          }
+        },
+        "required": [
+          "id",
+          "firstName",
+          "lastName",
+          "archivedAt"
+        ]
       },
       "SessionRpe": {
         "type": "integer",

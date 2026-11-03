@@ -293,6 +293,7 @@ export const listTrainingSessions = defineEndpoint({
   auth: 'club',
   query: pageQuerySchema.extend({
     categoryId: categoryIdSchema.optional(),
+    sport: sportSchema.optional().meta({ description: 'Solo las sesiones de este deporte.' }),
     kind: sessionKindSchema.optional(),
     from: localDateSchema.optional(),
     to: localDateSchema.optional(),

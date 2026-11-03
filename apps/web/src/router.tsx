@@ -23,6 +23,10 @@ import { PlayerProfilePage } from './pages/players/PlayerProfilePage';
 import { PlayersPage } from './pages/players/PlayersPage';
 import { SupportPage } from './pages/SupportPage';
 import { parseClubsSearch, parseLoginSearch, safeRedirect } from './routing/redirect';
+import { NewSessionPage } from './training/NewSessionPage';
+import { parseSessionsSearch } from './training/search';
+import { SessionDetailPage } from './training/SessionDetailPage';
+import { SessionsPage } from './training/SessionsPage';
 import { Loading } from './ui/components';
 
 /** What every route's `beforeLoad` and `loader` receive (ADR 0057). */
@@ -43,7 +47,8 @@ export interface RouterContext {
  *         ├── /               home of the club
  *         ├── /panel          weekly panel (?week&group)
  *         ├── /players        roster of what the user sees (B-404)
- *         └── /players/$id    profile of a player (B-404)
+ *         ├── /players/$id    profile of a player (B-404)
+ *         └── /sessions       training sessions and matches (B-407): list, new, one
  * ```
  *
  * A new screen is a child of `_club` (it inherits session, club, theme and
@@ -153,12 +158,42 @@ export const playerProfileRoute = createRoute({
   },
 });
 
+export const sessionsRoute = createRoute({
+  getParentRoute: () => clubRoute,
+  path: '/sessions',
+});
+
+export const sessionsIndexRoute = createRoute({
+  getParentRoute: () => sessionsRoute,
+  path: '/',
+  validateSearch: parseSessionsSearch,
+  component: SessionsPage,
+});
+
+export const newSessionRoute = createRoute({
+  getParentRoute: () => sessionsRoute,
+  path: '/new',
+  component: NewSessionPage,
+});
+
+export const sessionDetailRoute = createRoute({
+  getParentRoute: () => sessionsRoute,
+  path: '/$trainingSessionId',
+  component: SessionDetailPage,
+});
+
 export const routeTree = rootRoute.addChildren([
   loginRoute,
   authedRoute.addChildren([
     clubsRoute,
     supportRoute,
-    clubRoute.addChildren([homeRoute, panelRoute, playersRoute, playerProfileRoute]),
+    clubRoute.addChildren([
+      homeRoute,
+      panelRoute,
+      playersRoute,
+      playerProfileRoute,
+      sessionsRoute.addChildren([sessionsIndexRoute, newSessionRoute, sessionDetailRoute]),
+    ]),
   ]),
 ]);
 
