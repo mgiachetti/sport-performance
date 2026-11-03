@@ -138,6 +138,12 @@ import {
   listRosterImports,
   previewRosterImport,
 } from './roster-imports.js';
+import {
+  getMyNotificationPreferences,
+  registerMyPushToken,
+  unregisterMyPushToken,
+  updateMyNotificationPreferences,
+} from './notifications.js';
 import { listMySessions, revokeMyOtherSessions, revokeMySession } from './sessions.js';
 import { changeMemberRole, endMember, getMember, listMembers } from './members.js';
 import {
@@ -230,6 +236,7 @@ export * from './data-subject-rights.js';
 export * from './health.js';
 export * from './invitations.js';
 export * from './me.js';
+export * from './notifications.js';
 export * from './reference-values.js';
 export * from './roster-imports.js';
 export * from './sessions.js';
@@ -259,6 +266,10 @@ export const apiEndpoints = {
   listMySessions,
   revokeMySession,
   revokeMyOtherSessions,
+  registerMyPushToken,
+  unregisterMyPushToken,
+  getMyNotificationPreferences,
+  updateMyNotificationPreferences,
   createInvitation,
   listInvitations,
   revokeInvitation,

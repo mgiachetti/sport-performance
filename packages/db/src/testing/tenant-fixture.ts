@@ -31,6 +31,8 @@ import {
   khamisRocheTable,
   membership,
   metricDefinition,
+  notification,
+  notificationPreference,
   participation,
   player,
   playerAccessCode,
@@ -41,6 +43,7 @@ import {
   playerStage,
   playerWellnessDaily,
   position,
+  pushTicket,
   referenceValue,
   rosterImport,
   season,
@@ -710,6 +713,43 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
       .insert(playerAlertEvaluation)
       .values({ ...base, playerId: assigned, evaluatedOn: day('2026-03-11') })
       .returning({ id: playerAlertEvaluation.id }),
+  );
+  // Notifications (B-328, ADR 0054): the admin's own preference and delivery (each user reads
+  // only theirs), and the push ticket of that delivery.
+  rows.notification_preference = await id(
+    db
+      .insert(notificationPreference)
+      .values({ ...base, userId: users.admin, kind: 'critical_alert', email: false })
+      .returning({ id: notificationPreference.id }),
+  );
+  rows.notification = await id(
+    db
+      .insert(notification)
+      .values({
+        ...base,
+        userId: users.admin,
+        kind: 'critical_alert',
+        channel: 'push',
+        dedupeKey: `alert:${rows.alert}`,
+        status: 'sent',
+        scheduledFor: new Date('2026-03-11T12:00:00Z'),
+        sentAt: new Date('2026-03-11T12:00:01Z'),
+        playerId: assigned,
+        alertId: rows.alert,
+        attempts: 1,
+      })
+      .returning({ id: notification.id }),
+  );
+  rows.push_ticket = await id(
+    db
+      .insert(pushTicket)
+      .values({
+        ...base,
+        notificationId: rows.notification,
+        ticketId: `fixture-ticket-${slug}`,
+        status: 'pending',
+      })
+      .returning({ id: pushTicket.id }),
   );
 
   rows.invitation = await id(

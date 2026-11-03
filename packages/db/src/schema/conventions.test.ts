@@ -26,6 +26,7 @@ const GLOBAL_TABLES = [
   'verification',
   'auth_rate_limit',
   'known_device',
+  'push_token',
   'club',
 ];
 /** Append-only audit logs: club scoped, but not club tables in the ADR 0023 sense. */
@@ -70,6 +71,8 @@ describe('schema conventions', () => {
         'invitation_category',
         'membership',
         'metric_definition',
+        'notification',
+        'notification_preference',
         'participation',
         'player',
         'player_access_code',
@@ -81,6 +84,8 @@ describe('schema conventions', () => {
         'player_stage',
         'player_wellness_daily',
         'position',
+        'push_ticket',
+        'push_token',
         'reference_value',
         'roster_import',
         'season',

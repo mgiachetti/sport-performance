@@ -585,6 +585,7 @@ describe.skipIf(!hasDatabase)('worker and derived values (Postgres 16)', () => {
       jobQueuePoolMax: 3,
       pollingIntervalSeconds: 0.5,
       storage: fakeStorage([]),
+      notifications: null,
       now: () => NOW,
     });
     try {

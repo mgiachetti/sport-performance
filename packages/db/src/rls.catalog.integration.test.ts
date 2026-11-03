@@ -19,6 +19,7 @@ const GLOBAL_TABLES = [
   'auth_rate_limit',
   'club',
   'known_device',
+  'push_token',
   'session',
   'user',
   'verification',
@@ -41,7 +42,14 @@ const DELETABLE = {
   [DATABASE_ROLES.app]: ['drill', 'player_position'],
   [DATABASE_ROLES.auth]: AUTH_TABLES,
   // The worker's derived cache and its outbox (ADR 0045): rebuilt from the source rows.
-  [DATABASE_ROLES.worker]: ['derived_refresh', 'player_load_daily', 'player_wellness_daily'],
+  // The deliveries of notifications past their retention (ADR 0054).
+  [DATABASE_ROLES.worker]: [
+    'derived_refresh',
+    'notification',
+    'player_load_daily',
+    'player_wellness_daily',
+    'push_ticket',
+  ],
 };
 const IMMUTABLE_COLUMNS = ['id', 'club_id', 'created_at', 'created_by', 'client_uuid'];
 
@@ -190,7 +198,7 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
           and has_table_privilege(r.oid, c.oid, 'SELECT, INSERT, UPDATE, DELETE')`,
       [
         [DATABASE_ROLES.app, DATABASE_ROLES.worker],
-        ['session', 'account', 'verification', 'auth_rate_limit', 'known_device'],
+        ['session', 'account', 'verification', 'auth_rate_limit', 'known_device', 'push_token'],
       ],
     );
     expect(rows).toEqual([]);
@@ -257,11 +265,15 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
       'app.is_superadmin',
       'app.player_takes_access_codes',
       'app.redeem_player_access',
+      'app.register_push_token',
       'app.review_guardian',
       'app.sync_lock_rows',
       'app.sync_stamp_fields',
+      'app.unregister_push_token',
       'app.visible_player_ids',
       'app.worker_clubs',
+      'app.worker_forget_push_token',
+      'app.worker_push_tokens',
       'public.alert_event_record',
       'public.alert_refresh_mark',
       'public.alert_refresh_trigger',

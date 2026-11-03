@@ -208,6 +208,7 @@ export {
   dayBoundsRangeInTimeZone,
   daysBetween,
   decimalAgeYears,
+  instantAtLocalTime,
   isLocalDate,
   isTimeZone,
   isoWeekday,
@@ -215,6 +216,8 @@ export {
   localDateInTimeZone,
   localDateParts,
   localDateRange,
+  localDateTimeInTimeZone,
+  MINUTES_PER_DAY,
   parseLocalDate,
   parseTimeZone,
   startOfIsoWeek,
@@ -222,6 +225,7 @@ export {
   type Instant,
   type LocalDate,
   type LocalDateParts,
+  type LocalDateTime,
   type LocalDayBounds,
   type TimeZone,
 } from './time.js';
@@ -426,3 +430,6 @@ export * from './roster-import/index.js';
 export * from './sync/index.js';
 // Rights of the data subject: export, erasure and account deletion (B-329).
 export * from './data-subject-rights.js';
+
+// Notifications: kinds, preferences, club parameters and allowed hours (B-328).
+export * from './notifications/index.js';

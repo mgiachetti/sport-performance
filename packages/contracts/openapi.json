@@ -89,6 +89,10 @@
     {
       "name": "privacy",
       "description": "Derechos del titular (Ley 25.326): exportación de todos los datos, pedidos de supresión y borrado de la cuenta."
+    },
+    {
+      "name": "notifications",
+      "description": "Notificaciones push y por email: el token del dispositivo y las preferencias de cada usuario (B-328)."
     }
   ],
   "paths": {
@@ -8610,6 +8614,277 @@
                 }
               }
             }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/me/notification-preferences": {
+      "get": {
+        "operationId": "getMyNotificationPreferences",
+        "summary": "Mis preferencias de notificaciones",
+        "description": "Qué tipos de notificación llegan y por dónde (push, email), para la membresía de este request. Lo que el usuario nunca cambió tiene el valor por defecto: push en todos los tipos, email solo en alertas críticas.",
+        "tags": [
+          "me",
+          "notifications"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Las preferencias.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationPreferenceList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateMyNotificationPreferences",
+        "summary": "Cambiar mis preferencias de notificaciones",
+        "description": "Se mandan solo los tipos y canales que cambian. Un tipo que el rol de la membresía no recibe (por ejemplo, alertas para un jugador/a) es `validation_failed`. Un valor igual al de por defecto vuelve a seguir el valor por defecto.",
+        "tags": [
+          "me",
+          "notifications"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "preferences": {
+                    "minItems": 1,
+                    "maxItems": 4,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "$ref": "#/components/schemas/NotificationKind"
+                        },
+                        "push": {
+                          "type": "boolean"
+                        },
+                        "email": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "description": "Cada tipo a lo sumo una vez."
+                  }
+                },
+                "required": [
+                  "preferences"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Las preferencias actualizadas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationPreferenceList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/me/push-token": {
+      "put": {
+        "operationId": "registerMyPushToken",
+        "summary": "Registrar el token push de este dispositivo",
+        "description": "La app lo manda después de ingresar y cada vez que Expo le da un token nuevo. Queda atado a la sesión de este request: al cerrar o revocar la sesión se borra. Si el mismo token estaba registrado por otra sesión (otra persona ingresó en el mismo celular), pasa a esta. Idempotente.",
+        "tags": [
+          "me",
+          "notifications"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "maxLength": 230,
+                    "pattern": "^Expo(?:nent)?PushToken\\[[A-Za-z0-9_-]{8,200}\\]$",
+                    "description": "Token de Expo Push del dispositivo (`ExponentPushToken[…]`).",
+                    "examples": [
+                      "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
+                    ]
+                  },
+                  "platform": {
+                    "$ref": "#/components/schemas/PushPlatform"
+                  }
+                },
+                "required": [
+                  "token",
+                  "platform"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Token registrado."
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "unregisterMyPushToken",
+        "summary": "Borrar el token push de este dispositivo",
+        "description": "Para cuando el usuario apaga las notificaciones en el celular. Idempotente: sin token registrado también responde 204. Cerrar la sesión ya lo borra.",
+        "tags": [
+          "me",
+          "notifications"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Token borrado (o no había)."
           },
           "400": {
             "$ref": "#/components/responses/Error.validation_failed"
@@ -24425,6 +24700,57 @@
           "nextCursor"
         ]
       },
+      "NotificationKind": {
+        "type": "string",
+        "enum": [
+          "rpe_request",
+          "rpe_reminder",
+          "critical_alert",
+          "pre_training_summary"
+        ],
+        "description": "`rpe_request`: Al jugador/a, al terminar la sesión: pedido del RPE. `rpe_reminder`: Al jugador/a, a la mañana siguiente, si todavía no cargó el RPE. `critical_alert`: Al staff asignado, cuando aparece una alerta crítica (sin nombres ni valores). `pre_training_summary`: Al staff asignado, antes de cada sesión: conteos de alertas y de bienestar cargado."
+      },
+      "NotificationPreference": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/NotificationKind"
+          },
+          "push": {
+            "type": "boolean",
+            "description": "Llega como notificación push al celular."
+          },
+          "email": {
+            "type": "boolean",
+            "description": "Llega por correo."
+          },
+          "isDefault": {
+            "type": "boolean",
+            "description": "Los dos canales están en su valor por defecto (el usuario no los cambió)."
+          }
+        },
+        "required": [
+          "kind",
+          "push",
+          "email",
+          "isDefault"
+        ]
+      },
+      "NotificationPreferenceList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationPreference"
+            },
+            "description": "Un elemento por cada tipo que recibe el rol de la membresía, en orden fijo. Un tutor no recibe notificaciones: lista vacía."
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
       "Parent": {
         "type": "string",
         "enum": [
@@ -25856,6 +26182,14 @@
           "items",
           "nextCursor"
         ]
+      },
+      "PushPlatform": {
+        "type": "string",
+        "enum": [
+          "ios",
+          "android"
+        ],
+        "description": "Sistema del dispositivo."
       },
       "ReferenceImportResult": {
         "type": "object",

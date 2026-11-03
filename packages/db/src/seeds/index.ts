@@ -46,3 +46,4 @@ export {
 } from './test-definitions.js';
 export { runSeed, type RunSeedOptions, type RunSeedResult } from './run.js';
 export { ORC_TENANT, seedTenant, type SeedTenantResult, type TenantSeed } from './tenant.js';
+export * from './demo/index.js';
