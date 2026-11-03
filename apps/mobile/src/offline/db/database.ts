@@ -81,6 +81,53 @@ export function deferredLocalDatabase(opening: Promise<LocalDatabase>): LocalDat
   };
 }
 
+/** Wait after a failed open before an access tries again. */
+export const REOPEN_AFTER_FAILURE_MS = 5_000;
+
+/**
+ * Like `deferredLocalDatabase`, but an open that failed (the key of the file
+ * could not be read at launch, ADR 0069) is tried again by a later access,
+ * at most once every `REOPEN_AFTER_FAILURE_MS`: a moment of the Keychain or
+ * Keystore does not leave the app without its database until a relaunch.
+ * Accesses in between fail with the last error.
+ */
+export function reopeningLocalDatabase(
+  open: () => Promise<LocalDatabase>,
+  options: { readonly now?: () => number; readonly retryAfterMs?: number } = {},
+): LocalDatabase {
+  const now = options.now ?? Date.now;
+  const retryAfterMs = options.retryAfterMs ?? REOPEN_AFTER_FAILURE_MS;
+  let opening: Promise<LocalDatabase> | null = null;
+  /** When the current attempt failed; `null` while it opens or once it opened. */
+  let failedAt: number | null = null;
+
+  function start(): Promise<LocalDatabase> {
+    const attempt = open();
+    opening = attempt;
+    failedAt = null;
+    attempt.catch(() => {
+      if (opening === attempt) failedAt = now();
+    });
+    return attempt;
+  }
+
+  function current(): Promise<LocalDatabase> {
+    if (opening === null) return start();
+    if (failedAt !== null && now() - failedAt >= retryAfterMs) return start();
+    return opening;
+  }
+
+  return {
+    read: async (task) => (await current()).read(task),
+    write: async (task) => (await current()).write(task),
+    close: async () => {
+      if (opening === null) return;
+      const database = await opening.catch(() => null);
+      await database?.close();
+    },
+  };
+}
+
 /**
  * Opens the database over a driver: write-ahead log, foreign keys (a scope
  * deletes its rows), deleted rows overwritten on disk (`secure_delete`:

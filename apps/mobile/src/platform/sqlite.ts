@@ -1,31 +1,23 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getRandomBytesAsync } from 'expo-crypto';
+import { File } from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
 import * as SQLite from 'expo-sqlite';
 import { openLocalDatabase, type LocalDatabase } from '../offline/db/database.ts';
+import { createEncryptedDatabaseOpener } from '../offline/db/database-key.ts';
 import type { SqlDriver, SqlValue } from '../offline/db/driver.ts';
 
 /** The one database file of the installation (ADR 0069). */
 export const LOCAL_DATABASE_NAME = 'sport-performance.db';
 /** Keychain / Keystore item with the SQLCipher key of the file. */
 const DATABASE_KEY_ITEM = 'localDatabaseKey';
+/** Plain preference: how many launches found the file without its key (ADR 0069). */
+const KEY_LOSS_PREFERENCE = 'localDatabase.keyLoss';
 
 /** Same protection as the session token: readable in the background, never in a backup (ADR 0058). */
 const SECURE_OPTIONS: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
 };
-
-function toHex(bytes: Uint8Array): string {
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
-/** The 256-bit key of the file, created on first use; it never leaves the secure storage. */
-async function databaseKey(): Promise<string> {
-  const stored = await SecureStore.getItemAsync(DATABASE_KEY_ITEM, SECURE_OPTIONS);
-  if (stored !== null && /^[0-9a-f]{64}$/.test(stored)) return stored;
-  const fresh = toHex(await getRandomBytesAsync(32));
-  await SecureStore.setItemAsync(DATABASE_KEY_ITEM, fresh, SECURE_OPTIONS);
-  return fresh;
-}
 
 function expoDriver(db: SQLite.SQLiteDatabase): SqlDriver {
   return {
@@ -56,22 +48,52 @@ async function open(key: string): Promise<LocalDatabase> {
   }
 }
 
+/** The database file, in the directory `expo-sqlite` opens it from. */
+function databaseFile(): File {
+  const directory = String(SQLite.defaultDatabaseDirectory);
+  const uri = directory.startsWith('file:') ? directory : `file://${directory}`;
+  return new File(uri, LOCAL_DATABASE_NAME);
+}
+
 /**
- * Opens the encrypted local database. A file that cannot be opened (its key
- * did not survive a restore to another phone, or a newer build wrote it and
- * an update rolled back) is deleted and created again: the server has
- * everything but what was queued, and the alternative is an app that never
- * opens. The error is reported (never with data) so it shows in Sentry.
+ * Opens the encrypted local database (ADR 0069). The SQLCipher key lives in
+ * the Keychain / Keystore; a file is deleted only when it does not open with
+ * its own key, or when its key was confirmed lost (`createEncryptedDatabaseOpener`):
+ * a key that could not be read for a moment never costs the queue.
  */
-export async function openNativeLocalDatabase(
+export function nativeLocalDatabaseOpener(
+  reportError: (error: unknown) => void,
+): () => Promise<LocalDatabase> {
+  return createEncryptedDatabaseOpener({
+    keys: {
+      read: () => SecureStore.getItemAsync(DATABASE_KEY_ITEM, SECURE_OPTIONS),
+      write: (key) => SecureStore.setItemAsync(DATABASE_KEY_ITEM, key, SECURE_OPTIONS),
+    },
+    file: {
+      // In the executor: a path the file system refuses is a rejection, never "no file".
+      exists: () =>
+        new Promise((resolve) => {
+          resolve(databaseFile().exists);
+        }),
+      open,
+      remove: () => SQLite.deleteDatabaseAsync(LOCAL_DATABASE_NAME),
+    },
+    lossLog: {
+      get: () => AsyncStorage.getItem(KEY_LOSS_PREFERENCE),
+      set: (value) => AsyncStorage.setItem(KEY_LOSS_PREFERENCE, value),
+      clear: () => AsyncStorage.removeItem(KEY_LOSS_PREFERENCE),
+    },
+    randomBytes: () => getRandomBytesAsync(32),
+    reportError,
+  });
+}
+
+let nativeOpener: (() => Promise<LocalDatabase>) | null = null;
+
+/** Opens the encrypted local database; an open that failed can be tried again (one opener per launch). */
+export function openNativeLocalDatabase(
   reportError: (error: unknown) => void,
 ): Promise<LocalDatabase> {
-  const key = await databaseKey();
-  try {
-    return await open(key);
-  } catch (error) {
-    reportError(error);
-    await SQLite.deleteDatabaseAsync(LOCAL_DATABASE_NAME);
-    return open(key);
-  }
+  nativeOpener ??= nativeLocalDatabaseOpener(reportError);
+  return nativeOpener();
 }

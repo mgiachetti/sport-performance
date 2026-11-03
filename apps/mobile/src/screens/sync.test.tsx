@@ -39,10 +39,16 @@ function issue(overrides: Partial<SyncIssue> = {}): SyncIssue {
 describe('SyncIndicator', () => {
   it('says everything is synced and when, without a retry button', () => {
     renderScreen(<SyncIndicator status={idle} nowMs={NOW} onSyncNow={vi.fn()} />);
-    expect(
-      screen.getByText(`${t('sync.synced')}. ${t('sync.lastSyncedMinutes', { count: 5 })}`),
-    ).toBeDefined();
+    expect(screen.getByText('Todo sincronizado hace 5 minutos.')).toBeDefined();
     expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('says only that the phone never synced before its first sync, never "all synced"', () => {
+    renderScreen(
+      <SyncIndicator status={{ ...idle, lastSyncedAt: null }} nowMs={NOW} onSyncNow={vi.fn()} />,
+    );
+    expect(screen.getByText('Este teléfono todavía no se sincronizó.')).toBeDefined();
+    expect(screen.queryByText(/Todo sincronizado/)).toBeNull();
   });
 
   it('shows no signal, what waits to be sent and what failed, with icon and text', () => {

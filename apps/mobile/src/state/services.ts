@@ -9,7 +9,7 @@ import { createSecureIftRunStore, type IftRunStore } from '../ift/run-store.ts';
 import { createIftRunner, type IftRunner } from '../ift/runner.ts';
 import type { SignalPlayer } from '../ift/signal-player.ts';
 import type { RuntimeConfig } from '../config/runtime-config.ts';
-import { deferredLocalDatabase, type LocalDatabase } from '../offline/db/database.ts';
+import { reopeningLocalDatabase, type LocalDatabase } from '../offline/db/database.ts';
 import { createSyncEngine, type SyncEngine } from '../offline/engine.ts';
 import { bindSyncToSession } from '../offline/session-binding.ts';
 import type { PreferenceStorage, SecureStorage } from '../platform/storage.ts';
@@ -94,7 +94,7 @@ export function createAppServices(platform: Platform): AppServices {
   );
   const queryClient = createQueryClient();
   const sync = createSyncEngine({
-    database: deferredLocalDatabase(platform.openLocalDatabase()),
+    database: reopeningLocalDatabase(platform.openLocalDatabase),
     api: api.client,
     randomUUID: platform.randomUUID,
     reportError,

@@ -70,6 +70,8 @@ export const mobileMessagesEsAR = {
     '{count, plural, one {Sincronizado hace # hora} other {Sincronizado hace # horas}}',
   'sync.lastSyncedDays':
     '{count, plural, one {Sincronizado hace # día} other {Sincronizado hace # días}}',
+  'sync.idleSummary':
+    '{since, select, never {Este teléfono todavía no se sincronizó.} now {Todo sincronizado recién.} minutes {{count, plural, one {Todo sincronizado hace # minuto.} other {Todo sincronizado hace # minutos.}}} hours {{count, plural, one {Todo sincronizado hace # hora.} other {Todo sincronizado hace # horas.}}} other {{count, plural, one {Todo sincronizado hace # día.} other {Todo sincronizado hace # días.}}}}',
   'sync.issues.title': 'Cambios que no se aplicaron',
   'sync.issues.summary':
     '{count, plural, one {# cambio no se pudo aplicar. Revisalo en Cuenta.} other {# cambios no se pudieron aplicar. Revisalos en Cuenta.}}',

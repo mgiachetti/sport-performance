@@ -28,8 +28,10 @@ function waitFor(
  * One sync cycle from the background task (ADR 0069): waits for the session
  * read at launch (the token is readable after the first unlock) and for the
  * engine to be on its membership, then syncs within the budget the system
- * gives. Without a session or a club, there is nothing to do. `true` when it
- * synced.
+ * gives. Without a session or a club, there is nothing to do. A
+ * `Retry-After` of the server still running is honored like everywhere
+ * else: the engine skips the cycle (`retry_after`) and the task ends without
+ * a request. `true` when it synced.
  */
 export async function runBackgroundSync(
   services: {

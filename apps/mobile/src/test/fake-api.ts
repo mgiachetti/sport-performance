@@ -88,3 +88,22 @@ export function apiError(
     body: { error: { code, message: code, requestId: 'req-1', details: [] } },
   };
 }
+
+/**
+ * A `400 validation_failed` with one issue per path, located like the API
+ * does (`['body', 'mutations', 0, 'hlc']`, `['headers', 'x-client-version']`).
+ */
+export function validationFailed(...paths: (string | number)[][]): FakeResponse {
+  return {
+    status: 400,
+    headers: {},
+    body: {
+      error: {
+        code: 'validation_failed',
+        message: 'validation_failed',
+        requestId: 'req-1',
+        details: paths.map((path) => ({ path, code: 'custom', message: 'invalid' })),
+      },
+    },
+  };
+}

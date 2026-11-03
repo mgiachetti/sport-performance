@@ -12,7 +12,7 @@ import {
   serverHlc,
   type SyncCollection,
 } from '@sport-performance/domain';
-import { apiError, type FakeApi, type FakeResponse } from './fake-api.ts';
+import { apiError, validationFailed, type FakeApi, type FakeResponse } from './fake-api.ts';
 
 export const T0 = Date.UTC(2026, 10, 3, 12, 0, 0);
 export const PLAYER_ID = 'b1111111-1111-4111-8111-111111111111';
@@ -104,7 +104,8 @@ export function createFakeSyncServer(api: FakeApi, options: { serverTimeMs?: num
       return failure;
     }
     // The envelope of one mutation no longer valid: the whole push is a `400`.
-    if (mutations.some((m) => refuse(m))) return apiError(400, 'validation_failed');
+    const refused = mutations.findIndex((m) => refuse(m));
+    if (refused !== -1) return validationFailed(['body', 'mutations', refused, 'body']);
     const results: SyncMutationResult[] = mutations.map((m) => {
       const base: SyncMutationResult = {
         mutationId: m.mutationId,

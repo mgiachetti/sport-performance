@@ -43,10 +43,13 @@ export function useSyncStatus(): SyncStatus {
   return useSyncExternalStore(sync.subscribe, sync.getStatus, sync.getStatus);
 }
 
-/** The issues of the queue of the active membership, re-read when their count changes. */
+/**
+ * The issues of the queue of the active membership, re-read whenever the
+ * engine says they changed (`issuesVersion`), also when their count stays.
+ */
 export function useSyncIssues(): readonly SyncIssue[] {
   const { sync, reportError } = useServices();
-  const { membershipId, issueCount } = useSyncStatus();
+  const { membershipId, issueCount, issuesVersion } = useSyncStatus();
   const [issues, setIssues] = useState<readonly SyncIssue[]>([]);
   useEffect(() => {
     let active = true;
@@ -59,7 +62,7 @@ export function useSyncIssues(): readonly SyncIssue[] {
     return () => {
       active = false;
     };
-  }, [sync, reportError, membershipId, issueCount]);
+  }, [sync, reportError, membershipId, issueCount, issuesVersion]);
   return issues;
 }
 

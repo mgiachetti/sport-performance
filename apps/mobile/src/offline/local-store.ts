@@ -165,7 +165,7 @@ function overlaid<C extends SyncCollection>(
   for (const queued of queue) {
     if (!queued.targets.some((target) => matchesTarget(target, key))) continue;
     pending = true;
-    data = applyOverlay(queued.op, data, queued.input);
+    data = applyOverlay(queued.op, data, queued.input, { enqueuedAt: queued.createdAt });
   }
   return { id: row.id, clientUuid: row.clientUuid, data: data as CollectionData[C], pending };
 }
