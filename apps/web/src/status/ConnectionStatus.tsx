@@ -21,7 +21,7 @@ export function usePendingChanges(): number {
 }
 
 /**
- * Connection and sync status of the shell (ADR 0056), always icon + text and
+ * Connection and sync status of the shell (ADR 0057), always icon + text and
  * announced politely: online / offline / API unreachable, changes waiting to
  * be sent and the time of the last answer, in the club's time zone.
  */

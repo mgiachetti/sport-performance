@@ -1,5 +1,5 @@
 /**
- * The worker against Postgres 16 (B-326, ADR 0045), through the real
+ * The worker against Postgres 16 (B-326, ADR 0046), through the real
  * connection roles (ADR 0026): writes as the API mark players in their own
  * transaction, the worker's login recalculates load, wellness and maturation
  * for one club at a time, closes marks with compare-and-delete, extends the

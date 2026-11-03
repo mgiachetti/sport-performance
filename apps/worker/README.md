@@ -1,6 +1,6 @@
 # @sport-performance/worker
 
-Jobs en segundo plano con pg-boss (cola sobre la misma Postgres, ADR 0011, ADR 0045): el recálculo de los valores derivados para el panel (B-326), con la generación de alertas (B-327, ADR 0053) como paso del mismo recálculo, la retención de archivos (B-325) y las notificaciones push y por email (B-328, [ADR 0054](../../docs/adr/0054-notificaciones-push-y-email.md)).
+Jobs en segundo plano con pg-boss (cola sobre la misma Postgres, ADR 0011, ADR 0046): el recálculo de los valores derivados para el panel (B-326), con la generación de alertas (B-327, ADR 0053) como paso del mismo recálculo, la retención de archivos (B-325) y las notificaciones push y por email (B-328, [ADR 0054](../../docs/adr/0054-notificaciones-push-y-email.md)).
 
 ## Cómo funciona
 

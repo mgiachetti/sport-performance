@@ -18,7 +18,7 @@ import { player } from './players.js';
 import { tenantColumns, tenantConstraints, tenantReference } from './tenant.js';
 
 /**
- * Values derived by the worker for the panel (B-326, ADR 0045). They are a
+ * Values derived by the worker for the panel (B-326, ADR 0046). They are a
  * cache rebuilt from the source rows (participation, wellness,
  * anthropometry), never edited: the API only reads them, the worker replaces
  * them (it is the only role with `DELETE` here) and they go with the player
@@ -27,7 +27,7 @@ import { tenantColumns, tenantConstraints, tenantReference } from './tenant.js';
  */
 
 /**
- * A pending recalculation (outbox, ADR 0045): triggers on the source tables
+ * A pending recalculation (outbox, ADR 0046): triggers on the source tables
  * mark the player in the same transaction as the write, with what to
  * recalculate: the load series from `load_from`, the wellness baseline from
  * `wellness_from` (the earliest of every pending write), the maturation of

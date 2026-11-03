@@ -20,7 +20,7 @@ function isAbort(error: unknown): boolean {
 }
 
 /**
- * The only API client of the web (ADR 0056): the typed client of
+ * The only API client of the web (ADR 0057): the typed client of
  * `packages/contracts` with
  *
  * - `credentials: 'include'`: the session is the `HttpOnly` cookie of the

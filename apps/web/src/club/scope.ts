@@ -3,7 +3,7 @@ import { SPORTS, isSport, isUuid, type CategoryId, type Sport } from '@sport-per
 
 /**
  * Sport and category of the layout, kept in the URL (`?sport=rugby&category=…`)
- * so a filtered screen can be shared and reloaded (ADR 0012, ADR 0056).
+ * so a filtered screen can be shared and reloaded (ADR 0012, ADR 0057).
  */
 export interface ScopeSearch {
   readonly sport?: Sport | undefined;

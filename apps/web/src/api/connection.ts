@@ -2,7 +2,7 @@ import { CONTRACT_VERSION } from '@sport-performance/contracts';
 import { Store } from '../lib/store';
 
 /**
- * What the web knows about its link to the API (ADR 0056):
+ * What the web knows about its link to the API (ADR 0057):
  *
  * - `browserOnline`: `navigator.onLine` and its `online`/`offline` events.
  * - `apiReachable`: `false` after a request got no response (network, DNS,

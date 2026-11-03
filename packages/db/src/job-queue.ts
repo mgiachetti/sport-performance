@@ -2,7 +2,7 @@ import type pg from 'pg';
 import { DATABASE_ROLES } from './roles.js';
 
 /**
- * The job queue (ADR 0011, ADR 0045): pg-boss in its own schema of the same
+ * The job queue (ADR 0011, ADR 0046): pg-boss in its own schema of the same
  * Postgres. It is installed and upgraded here, by the migration runner and as
  * the owner, never by the worker: the worker's login has no DDL privileges
  * (ADR 0026), so it starts pg-boss with `migrate: false` and refuses to run

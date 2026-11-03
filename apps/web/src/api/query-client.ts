@@ -10,7 +10,7 @@ export interface QueryClientOptions {
 }
 
 /**
- * TanStack Query defaults of the web (ADR 0056):
+ * TanStack Query defaults of the web (ADR 0057):
  *
  * - queries retry transient errors only (network, `502`–`504`, `429` with
  *   `Retry-After`), honouring `Retry-After`;

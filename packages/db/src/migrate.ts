@@ -24,7 +24,7 @@ import { installJobQueue } from './job-queue.js';
  *   never as a connection role, which has no DDL privileges (ADR 0026). It
  *   must be a superuser or have BYPASSRLS: migration 0004 checks it.
  * - Then installs or upgrades the job queue (pg-boss, schema `pgboss`) and
- *   its grants, under the same lock (ADR 0045): the worker never migrates it.
+ *   its grants, under the same lock (ADR 0046): the worker never migrates it.
  */
 
 /** Folder with the SQL migrations and drizzle-kit's journal, shipped with the package. */
