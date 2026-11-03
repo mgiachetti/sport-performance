@@ -2,7 +2,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 /**
- * Staff web (ADR 0012, ADR 0056): a static SPA. `VITE_API_URL` is the only
+ * Staff web (ADR 0012, ADR 0057): a static SPA. `VITE_API_URL` is the only
  * build-time variable (see `.env.example`); `src/env.ts` validates it at startup.
  */
 export default defineConfig({
