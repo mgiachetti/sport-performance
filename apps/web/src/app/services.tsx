@@ -1,4 +1,5 @@
 import type { ApiClient } from '@sport-performance/contracts';
+import type { StorageUploader } from '../api/storage-upload';
 import type { QueryClient } from '@tanstack/react-query';
 import { createContext, useContext, useSyncExternalStore, type ReactNode } from 'react';
 import type { ClubSelectionStore } from '../api/club-selection';
@@ -26,6 +27,8 @@ export interface AppServices {
   readonly consoleApi: ApiClient;
   /** Reason of the current console session (this tab only). */
   readonly consoleReason: ConsoleReasonStore;
+  /** Sends a file straight to the bucket with a signed `PUT` (ADR 0044). */
+  readonly uploadToStorage: StorageUploader;
 }
 
 const ServicesContext = createContext<AppServices | null>(null);

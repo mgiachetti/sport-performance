@@ -35,7 +35,12 @@ describe('file vocabularies', () => {
   });
 
   it('lets clients upload everything but the reports the worker writes', () => {
-    expect(CLIENT_UPLOAD_FILE_KINDS).toEqual(['club_logo', 'cmj_video', 'data_import']);
+    expect(CLIENT_UPLOAD_FILE_KINDS).toEqual([
+      'club_logo',
+      'cmj_video',
+      'data_import',
+      'protocol_media',
+    ]);
   });
 });
 
@@ -89,12 +94,20 @@ describe('retention', () => {
     );
   });
 
+  it('keeps the media of a protocol while a protocol uses it and 30 days after', () => {
+    expect(fileExpiresAt('protocol_media', confirmedAt, true)).toBeNull();
+    expect(fileExpiresAt('protocol_media', confirmedAt)).toEqual(
+      new Date(confirmedAt.getTime() + 30 * DAY_MS),
+    );
+  });
+
   it('gives a pending upload one day', () => {
     expect(pendingUploadExpiresAt(confirmedAt)).toEqual(new Date(confirmedAt.getTime() + DAY_MS));
   });
 
   it('accepts raster crests only', () => {
     expect(FILE_KIND_POLICIES.club_logo.contentTypes).not.toContain('image/svg+xml');
+    expect(FILE_KIND_POLICIES.protocol_media.contentTypes).not.toContain('image/svg+xml');
   });
 });
 

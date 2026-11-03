@@ -22,6 +22,7 @@ import {
   externalMetric,
   fixture,
   file,
+  testProtocolMedia,
   guardian,
   gymProgram,
   gymSet,
@@ -526,6 +527,32 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         checksumSha256: '47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=',
       })
       .returning({ id: file.id }),
+  );
+  // A club-wide image that shows how a protocol is done (B-415), attached to the test.
+  const protocolFile = await id(
+    db
+      .insert(file)
+      .values({
+        ...base,
+        kind: 'protocol_media',
+        status: 'ready',
+        contentType: 'image/png',
+        sizeBytes: 2048,
+        checksumSha256: '47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=',
+        uploadedAt: new Date('2026-02-01T12:00:00.000Z'),
+      })
+      .returning({ id: file.id }),
+  );
+  rows.test_protocol_media = await id(
+    db
+      .insert(testProtocolMedia)
+      .values({
+        ...base,
+        testDefinitionId: rows.test_definition,
+        fileId: protocolFile,
+        caption: 'Posición de salida',
+      })
+      .returning({ id: testProtocolMedia.id }),
   );
   rows.anthro_measurement = await id(
     db

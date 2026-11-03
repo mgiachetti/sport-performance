@@ -99,6 +99,7 @@ describe('schema conventions', () => {
         'test_definition',
         'test_definition_metric',
         'test_import',
+        'test_protocol_media',
         'test_result',
         'test_result_value',
         'test_session',

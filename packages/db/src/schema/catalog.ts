@@ -1,4 +1,9 @@
-import type { CategoryId, PlayerId, SpeedZoneSet } from '@sport-performance/domain';
+import {
+  PROTOCOL_MEDIA_CAPTION_MAX_LENGTH,
+  type CategoryId,
+  type PlayerId,
+  type SpeedZoneSet,
+} from '@sport-performance/domain';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -28,6 +33,7 @@ import {
   stageEnum,
   unitEnum,
 } from './enums.js';
+import { file } from './files.js';
 import { category, position } from './organization.js';
 import { player } from './players.js';
 import {
@@ -137,6 +143,40 @@ export const testDefinition = pgTable(
       sql`${t.sports} is null or cardinality(${t.sports}) > 0`,
     ),
     validityCheck('test_definition_validity', t.validFrom, t.validTo),
+  ],
+);
+
+/**
+ * Images and videos that show how a protocol version is done (B-415, ADR
+ * 0067): a `protocol_media` file of the club attached to a test version, with
+ * its caption (the text alternative of the image, the description of the
+ * video) and its place in the protocol. Removing it archives the row
+ * (`archived_at`); the file is kept while an active row points at it, then
+ * expires like an unused crest. Staff only (RLS): a video may show a person.
+ */
+export const testProtocolMedia = pgTable(
+  'test_protocol_media',
+  {
+    ...tenantColumns(),
+    testDefinitionId: uuid('test_definition_id').notNull(),
+    fileId: uuid('file_id').notNull(),
+    caption: text('caption').notNull(),
+    sortOrder: smallint('sort_order').notNull().default(0),
+    archivedAt: timestamptz('archived_at'),
+  },
+  (t) => [
+    ...tenantConstraints('test_protocol_media', t),
+    tenantReference('test_protocol_media', t.clubId, t.testDefinitionId, testDefinition),
+    tenantReference('test_protocol_media', t.clubId, t.fileId, file),
+    // A file is shown once per protocol version; the same clip may illustrate several.
+    unique('test_protocol_media_file_key').on(t.clubId, t.testDefinitionId, t.fileId),
+    index('test_protocol_media_order_idx').on(t.clubId, t.testDefinitionId, t.sortOrder),
+    index('test_protocol_media_file_id_idx').on(t.clubId, t.fileId),
+    check(
+      'test_protocol_media_caption_format',
+      sql`${t.caption} = btrim(${t.caption}) and char_length(${t.caption}) between 1 and ${sql.raw(String(PROTOCOL_MEDIA_CAPTION_MAX_LENGTH))}`,
+    ),
+    check('test_protocol_media_sort_order', sql`${t.sortOrder} between 0 and 999`),
   ],
 );
 

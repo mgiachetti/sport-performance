@@ -1,5 +1,5 @@
 import type { Database } from '@sport-performance/db';
-import { club, file } from '@sport-performance/db/schema';
+import { club, file, testProtocolMedia } from '@sport-performance/db/schema';
 import { SIGNED_URL_CLOCK_SKEW_S, fileObjectKey } from '@sport-performance/domain';
 import { and, asc, eq, inArray, isNull, lte, notExists, sql } from 'drizzle-orm';
 import type { ObjectStorage } from './storage.js';
@@ -12,7 +12,8 @@ import type { ObjectStorage } from './storage.js';
  * Due is every file with `expires_at <= now - SIGNED_URL_CLOCK_SKEW_S` that
  * was not purged yet: a confirmed file past the retention of its kind, an
  * upload never confirmed (whatever reached the bucket goes too) and a file
- * deleted on request. The crest the club is using is never due.
+ * deleted on request. The crest the club is using and the media of an active
+ * protocol (B-415) are never due, whatever `expires_at` says.
  *
  * No upload URL of a due file can still be honored: they never outlive the
  * upload window, and a file deleted on request expires once every URL it
@@ -75,6 +76,18 @@ export async function purgeExpiredFiles(
             .select({ id: club.id })
             .from(club)
             .where(and(eq(club.id, file.clubId), eq(club.logoFileId, file.id))),
+        ),
+        notExists(
+          db
+            .select({ id: testProtocolMedia.id })
+            .from(testProtocolMedia)
+            .where(
+              and(
+                eq(testProtocolMedia.clubId, file.clubId),
+                eq(testProtocolMedia.fileId, file.id),
+                isNull(testProtocolMedia.archivedAt),
+              ),
+            ),
         ),
       ),
     )

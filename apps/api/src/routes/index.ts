@@ -45,6 +45,7 @@ import { registerAlertRoutes } from './alerts.js';
 import { registerPanelRoutes } from './panel.js';
 import { registerAnthropometryRoutes } from './anthropometry.js';
 import { registerTestResultRoutes } from './test-results.js';
+import { registerTestDefinitionRoutes } from './test-definitions.js';
 import { registerTestImportRoutes } from './test-imports.js';
 import { registerTestSessionResultRoutes } from './test-sessions.js';
 import { registerSyncRoutes } from './sync.js';
@@ -202,6 +203,13 @@ export const IMPLEMENTED_ENDPOINTS = [
   'getPlayerTestEvolution',
   'listBatteryEntries',
   'getEffectiveBattery',
+  'listTestDefinitions',
+  'getTestDefinition',
+  'listProtocolMedia',
+  'attachProtocolMedia',
+  'updateProtocolMedia',
+  'archiveProtocolMedia',
+  'restoreProtocolMedia',
   'getBatteryEntry',
   'createBatteryEntry',
   'updateBatteryEntry',
@@ -305,6 +313,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerTestResultRoutes(app);
   registerTestImportRoutes(app);
   registerAnthropometryRoutes(app);
+  registerTestDefinitionRoutes(app);
   registerReferenceValueRoutes(app);
   registerBatteryRoutes(app);
   registerSpeedZoneRoutes(app);

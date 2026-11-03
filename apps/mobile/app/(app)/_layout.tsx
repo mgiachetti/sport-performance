@@ -4,7 +4,8 @@ import { useTheme } from '../../src/ui/theme.tsx';
 
 /**
  * The signed-in app with a club: one tab per area. B-503 and the following
- * issues add their screens here (wellness, tests, field test day).
+ * issues add their screens here (wellness, tests, field test day); the
+ * protocols of the tests are B-415.
  */
 export default function AppLayout() {
   const theme = useTheme();
@@ -28,6 +29,7 @@ export default function AppLayout() {
       }}
     >
       <Tabs.Screen name="home" options={{ title: t('nav.home') }} />
+      <Tabs.Screen name="protocols" options={{ title: t('nav.protocols') }} />
       <Tabs.Screen name="account" options={{ title: t('nav.account') }} />
     </Tabs>
   );

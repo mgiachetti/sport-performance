@@ -1,5 +1,6 @@
 import { rosterRowsFromTable, type RosterTable } from '@sport-performance/domain';
 import { describe, expect, it } from 'vitest';
+import { sha256Base64 } from '../api/storage-upload';
 import { club } from '../test/fixtures';
 import { assignmentBody, assignmentDraftErrors } from './AssignmentsSection';
 import { missingBranches, parseSortOrder } from './CategoriesSection';
@@ -18,7 +19,6 @@ import {
 } from './roster-model';
 import { currentRollover, decisionValue } from './SeasonRolloverPage';
 import { rollover } from '../test/admin-fixtures';
-import { sha256Base64 } from './upload';
 
 describe('roster file', () => {
   it('knows CSV and Excel files by name or type', () => {
@@ -221,7 +221,7 @@ describe('forms of the administration', () => {
   });
 
   it('hashes the crest as the bucket checks it', async () => {
-    expect(await sha256Base64(new Uint8Array([1, 2, 3, 4]).buffer)).toBe(
+    expect(await sha256Base64(new Blob([new Uint8Array([1, 2, 3, 4])]))).toBe(
       'n2SnR+G5fxMfq7a0Rylsm28CAeefs8U1bmx36JtqgGo=',
     );
   });

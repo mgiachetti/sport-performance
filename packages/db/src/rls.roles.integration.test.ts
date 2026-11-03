@@ -278,6 +278,53 @@ describe.skipIf(!hasDatabase)('RLS by role (Postgres 16)', () => {
       ).toBe('23514');
     });
 
+    it('protocol media (B-415): only the staff reads it; sc and the administration attach it', async () => {
+      const media = (context: TestContext) => ids(context, 'select id from test_protocol_media');
+      const mediaFiles = (context: TestContext) =>
+        ids(context, `select id from file where kind = 'protocol_media'`);
+      for (const who of ['coach', 'sc', 'medical', 'admin'] as const) {
+        expect(await media(as(who))).toEqual([must(a.rows.test_protocol_media)]);
+        expect(await mediaFiles(as(who))).toHaveLength(1);
+      }
+      for (const who of ['player', 'parent'] as const) {
+        expect(await media(as(who))).toEqual([]);
+        expect(await mediaFiles(as(who))).toEqual([]);
+        // The protocol text stays visible to every member.
+        expect(await ids(as(who), 'select id from test_definition')).toEqual([
+          must(a.rows.test_definition),
+        ]);
+      }
+      const archive = (client: pg.ClientBase) =>
+        client.query(`update test_protocol_media set archived_at = now() where club_id = $1`, [
+          a.clubId,
+        ]);
+      expect((await run(as('coach'), archive)).rowCount).toBe(0);
+      expect((await run(as('sc'), archive)).rowCount).toBe(1);
+      const upload = (client: pg.ClientBase) =>
+        client.query(
+          `insert into file (club_id, kind, content_type, size_bytes, checksum_sha256)
+           values ($1, 'protocol_media', 'video/mp4', 10, '47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=')`,
+          [a.clubId],
+        );
+      expect(await pgCode(run(as('coach'), upload))).toBe('42501');
+      await run(as('admin'), upload);
+      expect(
+        await pgCode(
+          run(as('sc'), (client) =>
+            client.query(`delete from test_protocol_media where club_id = $1`, [a.clubId]),
+          ),
+        ),
+      ).toBe('42501');
+      // The crest is still every member's.
+      expect(
+        await pgCode(
+          run(as('player'), (client) =>
+            client.query(`select id from file where kind = 'club_logo'`),
+          ),
+        ),
+      ).toBe('no error');
+    });
+
     it('coach: the players of their assigned categories only', async () => {
       expect(await players(as('coach'))).toEqual([a.players.assigned]);
       expect(await players(as('coachM17'))).toEqual([a.players.other]);

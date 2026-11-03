@@ -1,6 +1,7 @@
 import { createMemoryHistory } from '@tanstack/react-router';
 import { render, type RenderResult } from '@testing-library/react';
 import { userEvent, type UserEvent } from '@testing-library/user-event';
+import type { UploadFetch } from '../api/storage-upload';
 import { App, defaultTranslator } from '../app/App';
 import { createWebApp, type WebApp } from '../app/create-app';
 import type { MembershipSummary, SessionUser } from '@sport-performance/contracts';
@@ -15,12 +16,23 @@ export interface RenderAppOptions {
   readonly handlers?: FakeHandlers;
   readonly browserOnline?: boolean;
   readonly systemPrefersMoreContrast?: boolean;
+  /** Answers the signed `PUT`s to the bucket; by default every upload succeeds. */
+  readonly uploadFetch?: UploadFetch;
+}
+
+/** A signed upload the app sent to the bucket. */
+export interface SentUpload {
+  readonly url: string;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly body: Blob;
 }
 
 export interface RenderedApp extends RenderResult {
   readonly app: WebApp;
   readonly api: FakeApi;
   readonly user: UserEvent;
+  /** Signed uploads sent to the bucket, in order. */
+  readonly uploads: SentUpload[];
 }
 
 /**
@@ -35,9 +47,15 @@ export interface RenderedApp extends RenderResult {
  */
 export function renderApp(options: RenderAppOptions = {}): RenderedApp {
   const api = createFakeApi(TEST_API_URL, options.handlers);
+  const uploads: SentUpload[] = [];
+  const answerUpload = options.uploadFetch ?? (() => Promise.resolve({ ok: true, status: 200 }));
   const app = createWebApp({
     apiUrl: TEST_API_URL,
     fetch: api.fetch,
+    uploadFetch: (url, init) => {
+      uploads.push({ url, headers: init.headers, body: init.body });
+      return answerUpload(url, init);
+    },
     storage: { local: window.localStorage, session: window.sessionStorage },
     browserOnline: options.browserOnline ?? true,
     systemPrefersMoreContrast: options.systemPrefersMoreContrast ?? false,
@@ -46,7 +64,7 @@ export function renderApp(options: RenderAppOptions = {}): RenderedApp {
   });
   const user = userEvent.setup();
   const result = render(<App app={app} translator={defaultTranslator(['es-AR'])} />);
-  return { ...result, app, api, user };
+  return { ...result, app, api, user, uploads };
 }
 
 /**
