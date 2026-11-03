@@ -81,6 +81,7 @@ describe('schema conventions', () => {
         'player_load_daily',
         'player_parent_height',
         'player_position',
+        'player_report',
         'player_stage',
         'player_wellness_daily',
         'position',

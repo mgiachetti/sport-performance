@@ -4,6 +4,8 @@ import type { Logger } from 'pino';
 
 /** Channel the outbox triggers notify on commit (migration 0021). Payload: the club id. */
 export const DERIVED_REFRESH_CHANNEL = 'sport_performance_derived_refresh';
+/** Channel a new player report notifies on commit (migration 0036, B-602). Payload: the club id. */
+export const PLAYER_REPORT_CHANNEL = 'sport_performance_player_report';
 
 export interface RefreshListenerOptions {
   /** A `sport_performance_worker` login. */
@@ -11,6 +13,8 @@ export interface RefreshListenerOptions {
   readonly logger: Logger;
   /** Called once per club per debounce window. Errors are logged, never thrown. */
   readonly onClub: (clubId: ClubId) => Promise<void>;
+  /** Called for a club with a new player report; without it the channel is not listened to. */
+  readonly onReportClub?: (clubId: ClubId) => Promise<void>;
   /** Notifications of a club within this window become one call. */
   readonly debounceMs?: number;
   readonly minReconnectMs?: number;
@@ -35,7 +39,14 @@ export function startRefreshListener(options: RefreshListenerOptions): RefreshLi
   const minReconnectMs = options.minReconnectMs ?? 1000;
   const maxReconnectMs = options.maxReconnectMs ?? 30_000;
   const logger = options.logger.child({ component: 'refresh-listener' });
-  const timers = new Map<ClubId, NodeJS.Timeout>();
+  /** Pending calls by `<channel>:<club>`. */
+  const timers = new Map<string, NodeJS.Timeout>();
+  const handlers = new Map<string, (clubId: ClubId) => Promise<void>>([
+    [DERIVED_REFRESH_CHANNEL, options.onClub],
+    ...(options.onReportClub === undefined
+      ? []
+      : [[PLAYER_REPORT_CHANNEL, options.onReportClub] as const]),
+  ]);
   let client: pg.Client | null = null;
   let stopped = false;
   let reconnectTimer: NodeJS.Timeout | null = null;
@@ -45,10 +56,12 @@ export function startRefreshListener(options: RefreshListenerOptions): RefreshLi
     resolveReady = resolve;
   });
 
-  const fire = (clubId: ClubId) => {
-    timers.delete(clubId);
-    options.onClub(clubId).catch((error: unknown) => {
-      logger.error({ err: error, clubId }, 'enqueueing a notified club failed');
+  const fire = (channel: string, clubId: ClubId) => {
+    timers.delete(`${channel}:${clubId}`);
+    const handler = handlers.get(channel);
+    if (handler === undefined) return;
+    handler(clubId).catch((error: unknown) => {
+      logger.error({ err: error, clubId, channel }, 'enqueueing a notified club failed');
     });
   };
 
@@ -81,25 +94,26 @@ export function startRefreshListener(options: RefreshListenerOptions): RefreshLi
       }
     });
     next.on('notification', (message) => {
-      if (message.channel !== DERIVED_REFRESH_CHANNEL || !isUuid(message.payload)) return;
+      if (!handlers.has(message.channel) || !isUuid(message.payload)) return;
       const clubId = message.payload as ClubId;
-      if (timers.has(clubId)) return;
+      const key = `${message.channel}:${clubId}`;
+      if (timers.has(key)) return;
       const timer = setTimeout(() => {
-        fire(clubId);
+        fire(message.channel, clubId);
       }, debounceMs);
       timer.unref();
-      timers.set(clubId, timer);
+      timers.set(key, timer);
     });
     try {
       await next.connect();
-      await next.query(`listen ${DERIVED_REFRESH_CHANNEL}`);
+      for (const channel of handlers.keys()) await next.query(`listen ${channel}`);
       if (stopped) {
         await next.end();
         return;
       }
       client = next;
       delayMs = minReconnectMs;
-      logger.info('listening for derived refresh notifications');
+      logger.info({ channels: [...handlers.keys()] }, 'listening for notifications');
     } catch (error) {
       logger.warn({ err: error }, 'listener could not connect; retrying');
       await next.end().catch(() => undefined);

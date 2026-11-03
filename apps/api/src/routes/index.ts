@@ -35,6 +35,7 @@ import { registerSessionRoutes } from './sessions.js';
 import { registerStaffAssignmentRoutes } from './staff-assignments.js';
 import { registerPlayerRoutes } from './players.js';
 import { registerPlayerProfileRoutes } from './player-profile.js';
+import { registerPlayerReportRoutes } from './player-reports.js';
 import { registerSeasonRolloverRoutes } from './season-rollovers.js';
 import { registerParticipationRoutes } from './participations.js';
 import { registerSessionRosterRoutes } from './session-roster.js';
@@ -271,6 +272,9 @@ export const IMPLEMENTED_ENDPOINTS = [
   'rejectDataSubjectRequest',
   'executeErasure',
   'deleteMyAccount',
+  'requestPlayerReport',
+  'listPlayerReports',
+  'getPlayerReport',
 ] as const satisfies readonly (keyof ApiEndpoints)[];
 
 /** Declared in the contract but served by a later issue (`'#N (B-xxx): why'`). */
@@ -302,6 +306,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerStaffAssignmentRoutes(app);
   registerPlayerRoutes(app);
   registerPlayerProfileRoutes(app);
+  registerPlayerReportRoutes(app);
   registerSeasonRolloverRoutes(app);
   registerCalendarRoutes(app);
   registerTrainingSessionRoutes(app);

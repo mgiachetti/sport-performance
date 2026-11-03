@@ -8,13 +8,15 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { S3StorageConfig } from './config.js';
-import type {
-  DownloadRequest,
-  ObjectStorage,
-  SignedDownload,
-  SignedUpload,
-  StoredObject,
-  UploadRequest,
+import {
+  ObjectTooLargeError,
+  type DownloadRequest,
+  type ObjectStorage,
+  type PutRequest,
+  type SignedDownload,
+  type SignedUpload,
+  type StoredObject,
+  type UploadRequest,
 } from './storage.js';
 
 /** Longest validity of a signed URL in SigV4 (7 days). */
@@ -123,6 +125,36 @@ export function createS3Storage(
           contentType: head.ContentType?.split(';')[0]?.trim().toLowerCase() ?? null,
           checksumSha256: head.ChecksumSHA256 ?? null,
         };
+      } catch (error) {
+        if (isNotFound(error)) return null;
+        throw error;
+      }
+    },
+
+    async put(request: PutRequest): Promise<void> {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: config.bucket,
+          Key: request.key,
+          Body: request.body,
+          ContentType: request.contentType,
+          ContentLength: request.body.byteLength,
+          ChecksumSHA256: request.checksumSha256,
+        }),
+      );
+    },
+
+    async get(key: string, maxBytes: number): Promise<Uint8Array | null> {
+      try {
+        const object = await client.send(new GetObjectCommand({ Bucket: config.bucket, Key: key }));
+        if (object.ContentLength !== undefined && object.ContentLength > maxBytes) {
+          await object.Body?.transformToByteArray().catch(() => undefined);
+          throw new ObjectTooLargeError(maxBytes);
+        }
+        const body = await object.Body?.transformToByteArray();
+        if (body === undefined) return new Uint8Array();
+        if (body.byteLength > maxBytes) throw new ObjectTooLargeError(maxBytes);
+        return body;
       } catch (error) {
         if (isNotFound(error)) return null;
         throw error;

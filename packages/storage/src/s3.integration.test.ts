@@ -5,7 +5,7 @@
  */
 import { createHash } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createS3Storage, type ObjectStorage } from './index.js';
+import { ObjectTooLargeError, createS3Storage, type ObjectStorage } from './index.js';
 import { createTestBucket, storageTestUrl, type TestBucket } from './test-bucket.js';
 
 function sha256(body: Buffer): string {
@@ -103,6 +103,35 @@ describeWithStorage('S3 storage (MinIO)', (serverUrl) => {
     await storage.remove(key);
     await storage.remove(key);
     expect(await storage.stat(key)).toBeNull();
+  });
+
+  it('writes and reads objects of the server, checked by their SHA-256', async () => {
+    const pdfKey = 'clubs/00000000-0000-4000-8000-0000000000c1/pdf_report/one';
+    const pdf = Buffer.from('%PDF-1.7 fake report');
+    await storage.put({
+      key: pdfKey,
+      contentType: 'application/pdf',
+      body: pdf,
+      checksumSha256: sha256(pdf),
+    });
+    expect(await storage.stat(pdfKey)).toEqual({
+      sizeBytes: pdf.length,
+      contentType: 'application/pdf',
+      checksumSha256: sha256(pdf),
+    });
+    expect(Buffer.from((await storage.get(pdfKey, 1024)) ?? [])).toEqual(pdf);
+    await expect(storage.get(pdfKey, 4)).rejects.toThrow(ObjectTooLargeError);
+    expect(await storage.get(`${pdfKey}-missing`, 1024)).toBeNull();
+    // Another body than the checksum says: the bucket refuses it.
+    await expect(
+      storage.put({
+        key: `${pdfKey}-bad`,
+        contentType: 'application/pdf',
+        body: pdf,
+        checksumSha256: sha256(Buffer.from('other')),
+      }),
+    ).rejects.toThrow();
+    expect(await storage.stat(`${pdfKey}-bad`)).toBeNull();
   });
 
   it('refuses URLs outside the SigV4 window', async () => {

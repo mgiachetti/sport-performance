@@ -47,6 +47,8 @@ const APPEND_ONLY_TABLES = [
   'notification',
   'player_alert_evaluation',
   'player_load_daily',
+  // The API only inserts reports; the worker completes them (ADR 0069).
+  'player_report',
   'player_wellness_daily',
   'push_ticket',
   'roster_import',

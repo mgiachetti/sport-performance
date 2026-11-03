@@ -35,7 +35,14 @@ export {
   enqueueClubJob,
   enqueueClubRefresh,
   listClubs,
+  listReportClubs,
   parseRefreshClubJob,
   setUpQueues,
 } from './queues.js';
+export {
+  REPORTS_PER_JOB,
+  runClubReports,
+  type ClubReportsReport,
+  type ReportDependencies,
+} from './reports/job.js';
 export { startWorker, type RunningWorker, type StartWorkerOptions } from './worker.js';

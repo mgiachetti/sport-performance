@@ -19,13 +19,18 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fontsource/barlow": "5.3.0",
+    "@fontsource/barlow-condensed": "5.3.0",
     "@sentry/node": "11.10.0",
+    "@sport-performance/contracts": "workspace:*",
     "@sport-performance/db": "workspace:*",
     "@sport-performance/domain": "workspace:*",
     "@sport-performance/email": "workspace:*",
     "@sport-performance/i18n": "workspace:*",
     "@sport-performance/storage": "workspace:*",
+    "@sport-performance/ui-tokens": "workspace:*",
     "drizzle-orm": "0.45.4",
+    "pdfkit": "0.20.2",
     "pg": "8.23.1",
     "pg-boss": "12.38.0",
     "pino": "10.4.0",
@@ -35,9 +40,11 @@
   "devDependencies": {
     "@sport-performance/config": "workspace:*",
     "@types/node": "26.6.6",
+    "@types/pdfkit": "0.17.7",
     "@types/pg": "8.23.1",
     "@types/react": "19.3.0",
     "eslint": "10.14.0",
+    "pdfjs-dist": "6.5.438",
     "typescript": "6.0.3",
     "vitest": "5.0.5"
   }

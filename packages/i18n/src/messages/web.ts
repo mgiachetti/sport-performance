@@ -53,8 +53,6 @@ export const webMessagesEsAR = {
   'scope.none': 'Sin categorías para mostrar',
   'scope.ignored':
     'El link pedía un deporte o una categoría que no ves: te mostramos lo que sí ves.',
-  'sport.rugby': 'Rugby',
-  'sport.hockey': 'Hockey',
   'sex.male': 'Masculino',
   'sex.female': 'Femenino',
 

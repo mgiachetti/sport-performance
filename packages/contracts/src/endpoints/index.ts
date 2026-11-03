@@ -139,6 +139,7 @@ import {
   getPlayerPercentiles,
   getPlayerTestEvolution,
 } from './player-profile.js';
+import { getPlayerReport, listPlayerReports, requestPlayerReport } from './player-reports.js';
 import {
   archiveReferenceValue,
   createReferenceValue,
@@ -276,6 +277,7 @@ export * from './members.js';
 export * from './staff-assignments.js';
 export * from './players.js';
 export * from './player-profile.js';
+export * from './player-reports.js';
 export * from './season-rollovers.js';
 export * from './training.js';
 export * from './session-roster.js';
@@ -507,6 +509,9 @@ export const apiEndpoints = {
   rejectDataSubjectRequest,
   executeErasure,
   deleteMyAccount,
+  requestPlayerReport,
+  listPlayerReports,
+  getPlayerReport,
 } as const satisfies EndpointCatalog;
 
 export type ApiEndpoints = typeof apiEndpoints;

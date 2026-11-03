@@ -90,6 +90,7 @@ export const API_TAGS = {
   sync: 'Sincronización sin conexión: cola de mutaciones con reloj lógico híbrido y cambios por cursor.',
   privacy:
     'Derechos del titular (Ley 25.326): exportación de todos los datos, pedidos de supresión y borrado de la cuenta.',
+  reports: 'Informes en PDF del jugador por ventana de test, para el jugador y su familia (B-602).',
   notifications:
     'Notificaciones push y por email: el token del dispositivo y las preferencias de cada usuario (B-328).',
   support:

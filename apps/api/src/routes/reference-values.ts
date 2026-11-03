@@ -27,11 +27,13 @@ import {
   parseMetricCode,
   referenceScope,
   selectFirstTeamReference,
+  type CategoryId,
   type ClubId,
   type FirstTeamReference,
   type LocalDate,
   type MeasurementMethod,
   type MetricDirection,
+  type PlayerId,
   type Sex,
   type Sport,
   type UnitCode,
@@ -412,6 +414,158 @@ type SelectableReference = FirstTeamReference & {
   readonly method?: MeasurementMethod;
 };
 
+/**
+ * The sport of a player's first-team references: the one of their category
+ * on `asOf`, else of a current one, else of the latest; with the categories
+ * that cover today (for the matrix). `undefined` without any category.
+ */
+export async function referenceSportOf(
+  db: TenantDatabase,
+  clubId: ClubId,
+  playerId: PlayerId,
+  asOf: LocalDate,
+  today: LocalDate,
+): Promise<{ sport: Sport; currentCategoryIds: CategoryId[] } | undefined> {
+  const categories = await db
+    .select({
+      categoryId: playerCategory.categoryId,
+      sport: category.sport,
+      validFrom: playerCategory.validFrom,
+      validTo: playerCategory.validTo,
+    })
+    .from(playerCategory)
+    .innerJoin(
+      category,
+      and(eq(category.clubId, playerCategory.clubId), eq(category.id, playerCategory.categoryId)),
+    )
+    .where(and(eq(playerCategory.clubId, clubId), eq(playerCategory.playerId, playerId)))
+    .orderBy(asc(playerCategory.validFrom));
+  const current = categories.filter((row) => coversDay(row, today));
+  // The sport of the references is the one of the category on `asOf`, else the latest one.
+  const sportRow =
+    categories.filter((row) => coversDay(row, asOf)).at(-1) ?? current.at(-1) ?? categories.at(-1);
+  if (sportRow === undefined) return undefined;
+  return { sport: sportRow.sport, currentCategoryIds: current.map((row) => row.categoryId) };
+}
+
+/**
+ * The first-team reference of each metric that applies to a player on
+ * `asOf` (ADR 0040): their sport and sex, the most specific scope (their
+ * main position, then its line, then the squad) and the newest validity not
+ * after `asOf`. Only values of the first team: no data of other players.
+ */
+export async function firstTeamReferencesOf(
+  db: TenantDatabase,
+  clubId: ClubId,
+  target: { id: PlayerId; sex: Sex },
+  sport: Sport,
+  asOf: LocalDate,
+  onlyMetricCode?: string,
+): Promise<{
+  positionCode: string | null;
+  lineCode: string | null;
+  items: PlayerFirstTeamReference[];
+}> {
+  // The main position of the player (`sort_order` 0, B-315).
+  const [ownPosition] = await db
+    .select({ code: position.code, lineCode: position.lineCode, sport: position.sport })
+    .from(playerPosition)
+    .innerJoin(
+      position,
+      and(eq(position.clubId, playerPosition.clubId), eq(position.id, playerPosition.positionId)),
+    )
+    .where(and(eq(playerPosition.clubId, clubId), eq(playerPosition.playerId, target.id)))
+    .orderBy(asc(playerPosition.sortOrder))
+    .limit(1);
+  const positionOfSport = ownPosition?.sport === sport ? ownPosition : undefined;
+
+  const rows = await db
+    .select({
+      metricCode: metricDefinition.code,
+      direction: metricDefinition.direction,
+      positionCode: position.code,
+      lineCode: referenceValue.lineCode,
+      value: referenceValue.value,
+      unit: referenceValue.unit,
+      method: referenceValue.method,
+      validFrom: referenceValue.validFrom,
+      source: referenceValue.source,
+    })
+    .from(referenceValue)
+    .innerJoin(
+      metricDefinition,
+      and(
+        eq(metricDefinition.clubId, referenceValue.clubId),
+        eq(metricDefinition.id, referenceValue.metricDefinitionId),
+      ),
+    )
+    .leftJoin(
+      position,
+      and(eq(position.clubId, referenceValue.clubId), eq(position.id, referenceValue.positionId)),
+    )
+    .where(
+      and(
+        eq(referenceValue.clubId, clubId),
+        eq(referenceValue.sport, sport),
+        eq(referenceValue.sex, target.sex),
+        isNull(referenceValue.archivedAt),
+        isNull(metricDefinition.archivedAt),
+        lte(referenceValue.validFrom, asOf),
+        onlyMetricCode === undefined ? undefined : eq(metricDefinition.code, onlyMetricCode),
+      ),
+    );
+
+  const byMetric = new Map<string, SelectableReference[]>();
+  for (const row of rows) {
+    const reference: SelectableReference = {
+      metricCode: parseMetricCode(row.metricCode),
+      sport,
+      sex: target.sex,
+      ...(row.positionCode !== null && { positionCode: row.positionCode }),
+      ...(row.lineCode !== null && { lineCode: row.lineCode }),
+      value: row.value,
+      unit: row.unit,
+      ...(row.method !== null && { method: row.method }),
+      validFrom: row.validFrom,
+      source: row.source,
+      direction: row.direction,
+    };
+    const list = byMetric.get(row.metricCode) ?? [];
+    list.push(reference);
+    byMetric.set(row.metricCode, list);
+  }
+  const items: PlayerFirstTeamReference[] = [];
+  for (const [metricCode, references] of [...byMetric].sort(([a], [b]) =>
+    a < b ? -1 : a > b ? 1 : 0,
+  )) {
+    const selected = selectFirstTeamReference(references, {
+      metricCode: parseMetricCode(metricCode),
+      sport,
+      sex: target.sex,
+      ...(positionOfSport !== undefined && { positionCode: positionOfSport.code }),
+      ...(positionOfSport?.lineCode !== undefined &&
+        positionOfSport.lineCode !== null && { lineCode: positionOfSport.lineCode }),
+      asOf,
+    });
+    if (selected === undefined) continue;
+    items.push({
+      metricCode,
+      unit: selected.unit,
+      direction: selected.direction,
+      scope: referenceScope(selected),
+      value: selected.value,
+      method: selected.method ?? null,
+      validFrom: selected.validFrom,
+      source: selected.source,
+    });
+  }
+  return {
+    positionCode: positionOfSport?.code ?? null,
+    lineCode: positionOfSport?.lineCode ?? null,
+    items,
+  };
+}
+
 export function registerReferenceValueRoutes(app: FastifyInstance): void {
   registerEndpoint(app, listReferenceValues, {
     transaction: true,
@@ -677,146 +831,26 @@ export function registerReferenceValueRoutes(app: FastifyInstance): void {
       if (found === undefined) throw new HttpError('not_found', 'Player not found');
       const today = await clubToday(db);
       const asOf = query.asOf === undefined ? today : parseLocalDate(query.asOf);
-      const categories = await db
-        .select({
-          categoryId: playerCategory.categoryId,
-          sport: category.sport,
-          validFrom: playerCategory.validFrom,
-          validTo: playerCategory.validTo,
-        })
-        .from(playerCategory)
-        .innerJoin(
-          category,
-          and(
-            eq(category.clubId, playerCategory.clubId),
-            eq(category.id, playerCategory.categoryId),
-          ),
-        )
-        .where(and(eq(playerCategory.clubId, clubId), eq(playerCategory.playerId, found.id)))
-        .orderBy(asc(playerCategory.validFrom));
-      const current = categories.filter((row) => coversDay(row, today));
-      // The sport of the references is the one of the category on `asOf`, else the latest one.
-      const sportRow =
-        categories.filter((row) => coversDay(row, asOf)).at(-1) ??
-        current.at(-1) ??
-        categories.at(-1);
-      if (sportRow === undefined) throw new HttpError('not_found', 'The player has no category');
+      const sportOf = await referenceSportOf(db, clubId, found.id, asOf, today);
+      if (sportOf === undefined) throw new HttpError('not_found', 'The player has no category');
       await permissions.authorize('group_reference', 'read', {
-        player: {
-          id: found.id,
-          sport: sportRow.sport,
-          categoryIds: current.map((row) => row.categoryId),
-        },
+        player: { id: found.id, sport: sportOf.sport, categoryIds: sportOf.currentCategoryIds },
       });
-
-      // The main position of the player (`sort_order` 0, B-315).
-      const [ownPosition] = await db
-        .select({ code: position.code, lineCode: position.lineCode, sport: position.sport })
-        .from(playerPosition)
-        .innerJoin(
-          position,
-          and(
-            eq(position.clubId, playerPosition.clubId),
-            eq(position.id, playerPosition.positionId),
-          ),
-        )
-        .where(and(eq(playerPosition.clubId, clubId), eq(playerPosition.playerId, found.id)))
-        .orderBy(asc(playerPosition.sortOrder))
-        .limit(1);
-      const positionOfSport = ownPosition?.sport === sportRow.sport ? ownPosition : undefined;
-
-      const rows = await db
-        .select({
-          metricCode: metricDefinition.code,
-          direction: metricDefinition.direction,
-          positionCode: position.code,
-          lineCode: referenceValue.lineCode,
-          value: referenceValue.value,
-          unit: referenceValue.unit,
-          method: referenceValue.method,
-          validFrom: referenceValue.validFrom,
-          source: referenceValue.source,
-        })
-        .from(referenceValue)
-        .innerJoin(
-          metricDefinition,
-          and(
-            eq(metricDefinition.clubId, referenceValue.clubId),
-            eq(metricDefinition.id, referenceValue.metricDefinitionId),
-          ),
-        )
-        .leftJoin(
-          position,
-          and(
-            eq(position.clubId, referenceValue.clubId),
-            eq(position.id, referenceValue.positionId),
-          ),
-        )
-        .where(
-          and(
-            eq(referenceValue.clubId, clubId),
-            eq(referenceValue.sport, sportRow.sport),
-            eq(referenceValue.sex, found.sex),
-            isNull(referenceValue.archivedAt),
-            isNull(metricDefinition.archivedAt),
-            lte(referenceValue.validFrom, asOf),
-            query.metricCode === undefined
-              ? undefined
-              : eq(metricDefinition.code, query.metricCode),
-          ),
-        );
-
-      const byMetric = new Map<string, SelectableReference[]>();
-      for (const row of rows) {
-        const reference: SelectableReference = {
-          metricCode: parseMetricCode(row.metricCode),
-          sport: sportRow.sport,
-          sex: found.sex,
-          ...(row.positionCode !== null && { positionCode: row.positionCode }),
-          ...(row.lineCode !== null && { lineCode: row.lineCode }),
-          value: row.value,
-          unit: row.unit,
-          ...(row.method !== null && { method: row.method }),
-          validFrom: row.validFrom,
-          source: row.source,
-          direction: row.direction,
-        };
-        const list = byMetric.get(row.metricCode) ?? [];
-        list.push(reference);
-        byMetric.set(row.metricCode, list);
-      }
-      const items: PlayerFirstTeamReference[] = [];
-      for (const [metricCode, references] of [...byMetric].sort(([a], [b]) =>
-        a < b ? -1 : a > b ? 1 : 0,
-      )) {
-        const selected = selectFirstTeamReference(references, {
-          metricCode: parseMetricCode(metricCode),
-          sport: sportRow.sport,
-          sex: found.sex,
-          ...(positionOfSport !== undefined && { positionCode: positionOfSport.code }),
-          ...(positionOfSport?.lineCode !== undefined &&
-            positionOfSport.lineCode !== null && { lineCode: positionOfSport.lineCode }),
-          asOf,
-        });
-        if (selected === undefined) continue;
-        items.push({
-          metricCode,
-          unit: selected.unit,
-          direction: selected.direction,
-          scope: referenceScope(selected),
-          value: selected.value,
-          method: selected.method ?? null,
-          validFrom: selected.validFrom,
-          source: selected.source,
-        });
-      }
+      const { positionCode, lineCode, items } = await firstTeamReferencesOf(
+        db,
+        clubId,
+        { id: found.id, sex: found.sex },
+        sportOf.sport,
+        asOf,
+        query.metricCode,
+      );
       return {
         playerId: found.id,
         asOf,
-        sport: sportRow.sport,
+        sport: sportOf.sport,
         sex: found.sex,
-        positionCode: positionOfSport?.code ?? null,
-        lineCode: positionOfSport?.lineCode ?? null,
+        positionCode,
+        lineCode,
         items,
       };
     },

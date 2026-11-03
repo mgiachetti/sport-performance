@@ -433,5 +433,8 @@ export * from './sync/index.js';
 // Rights of the data subject: export, erasure and account deletion (B-329).
 export * from './data-subject-rights.js';
 
+// The PDF report of a player for a test window (B-602).
+export * from './player-report.js';
+
 // Notifications: kinds, preferences, club parameters and allowed hours (B-328).
 export * from './notifications/index.js';

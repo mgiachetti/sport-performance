@@ -1,6 +1,6 @@
 # @sport-performance/worker
 
-Jobs en segundo plano con pg-boss (cola sobre la misma Postgres, ADR 0011, ADR 0046): el recálculo de los valores derivados para el panel (B-326), con la generación de alertas (B-327, ADR 0053) como paso del mismo recálculo, la retención de archivos (B-325) y las notificaciones push y por email (B-328, [ADR 0054](../../docs/adr/0054-notificaciones-push-y-email.md)).
+Jobs en segundo plano con pg-boss (cola sobre la misma Postgres, ADR 0011, ADR 0046): el recálculo de los valores derivados para el panel (B-326), con la generación de alertas (B-327, ADR 0053) como paso del mismo recálculo, la retención de archivos (B-325), las notificaciones push y por email (B-328, [ADR 0054](../../docs/adr/0054-notificaciones-push-y-email.md)) y los informes PDF del jugador (B-602, [ADR 0071](../../docs/adr/0071-informe-pdf-del-jugador-por-ventana.md)).
 
 ## Cómo funciona
 
@@ -13,6 +13,8 @@ Jobs en segundo plano con pg-boss (cola sobre la misma Postgres, ADR 0011, ADR 0
 6. **Retención de archivos** (B-325, ADR 0044). Una vez por día (`files-daily`, 06:17 UTC) se encola `files-purge-club` por club, que corre `purgeExpiredFiles` de `@sport-performance/storage` con el contexto del club; si quedan más, encola otra pasada. Sin las variables `STORAGE_*` (solo fuera de producción) el job queda apagado.
 
 6. **Notificaciones** (B-328, ADR 0054). Un cron cada minuto (`notifications-sweep`) encola `notifications-club` por club, que: planifica (pedido de RPE al terminar la sesión más la demora, recordatorio a la mañana siguiente, alertas críticas cuando aparecen al staff asignado, resumen antes de cada sesión), idempotente por `notification_dedupe_key`; entrega lo vencido (revalida, Expo Push y Resend fuera de la transacción, reintentos con tope); lee los recibos de Expo (`DeviceNotRegistered` borra el token) y borra las entregas de más de 90 días. Respeta el horario permitido del club y el de menores. Los payloads llevan solo textos operativos e ids: nunca datos de salud, valores ni el nombre del jugador junto a una alerta.
+
+7. **Informes PDF del jugador por ventana** (B-602, [ADR 0071](../../docs/adr/0071-informe-pdf-del-jugador-por-ventana.md)). La API guarda el pedido con la instantánea de lo que muestra (`player_report.content`) y un trigger avisa por `pg_notify('sport_performance_player_report', club_id)`; el worker encola `player-reports-club` (también un cron cada minuto, `player-reports-sweep`, y al arrancar). Cada job toma los pedidos vencidos con un préstamo (`FOR UPDATE SKIP LOCKED`), los dibuja con pdfkit (`src/reports/render.ts`: marca del club, Barlow embebida, formatos es-AR), registra la fila `file` antes de subir el objeto y completa el informe; tres intentos con backoff y después `failed` con un código sin datos personales. Requiere el bucket (`STORAGE_*`), como la retención.
 
 Un jugador que falla no frena al resto; el job falla al final, pg-boss lo reintenta con backoff exponencial y, después del último intento, lo deja en `derived-refresh-club-dead`.
 

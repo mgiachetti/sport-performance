@@ -73,9 +73,6 @@ export const webPlayerMessagesEsAR = {
   'player.maturation.noOffset':
     'Sin offset de PHV: hacen falta talla, talla sentado y peso del mismo día.',
   'player.maturation.empty': 'Todavía no tiene mediciones antropométricas.',
-  'player.maturation.equation.mirwald_2002': 'Mirwald 2002',
-  'player.maturation.equation.moore_2015': 'Moore 2015',
-  'player.maturation.equation.moore_2015_height': 'Moore 2015 (solo talla)',
 
   // Evolution by window
   'player.evolution.title': 'Evolución por ventana',
@@ -142,33 +139,4 @@ export const webPlayerMessagesEsAR = {
   'player.alerts.review.acknowledged': 'Vista',
   'player.alerts.review.dismissed': 'Descartada',
   'player.alerts.more': 'Ver más alertas',
-
-  // Test metric names (codes of the dictionary, B-201)
-  'player.metric.sprint_10_s': 'Sprint 10 m',
-  'player.metric.sprint_20_s': 'Sprint 20 m',
-  'player.metric.sprint_40_s': 'Sprint 40 m',
-  'player.metric.sprint_vmax_ms': 'Vmax (20–40 m)',
-  'player.metric.cmj_height_cm': 'CMJ',
-  'player.metric.cod505_left_s': '505 izquierda',
-  'player.metric.cod505_right_s': '505 derecha',
-  'player.metric.cod505_asymmetry_pct': 'Asimetría 505',
-  'player.metric.vift_kmh': '30-15 IFT (VIFT)',
-  'player.metric.bronco_time_s': 'Bronco',
-  'player.metric.pushups_n': 'Flexiones',
-  'player.metric.pullups_n': 'Dominadas',
-  'player.metric.plank_s': 'Plancha',
-  'player.metric.technique_score': 'Nota técnica',
-  'player.metric.e1rm_kg': '1RM estimado',
-  'player.metric.rm1_kg': '1RM',
-  'player.metric.rm3_kg': '3RM',
-  'player.metric.relative_strength_kg_kg': 'Fuerza relativa',
-  'player.metric.knee_to_wall_left_cm': 'Knee-to-wall izquierda',
-  'player.metric.knee_to_wall_right_cm': 'Knee-to-wall derecha',
-  'player.metric.reaction_simple_msec': 'Reacción simple',
-  'player.metric.reaction_go_no_go_msec': 'Reacción go/no-go',
-  'player.metric.neck_flexion_newton': 'Cuello: flexión',
-  'player.metric.neck_extension_newton': 'Cuello: extensión',
-  'player.metric.neck_left_newton': 'Cuello: lateral izquierda',
-  'player.metric.neck_right_newton': 'Cuello: lateral derecha',
-  'player.metric.withExercise': '{metric} ({exercise})',
 } as const;

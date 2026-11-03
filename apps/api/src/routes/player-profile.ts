@@ -75,9 +75,9 @@ import { stageContext } from './tests/model.js';
  * leave this module as aggregates.
  */
 
-const FIRST_DAY = '1900-01-01' as LocalDate;
+export const FIRST_DAY = '1900-01-01' as LocalDate;
 
-interface ProfileTarget {
+export interface ProfileTarget {
   readonly id: PlayerId;
   readonly sex: Sex;
   /** What the matrix needs: sport, current categories, majority (guardians), consents. */
@@ -85,7 +85,7 @@ interface ProfileTarget {
 }
 
 /** The player under RLS with its facts, or `not_found` (another club, out of scope). */
-async function requirePlayer(
+export async function requirePlayer(
   db: TenantDatabase,
   clubId: ClubId,
   playerId: PlayerId,
@@ -306,7 +306,7 @@ export function scoreSamples(rows: readonly SampleValueRow[]): ScoredSample[] {
   return scored;
 }
 
-async function readSamples(
+export async function readSamples(
   db: TenantDatabase,
   options: {
     subject: PlayerId;
@@ -339,7 +339,7 @@ async function readSamples(
 }
 
 /** Codes of the club's test metrics (not anthropometry), with their unit and direction. */
-async function testMetrics(
+export async function testMetrics(
   db: TenantDatabase,
   clubId: ClubId,
   directionalOnly: boolean,
@@ -363,7 +363,7 @@ async function testMetrics(
 }
 
 /** Age bands the player has been in (the comparison groups are always within one). */
-async function ageBandsOf(
+export async function ageBandsOf(
   db: TenantDatabase,
   clubId: ClubId,
   target: ProfileTarget,
@@ -667,6 +667,7 @@ export function evolution(
         value: playerValue(inColumn, metric.direction),
         measuredOn: latestDay(inColumn),
         methods: ownMethods,
+        protocolVersion: latest.protocolVersion,
         categoryAverage: enough ? mean(groupValues) : null,
         categorySize: enough ? groupValues.length : null,
         categoryMixedMethods: enough && groupMethods.size > 1,

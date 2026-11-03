@@ -259,7 +259,10 @@ describe('queues', () => {
     expect(refresh).toMatchObject({ policy: 'stately', deadLetter: QUEUES.refreshClubDead });
     expect(QUEUE_DEFINITIONS[0]?.name).toBe(QUEUES.refreshClubDead);
     expect(SCHEDULES.map((s) => s.queue).sort()).toEqual([QUEUES.daily, QUEUES.sweep].sort());
-    expect(FILE_SCHEDULES.map((s) => s.queue)).toEqual([QUEUES.filesDaily]);
+    expect(FILE_SCHEDULES.map((s) => s.queue)).toEqual([
+      QUEUES.filesDaily,
+      QUEUES.playerReportsSweep,
+    ]);
     expect(NOTIFICATION_SCHEDULES.map((s) => s.queue)).toEqual([QUEUES.notificationsSweep]);
     const notifications = QUEUE_DEFINITIONS.find((q) => q.name === QUEUES.notificationsClub);
     expect(notifications).toMatchObject({

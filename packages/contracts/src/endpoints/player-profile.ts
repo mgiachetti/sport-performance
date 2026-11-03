@@ -401,6 +401,10 @@ export const testEvolutionPointSchema = z
     }),
     measuredOn: localDateSchema.meta({ description: 'Último día con resultado en la ventana.' }),
     methods: z.array(z.enum(MEASUREMENT_METHODS)),
+    protocolVersion: z.int().min(1).meta({
+      description:
+        'Versión del protocolo de su último resultado en la columna: la del promedio de la categoría (principio 4).',
+    }),
     categoryAverage: z
       .number()
       .nullable()

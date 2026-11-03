@@ -93,6 +93,8 @@ medical_block.read       -                     -               -               -
 medical_block.set        -                     -               -               -               assigned         -           -
 medical_block.lift       -                     -               -               -               assigned         -           -
 data_export.export       self+adult            guardian+minor  -               -               -                club+data   -
+player_report.read       self                  guardian        assigned        assigned        assigned         club        club
+player_report.generate   -                     -               -               assigned        -                club        club
 data_erasure.read        self+adult            guardian+minor  -               -               -                club        -
 data_erasure.request     self+adult            guardian+minor  -               -               -                club        -
 data_erasure.execute     -                     -               -               -               -                club        -
