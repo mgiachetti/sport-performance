@@ -15222,6 +15222,326 @@
         }
       }
     },
+    "/v1/test-imports": {
+      "get": {
+        "operationId": "listTestImports",
+        "summary": "Importaciones de históricos",
+        "description": "`sc` y la administración. Sus resultados se listan con `GET /v1/test-results?importId=`.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `createdAt`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "-createdAt",
+              "type": "string",
+              "enum": [
+                "createdAt",
+                "-createdAt"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de importaciones.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestImportPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.bad_request.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createTestImport",
+        "summary": "Importar resultados históricos",
+        "description": "`sc` en sus asignaciones y la administración (`data_import.run`), con permiso para cargar resultados de cada jugador (`test_result.record`, con su consentimiento de datos vigente). De 1 a 1000 filas ya parseadas (el cliente lee la planilla). Cada resultado se guarda con método `historical`, sin día de test, y la serie avisa cuando se mezcla con otros métodos. Las reglas de etapa de la batería no bloquean un histórico: son avisos. Todo o nada: si alguna fila no vale, `validation_failed` con el detalle por fila y no se escribe nada. Idempotente por `clientUuid` del lote: reenviar el mismo lote devuelve lo mismo con `X-Idempotent-Replay: true` (sin los avisos, que no se guardan); el mismo `clientUuid` con otro lote es `conflict`, y reenviarlo sin ver a todos sus jugadores es `forbidden`.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestImportInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "La importación y qué pasó con cada fila, en orden.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestImportResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error.conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/test-imports/{testImportId}": {
+      "get": {
+        "operationId": "getTestImport",
+        "summary": "Una importación de históricos",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testImportId",
+            "in": "path",
+            "required": true,
+            "description": "Id de importación de históricos (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "La importación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestImport"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/test-imports/preview": {
+      "post": {
+        "operationId": "previewTestImport",
+        "summary": "Vista previa de una importación de históricos",
+        "description": "`sc` en sus asignaciones y la administración (`data_import.run`), con permiso para cargar resultados de cada jugador (`test_result.record`, con su consentimiento de datos vigente). De 1 a 1000 filas ya parseadas (el cliente lee la planilla). Cada resultado se guarda con método `historical`, sin día de test, y la serie avisa cuando se mezcla con otros métodos. Las reglas de etapa de la batería no bloquean un histórico: son avisos. No escribe nada: corre la importación y la deshace, así lo que muestra es exactamente lo que importaría. Un lote cuyo `clientUuid` ya se importó es `conflict`. Devuelve por fila el jugador y la versión resueltos, los puntajes y los avisos, y los errores de todas las filas (`issues`, con ruta `body.rows.<i>.<campo>`).",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestImportInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lo que haría la importación.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestImportPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error.conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
     "/v1/test-results": {
       "get": {
         "operationId": "listTestResults",
@@ -15317,6 +15637,17 @@
                 "done",
                 "not_done"
               ]
+            }
+          },
+          {
+            "name": "importId",
+            "in": "query",
+            "required": false,
+            "description": "Solo los resultados de una importación de históricos.",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
             }
           },
           {
@@ -15559,7 +15890,7 @@
       "patch": {
         "operationId": "updateTestResult",
         "summary": "Corregir un resultado",
-        "description": "Método, evaluador, dispositivo, ejercicio, condiciones, notas, fecha y estado. Cambiar un dato ya cargado pide `changeReason` (ADR 0030). Pasar a `not_done` exige anular antes las entradas; pasar a `done` exige `method`. `version` desactualizada: `conflict`. Las entradas no se editan: se anulan.",
+        "description": "Método, evaluador, dispositivo, ejercicio, condiciones, notas, fecha y estado. Cambiar un dato ya cargado pide `changeReason` (ADR 0030). Pasar a `not_done` exige anular antes las entradas; pasar a `done` exige `method`. Un resultado importado (`importId`, ADR 0052) sigue `done` y `historical`, y cambiarle la fecha no aplica las reglas de etapa de la batería (como en la importación). `version` desactualizada: `conflict`. Las entradas no se editan: se anulan.",
         "tags": [
           "tests"
         ],
@@ -28038,6 +28369,864 @@
         ],
         "description": "Un intento como lo carga el evaluador. `value`: el valor de una métrica en su unidad; el resto son entradas crudas que el servidor convierte con las fórmulas del dominio (sprint: t10/t20/t40 y Vmax 20–40; CMJ: tiempo de vuelo o cuadros de video, `h = g·t²/8`; 30-15 IFT: última etapa → VIFT; fuerza: serie peso/reps/RIR → e1RM de Epley con RIR). Las métricas derivadas no se cargan a mano."
       },
+      "TestImport": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de importación de históricos (UUID, RFC 9562)."
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "De dónde salieron los datos: la planilla, quién la llevaba, la temporada.",
+            "examples": [
+              "Planilla de tests M15 2024 (preparación física)"
+            ]
+          },
+          "rowCount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "createdCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "skippedCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "createdBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de usuario (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "rowCount",
+          "createdCount",
+          "skippedCount",
+          "createdBy",
+          "createdAt"
+        ]
+      },
+      "TestImportEntryInput": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "value"
+              },
+              "attemptNumber": {
+                "description": "Número de intento (etiqueta del evaluador). Sin número, la entrada es el valor único del resultado.",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "recordedAt": {
+                "description": "Cuándo se registró en la cancha (ordena intentos de varios dispositivos).",
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "metricCode": {
+                "type": "string",
+                "description": "Código canónico de la métrica (`cmj_height_cm`).",
+                "examples": [
+                  "cmj_height_cm"
+                ]
+              },
+              "value": {
+                "type": "number",
+                "minimum": -1000000,
+                "maximum": 1000000
+              }
+            },
+            "required": [
+              "kind",
+              "metricCode",
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "sprint_splits"
+              },
+              "attemptNumber": {
+                "description": "Número de intento (etiqueta del evaluador). Sin número, la entrada es el valor único del resultado.",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "recordedAt": {
+                "description": "Cuándo se registró en la cancha (ordena intentos de varios dispositivos).",
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "split10S": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000
+              },
+              "split20S": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000
+              },
+              "split40S": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000
+              }
+            },
+            "required": [
+              "kind",
+              "split20S",
+              "split40S"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "cmj_flight_time"
+              },
+              "attemptNumber": {
+                "description": "Número de intento (etiqueta del evaluador). Sin número, la entrada es el valor único del resultado.",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "recordedAt": {
+                "description": "Cuándo se registró en la cancha (ordena intentos de varios dispositivos).",
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "flightTimeS": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000
+              }
+            },
+            "required": [
+              "kind",
+              "flightTimeS"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "cmj_video_frames"
+              },
+              "attemptNumber": {
+                "description": "Número de intento (etiqueta del evaluador). Sin número, la entrada es el valor único del resultado.",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "recordedAt": {
+                "description": "Cuándo se registró en la cancha (ordena intentos de varios dispositivos).",
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "takeoffFrame": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "landingFrame": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "frameRateFps": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000
+              }
+            },
+            "required": [
+              "kind",
+              "takeoffFrame",
+              "landingFrame",
+              "frameRateFps"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "ift_stage"
+              },
+              "attemptNumber": {
+                "description": "Número de intento (etiqueta del evaluador). Sin número, la entrada es el valor único del resultado.",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "recordedAt": {
+                "description": "Cuándo se registró en la cancha (ordena intentos de varios dispositivos).",
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "lastCompletedStage": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              }
+            },
+            "required": [
+              "kind",
+              "lastCompletedStage"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "strength_set"
+              },
+              "attemptNumber": {
+                "description": "Número de intento (etiqueta del evaluador). Sin número, la entrada es el valor único del resultado.",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "recordedAt": {
+                "description": "Cuándo se registró en la cancha (ordena intentos de varios dispositivos).",
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "loadKg": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000
+              },
+              "reps": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "rir": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 20
+              }
+            },
+            "required": [
+              "kind",
+              "loadKg",
+              "reps",
+              "rir"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "description": "Un intento como lo carga el evaluador. `value`: el valor de una métrica en su unidad; el resto son entradas crudas que el servidor convierte con las fórmulas del dominio (sprint: t10/t20/t40 y Vmax 20–40; CMJ: tiempo de vuelo o cuadros de video, `h = g·t²/8`; 30-15 IFT: última etapa → VIFT; fuerza: serie peso/reps/RIR → e1RM de Epley con RIR). Las métricas derivadas no se cargan a mano. Sin `clientUuid`: el servidor lo deriva del lote."
+      },
+      "TestImportInput": {
+        "type": "object",
+        "properties": {
+          "clientUuid": {
+            "$ref": "#/components/schemas/ClientUuid"
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "De dónde salieron los datos: la planilla, quién la llevaba, la temporada.",
+            "examples": [
+              "Planilla de tests M15 2024 (preparación física)"
+            ]
+          },
+          "measuredOn": {
+            "description": "Día medido de las filas que no traen el suyo.",
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "onDuplicate": {
+            "default": "reject",
+            "description": "Una fila igual a un resultado ya cargado (jugador, test, día y ejercicio): `reject` (por defecto) es un error de la fila; `skip` la saltea.",
+            "type": "string",
+            "enum": [
+              "reject",
+              "skip"
+            ]
+          },
+          "rows": {
+            "minItems": 1,
+            "maxItems": 1000,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestImportRow"
+            }
+          }
+        },
+        "required": [
+          "clientUuid",
+          "source",
+          "rows"
+        ],
+        "additionalProperties": false
+      },
+      "TestImportPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestImport"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "TestImportPlayer": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "playerId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de jugador/a (UUID, RFC 9562)."
+              }
+            },
+            "required": [
+              "playerId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "lastName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "firstName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "birthDate": {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                "examples": [
+                  "2026-11-01"
+                ]
+              }
+            },
+            "required": [
+              "lastName",
+              "firstName",
+              "birthDate"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "description": "El jugador por `playerId` o por apellido, nombre y fecha de nacimiento (sin distinguir mayúsculas, tildes ni espacios repetidos). Ninguno o más de uno que coincida es un error de la fila."
+      },
+      "TestImportPreview": {
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestImportRowPreview"
+            }
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationIssue"
+            },
+            "description": "Errores que impiden importar; vacío si el lote se puede importar."
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "rowCount": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              "createCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "skipCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "invalidCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "warningCount": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "rowCount",
+              "createCount",
+              "skipCount",
+              "invalidCount",
+              "warningCount"
+            ]
+          }
+        },
+        "required": [
+          "rows",
+          "issues",
+          "summary"
+        ]
+      },
+      "TestImportResult": {
+        "type": "object",
+        "properties": {
+          "import": {
+            "$ref": "#/components/schemas/TestImport"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "outcome": {
+                  "type": "string",
+                  "enum": [
+                    "created",
+                    "skipped_duplicate"
+                  ]
+                },
+                "testResultId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "description": "Id de resultado de test (UUID, RFC 9562)."
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TestImportWarning"
+                  }
+                }
+              },
+              "required": [
+                "index",
+                "outcome",
+                "testResultId",
+                "warnings"
+              ]
+            }
+          }
+        },
+        "required": [
+          "import",
+          "rows"
+        ]
+      },
+      "TestImportRow": {
+        "type": "object",
+        "properties": {
+          "player": {
+            "$ref": "#/components/schemas/TestImportPlayer"
+          },
+          "testCode": {
+            "type": "string",
+            "description": "Código del test (`sprint_40`).",
+            "examples": [
+              "sprint_40"
+            ]
+          },
+          "protocolVersion": {
+            "description": "Versión del protocolo; por defecto, la vigente el día medido. Tiene que estar vigente ese día.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "measuredOn": {
+            "description": "Día medido; por defecto, el del lote. Nunca en el futuro.",
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "exercise": {
+            "description": "Obligatorio en fuerza.",
+            "type": "string",
+            "examples": [
+              "trap_bar_deadlift"
+            ]
+          },
+          "evaluatorId": {
+            "description": "Por defecto desconocido (`null`); si se indica, un miembro vigente del staff.",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de usuario (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deviceId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de dispositivo (UUID, RFC 9562)."
+          },
+          "conditions": {
+            "type": "object",
+            "properties": {
+              "surface": {
+                "examples": [
+                  "césped natural"
+                ],
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "footwear": {
+                "examples": [
+                  "botines"
+                ],
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "weather": {
+                "examples": [
+                  "soleado, sin viento"
+                ],
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "temperatureC": {
+                "type": "number",
+                "minimum": -40,
+                "maximum": 60
+              },
+              "standardizedWarmUp": {
+                "type": "boolean"
+              },
+              "notes": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              }
+            },
+            "additionalProperties": false,
+            "description": "Condiciones de la medición: superficie, calzado, clima, temperatura, entrada en calor."
+          },
+          "notes": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "entries": {
+            "minItems": 1,
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestImportEntryInput"
+            },
+            "description": "Como en la carga de resultados: valores directos o entradas crudas que el servidor convierte (Vmax, altura del CMJ, VIFT, e1RM). Las métricas derivadas no se cargan a mano."
+          }
+        },
+        "required": [
+          "player",
+          "testCode",
+          "entries"
+        ],
+        "additionalProperties": false
+      },
+      "TestImportRowPreview": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "playerId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de jugador/a (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`null` si no se resolvió."
+          },
+          "testDefinitionId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de versión del protocolo de un test (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "protocolVersion": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "measuredOn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                "examples": [
+                  "2026-11-01"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "create",
+              "skip_duplicate",
+              "invalid"
+            ],
+            "description": "Qué haría la importación con la fila: crearla, saltearla (duplicado con `skip`) o nada (tiene errores)."
+          },
+          "scores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestMetricScore"
+            },
+            "description": "Puntajes calculados con las fórmulas del dominio (vacío si la fila no vale)."
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestImportWarning"
+            }
+          }
+        },
+        "required": [
+          "index",
+          "playerId",
+          "testDefinitionId",
+          "protocolVersion",
+          "measuredOn",
+          "outcome",
+          "scores",
+          "warnings"
+        ]
+      },
+      "TestImportWarning": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "not_in_battery",
+              "maximal_load_not_allowed",
+              "strength_metric_not_in_stage",
+              "no_category_on_day",
+              "implausible_value",
+              "protocol_issue",
+              "duplicate"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "metricCode": {
+            "type": "string",
+            "description": "Código canónico de la métrica (`cmj_height_cm`).",
+            "examples": [
+              "cmj_height_cm"
+            ]
+          },
+          "value": {
+            "type": "number"
+          },
+          "bounds": {
+            "description": "Rango plausible usado (`implausible_value`).",
+            "type": "object",
+            "properties": {
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "min",
+              "max"
+            ]
+          },
+          "suggestedValues": {
+            "description": "Valores con la coma corrida que caen en el rango (`implausible_value`).",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "issues": {
+            "description": "Avisos de protocolo de la serie (`protocol_issue`).",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "reps_below_protocol",
+                "reps_above_protocol",
+                "rir_below_protocol"
+              ]
+            }
+          },
+          "testResultIds": {
+            "description": "Resultados ya cargados que coinciden (`duplicate`).",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Id de resultado de test (UUID, RFC 9562)."
+            }
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
       "TestMetricPoint": {
         "type": "object",
         "properties": {
@@ -28381,6 +29570,20 @@
               "null"
             ]
           },
+          "importId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de importación de históricos (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "La importación de históricos de la que salió (B-331); `null` si se cargó acá."
+          },
           "entries": {
             "type": "array",
             "items": {
@@ -28433,6 +29636,7 @@
           "exercise",
           "conditions",
           "notes",
+          "importId",
           "entries",
           "scores",
           "createdAt",

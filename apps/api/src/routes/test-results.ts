@@ -11,6 +11,7 @@ import {
 import {
   category,
   metricDefinition,
+  player as playerTable,
   playerCategory,
   testDefinition,
   testResult,
@@ -25,14 +26,15 @@ import {
   testApplicability,
   testComparisonWarnings,
   type ClubId,
+  type LocalDate,
 } from '@sport-performance/domain';
-import { and, eq, exists, gte, inArray, isNull, lte, or, sql, type SQL } from 'drizzle-orm';
+import { and, eq, exists, gte, inArray, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { TenantDatabase } from '../db/database.js';
 import { registerEndpoint } from '../http/endpoint.js';
 import { HttpError } from '../http/errors.js';
 import { keysetPage, type KeysetSpec } from '../http/pagination.js';
-import type { RequestPermissions } from '../http/permissions.js';
+import { clubToday, type RequestPermissions } from '../http/permissions.js';
 import { markReplay, updateAtVersion, versionMatches } from '../http/writes.js';
 import {
   batteryRows,
@@ -106,6 +108,68 @@ async function requireDefinition(
   return definition;
 }
 
+/**
+ * The checks of an import (ADR 0052) on a corrected day or exercise of an
+ * imported result: not in the future, not before the player was born, and no
+ * other done result of the same player, test, day and exercise.
+ */
+async function importedResultIssues(
+  db: TenantDatabase,
+  clubId: ClubId,
+  row: TestResultRow,
+  definition: DefinitionInfo,
+  change: { measuredOn: LocalDate; exercise: string | null; dayChanged: boolean },
+): Promise<ValidationIssue[]> {
+  const issues: ValidationIssue[] = [];
+  const { measuredOn, exercise } = change;
+  if (change.dayChanged && compareLocalDates(measuredOn, await clubToday(db)) > 0) {
+    issues.push(issue(['body', 'measuredOn'], 'A historical result is not in the future'));
+  }
+  const [born] = await db
+    .select({ birthDate: playerTable.birthDate })
+    .from(playerTable)
+    .where(and(eq(playerTable.clubId, clubId), eq(playerTable.id, row.playerId)));
+  if (
+    change.dayChanged &&
+    born !== undefined &&
+    compareLocalDates(measuredOn, born.birthDate) < 0
+  ) {
+    issues.push(issue(['body', 'measuredOn'], 'The player was not born yet on measuredOn'));
+  }
+  const [duplicate] = await db
+    .select({ id: testResult.id })
+    .from(testResult)
+    .innerJoin(
+      testDefinition,
+      and(
+        eq(testDefinition.clubId, testResult.clubId),
+        eq(testDefinition.id, testResult.testDefinitionId),
+      ),
+    )
+    .where(
+      and(
+        eq(testResult.clubId, clubId),
+        eq(testResult.playerId, row.playerId),
+        eq(testDefinition.code, definition.code),
+        eq(testResult.measuredOn, measuredOn),
+        exercise === null ? isNull(testResult.exercise) : eq(testResult.exercise, exercise),
+        eq(testResult.status, 'done'),
+        ne(testResult.id, row.id),
+      ),
+    )
+    .limit(1);
+  if (duplicate !== undefined) {
+    issues.push(
+      issue(
+        ['body', change.dayChanged ? 'measuredOn' : 'exercise'],
+        'A result of the same player, test, day and exercise is already recorded',
+        'duplicate',
+      ),
+    );
+  }
+  return issues;
+}
+
 /** `assigned` scope of a list: players currently in an assigned category or sport. */
 function assignedPlayers(
   db: TenantDatabase,
@@ -150,6 +214,7 @@ export function registerTestResultRoutes(app: FastifyInstance): void {
         testCode: query.testCode,
         testDefinitionId: query.testDefinitionId,
         status: query.status,
+        importId: query.importId,
         from: query.from,
         to: query.to,
       });
@@ -190,6 +255,7 @@ export function registerTestResultRoutes(app: FastifyInstance): void {
               ? undefined
               : eq(testResult.testDefinitionId, query.testDefinitionId),
             query.status === undefined ? undefined : eq(testResult.status, query.status),
+            query.importId === undefined ? undefined : eq(testResult.importId, query.importId),
             query.from === undefined ? undefined : gte(testResult.measuredOn, query.from),
             query.to === undefined ? undefined : lte(testResult.measuredOn, query.to),
             plan.where,
@@ -283,7 +349,35 @@ export function registerTestResultRoutes(app: FastifyInstance): void {
           );
         }
       }
-      if (status === 'done' && (row.status !== 'done' || body.measuredOn !== undefined)) {
+      // A result of an import of historical results (B-331, ADR 0052) stays done and
+      // historical (CHECK test_result_import_historical), and the stage rules of the battery
+      // are not applied to it on a new day, as the import only warned about them.
+      const imported = row.importId !== null;
+      if (imported && status !== 'done') {
+        issues.push(
+          issue(['body', 'status'], 'A result of an import of historical results stays done'),
+        );
+      }
+      if (imported && method !== 'historical') {
+        issues.push(
+          issue(['body', 'method'], 'A result of an import of historical results stays historical'),
+        );
+      }
+      // The same checks as the import, on a new day or exercise.
+      if (imported && (body.measuredOn !== undefined || body.exercise !== undefined)) {
+        issues.push(
+          ...(await importedResultIssues(db, clubId, row, definition, {
+            measuredOn,
+            exercise,
+            dayChanged: body.measuredOn !== undefined,
+          })),
+        );
+      }
+      if (
+        !imported &&
+        status === 'done' &&
+        (row.status !== 'done' || body.measuredOn !== undefined)
+      ) {
         const session =
           row.testSessionId === null
             ? undefined
@@ -359,7 +453,7 @@ export function registerTestResultRoutes(app: FastifyInstance): void {
           }
         }
       }
-      if (status === 'not_done' && row.status === 'done') {
+      if (!imported && status === 'not_done' && row.status === 'done') {
         const [valid] = await db
           .select({ id: testResultValue.id })
           .from(testResultValue)
@@ -384,7 +478,9 @@ export function registerTestResultRoutes(app: FastifyInstance): void {
       if (exercise === null && definition.code === 'strength' && status === 'done') {
         issues.push(issue(['body', 'exercise'], 'Required for a strength result'));
       }
-      if (deviceId === null && sameDeviceOnly(definition) && status === 'done') {
+      // An imported result may have no device, as the import allowed (ADR 0052): it is
+      // never compared on the same device, and its notes or day can still be corrected.
+      if (!imported && deviceId === null && sameDeviceOnly(definition) && status === 'done') {
         issues.push(
           issue(['body', 'deviceId'], 'This test is compared only on the same device: record it'),
         );
@@ -472,7 +568,9 @@ export function registerTestResultRoutes(app: FastifyInstance): void {
       }
       const definition = await requireDefinition(db, clubId, row.testDefinitionId);
       let strengthAssessment = null;
-      if (definition.code === 'strength') {
+      // The stage rules are warnings for an imported result (ADR 0052): its entries are
+      // checked against the protocol only, as the import did.
+      if (definition.code === 'strength' && row.importId === null) {
         const stage = await stageContext(
           db,
           clubId,

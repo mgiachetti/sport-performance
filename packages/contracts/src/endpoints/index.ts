@@ -203,6 +203,12 @@ import {
   voidTestResultEntries,
 } from './tests.js';
 import { pullSyncChanges, pushSyncMutations } from './sync.js';
+import {
+  createTestImport,
+  getTestImport,
+  listTestImports,
+  previewTestImport,
+} from './test-imports.js';
 
 export * from './app-compatibility.js';
 export * from './auth.js';
@@ -233,6 +239,7 @@ export * from './training.js';
 export * from './wellness.js';
 export * from './tests.js';
 export * from './sync.js';
+export * from './test-imports.js';
 
 /**
  * Every endpoint of the API, keyed by operationId. The API registers its
@@ -349,6 +356,10 @@ export const apiEndpoints = {
   addTestResultEntries,
   voidTestResultEntries,
   listPlayerTestMetric,
+  previewTestImport,
+  createTestImport,
+  listTestImports,
+  getTestImport,
   listReferenceValues,
   getReferenceValue,
   createReferenceValue,

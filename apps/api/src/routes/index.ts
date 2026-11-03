@@ -37,6 +37,7 @@ import { registerParticipationRoutes } from './participations.js';
 import { registerTrainingSessionRoutes } from './training-sessions.js';
 import { registerWellnessRoutes } from './wellness.js';
 import { registerTestResultRoutes } from './test-results.js';
+import { registerTestImportRoutes } from './test-imports.js';
 import { registerTestSessionResultRoutes } from './test-sessions.js';
 import { registerSyncRoutes } from './sync.js';
 
@@ -149,6 +150,10 @@ export const IMPLEMENTED_ENDPOINTS = [
   'getWellness',
   'recordTestSessionResults',
   'listTestResults',
+  'previewTestImport',
+  'createTestImport',
+  'listTestImports',
+  'getTestImport',
   'getTestResult',
   'createTestResult',
   'updateTestResult',
@@ -258,6 +263,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerWellnessRoutes(app);
   registerTestSessionResultRoutes(app);
   registerTestResultRoutes(app);
+  registerTestImportRoutes(app);
   registerReferenceValueRoutes(app);
   registerBatteryRoutes(app);
   registerSpeedZoneRoutes(app);
