@@ -34,7 +34,7 @@ pnpm --filter @sport-performance/mobile start   # después, solo el bundler
 - `src/api`: cliente tipado con bearer, club y versión; textos de errores; cliente de TanStack Query.
 - `src/auth`, `src/clubs`, `src/branding`, `src/linking`, `src/observability`, `src/version`: lógica sin React Native.
 - `src/state`: servicios de la app, controlador de sesión, compuerta de versión y contextos de React (`useServices`, `useApi`, `useSession`, `useClubTheme`).
-- `src/offline`: base local y sincronización (B-502, [ADR 0065](../../docs/adr/0065-base-local-y-motor-de-sincronizacion-mobile.md)): driver, esquema Drizzle y migraciones (`db/`), cola y validación (`operations.ts`), lectura con lo pendiente superpuesto (`local-store.ts`, `overlay.ts`), motor (`engine.ts`), disparadores, tarea en segundo plano y textos del indicador.
+- `src/offline`: base local y sincronización (B-502, [ADR 0069](../../docs/adr/0069-base-local-y-motor-de-sincronizacion-mobile.md)): driver, esquema Drizzle y migraciones (`db/`), cola y validación (`operations.ts`), lectura con lo pendiente superpuesto (`local-store.ts`, `overlay.ts`), motor (`engine.ts`), disparadores, tarea en segundo plano y textos del indicador.
 - `src/platform`: lo nativo (`expo-secure-store`, AsyncStorage, `expo-application`, `expo-updates`, `expo-localization`, `expo-sqlite` con SQLCipher, `expo-network`, `expo-background-task`) detrás de interfaces.
 - `src/screens`: pantallas de presentación (datos y callbacks por props); `src/ui`: tema, traductor, primitivas accesibles y fuentes.
 

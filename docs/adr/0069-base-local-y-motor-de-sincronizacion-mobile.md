@@ -1,4 +1,4 @@
-# 0065. Base local y motor de sincronización de la app mobile: SQLite cifrado, cola con vista optimista, ciclos con backoff y borrado al cerrar sesión
+# 0069. Base local y motor de sincronización de la app mobile: SQLite cifrado, cola con vista optimista, ciclos con backoff y borrado al cerrar sesión
 
 - Estado: Aceptado
 - Fecha: 2026-11-03
