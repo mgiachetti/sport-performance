@@ -9,7 +9,7 @@ import {
 import { selectionKey, type ClubSelection } from './club-selection';
 
 /**
- * Query keys (ADR 0056). Three roots, so one call clears what must go:
+ * Query keys (ADR 0057). Three roots, so one call clears what must go:
  *
  * - `['session', …]`: the signed-in user (`me`, memberships);
  * - `['public', …]`: no personal data (the club theme);

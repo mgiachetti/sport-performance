@@ -1,5 +1,5 @@
 /**
- * @sport-performance/worker: background jobs on pg-boss (ADR 0011, ADR 0045).
+ * @sport-performance/worker: background jobs on pg-boss (ADR 0011, ADR 0046).
  * The process entry point is `main.ts`; this module exposes the pieces for
  * tests and for the jobs of later issues (alerts, notifications), which plug
  * into the same queues and the same per-club transactions.

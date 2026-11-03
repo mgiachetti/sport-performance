@@ -102,7 +102,7 @@ export class ClubSelectionStore extends Store<ClubSelection | null> {
 
 /**
  * Stable part of the query keys of everything that depends on the club
- * (ADR 0056): data of one club never answers a query of another.
+ * (ADR 0057): data of one club never answers a query of another.
  */
 export function selectionKey(selection: ClubSelection | null): string {
   if (selection === null) return 'none';

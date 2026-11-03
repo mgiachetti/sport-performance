@@ -10,7 +10,7 @@ import {
 } from '@sport-performance/contracts';
 
 /**
- * A fake API behind the real typed client (ADR 0056, tests): requests are
+ * A fake API behind the real typed client (ADR 0057, tests): requests are
  * matched to an `operationId` of the contract catalog, answered by the test's
  * handlers and recorded. Responses still go through the client's contract
  * validation, so fixtures must be valid API payloads.

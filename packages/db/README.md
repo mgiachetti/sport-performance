@@ -37,7 +37,7 @@ client.release();
 | `pnpm --filter @sport-performance/db db:generate:custom --name=<nombre>` | Crea una migración vacía para SQL a mano (triggers, RLS, grants). |
 | `pnpm --filter @sport-performance/db db:seed` | Crea el tenant ORC si no existe y siembra su configuración por defecto (rugby masculino y hockey femenino). Idempotente. Mismas variables que `db:migrate`; requiere las migraciones aplicadas y `pnpm build`. También está como bin `sport-performance-db-seed`. |
 | `pnpm --filter @sport-performance/db db:seed:demo` | Crea o pone al día el club demo con datos ficticios (B-307, [ADR 0055](../../docs/adr/0055-club-demo-y-datos-de-prueba.md)). Solo en `local`, `development`, `test`, `ci` o `staging`, con `DEMO_SEED_CONFIRM=<entorno>`; ver [Club demo](#club-demo). Bin `sport-performance-db-seed-demo`. |
-| `pnpm --filter @sport-performance/db db:migrate` | Aplica las migraciones pendientes con `MIGRATIONS_DATABASE_URL` (o `DATABASE_URL` si la primera falta o está vacía) y después instala o actualiza la cola de jobs (pg-boss en el esquema `pgboss`, con grants solo para el worker; ADR 0045). Requiere `pnpm build`. También está como bin `sport-performance-db-migrate`. |
+| `pnpm --filter @sport-performance/db db:migrate` | Aplica las migraciones pendientes con `MIGRATIONS_DATABASE_URL` (o `DATABASE_URL` si la primera falta o está vacía) y después instala o actualiza la cola de jobs (pg-boss en el esquema `pgboss`, con grants solo para el worker; ADR 0046). Requiere `pnpm build`. También está como bin `sport-performance-db-migrate`. |
 | `pnpm --filter @sport-performance/db db:provision-login` | Crea o actualiza un login (`DB_LOGIN_NAME`, `DB_LOGIN_PASSWORD`) como miembro de un rol de conexión (`DB_LOGIN_ROLE=app\|worker\|auth`), conectado como dueño. Idempotente; rota la contraseña. Bin `sport-performance-db-provision-login`. |
 
 Nunca `drizzle-kit push` ni `drizzle-kit migrate` contra una base compartida. Una migración aplicada no se edita: el runner se niega a correr si un archivo aplicado cambió o si una migración pendiente es más vieja que la última aplicada (dos ramas que se mergearon fuera de orden). En ese caso se regenera la migración más nueva.
@@ -178,7 +178,7 @@ Producción se protege también desde la base: `ALTER DATABASE <db> SET app.depl
 
 Columnas HLC y marcas de borrado para la sincronización (B-323) y la tabla de importaciones de Catapult (B-601; `external_metric.import_id` ya existe).
 
-## Derivados del worker (B-326, ADR 0045)
+## Derivados del worker (B-326, ADR 0046)
 
 - `derived_refresh`: marcas de recálculo por jugador (outbox). Las escriben los triggers `derived_refresh_trigger` (participación, sesión, bienestar, antropometría, altura de los padres, jugador, `club.settings.derived`) en la misma transacción del dato y avisan al worker con `pg_notify('sport_performance_derived_refresh', club_id)` al commit. Ningún rol de conexión las escribe; el staff las lee.
 - `player_load_daily` y `player_wellness_daily`: caché del worker para el panel (carga con EWMA, ACWR, monotonía y strain por día; bienestar contra la media móvil propia). La API las lee con el alcance de jugador; solo el worker las escribe y borra. Van con el jugador (`ON DELETE CASCADE`).

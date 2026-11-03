@@ -3,7 +3,7 @@ import type { PgBoss, Queue } from 'pg-boss';
 import type pg from 'pg';
 
 /**
- * Queues of the worker (ADR 0011, ADR 0045). Every job carries the `club_id`
+ * Queues of the worker (ADR 0011, ADR 0046). Every job carries the `club_id`
  * it works on; the fan-out jobs (sweep, daily) only list clubs and enqueue one
  * job per club.
  */

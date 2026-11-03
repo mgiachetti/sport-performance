@@ -41,7 +41,7 @@ const AUTH_TABLES = [
 const DELETABLE = {
   [DATABASE_ROLES.app]: ['drill', 'player_position'],
   [DATABASE_ROLES.auth]: AUTH_TABLES,
-  // The worker's derived cache and its outbox (ADR 0045): rebuilt from the source rows.
+  // The worker's derived cache and its outbox (ADR 0046): rebuilt from the source rows.
   // The deliveries of notifications past their retention (ADR 0054).
   [DATABASE_ROLES.worker]: [
     'derived_refresh',
@@ -291,7 +291,7 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
     }
   });
 
-  it('only the worker reaches the job queue, without DDL (ADR 0045)', async () => {
+  it('only the worker reaches the job queue, without DDL (ADR 0046)', async () => {
     const schemas = await t.pool.query<{ role: string; privilege: string }>(
       `select r.rolname as role, p.privilege
          from pg_roles r cross join unnest(array['USAGE', 'CREATE']) as p(privilege)

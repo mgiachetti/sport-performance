@@ -51,7 +51,7 @@ export function applyTheme(target: ThemeTarget, theme: Theme): void {
 }
 
 /**
- * Runtime theme of the web (ADR 0014, ADR 0056): the brand comes from the
+ * Runtime theme of the web (ADR 0014, ADR 0057): the brand comes from the
  * club's public theme (`GET /v1/clubs/{slug}/theme`), the variant from the
  * user (remembered in `localStorage`) or the system's contrast preference.
  */

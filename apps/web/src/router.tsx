@@ -21,13 +21,13 @@ import { SupportPage } from './pages/SupportPage';
 import { parseClubsSearch, parseLoginSearch, safeRedirect } from './routing/redirect';
 import { Loading } from './ui/components';
 
-/** What every route's `beforeLoad` and `loader` receive (ADR 0056). */
+/** What every route's `beforeLoad` and `loader` receive (ADR 0057). */
 export interface RouterContext {
   readonly services: AppServices;
 }
 
 /**
- * Route tree (code-based, ADR 0056):
+ * Route tree (code-based, ADR 0057):
  *
  * ```
  * __root__                    theme, banners, 404 and error boundary

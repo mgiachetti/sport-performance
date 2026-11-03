@@ -603,7 +603,7 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         and(eq(changeHistory.tableName, 'wellness'), eq(changeHistory.recordId, rows.wellness)),
       ),
   );
-  // The participation and the wellness above marked the player for the worker (ADR 0045).
+  // The participation and the wellness above marked the player for the worker (ADR 0046).
   rows.derived_refresh = await id(
     db
       .select({ id: derivedRefresh.id })

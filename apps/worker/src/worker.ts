@@ -51,7 +51,7 @@ export interface RunningWorker {
 
 /**
  * Starts pg-boss (without migrating it: `runMigrations` does that as the
- * owner, ADR 0045), creates the queues and schedules, starts the handlers and
+ * owner, ADR 0046), creates the queues and schedules, starts the handlers and
  * the notification listener. Throws if the queue schema is not at the
  * version this pg-boss expects.
  */
