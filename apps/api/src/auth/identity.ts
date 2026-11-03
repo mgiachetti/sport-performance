@@ -93,12 +93,6 @@ export interface IdentityStore {
   redeemPlayerAccess(
     hash: { readonly codeHash: string } | { readonly tokenHash: string },
   ): Promise<RedeemPlayerAccessResult>;
-  /**
-   * The user of a membership of the context's club, in any state (ended
-   * too), as the club policies show it to the context's role; `undefined`
-   * when the membership is not of that club or not visible.
-   */
-  membershipUser(context: TenantContext, membershipId: string): Promise<UserId | undefined>;
 }
 
 function userContext(userId: UserId | null): TenantContext {
@@ -186,16 +180,6 @@ export function createIdentityStore(appDb: Database): IdentityStore {
 
   return {
     activeMemberships: (userId) => run(userId, (db) => membershipsOf(db, userId)),
-
-    membershipUser: (context, membershipId) =>
-      appDb.transaction(context, async (tx) => {
-        if (context.clubId === null) return undefined;
-        const [row] = await tenantDatabase(tx)
-          .select({ userId: membership.userId })
-          .from(membership)
-          .where(and(eq(membership.clubId, context.clubId), eq(membership.id, membershipId)));
-        return row === undefined ? undefined : parseUserId(row.userId);
-      }),
 
     previewInvitation: (tokenHash, now) =>
       run(null, async (db) => {

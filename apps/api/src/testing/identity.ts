@@ -15,7 +15,7 @@ import { expect } from 'vitest';
 import { buildApp, type BuildAppOptions } from '../app.js';
 import { createAuthModule, type AuthModule, type CreateAuthModuleOptions } from '../auth/module.js';
 import type { AuthConfig } from '../config/env.js';
-import { createApiPool, databaseFromPool } from '../db/database.js';
+import { createApiPool, databaseFromPool, type Database } from '../db/database.js';
 import { createMailer } from '../email/mailer.js';
 import { MemoryEmailTransport } from '../email/transport.js';
 import { fakeDatabase, memoryLogger, testConfig } from './support.js';
@@ -73,6 +73,8 @@ export function testAuthConfig(overrides: Partial<AuthConfig> = {}): AuthConfig 
 export interface IdentityTestApp {
   app: FastifyInstance;
   auth: AuthModule;
+  /** The API's database (login of `sport_performance_app`), for transactions as a given caller. */
+  db: Database;
   emails: MemoryEmailTransport;
   close: () => Promise<void>;
 }
@@ -130,6 +132,7 @@ export async function startIdentityApp(
   return {
     app,
     auth,
+    db,
     emails,
     close: async () => {
       await app.close();
