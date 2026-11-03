@@ -71,6 +71,11 @@ export const NOTIFICATION_SKIP_REASONS = [
   'no_destination',
   /** Waited too long for the allowed hours: it no longer makes sense. */
   'expired',
+  /**
+   * A demo club (`club.is_demo`, ADR 0055): its accounts are fictitious, so
+   * nothing is delivered, except to the catch-all domains the worker allows.
+   */
+  'demo_club',
 ] as const;
 export type NotificationSkipReason = (typeof NOTIFICATION_SKIP_REASONS)[number];
 export const isNotificationSkipReason = memberGuard(NOTIFICATION_SKIP_REASONS);

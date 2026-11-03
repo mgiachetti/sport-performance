@@ -81,6 +81,29 @@ export interface DeliveryDependencies {
   readonly email: EmailTransport;
   /** Base URL of the web app, without the trailing slash (links of the emails). */
   readonly webAppUrl: string;
+  /**
+   * The only email domains (lowercase) a demo club delivers to, by push or
+   * email (#177): catch-all mailboxes of staging. Empty or unset: a demo club
+   * delivers nothing. Real clubs are not affected.
+   */
+  readonly demoEmailDomains?: readonly string[];
+}
+
+/**
+ * Whether a recipient of a demo club may receive a delivery: only a user
+ * whose account email is of an allowed domain (exact, case-insensitive). The
+ * demo's own accounts are fictitious (`@example.com`, ADR 0055), and a push
+ * to whoever signed in with one of them is as unwanted as the email.
+ */
+export function demoRecipientAllowed(
+  email: string | undefined,
+  allowedDomains: readonly string[],
+): boolean {
+  if (email === undefined) return false;
+  const at = email.lastIndexOf('@');
+  if (at < 0) return false;
+  const domain = email.slice(at + 1).toLowerCase();
+  return allowedDomains.includes(domain);
 }
 
 interface DueRow {
@@ -562,6 +585,7 @@ async function claim(
   preferences: ClubPreferences,
   now: Date,
   t: Translator['t'],
+  demoEmailDomains: readonly string[],
 ): Promise<ClaimResult> {
   await recoverInterrupted(tx, now);
   const { rows } = await tx.client.query<DueRow>(
@@ -592,7 +616,10 @@ async function claim(
       ]);
     }
   }
-  const emailUsers = unique(due.filter((r) => r.channel === 'email').map((r) => r.user_id));
+  // A demo club checks every recipient's address, whatever the channel.
+  const emailUsers = unique(
+    due.filter((r) => club.isDemo || r.channel === 'email').map((r) => r.user_id),
+  );
   const emails = new Map<string, string>();
   if (emailUsers.length > 0) {
     const { rows: found } = await tx.client.query<{ id: string; email: string }>(
@@ -617,6 +644,10 @@ async function claim(
     if ('defer' in result) {
       const at = result.defer.getTime();
       deferred.set(at, [...(deferred.get(at) ?? []), row.id]);
+      continue;
+    }
+    if (club.isDemo && !demoRecipientAllowed(emails.get(row.user_id), demoEmailDomains)) {
+      skip(row.id, 'demo_club');
       continue;
     }
     if (row.channel === 'push') {
@@ -866,7 +897,8 @@ export async function deliverDue(
   const { claimed, skipped, deferred, more } = await inClubTransaction(
     deps.pool,
     club.clubId,
-    async (tx) => claim(tx, club, await ClubPreferences.read(tx), now, t),
+    async (tx) =>
+      claim(tx, club, await ClubPreferences.read(tx), now, t, deps.demoEmailDomains ?? []),
     { requestId },
   );
   if (claimed.length === 0) return { sent: 0, skipped, deferred, failed: 0, retried: 0, more };

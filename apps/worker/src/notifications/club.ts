@@ -37,6 +37,8 @@ export interface NotificationClub {
   readonly today: LocalDate;
   readonly settings: NotificationSettings;
   readonly modules: ClubModules;
+  /** A demo club (ADR 0055): delivers only to the allowed catch-all domains (#177). */
+  readonly isDemo: boolean;
 }
 
 export async function readNotificationClub(
@@ -48,7 +50,8 @@ export async function readNotificationClub(
     time_zone: string;
     locale: string;
     settings: { notifications?: unknown; modules?: unknown } | null;
-  }>('select time_zone, locale, settings from club where id = $1', [clubId]);
+    is_demo: boolean;
+  }>('select time_zone, locale, settings, is_demo from club where id = $1', [clubId]);
   const row = rows[0];
   if (row === undefined) return null;
   const timeZone = parseTimeZone(row.time_zone);
@@ -60,6 +63,7 @@ export async function readNotificationClub(
     // An invalid configuration fails the job loudly: a typo never silently falls back.
     settings: resolveNotificationSettings(row.settings?.notifications),
     modules: resolveClubModules(row.settings?.modules),
+    isDemo: row.is_demo,
   };
 }
 

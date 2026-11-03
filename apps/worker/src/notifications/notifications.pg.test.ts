@@ -215,9 +215,17 @@ describe.skipIf(!hasDatabase)('notifications (Postgres 16)', () => {
     clubId: ClubId,
     now: Date,
     s: ReturnType<typeof services>,
+    demoEmailDomains?: readonly string[],
   ): ReturnType<typeof runClubNotifications> {
     return runClubNotifications(
-      { pool: worker, logger, webAppUrl: 'https://app.example.com', now: () => now, ...s },
+      {
+        pool: worker,
+        logger,
+        webAppUrl: 'https://app.example.com',
+        now: () => now,
+        ...s,
+        ...(demoEmailDomains === undefined ? {} : { demoEmailDomains }),
+      },
       clubId,
       { jobId: randomUUID() },
     );
@@ -656,6 +664,72 @@ describe.skipIf(!hasDatabase)('notifications (Postgres 16)', () => {
       expect(rows.filter((r) => r.kind === 'pre_training_summary').map((r) => r.user_id)).toEqual([
         f.coach,
       ]);
+    });
+  });
+
+  describe('demo clubs (#177)', () => {
+    /** A club marked as a demo by the owner (ADR 0055), with a player whose email is also on. */
+    async function demoClub() {
+      const f = await newClub();
+      await q('update club set is_demo = true where id = $1', [f.clubId]);
+      const p = await newPlayer(f);
+      await q(
+        `insert into notification_preference (club_id, user_id, kind, push, email)
+         values ($1, $2, 'rpe_request', true, true)`,
+        [f.clubId, p.userId],
+      );
+      await newSession(f, '2026-03-20T21:00:00Z');
+      return { f, p };
+    }
+
+    it('plans as usual but delivers nothing, by push or email, without catch-all domains', async () => {
+      const { f, p } = await demoClub();
+      const s = services();
+      const report = await run(f.clubId, at('2026-03-20T22:51:00Z'), s);
+      expect(report).toMatchObject({ created: 2, sent: 0, skipped: 2 });
+      expect(s.push.sent).toEqual([]);
+      expect(s.email.sent).toEqual([]);
+      const rows = await deliveries(f.clubId);
+      expect(rows.map((r) => [r.user_id, r.channel, r.skip_reason])).toEqual([
+        [p.userId, 'email', 'demo_club'],
+        [p.userId, 'push', 'demo_club'],
+      ]);
+      // A domain list does not open the demo's own fictitious accounts (`@example.com`).
+      const again = await demoClub();
+      await run(again.f.clubId, at('2026-03-20T22:51:00Z'), s, ['club.app']);
+      expect(s.push.sent).toEqual([]);
+      expect(s.email.sent).toEqual([]);
+    });
+
+    it('delivers only to the users of the allowed catch-all domains', async () => {
+      const { f, p } = await demoClub();
+      const other = await newPlayer(f);
+      // The address of a catch-all mailbox of staging, in any case.
+      await q(`update "user" set email = $2 where id = $1`, [
+        p.userId,
+        `${p.userId}@Demo.Club.App`,
+      ]);
+      const s = services();
+      const report = await run(f.clubId, at('2026-03-20T22:51:00Z'), s, ['demo.club.app']);
+      expect(report).toMatchObject({ created: 3, sent: 2, skipped: 1 });
+      expect(s.push.sent.map((m) => m.to)).toEqual([p.token]);
+      expect(s.email.sent.map((m) => m.to)).toEqual([`${p.userId}@Demo.Club.App`]);
+      expect(await deliveries(f.clubId)).toContainEqual(
+        expect.objectContaining({
+          user_id: other.userId,
+          status: 'skipped',
+          skip_reason: 'demo_club',
+        }),
+      );
+    });
+
+    it('leaves real clubs alone: the domain list only applies to demo clubs', async () => {
+      const f = await newClub();
+      const p = await newPlayer(f);
+      await newSession(f, '2026-03-20T21:00:00Z');
+      const s = services();
+      await run(f.clubId, at('2026-03-20T22:51:00Z'), s, ['demo.club.app']);
+      expect(s.push.sent.map((m) => m.to)).toEqual([p.token]);
     });
   });
 
