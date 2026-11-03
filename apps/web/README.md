@@ -15,9 +15,11 @@ La API se levanta como dice [su README](../api/README.md#correr); en desarrollo 
 
 | Carpeta | Qué hay |
 |---|---|
-| `src/router.tsx` | Árbol de rutas: `/login`, `_authed` (sesión), `/clubs`, `/support`, `_club` (layout del club) y sus pantallas. |
+| `src/router.tsx` | Árbol de rutas: `/login`, `_authed` (sesión), `/clubs`, `/support`, `/console`, `_club` (layout del club) y sus pantallas. |
 | `src/app/` | `createWebApp` (stores, cliente, caché, router), `App` (providers) y `useServices()`. |
 | `src/api/` | Cliente web (`createWebApiClient`), selección de club y sus headers, estado de conexión, errores (`describeError`), política de reintentos y consultas compartidas (`queries.ts`). |
+| `src/console/` | Consola de superadmin (`/console`, [ADR 0066](../../docs/adr/0066-consola-de-superadmin-y-lectura-del-registro-de-soporte.md)): motivo por sesión, cliente `consoleApi` sin la selección del club, registro y alta de clubes, detalle de un club como soporte. |
+| `src/support-access/` | Registro de accesos de soporte (tabla, filtro por días en la zona del club), en la consola y para la administración del club. |
 | `src/club/` | `ActiveClub` (`useActiveClub()`), carga y validación del club, área por rol, deporte y categoría (`useScope()`). |
 | `src/guardian/` | Área de familia del tutor (`/family`, [ADR 0065](../../docs/adr/0065-area-de-familia-en-la-web.md)): sus hijos/as, ficha resumida, consentimientos y altura de los padres. |
 | `src/permissions/` | `useCan`, `<Can>`, `<RequirePermission>`, `canSomewhere` sobre la matriz de `packages/domain`. |
@@ -28,7 +30,7 @@ La API se levanta como dice [su README](../api/README.md#correr); en desarrollo 
 | `src/status/` | Estado de conexión, monitor (`onlineManager` + `/v1/health`) y aviso de pestaña vieja. |
 | `src/theme/` | Tema en runtime (`ThemeStore`, `ThemeController`). |
 | `src/lib/` | Utilidades sin UI: `alertText` (texto de una alerta con sus valores formateados es-AR). |
-| `src/ui/` | Componentes base (`Button`, `TextField`, `Notice`, `ErrorNotice`, `Page`, `Stripes`, `Icon`) y campos de formulario (`SelectField`, `TextAreaField`, `StatusLabel`, en `fields.tsx`). |
+| `src/ui/` | Componentes base (`Button`, `TextField`, `Notice`, `ErrorNotice`, `Page`, `Stripes`, `Icon`) y campos de formulario (`SelectField`, `TextAreaField`, `FieldGroup`, `StatusLabel`, en `fields.tsx`; `CheckboxField`, `CheckboxGroup`, en `choice.tsx`). |
 | `src/training/` | Sesiones y carga del entrenador (B-407): lista, alta, detalle con bloques y planilla de participación. |
 | `src/field-sessions/` | Vista de sesión en cancha (B-408, [ADR 0061](../../docs/adr/0061-vista-de-sesion-en-cancha.md)): lista de sesiones con datos de cancha y la vista de una sesión (resumen, barras por jugador, tabla). |
 | `src/calendar/` | Calendario de temporada (B-406): grilla del mes y lista, temporadas y ventanas, días de test y fixture. |

@@ -1,7 +1,9 @@
+import { isUuid, type ClubId } from '@sport-performance/domain';
 import {
   createRootRouteWithContext,
   createRoute,
   createRouter,
+  notFound,
   redirect,
   retainSearchParams,
   type RouterHistory,
@@ -29,6 +31,14 @@ import { ensureAreaOfRole, ensureClubSelection, loadActiveClub } from './club/lo
 import { parseScopeSearch } from './club/scope';
 import { ChildPage } from './guardian/ChildPage';
 import { ChildrenPage } from './guardian/ChildrenPage';
+import { ConsoleClubPage } from './console/ConsoleClubPage';
+import { ConsoleClubsPage } from './console/ConsoleClubsPage';
+import { ConsoleLayout } from './console/ConsoleLayout';
+import {
+  ConsoleSupportAccessPage,
+  parseSupportAccessSearch,
+} from './console/ConsoleSupportAccessPage';
+import { NewClubPage } from './console/NewClubPage';
 import { ClubLayout } from './layout/ClubLayout';
 import { RootLayout } from './layout/RootLayout';
 import { AnthropometryPage } from './pages/anthropometry/AnthropometryPage';
@@ -46,6 +56,7 @@ import { NewSessionPage } from './training/NewSessionPage';
 import { parseSessionsSearch } from './training/search';
 import { SessionDetailPage } from './training/SessionDetailPage';
 import { SessionsPage } from './training/SessionsPage';
+import { ClubSupportAccessPage } from './support-access/ClubSupportAccessPage';
 import { Loading } from './ui/components';
 
 /** What every route's `beforeLoad` and `loader` receive (ADR 0057). */
@@ -62,6 +73,10 @@ export interface RouterContext {
  * └── _authed                 needs a session (GET /v1/me), else /login?redirect=
  *     ├── /clubs              club selector (memberships, support mode entry)
  *     ├── /support            superadmin: reason + club of the registry
+ *     ├── /console            superadmin console (ADR 0066): reason, then
+ *     │   ├── /clubs          registry of clubs; /clubs/new onboarding
+ *     │   ├── /clubs/$clubId  one club: branches, modules, its admin
+ *     │   └── /support-access the support access log
  *     └── _club               needs a club: ActiveClub, layout, ?sport&category
  *         ├── /               home of the club
  *         ├── /panel          weekly panel (?week&group)
@@ -73,6 +88,7 @@ export interface RouterContext {
  *         ├── /anthropometry  batch anthropometry with instant maturation (B-412)
  *         ├── /configuration  club configuration (B-409)
  *         ├── /admin          administration (B-411): one child per section
+ *         ├── /support-access support accesses to the club (administration)
  *         └── /family         guardians only (ADR 0065): their children
  *             └── $playerId   summarised profile, consents, parents' heights
  * ```
@@ -140,6 +156,60 @@ export const supportRoute = createRoute({
     if (!me.user.isSuperadmin) throw redirect({ to: '/clubs' });
   },
   component: SupportPage,
+});
+
+/** The superadmin console (B-414, ADR 0066): only for a superadmin, outside any club. */
+export const consoleRoute = createRoute({
+  getParentRoute: () => authedRoute,
+  path: '/console',
+  beforeLoad: async ({ context }) => {
+    const { api, queryClient, selection } = context.services;
+    const me = await ensureQuery(queryClient, meQuery(api, selection.get()));
+    if (!me.user.isSuperadmin) throw redirect({ to: '/clubs' });
+  },
+  component: ConsoleLayout,
+});
+
+export const consoleIndexRoute = createRoute({
+  getParentRoute: () => consoleRoute,
+  path: '/',
+  beforeLoad: () => {
+    throw redirect({ to: '/console/clubs', replace: true });
+  },
+});
+
+export const consoleClubsRoute = createRoute({
+  getParentRoute: () => consoleRoute,
+  path: '/clubs',
+  component: ConsoleClubsPage,
+});
+
+export const consoleNewClubRoute = createRoute({
+  getParentRoute: () => consoleRoute,
+  path: '/clubs/new',
+  component: NewClubPage,
+});
+
+export const consoleClubRoute = createRoute({
+  getParentRoute: () => consoleRoute,
+  path: '/clubs/$clubId',
+  params: {
+    parse: (raw: { clubId: string }): { clubId: ClubId } => {
+      // `notFound()` is TanStack Router's own signal (not an Error): the 404 page renders.
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      if (!isUuid(raw.clubId)) throw notFound();
+      return { clubId: raw.clubId as ClubId };
+    },
+    stringify: (params: { clubId: ClubId }) => ({ clubId: params.clubId }),
+  },
+  component: ConsoleClubPage,
+});
+
+export const consoleSupportAccessRoute = createRoute({
+  getParentRoute: () => consoleRoute,
+  path: '/support-access',
+  validateSearch: parseSupportAccessSearch,
+  component: ConsoleSupportAccessPage,
 });
 
 export const clubRoute = createRoute({
@@ -370,6 +440,12 @@ export const childRoute = createRoute({
   component: ChildPage,
 });
 
+export const clubSupportAccessRoute = createRoute({
+  getParentRoute: () => clubRoute,
+  path: '/support-access',
+  component: ClubSupportAccessPage,
+});
+
 export const routeTree = rootRoute.addChildren([
   loginRoute,
   authedRoute.addChildren([
@@ -386,7 +462,15 @@ export const routeTree = rootRoute.addChildren([
       anthropometryRoute,
       configurationRoute,
       adminRoute.addChildren(adminRoutes),
+      clubSupportAccessRoute,
       familyRoute.addChildren([childrenRoute, childRoute]),
+    ]),
+    consoleRoute.addChildren([
+      consoleIndexRoute,
+      consoleClubsRoute,
+      consoleNewClubRoute,
+      consoleClubRoute,
+      consoleSupportAccessRoute,
     ]),
   ]),
 ]);

@@ -810,3 +810,105 @@ select {
   font-weight: var(--sp-text-body-strong-weight);
   cursor: pointer;
 }
+
+/* Form fields beyond the text input (ui/fields.tsx) */
+.sp-form--narrow {
+  max-width: 36rem;
+}
+.sp-fieldset__body {
+  display: grid;
+  gap: var(--sp-space-xxs);
+}
+.sp-filters__note {
+  flex-basis: 100%;
+}
+.sp-filters__active {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-space-md);
+  margin-top: var(--sp-space-md);
+}
+
+.sp-table__meta {
+  display: block;
+  color: var(--sp-color-text-secondary);
+  font-size: var(--sp-text-body-small-size);
+}
+.sp-table__code {
+  font-size: var(--sp-text-body-small-size);
+  overflow-wrap: anywhere;
+}
+.sp-status--info svg {
+  color: var(--sp-color-brand-accent);
+}
+.sp-definitions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--sp-space-md);
+  margin: 0;
+}
+.sp-definitions dt {
+  color: var(--sp-color-text-secondary);
+  font-size: var(--sp-text-body-small-size);
+}
+.sp-definitions dd {
+  margin: 0;
+}
+.sp-card__subtitle {
+  margin-top: var(--sp-space-md);
+  font-size: var(--sp-text-body-size);
+}
+.sp-plain-list {
+  display: grid;
+  gap: var(--sp-space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sp-plain-list__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-space-sm);
+}
+
+/* Superadmin console (ADR 0066): a frame of its own, outside the club shell */
+.sp-console {
+  min-height: 100vh;
+}
+.sp-console__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-space-lg);
+  padding: var(--sp-space-md) var(--sp-space-xl);
+  border-bottom: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+}
+.sp-console__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-sm);
+  font-family: var(--sp-text-title-family);
+  font-weight: var(--sp-text-title-weight);
+}
+.sp-console__nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sp-console__account {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-space-sm);
+}
+.sp-console__main {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: var(--sp-space-xl);
+}

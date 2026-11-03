@@ -3,13 +3,14 @@ import {
   createApiClient,
   type ApiClient,
   type FetchLike,
+  type HeaderMap,
 } from '@sport-performance/contracts';
-import type { ClubSelectionStore } from './club-selection';
 import type { ConnectionStore } from './connection';
 
 export interface WebApiClientOptions {
   readonly baseUrl: string;
-  readonly selection: ClubSelectionStore;
+  /** Headers of the club the requests act in (`ClubSelectionStore`, or none for the console). */
+  readonly selection: { headers(): HeaderMap };
   readonly connection: ConnectionStore;
   /** Defaults to the global `fetch`; tests pass a fake. */
   readonly fetch?: FetchLike;

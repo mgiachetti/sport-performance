@@ -800,6 +800,151 @@ describe.skipIf(!hasDatabase)('RLS by role (Postgres 16)', () => {
       }
     });
 
+    describe('reading the log (app.support_access_entries, ADR 0066)', () => {
+      interface Entry {
+        id: string;
+        started_at: Date;
+        started_at_key: string;
+        user_id: string;
+        user_name: string | null;
+        user_email: string | null;
+        club_id: string | null;
+        club_name: string | null;
+        club_slug: string | null;
+        club_time_zone: string | null;
+        reason: string;
+        request_id: string;
+      }
+      const ENTRIES = 'select * from app.support_access_entries($1, $2, $3, $4, $5, $6, $7)';
+      type Args = [
+        string | null,
+        string | null,
+        string | null,
+        string | null,
+        string | null,
+        string | null,
+        number,
+      ];
+      const all = (limit = 101): Args => [null, null, null, null, null, null, limit];
+      const read = (context: TestContext, args: Args) =>
+        run(context, async (client) => (await client.query<Entry>(ENTRIES, args)).rows);
+      const registry = (): TestContext => ({
+        userId: superadminId,
+        supportReason: 'Auditoría de soporte',
+      });
+
+      beforeAll(async () => {
+        // One access to each club and one to the registry, with distinct reasons.
+        for (const [clubId, reason] of [
+          [a.clubId, 'Lectura: ticket A'],
+          [b.clubId, 'Lectura: ticket B'],
+        ] as const) {
+          await run(
+            { clubId, userId: superadminId, role: 'superadmin', supportReason: reason },
+            (client) => client.query('select 1'),
+          );
+        }
+        await run({ userId: superadminId, supportReason: 'Lectura: registro' }, (client) =>
+          client.query('select 1'),
+        );
+      });
+
+      it('the registry reads every club and the registry, newest first, with who and where', async () => {
+        const rows = await read(registry(), all());
+        const reasons = rows.map((row) => row.reason);
+        expect(reasons).toEqual(
+          expect.arrayContaining([
+            'Lectura: ticket A',
+            'Lectura: ticket B',
+            'Lectura: registro',
+            // The read itself is an access of the registry.
+            'Auditoría de soporte',
+          ]),
+        );
+        expect(reasons[0]).toBe('Auditoría de soporte');
+        const times = rows.map((row) => row.started_at.getTime());
+        expect([...times].sort((x, y) => y - x)).toEqual(times);
+        const ofA = must(rows.find((row) => row.reason === 'Lectura: ticket A'));
+        expect(ofA).toMatchObject({
+          user_id: superadminId,
+          user_name: 'Soporte',
+          user_email: 'soporte@example.com',
+          club_id: a.clubId,
+          club_slug: a.slug,
+          club_time_zone: 'America/Argentina/Buenos_Aires',
+        });
+        expect(ofA.started_at_key).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/);
+        expect(new Date(ofA.started_at_key).getTime()).toBe(ofA.started_at.getTime());
+        const ofRegistry = must(rows.find((row) => row.reason === 'Lectura: registro'));
+        expect(ofRegistry).toMatchObject({ club_id: null, club_name: null });
+      });
+
+      it('filters by club, operator and time, and pages by keyset without repeating', async () => {
+        const ofB = await read(registry(), [b.clubId, null, null, null, null, null, 101]);
+        expect(ofB.length).toBeGreaterThan(0);
+        expect(ofB.every((row) => row.club_id === b.clubId)).toBe(true);
+        expect(await read(registry(), [null, 'nobody', null, null, null, null, 101])).toEqual([]);
+        expect(
+          await read(registry(), [null, null, '2999-01-01T00:00:00Z', null, null, null, 101]),
+        ).toEqual([]);
+        expect(
+          await read(registry(), [null, null, null, '2000-01-01T00:00:00Z', null, null, 101]),
+        ).toEqual([]);
+
+        const first = await read(registry(), all(2));
+        expect(first).toHaveLength(2);
+        const last = must(first[1]);
+        const next = await read(registry(), [
+          null,
+          null,
+          null,
+          null,
+          last.started_at_key,
+          last.id,
+          101,
+        ]);
+        const seen = new Set(first.map((row) => row.id));
+        expect(next.some((row) => seen.has(row.id))).toBe(false);
+        expect(next.length).toBeGreaterThan(0);
+      });
+
+      it('the administration of a club reads only the accesses to its club', async () => {
+        const rows = await read(as('admin'), all());
+        expect(rows.length).toBeGreaterThan(0);
+        expect(rows.every((row) => row.club_id === a.clubId)).toBe(true);
+        expect(rows.map((row) => row.reason)).toContain('Lectura: ticket A');
+        // Asking for another club is refused, not answered empty.
+        expect(await pgCode(read(as('admin'), [b.clubId, null, null, null, null, null, 101]))).toBe(
+          '42501',
+        );
+        // A superadmin supporting club B reads B only, like its admin.
+        const supporting = await read(
+          { clubId: b.clubId, userId: superadminId, role: 'superadmin', supportReason: 'B' },
+          all(),
+        );
+        expect(supporting.every((row) => row.club_id === b.clubId)).toBe(true);
+      });
+
+      it('refuses every other role, a superadmin without a recorded access and no request id', async () => {
+        for (const who of ['coach', 'sc', 'medical', 'player', 'parent'] as const) {
+          expect(await pgCode(read(as(who), all())), who).toBe('42501');
+        }
+        expect(await pgCode(read({ userId: superadminId }, all()))).toBe('42501');
+        expect(
+          await pgCode(read({ clubId: a.clubId, userId: superadminId, role: 'superadmin' }, all())),
+        ).toBe('42501');
+        expect(await pgCode(read({ ...as('admin'), requestId: null }, all()))).toBe('42501');
+        expect(await pgCode(read(as('admin'), all(0)))).toBe('22023');
+        expect(await pgCode(read(as('admin'), all(102)))).toBe('22023');
+        const worker = await connectAs(t, 'worker');
+        try {
+          expect(await pgCode(worker.pool.query(ENTRIES, all()))).toBe('42501');
+        } finally {
+          await worker.close();
+        }
+      });
+    });
+
     it('the flag cannot be granted through the application roles', async () => {
       expect(
         await pgCode(

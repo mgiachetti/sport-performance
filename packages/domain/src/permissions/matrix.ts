@@ -93,6 +93,10 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
     },
     update: administration,
   },
+  // The club sees who supported it; the superadmin, what an admin sees.
+  support_access: {
+    read: administration,
+  },
   membership: {
     read: administration,
     invite: administration,

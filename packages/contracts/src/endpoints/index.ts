@@ -228,6 +228,7 @@ import {
   voidTestResultEntries,
 } from './tests.js';
 import { pullSyncChanges, pushSyncMutations } from './sync.js';
+import { listClubSupportAccess, listSupportAccess } from './support-access.js';
 import {
   createTestImport,
   getTestImport,
@@ -271,6 +272,7 @@ export * from './session-roster.js';
 export * from './wellness.js';
 export * from './tests.js';
 export * from './sync.js';
+export * from './support-access.js';
 export * from './test-imports.js';
 export * from './panel.js';
 
@@ -302,6 +304,8 @@ export const apiEndpoints = {
   getClubTheme,
   listClubs,
   createClub,
+  listSupportAccess,
+  listClubSupportAccess,
   getClub,
   updateClub,
   listClubBranches,

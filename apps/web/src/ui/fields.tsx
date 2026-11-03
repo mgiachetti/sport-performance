@@ -110,6 +110,28 @@ export function TextAreaField({
   );
 }
 
+/** A group of fields under one legend, with the group's help and error. */
+export function FieldGroup(props: {
+  legend: string;
+  help?: string | undefined;
+  error?: string | null | undefined;
+  children: ReactNode;
+}) {
+  const id = useId();
+  return (
+    <fieldset className="sp-fieldset" aria-describedby={describedBy(id, props.help, props.error)}>
+      <legend className="sp-field__label">{props.legend}</legend>
+      {props.help === undefined ? null : (
+        <p id={`${id}-help`} className="sp-field__help">
+          {props.help}
+        </p>
+      )}
+      <div className="sp-fieldset__body">{props.children}</div>
+      <FieldFoot id={id} error={props.error ?? null} />
+    </fieldset>
+  );
+}
+
 const LEVEL_ICONS: Record<StatusLevel | 'info', IconName> = {
   ok: 'ok',
   warning: 'warning',

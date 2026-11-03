@@ -5,12 +5,12 @@ import { useServices } from '../app/services';
 
 /**
  * Signs out (`POST /v1/auth/sign-out` revokes the session and clears the
- * cookie) and forgets everything local: cache, club and support selection,
+ * cookie) and forgets everything local: cache, club and support selection, console reason,
  * so the next person on a shared computer starts clean. If the API cannot be
  * reached the session would stay open, so the user stays and sees the error.
  */
 export function useSignOut() {
-  const { api, queryClient, selection } = useServices();
+  const { api, queryClient, selection, consoleReason } = useServices();
   const navigate = useNavigate();
   return useMutation({
     mutationFn: async () => {
@@ -25,6 +25,7 @@ export function useSignOut() {
     onSuccess: async () => {
       queryClient.clear();
       selection.select(null);
+      consoleReason.clear();
       await navigate({ to: '/login', replace: true });
     },
   });

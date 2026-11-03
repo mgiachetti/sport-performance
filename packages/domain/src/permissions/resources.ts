@@ -23,6 +23,11 @@ export const PERMISSION_RESOURCES = {
   club_registry: { target: 'platform', medical: false, actions: ['read', 'create', 'update'] },
   /** The club itself: name, brand (theme), time zone. */
   club: { target: 'club', medical: false, actions: ['read', 'update'] },
+  /**
+   * The superadmin's support accesses to the club (ADR 0029, B-414): who
+   * entered, when and why. The registry-wide log is `club_registry.read`.
+   */
+  support_access: { target: 'club', medical: false, actions: ['read'] },
   /** Memberships of users in the club and invitations (B-309). */
   membership: { target: 'club', medical: false, actions: ['read', 'invite', 'update', 'revoke'] },
   /** Which categories or sport each staff member sees (B-314). */
