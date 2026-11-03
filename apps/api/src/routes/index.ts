@@ -43,6 +43,7 @@ import { registerFieldSessionRoutes } from './field-sessions.js';
 import { registerWellnessRoutes } from './wellness.js';
 import { registerAlertRoutes } from './alerts.js';
 import { registerPanelRoutes } from './panel.js';
+import { registerAnthropometryRoutes } from './anthropometry.js';
 import { registerTestResultRoutes } from './test-results.js';
 import { registerTestImportRoutes } from './test-imports.js';
 import { registerTestSessionResultRoutes } from './test-sessions.js';
@@ -178,6 +179,11 @@ export const IMPLEMENTED_ENDPOINTS = [
   'addTestResultEntries',
   'voidTestResultEntries',
   'listPlayerTestMetric',
+  'recordAnthroMeasurements',
+  'previewAnthroMeasurements',
+  'listAnthroMeasurements',
+  'getAnthroMeasurement',
+  'updateAnthroMeasurement',
   'listReferenceValues',
   'getReferenceValue',
   'createReferenceValue',
@@ -294,6 +300,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerTestSessionResultRoutes(app);
   registerTestResultRoutes(app);
   registerTestImportRoutes(app);
+  registerAnthropometryRoutes(app);
   registerReferenceValueRoutes(app);
   registerBatteryRoutes(app);
   registerSpeedZoneRoutes(app);

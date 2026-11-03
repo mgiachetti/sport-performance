@@ -67,6 +67,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0061](0061-vista-de-sesion-en-cancha.md) | Vista de sesión en cancha: una lectura acotada por sesión, totales por fuente y jugadores por la matriz | Aceptado |
 | [0062](0062-pantalla-de-configuracion-y-lectura-del-catalogo.md) | Pantalla de configuración: matriz por etapa, cambios con vigencia y lectura del catálogo del club | Aceptado |
 | [0063](0063-administracion-en-la-web.md) | Administración en la web: secciones por permiso del club, lector de Excel en el navegador y códigos estables de los problemas del padrón | Aceptado |
+| [0064](0064-antropometria-carga-por-lote-y-maduracion-al-instante.md) | Antropometría: carga por lote del día de mediciones y maduración al instante calculada por la API | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 

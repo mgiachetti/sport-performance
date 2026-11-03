@@ -29,6 +29,7 @@ import { parseConfigurationSearch } from './configuration/search';
 import { parseScopeSearch } from './club/scope';
 import { ClubLayout } from './layout/ClubLayout';
 import { RootLayout } from './layout/RootLayout';
+import { AnthropometryPage } from './pages/anthropometry/AnthropometryPage';
 import { ClubSelectPage } from './pages/ClubSelectPage';
 import { RouteErrorPage, NotFoundPage } from './pages/ErrorPages';
 import { HomePage } from './pages/HomePage';
@@ -67,6 +68,7 @@ export interface RouterContext {
  *         ├── /sessions       training sessions and matches (B-407): list, new, one
  *         ├── /field-sessions sessions with field data (?kind) and /$trainingSessionId (B-408)
  *         ├── /calendar       season calendar (B-406): windows, test days, fixture
+ *         ├── /anthropometry  batch anthropometry with instant maturation (B-412)
  *         ├── /configuration  club configuration (B-409)
  *         └── /admin          administration (B-411): one child per section
  * ```
@@ -339,6 +341,12 @@ const adminRoutes = [
   adminRosterRoute,
 ];
 
+export const anthropometryRoute = createRoute({
+  getParentRoute: () => clubRoute,
+  path: '/anthropometry',
+  component: AnthropometryPage,
+});
+
 export const routeTree = rootRoute.addChildren([
   loginRoute,
   authedRoute.addChildren([
@@ -352,6 +360,7 @@ export const routeTree = rootRoute.addChildren([
       sessionsRoute.addChildren([sessionsIndexRoute, newSessionRoute, sessionDetailRoute]),
       fieldSessionsRoute.addChildren([fieldSessionsIndexRoute, fieldSessionRoute]),
       calendarRoute,
+      anthropometryRoute,
       configurationRoute,
       adminRoute.addChildren(adminRoutes),
     ]),

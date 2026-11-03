@@ -14,7 +14,8 @@ import { z } from 'zod';
 import { defineEndpoint } from '../endpoint.js';
 import { stageSchema } from '../primitives/conventions.js';
 import { dateTimeSchema, localDateSchema } from '../primitives/dates.js';
-import { categoryIdSchema, idOf, playerIdSchema } from '../primitives/ids.js';
+import { categoryIdSchema, playerIdSchema } from '../primitives/ids.js';
+import { anthroMeasurementIdSchema } from './anthropometry.js';
 import { testWindowIdSchema } from './calendar.js';
 import { availabilityStatusSchema } from './panel.js';
 import {
@@ -152,8 +153,6 @@ export const getPlayerDailyMonitoring = defineEndpoint({
 });
 
 // ─── Maturation ──────────────────────────────────────────────────────────────────────
-
-export const anthroMeasurementIdSchema = idOf('medición antropométrica');
 
 export const playerAnthroMeasurementSchema = z
   .object({

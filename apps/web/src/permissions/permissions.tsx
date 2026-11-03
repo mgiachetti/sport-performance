@@ -1,8 +1,10 @@
 import type { Category } from '@sport-performance/contracts';
 import {
+  CONSENT_TYPES,
   PERMISSION_RESOURCES,
   can,
   listScope,
+  parsePlayerId,
   type ActionOf,
   type CategoryFacts,
   type PermissionResource,
@@ -65,6 +67,45 @@ export function canSomewhere<K extends ResourceKind>(
   }
   if (target === 'player') return listScope(subject, kind, action).kind !== 'none';
   return can(subject, action, resourceOf(kind, subject.clubId, {}));
+}
+
+/** Placeholder id of {@link categoryPlayerFacts}: no real player has it. */
+const ANY_PLAYER_ID = parsePlayerId('00000000-0000-4000-8000-000000000000');
+
+/**
+ * Facts of "a player of this category" for the matrix: in the category, with
+ * every consent signed. It answers whether the role may act on the players
+ * of a category at all (a sheet of the squad); each player's consent and
+ * age are still checked by the API, row by row.
+ */
+export function categoryPlayerFacts(category: Pick<Category, 'id' | 'sport'>): PlayerFacts {
+  return {
+    id: ANY_PLAYER_ID,
+    sport: category.sport,
+    categoryIds: [category.id],
+    consents: [...CONSENT_TYPES],
+  };
+}
+
+/**
+ * Whether the subject may do `action` on a player resource for the players
+ * of at least one of `categories` (see {@link categoryPlayerFacts}). For
+ * navigation and squad screens of player resources, where
+ * {@link canSomewhere} answers `false` without a concrete player.
+ */
+export function canOnCategoryPlayers<K extends ResourceKind>(
+  subject: PermissionSubject,
+  kind: K,
+  action: ActionOf<K>,
+  categories: readonly Pick<Category, 'id' | 'sport'>[],
+): boolean {
+  return categories.some((category) =>
+    can(
+      subject,
+      action,
+      resourceOf(kind, subject.clubId, { player: categoryPlayerFacts(category) }),
+    ),
+  );
 }
 
 /**

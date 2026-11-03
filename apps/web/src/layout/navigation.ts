@@ -2,7 +2,7 @@ import type { Category } from '@sport-performance/contracts';
 import type { ActionOf, PermissionSubject, ResourceKind } from '@sport-performance/domain';
 import type { MessageKey } from '@sport-performance/i18n';
 import type { LinkProps } from '@tanstack/react-router';
-import { canSomewhere } from '../permissions/permissions';
+import { canOnCategoryPlayers, canSomewhere } from '../permissions/permissions';
 import type { IconName } from '../ui/icons';
 
 /**
@@ -17,7 +17,15 @@ export interface NavItem<K extends ResourceKind = ResourceKind> {
   readonly to: NonNullable<LinkProps['to']>;
   readonly labelKey: MessageKey;
   readonly icon: IconName;
-  readonly permission?: { readonly kind: K; readonly action: ActionOf<K> };
+  readonly permission?: {
+    readonly kind: K;
+    readonly action: ActionOf<K>;
+    /**
+     * A player resource checked on the players of the visible categories
+     * (`canOnCategoryPlayers`): squad screens like anthropometry.
+     */
+    readonly onCategoryPlayers?: true;
+  };
 }
 
 /** Typed constructor: the action must be one of the resource's. */
@@ -60,6 +68,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: { kind: 'season', action: 'read' },
   }),
   navItem({
+    to: '/anthropometry',
+    labelKey: 'anthropometry.nav',
+    icon: 'ruler',
+    permission: { kind: 'anthropometry', action: 'read', onCategoryPlayers: true },
+  }),
+  navItem({
     to: '/configuration',
     labelKey: 'configuration.nav',
     icon: 'settings',
@@ -79,9 +93,11 @@ export function visibleNavItems(
   subject: PermissionSubject,
   categories: readonly Pick<Category, 'id' | 'sport'>[],
 ): NavItem[] {
-  return items.filter(
-    (item) =>
-      item.permission === undefined ||
-      canSomewhere(subject, item.permission.kind, item.permission.action, categories),
-  );
+  return items.filter((item) => {
+    const permission = item.permission;
+    if (permission === undefined) return true;
+    return permission.onCategoryPlayers === true
+      ? canOnCategoryPlayers(subject, permission.kind, permission.action, categories)
+      : canSomewhere(subject, permission.kind, permission.action, categories);
+  });
 }

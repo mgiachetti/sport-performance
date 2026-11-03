@@ -236,6 +236,9 @@ importers:
       '@sport-performance/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@sport-performance/worker':
+        specifier: workspace:*
+        version: link:../worker
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6

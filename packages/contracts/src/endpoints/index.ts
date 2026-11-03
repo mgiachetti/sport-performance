@@ -2,6 +2,13 @@ import type { EndpointCatalog } from '../endpoint.js';
 import { getAlert, listAlerts, reviewAlert } from './alerts.js';
 import { getWeeklyPanel } from './panel.js';
 import { getTrainingSessionFieldMetrics, listFieldSessions } from './field-sessions.js';
+import {
+  getAnthroMeasurement,
+  listAnthroMeasurements,
+  previewAnthroMeasurements,
+  recordAnthroMeasurements,
+  updateAnthroMeasurement,
+} from './anthropometry.js';
 import { getAppCompatibility } from './app-compatibility.js';
 import { sendSignInCode, signOut, verifySignInCode } from './auth.js';
 import {
@@ -229,6 +236,7 @@ import {
 } from './test-imports.js';
 
 export * from './alerts.js';
+export * from './anthropometry.js';
 export * from './app-compatibility.js';
 export * from './auth.js';
 export * from './calendar.js';
@@ -392,6 +400,11 @@ export const apiEndpoints = {
   addTestResultEntries,
   voidTestResultEntries,
   listPlayerTestMetric,
+  recordAnthroMeasurements,
+  previewAnthroMeasurements,
+  listAnthroMeasurements,
+  getAnthroMeasurement,
+  updateAnthroMeasurement,
   previewTestImport,
   createTestImport,
   listTestImports,

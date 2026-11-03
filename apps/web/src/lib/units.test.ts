@@ -5,7 +5,7 @@ import { STAFF_ROLES, buildActiveClub, isStaffRole } from '../club/active-club';
 import { parseScopeSearch, resolveScope, scopeToSearch } from '../club/scope';
 import { InvalidWebEnvError, parseWebEnv } from '../env';
 import { navItem, visibleNavItems } from '../layout/navigation';
-import { canSomewhere } from '../permissions/permissions';
+import { canOnCategoryPlayers, canSomewhere } from '../permissions/permissions';
 import { parseClubsSearch, parseLoginSearch, safeRedirect } from '../routing/redirect';
 import * as fixtures from '../test/fixtures';
 import { ThemeStore, applyTheme, resolveVariant, themeFor } from '../theme/theme-store';
@@ -170,6 +170,33 @@ describe('active club and permissions', () => {
       'home',
       'club',
     ]);
+  });
+
+  it('gates squad screens of player resources on the players of a category', () => {
+    const sc: PermissionSubject = {
+      userId: fixtures.USER.id,
+      role: 'sc',
+      clubId: fixtures.ORC_ID,
+      assignments: [{ kind: 'category', categoryId: fixtures.M15_RUGBY.id }],
+    };
+    const coach: PermissionSubject = { ...sc, role: 'coach' };
+    expect(canOnCategoryPlayers(sc, 'anthropometry', 'record', [fixtures.M15_RUGBY])).toBe(true);
+    expect(canOnCategoryPlayers(sc, 'anthropometry', 'record', [fixtures.M17_RUGBY])).toBe(false);
+    expect(canOnCategoryPlayers(coach, 'anthropometry', 'record', [fixtures.M15_RUGBY])).toBe(
+      false,
+    );
+    expect(canOnCategoryPlayers(coach, 'anthropometry', 'read', [fixtures.M15_RUGBY])).toBe(true);
+
+    const items = [
+      navItem({
+        to: '/anthropometry',
+        labelKey: 'anthropometry.nav',
+        icon: 'ruler',
+        permission: { kind: 'anthropometry', action: 'record', onCategoryPlayers: true },
+      }),
+    ];
+    expect(visibleNavItems(items, sc, [fixtures.M15_RUGBY])).toHaveLength(1);
+    expect(visibleNavItems(items, coach, [fixtures.M15_RUGBY])).toEqual([]);
   });
 });
 

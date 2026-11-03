@@ -1,0 +1,117 @@
+/* Anthropometry screen (B-412): the sheet of a measurement day and the latest measurements. */
+
+.sp-anthro__date {
+  max-width: 18rem;
+  margin-top: var(--sp-space-lg);
+}
+
+.sp-anthro__scroll {
+  overflow-x: auto;
+}
+
+.sp-anthro__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.sp-anthro__table caption {
+  padding-bottom: var(--sp-space-sm);
+  color: var(--sp-color-text-secondary);
+  text-align: left;
+}
+.sp-anthro__table th,
+.sp-anthro__table td {
+  padding: var(--sp-space-sm);
+  border-bottom: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+  text-align: left;
+  vertical-align: top;
+}
+.sp-anthro__table thead th {
+  font-family: var(--sp-text-heading-family);
+  font-size: var(--sp-text-body-small-size);
+  color: var(--sp-color-text-secondary);
+}
+.sp-anthro__table tr[aria-invalid='true'] th {
+  border-left: var(--sp-border-width-thick) solid var(--sp-color-status-critical-border);
+}
+
+.sp-anthro__name {
+  display: block;
+  font-weight: var(--sp-text-body-strong-weight);
+}
+.sp-anthro__meta {
+  display: block;
+  color: var(--sp-color-text-secondary);
+  font-size: var(--sp-text-body-small-size);
+}
+.sp-anthro__fetching {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-space-xs);
+  margin-left: var(--sp-space-md);
+}
+
+.sp-anthro__cell {
+  display: grid;
+  gap: var(--sp-space-xxs);
+  min-width: 7rem;
+}
+.sp-anthro__input {
+  width: 100%;
+  max-width: 8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.sp-anthro__result {
+  display: grid;
+}
+.sp-anthro__figure {
+  font-family: var(--sp-text-metric-small-family);
+  font-weight: var(--sp-text-metric-small-weight);
+  white-space: nowrap;
+}
+
+.sp-anthro__gaps {
+  display: grid;
+  gap: var(--sp-space-xxs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sp-anthro__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-space-xs);
+  font-size: var(--sp-text-body-small-size);
+}
+.sp-anthro__status--info {
+  color: var(--sp-color-text-secondary);
+}
+.sp-anthro__status--warning {
+  color: var(--sp-color-status-warning-fg);
+}
+.sp-anthro__status--critical {
+  color: var(--sp-color-status-critical-fg);
+}
+.sp-anthro__inline-action {
+  min-height: auto;
+  padding: var(--sp-space-xxs) var(--sp-space-xs);
+  font-size: var(--sp-text-body-small-size);
+}
+
+.sp-anthro__expanded td {
+  background: var(--sp-color-surface-raised);
+}
+.sp-anthro__parents {
+  display: grid;
+  gap: var(--sp-space-md);
+}
+.sp-anthro__parents-title {
+  font-size: var(--sp-text-body-size);
+}
+.sp-anthro__parents-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--sp-space-md);
+}

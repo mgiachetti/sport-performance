@@ -19,9 +19,13 @@ export {
   type WellnessDay,
 } from './wellness-baseline.js';
 export {
+  MATURATION_GAPS,
   deriveMaturation,
+  maturationGaps,
   maturityOffsetEquationChain,
   type AnthropometryInput,
+  type MaturationGap,
+  type MaturationGaps,
   type MaturationInput,
   type MaturationResult,
 } from './maturation.js';
