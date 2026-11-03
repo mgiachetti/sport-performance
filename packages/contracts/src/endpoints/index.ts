@@ -1,5 +1,6 @@
 import type { EndpointCatalog } from '../endpoint.js';
 import { getAlert, listAlerts, reviewAlert } from './alerts.js';
+import { getWeeklyPanel } from './panel.js';
 import { getAppCompatibility } from './app-compatibility.js';
 import { sendSignInCode, signOut, verifySignInCode } from './auth.js';
 import {
@@ -249,6 +250,7 @@ export * from './wellness.js';
 export * from './tests.js';
 export * from './sync.js';
 export * from './test-imports.js';
+export * from './panel.js';
 
 /**
  * Every endpoint of the API, keyed by operationId. The API registers its
@@ -364,6 +366,7 @@ export const apiEndpoints = {
   listAlerts,
   getAlert,
   reviewAlert,
+  getWeeklyPanel,
   recordTestSessionResults,
   listTestResults,
   getTestResult,

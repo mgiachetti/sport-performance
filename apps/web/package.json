@@ -15,6 +15,7 @@
   "dependencies": {
     "@fontsource/barlow": "5.3.0",
     "@fontsource/barlow-condensed": "5.3.0",
+    "@sport-performance/charts": "workspace:*",
     "@sport-performance/contracts": "workspace:*",
     "@sport-performance/domain": "workspace:*",
     "@sport-performance/i18n": "workspace:*",

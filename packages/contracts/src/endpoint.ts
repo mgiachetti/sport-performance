@@ -73,6 +73,8 @@ export const API_TAGS = {
   wellness: 'Bienestar antes de entrenar: una carga por jugador y día del club.',
   alerts:
     'Alertas de carga (heurísticas, nunca un diagnóstico): episodios, historial y acuse del staff (B-327).',
+  panel:
+    'Panel semanal del staff: una lectura agregada de bienestar, carga, maduración, disponibilidad y alertas (B-403).',
   tests: 'Días de test, resultados con sus intentos y series comparables (B-320).',
   references: 'Referencias de primera por métrica, deporte, sexo y alcance (B-321).',
   configuration:
