@@ -200,6 +200,7 @@ import {
   updateParticipation,
   updateTrainingSession,
 } from './training.js';
+import { listTrainingSessionRoster } from './session-roster.js';
 import {
   correctWellness,
   getWellness,
@@ -254,6 +255,7 @@ export * from './players.js';
 export * from './player-profile.js';
 export * from './season-rollovers.js';
 export * from './training.js';
+export * from './session-roster.js';
 export * from './wellness.js';
 export * from './tests.js';
 export * from './sync.js';
@@ -364,6 +366,7 @@ export const apiEndpoints = {
   recordParticipations,
   updateParticipation,
   listParticipations,
+  listTrainingSessionRoster,
   submitSessionRpe,
   listMyTrainingSessions,
   getWellnessForm,

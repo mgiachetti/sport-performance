@@ -2,6 +2,7 @@ import { mobileMessagesEsAR } from './mobile.js';
 import { webPanelMessagesEsAR } from './web-panel.js';
 import { webPlayerMessagesEsAR } from './web-player.js';
 import { webMessagesEsAR } from './web.js';
+import { webTrainingMessagesEsAR } from './web-training.js';
 
 /**
  * Source catalog: Rioplatense Spanish (vos). Every key exists here first; other locales and club
@@ -377,6 +378,7 @@ export const sourceMessageFiles = {
   'web.ts': webMessagesEsAR,
   'web-panel.ts': webPanelMessagesEsAR,
   'web-player.ts': webPlayerMessagesEsAR,
+  'web-training.ts': webTrainingMessagesEsAR,
   'mobile.ts': mobileMessagesEsAR,
 } as const;
 
@@ -386,5 +388,6 @@ export const esAR = {
   ...webPanelMessagesEsAR,
   // Player profile and roster of the staff web (B-404)
   ...webPlayerMessagesEsAR,
+  ...webTrainingMessagesEsAR,
   ...mobileMessagesEsAR,
 } as const;

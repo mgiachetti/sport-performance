@@ -216,6 +216,7 @@ export function registerTrainingSessionRoutes(app: FastifyInstance): void {
       const scope = await permissions.listScope('training_session', 'read');
       const plan = keysetPage(SESSION_KEYS, query, {
         categoryId: query.categoryId,
+        sport: query.sport,
         kind: query.kind,
         from: query.from,
         to: query.to,
@@ -244,6 +245,7 @@ export function registerTrainingSessionRoutes(app: FastifyInstance): void {
             query.categoryId === undefined
               ? undefined
               : eq(trainingSession.categoryId, query.categoryId),
+            query.sport === undefined ? undefined : eq(trainingSession.sport, query.sport),
             query.kind === undefined ? undefined : eq(trainingSession.kind, query.kind),
             query.from === undefined ? undefined : gte(trainingSession.localDate, query.from),
             query.to === undefined ? undefined : lte(trainingSession.localDate, query.to),

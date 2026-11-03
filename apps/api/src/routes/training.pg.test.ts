@@ -441,6 +441,19 @@ describeWithPostgres('training sessions, participation and RPE (Postgres)', (ser
       });
       expect(matches.json<Page<SessionBody>>().items.map((s) => s.kind)).toEqual(['match']);
 
+      // By sport (the staff web's scope selector with a sport and no category).
+      const rugby = await t.app.inject({
+        url: '/v1/training-sessions?sport=rugby',
+        headers: adminA.headers,
+      });
+      expect(rugby.json<Page<SessionBody>>().items.length).toBeGreaterThan(0);
+      const hockey = await t.app.inject({
+        url: '/v1/training-sessions?sport=hockey',
+        headers: adminA.headers,
+      });
+      expect(hockey.statusCode, hockey.body).toBe(200);
+      expect(hockey.json<Page<SessionBody>>().items).toEqual([]);
+
       const idle = await t.app.inject({ url: '/v1/training-sessions', headers: idleCoach.headers });
       expect(idle.statusCode).toBe(200);
       expect(idle.json<Page<SessionBody>>().items).toEqual([]);
