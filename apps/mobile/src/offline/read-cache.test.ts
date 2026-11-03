@@ -1,13 +1,21 @@
-import { createApiClient } from '@sport-performance/contracts';
+import { createApiClient, type MyTrainingSession } from '@sport-performance/contracts';
 import { localDate } from '@sport-performance/domain';
 import { afterEach, describe, expect, it } from 'vitest';
-import { checkInDays, todayWellness } from '../player/today.ts';
+import { checkInDays, rpeRange, rpeSessions, todayWellness } from '../player/today.ts';
 import { createFakeApi } from '../test/fake-api.ts';
-import { T0, createFakeSyncServer, upsert, uuid, wellnessDto } from '../test/fake-sync-server.ts';
+import {
+  SESSION_ID,
+  T0,
+  createFakeSyncServer,
+  participationDto,
+  upsert,
+  uuid,
+  wellnessDto,
+} from '../test/fake-sync-server.ts';
 import { nodeSqliteDriver } from '../test/node-sqlite.ts';
 import { openLocalDatabase } from './db/database.ts';
 import { createSyncEngine, type SyncScopeRef } from './engine.ts';
-import { createReadCache } from './read-cache.ts';
+import { createReadCache, keptAnswer, readCacheKey } from './read-cache.ts';
 
 const SCOPE = { membershipId: 'a1111111-1111-4111-8111-111111111111', userId: 'u1' };
 const OTHER_CLUB = { membershipId: 'a2222222-2222-4222-8222-222222222222', userId: 'u1' };
@@ -150,5 +158,78 @@ describe("today's wellness through the queue", () => {
       TODAY,
     );
     expect(synced).toMatchObject({ target: { id: row.id }, scores: row.scores });
+  });
+});
+
+/** A session of the club day `on` (UTC-3): 16:00, its RPE window until the end of the next day. */
+function sessionOn(on: number, id: string = SESSION_ID): MyTrainingSession {
+  const day = String(on).padStart(2, '0');
+  const next = String(on + 2).padStart(2, '0');
+  const startsAt = `2026-11-${day}T19:00:00.000Z`;
+  return {
+    session: {
+      id,
+      sport: 'rugby',
+      kind: 'training',
+      categoryId: null,
+      title: null,
+      startsAt,
+      localDate: localDate(2026, 11, on),
+      plannedDurationMin: 90,
+      archivedAt: null,
+    },
+    participation: null,
+    rpeWindow: { opensAt: startsAt, closesAt: `2026-11-${next}T03:00:00.000Z` },
+    canSubmitRpe: true,
+  } as MyTrainingSession;
+}
+
+describe('RPE the morning after, without signal', () => {
+  const READ = 'me.trainingSessions';
+  const params = (today: ReturnType<typeof localDate>) => {
+    const range = rpeRange(today);
+    return [range.from, range.to];
+  };
+
+  it("shows yesterday's session from the list kept yesterday, whose range was another", async () => {
+    const { cache } = await setup();
+    // On the 3rd, with signal: the list of the 2nd and 3rd is kept, with a session
+    // of the 2nd already rated (its window closes at the end of the 3rd).
+    const rated = { ...sessionOn(2, uuid()), participation: participationDto({ rpe: 5 }) };
+    await cache.put(SCOPE, readCacheKey(READ, params(TODAY)), [rated, sessionOn(3)], T0);
+
+    // The 4th at 10:00 without signal: nothing is kept under the new range...
+    const tomorrow = localDate(2026, 11, 4);
+    expect(await keptAnswer(cache, SCOPE.membershipId, READ, params(tomorrow))).toBeNull();
+    // ...but the latest kept answer of the read still holds the 3rd's session.
+    const kept = await keptAnswer<MyTrainingSession[]>(
+      cache,
+      SCOPE.membershipId,
+      READ,
+      params(tomorrow),
+      true,
+    );
+    expect(kept?.fetchedAt).toBe(T0);
+    const items = rpeSessions({
+      sessions: kept?.value ?? [],
+      from: rpeRange(tomorrow).from,
+      participations: [],
+      queue: [],
+      nowMs: Date.parse('2026-11-04T13:00:00.000Z'),
+    });
+    // The 3rd's window is open until the end of the 4th; the 2nd's is out of range.
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ session: { id: SESSION_ID }, rpe: null, canSubmit: true });
+  });
+
+  it('prefers the answer kept for the same range', async () => {
+    const { cache } = await setup();
+    const tomorrow = localDate(2026, 11, 4);
+    await cache.put(SCOPE, readCacheKey(READ, params(TODAY)), [sessionOn(3)], T0);
+    await cache.put(SCOPE, readCacheKey(READ, params(tomorrow)), [], T0 + 1000);
+    expect(await keptAnswer(cache, SCOPE.membershipId, READ, params(tomorrow), true)).toEqual({
+      value: [],
+      fetchedAt: T0 + 1000,
+    });
   });
 });

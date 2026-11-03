@@ -1,7 +1,7 @@
 import { ApiContractError } from '@sport-performance/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
-import { readCacheKey } from '../offline/read-cache.ts';
+import { keptAnswer, readCacheKey } from '../offline/read-cache.ts';
 import { useServices, useSession, useSyncStatus } from './app-context.tsx';
 
 /** A read the screen shows: the API's answer, or the last one the phone kept. */
@@ -34,13 +34,21 @@ function useScope(): Scope | null {
  * the background and its answer replaces it and is kept for next time. Both
  * queries, and the kept answer, are keyed by the read and its parameters
  * (`readCacheKey`) and by the membership, so another range or another club
- * never answers this one.
+ * never answers this one, unless `keptAcrossParams` says the latest kept
+ * answer of the read is still worth showing while these are not answered.
  */
 export function useOfflineRead<T>(options: {
   /** The read (`PLAYER_READS`). */
   readonly key: string;
   /** Its parameters (the club days of a range): another value is another read. */
   readonly params?: readonly unknown[];
+  /**
+   * Without an answer kept for these parameters, show the latest kept one of
+   * the read: for parameters that move with the clock (the RPE range of the
+   * club day), so that the day after, or past midnight, without signal, the
+   * phone still shows what it kept. The screen filters what no longer applies.
+   */
+  readonly keptAcrossParams?: boolean;
   readonly fetch: (signal: AbortSignal) => Promise<T>;
   readonly enabled?: boolean;
   readonly staleTimeMs?: number;
@@ -52,7 +60,16 @@ export function useOfflineRead<T>(options: {
   const key = readCacheKey(options.key, options.params);
   const kept = useQuery({
     queryKey: ['club', membershipId, 'kept', key],
-    queryFn: () => (scope === null ? null : services.readCache.get<T>(scope.membershipId, key)),
+    queryFn: () =>
+      scope === null
+        ? null
+        : keptAnswer<T>(
+            services.readCache,
+            scope.membershipId,
+            options.key,
+            options.params,
+            options.keptAcrossParams ?? false,
+          ),
     enabled,
     staleTime: Infinity,
   });

@@ -37,6 +37,8 @@ export function todayWellness(
   if (synced !== undefined) {
     return { scores: synced.data.scores, target: { id: synced.id }, pending: synced.pending };
   }
+  // Every queued check-in counts as loaded: a rejected one leaves the queue (it
+  // goes to the sync issues, `SyncEngine`), so what stays is pending or acked.
   for (const queued of queue) {
     if (queued.op !== 'wellness.submit') continue;
     const { body } = queued.input as SyncOperationInput<'wellness.submit'>;
@@ -60,6 +62,9 @@ export function checkInDays(
   queue: readonly QueuedMutation[],
 ): LocalDate[] {
   const days = rows.map((row) => row.data.localDate);
+  // A queued check-in counts as a day done: this relies on a rejected one leaving
+  // the queue (it goes to the sync issues, `SyncEngine`), so what stays is
+  // pending or acked.
   for (const queued of queue) {
     if (queued.op !== 'wellness.submit') continue;
     const { body } = queued.input as SyncOperationInput<'wellness.submit'>;
@@ -83,6 +88,11 @@ export interface RpeSession {
 export interface RpeSessionsInput {
   /** `GET /v1/me/training-sessions` of yesterday and today, as last fetched. */
   readonly sessions: readonly MyTrainingSession[];
+  /**
+   * The first club day of the range shown (yesterday): sessions of earlier
+   * days, in a list kept from a previous day, are left out.
+   */
+  readonly from?: LocalDate;
   /** The player's participations of the local database (queued edits laid over). */
   readonly participations: readonly LocalRow<'participation'>[];
   readonly queue: readonly QueuedMutation[];
@@ -107,6 +117,9 @@ export function rpeSessions(input: RpeSessionsInput): RpeSession[] {
   const items: RpeSession[] = [];
   for (const entry of input.sessions) {
     if (entry.session.archivedAt !== null) continue;
+    if (input.from !== undefined && compareLocalDates(entry.session.localDate, input.from) < 0) {
+      continue;
+    }
     const local = input.participations.find(
       (row) => row.data.trainingSessionId === entry.session.id,
     );

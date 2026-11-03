@@ -39,7 +39,8 @@ function better(direction: PersonalRecord['direction'], a: number, b: number): b
  * so the screen can warn when the series mixes them.
  */
 export function personalRecords(results: readonly TestResult[]): PersonalRecord[] {
-  const records = new Map<string, PersonalRecord & { methods: Set<string> }>();
+  type Draft = Omit<PersonalRecord, 'mixedMethods'> & { readonly methods: ReadonlySet<string> };
+  const records = new Map<string, Draft>();
   const ordered = [...results].sort((a, b) => compareLocalDates(a.measuredOn, b.measuredOn));
   for (const result of ordered) {
     if (result.status !== 'done') continue;
@@ -63,12 +64,10 @@ export function personalRecords(results: readonly TestResult[]): PersonalRecord[
           measuredOn: result.measuredOn,
           method,
           resultCount: 1,
-          mixedMethods: false,
           methods: new Set(method === null ? [] : [method]),
         });
         continue;
       }
-      if (method !== null) current.methods.add(method);
       const next = better(direction, score.value, current.value)
         ? { value: score.value, measuredOn: result.measuredOn, method }
         : {};
@@ -76,7 +75,7 @@ export function personalRecords(results: readonly TestResult[]): PersonalRecord[
         ...current,
         ...next,
         resultCount: current.resultCount + 1,
-        mixedMethods: current.methods.size > 1,
+        methods: method === null ? current.methods : new Set([...current.methods, method]),
       });
     }
   }
@@ -91,7 +90,7 @@ export function personalRecords(results: readonly TestResult[]): PersonalRecord[
     measuredOn: record.measuredOn,
     method: record.method,
     resultCount: record.resultCount,
-    mixedMethods: record.mixedMethods,
+    mixedMethods: record.methods.size > 1,
   }));
 }
 

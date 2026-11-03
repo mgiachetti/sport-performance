@@ -137,6 +137,9 @@ export function PlayerToday({ sync }: { readonly sync?: ReactNode }) {
   const sessions = useOfflineRead<MyTrainingSession[]>({
     key: PLAYER_READS.sessions,
     params: [range?.from, range?.to],
+    // The range moves at midnight: the morning after without signal, yesterday's
+    // answer still holds the sessions whose window is open (`rpeSessions` filters).
+    keptAcrossParams: true,
     enabled: range !== null && me.value?.permissions.submitRpe === true,
     fetch: async (signal) =>
       range === null
@@ -218,6 +221,7 @@ export function PlayerToday({ sync }: { readonly sync?: ReactNode }) {
           allowed: me.value.permissions.submitRpe,
           sessions: rpeSessions({
             sessions: sessions.value ?? [],
+            from: rpeRange(day.today).from,
             participations,
             queue,
             nowMs: now,

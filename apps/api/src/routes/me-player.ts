@@ -38,6 +38,13 @@ import { wellnessStageOf } from './wellness.js';
 interface OwnPlayer {
   readonly subject: PermissionSubject;
   readonly loaded: LoadedPlayer;
+  /** The player's row, read once for both reads (name for the profile, sex for the battery). */
+  readonly row: {
+    readonly id: MyPlayer['player']['id'];
+    readonly firstName: string;
+    readonly lastName: string;
+    readonly sex: MyPlayer['player']['sex'];
+  };
 }
 
 /** The caller's own player, authorized to read their profile; any other role is `403`. */
@@ -49,14 +56,21 @@ async function ownPlayer(
   const subject = await permissions.subject();
   const playerId = subject.playerId ?? null;
   if (subject.role !== 'player' || playerId === null) {
-    // The matrix answers for the other roles (`missing_target`), then this endpoint does.
-    await permissions.authorize('player_profile', 'read');
     throw new HttpError('forbidden', 'Only a player reads their own profile here');
   }
   const loaded = await loadPlayerFacts(db, clubId, playerId);
   if (loaded === undefined) throw new HttpError('forbidden', 'The player is not visible');
   await permissions.authorize('player_profile', 'read', { player: loaded.facts });
-  return { subject, loaded };
+  const [row] = await db
+    .select({
+      firstName: player.firstName,
+      lastName: player.lastName,
+      sex: player.sex,
+    })
+    .from(player)
+    .where(and(eq(player.clubId, clubId), eq(player.id, playerId)));
+  if (row === undefined) throw new HttpError('forbidden', 'The player is not visible');
+  return { subject, loaded, row: { ...row, id: loaded.facts.id } };
 }
 
 export function registerMePlayerRoutes(app: FastifyInstance): void {
@@ -64,18 +78,8 @@ export function registerMePlayerRoutes(app: FastifyInstance): void {
     transaction: true,
     handler: async (_input, { db, permissions, auth: caller }): Promise<MyPlayer> => {
       const { clubId } = caller.membership;
-      const { subject, loaded } = await ownPlayer(db, permissions, clubId);
+      const { subject, loaded, row } = await ownPlayer(db, permissions, clubId);
       const { facts, today } = loaded;
-      const [row] = await db
-        .select({
-          id: player.id,
-          firstName: player.firstName,
-          lastName: player.lastName,
-          sex: player.sex,
-        })
-        .from(player)
-        .where(and(eq(player.clubId, clubId), eq(player.id, facts.id)));
-      if (row === undefined) throw new HttpError('forbidden', 'The player is not visible');
       // The item set is the one the server validates a check-in of today with.
       const wellnessStage = await wellnessStageOf(db, clubId, facts.id, today);
       // The percentiles depend on the stage and the age band of the category (from M15).
@@ -114,7 +118,7 @@ export function registerMePlayerRoutes(app: FastifyInstance): void {
     transaction: true,
     handler: async (_input, { db, permissions, auth: caller }) => {
       const { clubId } = caller.membership;
-      const { loaded } = await ownPlayer(db, permissions, clubId);
+      const { loaded, row: own } = await ownPlayer(db, permissions, clubId);
       const { facts, today } = loaded;
       const until = addDays(today, MY_TEST_DAYS_HORIZON_DAYS - 1);
       const rows = await db
@@ -166,10 +170,7 @@ export function registerMePlayerRoutes(app: FastifyInstance): void {
         .orderBy(asc(testSession.scheduledOn), asc(testSession.id))
         .limit(MY_TEST_DAYS_MAX);
 
-      const [own] = await db
-        .select({ sex: player.sex })
-        .from(player)
-        .where(and(eq(player.clubId, clubId), eq(player.id, facts.id)));
+      // The stage of each day (a category or a pinned stage can change before it).
       const sources = await loadStageSources(db, clubId, [facts.id]);
       const entriesBySport = new Map<string, Awaited<ReturnType<typeof batteryEntries>>>();
       const items: MyTestDay[] = [];
@@ -182,7 +183,7 @@ export function registerMePlayerRoutes(app: FastifyInstance): void {
         const stage = stageContextOn(sources, facts.id, row.scheduledOn, row.categoryId);
         const number = (row.windowNumber ?? null) as TestWindowNumber | null;
         const testCodes =
-          stage === undefined || own === undefined
+          stage === undefined
             ? []
             : scheduledTests(entries, clubId, own.sex, stage, row.scheduledOn, number).sort(
                 byBatteryOrder,

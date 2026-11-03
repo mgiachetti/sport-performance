@@ -1,4 +1,4 @@
-import { and, eq, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, ne, or, sql } from 'drizzle-orm';
 import type { LocalDatabase } from './db/database.ts';
 import { cachedRead, deviceMeta, syncScope } from './db/schema.ts';
 import { OWNER_KEY, type SyncScopeRef } from './engine.ts';
@@ -24,6 +24,13 @@ export interface ReadCache {
    * RPE list of yesterday's range is of no use today).
    */
   get<T>(membershipId: string, key: string): Promise<CachedValue<T> | null>;
+  /**
+   * The last kept answer of `read`, whatever its parameters (there is at most
+   * one: keeping one drops the others). For a read whose parameters move with
+   * the clock (the RPE range of the club day), so that the answer kept
+   * yesterday still answers the morning after without signal.
+   */
+  latest<T>(membershipId: string, read: string): Promise<CachedValue<T> | null>;
   put(scope: SyncScopeRef, key: string, value: unknown, fetchedAt: number): Promise<void>;
 }
 
@@ -33,6 +40,22 @@ export const READ_PARAMS_SEPARATOR = '|';
 /** The cache key of a read with its parameters. */
 export function readCacheKey(read: string, params: readonly unknown[] = []): string {
   return params.length === 0 ? read : `${read}${READ_PARAMS_SEPARATOR}${JSON.stringify(params)}`;
+}
+
+/**
+ * The kept answer for `key`, or, with `acrossParams`, the latest one of the
+ * same read with other parameters when there is none for these.
+ */
+export async function keptAnswer<T>(
+  cache: ReadCache,
+  membershipId: string,
+  read: string,
+  params: readonly unknown[] = [],
+  acrossParams = false,
+): Promise<CachedValue<T> | null> {
+  const exact = await cache.get<T>(membershipId, readCacheKey(read, params));
+  if (exact !== null || !acrossParams || params.length === 0) return exact;
+  return cache.latest<T>(membershipId, read);
 }
 
 export interface ReadCacheOptions {
@@ -55,6 +78,27 @@ export function createReadCache(database: LocalDatabase, options: ReadCacheOptio
       );
       if (row === undefined) return null;
       // The caller names the DTO its key holds.
+      return { value: JSON.parse(row.data) as never, fetchedAt: row.fetchedAt };
+    },
+    async latest(membershipId, read) {
+      const prefix = `${read}${READ_PARAMS_SEPARATOR}`;
+      const [row] = await database.read((db) =>
+        db
+          .select()
+          .from(cachedRead)
+          .where(
+            and(
+              eq(cachedRead.membershipId, membershipId),
+              or(
+                eq(cachedRead.key, read),
+                sql`substr(${cachedRead.key}, 1, ${prefix.length}) = ${prefix}`,
+              ),
+            ),
+          )
+          .orderBy(desc(cachedRead.fetchedAt))
+          .limit(1),
+      );
+      if (row === undefined) return null;
       return { value: JSON.parse(row.data) as never, fetchedAt: row.fetchedAt };
     },
     async put(scope, key, value, fetchedAt) {
