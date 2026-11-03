@@ -31,6 +31,7 @@ import {
   type StoredTarget,
 } from './local-store.ts';
 import { matchesTarget, prepareMutation, type TargetableRow } from './operations.ts';
+import { createReadCache, type ReadCache } from './read-cache.ts';
 
 /** The membership the device syncs: what `X-Membership-Id` names. */
 export interface SyncScopeRef {
@@ -100,6 +101,8 @@ export interface RequestSyncOptions {
 
 export interface SyncEngine {
   readonly store: LocalStore;
+  /** Reads kept for offline use that are not sync collections (ADR 0074). */
+  readonly cache: ReadCache;
   readonly getStatus: () => SyncStatus;
   readonly subscribe: (listener: () => void) => () => void;
   /**
@@ -249,6 +252,7 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   const maxPullPages = Math.max(1, options.maxPullPages ?? MAX_PULL_PAGES);
   const clock: DeviceClock = createDeviceClock({ now, randomUUID: options.randomUUID });
   const store = createLocalStore(database);
+  const cache = createReadCache(database, now);
 
   let scope: SyncScopeRef | null = null;
   let status: SyncStatus = {
@@ -766,6 +770,7 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
 
   return {
     store,
+    cache,
     getStatus: () => status,
     subscribe(listener) {
       listeners.add(listener);

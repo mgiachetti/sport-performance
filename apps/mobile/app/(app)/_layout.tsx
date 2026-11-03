@@ -1,18 +1,22 @@
 import Tabs from 'expo-router/js-tabs';
 import { useSession } from '../../src/state/app-context.tsx';
+import { canSeeTestDays } from '../../src/test-day/data.ts';
 import { useTranslator } from '../../src/ui/i18n.tsx';
 import { useTheme } from '../../src/ui/theme.tsx';
 
 /**
  * The signed-in app with a club: one tab per area. The player's day and
  * tests are B-503 ("Hoy" and "Mis tests", only for the `player` role); the
- * protocols of the tests are B-415; the player's consents open from Cuenta.
+ * field test day is B-505 (the staff who read test days); the protocols of
+ * the tests are B-415; the player's consents open from Cuenta.
  */
 export default function AppLayout() {
   const theme = useTheme();
   const { t } = useTranslator();
   const session = useSession();
-  const isPlayer = session.status === 'signedIn' && session.activeMembership?.role === 'player';
+  const role = session.status === 'signedIn' ? (session.activeMembership?.role ?? null) : null;
+  const isPlayer = role === 'player';
+  const showTestDays = role !== null && canSeeTestDays(role);
   return (
     <Tabs
       screenOptions={{
@@ -37,6 +41,11 @@ export default function AppLayout() {
         options={{ title: t('nav.myTests'), ...(isPlayer ? {} : { href: null }) }}
       />
       <Tabs.Screen name="gym" options={{ title: t('nav.gym') }} />
+      <Tabs.Screen
+        name="test-days"
+        // Only the roles that read test days (`test_session:read`) see the tab.
+        options={{ title: t('fieldTest.nav'), ...(showTestDays ? {} : { href: null }) }}
+      />
       <Tabs.Screen name="protocols" options={{ title: t('nav.protocols') }} />
       <Tabs.Screen name="account" options={{ title: t('nav.account') }} />
       {/* Opened from Inicio by the staff who records tests; not a tab of its own. */}

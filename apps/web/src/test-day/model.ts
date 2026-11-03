@@ -1,36 +1,30 @@
-import type {
-  TestDaySheetPlayer,
-  TestDaySheetStation,
-  TestEntryInputPayload,
-  TestResult,
-  TestSessionResultInput,
-  ValidationIssue,
+import {
+  attemptMetricValues,
+  attemptPlausibilityWarnings,
+  notDoneReasonView,
+  parseAttempt,
+  scoreAttemptValues,
+  STAFF_METHODS,
+  type EntryMode,
+  type FieldPlausibilityWarning,
+  type FieldProblem,
+  type NotDoneReasonView,
+  type ParsedAttempt,
+  type PreviewScore,
+  type TestDaySheetPlayer,
+  type TestDaySheetStation,
+  type TestEntryInputPayload,
+  type TestResult,
+  type TestSessionResultInput,
+  type ValidationIssue,
 } from '@sport-performance/contracts';
 import {
-  DomainValidationError,
   TEST_NOT_DONE_REASONS,
-  UNIT_CODES,
-  aggregateAttempts,
-  canonicalMetricCode,
-  checkPlausibleValue,
-  decimalAgeYears,
-  deriveResultMetrics,
-  isCanonicalMetricCode,
-  notDoneReasonForViewer,
-  scoreResultMetrics,
-  scoreTestEntry,
-  strengthMetricAllowed,
-  testScoringSettings,
   type LocalDate,
   type MeasurementMethod,
-  type PlausibilityResult,
   type Role,
-  type StrengthAssessment,
-  type TestEntryInput,
   type TestNotDoneReason,
-  type UnitCode,
 } from '@sport-performance/domain';
-import { parseNumber } from '@sport-performance/i18n';
 
 /**
  * The test day sheet as the staff types it (B-405): how each station is
@@ -40,21 +34,25 @@ import { parseNumber } from '@sport-performance/i18n';
  * warnings and the batch of a station. Pure functions, no React.
  */
 
-// ─── Not-done reasons as the viewer reads them ──────────────────────────────────────
+// The rules of each entry mode are shared with the field app (B-505):
+// `@sport-performance/contracts` (`test-day/entry.ts`).
+export {
+  defaultMethodOf,
+  entryModesOf,
+  fieldAllowed,
+  fieldsOf,
+  notDoneReasonView,
+  parseAttempt,
+  valueMetricsOf,
+  type EntryMode,
+  type FieldProblem,
+  type FieldSpec,
+  type NotDoneReasonView,
+  type ParsedAttempt,
+  type PreviewScore,
+} from '@sport-performance/contracts';
 
-/** A not-done reason as a viewer reads it: `injured` is `unavailable` for all but medical. */
-export type NotDoneReasonView = TestNotDoneReason | 'unavailable';
-
-/**
- * How a not-done reason is shown to the viewer (ADR 0029): `injured` reveals
- * a health condition, so every role but `medical` reads «No disponible». The
- * API already sends saved results that way; the web applies the same domain
- * rule again (to a saved result and to the options of the form), so a
- * reason never reaches a non-medical screen as «Lesionado/a».
- */
-export function notDoneReasonView(reason: NotDoneReasonView, viewer: Role): NotDoneReasonView {
-  return reason === 'unavailable' ? reason : notDoneReasonForViewer(reason, viewer);
-}
+// ─── Not-done reasons of a row ───────────────────────────────────────────────────────
 
 /** One option of the not-done reason of a row: what is sent and how the viewer reads it. */
 export interface NotDoneReasonOption {
@@ -78,126 +76,10 @@ export function notDoneReasonOptions(
   return reasons.map((reason) => ({ reason, view: notDoneReasonView(reason, viewer) }));
 }
 
-// ─── Entry modes and fields ──────────────────────────────────────────────────────────
-
-/** How a station is entered on the web (video frames are entered in the field app, B-505). */
-export type EntryMode =
-  'sprint_splits' | 'cmj_flight_time' | 'ift_stage' | 'strength_set' | 'value';
-
-const WEB_MODES: readonly EntryMode[] = [
-  'sprint_splits',
-  'cmj_flight_time',
-  'ift_stage',
-  'strength_set',
-  'value',
-];
-
-/** Modes a station offers, the preferred first (the definition's order). */
-export function entryModesOf(station: TestDaySheetStation): EntryMode[] {
-  const kinds = station.definition.entryKinds;
-  const modes = kinds.filter((kind): kind is EntryMode => (WEB_MODES as string[]).includes(kind));
-  // The sprint typed as plain values would lose the Vmax: always by splits.
-  return kinds.includes('sprint_splits') ? modes.filter((mode) => mode !== 'value') : modes;
-}
-
-export interface FieldSpec {
-  /** Key of the draft value and of its label (`testDay.field.<key>`). */
-  readonly key: string;
-  /** Unit typed in; `null` for a stage number. */
-  readonly unit: UnitCode | null;
-  /** Metric the field's value scores (and highlights as the best attempt). */
-  readonly metricCode: string;
-  readonly integer: boolean;
-  readonly optional: boolean;
-}
-
-function unitOf(unit: string): UnitCode | null {
-  return (UNIT_CODES as readonly string[]).includes(unit) ? (unit as UnitCode) : null;
-}
-
-/** Metrics typed as plain values in a station: the ones that are not derived. */
-export function valueMetricsOf(
-  station: TestDaySheetStation,
-): TestDaySheetStation['definition']['metrics'] {
-  return station.definition.metrics.filter((metric) => !metric.derived);
-}
-
-export function fieldsOf(station: TestDaySheetStation, mode: EntryMode): FieldSpec[] {
-  const field = (
-    key: string,
-    unit: UnitCode | null,
-    metricCode: string,
-    options: { integer?: boolean; optional?: boolean } = {},
-  ): FieldSpec => ({
-    key,
-    unit,
-    metricCode,
-    integer: options.integer ?? false,
-    optional: options.optional ?? false,
-  });
-  switch (mode) {
-    case 'sprint_splits':
-      return [
-        field('split10S', 's', 'sprint_10_s', { optional: true }),
-        field('split20S', 's', 'sprint_20_s'),
-        field('split40S', 's', 'sprint_40_s'),
-      ];
-    case 'cmj_flight_time':
-      return [field('flightTimeMsec', 'msec', 'cmj_height_cm')];
-    case 'ift_stage':
-      return [field('lastCompletedStage', null, 'vift_kmh', { integer: true })];
-    case 'strength_set':
-      return [
-        field('loadKg', 'kg', 'e1rm_kg'),
-        field('reps', 'n', 'e1rm_kg', { integer: true }),
-        field('rir', 'n', 'e1rm_kg'),
-      ];
-    case 'value':
-      return valueMetricsOf(station).map((metric) =>
-        field(metric.code, unitOf(metric.unit), metric.code, {
-          integer: metric.unit === 'n',
-          // Several metrics in one attempt (505 sides, mobility sides): any of them.
-          optional: true,
-        }),
-      );
-  }
-}
-
-/** Whether a player may record a field (strength metrics depend on the assessment of the stage). */
-export function fieldAllowed(
-  field: FieldSpec,
-  mode: EntryMode,
-  assessment: StrengthAssessment | null,
-): boolean {
-  if (mode !== 'value' || assessment === null) return true;
-  return strengthMetricAllowed(field.metricCode, assessment);
-}
-
 // ─── Drafts ──────────────────────────────────────────────────────────────────────────
 
 /** Methods the staff picks on the web (`historical` is only for imports). */
-export const WEB_METHODS = [
-  'manual',
-  'photocell',
-  'video',
-  'app',
-  'pod',
-] as const satisfies readonly MeasurementMethod[];
-
-/** Default method of a station, as the mockup proposes for each test. */
-export function defaultMethodOf(testCode: string): MeasurementMethod {
-  switch (testCode) {
-    case 'sprint_40':
-    case 'cod_505':
-      return 'photocell';
-    case 'cmj':
-      return 'video';
-    case 'reaction':
-      return 'app';
-    default:
-      return 'manual';
-  }
-}
+export const WEB_METHODS = STAFF_METHODS;
 
 export interface RowDraft {
   /** `clientUuid` of the result: the same on every retry, so the batch never duplicates. */
@@ -241,130 +123,7 @@ export function isDirty(draft: RowDraft): boolean {
   return draft.attempts.some((attempt) => Object.values(attempt).some((v) => v.trim() !== ''));
 }
 
-// ─── Parsing an attempt ──────────────────────────────────────────────────────────────
-
-export type FieldProblem = 'number' | 'integer' | 'positive' | 'nonNegative' | 'required';
-
-export type ParsedAttempt =
-  | { readonly status: 'empty' }
-  | {
-      readonly status: 'invalid';
-      readonly fieldKey: string | null;
-      readonly problem: FieldProblem | 'domain';
-    }
-  | {
-      readonly status: 'ok';
-      /** The entries of the attempt, without `clientUuid` and `attemptNumber`. */
-      readonly entries: readonly { readonly key: string; readonly entry: TestEntryInput }[];
-      /** Parsed number of each typed field. */
-      readonly numbers: Readonly<Record<string, number>>;
-    };
-
-function parseField(text: string, field: FieldSpec, mode: EntryMode): number | FieldProblem {
-  const value = parseNumber(text, { allowGrouping: false });
-  if (value === null) return 'number';
-  if (field.integer && !Number.isInteger(value)) return 'integer';
-  // A plain value may be 0 (0 pull-ups, 0 cm knee-to-wall), as the API and the
-  // domain's plausible ranges accept; RIR may be 0 too (logged as a protocol
-  // issue). The other raw fields (splits, flight time, stage, load, reps) are
-  // positive measures.
-  const zeroAllowed = mode === 'value' || field.key === 'rir';
-  if (zeroAllowed) return value < 0 ? 'nonNegative' : value;
-  if (value <= 0) return 'positive';
-  return value;
-}
-
-/**
- * The entries of one attempt from what was typed. A field the player may not
- * record (strength by stage) is ignored. Raw kinds are checked with the
- * domain scoring, so a split that does not increase is caught before sending.
- */
-export function parseAttempt(
-  station: TestDaySheetStation,
-  mode: EntryMode,
-  values: Readonly<Record<string, string>>,
-  assessment: StrengthAssessment | null = null,
-): ParsedAttempt {
-  const fields = fieldsOf(station, mode).filter((f) => fieldAllowed(f, mode, assessment));
-  const typed = fields.filter((f) => (values[f.key] ?? '').trim() !== '');
-  if (typed.length === 0) return { status: 'empty' };
-  const numbers: Record<string, number> = {};
-  for (const field of typed) {
-    const parsed = parseField(values[field.key] ?? '', field, mode);
-    if (typeof parsed === 'string')
-      return { status: 'invalid', fieldKey: field.key, problem: parsed };
-    numbers[field.key] = parsed;
-  }
-  if (mode !== 'value') {
-    const missing = fields.find((f) => !f.optional && numbers[f.key] === undefined);
-    if (missing !== undefined)
-      return { status: 'invalid', fieldKey: missing.key, problem: 'required' };
-  }
-  const n = (key: string) => numbers[key] ?? 0;
-  let entries: { key: string; entry: TestEntryInput }[];
-  switch (mode) {
-    case 'sprint_splits':
-      entries = [
-        {
-          key: 'entry',
-          entry: {
-            kind: 'sprint_splits',
-            ...(numbers.split10S === undefined ? {} : { split10S: numbers.split10S }),
-            split20S: n('split20S'),
-            split40S: n('split40S'),
-          },
-        },
-      ];
-      break;
-    case 'cmj_flight_time':
-      entries = [
-        {
-          key: 'entry',
-          entry: { kind: 'cmj_flight_time', flightTimeS: n('flightTimeMsec') / 1000 },
-        },
-      ];
-      break;
-    case 'ift_stage':
-      entries = [
-        { key: 'entry', entry: { kind: 'ift_stage', lastCompletedStage: n('lastCompletedStage') } },
-      ];
-      break;
-    case 'strength_set':
-      entries = [
-        {
-          key: 'entry',
-          entry: { kind: 'strength_set', loadKg: n('loadKg'), reps: n('reps'), rir: n('rir') },
-        },
-      ];
-      break;
-    case 'value':
-      entries = typed.map((field) => ({
-        key: field.key,
-        entry: { kind: 'value', metricCode: field.metricCode, value: n(field.key) },
-      }));
-      break;
-  }
-  const settings = testScoringSettings(station.definition.protocol.parameters);
-  for (const { entry } of entries) {
-    try {
-      scoreTestEntry(station.testCode, entry, settings);
-    } catch (error) {
-      if (error instanceof DomainValidationError) {
-        return { status: 'invalid', fieldKey: null, problem: 'domain' };
-      }
-      throw error;
-    }
-  }
-  return { status: 'ok', entries, numbers };
-}
-
 // ─── Preview: scores, best attempt, plausibility ─────────────────────────────────────
-
-export interface PreviewScore {
-  readonly metricCode: string;
-  readonly value: number;
-  readonly aggregation: 'best' | 'mean' | 'single';
-}
 
 export interface RowPreview {
   readonly attempts: readonly ParsedAttempt[];
@@ -375,16 +134,8 @@ export interface RowPreview {
   readonly warnings: readonly PlausibilityWarning[];
 }
 
-export interface PlausibilityWarning {
+export interface PlausibilityWarning extends FieldPlausibilityWarning {
   readonly attempt: number;
-  readonly fieldKey: string;
-  readonly metricCode: string;
-  readonly value: number;
-  readonly result: Extract<PlausibilityResult, { status: 'below' | 'above' }>;
-}
-
-function directionOf(station: TestDaySheetStation, metricCode: string) {
-  return station.definition.metrics.find((m) => m.code === metricCode)?.direction ?? 'neutral';
 }
 
 /**
@@ -403,82 +154,25 @@ export function previewRow(
   const attempts = draft.attempts.map((values) =>
     parseAttempt(station, mode, values, player.strengthAssessment),
   );
-  const settings = testScoringSettings(station.definition.protocol.parameters);
-  const perMetric = new Map<string, { attempt: number; value: number }[]>();
-  const valuesByAttempt: { metricCode: string; value: number; attemptNumber: number }[] = [];
-  attempts.forEach((parsed, index) => {
-    if (parsed.status !== 'ok') return;
-    for (const { entry } of parsed.entries) {
-      for (const value of scoreTestEntry(station.testCode, entry, settings).values) {
-        valuesByAttempt.push({ ...value, attemptNumber: index + 1 });
-        const list = perMetric.get(value.metricCode) ?? [];
-        list.push({ attempt: index, value: value.value });
-        perMetric.set(value.metricCode, list);
-      }
-    }
-  });
-  const aggregationOf = (metricCode: string) => ({
-    aggregation: station.definition.attemptAggregation,
-    direction: directionOf(station, metricCode),
-  });
-  const scores: PreviewScore[] = scoreResultMetrics(valuesByAttempt, aggregationOf).map((s) => ({
-    metricCode: s.metricCode,
-    value: s.value,
-    aggregation: s.aggregation,
-  }));
-  const derived = deriveResultMetrics(
-    station.testCode,
-    new Map(scores.map((s) => [s.metricCode, s.value])),
+  const values = attempts.flatMap((parsed, index) =>
+    parsed.status === 'ok'
+      ? attemptMetricValues(station, parsed).map((value) => ({
+          ...value,
+          attemptNumber: index + 1,
+        }))
+      : [],
   );
-  for (const d of derived)
-    scores.push({ metricCode: d.metricCode, value: d.value, aggregation: 'single' });
-
-  const bestAttempt = new Map<string, number>();
-  for (const [metricCode, list] of perMetric) {
-    const rule = aggregationOf(metricCode);
-    if (rule.aggregation !== 'best' || rule.direction === 'neutral') continue;
-    const aggregate = aggregateAttempts(
-      list.map((item) => item.value),
-      { aggregation: 'best', direction: rule.direction },
-    );
-    const chosen = aggregate.selectedIndex === null ? undefined : list[aggregate.selectedIndex];
-    if (chosen !== undefined) bestAttempt.set(metricCode, chosen.attempt);
-  }
-
-  const warnings: PlausibilityWarning[] = [];
-  const ageYears = decimalAgeYears(player.birthDate, day);
-  const fields = fieldsOf(station, mode);
-  attempts.forEach((parsed, index) => {
-    if (parsed.status !== 'ok') return;
-    for (const field of fields) {
-      const typed = parsed.numbers[field.key];
-      if (typed === undefined) continue;
-      // The value of the field in its metric: typed as is, or computed from it (CMJ, IFT).
-      const typedIsMetric = mode === 'value' || mode === 'sprint_splits';
-      const value = typedIsMetric
-        ? typed
-        : mode === 'strength_set'
-          ? undefined
-          : perMetric.get(field.metricCode)?.find((item) => item.attempt === index)?.value;
-      if (value === undefined || !isCanonicalMetricCode(field.metricCode)) continue;
-      const result = checkPlausibleValue({
-        metricCode: canonicalMetricCode(field.metricCode),
-        value,
-        sex: player.sex,
-        ageYears,
-      });
-      if (result.status === 'below' || result.status === 'above') {
-        warnings.push({
-          attempt: index,
-          fieldKey: field.key,
-          metricCode: field.metricCode,
-          value,
-          result,
-        });
-      }
-    }
-  });
-  return { attempts, scores, bestAttempt, warnings };
+  const scored = scoreAttemptValues(station, values);
+  const bestAttempt = new Map(
+    [...scored.bestAttempt].map(([metricCode, attemptNumber]) => [metricCode, attemptNumber - 1]),
+  );
+  const warnings = attempts.flatMap((parsed, index) =>
+    attemptPlausibilityWarnings(station, mode, parsed, player, day).map((warning) => ({
+      ...warning,
+      attempt: index,
+    })),
+  );
+  return { attempts, scores: scored.scores, bestAttempt, warnings };
 }
 
 // ─── The batch of a station ──────────────────────────────────────────────────────────

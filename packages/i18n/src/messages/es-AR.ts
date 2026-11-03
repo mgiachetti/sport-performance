@@ -2,6 +2,7 @@ import { gymMessagesEsAR } from './gym.js';
 import { mobileGymMessagesEsAR } from './mobile-gym.js';
 import { mobileMessagesEsAR } from './mobile.js';
 import { webGymMessagesEsAR } from './web-gym.js';
+import { mobileTestDayMessagesEsAR } from './mobile-test-day.js';
 import { reportMessagesEsAR } from './report.js';
 import { categoryReportMessagesEsAR } from './category-report.js';
 import { mobilePlayerMessagesEsAR } from './mobile-player.js';
@@ -439,6 +440,7 @@ export const sourceMessageFiles = {
   'web-console.ts': webConsoleMessagesEsAR,
   'web-test-day.ts': webTestDayMessagesEsAR,
   'mobile.ts': mobileMessagesEsAR,
+  'mobile-test-day.ts': mobileTestDayMessagesEsAR,
   'mobile-player.ts': mobilePlayerMessagesEsAR,
   'gym.ts': gymMessagesEsAR,
   'web-gym.ts': webGymMessagesEsAR,
@@ -465,6 +467,7 @@ export const esAR = {
   ...webConsoleMessagesEsAR,
   ...webTestDayMessagesEsAR,
   ...mobileMessagesEsAR,
+  ...mobileTestDayMessagesEsAR,
   // Player app (B-503)
   ...mobilePlayerMessagesEsAR,
   // Gym (B-607): shared vocabulary, web screens and the mobile screen

@@ -1,5 +1,7 @@
 import { ift3015Schedule, ift3015SignalProtocol } from '@sport-performance/domain';
 import { useQuery } from '@tanstack/react-query';
+import type { TestDaySheet } from '@sport-performance/contracts';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
 import { errorMessage } from '../../src/api/error-message.ts';
@@ -20,6 +22,7 @@ import {
   type LoadState,
 } from '../../src/screens/ift-3015.tsx';
 import { useApi, useServices, useSession } from '../../src/state/app-context.tsx';
+import { cachedSheet } from '../../src/test-day/data.ts';
 import { useTranslator } from '../../src/ui/i18n.tsx';
 import { AppText, ScreenBody, StatusMessage } from '../../src/ui/primitives.tsx';
 
@@ -36,9 +39,11 @@ function loadState<T>(
  * 30-15 IFT signals (B-507, ADR 0070): the staff picks the category and the
  * players, the app plays the signals and the staff marks each player. The
  * runner lives in the app services, outside the screen; this route only
- * wires it to the roster. Protocol: the standard one for now. Deferred to
- * B-505: the field test day passes the `parameters` of the protocol version
- * of its test definition to `ift3015SignalProtocol`, which already reads them.
+ * wires it to the roster. Opened from the 30-15 station of a field test day
+ * (B-505, `?testSessionId=`), it runs the protocol version of that day (its
+ * `parameters`, from the sheet saved on the phone) and starts on its
+ * category; the station saves the stages through the sync queue. Opened from
+ * Inicio, the standard protocol.
  */
 export default function Ift3015() {
   const services = useServices();
@@ -53,7 +58,27 @@ export default function Ift3015() {
   const membershipId = membership?.id ?? null;
   const allowed = membership !== null && canRunIft3015(membership.role);
 
-  const [chosenCategoryId, setChosenCategoryId] = useState<string | null>(null);
+  const [pickedCategoryId, setChosenCategoryId] = useState<string | null>(null);
+  // Opened from a test day (B-505): its protocol version and its category.
+  const params = useLocalSearchParams<{ testSessionId?: string }>();
+  const testSessionId = typeof params.testSessionId === 'string' ? params.testSessionId : null;
+  const [daySheet, setDaySheet] = useState<TestDaySheet | null>(null);
+  useEffect(() => {
+    if (testSessionId === null || membershipId === null) return;
+    let active = true;
+    cachedSheet(services.sync.cache, membershipId, testSessionId)
+      .then((read) => {
+        if (active) setDaySheet(read?.data ?? null);
+      })
+      .catch(services.reportError);
+    return () => {
+      active = false;
+    };
+  }, [services, membershipId, testSessionId]);
+  const iftParameters =
+    daySheet?.stations.find((s) => s.testCode === 'ift_3015')?.definition.protocol.parameters ??
+    null;
+  const chosenCategoryId = pickedCategoryId ?? daySheet?.testSession.categoryId ?? null;
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [audioError, setAudioError] = useState(false);
   const [resuming, setResuming] = useState(false);
@@ -118,7 +143,7 @@ export default function Ift3015() {
     () => new Map((players.data ?? []).map((player) => [player.id, player.name])),
     [players.data],
   );
-  const setupProtocol = useMemo(() => ift3015SignalProtocol(null), []);
+  const setupProtocol = useMemo(() => ift3015SignalProtocol(iftParameters), [iftParameters]);
   const protocol = run?.protocol ?? setupProtocol;
   const schedule = useMemo(() => ift3015Schedule(protocol), [protocol]);
 

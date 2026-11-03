@@ -1,4 +1,4 @@
-import { and, desc, eq, ne, or, sql } from 'drizzle-orm';
+import { and, desc, eq, like, ne, or, sql } from 'drizzle-orm';
 import type { LocalDatabase } from './db/database.ts';
 import { cachedRead, deviceMeta, syncScope } from './db/schema.ts';
 import { OWNER_KEY, type SyncScopeRef } from './engine.ts';
@@ -10,11 +10,17 @@ export interface CachedValue<T> {
   readonly fetchedAt: number;
 }
 
+/** The contract a kept document is checked with (a zod schema of `@sport-performance/contracts`). */
+export interface ReadSchema<T> {
+  safeParse(value: unknown): { success: true; data: T } | { success: false };
+}
+
 /**
  * Answers of the API reads that the sync does not move (ADR 0074), kept in
  * the encrypted local database by membership: the screen shows the last one
  * without signal, and signing out (or another user) deletes them with the
- * membership, like every synced row.
+ * membership, like every synced row. The field test day keeps its sheets,
+ * the club context and the settings of each station here too (ADR 0075).
  */
 export interface ReadCache {
   /**
@@ -23,7 +29,7 @@ export interface ReadCache {
    * parameters drops the kept answers of the same read with other ones (the
    * RPE list of yesterday's range is of no use today).
    */
-  get<T>(membershipId: string, key: string): Promise<CachedValue<T> | null>;
+  get<T>(membershipId: string, key: string, schema?: ReadSchema<T>): Promise<CachedValue<T> | null>;
   /**
    * The last kept answer of `read`, whatever its parameters (there is at most
    * one: keeping one drops the others). For a read whose parameters move with
@@ -31,7 +37,18 @@ export interface ReadCache {
    * yesterday still answers the morning after without signal.
    */
   latest<T>(membershipId: string, read: string): Promise<CachedValue<T> | null>;
-  put(scope: SyncScopeRef, key: string, value: unknown, fetchedAt: number): Promise<void>;
+  /**
+   * Every kept answer whose key starts with `prefix`, by key, checked with
+   * `schema`: one that no longer parses (an older build wrote it) is left out.
+   */
+  list<T>(
+    membershipId: string,
+    prefix: string,
+    schema: ReadSchema<T>,
+  ): Promise<Map<string, CachedValue<T>>>;
+  /** Keeps `value` under `key` (`fetchedAt` defaults to now). */
+  put(scope: SyncScopeRef, key: string, value: unknown, fetchedAt?: number): Promise<void>;
+  remove(membershipId: string, key: string): Promise<void>;
 }
 
 /** Between the name of a read and its parameters in a cache key. */
@@ -65,11 +82,35 @@ export interface ReadCacheOptions {
    * or after another person signed in, is dropped.
    */
   readonly activeScope: () => SyncScopeRef | null;
+  readonly now?: () => number;
+}
+
+/**
+ * A kept document: as stored when no schema is given (the caller names its
+ * DTO), else checked with it, so a document an older build wrote that no
+ * longer parses is a miss, never a crash.
+ */
+function decode<T>(
+  row: { data: string; fetchedAt: number },
+  schema?: ReadSchema<T>,
+): CachedValue<T> | null {
+  if (schema === undefined) {
+    return { value: JSON.parse(row.data) as T, fetchedAt: row.fetchedAt };
+  }
+  let value: unknown;
+  try {
+    value = JSON.parse(row.data);
+  } catch {
+    return null;
+  }
+  const parsed = schema.safeParse(value);
+  return parsed.success ? { value: parsed.data, fetchedAt: row.fetchedAt } : null;
 }
 
 export function createReadCache(database: LocalDatabase, options: ReadCacheOptions): ReadCache {
+  const now = options.now ?? Date.now;
   return {
-    async get(membershipId, key) {
+    async get<T>(membershipId: string, key: string, schema?: ReadSchema<T>) {
       const [row] = await database.read((db) =>
         db
           .select()
@@ -77,8 +118,7 @@ export function createReadCache(database: LocalDatabase, options: ReadCacheOptio
           .where(and(eq(cachedRead.membershipId, membershipId), eq(cachedRead.key, key))),
       );
       if (row === undefined) return null;
-      // The caller names the DTO its key holds.
-      return { value: JSON.parse(row.data) as never, fetchedAt: row.fetchedAt };
+      return decode(row, schema);
     },
     async latest(membershipId, read) {
       const prefix = `${read}${READ_PARAMS_SEPARATOR}`;
@@ -99,9 +139,28 @@ export function createReadCache(database: LocalDatabase, options: ReadCacheOptio
           .limit(1),
       );
       if (row === undefined) return null;
+      // The caller names the DTO its read holds.
       return { value: JSON.parse(row.data) as never, fetchedAt: row.fetchedAt };
     },
-    async put(scope, key, value, fetchedAt) {
+    async list<T>(membershipId: string, prefix: string, schema: ReadSchema<T>) {
+      const rows = await database.read((db) =>
+        db
+          .select()
+          .from(cachedRead)
+          .where(
+            and(eq(cachedRead.membershipId, membershipId), like(cachedRead.key, `${prefix}%`)),
+          ),
+      );
+      const result = new Map<string, CachedValue<T>>();
+      for (const row of rows) {
+        // `_` and `%` in a key are wildcards of `LIKE`: the prefix is checked again.
+        if (!row.key.startsWith(prefix)) continue;
+        const kept = decode(row, schema);
+        if (kept !== null) result.set(row.key, kept);
+      }
+      return result;
+    },
+    async put(scope, key, value, fetchedAt = now()) {
       await database.write(async (db) => {
         // Checked inside the write, serialized with the sign-out wipe: an answer that
         // arrives after signing out (or after another user signed in) is dropped.
@@ -156,6 +215,13 @@ export function createReadCache(database: LocalDatabase, options: ReadCacheOptio
             target: [cachedRead.membershipId, cachedRead.key],
             set: { data: JSON.stringify(value), fetchedAt },
           });
+      });
+    },
+    async remove(membershipId, key) {
+      await database.write(async (db) => {
+        await db
+          .delete(cachedRead)
+          .where(and(eq(cachedRead.membershipId, membershipId), eq(cachedRead.key, key)));
       });
     },
   };
