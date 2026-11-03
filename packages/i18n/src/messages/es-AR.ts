@@ -8,6 +8,7 @@ import { webGuardianMessagesEsAR } from './web-guardian.js';
 import { webConsoleMessagesEsAR } from './web-console.js';
 import { protocolMessagesEsAR } from './protocols.js';
 import { webHelpMessagesEsAR } from './web-help.js';
+import { webTestDayMessagesEsAR } from './web-test-day.js';
 import { webMessagesEsAR } from './web.js';
 import { webTrainingMessagesEsAR } from './web-training.js';
 import { webFieldSessionMessagesEsAR } from './web-field-session.js';
@@ -395,6 +396,7 @@ export const sourceMessageFiles = {
   'web-anthropometry.ts': webAnthropometryMessagesEsAR,
   'web-guardian.ts': webGuardianMessagesEsAR,
   'web-console.ts': webConsoleMessagesEsAR,
+  'web-test-day.ts': webTestDayMessagesEsAR,
   'mobile.ts': mobileMessagesEsAR,
   'protocols.ts': protocolMessagesEsAR,
   'web-help.ts': webHelpMessagesEsAR,
@@ -414,6 +416,7 @@ export const esAR = {
   ...webAnthropometryMessagesEsAR,
   ...webGuardianMessagesEsAR,
   ...webConsoleMessagesEsAR,
+  ...webTestDayMessagesEsAR,
   ...mobileMessagesEsAR,
   ...protocolMessagesEsAR,
   ...webHelpMessagesEsAR,

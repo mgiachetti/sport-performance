@@ -508,6 +508,7 @@ export interface DefinitionInfo {
   readonly code: string;
   readonly version: number;
   readonly sports: readonly Sport[] | null;
+  readonly attemptCount: number;
   readonly attemptAggregation: AttemptAggregation;
   readonly maximalLoad: boolean;
   readonly protocol: TestProtocol;
@@ -542,6 +543,7 @@ export async function loadDefinitions(
       code: testDefinition.code,
       version: testDefinition.version,
       sports: testDefinition.sports,
+      attemptCount: testDefinition.attemptCount,
       attemptAggregation: testDefinition.attemptAggregation,
       maximalLoad: testDefinition.maximalLoad,
       protocol: testDefinition.protocol,

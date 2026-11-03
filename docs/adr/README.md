@@ -71,6 +71,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0065](0065-area-de-familia-en-la-web.md) | Área de familia en la web: el tutor ve la ficha resumida de sus hijos/as, firma consentimientos e informa la altura de los padres | Aceptado |
 | [0066](0066-consola-de-superadmin-y-lectura-del-registro-de-soporte.md) | Consola de superadmin: motivo por sesión, cliente propio, alta de clubes con su primer admin y lectura del registro de soporte por una función auditada | Aceptado |
 | [0067](0067-ayuda-protocolos-y-material.md) | Ayuda y protocolos: lectura de los tests para todo miembro, material por versión solo para el staff y guía de uso en el catálogo de mensajes | Aceptado |
+| [0068](0068-planilla-del-dia-de-test.md) | Planilla del día de test: una lectura con estaciones, plantel y anterior; carga con la vista previa del dominio | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 

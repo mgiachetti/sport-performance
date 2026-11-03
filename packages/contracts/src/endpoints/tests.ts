@@ -301,6 +301,11 @@ export const testSessionResultInputSchema = z
   ])
   .meta({ id: 'TestSessionResultInput' });
 
+/** A result of a test day as a client sends it. */
+export type TestSessionResultInput = z.input<typeof testSessionResultInputSchema>;
+/** An entry as a client sends it. */
+export type TestEntryInputPayload = z.input<typeof testEntryInputSchema>;
+
 export const createTestResultBodySchema = z
   .discriminatedUnion('status', [
     z.strictObject({ ...doneResultShape, testSessionId: testSessionIdSchema.optional() }),

@@ -68,6 +68,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: { kind: 'season', action: 'read' },
   }),
   navItem({
+    to: '/test-days',
+    labelKey: 'testDay.nav',
+    icon: 'stopwatch',
+    permission: { kind: 'test_session', action: 'read' },
+  }),
+  navItem({
     to: '/anthropometry',
     labelKey: 'anthropometry.nav',
     icon: 'ruler',

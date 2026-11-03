@@ -1,0 +1,225 @@
+/*
+ * Test day screens (B-405). Same rules as styles/app.css: only the `--sp-*`
+ * variables of packages/ui-tokens, no hex values. States carry icon + text;
+ * the best attempt is marked with a border and a text marker, never by color alone.
+ */
+
+.sp-td-scroll {
+  overflow-x: auto;
+}
+
+.sp-td-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--sp-text-body-small-size);
+}
+.sp-td-table th,
+.sp-td-table td {
+  padding: var(--sp-space-sm) var(--sp-space-md);
+  border-bottom: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+  text-align: left;
+  vertical-align: top;
+}
+.sp-td-table thead th {
+  color: var(--sp-color-text-secondary);
+  font-family: var(--sp-text-overline-family);
+  font-size: var(--sp-text-overline-size);
+  font-weight: var(--sp-text-overline-weight);
+  letter-spacing: var(--sp-text-overline-letter-spacing);
+  text-transform: var(--sp-text-overline-transform);
+  white-space: nowrap;
+}
+.sp-td-table tbody th {
+  font-weight: var(--sp-text-body-strong-weight);
+}
+.sp-td-row.has-messages th,
+.sp-td-row.has-messages td {
+  border-bottom: none;
+}
+
+.sp-td-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-space-xs);
+}
+.sp-td-status--completed svg {
+  color: var(--sp-color-status-ok-fg);
+}
+.sp-td-status--cancelled svg {
+  color: var(--sp-color-status-warning-fg);
+}
+.sp-td-status--in_progress svg,
+.sp-td-status--scheduled svg {
+  color: var(--sp-color-brand-accent);
+}
+
+.sp-td-header {
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  align-items: start;
+}
+.sp-td-subtitle {
+  margin-bottom: var(--sp-space-xs);
+  font-size: var(--sp-text-body-size);
+}
+.sp-td-run {
+  display: grid;
+  gap: var(--sp-space-sm);
+  justify-items: end;
+}
+
+.sp-td-stations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-space-sm);
+  margin-top: var(--sp-space-lg);
+}
+.sp-td-station {
+  display: grid;
+  gap: var(--sp-space-xxs);
+  min-width: 10rem;
+  padding: var(--sp-space-md) var(--sp-space-lg);
+  border: var(--sp-border-width-hairline) solid var(--sp-color-border-strong);
+  border-radius: var(--sp-radius-lg);
+  background: var(--sp-color-surface);
+  color: var(--sp-color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sp-td-station b {
+  font-family: var(--sp-text-heading-family);
+  font-size: var(--sp-text-heading-size);
+}
+.sp-td-station small {
+  color: var(--sp-color-text-secondary);
+}
+.sp-td-station[aria-pressed='true'] {
+  border-color: var(--sp-color-brand-accent);
+  box-shadow: inset 0 0 0 var(--sp-border-width-thick) var(--sp-color-brand-accent);
+}
+
+.sp-td-protocol summary {
+  cursor: pointer;
+  font-weight: var(--sp-text-body-strong-weight);
+}
+.sp-td-protocol > * + * {
+  margin-top: var(--sp-space-sm);
+}
+.sp-td-settings {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--sp-space-lg);
+  align-items: start;
+}
+
+.sp-td-attempt,
+.sp-td-state {
+  display: grid;
+  gap: var(--sp-space-xs);
+}
+.sp-td-cell {
+  display: grid;
+  gap: var(--sp-space-xxs);
+}
+.sp-td-cell__label,
+.sp-td-meta {
+  display: block;
+  color: var(--sp-color-text-secondary);
+  font-size: var(--sp-text-caption-size);
+}
+.sp-td-input {
+  width: 5.5rem;
+  min-height: var(--sp-size-touch-target);
+  padding: 0 var(--sp-space-sm);
+  border: var(--sp-border-width-hairline) solid var(--sp-color-border-strong);
+  border-radius: var(--sp-radius-md);
+  background: var(--sp-color-surface);
+  color: var(--sp-color-text-primary);
+  font-family: var(--sp-text-metric-small-family);
+  font-size: var(--sp-text-metric-small-size);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.sp-td-input--wide {
+  width: 12rem;
+  font-family: inherit;
+  font-size: inherit;
+  text-align: left;
+}
+.sp-td-input[aria-invalid='true'] {
+  border-color: var(--sp-color-status-critical-border);
+}
+.sp-td-input.is-best {
+  border-color: var(--sp-color-brand-accent);
+  box-shadow: inset 0 0 0 var(--sp-border-width-thick) var(--sp-color-brand-accent);
+}
+.sp-td-best {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-space-xxs);
+  color: var(--sp-color-brand-accent);
+  font-size: var(--sp-text-caption-size);
+  font-weight: var(--sp-text-body-strong-weight);
+}
+
+.sp-td-scores,
+.sp-td-entries {
+  display: grid;
+  gap: var(--sp-space-xxs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-variant-numeric: tabular-nums;
+}
+.sp-td-entries li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-space-sm);
+}
+.sp-td-entries li.is-voided > span:first-child {
+  text-decoration: line-through;
+  color: var(--sp-color-text-secondary);
+}
+.sp-td-previous {
+  display: grid;
+  gap: var(--sp-space-xxs);
+  font-variant-numeric: tabular-nums;
+}
+.sp-td-recorded {
+  display: grid;
+  gap: var(--sp-space-sm);
+}
+.sp-td-inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--sp-space-sm);
+}
+
+.sp-td-msg {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-xs);
+  font-size: var(--sp-text-body-small-size);
+}
+.sp-td-msg--critical svg {
+  color: var(--sp-color-status-critical-fg);
+}
+.sp-td-msg--warning svg {
+  color: var(--sp-color-status-warning-fg);
+}
+.sp-td-messages td {
+  padding-top: 0;
+}
+.sp-td-messages td > * + * {
+  margin-top: var(--sp-space-xxs);
+}
+
+.sp-td-save {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-space-md);
+}
