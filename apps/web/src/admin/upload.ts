@@ -1,14 +1,7 @@
 import type { ApiClient, UploadedFile } from '@sport-performance/contracts';
 import type { FILE_KIND_POLICIES } from '@sport-performance/domain';
 import { FILE_NAME_MAX_LENGTH } from '@sport-performance/domain';
-
-/** SHA-256 of the content in base64, as the bucket checks it (`x-amz-checksum-sha256`). */
-export async function sha256Base64(content: ArrayBuffer): Promise<string> {
-  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', content));
-  let binary = '';
-  for (const byte of digest) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
+import { sha256Base64 } from '../api/storage-upload';
 
 /** The bucket did not take the bytes (expired URL, network): the upload is asked for again. */
 export class UploadFailedError extends Error {
@@ -39,7 +32,7 @@ export async function uploadClubLogo(
       clientUuid: options.clientUuid ?? crypto.randomUUID(),
       contentType: file.type as LogoContentType,
       sizeBytes: content.byteLength,
-      checksumSha256: await sha256Base64(content),
+      checksumSha256: await sha256Base64(file),
       ...(file.name === '' ? {} : { fileName: file.name.slice(0, FILE_NAME_MAX_LENGTH) }),
     },
   });

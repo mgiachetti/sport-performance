@@ -7572,7 +7572,7 @@
       "get": {
         "operationId": "listFiles",
         "summary": "Archivos del club",
-        "description": "De un tipo. El escudo lo sube la administración y lo ve todo miembro; el video del CMJ lo sube `sc` (asignado) o la administración y lo ven el jugador, `coach`, `sc` y la administración, siempre con **consentimiento de imagen vigente**; el informe lo ven quienes ven la ficha resumida; la planilla, quien puede importar. Para los videos, una página puede traer menos de `limit` (se omiten los de jugadores sin consentimiento de imagen): seguir con `nextCursor` hasta que sea `null`.",
+        "description": "De un tipo. El escudo lo sube la administración y lo ve todo miembro; el video del CMJ lo sube `sc` (asignado) o la administración y lo ven el jugador, `coach`, `sc` y la administración, siempre con **consentimiento de imagen vigente**; el informe lo ven quienes ven la ficha resumida; la planilla, quien puede importar; la imagen o el video de un protocolo los suben `sc` y la administración y los ve el staff. Para los videos, una página puede traer menos de `limit` (se omiten los de jugadores sin consentimiento de imagen): seguir con `nextCursor` hasta que sea `null`.",
         "tags": [
           "files"
         ],
@@ -7715,7 +7715,7 @@
       "post": {
         "operationId": "createFileUpload",
         "summary": "Pedir una subida",
-        "description": "Crea el archivo `pending` y devuelve la URL firmada para subir el contenido directo al bucket con `PUT`; después, `POST /v1/files/{fileId}/confirm`. El tipo, el tamaño y el SHA-256 quedan firmados. El escudo lo sube la administración y lo ve todo miembro; el video del CMJ lo sube `sc` (asignado) o la administración y lo ven el jugador, `coach`, `sc` y la administración, siempre con **consentimiento de imagen vigente**; el informe lo ven quienes ven la ficha resumida; la planilla, quien puede importar. Idempotente por `clientUuid`: reenviar devuelve el mismo archivo con una URL nueva mientras siga pendiente; el mismo `clientUuid` con otro archivo (tipo, jugador, categoría, tipo MIME, tamaño, SHA-256 o nombre distintos) es `conflict`.",
+        "description": "Crea el archivo `pending` y devuelve la URL firmada para subir el contenido directo al bucket con `PUT`; después, `POST /v1/files/{fileId}/confirm`. El tipo, el tamaño y el SHA-256 quedan firmados. El escudo lo sube la administración y lo ve todo miembro; el video del CMJ lo sube `sc` (asignado) o la administración y lo ven el jugador, `coach`, `sc` y la administración, siempre con **consentimiento de imagen vigente**; el informe lo ven quienes ven la ficha resumida; la planilla, quien puede importar; la imagen o el video de un protocolo los suben `sc` y la administración y los ve el staff. Idempotente por `clientUuid`: reenviar devuelve el mismo archivo con una URL nueva mientras siga pendiente; el mismo `clientUuid` con otro archivo (tipo, jugador, categoría, tipo MIME, tamaño, SHA-256 o nombre distintos) es `conflict`.",
         "tags": [
           "files"
         ],
@@ -7797,7 +7797,7 @@
       "get": {
         "operationId": "getFile",
         "summary": "Un archivo",
-        "description": "Sus datos, sin el contenido. El escudo lo sube la administración y lo ve todo miembro; el video del CMJ lo sube `sc` (asignado) o la administración y lo ven el jugador, `coach`, `sc` y la administración, siempre con **consentimiento de imagen vigente**; el informe lo ven quienes ven la ficha resumida; la planilla, quien puede importar. De otro club, o un escudo pendiente o borrado para quien no es de la administración: `not_found`.",
+        "description": "Sus datos, sin el contenido. El escudo lo sube la administración y lo ve todo miembro; el video del CMJ lo sube `sc` (asignado) o la administración y lo ven el jugador, `coach`, `sc` y la administración, siempre con **consentimiento de imagen vigente**; el informe lo ven quienes ven la ficha resumida; la planilla, quien puede importar; la imagen o el video de un protocolo los suben `sc` y la administración y los ve el staff. De otro club, o un escudo pendiente o borrado para quien no es de la administración: `not_found`.",
         "tags": [
           "files"
         ],
@@ -7869,7 +7869,7 @@
       "delete": {
         "operationId": "deleteFile",
         "summary": "Borrar un archivo",
-        "description": "El contenido deja de poder bajarse en el acto y el job de retención lo borra del bucket cuando ya no queda viva ninguna URL de subida que se haya entregado (hasta una hora y unos minutos después); el registro queda con `status: deleted`. Videos: `sc` asignado o la administración; escudo, informes y planillas: la administración (la planilla, también quien puede importarla). El escudo en uso no se borra (`conflict`: cambiarlo o sacarlo antes). Idempotente.",
+        "description": "El contenido deja de poder bajarse en el acto y el job de retención lo borra del bucket cuando ya no queda viva ninguna URL de subida que se haya entregado (hasta una hora y unos minutos después); el registro queda con `status: deleted`. Videos: `sc` asignado o la administración; escudo, informes y planillas: la administración (la planilla, también quien puede importarla). El escudo en uso y el material adjunto a un protocolo activo no se borran (`conflict`: cambiarlo o sacarlo antes). Material de protocolos: `sc` y la administración. Idempotente.",
         "tags": [
           "files"
         ],
@@ -8026,7 +8026,7 @@
       "get": {
         "operationId": "getFileDownload",
         "summary": "Bajar un archivo",
-        "description": "URL firmada de vida corta (minutos) para bajar o reproducir el contenido; solo de un archivo `ready` (si no: `conflict`). El escudo lo sube la administración y lo ve todo miembro; el video del CMJ lo sube `sc` (asignado) o la administración y lo ven el jugador, `coach`, `sc` y la administración, siempre con **consentimiento de imagen vigente**; el informe lo ven quienes ven la ficha resumida; la planilla, quien puede importar.",
+        "description": "URL firmada de vida corta (minutos) para bajar o reproducir el contenido; solo de un archivo `ready` (si no: `conflict`). El escudo lo sube la administración y lo ve todo miembro; el video del CMJ lo sube `sc` (asignado) o la administración y lo ven el jugador, `coach`, `sc` y la administración, siempre con **consentimiento de imagen vigente**; el informe lo ven quienes ven la ficha resumida; la planilla, quien puede importar; la imagen o el video de un protocolo los suben `sc` y la administración y los ve el staff.",
         "tags": [
           "files"
         ],
@@ -17831,6 +17831,760 @@
         }
       }
     },
+    "/v1/test-definitions": {
+      "get": {
+        "operationId": "listTestDefinitions",
+        "summary": "Tests y protocolos del club",
+        "description": "Cada versión del protocolo de cada test, con su texto y sus métricas. Por defecto, las vigentes hoy en el club (`validOn`); `validOn` con otra fecha, las de ese día. La ve todo miembro del club (`metric_catalog.read`): el texto del protocolo no es un dato personal.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "description": "Código del test (`sprint_40`).",
+            "schema": {
+              "type": "string",
+              "examples": [
+                "sprint_40"
+              ]
+            }
+          },
+          {
+            "name": "sport",
+            "in": "query",
+            "required": false,
+            "description": "Solo los que aplican al deporte (incluye los de todos).",
+            "schema": {
+              "$ref": "#/components/schemas/Sport"
+            }
+          },
+          {
+            "name": "validOn",
+            "in": "query",
+            "required": false,
+            "description": "Día del club; por defecto, hoy en su zona horaria.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `code`, `version`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "code",
+              "type": "string",
+              "enum": [
+                "code",
+                "-code",
+                "version",
+                "-version"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de versiones de protocolos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestDefinitionPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.bad_request.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/test-definitions/{testDefinitionId}": {
+      "get": {
+        "operationId": "getTestDefinition",
+        "summary": "Un protocolo",
+        "description": "Una versión del protocolo, vigente o no. Mismo permiso que la lista.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testDefinitionId",
+            "in": "path",
+            "required": true,
+            "description": "Id de versión del protocolo de un test (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "La versión del protocolo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestDefinition"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/test-definitions/{testDefinitionId}/media": {
+      "get": {
+        "operationId": "listProtocolMedia",
+        "summary": "Imágenes y videos de un protocolo",
+        "description": "En el orden del protocolo. Lo ve el staff (`configuration.read`: un video puede mostrar a una persona); lo adjuntan, editan y archivan `sc` y la administración (`configuration.update`).",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testDefinitionId",
+            "in": "path",
+            "required": true,
+            "description": "Id de versión del protocolo de un test (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "`active` (por defecto), `archived` o `all`.",
+            "schema": {
+              "default": "active",
+              "type": "string",
+              "enum": [
+                "active",
+                "archived",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `sortOrder`, `createdAt`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "sortOrder",
+              "type": "string",
+              "enum": [
+                "sortOrder",
+                "-sortOrder",
+                "createdAt",
+                "-createdAt"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de imágenes y videos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolMediaPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.bad_request.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "attachProtocolMedia",
+        "summary": "Adjuntar una imagen o un video a un protocolo",
+        "description": "El archivo tiene que ser un `protocol_media` del club ya confirmado (`POST /v1/files` y `/confirm`). Mientras esté adjunto a un protocolo activo no vence; el mismo archivo una sola vez por versión (`conflict`). Lo ve el staff (`configuration.read`: un video puede mostrar a una persona); lo adjuntan, editan y archivan `sc` y la administración (`configuration.update`). Idempotente por `clientUuid`.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testDefinitionId",
+            "in": "path",
+            "required": true,
+            "description": "Id de versión del protocolo de un test (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientUuid": {
+                    "$ref": "#/components/schemas/ClientUuid"
+                  },
+                  "fileId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Id de archivo (UUID, RFC 9562)."
+                  },
+                  "caption": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "Texto alternativo de la imagen o descripción del video: qué muestra, para quien no lo ve.",
+                    "examples": [
+                      "Posición de salida: pie adelantado a 0,5 m de la línea"
+                    ]
+                  },
+                  "sortOrder": {
+                    "description": "Por defecto, al final.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 999
+                  }
+                },
+                "required": [
+                  "fileId",
+                  "caption"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Adjuntado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolMedia"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error.conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/test-definitions/{testDefinitionId}/media/{mediaId}": {
+      "patch": {
+        "operationId": "updateProtocolMedia",
+        "summary": "Editar el texto o el orden de una imagen o un video",
+        "description": "Lo ve el staff (`configuration.read`: un video puede mostrar a una persona); lo adjuntan, editan y archivan `sc` y la administración (`configuration.update`). Archivado: `conflict` (restaurarlo antes). `version` desactualizada: `conflict`.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testDefinitionId",
+            "in": "path",
+            "required": true,
+            "description": "Id de versión del protocolo de un test (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "mediaId",
+            "in": "path",
+            "required": true,
+            "description": "Id de imagen o video de un protocolo (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "description": "Versión que el cliente leyó (`version` de la respuesta). Si no es la actual: `409 conflict`.",
+                    "$ref": "#/components/schemas/ResourceVersion"
+                  },
+                  "caption": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "Texto alternativo de la imagen o descripción del video: qué muestra, para quien no lo ve.",
+                    "examples": [
+                      "Posición de salida: pie adelantado a 0,5 m de la línea"
+                    ]
+                  },
+                  "sortOrder": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 999,
+                    "description": "Lugar en el protocolo; a igual orden, el más viejo primero."
+                  }
+                },
+                "required": [
+                  "version"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Actualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolMedia"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error.conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/test-definitions/{testDefinitionId}/media/{mediaId}/archive": {
+      "post": {
+        "operationId": "archiveProtocolMedia",
+        "summary": "Sacar una imagen o un video del protocolo",
+        "description": "Deja de mostrarse. Si ningún otro protocolo activo usa el archivo, vence a los 30 días (se puede restaurar mientras tanto). Lo ve el staff (`configuration.read`: un video puede mostrar a una persona); lo adjuntan, editan y archivan `sc` y la administración (`configuration.update`). Idempotente.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testDefinitionId",
+            "in": "path",
+            "required": true,
+            "description": "Id de versión del protocolo de un test (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "mediaId",
+            "in": "path",
+            "required": true,
+            "description": "Id de imagen o video de un protocolo (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archivado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolMedia"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/test-definitions/{testDefinitionId}/media/{mediaId}/restore": {
+      "post": {
+        "operationId": "restoreProtocolMedia",
+        "summary": "Volver a mostrar una imagen o un video",
+        "description": "Solo si el archivo sigue disponible (no venció ni se borró: si no, `conflict`); vuelve a no vencer. Lo ve el staff (`configuration.read`: un video puede mostrar a una persona); lo adjuntan, editan y archivan `sc` y la administración (`configuration.update`). Idempotente.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testDefinitionId",
+            "in": "path",
+            "required": true,
+            "description": "Id de versión del protocolo de un test (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "mediaId",
+            "in": "path",
+            "required": true,
+            "description": "Id de imagen o video de un protocolo (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Restaurado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolMedia"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error.conflict"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
     "/v1/test-imports": {
       "get": {
         "operationId": "listTestImports",
@@ -25923,6 +26677,60 @@
             ],
             "additionalProperties": false,
             "title": "Planilla a importar"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "protocol_media"
+              },
+              "clientUuid": {
+                "$ref": "#/components/schemas/ClientUuid"
+              },
+              "contentType": {
+                "type": "string",
+                "enum": [
+                  "image/png",
+                  "image/jpeg",
+                  "image/webp",
+                  "video/mp4",
+                  "video/webm"
+                ],
+                "description": "Tipo MIME, sin parámetros."
+              },
+              "sizeBytes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 104857600,
+                "description": "Tamaño exacto en bytes; hasta 100 MiB."
+              },
+              "checksumSha256": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9+/]{43}=$",
+                "description": "SHA-256 del contenido en base64 (44 caracteres). El bucket rechaza cualquier otro contenido.",
+                "examples": [
+                  "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="
+                ]
+              },
+              "fileName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "description": "Nombre original, para la descarga. Se guarda sin carpetas ni caracteres de control.",
+                "examples": [
+                  "salto-1.mp4"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "contentType",
+              "sizeBytes",
+              "checksumSha256"
+            ],
+            "additionalProperties": false,
+            "title": "Imagen o video de un protocolo"
           }
         ]
       },
@@ -27161,9 +27969,10 @@
           "club_logo",
           "cmj_video",
           "pdf_report",
-          "data_import"
+          "data_import",
+          "protocol_media"
         ],
-        "description": "`club_logo` (escudo del club), `cmj_video` (video del CMJ de un jugador), `pdf_report` (informe de un jugador, lo genera el sistema) o `data_import` (planilla a importar)."
+        "description": "`club_logo` (escudo del club), `cmj_video` (video del CMJ de un jugador), `pdf_report` (informe de un jugador, lo genera el sistema), `data_import` (planilla a importar) o `protocol_media` (imagen o video de cómo se hace un test)."
       },
       "FilePage": {
         "type": "object",
@@ -31292,6 +32101,114 @@
           "nextCursor"
         ]
       },
+      "ProtocolMedia": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de imagen o video de un protocolo (UUID, RFC 9562)."
+          },
+          "testDefinitionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de versión del protocolo de un test (UUID, RFC 9562)."
+          },
+          "file": {
+            "$ref": "#/components/schemas/File"
+          },
+          "caption": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Texto alternativo de la imagen o descripción del video: qué muestra, para quien no lo ve.",
+            "examples": [
+              "Posición de salida: pie adelantado a 0,5 m de la línea"
+            ]
+          },
+          "sortOrder": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999,
+            "description": "Lugar en el protocolo; a igual orden, el más viejo primero."
+          },
+          "archivedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cuándo se archivó; `null` si está activo."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "version": {
+            "$ref": "#/components/schemas/ResourceVersion"
+          }
+        },
+        "required": [
+          "id",
+          "testDefinitionId",
+          "file",
+          "caption",
+          "sortOrder",
+          "archivedAt",
+          "createdAt",
+          "updatedAt",
+          "version"
+        ],
+        "description": "Una imagen o un video del protocolo. El contenido se pide con `GET /v1/files/{fileId}/download`."
+      },
+      "ProtocolMediaPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProtocolMedia"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
       "PushPlatform": {
         "type": "string",
         "enum": [
@@ -34543,6 +35460,208 @@
           }
         }
       },
+      "TestDefinition": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de versión del protocolo de un test (UUID, RFC 9562)."
+          },
+          "code": {
+            "type": "string",
+            "description": "Código del test (`sprint_40`).",
+            "examples": [
+              "sprint_40"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Versión del protocolo (principio 4)."
+          },
+          "sports": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Sport"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Deportes donde aplica; `null` = todos."
+          },
+          "attemptCount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Intentos planificados."
+          },
+          "attemptAggregation": {
+            "type": "string",
+            "enum": [
+              "best",
+              "mean"
+            ],
+            "description": "Cuál vale: el mejor intento (`best`) o el promedio (`mean`)."
+          },
+          "maximalLoad": {
+            "type": "boolean",
+            "description": "Test máximo con carga: nunca en M13/M14 (principio 3)."
+          },
+          "protocol": {
+            "$ref": "#/components/schemas/TestProtocol"
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestDefinitionMetric"
+            },
+            "description": "Métricas que produce, en el orden del diccionario."
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "validTo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                "examples": [
+                  "2026-11-01"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fin de la vigencia (exclusivo); `null` = sigue vigente."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "version",
+          "sports",
+          "attemptCount",
+          "attemptAggregation",
+          "maximalLoad",
+          "protocol",
+          "metrics",
+          "validFrom",
+          "validTo",
+          "createdAt",
+          "updatedAt"
+        ],
+        "description": "Una versión del protocolo de un test, con las métricas que produce."
+      },
+      "TestDefinitionMetric": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Código canónico de la métrica (`cmj_height_cm`).",
+            "examples": [
+              "cmj_height_cm"
+            ]
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "mm",
+              "cm",
+              "m",
+              "km",
+              "kg",
+              "msec",
+              "s",
+              "min",
+              "h",
+              "years",
+              "ms",
+              "kmh",
+              "m_min",
+              "cm_year",
+              "ms2",
+              "newton",
+              "deg",
+              "bpm",
+              "kg_kg",
+              "pct",
+              "au",
+              "score",
+              "n"
+            ]
+          },
+          "isDerived": {
+            "type": "boolean",
+            "description": "Se calcula desde otras métricas del resultado (no se carga)."
+          }
+        },
+        "required": [
+          "code",
+          "unit",
+          "isDerived"
+        ]
+      },
+      "TestDefinitionPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestDefinition"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
       "TestEntry": {
         "type": "object",
         "properties": {
@@ -36287,6 +37406,83 @@
           "unavailable"
         ],
         "description": "Motivo como lo ve quien lee: `injured` se ve `unavailable` para todo rol que no sea `medical`."
+      },
+      "TestProtocol": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "description": "Resumen: entrada en calor, intentos y pausas.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Pasos en orden, tal como los lee el evaluador."
+          },
+          "restBetweenAttemptsS": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pausa entre intentos, en segundos; `null` si no aplica."
+          },
+          "equipment": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Equipo necesario."
+          },
+          "parameters": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": [
+                    "number",
+                    "string",
+                    "boolean"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": [
+                      "number",
+                      "string",
+                      "boolean"
+                    ]
+                  }
+                }
+              ]
+            },
+            "description": "Ajustes numéricos y de código de los que depende el cálculo (umbrales del sprint, progresión del 30-15, rango del e1RM). Son parte de la versión."
+          }
+        },
+        "required": [
+          "summary",
+          "steps",
+          "restBetweenAttemptsS",
+          "equipment",
+          "parameters"
+        ],
+        "description": "El protocolo de una versión del test."
       },
       "TestResult": {
         "type": "object",

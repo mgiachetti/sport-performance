@@ -24,7 +24,7 @@ import { fileIdSchema } from './clubs.js';
 export const fileKindSchema = z.enum(FILE_KINDS).meta({
   id: 'FileKind',
   description:
-    '`club_logo` (escudo del club), `cmj_video` (video del CMJ de un jugador), `pdf_report` (informe de un jugador, lo genera el sistema) o `data_import` (planilla a importar).',
+    '`club_logo` (escudo del club), `cmj_video` (video del CMJ de un jugador), `pdf_report` (informe de un jugador, lo genera el sistema), `data_import` (planilla a importar) o `protocol_media` (imagen o video de cómo se hace un test).',
 });
 
 export const fileStatusSchema = z.enum(FILE_STATUSES).meta({
@@ -156,13 +156,16 @@ export const createFileUploadBodySchema = z
         }),
       })
       .meta({ title: 'Planilla a importar' }),
+    z
+      .strictObject(uploadFields('protocol_media'))
+      .meta({ title: 'Imagen o video de un protocolo' }),
   ])
   .meta({ id: 'CreateFileUpload' });
 
 const fileParams = z.strictObject({ fileId: fileIdSchema });
 
 const ACCESS =
-  'El escudo lo sube la administración y lo ve todo miembro; el video del CMJ lo sube `sc` (asignado) o la administración y lo ven el jugador, `coach`, `sc` y la administración, siempre con **consentimiento de imagen vigente**; el informe lo ven quienes ven la ficha resumida; la planilla, quien puede importar.';
+  'El escudo lo sube la administración y lo ve todo miembro; el video del CMJ lo sube `sc` (asignado) o la administración y lo ven el jugador, `coach`, `sc` y la administración, siempre con **consentimiento de imagen vigente**; el informe lo ven quienes ven la ficha resumida; la planilla, quien puede importar; la imagen o el video de un protocolo los suben `sc` y la administración y los ve el staff.';
 
 export const createFileUpload = defineEndpoint({
   method: 'POST',
@@ -250,7 +253,7 @@ export const deleteFile = defineEndpoint({
   path: '/v1/files/{fileId}',
   summary: 'Borrar un archivo',
   description:
-    'El contenido deja de poder bajarse en el acto y el job de retención lo borra del bucket cuando ya no queda viva ninguna URL de subida que se haya entregado (hasta una hora y unos minutos después); el registro queda con `status: deleted`. Videos: `sc` asignado o la administración; escudo, informes y planillas: la administración (la planilla, también quien puede importarla). El escudo en uso no se borra (`conflict`: cambiarlo o sacarlo antes). Idempotente.',
+    'El contenido deja de poder bajarse en el acto y el job de retención lo borra del bucket cuando ya no queda viva ninguna URL de subida que se haya entregado (hasta una hora y unos minutos después); el registro queda con `status: deleted`. Videos: `sc` asignado o la administración; escudo, informes y planillas: la administración (la planilla, también quien puede importarla). El escudo en uso y el material adjunto a un protocolo activo no se borran (`conflict`: cambiarlo o sacarlo antes). Material de protocolos: `sc` y la administración. Idempotente.',
   tags: ['files'],
   auth: 'club',
   params: fileParams,

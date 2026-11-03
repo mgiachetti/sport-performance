@@ -246,6 +246,13 @@
       "when": 1793711370220,
       "tag": "0034_support_access_read",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1793712413762,
+      "tag": "0035_protocol_media",
+      "breakpoints": true
     }
   ]
 }

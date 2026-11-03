@@ -45,6 +45,9 @@ import { AnthropometryPage } from './pages/anthropometry/AnthropometryPage';
 import { ClubSelectPage } from './pages/ClubSelectPage';
 import { RouteErrorPage, NotFoundPage } from './pages/ErrorPages';
 import { HomePage } from './pages/HomePage';
+import { GuidePage } from './pages/help/GuidePage';
+import { ProtocolPage } from './pages/help/ProtocolPage';
+import { ProtocolsPage } from './pages/help/ProtocolsPage';
 import { LoginPage } from './pages/LoginPage';
 import { PanelPage } from './pages/panel/PanelPage';
 import { parsePanelSearch } from './pages/panel/panel-search';
@@ -89,6 +92,9 @@ export interface RouterContext {
  *         ├── /configuration  club configuration (B-409)
  *         ├── /admin          administration (B-411): one child per section
  *         ├── /support-access support accesses to the club (administration)
+ *         ├── /help           protocols of the club's tests (B-415)
+ *         ├── /help/guide     usage guide for the staff
+ *         ├── /help/protocols/$testDefinitionId   one protocol, its images and videos
  *         └── /family         guardians only (ADR 0065): their children
  *             └── $playerId   summarised profile, consents, parents' heights
  * ```
@@ -446,6 +452,24 @@ export const clubSupportAccessRoute = createRoute({
   component: ClubSupportAccessPage,
 });
 
+export const helpRoute = createRoute({
+  getParentRoute: () => clubRoute,
+  path: '/help',
+  component: ProtocolsPage,
+});
+
+export const helpGuideRoute = createRoute({
+  getParentRoute: () => clubRoute,
+  path: '/help/guide',
+  component: GuidePage,
+});
+
+export const protocolRoute = createRoute({
+  getParentRoute: () => clubRoute,
+  path: '/help/protocols/$testDefinitionId',
+  component: ProtocolPage,
+});
+
 export const routeTree = rootRoute.addChildren([
   loginRoute,
   authedRoute.addChildren([
@@ -463,6 +487,9 @@ export const routeTree = rootRoute.addChildren([
       configurationRoute,
       adminRoute.addChildren(adminRoutes),
       clubSupportAccessRoute,
+      helpRoute,
+      helpGuideRoute,
+      protocolRoute,
       familyRoute.addChildren([childrenRoute, childRoute]),
     ]),
     consoleRoute.addChildren([

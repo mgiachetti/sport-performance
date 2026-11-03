@@ -91,6 +91,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: 'support',
     permission: { kind: 'support_access', action: 'read' },
   }),
+  navItem({
+    to: '/help',
+    labelKey: 'nav.help',
+    icon: 'help',
+    permission: { kind: 'metric_catalog', action: 'read' },
+  }),
 ];
 
 /**

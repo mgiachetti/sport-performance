@@ -5,6 +5,7 @@ import { createWebApiClient } from '../api/client';
 import { ConnectionStore } from '../api/connection';
 import { createQueryClient } from '../api/query-client';
 import { ConsoleReasonStore } from '../console/console-reason';
+import { createStorageUploader, type UploadFetch } from '../api/storage-upload';
 import type { KeyValueStorage } from '../lib/store';
 import { createAppRouter, type AppRouter } from '../router';
 import { ThemeStore } from '../theme/theme-store';
@@ -13,6 +14,8 @@ import type { AppServices } from './services';
 export interface CreateAppOptions {
   readonly apiUrl: string;
   readonly fetch?: FetchLike;
+  /** `fetch` for signed uploads to the bucket (another origin); defaults to the global one. */
+  readonly uploadFetch?: UploadFetch;
   readonly storage: { local: KeyValueStorage | null; session: KeyValueStorage | null };
   readonly browserOnline: boolean;
   readonly systemPrefersMoreContrast: boolean;
@@ -79,6 +82,9 @@ export function createWebApp(options: CreateAppOptions): WebApp {
     },
   });
 
+  const uploadToStorage = createStorageUploader(
+    options.uploadFetch ?? ((url, init) => globalThis.fetch(url, init)),
+  );
   const services: AppServices = {
     api,
     queryClient,
@@ -87,6 +93,7 @@ export function createWebApp(options: CreateAppOptions): WebApp {
     theme,
     consoleApi,
     consoleReason,
+    uploadToStorage,
   };
   // Read lazily by onSessionExpired, which only runs after the router exists.
   const router: AppRouter = createAppRouter(services, options.history);

@@ -230,6 +230,15 @@ import {
 import { pullSyncChanges, pushSyncMutations } from './sync.js';
 import { listClubSupportAccess, listSupportAccess } from './support-access.js';
 import {
+  archiveProtocolMedia,
+  attachProtocolMedia,
+  getTestDefinition,
+  listProtocolMedia,
+  listTestDefinitions,
+  restoreProtocolMedia,
+  updateProtocolMedia,
+} from './test-definitions.js';
+import {
   createTestImport,
   getTestImport,
   listTestImports,
@@ -275,6 +284,7 @@ export * from './sync.js';
 export * from './support-access.js';
 export * from './test-imports.js';
 export * from './panel.js';
+export * from './test-definitions.js';
 
 /**
  * Every endpoint of the API, keyed by operationId. The API registers its
@@ -409,6 +419,13 @@ export const apiEndpoints = {
   listAnthroMeasurements,
   getAnthroMeasurement,
   updateAnthroMeasurement,
+  listTestDefinitions,
+  getTestDefinition,
+  listProtocolMedia,
+  attachProtocolMedia,
+  updateProtocolMedia,
+  archiveProtocolMedia,
+  restoreProtocolMedia,
   previewTestImport,
   createTestImport,
   listTestImports,

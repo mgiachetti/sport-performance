@@ -40,6 +40,7 @@ import { HttpError } from '../http/errors.js';
 import { keysetPage, type KeysetSpec } from '../http/pagination.js';
 import type { RequestPermissions } from '../http/permissions.js';
 import { insertIdempotent } from '../http/writes.js';
+import { protocolMediaInUse } from './test-definitions.js';
 
 /**
  * Uploaded files (B-325, ADR 0044). The API signs, checks and records; the
@@ -53,6 +54,7 @@ import { insertIdempotent } from '../http/writes.js';
  * | `cmj_video`   | `media.upload`   | `media.read`         | `media.delete`        |
  * | `pdf_report`  | (the worker)     | `player_summary.read`| `player_profile.archive` |
  * | `data_import` | `data_import.run`| `data_import.run`    | `data_import.run`     |
+ * | `protocol_media` | `configuration.update` | `configuration.read` | `configuration.update` |
  *
  * `media` needs a current image consent of the player to upload or show a
  * video: the matrix checks it with the player's facts.
@@ -86,6 +88,12 @@ const FILE_PERMISSIONS: Record<FileKind, Record<FileAction, FilePermission | nul
     upload: { kind: 'data_import', action: 'run' },
     read: { kind: 'data_import', action: 'run' },
     delete: { kind: 'data_import', action: 'run' },
+  },
+  // How a test is done (B-415): club configuration, staff only (it may show a person).
+  protocol_media: {
+    upload: { kind: 'configuration', action: 'update' },
+    read: { kind: 'configuration', action: 'read' },
+    delete: { kind: 'configuration', action: 'update' },
   },
 };
 
@@ -560,6 +568,10 @@ export function registerFileRoutes(app: FastifyInstance, files: FilesModule | un
         if (inUse !== undefined) {
           throw new HttpError('conflict', 'The file is the crest of the club: change it first');
         }
+      }
+      // The attach, archive and restore of protocol media take the same row lock.
+      if (row.kind === 'protocol_media' && (await protocolMediaInUse(db, clubId, row.id))) {
+        throw new HttpError('conflict', 'The file is shown in a protocol: remove it there first');
       }
       const now = files?.now() ?? new Date();
       // Unavailable from now on. The retention job removes the object once no upload URL
