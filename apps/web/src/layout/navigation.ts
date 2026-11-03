@@ -27,6 +27,13 @@ export function navItem<K extends ResourceKind>(item: NavItem<K>): NavItem {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   navItem({ to: '/', labelKey: 'nav.home', icon: 'home' }),
+  // Staff only: the panel needs `load_metrics`, `wellness` and `alert` (the API checks all three).
+  navItem({
+    to: '/panel',
+    labelKey: 'panel.nav',
+    icon: 'panel',
+    permission: { kind: 'alert', action: 'read' },
+  }),
 ];
 
 /** Entries the subject may open somewhere in what it sees. */

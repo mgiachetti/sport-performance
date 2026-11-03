@@ -116,6 +116,7 @@ describe('@sport-performance/contracts entry point', () => {
       'listAlerts',
       'getAlert',
       'reviewAlert',
+      'getWeeklyPanel',
       'recordTestSessionResults',
       'listTestResults',
       'getTestResult',

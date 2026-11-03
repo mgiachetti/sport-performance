@@ -1,4 +1,5 @@
 import { mobileMessagesEsAR } from './mobile.js';
+import { webPanelMessagesEsAR } from './web-panel.js';
 import { webMessagesEsAR } from './web.js';
 
 /**
@@ -13,7 +14,7 @@ import { webMessagesEsAR } from './web.js';
  * - Status texts always exist as words: the UI never conveys a state by color alone.
  *
  * The catalog is assembled from several files: this one (messages shared by the API, the web and
- * the app), `web.ts` (only the staff web) and `mobile.ts` (only the app). A key lives in exactly
+ * the app), `web.ts` (only the staff web), `web-panel.ts` (the weekly panel of the staff web) and `mobile.ts` (only the app). A key lives in exactly
  * one of them: a concept both apps show has one key, one text and one set of arguments, here.
  */
 export const commonMessagesEsAR = {
@@ -372,11 +373,13 @@ export const commonMessagesEsAR = {
 export const sourceMessageFiles = {
   'es-AR.ts': commonMessagesEsAR,
   'web.ts': webMessagesEsAR,
+  'web-panel.ts': webPanelMessagesEsAR,
   'mobile.ts': mobileMessagesEsAR,
 } as const;
 
 export const esAR = {
   ...commonMessagesEsAR,
   ...webMessagesEsAR,
+  ...webPanelMessagesEsAR,
   ...mobileMessagesEsAR,
 } as const;

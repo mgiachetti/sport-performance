@@ -5,6 +5,7 @@ import '@fontsource/barlow/latin-600.css';
 import '@fontsource/barlow/latin-700.css';
 import '@fontsource/barlow-condensed/latin-600.css';
 import '@fontsource/barlow-condensed/latin-700.css';
+import '@sport-performance/charts/web/charts.css';
 import './styles/app.css';
 
 import { StrictMode } from 'react';

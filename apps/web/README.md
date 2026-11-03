@@ -21,9 +21,10 @@ La API se levanta como dice [su README](../api/README.md#correr); en desarrollo 
 | `src/club/` | `ActiveClub` (`useActiveClub()`), carga y validación del club, deporte y categoría (`useScope()`). |
 | `src/permissions/` | `useCan`, `<Can>`, `<RequirePermission>`, `canSomewhere` sobre la matriz de `packages/domain`. |
 | `src/layout/` | Shell del club (`AppShell`), navegación (`navigation.ts`), selectores de alcance y de colores. |
-| `src/pages/` | Ingreso, selector de club, soporte, inicio, "la web es para el staff", 404 y error. |
+| `src/pages/` | Ingreso, selector de club, soporte, inicio, "la web es para el staff", 404 y error. `pages/panel/`: panel semanal (B-403, [ADR 0058](../../docs/adr/0058-panel-semanal-lectura-agregada-y-bio-banding.md)). |
 | `src/status/` | Estado de conexión, monitor (`onlineManager` + `/v1/health`) y aviso de pestaña vieja. |
 | `src/theme/` | Tema en runtime (`ThemeStore`, `ThemeController`). |
+| `src/lib/` | Utilidades sin UI: `alertText` (texto de una alerta con sus valores formateados es-AR). |
 | `src/ui/` | Componentes base (`Button`, `TextField`, `Notice`, `ErrorNotice`, `Page`, `Stripes`, `Icon`). |
 | `src/test/` | Setup de Vitest, API falsa, fixtures y `renderApp`. |
 

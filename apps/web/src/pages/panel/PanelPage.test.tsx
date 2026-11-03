@@ -1,0 +1,185 @@
+import { screen, waitFor, within } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { apiError } from '../../test/fake-api';
+import * as fixtures from '../../test/fixtures';
+import { renderApp, signedIn } from '../../test/render-app';
+import { squad, weeklyPanel } from './panel-fixtures';
+
+function roster(): HTMLElement {
+  return screen.getByRole('table', { name: 'Plantel' });
+}
+
+function rowOf(name: string): HTMLElement {
+  const header = within(roster()).getByRole('rowheader', { name });
+  const row = header.closest('tr');
+  if (row === null) throw new Error(`no row for ${name}`);
+  return row;
+}
+
+describe('weekly panel', () => {
+  it('is in the navigation of the staff and shows the week of the scope', async () => {
+    const { user, api } = renderApp({
+      path: '/',
+      handlers: { ...signedIn(), getWeeklyPanel: () => weeklyPanel(squad()) },
+    });
+    await user.click(await screen.findByRole('link', { name: 'Panel semanal' }));
+
+    expect(await screen.findByRole('heading', { name: 'Panel semanal', level: 1 })).toBeVisible();
+    expect(screen.getByText('Semana del 02/11/2026 al 08/11/2026')).toBeVisible();
+    const [call] = api.callsTo('getWeeklyPanel');
+    expect(call?.url.searchParams.toString()).toBe('weeks=12&sport=rugby');
+    expect(call?.headers['x-membership-id']).toBe(fixtures.membership('coach').id);
+    expect(api.unhandled).toEqual([]);
+  });
+
+  it('summarises the group, lists who needs attention and the roster, never a cause', async () => {
+    renderApp({
+      path: '/panel',
+      handlers: { ...signedIn(), getWeeklyPanel: () => weeklyPanel(squad()) },
+    });
+    const kpis = await screen.findByRole('region', { name: 'Resumen del grupo' });
+    expect(within(kpis).getByText('Respondieron bienestar hoy')).toBeVisible();
+    expect(within(kpis).getAllByText('1 de 3')[0]).toBeVisible();
+    expect(within(kpis).getByText('3,5 de 5')).toBeVisible();
+    expect(within(kpis).getByText('1.000 UA')).toBeVisible();
+    expect(within(kpis).getByText('2 de 3')).toBeVisible();
+    expect(within(kpis).getByText('1 en crítico')).toBeVisible();
+
+    const attention = screen.getByRole('region', { name: 'Requieren atención' });
+    const items = within(attention).getAllByRole('listitem');
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent('Bianchi, Tomás');
+    expect(items[1]).toHaveTextContent('Roldán, Felipe');
+    expect(
+      within(attention).getByText(
+        'Carga aguda alta respecto de la crónica: ACWR 1,46 (umbral 1,40).',
+      ),
+    ).toBeVisible();
+    expect(within(attention).getByText('Y 1 alerta más de este jugador')).toBeVisible();
+    expect(
+      within(attention).getByText(
+        'Crecimiento rápido: 9,4 cm/año (zona de pico desde 8,0 cm/año).',
+      ),
+    ).toBeVisible();
+
+    const bianchi = rowOf('Bianchi, Tomás');
+    expect(within(bianchi).getByText('Hooker')).toBeVisible();
+    expect(
+      within(bianchi).getByText('-0,4 años del PHV · 91,2 % de la talla adulta'),
+    ).toBeVisible();
+    expect(within(bianchi).getByText('2,5 de 5')).toBeVisible();
+    expect(within(bianchi).getByText('1.200 UA')).toBeVisible();
+    expect(within(bianchi).getByText('1 RPE pendiente')).toBeVisible();
+    expect(within(bianchi).getByText('1,46')).toBeVisible();
+    // Availability as a status with icon and text, never the cause.
+    expect(within(bianchi).getByText('No disponible')).toBeVisible();
+    expect(within(bianchi).getByTitle('Entrenar: Limitado · Partido: No disponible')).toBeVisible();
+    expect(within(bianchi).getByText('Crítico')).toBeVisible();
+
+    const roldan = rowOf('Roldán, Felipe');
+    expect(within(roldan).getByText('Historia insuficiente')).toBeVisible();
+    expect(within(roldan).getByText('Sin respuesta')).toBeVisible();
+    expect(within(roldan).getByText('Sin datos')).toBeVisible();
+    expect(within(roldan).getByText('Atención')).toBeVisible();
+    expect(within(rowOf('Paz, Bautista')).getByText('En rango')).toBeVisible();
+
+    expect(
+      screen.getByRole('figure', { name: /Carga del grupo, últimas 4 semanas/ }),
+    ).toBeVisible();
+  });
+
+  it('groups by maturity (bio-banding) and filters by group', async () => {
+    const { user, app } = renderApp({
+      path: '/panel',
+      handlers: { ...signedIn(), getWeeklyPanel: () => weeklyPanel(squad()) },
+    });
+    await user.selectOptions(
+      await screen.findByLabelText('Agrupar por'),
+      'Maduración: años desde el pico de crecimiento',
+    );
+    await waitFor(() => {
+      expect(app.router.state.location.search).toMatchObject({ group: 'phv_offset' });
+    });
+    const tabs = screen.getByRole('group', { name: 'Grupos' });
+    expect(
+      within(tabs)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual([
+      'Todos (3)',
+      'En el pico de crecimiento (1)',
+      'Después del pico de crecimiento (1)',
+      'Sin datos de maduración (1)',
+    ]);
+    expect(screen.getByText(/Agrupados por maduración y no por edad/)).toBeVisible();
+    expect(within(rowOf('Bianchi, Tomás')).getByText('En el pico de crecimiento')).toBeVisible();
+
+    await user.click(
+      within(tabs).getByRole('button', { name: 'Después del pico de crecimiento (1)' }),
+    );
+    expect(
+      screen.getByRole('button', { name: 'Después del pico de crecimiento (1)' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      within(roster())
+        .getAllByRole('rowheader')
+        .map((h) => h.textContent),
+    ).toEqual(['Paz, Bautista']);
+    expect(screen.getByText('Nadie del grupo tiene alertas activas.')).toBeVisible();
+  });
+
+  it('moves between weeks through the URL', async () => {
+    const { user, api } = renderApp({
+      path: '/panel?category=' + fixtures.M15_RUGBY.id,
+      handlers: {
+        ...signedIn(),
+        getWeeklyPanel: (request) => {
+          const weekOf = request.url.searchParams.get('weekOf');
+          return weeklyPanel(squad(), weekOf === null ? undefined : (weekOf as never));
+        },
+      },
+    });
+    expect(await screen.findByRole('button', { name: 'Semana siguiente' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Semana anterior' }));
+    expect(await screen.findByText('Semana del 26/10/2026 al 01/11/2026')).toBeVisible();
+    expect(screen.getByText('Cargaron bienestar en la semana')).toBeVisible();
+    const last = api.callsTo('getWeeklyPanel').at(-1);
+    expect(Object.fromEntries(last?.url.searchParams ?? [])).toEqual({
+      weekOf: '2026-10-26',
+      weeks: '12',
+      sport: 'rugby',
+      categoryId: fixtures.M15_RUGBY.id,
+    });
+    await user.click(screen.getByRole('button', { name: 'Esta semana' }));
+    expect(await screen.findByText('Semana del 02/11/2026 al 08/11/2026')).toBeVisible();
+  });
+
+  it('explains an empty scope, too many players and errors', async () => {
+    const first = renderApp({
+      path: '/panel',
+      handlers: { ...signedIn({ categories: [] }) },
+    });
+    expect(
+      await screen.findByText(
+        'Todavía no tenés categorías asignadas. Pedile a la administración del club que te asigne.',
+      ),
+    ).toBeVisible();
+    expect(first.api.callsTo('getWeeklyPanel')).toHaveLength(0);
+    first.unmount();
+
+    const second = renderApp({
+      path: '/panel',
+      handlers: { ...signedIn(), getWeeklyPanel: () => apiError(400, 'bad_request') },
+    });
+    expect(await screen.findByText(/Son demasiados jugadores para un solo panel/)).toBeVisible();
+    second.unmount();
+
+    renderApp({
+      path: '/panel',
+      handlers: { ...signedIn(), getWeeklyPanel: () => weeklyPanel([]) },
+    });
+    expect(
+      await screen.findByText('No hay jugadores vigentes en lo que estás mirando.'),
+    ).toBeVisible();
+  });
+});

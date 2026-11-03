@@ -55,6 +55,10 @@
       "description": "Alertas de carga (heurísticas, nunca un diagnóstico): episodios, historial y acuse del staff (B-327)."
     },
     {
+      "name": "panel",
+      "description": "Panel semanal del staff: una lectura agregada de bienestar, carga, maduración, disponibilidad y alertas (B-403)."
+    },
+    {
       "name": "tests",
       "description": "Días de test, resultados con sus intentos y series comparables (B-320)."
     },
@@ -9307,6 +9311,111 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MyTrainingSessionPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.bad_request.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/panel/weekly": {
+      "get": {
+        "operationId": "getWeeklyPanel",
+        "summary": "Panel semanal",
+        "description": "Una lectura agregada de los jugadores que ve el staff para una semana del club (lunes a domingo): bienestar, carga (sRPE, ACWR, monotonía, historia semanal), maduración, disponibilidad sin la causa y alertas activas. `coach`, `sc` y `medical` ven los de sus asignaciones; la administración, todo el club; jugadores y tutores nunca (`forbidden`). Datos derivados por el worker: ni la API ni la web recalculan. Hasta 500 jugadores; si son más, `bad_request` (acotá por deporte o categoría). Una semana futura: `bad_request`.",
+        "tags": [
+          "panel"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "weekOf",
+            "in": "query",
+            "required": false,
+            "description": "Cualquier día de la semana; por defecto, hoy del club.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "weeks",
+            "in": "query",
+            "required": false,
+            "description": "Semanas de historia de carga, la pedida incluida (4 a 26).",
+            "schema": {
+              "default": 12,
+              "type": "integer",
+              "minimum": 4,
+              "maximum": 26
+            }
+          },
+          {
+            "name": "sport",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Sport"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "query",
+            "required": false,
+            "description": "Solo los que están hoy en esta categoría.",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "El panel de la semana.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeeklyPanel"
                 }
               }
             }
@@ -19938,6 +20047,15 @@
         ],
         "additionalProperties": false
       },
+      "AcwrStatus": {
+        "type": "string",
+        "enum": [
+          "ok",
+          "insufficient_history",
+          "zero_chronic_load"
+        ],
+        "description": "`ok` (hay ACWR), `insufficient_history` (menos de 28 días de historia: sin ACWR ni alertas de ACWR) o `zero_chronic_load` (crónica en cero)."
+      },
       "AgeBandCode": {
         "type": "string",
         "enum": [
@@ -21079,6 +21197,15 @@
         "examples": [
           "1.4.0"
         ]
+      },
+      "AvailabilityStatus": {
+        "type": "string",
+        "enum": [
+          "available",
+          "limited",
+          "unavailable"
+        ],
+        "description": "`available`, `limited` o `unavailable`. Nunca la causa."
       },
       "BatteryCadenceWeeks": {
         "type": "object",
@@ -24641,6 +24768,15 @@
         ],
         "description": "`active`: la membresía está vigente; `ended`: terminó (`endedAt`)."
       },
+      "MonotonyStatus": {
+        "type": "string",
+        "enum": [
+          "ok",
+          "insufficient_history",
+          "zero_variance"
+        ],
+        "description": "`ok`, `insufficient_history` (la ventana empieza antes de la historia) o `zero_variance` (todos los días con la misma carga)."
+      },
       "MyTrainingSession": {
         "type": "object",
         "properties": {
@@ -24749,6 +24885,528 @@
         },
         "required": [
           "items"
+        ]
+      },
+      "PanelAlert": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de alerta (UUID, RFC 9562)."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AlertRuleKind"
+          },
+          "severity": {
+            "description": "La severidad del último día en que la regla se cumplió.",
+            "$ref": "#/components/schemas/AlertSeverity"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AlertStatus"
+          },
+          "raisedOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "lastSeenOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "messageKey": {
+            "type": "string",
+            "description": "Clave del texto (`alert.<kind>.message`)."
+          },
+          "values": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "number"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "severity",
+          "status",
+          "raisedOn",
+          "lastSeenOn",
+          "messageKey",
+          "values"
+        ]
+      },
+      "PanelAvailability": {
+        "type": "object",
+        "properties": {
+          "training": {
+            "$ref": "#/components/schemas/AvailabilityStatus"
+          },
+          "match": {
+            "$ref": "#/components/schemas/AvailabilityStatus"
+          },
+          "overall": {
+            "description": "La peor de las dos.",
+            "$ref": "#/components/schemas/AvailabilityStatus"
+          }
+        },
+        "required": [
+          "training",
+          "match",
+          "overall"
+        ],
+        "description": "Disponibilidad derivada del día de referencia, sin la causa ni el diagnóstico."
+      },
+      "PanelLoad": {
+        "type": "object",
+        "properties": {
+          "weekLoadAu": {
+            "type": "number",
+            "minimum": 0,
+            "description": "sRPE de la semana pedida (UA)."
+          },
+          "pendingRpeN": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Participaciones de la semana con minutos y sin RPE (no suman a la carga)."
+          },
+          "asOf": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                "examples": [
+                  "2026-11-01"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Día de la serie del que salen ACWR y monotonía; `null` si no hay historia."
+          },
+          "historyDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "acwr": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`null` salvo `acwrStatus = ok`."
+          },
+          "acwrStatus": {
+            "$ref": "#/components/schemas/AcwrStatus"
+          },
+          "acuteEwmaAu": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chronicEwmaAu": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "monotony": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "strainAu": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "monotonyStatus": {
+            "$ref": "#/components/schemas/MonotonyStatus"
+          },
+          "weeks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PanelWeekLoad"
+            },
+            "description": "Una por semana de `weeks` de la respuesta, en el mismo orden."
+          }
+        },
+        "required": [
+          "weekLoadAu",
+          "pendingRpeN",
+          "asOf",
+          "historyDays",
+          "acwr",
+          "acwrStatus",
+          "acuteEwmaAu",
+          "chronicEwmaAu",
+          "monotony",
+          "strainAu",
+          "monotonyStatus",
+          "weeks"
+        ]
+      },
+      "PanelMaturity": {
+        "type": "object",
+        "properties": {
+          "measuredOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Día de la última antropometría con maduración.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "phvOffsetYears": {
+            "description": "Años desde el PHV medidos ese día (Mirwald 2002 / Moore 2015).",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "phvOffsetYearsOnDate": {
+            "description": "El offset proyectado al día de referencia (crece un año por año): el que usa el bio-banding.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "adultHeightPct": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "% de la talla adulta predicha (Khamis-Roche 1994)."
+          },
+          "growthVelocityCmYear": {
+            "description": "Velocidad de crecimiento desde la medición anterior (cm/año).",
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "measuredOn",
+          "phvOffsetYears",
+          "phvOffsetYearsOnDate",
+          "adultHeightPct",
+          "growthVelocityCmYear"
+        ]
+      },
+      "PanelPlayer": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "firstName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "lastName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sex": {
+            "$ref": "#/components/schemas/Sex"
+          },
+          "sport": {
+            "$ref": "#/components/schemas/Sport"
+          },
+          "birthDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "categoryIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Id de categoría (UUID, RFC 9562)."
+            },
+            "description": "Categorías vigentes hoy (día del club)."
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Id de posición (UUID, RFC 9562)."
+                  },
+                  "code": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "label": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "code",
+                  "label"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Posición principal."
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Etapa vigente el día de referencia."
+          },
+          "maturity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PanelMaturity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "wellness": {
+            "$ref": "#/components/schemas/PanelWellness"
+          },
+          "load": {
+            "$ref": "#/components/schemas/PanelLoad"
+          },
+          "availability": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PanelAvailability"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`null` si la base no la informa para este jugador."
+          },
+          "alerts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PanelAlert"
+            },
+            "description": "Alertas activas el día de referencia (sin resolver), críticas primero. Heurísticas de carga, nunca un diagnóstico."
+          }
+        },
+        "required": [
+          "playerId",
+          "firstName",
+          "lastName",
+          "sex",
+          "sport",
+          "birthDate",
+          "categoryIds",
+          "position",
+          "stage",
+          "maturity",
+          "wellness",
+          "load",
+          "availability",
+          "alerts"
+        ]
+      },
+      "PanelWeek": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Lunes de la semana.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Domingo de la semana.",
+            "examples": [
+              "2026-11-01"
+            ]
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ]
+      },
+      "PanelWeekLoad": {
+        "type": "object",
+        "properties": {
+          "loadAu": {
+            "type": "number",
+            "minimum": 0,
+            "description": "sRPE de la semana (UA): suma de RPE × minutos de los días hasta el de referencia."
+          },
+          "hasData": {
+            "type": "boolean",
+            "description": "Si algún día de la semana tuvo carga cargada."
+          },
+          "chronicWeeklyAu": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Carga crónica (EWMA de 28 días) del último día de la semana, llevada a una semana (× 7); `null` sin historia."
+          }
+        },
+        "required": [
+          "loadAu",
+          "hasData",
+          "chronicWeeklyAu"
+        ]
+      },
+      "PanelWellness": {
+        "type": "object",
+        "properties": {
+          "submittedToday": {
+            "type": "boolean",
+            "description": "Si cargó el bienestar hoy (día del club). Solo tiene sentido en la semana en curso."
+          },
+          "weekEntries": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Días de la semana con bienestar cargado."
+          },
+          "weekMeanScore": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 5
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Media de los días cargados de la semana (1 a 5, más es mejor)."
+          },
+          "latestOn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                "examples": [
+                  "2026-11-01"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Último día con bienestar hasta el de referencia (puede ser de antes de la semana)."
+          },
+          "latestMeanScore": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 5
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latestZScore": {
+            "description": "z-score del último contra la media móvil propia; `null` sin base suficiente.",
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "submittedToday",
+          "weekEntries",
+          "weekMeanScore",
+          "latestOn",
+          "latestMeanScore",
+          "latestZScore"
         ]
       },
       "Parent": {
@@ -32250,6 +32908,53 @@
           "path",
           "code",
           "message"
+        ]
+      },
+      "WeeklyPanel": {
+        "type": "object",
+        "properties": {
+          "today": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Hoy en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "week": {
+            "$ref": "#/components/schemas/PanelWeek"
+          },
+          "referenceDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "El domingo de la semana, o hoy si la semana está en curso.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "weeks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PanelWeek"
+            },
+            "description": "Semanas de la historia, de la más vieja a la pedida (la última)."
+          },
+          "players": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PanelPlayer"
+            },
+            "description": "Jugadores vigentes hoy en el alcance, por apellido y nombre (nunca un ranking)."
+          }
+        },
+        "required": [
+          "today",
+          "week",
+          "referenceDate",
+          "weeks",
+          "players"
         ]
       },
       "Wellness": {

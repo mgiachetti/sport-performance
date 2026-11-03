@@ -1,0 +1,26 @@
+# 0059. Panel semanal: una lectura agregada de lo derivado, alcance por la matriz y bio-banding en la vista
+
+- Estado: Aceptado
+- Fecha: 2026-11-03
+- Issue: #66 (B-403)
+
+## Contexto
+
+El panel semanal (pantalla 1 de la maqueta) muestra, para los jugadores que ve el staff, el bienestar, la carga de la semana y de las últimas semanas, el ACWR, la maduración, la disponibilidad y las alertas activas, y B-403 suma agruparlos por maduración (bio-banding) además de por categoría. Todo eso ya existe en la base: el worker deriva la carga y el bienestar por día (`player_load_daily`, `player_wellness_daily`, ADR 0046), la maduración queda en `anthro_measurement`, las alertas en `alert` (ADR 0053) y la disponibilidad sin la causa en `medical.availability` (ADR 0029). Lo que no existía era una lectura para el panel: armarlo desde el navegador hubiera sido una llamada por jugador y por tipo de dato, y recalcular agregados en el cliente. ADR 0032 pide listas por cursor de hasta 100; un panel no es una lista que se recorre, es una foto de un grupo.
+
+## Decisión
+
+- **Una lectura agregada:** `GET /v1/panel/weekly` (`getWeeklyPanel`) devuelve, para una semana del club (lunes a domingo en su zona horaria), una fila por jugador vigente hoy en el alcance (`sport`, `categoryId`), ordenada por apellido (nunca un ranking), con: categorías vigentes, posición principal, etapa vigente, la última maduración (offset de PHV medido y **proyectado al día de referencia**, % de talla adulta, velocidad de crecimiento), bienestar (respondió hoy, días y media de la semana, último valor y z-score), carga (sRPE de la semana, RPE pendientes, ACWR con su estado, monotonía, strain y, por cada semana de la historia, sRPE y crónica llevada a una semana), disponibilidad (`training`, `match`, `overall`) y alertas activas ese día (clave del texto y valores crudos). El día de referencia es el domingo o hoy si la semana está en curso; una semana futura es `bad_request`.
+- **No es una lista paginada:** tiene un tope (`PANEL_MAX_PLAYERS` = 500). Si el alcance tiene más, `bad_request` y la web pide acotar por deporte o categoría. Es la excepción a las listas por cursor de ADR 0032 para lecturas agregadas de un grupo; las listas de recursos siguen con cursor.
+- **Nada se recalcula:** la API solo lee las tablas derivadas, suma por semana (`date_trunc('week')`, que empieza el lunes) y toma la fila del último día; la web solo promedia los jugadores de un grupo. Las fórmulas (EWMA, ACWR, monotonía, z-score, offset) siguen siendo del dominio y del worker.
+- **Alcance por la matriz:** el handler pide el `listScope` de `load_metrics.read`, `wellness.read` y `alert.read` y filtra por la intersección; como `alert.read` es solo del staff, jugadores y tutores reciben `403`. La RLS de cada tabla sigue debajo. La disponibilidad sale de `medical.availability`, que audita la lectura y nunca devuelve la causa; las notas del staff médico tampoco se exponen en el panel.
+- **Bio-banding en la vista:** agrupar no cambia la lectura. La web agrupa con `groupByBioBand` del dominio y sus esquemas (años desde el PHV: antes, en y después del pico; o % de talla adulta de Cumming et al.), con los jugadores sin dato aparte, y la elección va en la URL (`?group=`, `?week=`). Mientras el club no configure sus esquemas, se usan los del dominio.
+- **Estado del jugador:** sale de sus alertas activas (la peor severidad), no de umbrales en la web; sin alertas, "En rango". La disponibilidad y el estado se muestran siempre con ícono y texto.
+- **Navegación:** una pantalla con recursos de jugador aparece en el menú si la matriz le da al usuario algún jugador para listar (`canSomewhere` con `listScope`); el panel usa `alert.read`.
+
+## Consecuencias
+
+- El panel se arma con un pedido por semana y alcance; cambiar de grupo no vuelve a pedir nada.
+- Si el worker está atrasado, el panel muestra lo último derivado (el `asOf` de la carga lo dice); nunca mezcla un cálculo propio.
+- Las columnas de CMJ contra la base y Vmax de la maqueta no están en esta lectura: el CMJ bajo llega como alerta y la evolución de los tests es de la ficha del jugador (#67).
+- Configurar esquemas de bio-banding por club queda para la configuración (B-409); el panel ya agrupa por código de banda, así que un esquema del club entra sin cambiar el contrato.

@@ -17,6 +17,8 @@ import { ClubSelectPage } from './pages/ClubSelectPage';
 import { RouteErrorPage, NotFoundPage } from './pages/ErrorPages';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
+import { PanelPage } from './pages/panel/PanelPage';
+import { parsePanelSearch } from './pages/panel/panel-search';
 import { SupportPage } from './pages/SupportPage';
 import { parseClubsSearch, parseLoginSearch, safeRedirect } from './routing/redirect';
 import { Loading } from './ui/components';
@@ -36,7 +38,8 @@ export interface RouterContext {
  *     ├── /clubs              club selector (memberships, support mode entry)
  *     ├── /support            superadmin: reason + club of the registry
  *     └── _club               needs a club: ActiveClub, layout, ?sport&category
- *         └── /               home of the club
+ *         ├── /               home of the club
+ *         └── /panel          weekly panel (?week&group)
  * ```
  *
  * A new screen is a child of `_club` (it inherits session, club, theme and
@@ -124,9 +127,20 @@ export const homeRoute = createRoute({
   component: HomePage,
 });
 
+export const panelRoute = createRoute({
+  getParentRoute: () => clubRoute,
+  path: '/panel',
+  validateSearch: parsePanelSearch,
+  component: PanelPage,
+});
+
 export const routeTree = rootRoute.addChildren([
   loginRoute,
-  authedRoute.addChildren([clubsRoute, supportRoute, clubRoute.addChildren([homeRoute])]),
+  authedRoute.addChildren([
+    clubsRoute,
+    supportRoute,
+    clubRoute.addChildren([homeRoute, panelRoute]),
+  ]),
 ]);
 
 export function createAppRouter(services: AppServices, history?: RouterHistory) {

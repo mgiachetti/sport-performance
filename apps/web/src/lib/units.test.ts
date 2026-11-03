@@ -149,7 +149,11 @@ describe('active club and permissions', () => {
     expect(canSomewhere(coach, 'training_session', 'manage', [fixtures.M17_RUGBY])).toBe(false);
     expect(canSomewhere(coach, 'configuration', 'update', categories)).toBe(false);
     expect(canSomewhere(admin, 'configuration', 'update', categories)).toBe(true);
-    expect(canSomewhere(admin, 'player_profile', 'read', categories)).toBe(false);
+    // Player resources: some player to list (assignments, the club), by the matrix's list scope.
+    expect(canSomewhere(admin, 'player_profile', 'read', categories)).toBe(true);
+    expect(canSomewhere(coach, 'alert', 'read', categories)).toBe(true);
+    expect(canSomewhere({ ...coach, assignments: [] }, 'alert', 'read', categories)).toBe(false);
+    expect(canSomewhere({ ...coach, role: 'player' }, 'alert', 'read', categories)).toBe(false);
     expect(canSomewhere({ ...coach, clubId: null }, 'club', 'read', categories)).toBe(false);
 
     const items = [

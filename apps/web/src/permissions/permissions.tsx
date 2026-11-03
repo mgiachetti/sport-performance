@@ -2,6 +2,7 @@ import type { Category } from '@sport-performance/contracts';
 import {
   PERMISSION_RESOURCES,
   can,
+  listScope,
   type ActionOf,
   type CategoryFacts,
   type PermissionResource,
@@ -46,7 +47,9 @@ function resourceOf<K extends ResourceKind>(
  * sees: the club for club resources, any visible category for category
  * resources. For navigation ("is there anything here for me?"); a screen
  * still checks the concrete category or player with {@link useCan}. Player
- * resources need the player's facts and are never allowed here.
+ * resources count when the matrix gives the subject some players to list
+ * (`listScope`: the club, its assignments, its own player or wards); the
+ * consents and conditions of each player are checked where they are shown.
  */
 export function canSomewhere<K extends ResourceKind>(
   subject: PermissionSubject,
@@ -60,7 +63,7 @@ export function canSomewhere<K extends ResourceKind>(
       can(subject, action, resourceOf(kind, subject.clubId, { category: categoryFacts(category) })),
     );
   }
-  if (target === 'player') return false;
+  if (target === 'player') return listScope(subject, kind, action).kind !== 'none';
   return can(subject, action, resourceOf(kind, subject.clubId, {}));
 }
 

@@ -38,6 +38,7 @@ import { registerParticipationRoutes } from './participations.js';
 import { registerTrainingSessionRoutes } from './training-sessions.js';
 import { registerWellnessRoutes } from './wellness.js';
 import { registerAlertRoutes } from './alerts.js';
+import { registerPanelRoutes } from './panel.js';
 import { registerTestResultRoutes } from './test-results.js';
 import { registerTestImportRoutes } from './test-imports.js';
 import { registerTestSessionResultRoutes } from './test-sessions.js';
@@ -157,6 +158,7 @@ export const IMPLEMENTED_ENDPOINTS = [
   'listAlerts',
   'getAlert',
   'reviewAlert',
+  'getWeeklyPanel',
   'recordTestSessionResults',
   'listTestResults',
   'previewTestImport',
@@ -271,6 +273,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerParticipationRoutes(app);
   registerWellnessRoutes(app);
   registerAlertRoutes(app);
+  registerPanelRoutes(app);
   registerTestSessionResultRoutes(app);
   registerTestResultRoutes(app);
   registerTestImportRoutes(app);
