@@ -204,6 +204,13 @@
       "when": 1793677866687,
       "tag": "0028_alerts",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793685067293,
+      "tag": "0029_sync_change_record_comment",
+      "breakpoints": true
     }
   ]
 }

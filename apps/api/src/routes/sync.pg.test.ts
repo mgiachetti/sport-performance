@@ -1615,6 +1615,65 @@ describeWithPostgres('offline sync (Postgres)', (serverUrl) => {
       expect(await participationOf(session)).toMatchObject({ status: 'full', minutes: 50, rpe: 6 });
     });
 
+    it('answers an older load against a later online absent as superseded, not invalid', async () => {
+      const session = await freshSession();
+      // The administration marks the player absent online: minutes and contacts stay empty,
+      // and an empty field of an insert has no clock (nobody wrote it).
+      const online = await t.app.inject({
+        method: 'POST',
+        url: `/v1/training-sessions/${session}/participations/batch`,
+        headers: adminA.headers,
+        payload: { rows: [{ clientUuid: randomUUID(), playerId: p15, status: 'absent' }] },
+      });
+      expect(online.statusCode, online.body).toBe(200);
+      const absent = await participationOf(session);
+      expect(absent).toMatchObject({ status: 'absent', minutes: null, contacts_n: null });
+      expect(Object.keys(await clocksOf('participation', absent?.id ?? ''))).toEqual(['status']);
+      // The coach's offline batch, recorded before: its status loses, and its load goes with it.
+      const [batch] = await pushOk(coachM15, [coachBatch(session, 80)]);
+      expect(batch).toMatchObject({
+        status: 'superseded',
+        appliedFields: [],
+        supersededFields: ['rows.0.status', 'rows.0.minutes', 'rows.0.contactsN'],
+        error: null,
+      });
+      // An older edit of the load alone loses the same way.
+      const [update] = await pushOk(coachM15, [
+        {
+          hlc: hlc(90, DEVICE_B),
+          op: 'participation.update',
+          target: { id: absent?.id ?? '' },
+          body: { minutes: 40, contactsN: 5 },
+        },
+      ]);
+      expect(update).toMatchObject({
+        status: 'superseded',
+        appliedFields: [],
+        supersededFields: ['minutes', 'contactsN'],
+        error: null,
+      });
+      expect(await participationOf(session)).toMatchObject({
+        status: 'absent',
+        minutes: null,
+        contacts_n: null,
+        rpe: null,
+      });
+      expect(Object.keys(await clocksOf('participation', absent?.id ?? ''))).toEqual(['status']);
+      // A batch recorded after the absent (a clock ahead, brought to the server's time) wins
+      // with its status, and its load with it.
+      const [later] = await pushOk(coachM15, [coachBatch(session, 3600)]);
+      expect(later).toMatchObject({
+        status: 'applied',
+        appliedFields: ['rows.0.status', 'rows.0.minutes', 'rows.0.contactsN'],
+        supersededFields: [],
+      });
+      expect(await participationOf(session)).toMatchObject({
+        status: 'partial',
+        minutes: 40,
+        contacts_n: 5,
+      });
+    });
+
     it('lets an RPE recorded earlier win over the empty RPE of an online batch', async () => {
       const session = await freshSession();
       const online = await t.app.inject({

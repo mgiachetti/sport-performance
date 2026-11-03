@@ -17,7 +17,9 @@ import { participation, syncChange, testResult, wellness } from '@sport-performa
 import {
   WELLNESS_ITEMS,
   compareHlc,
+  participationCarriesLoad,
   type ClubId,
+  type ParticipationStatus,
   type SyncFieldColumn,
   type SyncFieldTable,
   type SyncOperation,
@@ -274,6 +276,34 @@ type ParticipationField = (typeof PARTICIPATION_FIELDS)[number];
 const participationColumn = (field: ParticipationField): SyncFieldColumn<'participation'> =>
   field === 'contactsN' ? 'contacts_n' : field;
 
+/** Fields of a participation that only a status with load carries (ADR 0037). */
+const LOAD_FIELDS: readonly ParticipationField[] = ['minutes', 'contactsN'];
+
+/**
+ * A status without load (`absent`, `unavailable`) that stays (the stored one,
+ * because the mutation's lost or did not come) takes the load fields of the
+ * mutation down with it: they lose too, whatever their clocks (ADR 0050). A
+ * stored `absent` has its minutes and contacts empty and without a clock (an
+ * empty field of an insert is not a write), so on their own they would win
+ * and leave a row that is `absent` with minutes, which the endpoint rejects.
+ * Superseded, like the status: the device learns the row stays as it is.
+ */
+function loadFollowsStatus(
+  split: FieldSplit<ParticipationField>,
+  storedStatus: ParticipationStatus,
+): FieldSplit<ParticipationField> {
+  if (split.winners.includes('status') || participationCarriesLoad(storedStatus)) return split;
+  const dropped = split.winners.filter((field) => LOAD_FIELDS.includes(field));
+  if (dropped.length === 0) return split;
+  return {
+    winners: split.winners.filter((field) => !LOAD_FIELDS.includes(field)),
+    // In the order of the fields, as `splitFields` answers them.
+    losers: PARTICIPATION_FIELDS.filter(
+      (field) => split.losers.includes(field) || dropped.includes(field),
+    ),
+  };
+}
+
 const rpeSubmit: Resolver<'rpe.submit'> = async ({ params, body }, ctx) => {
   const subject = await ctx.permissions.subject();
   const playerId = subject.playerId ?? null;
@@ -328,17 +358,15 @@ const participationUpdate: Resolver<'participation.update'> = async ({ target, b
   const id = await targetId(ctx.db, participation, ctx.clubId, target, 'Participation');
   await lockRows(ctx.db, 'participation', [id]);
   const [current] = await ctx.db
-    .select({ version: rowVersion(participation.updatedAt) })
+    .select({ version: rowVersion(participation.updatedAt), status: participation.status })
     .from(participation)
     .where(and(eq(participation.clubId, ctx.clubId), eq(participation.id, id)));
   if (current === undefined) throw new HttpError('not_found', 'Participation not found');
   const clocks = (await fieldClocks(ctx.db, ctx.clubId, 'participation', [id])).get(id);
   const edited = editedKeys(body, PARTICIPATION_FIELDS);
-  const { winners, losers } = splitFields<'participation', ParticipationField>(
-    clocks,
-    ctx.hlc,
-    edited,
-    participationColumn,
+  const { winners, losers } = loadFollowsStatus(
+    splitFields<'participation', ParticipationField>(clocks, ctx.hlc, edited, participationColumn),
+    current.status,
   );
   const checkOnly = winners.length === 0;
   const sent = checkOnly ? edited : winners;
@@ -416,11 +444,14 @@ const participationRecord: Resolver<'participation.record'> = async ({ params, b
       return { fields, current, edited: PARTICIPATION_FIELDS, winners: PARTICIPATION_FIELDS };
     }
     const edited = editedKeys(fields, PARTICIPATION_FIELDS);
-    const { winners, losers } = splitFields<'participation', ParticipationField>(
-      clocks.get(current.id),
-      ctx.hlc,
-      edited,
-      participationColumn,
+    const { winners, losers } = loadFollowsStatus(
+      splitFields<'participation', ParticipationField>(
+        clocks.get(current.id),
+        ctx.hlc,
+        edited,
+        participationColumn,
+      ),
+      current.status,
     );
     appliedFields.push(
       ...winners.map((field) => ({ index, field: `rows.${String(index)}.${field}` })),
