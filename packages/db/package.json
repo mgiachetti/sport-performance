@@ -34,7 +34,8 @@
   "bin": {
     "sport-performance-db-migrate": "./dist/cli/migrate.js",
     "sport-performance-db-provision-login": "./dist/cli/provision-login.js",
-    "sport-performance-db-seed": "./dist/cli/seed.js"
+    "sport-performance-db-seed": "./dist/cli/seed.js",
+    "sport-performance-db-seed-demo": "./dist/cli/seed-demo.js"
   },
   "files": [
     "dist",
@@ -50,7 +51,8 @@
     "db:generate:custom": "drizzle-kit generate --custom",
     "db:migrate": "node dist/cli/migrate.js",
     "db:provision-login": "node dist/cli/provision-login.js",
-    "db:seed": "node dist/cli/seed.js"
+    "db:seed": "node dist/cli/seed.js",
+    "db:seed:demo": "node dist/cli/seed-demo.js"
   },
   "dependencies": {
     "@sport-performance/domain": "workspace:*",

@@ -2,6 +2,7 @@ import { DEFAULT_CLUB_TIME_ZONE, type ClubId, type TimeZone } from '@sport-perfo
 import { defaultBrand } from '@sport-performance/ui-tokens';
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   foreignKey,
   index,
@@ -57,6 +58,12 @@ export interface ClubSettings {
    * by `resolveNotificationSettings` of the domain.
    */
   readonly notifications?: Readonly<Record<string, unknown>>;
+  /**
+   * Seed the demo data of a demo club (`is_demo`) was generated with (B-307,
+   * ADR 0055): the ids of the demo rows depend on it, so the seed refuses to
+   * extend a demo club with another one.
+   */
+  readonly demo?: { readonly seed: string };
 }
 
 /** `created_*`, `updated_*` and `client_uuid`, shared by `club` and every club table. */
@@ -115,6 +122,14 @@ export const club = pgTable(
      */
     logoFileId: uuid('logo_file_id'),
     settings: jsonb('settings').notNull().default({}).$type<ClubSettings>(),
+    /**
+     * A demonstration club with fictitious data (B-307, ADR 0055): the
+     * permanent staging demo and the test clubs of the demo seed. Only the
+     * owner of the migrations sets or changes it (trigger `club_demo_guard`),
+     * so the app can never turn a real club into a demo or the other way
+     * round; notifications and analytics use it to keep demo data apart.
+     */
+    isDemo: boolean('is_demo').notNull().default(false),
     ...auditColumns(),
   },
   (t) => [
