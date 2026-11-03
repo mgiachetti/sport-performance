@@ -5,6 +5,7 @@
  * aggregates of what the worker derived, the maturation projected to the
  * reference day, the availability without the cause and the active alerts.
  */
+import { PANEL_MAX_PLAYERS } from '@sport-performance/contracts';
 import type { ClubId } from '@sport-performance/domain';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import {
@@ -50,7 +51,7 @@ interface PanelBody {
       weeks: { loadAu: number; hasData: boolean; chronicWeeklyAu: number | null }[];
     };
     availability: Record<string, unknown> | null;
-    alerts: { kind: string; severity: string; messageKey: string }[];
+    alerts: { id: string; kind: string; severity: string; status: string; messageKey: string }[];
   }[];
 }
 
@@ -366,5 +367,111 @@ describeWithPostgres('weekly panel (Postgres)', (serverUrl) => {
     const current = await panelOf(adminA.headers, '');
     expect(current.week.from <= current.today && current.today <= current.week.to).toBe(true);
     expect(current.referenceDate).toBe(current.today);
+  });
+
+  /** An episode of a new rule for a player, written as the worker does (events by trigger). */
+  async function insertEpisode(
+    clubId: ClubId,
+    playerId: string,
+    code: string,
+    episode: { raisedOn: string; severity: 'warning' | 'critical' },
+  ): Promise<string> {
+    const rule = await database.admin.query<{ id: string }>(
+      `insert into alert_rule (club_id, code, kind, params)
+       values ($1, $2, 'wellness_low', '{}') returning id`,
+      [clubId, code],
+    );
+    const { rows } = await database.admin.query<{ id: string }>(
+      `insert into alert (club_id, alert_rule_id, player_id, kind, severity, current_severity,
+                          local_date, last_seen_on, resolved_on, observed_on, values)
+       values ($1, $2, $3, 'wellness_low', $5, $5, $4, $4, null, $4, '{"meanScore": 2.5}')
+       returning id`,
+      [clubId, rule.rows[0]?.id, playerId, episode.raisedOn, episode.severity],
+    );
+    return rows[0]?.id ?? '';
+  }
+
+  it('leaves dismissed alerts out and shows a past week as it was that day', async () => {
+    // Raised in the week as a warning, escalated after it: the past week shows the warning.
+    const escalated = await insertEpisode(clubA, p17, 'wellness_escalated', {
+      raisedOn: '2026-09-15',
+      severity: 'warning',
+    });
+    await database.admin.query(
+      `update alert set severity = 'critical', current_severity = 'critical',
+                        last_seen_on = '2026-10-01'
+        where id = $1`,
+      [escalated],
+    );
+    // Dismissed today (the review's day is the club's today): still open in the past week.
+    const dismissedToday = await insertEpisode(clubA, p17, 'wellness_dismissed_today', {
+      raisedOn: '2026-09-16',
+      severity: 'critical',
+    });
+    // Dismissed inside the past week: out of it too.
+    const dismissedBefore = await insertEpisode(clubA, p17, 'wellness_dismissed_before', {
+      raisedOn: '2026-09-15',
+      severity: 'critical',
+    });
+    for (const id of [dismissedToday, dismissedBefore]) {
+      await database.admin.query(
+        `update alert set status = 'dismissed', acknowledged_by = $2, acknowledged_at = now(),
+                          acknowledgement_note = 'No aplica: semana de pretemporada'
+          where id = $1`,
+        [id, adminA.userId],
+      );
+    }
+    await database.admin.query(
+      `insert into alert_event (club_id, alert_id, player_id, type, local_date, severity, note,
+                                actor_id)
+       values ($1, $2, $3, 'dismissed', '2026-09-17', 'critical', 'No aplica', $4)`,
+      [clubA, dismissedBefore, p17, adminA.userId],
+    );
+
+    const past = await panelOf(adminA.headers);
+    const aguirre = past.players.find((p) => p.playerId === p17);
+    expect(aguirre?.alerts.map(({ id, severity, status }) => ({ id, severity, status }))).toEqual(
+      expect.arrayContaining([
+        { id: escalated, severity: 'warning', status: 'open' },
+        { id: dismissedToday, severity: 'critical', status: 'open' },
+      ]),
+    );
+    expect(aguirre?.alerts).toHaveLength(2);
+
+    // This week: the escalation is current and both dismissals are out.
+    const current = await panelOf(adminA.headers, '');
+    const now = current.players.find((p) => p.playerId === p17);
+    expect(now?.alerts.map(({ id, severity }) => ({ id, severity }))).toEqual(
+      expect.arrayContaining([{ id: escalated, severity: 'critical' }]),
+    );
+    expect(now?.alerts.map((a) => a.id)).not.toContain(dismissedToday);
+    expect(now?.alerts.map((a) => a.id)).not.toContain(dismissedBefore);
+    expect(now?.alerts.every((a) => a.status !== 'dismissed')).toBe(true);
+  });
+
+  it(`refuses more than ${String(PANEL_MAX_PLAYERS)} players and asks to narrow`, async () => {
+    const adminC = await signIn(t, 'admin@club-c.example.com');
+    const clubC = await createClub(database.admin, 'club-c');
+    await createMembership(database.admin, adminC.userId, clubC, 'admin');
+    const category = await insertCategory(clubC, 'm19', 'performance');
+    const addPlayers = (from: number, to: number) =>
+      database.admin.query(
+        `with inserted as (
+           insert into player (club_id, first_name, last_name, birth_date, sex, sport, joined_on)
+           select $1, 'Juan', 'Jugador ' || n, '2008-05-04', 'male', 'rugby', '2020-01-01'
+             from generate_series($3::int, $4::int) n
+           returning id)
+         insert into player_category (club_id, player_id, category_id, valid_from)
+         select $1, id, $2, '2020-01-01' from inserted`,
+        [clubC, category, from, to],
+      );
+    // Exactly the limit fits.
+    await addPlayers(1, PANEL_MAX_PLAYERS);
+    expect((await panelOf(adminC.headers)).players).toHaveLength(PANEL_MAX_PLAYERS);
+    // One more is a bad request: the web asks to narrow by sport or category.
+    await addPlayers(PANEL_MAX_PLAYERS + 1, PANEL_MAX_PLAYERS + 1);
+    const tooMany = await panel(adminC.headers);
+    expect(tooMany.statusCode).toBe(400);
+    expect(tooMany.json<{ error: { code: string } }>().error.code).toBe('bad_request');
   });
 });

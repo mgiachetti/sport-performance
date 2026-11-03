@@ -4,7 +4,7 @@ import { defineEndpoint } from '../endpoint.js';
 import { sexSchema, sportSchema, stageSchema } from '../primitives/conventions.js';
 import { localDateSchema } from '../primitives/dates.js';
 import { categoryIdSchema, playerIdSchema } from '../primitives/ids.js';
-import { alertIdSchema, alertSeveritySchema, alertStatusSchema } from './alerts.js';
+import { alertIdSchema, alertSeveritySchema } from './alerts.js';
 import { positionIdSchema } from './categories.js';
 import { alertRuleKindSchema } from './configuration-alert-rules.js';
 
@@ -148,9 +148,13 @@ export const panelAlertSchema = z
     id: alertIdSchema,
     kind: alertRuleKindSchema,
     severity: alertSeveritySchema.meta({
-      description: 'La severidad del último día en que la regla se cumplió.',
+      description:
+        'La severidad del día de referencia: la del último día evaluado del episodio o, en una semana pasada de un episodio que siguió, la más alta que había alcanzado hasta ese día.',
     }),
-    status: alertStatusSchema,
+    status: z.enum(['open', 'acknowledged']).meta({
+      description:
+        'La revisión del staff vigente el día de referencia. Las alertas descartadas (`dismissed`: el staff dijo que no aplica) no se devuelven.',
+    }),
     raisedOn: localDateSchema,
     lastSeenOn: localDateSchema,
     messageKey: z.string().meta({ description: 'Clave del texto (`alert.<kind>.message`).' }),

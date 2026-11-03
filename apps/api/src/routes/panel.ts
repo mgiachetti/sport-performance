@@ -43,11 +43,17 @@ import { clubToday, type RequestPermissions } from '../http/permissions.js';
  * the same rule underneath.
  */
 
-/** The kinds the panel shows, each one authorized with its own cell of the matrix. */
-const PANEL_KINDS = [
+/**
+ * The kinds the panel shows, each one authorized with its own cell of the matrix. The
+ * availability is also read through `medical.availability`, which applies the same rule in the
+ * database; checking its cell here keeps the panel from showing it to a role the matrix denies.
+ * `panel.test.ts` pins that none of these cells asks for a row check (consent or condition).
+ */
+export const PANEL_KINDS = [
   ['load_metrics', 'read'],
   ['wellness', 'read'],
   ['alert', 'read'],
+  ['availability', 'read'],
 ] as const;
 
 /** Players the scope reaches, as a condition on `p` (the panel's player alias). */
@@ -87,10 +93,14 @@ function scopeCondition(scope: Exclude<ListScope, { kind: 'none' }>): SQL {
 }
 
 async function panelScope(permissions: RequestPermissions): Promise<SQL | null> {
-  const conditions: SQL[] = [];
+  // Every cell first: `listScope` answers 403 when the role's cell is a denial (players,
+  // guardians), and that answer wins over building the condition of an earlier cell.
+  const scopes: ListScope[] = [];
   for (const [kind, action] of PANEL_KINDS) {
-    // `listScope` answers 403 when the role's cell is a denial (players, guardians).
-    const scope = await permissions.listScope(kind, action);
+    scopes.push(await permissions.listScope(kind, action));
+  }
+  const conditions: SQL[] = [];
+  for (const scope of scopes) {
     if (scope.kind === 'none') return null;
     conditions.push(scopeCondition(scope));
   }
@@ -159,7 +169,8 @@ interface AlertRow extends Record<string, unknown> {
   player_id: PlayerId;
   kind: AlertRuleKind;
   current_severity: AlertSeverity;
-  status: AlertStatus;
+  /** The query leaves dismissed alerts out. */
+  status: Exclude<AlertStatus, 'dismissed'>;
   raised_on: string;
   last_seen_on: string;
   values: Record<string, number>;
@@ -339,21 +350,71 @@ async function readAvailability(
   return rows;
 }
 
+/**
+ * Alerts active on the reference day, as they were that day (ADR 0059):
+ *
+ * - **Status:** today it is the alert's own. For a past day it is the last review
+ *   (`acknowledged`/`dismissed`) or escalation (which sends a reviewed alert back to `open`)
+ *   recorded in `alert_event` on or before that day; none means `open`.
+ * - **Dismissed alerts are left out:** a dismissal says the alert does not apply, so it does
+ *   not mark the player, list them as needing attention or count in the alert figures, even
+ *   while the worker keeps the episode open. The dismissal stays in the player's alert history.
+ * - **Severity:** `current_severity` is the one of the episode's last evaluated day, so it is
+ *   the reference day's when that day is not before `last_seen_on`. Otherwise (a past week of
+ *   an episode that went on) it is the highest severity the episode had reached by that day,
+ *   from its `raised`/`escalated`/`reopened` events: a de-escalation leaves no event, so the
+ *   peak so far is the closest the history allows.
+ */
 async function readActiveAlerts(
   db: TenantDatabase,
   ids: readonly PlayerId[],
   range: PanelRange,
 ): Promise<AlertRow[]> {
   const ref = date(range.referenceDate);
+  const isToday = compareLocalDates(range.referenceDate, range.today) === 0;
   const { rows } = await db.execute<AlertRow>(sql`
-    select a.id, a.player_id, a.kind, a.current_severity, a.status,
-           a.local_date::text as raised_on, a.last_seen_on::text as last_seen_on, a.values
-      from alert a
-     where a.club_id = app.current_club_id()
-       and a.player_id = any(${sql.param([...ids])}::uuid[])
-       and a.local_date <= ${ref}
-       and (a.resolved_on is null or a.resolved_on > ${ref})
-     order by a.player_id, (a.current_severity = 'critical') desc, a.local_date desc, a.id`);
+    select x.id, x.player_id, x.kind, x.current_severity, x.status, x.raised_on, x.last_seen_on,
+           x.values
+      from (
+        select a.id, a.player_id, a.kind, a.local_date,
+               case
+                 when a.last_seen_on <= ${ref} then a.current_severity
+                 else coalesce(peak.severity, a.current_severity)
+               end as current_severity,
+               ${
+                 isToday
+                   ? sql`a.status`
+                   : sql`case review.type
+                           when 'acknowledged' then 'acknowledged'::alert_status
+                           when 'dismissed' then 'dismissed'::alert_status
+                           else 'open'::alert_status
+                         end`
+               } as status,
+               a.local_date::text as raised_on, a.last_seen_on::text as last_seen_on, a.values
+          from alert a
+          left join lateral (
+            select max(e.severity) as severity
+              from alert_event e
+             where e.club_id = a.club_id and e.alert_id = a.id
+               and e.type in ('raised', 'escalated', 'reopened')
+               and e.local_date <= ${ref}
+          ) peak on true
+          left join lateral (
+            select e.type
+              from alert_event e
+             where e.club_id = a.club_id and e.alert_id = a.id
+               and e.type in ('acknowledged', 'dismissed', 'escalated')
+               and e.local_date <= ${ref}
+             order by e.seq desc
+             limit 1
+          ) review on true
+         where a.club_id = app.current_club_id()
+           and a.player_id = any(${sql.param([...ids])}::uuid[])
+           and a.local_date <= ${ref}
+           and (a.resolved_on is null or a.resolved_on > ${ref})
+      ) x
+     where x.status <> 'dismissed'
+     order by x.player_id, (x.current_severity = 'critical') desc, x.local_date desc, x.id`);
   return rows;
 }
 

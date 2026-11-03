@@ -24900,11 +24900,16 @@
             "$ref": "#/components/schemas/AlertRuleKind"
           },
           "severity": {
-            "description": "La severidad del último día en que la regla se cumplió.",
+            "description": "La severidad del día de referencia: la del último día evaluado del episodio o, en una semana pasada de un episodio que siguió, la más alta que había alcanzado hasta ese día.",
             "$ref": "#/components/schemas/AlertSeverity"
           },
           "status": {
-            "$ref": "#/components/schemas/AlertStatus"
+            "type": "string",
+            "enum": [
+              "open",
+              "acknowledged"
+            ],
+            "description": "La revisión del staff vigente el día de referencia. Las alertas descartadas (`dismissed`: el staff dijo que no aplica) no se devuelven."
           },
           "raisedOn": {
             "type": "string",

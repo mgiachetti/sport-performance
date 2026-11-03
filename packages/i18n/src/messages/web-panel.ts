@@ -12,6 +12,8 @@ export const webPanelMessagesEsAR = {
   'panel.week.previous': 'Semana anterior',
   'panel.week.next': 'Semana siguiente',
   'panel.week.current': 'Esta semana',
+  'panel.week.pastRoster':
+    'Semana pasada: los jugadores, sus categorías y posiciones son los de hoy; los datos y las alertas, los del {date}.',
 
   // Grouping (bio-banding)
   'panel.group.label': 'Agrupar por',
@@ -83,6 +85,7 @@ export const webPanelMessagesEsAR = {
   // ACWR states
   'panel.acwr.insufficient_history': 'Historia insuficiente',
   'panel.acwr.zero_chronic_load': 'Sin carga crónica',
+  'panel.acwr.asOf': 'Último cálculo: {date}',
 
   // Status and availability (always icon + text; never the cause)
   'panel.status.inRange': 'En rango',

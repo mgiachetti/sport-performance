@@ -82,7 +82,7 @@ export function panelGroups(
   return [...banded, rest].filter((group) => group.players.length > 0);
 }
 
-/** Worst current severity of the player's active alerts, or `null` when none is active. */
+/** Worst severity of the player's active alerts on the reference day (dismissed ones never come), or `null`. */
 export function worstSeverity(player: PanelPlayer): AlertSeverity | null {
   if (player.alerts.some((alert) => alert.severity === 'critical')) return 'critical';
   return player.alerts.length > 0 ? 'warning' : null;

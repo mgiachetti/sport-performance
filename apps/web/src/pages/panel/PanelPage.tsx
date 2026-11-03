@@ -255,6 +255,11 @@ function PanelBody(props: { panel: WeeklyPanel; grouping: PanelGrouping }) {
 
   return (
     <>
+      {isCurrentWeek(panel) ? null : (
+        <Notice level="info">
+          <p>{t('panel.week.pastRoster', { date: formatLocalDate(panel.referenceDate) })}</p>
+        </Notice>
+      )}
       <div className="sp-panel-groups" role="group" aria-label={t('panel.group.tabs')}>
         <Button
           variant="secondary"
@@ -431,17 +436,21 @@ function Availability(props: { availability: PanelPlayer['availability'] }) {
     return <span className="sp-panel-muted">{t('panel.availability.unknown')}</span>;
   }
   const label = (status: AvailabilityStatus) => t(`panel.availability.${status}`);
+  // The detail is visible text (not a tooltip) so screen readers and touch screens get it too.
   return (
-    <span
-      title={t('panel.availability.detail', {
-        training: label(availability.training),
-        match: label(availability.match),
-      })}
-    >
+    <span>
       <StatusBadge
         level={AVAILABILITY_LEVELS[availability.overall]}
         label={label(availability.overall)}
       />
+      {availability.overall === 'available' ? null : (
+        <span className="sp-panel-muted sp-panel-block">
+          {t('panel.availability.detail', {
+            training: label(availability.training),
+            match: label(availability.match),
+          })}
+        </span>
+      )}
     </span>
   );
 }
@@ -493,11 +502,26 @@ function positionName(t: ReturnType<typeof useT>, player: PanelPlayer): string {
   return isMessageKey(key) ? translate(t, key) : position.code;
 }
 
-function Acwr(props: { load: PanelPlayer['load'] }) {
+function Acwr(props: { load: PanelPlayer['load']; referenceDate: LocalDate }) {
   const t = useT();
   const { load } = props;
-  if (load.acwrStatus === 'ok') return <>{formatNumber(load.acwr, { decimals: 2 })}</>;
-  return <span className="sp-panel-muted">{t(`panel.acwr.${load.acwrStatus}`)}</span>;
+  const value =
+    load.acwrStatus === 'ok' ? (
+      <>{formatNumber(load.acwr, { decimals: 2 })}</>
+    ) : (
+      <span className="sp-panel-muted">{t(`panel.acwr.${load.acwrStatus}`)}</span>
+    );
+  // The worker's last row can be older than the reference day (no load since, or the worker is
+  // behind): say from when the value is, instead of showing it as that day's.
+  if (load.asOf === null || load.asOf >= props.referenceDate) return value;
+  return (
+    <>
+      {value}
+      <span className="sp-panel-muted sp-panel-block">
+        {t('panel.acwr.asOf', { date: formatLocalDate(load.asOf) })}
+      </span>
+    </>
+  );
 }
 
 function Roster(props: {
@@ -564,7 +588,7 @@ function Roster(props: {
                       )}
                     </td>
                     <td className="is-number">
-                      <Acwr load={player.load} />
+                      <Acwr load={player.load} referenceDate={props.panel.referenceDate} />
                     </td>
                     <td>
                       <Availability availability={player.availability} />

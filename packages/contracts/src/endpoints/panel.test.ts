@@ -80,4 +80,25 @@ describe('getWeeklyPanel', () => {
     };
     expect(weeklyPanelSchema.safeParse(badStatus).success).toBe(false);
   });
+
+  it('never carries a dismissed alert', () => {
+    const [player] = panel.players;
+    if (player === undefined) throw new Error('fixture');
+    const alert = {
+      id: '0192e7a0-5c1a-7b7e-9f3a-2d4c6b8a1e02',
+      kind: 'acwr_high',
+      severity: 'critical',
+      raisedOn: '2026-11-01',
+      lastSeenOn: '2026-11-03',
+      messageKey: 'alert.acwr_high.message',
+      values: { acwrRatio: 1.45 },
+    } as const;
+    const withAlert = (status: string) => ({
+      ...panel,
+      players: [{ ...player, alerts: [{ ...alert, status }] }],
+    });
+    expect(weeklyPanelSchema.safeParse(withAlert('open')).success).toBe(true);
+    expect(weeklyPanelSchema.safeParse(withAlert('acknowledged')).success).toBe(true);
+    expect(weeklyPanelSchema.safeParse(withAlert('dismissed')).success).toBe(false);
+  });
 });

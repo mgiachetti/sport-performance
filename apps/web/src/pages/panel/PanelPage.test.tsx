@@ -1,4 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react';
+import { parseLocalDate } from '@sport-performance/domain';
 import { describe, expect, it } from 'vitest';
 import { apiError } from '../../test/fake-api';
 import * as fixtures from '../../test/fixtures';
@@ -73,7 +74,9 @@ describe('weekly panel', () => {
     expect(within(bianchi).getByText('1,46')).toBeVisible();
     // Availability as a status with icon and text, never the cause.
     expect(within(bianchi).getByText('No disponible')).toBeVisible();
-    expect(within(bianchi).getByTitle('Entrenar: Limitado · Partido: No disponible')).toBeVisible();
+    // The detail is visible text, not a tooltip (screen readers and touch screens).
+    expect(within(bianchi).getByText('Entrenar: Limitado · Partido: No disponible')).toBeVisible();
+    expect(within(rowOf('Paz, Bautista')).queryByText(/Entrenar:/)).toBeNull();
     expect(within(bianchi).getByText('Crítico')).toBeVisible();
 
     const roldan = rowOf('Roldán, Felipe');
@@ -143,6 +146,12 @@ describe('weekly panel', () => {
     await user.click(screen.getByRole('button', { name: 'Semana anterior' }));
     expect(await screen.findByText('Semana del 26/10/2026 al 01/11/2026')).toBeVisible();
     expect(screen.getByText('Cargaron bienestar en la semana')).toBeVisible();
+    // A past week says the roster is today's and the data the reference day's.
+    expect(
+      screen.getByText(
+        'Semana pasada: los jugadores, sus categorías y posiciones son los de hoy; los datos y las alertas, los del 01/11/2026.',
+      ),
+    ).toBeVisible();
     const last = api.callsTo('getWeeklyPanel').at(-1);
     expect(Object.fromEntries(last?.url.searchParams ?? [])).toEqual({
       weekOf: '2026-10-26',
@@ -152,6 +161,25 @@ describe('weekly panel', () => {
     });
     await user.click(screen.getByRole('button', { name: 'Esta semana' }));
     expect(await screen.findByText('Semana del 02/11/2026 al 08/11/2026')).toBeVisible();
+    expect(screen.queryByText(/Semana pasada:/)).toBeNull();
+  });
+
+  it('says from when an ACWR is when the last derived day is older than the reference day', async () => {
+    const players = squad().map((player) =>
+      player.lastName === 'Paz'
+        ? { ...player, load: { ...player.load, asOf: parseLocalDate('2026-10-20') } }
+        : player,
+    );
+    renderApp({
+      path: '/panel',
+      handlers: { ...signedIn(), getWeeklyPanel: () => weeklyPanel(players) },
+    });
+    const paz = await screen.findByRole('rowheader', { name: 'Paz, Bautista' });
+    const row = paz.closest('tr');
+    if (row === null) throw new Error('no row');
+    expect(within(row).getByText('1,10')).toBeVisible();
+    expect(within(row).getByText('Último cálculo: 20/10/2026')).toBeVisible();
+    expect(within(rowOf('Bianchi, Tomás')).queryByText(/Último cálculo/)).toBeNull();
   });
 
   it('explains an empty scope, too many players and errors', async () => {
