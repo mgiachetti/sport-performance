@@ -28,6 +28,8 @@ export interface ClubNotificationReport {
   readonly skipped: number;
   readonly failed: number;
   readonly retried: number;
+  /** Due outside the recipient's allowed hours: moved to the next opening. */
+  readonly deferred: number;
   readonly receipts: number;
   readonly purged: number;
   /** Due deliveries left for the next job of the club. */
@@ -63,10 +65,18 @@ export async function runClubNotifications(
     },
     { requestId },
   );
-  const empty = { sent: 0, skipped: 0, failed: 0, retried: 0, receipts: 0, more: false };
+  const empty = {
+    sent: 0,
+    skipped: 0,
+    failed: 0,
+    retried: 0,
+    deferred: 0,
+    receipts: 0,
+    more: false,
+  };
   if (planned === null) return { clubId, created: 0, purged: 0, ...empty };
 
-  const totals = { sent: 0, skipped: 0, failed: 0, retried: 0 };
+  const totals = { sent: 0, skipped: 0, failed: 0, retried: 0, deferred: 0 };
   let more = false;
   for (let round = 0; round < MAX_DELIVERY_ROUNDS; round += 1) {
     const report = await deliverDue(deps, planned.club, now, requestId);
@@ -74,6 +84,7 @@ export async function runClubNotifications(
     totals.skipped += report.skipped;
     totals.failed += report.failed;
     totals.retried += report.retried;
+    totals.deferred += report.deferred;
     more = report.more;
     if (!more) break;
   }
@@ -92,6 +103,7 @@ export async function runClubNotifications(
       result.skipped +
       result.failed +
       result.retried +
+      result.deferred +
       receipts +
       result.purged >
     0

@@ -14,8 +14,7 @@ describe('notification email', () => {
         preview="Hay una alerta crítica nueva en M17."
         heading="Alerta crítica en M17"
         body="Hay una alerta crítica nueva en M17. Revisala en el panel."
-        cta="Abrir en la web"
-        url="https://app.example.com/alerts"
+        action={{ kind: 'web', url: 'https://app.example.com/alerts', cta: 'Abrir en la web' }}
         preferences="Elegí qué avisos te llegan."
         footer="Este correo lo mandó Sport Performance."
       />,
@@ -26,6 +25,21 @@ describe('notification email', () => {
     expect(text).toContain('ALERTA CRÍTICA EN M17');
     expect(text).toContain('Elegí qué avisos te llegan.');
     expect(text).not.toContain('<');
+  });
+
+  it('sends to the app, without a link, for what is answered in the app only', async () => {
+    const { html, text } = await renderEmail(
+      <NotificationEmail
+        preview="Te falta cargar el RPE."
+        heading="Te falta cargar el RPE"
+        body="¿Qué tan duro fue el entrenamiento?"
+        action={{ kind: 'app', text: 'Cargalo desde la app.' }}
+        preferences="Elegí qué avisos te llegan."
+        footer="Este correo lo mandó Sport Performance."
+      />,
+    );
+    expect(html).not.toContain('href="http');
+    expect(text).toContain('Cargalo desde la app.');
   });
 });
 

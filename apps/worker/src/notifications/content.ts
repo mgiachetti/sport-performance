@@ -10,8 +10,13 @@ import type { NotificationClub } from './club.js';
 export interface NotificationContent {
   readonly title: string;
   readonly body: string;
-  /** Path in the app and the web (`/alerts/<id>`); the device routes the tap with it. */
+  /** Path in the app (`/alerts/<id>`); the device routes the tap with it. */
   readonly path: string;
+  /**
+   * Page of the staff web the email links to; `null` for what is answered in
+   * the app only (the player's RPE: the web is for the staff, ADR 0012).
+   */
+  readonly webPath: string | null;
   readonly priority: 'default' | 'high';
 }
 
@@ -50,6 +55,7 @@ export function notificationContent(
         title: t(`notification.${input.kind}.title`),
         body: t(`notification.${input.kind}.body`, { session: input.sessionKind }),
         path: `/training-sessions/${input.sessionId}/rpe`,
+        webPath: null,
         priority: 'default',
       };
     case 'critical_alert':
@@ -57,6 +63,7 @@ export function notificationContent(
         title: t('notification.critical_alert.title', { categoryName: input.categoryName }),
         body: t('notification.critical_alert.body', { categoryName: input.categoryName }),
         path: `/alerts/${input.alertId}`,
+        webPath: `/alerts/${input.alertId}`,
         priority: 'high',
       };
     case 'pre_training_summary': {
@@ -79,6 +86,7 @@ export function notificationContent(
                 players: input.wellness.players,
               }),
         path: `/training-sessions/${input.sessionId}`,
+        webPath: `/training-sessions/${input.sessionId}`,
         priority: 'default',
       };
     }

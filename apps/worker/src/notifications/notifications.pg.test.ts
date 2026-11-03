@@ -384,7 +384,44 @@ describe.skipIf(!hasDatabase)('notifications (Postgres 16)', () => {
       expect(email?.to).toBe(`${p.userId}@example.com`);
       expect(email?.kind).toBe('notification');
       expect(email?.text).toContain('partido');
-      expect(email?.html).toContain('https://app.example.com/training-sessions/');
+      // The RPE is answered in the app: the email does not link to the staff web.
+      expect(email?.html).not.toContain('https://app.example.com');
+      expect(email?.text).toContain('Cargalo desde la app');
+    });
+
+    it('checks again that the player is still the recipient before a deferred delivery', async () => {
+      const f = await newClub();
+      const moved = await newPlayer(f, { birthDate: '2011-04-15' });
+      const unlinked = await newPlayer(f, { birthDate: '2011-04-15' });
+      const stays = await newPlayer(f, { birthDate: '2011-04-15' });
+      // 20:00 local: the minors' requests wait for 08:00.
+      await newSession(f, '2026-03-20T23:00:00Z');
+      const s = services();
+      await run(f.clubId, at('2026-03-21T00:51:00Z'), s);
+      expect(s.push.sent).toHaveLength(0);
+      // One moved to M17 the day of the session (no participation), the other's account was unlinked.
+      await q(`update player_category set valid_to = '2026-03-20' where player_id = $1`, [
+        moved.playerId,
+      ]);
+      await q(
+        `insert into player_category (club_id, player_id, category_id, valid_from)
+         values ($1, $2, $3, '2026-03-20')`,
+        [f.clubId, moved.playerId, f.m17],
+      );
+      const other = await newUser('other');
+      await q(`insert into membership (club_id, user_id, role) values ($1, $2, 'player')`, [
+        f.clubId,
+        other,
+      ]);
+      await q('update player set user_id = $2 where id = $1', [unlinked.playerId, other]);
+
+      await run(f.clubId, at('2026-03-21T11:00:30Z'), s);
+      expect(s.push.sent.map((m) => m.to)).toEqual([stays.token]);
+      const rows = await deliveries(f.clubId);
+      const reasonOf = (userId: string) =>
+        rows.find((r) => r.user_id === userId && r.kind === 'rpe_request')?.skip_reason;
+      expect(reasonOf(moved.userId)).toBe('not_a_recipient');
+      expect(reasonOf(unlinked.userId)).toBe('not_a_recipient');
     });
 
     it('fails the job loudly on invalid club settings', async () => {
@@ -666,6 +703,97 @@ describe.skipIf(!hasDatabase)('notifications (Postgres 16)', () => {
         expect(row?.failure_code).toBe('NetworkError');
         now = new Date(now.getTime() + 60 * 60_000);
       }
+    });
+
+    it("retries a minor's failed request inside the minors' hours, never after 21:00", async () => {
+      const f = await newClub();
+      const minor = await newPlayer(f, { birthDate: '2011-04-15' });
+      // 19:08–20:38 local: asked at 20:58 local (23:58Z), two minutes before the window closes.
+      await newSession(f, '2026-03-20T22:08:00Z');
+      const s = services();
+      s.push.failing = true;
+      expect(await run(f.clubId, at('2026-03-20T23:58:00Z'), s)).toMatchObject({ retried: 1 });
+      const [failed] = await deliveries(f.clubId);
+      // The retry is due at 21:03 local.
+      expect(failed?.scheduled_for.toISOString()).toBe('2026-03-21T00:03:00.000Z');
+
+      s.push.failing = false;
+      const report = await run(f.clubId, at('2026-03-21T00:03:30Z'), s);
+      expect(report).toMatchObject({ sent: 0, deferred: 1 });
+      expect(s.push.sent).toHaveLength(0);
+      const [deferred] = await deliveries(f.clubId);
+      expect(deferred).toMatchObject({ status: 'pending', attempts: 1 });
+      // 08:00 local of the next day.
+      expect(deferred?.scheduled_for.toISOString()).toBe('2026-03-21T11:00:00.000Z');
+
+      await run(f.clubId, at('2026-03-21T11:00:30Z'), s);
+      // The deferred request, and no separate reminder.
+      expect(s.push.sent.map((m) => [m.to, m.title])).toEqual([
+        [minor.token, '¿Qué tan dura fue la sesión?'],
+      ]);
+      expect((await deliveries(f.clubId)).map((r) => [r.kind, r.status, r.attempts])).toEqual([
+        ['rpe_request', 'sent', 2],
+      ]);
+    });
+
+    it('holds a backlog after an outage to the hours, and skips what can no longer go out', async () => {
+      const f = await newClub();
+      const minor = await newPlayer(f, { birthDate: '2011-04-15' });
+      const adult = await newPlayer(f);
+      // 18:00–19:30 local: asked at 19:50 local; Expo is down.
+      await newSession(f, '2026-03-20T21:00:00Z');
+      const s = services();
+      s.push.failing = true;
+      await run(f.clubId, at('2026-03-20T22:51:00Z'), s);
+      // The worker is down until 23:30 local of the next day, the last day of the RPE window.
+      await q(
+        `update notification set status = 'sending', last_attempt_at = $2 where club_id = $1`,
+        [f.clubId, '2026-03-21T22:00:00Z'],
+      );
+      s.push.failing = false;
+      const report = await run(f.clubId, at('2026-03-22T02:30:00Z'), s);
+      // Nobody is woken up at 23:30: the next opening is after the window closes (midnight).
+      expect(s.push.sent).toHaveLength(0);
+      expect(report.sent).toBe(0);
+      const rows = await deliveries(f.clubId);
+      // The requests (recovered) and the morning reminders (planned late) of both.
+      expect(
+        rows.map((r) => [r.kind, r.user_id === minor.userId ? 'minor' : 'adult']).sort(),
+      ).toEqual([
+        ['rpe_reminder', 'adult'],
+        ['rpe_reminder', 'minor'],
+        ['rpe_request', 'adult'],
+        ['rpe_request', 'minor'],
+      ]);
+      expect(rows.filter((r) => r.user_id !== minor.userId && r.user_id !== adult.userId)).toEqual(
+        [],
+      );
+      expect(rows.map((r) => [r.status, r.skip_reason])).toEqual(
+        rows.map(() => ['skipped', 'window_closed']),
+      );
+    });
+
+    it('waits for the opening when a recovered delivery is due at night', async () => {
+      const f = await newClub();
+      const adult = await newPlayer(f);
+      await newSession(f, '2026-03-20T21:00:00Z');
+      const s = services();
+      s.push.failing = true;
+      await run(f.clubId, at('2026-03-20T22:51:00Z'), s);
+      await q(
+        `update notification set status = 'sending', last_attempt_at = $2 where club_id = $1`,
+        [f.clubId, '2026-03-20T23:00:00Z'],
+      );
+      s.push.failing = false;
+      // 23:30 local: the adults' hours closed at 22:00.
+      const report = await run(f.clubId, at('2026-03-21T02:30:00Z'), s);
+      expect(report).toMatchObject({ sent: 0, deferred: 1 });
+      const [row] = await deliveries(f.clubId);
+      expect(row).toMatchObject({ status: 'pending', failure_code: 'Interrupted' });
+      // 07:00 local.
+      expect(row?.scheduled_for.toISOString()).toBe('2026-03-21T10:00:00.000Z');
+      await run(f.clubId, at('2026-03-21T10:00:30Z'), s);
+      expect(s.push.sent.map((m) => m.to)).toEqual([adult.token]);
     });
 
     it('takes back a delivery left sending by an interrupted run', async () => {

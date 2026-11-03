@@ -1,7 +1,11 @@
 import {
   DEFAULT_RPE_WINDOW,
+  allowedHoursFor,
+  isMinorOn,
   isUndeliverableEmail,
+  nextAllowedInstant,
   rpeSubmissionWindow,
+  type AllowedHours,
   type ClubId,
   type LocalDate,
   type NotificationChannel,
@@ -43,7 +47,8 @@ import {
  * Delivery (B-328, ADR 0054), at least once and bounded:
  *
  * 1. In a transaction, due rows are claimed (`FOR UPDATE SKIP LOCKED`),
- *    checked again (`skipped` with the reason when they no longer apply),
+ *    checked again (`skipped` with the reason when they no longer apply,
+ *    moved to the next opening when outside the recipient's allowed hours),
  *    given their text and destinations, and marked `sending`.
  * 2. Outside any transaction, the providers are called.
  * 3. In a second transaction, the results: `sent`, a retry later, or
@@ -113,6 +118,8 @@ export interface DeliveryReport {
   readonly skipped: number;
   readonly failed: number;
   readonly retried: number;
+  /** Due outside the recipient's allowed hours: moved to the next opening. */
+  readonly deferred: number;
   /** More due rows than one round claims. */
   readonly more: boolean;
 }
@@ -129,10 +136,18 @@ interface SessionFacts {
   readonly categoryName: string | null;
 }
 
+interface PlayerFacts {
+  readonly userId: string | null;
+  readonly leftOn: LocalDate | null;
+  readonly birthDate: LocalDate;
+}
+
 interface Facts {
   readonly sessions: Map<string, SessionFacts>;
   readonly participations: Map<string, { status: ParticipationStatus; rpe: number | null }>;
-  readonly players: Map<PlayerId, { leftOn: LocalDate | null; birthDate: LocalDate }>;
+  readonly players: Map<PlayerId, PlayerFacts>;
+  /** `session|player` of the players in the session's category on its day. */
+  readonly inSessionCategory: Set<string>;
   readonly consented: Set<PlayerId>;
   /** Active roles of each recipient in the club. */
   readonly roles: Map<string, Set<string>>;
@@ -222,18 +237,38 @@ async function readFacts(
     ...rows.map((r) => r.player_id),
     ...[...alerts.values()].map((a) => a.playerId),
   ]);
-  const players = new Map<PlayerId, { leftOn: LocalDate | null; birthDate: LocalDate }>();
+  const players = new Map<PlayerId, PlayerFacts>();
   if (playerIds.length > 0) {
     const { rows: found } = await q.query<{
       id: PlayerId;
+      user_id: string | null;
       left_on: LocalDate | null;
       birth_date: LocalDate;
     }>(
-      `select id, left_on::text as left_on, birth_date::text as birth_date
+      `select id, user_id, left_on::text as left_on, birth_date::text as birth_date
          from player where id = any($1::uuid[])`,
       [playerIds],
     );
-    for (const p of found) players.set(p.id, { leftOn: p.left_on, birthDate: p.birth_date });
+    for (const p of found) {
+      players.set(p.id, { userId: p.user_id, leftOn: p.left_on, birthDate: p.birth_date });
+    }
+  }
+
+  // The session's category on its day, as the planning reads it (`rpeCandidates`).
+  const inSessionCategory = new Set<string>();
+  const rpeRows = rows.filter((r) => isPlayerKind(r.kind));
+  const rpeSessions = unique(rpeRows.map((r) => r.training_session_id));
+  const rpeRowPlayers = unique(rpeRows.map((r) => r.player_id));
+  if (rpeSessions.length > 0 && rpeRowPlayers.length > 0) {
+    const { rows: found } = await q.query<{ session_id: string; player_id: PlayerId }>(
+      `select distinct s.id as session_id, pc.player_id
+         from training_session s
+         join player_category pc on pc.club_id = s.club_id and pc.category_id = s.category_id
+                                and ${currentOn('pc', 's.local_date')}
+        where s.id = any($1::uuid[]) and pc.player_id = any($2::uuid[])`,
+      [rpeSessions, rpeRowPlayers],
+    );
+    for (const r of found) inSessionCategory.add(`${r.session_id}|${r.player_id}`);
   }
 
   const participations = new Map<string, { status: ParticipationStatus; rpe: number | null }>();
@@ -343,6 +378,7 @@ async function readFacts(
     sessions,
     participations,
     players,
+    inSessionCategory,
     consented,
     roles,
     alerts,
@@ -353,7 +389,19 @@ async function readFacts(
   };
 }
 
-/** Why a due row no longer applies, or its text. */
+type Checked =
+  | { readonly skip: NotificationSkipReason }
+  | { readonly defer: Date }
+  | { readonly content: NotificationContent };
+
+/**
+ * Why a due row no longer applies, when it has to wait, or its text. The
+ * recipient's allowed hours (the minors' window for a minor player) are
+ * checked here, at delivery, and not only when planning: a retry, a row
+ * recovered from an interrupted run or a backlog after an outage never goes
+ * out at a closed hour. Outside the hours the row waits for the next
+ * opening, or is skipped when that opening comes too late for it.
+ */
 function check(
   row: DueRow,
   club: NotificationClub,
@@ -361,7 +409,34 @@ function check(
   preferences: ClubPreferences,
   now: Date,
   t: Translator['t'],
-): { skip: NotificationSkipReason } | { content: NotificationContent } {
+): Checked {
+  const result = applies(row, club, facts, preferences, now, t);
+  if (!('content' in result)) return result;
+  const opening = nextAllowedInstant(now, club.timeZone, result.hours);
+  if (opening.getTime() <= now.getTime()) return { content: result.content };
+  if (result.deadline !== undefined && opening >= result.deadline.at) {
+    return { skip: result.deadline.reason };
+  }
+  return { defer: opening };
+}
+
+interface Applies {
+  readonly content: NotificationContent;
+  /** The recipient's allowed hours. */
+  readonly hours: AllowedHours;
+  /** After this instant it makes no sense any more (the RPE window closes, the session starts). */
+  readonly deadline?: { readonly at: Date; readonly reason: NotificationSkipReason };
+}
+
+/** Why a due row no longer applies, or its text and the recipient's hours. */
+function applies(
+  row: DueRow,
+  club: NotificationClub,
+  facts: Facts,
+  preferences: ClubPreferences,
+  now: Date,
+  t: Translator['t'],
+): { skip: NotificationSkipReason } | Applies {
   if (!preferences.isOn(row.user_id, row.kind, row.channel)) return { skip: 'preference_off' };
   const roles = facts.roles.get(row.user_id) ?? new Set<string>();
   switch (row.kind) {
@@ -376,10 +451,16 @@ function check(
       if (session.archived) return { skip: 'session_archived' };
       const window = rpeSubmissionWindow(session, club.timeZone, DEFAULT_RPE_WINDOW);
       if (now >= window.closesAt) return { skip: 'window_closed' };
-      if (!roles.has('player') || player.leftOn !== null) return { skip: 'not_a_recipient' };
-      const participation = facts.participations.get(
-        `${row.training_session_id ?? ''}|${row.player_id}`,
-      );
+      // Still the player's own account (the account may have been unlinked or moved).
+      if (!roles.has('player') || player.leftOn !== null || player.userId !== row.user_id) {
+        return { skip: 'not_a_recipient' };
+      }
+      const key = `${row.training_session_id ?? ''}|${row.player_id}`;
+      const participation = facts.participations.get(key);
+      // In the session's category on its day, or with a participation recorded (as when planned).
+      if (participation === undefined && !facts.inSessionCategory.has(key)) {
+        return { skip: 'not_a_recipient' };
+      }
       if (participation !== undefined && !participationCarriesLoad(participation.status)) {
         return { skip: 'not_a_recipient' };
       }
@@ -393,6 +474,8 @@ function check(
           sessionId: row.training_session_id ?? '',
           sessionKind: session.kind,
         }),
+        hours: allowedHoursFor(club.settings, isMinorOn(player.birthDate, club.today)),
+        deadline: { at: window.closesAt, reason: 'window_closed' },
       };
     }
     case 'critical_alert': {
@@ -409,6 +492,8 @@ function check(
           alertId: row.alert_id ?? '',
           categoryName: facts.playerCategoryName.get(alert.playerId) ?? '',
         }),
+        // Waits for the opening; it is checked again then (skipped if reviewed or resolved).
+        hours: club.settings.allowedHours,
       };
     }
     case 'pre_training_summary': {
@@ -439,6 +524,8 @@ function check(
             ? { submitted: counts.wellnessSubmitted, players: counts.players }
             : null,
         }),
+        hours: club.settings.allowedHours,
+        deadline: { at: session.startsAt, reason: 'session_started' },
       };
     }
   }
@@ -465,6 +552,7 @@ async function recoverInterrupted(tx: ClubTransaction, now: Date): Promise<void>
 interface ClaimResult {
   readonly claimed: Claimed[];
   readonly skipped: number;
+  readonly deferred: number;
   readonly more: boolean;
 }
 
@@ -487,7 +575,7 @@ async function claim(
   );
   const more = rows.length > CLAIM_BATCH;
   const due = rows.slice(0, CLAIM_BATCH);
-  if (due.length === 0) return { claimed: [], skipped: 0, more: false };
+  if (due.length === 0) return { claimed: [], skipped: 0, deferred: 0, more: false };
 
   const facts = await readFacts(tx, club, due, now);
   const pushUsers = unique(due.filter((r) => r.channel === 'push').map((r) => r.user_id));
@@ -519,10 +607,16 @@ async function claim(
   const skip = (id: string, reason: NotificationSkipReason) => {
     skips.set(reason, [...(skips.get(reason) ?? []), id]);
   };
+  const deferred = new Map<number, string[]>();
   for (const row of due) {
     const result = check(row, club, facts, preferences, now, t);
     if ('skip' in result) {
       skip(row.id, result.skip);
+      continue;
+    }
+    if ('defer' in result) {
+      const at = result.defer.getTime();
+      deferred.set(at, [...(deferred.get(at) ?? []), row.id]);
       continue;
     }
     if (row.channel === 'push') {
@@ -551,6 +645,15 @@ async function claim(
       [ids, reason, now],
     );
   }
+  // Outside the recipient's hours: back to waiting, until the next opening.
+  let deferredCount = 0;
+  for (const [at, ids] of deferred) {
+    deferredCount += ids.length;
+    await tx.client.query(`update notification set scheduled_for = $2 where id = any($1::uuid[])`, [
+      ids,
+      new Date(at),
+    ]);
+  }
   if (claimed.length > 0) {
     await tx.client.query(
       `update notification set status = 'sending', attempts = attempts + 1, last_attempt_at = $2
@@ -558,7 +661,7 @@ async function claim(
       [claimed.map((c) => c.row.id), now],
     );
   }
-  return { claimed, skipped, more };
+  return { claimed, skipped, deferred: deferredCount, more };
 }
 
 // ---------------------------------------------------------------------------
@@ -601,14 +704,28 @@ async function sendPush(
     for (const c of claimed) outcomes.set(c.row.id, { kind: 'retry', code });
     return;
   }
+  const results: TicketRecord[] = [];
   sent.forEach((ticket, index) => {
     const owner = owners[index];
-    if (owner !== undefined) tickets.push({ ...owner, ticket });
+    if (owner === undefined) return;
+    results.push({ ...owner, ticket });
+    // Only what Expo took has a ticket to store; an unsent message is retried.
+    if (ticket.status !== 'unsent') tickets.push({ ...owner, ticket });
   });
+  const unsent = results.filter((r) => r.ticket.status === 'unsent');
+  if (unsent.length > 0) {
+    logger.warn({ clubId: club.clubId, messages: unsent.length }, 'push send partly failed');
+  }
   for (const c of claimed) {
-    const own = tickets.filter((t) => t.notificationId === c.row.id).map((t) => t.ticket);
+    const own = results.filter((t) => t.notificationId === c.row.id).map((t) => t.ticket);
+    // Sent when one device took it: retrying the others would repeat it on that one.
     if (own.some((t) => t.status === 'ok')) {
       outcomes.set(c.row.id, { kind: 'sent' });
+      continue;
+    }
+    const notSent = own.find((t) => t.status === 'unsent');
+    if (notSent !== undefined) {
+      outcomes.set(c.row.id, { kind: 'retry', code: notSent.code });
       continue;
     }
     const codes = own.flatMap((t) => (t.status === 'error' ? [t.code] : []));
@@ -632,15 +749,21 @@ async function sendEmails(
   const appName = t('email.appName');
   for (const c of claimed) {
     if (c.emailTo === null) continue;
-    const url = `${webAppUrl}${c.content.path}`;
+    const { webPath } = c.content;
     try {
       const { html, text } = await renderEmail(
         createElement(NotificationEmail, {
           preview: c.content.body,
           heading: c.content.title,
           body: c.content.body,
-          cta: t('email.notification.cta'),
-          url,
+          action:
+            webPath === null
+              ? { kind: 'app', text: t('email.notification.openApp') }
+              : {
+                  kind: 'web',
+                  url: `${webAppUrl}${webPath}`,
+                  cta: t('email.notification.cta'),
+                },
           preferences: t('email.notification.preferences'),
           footer: t('email.footer', { appName }),
         }),
@@ -700,6 +823,7 @@ async function record(
   }
   for (const record of tickets) {
     const { ticket } = record;
+    if (ticket.status === 'unsent') continue;
     await tx.client.query(
       `insert into push_ticket (club_id, notification_id, push_token_id, ticket_id, status, error_code)
        values (app.current_club_id(), $1, $2, $3, $4, $5)`,
@@ -739,13 +863,13 @@ export async function deliverDue(
   requestId: string | undefined,
 ): Promise<DeliveryReport> {
   const { t } = translatorFor(club);
-  const { claimed, skipped, more } = await inClubTransaction(
+  const { claimed, skipped, deferred, more } = await inClubTransaction(
     deps.pool,
     club.clubId,
     async (tx) => claim(tx, club, await ClubPreferences.read(tx), now, t),
     { requestId },
   );
-  if (claimed.length === 0) return { sent: 0, skipped, failed: 0, retried: 0, more };
+  if (claimed.length === 0) return { sent: 0, skipped, deferred, failed: 0, retried: 0, more };
 
   const outcomes = new Map<string, Outcome>();
   const tickets: TicketRecord[] = [];
@@ -770,7 +894,7 @@ export async function deliverDue(
     (tx) => record(tx, claimed, outcomes, tickets, now),
     { requestId },
   );
-  return { ...counts, skipped, more };
+  return { ...counts, skipped, deferred, more };
 }
 
 /**

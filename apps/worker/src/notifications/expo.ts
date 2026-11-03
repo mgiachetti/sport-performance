@@ -22,15 +22,26 @@ export interface PushMessage {
   readonly priority: 'default' | 'high';
 }
 
+/**
+ * What happened to one message: `ok` and `error` are Expo's tickets; `unsent`
+ * means the request that carried it failed (network, 5xx, a body we do not
+ * understand), so Expo never took it and it may be sent again.
+ */
 export type PushTicket =
   | { readonly status: 'ok'; readonly id: string }
-  | { readonly status: 'error'; readonly code: string };
+  | { readonly status: 'error'; readonly code: string }
+  | { readonly status: 'unsent'; readonly code: string };
 
 export type PushReceipt =
   { readonly status: 'ok' } | { readonly status: 'error'; readonly code: string };
 
 /** Where push notifications go: Expo in deployments, a fake in tests. */
 export interface PushService {
+  /**
+   * One ticket per message, in order. A request that fails after earlier ones
+   * went through marks its messages (and the rest) `unsent` instead of
+   * throwing, so the tickets of what was sent are never lost.
+   */
   send(messages: readonly PushMessage[]): Promise<PushTicket[]>;
   /** Receipts that are ready, by ticket id; ids without one yet are absent. */
   receipts(ticketIds: readonly string[]): Promise<Map<string, PushReceipt>>;
@@ -125,10 +136,15 @@ export class ExpoPushService implements PushService {
 
   async send(messages: readonly PushMessage[]): Promise<PushTicket[]> {
     const tickets: PushTicket[] = [];
+    const unsent = (from: number, code: string): PushTicket[] => {
+      for (let j = from; j < messages.length; j += 1) tickets.push({ status: 'unsent', code });
+      return tickets;
+    };
     for (let i = 0; i < messages.length; i += EXPO_SEND_CHUNK) {
       const chunk = messages.slice(i, i + EXPO_SEND_CHUNK);
-      const parsed = sendResponseSchema.safeParse(
-        await this.#post(
+      let answer: unknown;
+      try {
+        answer = await this.#post(
           'send',
           chunk.map((m) => ({
             to: m.to,
@@ -138,10 +154,15 @@ export class ExpoPushService implements PushService {
             priority: m.priority,
             sound: 'default',
           })),
-        ),
-      );
+        );
+      } catch (error) {
+        // This chunk and the following ones were not sent: Expo is not answering.
+        return unsent(i, error instanceof PushDeliveryError ? error.code : 'UnknownError');
+      }
+      const parsed = sendResponseSchema.safeParse(answer);
       if (!parsed.success || parsed.data.data.length !== chunk.length) {
-        throw new PushDeliveryError('Expo push answered an unexpected body', 'InvalidResponse');
+        // Without tickets what Expo took cannot be told apart: unsent, a retry may repeat it.
+        return unsent(i, 'InvalidResponse');
       }
       for (const ticket of parsed.data.data) {
         tickets.push(

@@ -174,6 +174,7 @@ export const esAR = {
   'notification.pre_training_summary.bodyWithoutWellness':
     'A las {time}. Alertas abiertas: {critical, plural, =0 {ninguna crítica} one {# crítica} other {# críticas}} y {warning, plural, =0 {ninguna de atención} one {# de atención} other {# de atención}}.',
   'email.notification.cta': 'Abrir en la web',
+  'email.notification.openApp': 'Cargalo desde la app, en la sesión.',
   'email.notification.preferences':
     'Elegí qué avisos te llegan y por dónde en Preferencias de notificaciones, en la app o en la web.',
 

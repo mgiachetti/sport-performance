@@ -91,7 +91,7 @@ describe('ExpoPushService', () => {
     ]);
   });
 
-  it('turns HTTP errors, bodies it does not understand and network errors into a code', async () => {
+  it('turns HTTP errors, bodies it does not understand and network errors into unsent tickets', async () => {
     const cases: [() => Response | Promise<never>, string][] = [
       [() => json({ errors: [] }, 503), 'HTTP_503'],
       [() => json({ data: [] }), 'InvalidResponse'],
@@ -103,12 +103,39 @@ describe('ExpoPushService', () => {
         const result = answer();
         return result instanceof Response ? Promise.resolve(result) : result;
       }) as typeof globalThis.fetch;
-      const error = await new ExpoPushService({ fetch })
-        .send([message('t')])
-        .catch((e: unknown) => e);
-      expect(error).toBeInstanceOf(PushDeliveryError);
-      expect((error as PushDeliveryError).code).toBe(code);
-      expect((error as Error).message).not.toContain('ExponentPushToken');
+      const tickets = await new ExpoPushService({ fetch }).send([message('t'), message('u')]);
+      expect(tickets).toEqual([
+        { status: 'unsent', code },
+        { status: 'unsent', code },
+      ]);
     }
+    // The receipts still throw: nothing was lost.
+    const error = await new ExpoPushService({
+      fetch: () => Promise.resolve(json({}, 502)),
+    })
+      .receipts(['a'])
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(PushDeliveryError);
+    expect((error as PushDeliveryError).code).toBe('HTTP_502');
+    expect((error as Error).message).not.toContain('ExponentPushToken');
+  });
+
+  it('keeps the tickets of the chunks sent when a later chunk fails', async () => {
+    let call = 0;
+    const { fetch, calls } = fakeFetch((c) => {
+      call += 1;
+      if (call === 2) return json({ errors: [] }, 503);
+      return json({ data: (c.body as { to: string }[]).map((m) => ({ status: 'ok', id: m.to })) });
+    });
+    const messages = Array.from({ length: 250 }, (_, i) => message(`t${String(i)}`));
+    const tickets = await new ExpoPushService({ fetch }).send(messages);
+    // The third chunk is not tried once Expo failed.
+    expect(calls).toHaveLength(2);
+    expect(tickets).toHaveLength(250);
+    expect(tickets.slice(0, 100).every((t) => t.status === 'ok')).toBe(true);
+    expect(tickets[0]).toEqual({ status: 'ok', id: 't0' });
+    expect(tickets.slice(100)).toEqual(
+      Array.from({ length: 150 }, () => ({ status: 'unsent', code: 'HTTP_503' })),
+    );
   });
 });

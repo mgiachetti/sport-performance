@@ -233,8 +233,9 @@ REVOKE ALL ON FUNCTION "app"."worker_push_tokens"(text[]) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION "app"."worker_push_tokens"(text[]) TO "sport_performance_worker";
 --> statement-breakpoint
 
--- Forgets a token Expo reports as no longer registered (the app was uninstalled), only for a
--- member of the club of the job. True if it was there.
+-- Forgets a token Expo reports as no longer registered (the app was uninstalled), only for an
+-- active member of the club of the job (the members `app.worker_push_tokens` reads). True if
+-- it was there.
 CREATE FUNCTION "app"."worker_forget_push_token"(token_id uuid) RETURNS boolean
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp AS $$
@@ -242,7 +243,8 @@ BEGIN
   DELETE FROM "public"."push_token" t
    WHERE t.id = token_id
      AND EXISTS (SELECT 1 FROM "public"."membership" m
-                  WHERE m.club_id = "app"."current_club_id"() AND m.user_id = t.user_id);
+                  WHERE m.club_id = "app"."current_club_id"() AND m.user_id = t.user_id
+                    AND m.ended_at IS NULL);
   RETURN FOUND;
 END;
 $$;
