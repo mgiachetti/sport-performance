@@ -7,7 +7,7 @@ import {
 } from '@sport-performance/domain';
 import { randomBytes } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { ConfigError, configSummary, loadConfig } from './config.js';
+import { ConfigError, configSummary, isReservedEmailDomain, loadConfig } from './config.js';
 import { planLoadDaily, type ParticipationLoad } from './derived/load-rows.js';
 import {
   FILE_SCHEDULES,
@@ -102,8 +102,11 @@ describe('loadConfig', () => {
       resend: null,
       webAppUrl: 'http://localhost:5173',
       expoAccessToken: undefined,
+      demoEmailDomains: [],
     });
-    expect(configSummary(local)).toMatchObject({ notifications: { email: 'log' } });
+    expect(configSummary(local)).toMatchObject({
+      notifications: { email: 'log', demoEmailDomains: 0 },
+    });
     expect(loadConfig({ ...base, NOTIFICATIONS: 'off' }).notifications).toBeNull();
     expect(() =>
       loadConfig({ ...base, RESEND_API_KEY: `re_${randomBytes(8).toString('hex')}` }),
@@ -128,6 +131,38 @@ describe('loadConfig', () => {
     ).toThrow(/WEB_APP_URL: must be https/);
     // Off: nothing to send, nothing required.
     expect(loadConfig({ ...production, NOTIFICATIONS: 'off' }).notifications).toBeNull();
+  });
+
+  it('reads the catch-all domains of the demo clubs (#177), never a reserved one', () => {
+    const domains = (value: string) =>
+      loadConfig({ ...base, DEMO_NOTIFICATION_EMAIL_DOMAINS: value }).notifications
+        ?.demoEmailDomains;
+    expect(domains(' Demo.Club.app , staging-mail.club.app,demo.club.app,')).toEqual([
+      'demo.club.app',
+      'staging-mail.club.app',
+    ]);
+    const summary = configSummary(
+      loadConfig({ ...base, DEMO_NOTIFICATION_EMAIL_DOMAINS: 'demo.club.app' }),
+    );
+    expect(summary).toMatchObject({ notifications: { demoEmailDomains: 1 } });
+    expect(JSON.stringify(summary)).not.toContain('demo.club.app');
+    for (const reserved of ['example.com', 'mail.example.org', 'demo.test', 'club.invalid']) {
+      expect(() => domains(reserved)).toThrow(
+        /DEMO_NOTIFICATION_EMAIL_DOMAINS: reserved domains never receive email/,
+      );
+    }
+    for (const invalid of ['user@demo.club.app', 'localhost', 'demo club.app', 'https://x.app']) {
+      expect(() => domains(invalid)).toThrow(/DEMO_NOTIFICATION_EMAIL_DOMAINS: expects/);
+    }
+  });
+
+  it('knows the reserved email domains (RFC 2606, RFC 6761)', () => {
+    expect(isReservedEmailDomain('example.com')).toBe(true);
+    expect(isReservedEmailDomain('Sub.Example.NET')).toBe(true);
+    expect(isReservedEmailDomain('no-email.invalid')).toBe(true);
+    expect(isReservedEmailDomain('demo.example')).toBe(true);
+    expect(isReservedEmailDomain('examples.com')).toBe(false);
+    expect(isReservedEmailDomain('demo.club.app')).toBe(false);
   });
 });
 

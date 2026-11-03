@@ -17,6 +17,49 @@ const MIN_DATABASE_PASSWORD_LENGTH = 16;
 /** The web app of `pnpm dev` (the same default as the API's). */
 const LOCAL_WEB_URL = 'http://localhost:5173';
 
+/** A lowercase DNS name with at least two labels (`demo.club.app`). */
+const DOMAIN_NAME = /^(?=.{4,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
+
+/**
+ * Domains reserved by RFC 2606 / RFC 6761 that never receive email: a demo
+ * catch-all among them would only bounce (the demo's own accounts are
+ * `@example.com`, ADR 0055).
+ */
+export function isReservedEmailDomain(domain: string): boolean {
+  const d = domain.toLowerCase();
+  if (['example.com', 'example.net', 'example.org'].some((r) => d === r || d.endsWith(`.${r}`))) {
+    return true;
+  }
+  const tld = d.slice(d.lastIndexOf('.') + 1);
+  return ['example', 'invalid', 'test', 'localhost', 'local'].includes(tld);
+}
+
+/** The comma-separated domains of `DEMO_NOTIFICATION_EMAIL_DOMAINS`, lowercase and unique. */
+const demoEmailDomains = z
+  .string()
+  .max(2000)
+  .transform((value, ctx) => {
+    const domains = [
+      ...new Set(
+        value
+          .split(',')
+          .map((d) => d.trim().toLowerCase())
+          .filter((d) => d !== ''),
+      ),
+    ];
+    for (const domain of domains) {
+      if (!DOMAIN_NAME.test(domain)) {
+        ctx.addIssue({ code: 'custom', message: 'expects comma-separated domain names' });
+        return z.NEVER;
+      }
+      if (isReservedEmailDomain(domain)) {
+        ctx.addIssue({ code: 'custom', message: 'reserved domains never receive email' });
+        return z.NEVER;
+      }
+    }
+    return domains;
+  });
+
 /**
  * Environment variables of the worker, documented in `apps/worker/.env.example`.
  * Secrets (`DATABASE_URL`, `SENTRY_DSN`) never appear in error messages or logs.
@@ -61,6 +104,11 @@ export const envSchema = z
     EXPO_ACCESS_TOKEN: z.string().min(10).max(256).optional(),
     /** `off`: no notifications at all (a staging copy of production data, for example). */
     NOTIFICATIONS: z.enum(['on', 'off']).default('on'),
+    /**
+     * Demo clubs (`club.is_demo`, ADR 0055) deliver nothing, except to users
+     * whose email is of one of these domains (catch-all mailboxes of staging).
+     */
+    DEMO_NOTIFICATION_EMAIL_DOMAINS: demoEmailDomains.default([]),
   })
   .superRefine((env, ctx) => {
     // The bucket of the file retention job (ADR 0044): all of its variables or none.
@@ -133,6 +181,8 @@ export interface WorkerConfig {
     readonly resend: { readonly apiKey: string; readonly from: string } | null;
     readonly webAppUrl: string;
     readonly expoAccessToken: string | undefined;
+    /** The only domains a demo club delivers to; empty = a demo club delivers nothing. */
+    readonly demoEmailDomains: readonly string[];
   } | null;
 }
 
@@ -184,6 +234,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): WorkerConfig {
                 : { apiKey: e.RESEND_API_KEY, from: e.EMAIL_FROM },
             webAppUrl: (e.WEB_APP_URL ?? LOCAL_WEB_URL).replace(/\/+$/, ''),
             expoAccessToken: e.EXPO_ACCESS_TOKEN,
+            demoEmailDomains: e.DEMO_NOTIFICATION_EMAIL_DOMAINS,
           },
     sentry:
       e.SENTRY_DSN === undefined
@@ -208,6 +259,10 @@ export function configSummary(config: WorkerConfig): Record<string, unknown> {
     notifications:
       config.notifications === null
         ? null
-        : { email: config.notifications.resend === null ? 'log' : 'resend' },
+        : {
+            email: config.notifications.resend === null ? 'log' : 'resend',
+            // How many, not which: the domains say little, but the summary stays minimal.
+            demoEmailDomains: config.notifications.demoEmailDomains.length,
+          },
   };
 }

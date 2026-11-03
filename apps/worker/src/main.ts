@@ -77,6 +77,7 @@ async function main(): Promise<void> {
                 ? new LogEmailTransport(logger)
                 : new ResendEmailTransport(config.notifications.resend),
             webAppUrl: config.notifications.webAppUrl,
+            demoEmailDomains: config.notifications.demoEmailDomains,
           },
   });
   if (config.notifications === null) logger.warn('NOTIFICATIONS=off: nothing is notified');
