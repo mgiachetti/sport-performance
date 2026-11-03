@@ -4,9 +4,11 @@
  * order on SIGTERM / SIGINT (Railway sends SIGTERM on every deploy).
  */
 import { assertConnectionRole, createPool, DatabaseRoleError } from '@sport-performance/db';
+import { LogEmailTransport, ResendEmailTransport } from '@sport-performance/email';
 import { createS3Storage } from '@sport-performance/storage';
 import { ConfigError, configSummary, loadConfig } from './config.js';
 import { createLogger, disabledErrorReporter, sentryErrorReporter } from './observability.js';
+import { ExpoPushService } from './notifications/index.js';
 import { startWorker } from './worker.js';
 
 async function main(): Promise<void> {
@@ -65,7 +67,22 @@ async function main(): Promise<void> {
     clubConcurrency: config.clubConcurrency,
     jobQueuePoolMax: config.jobQueue.poolMax,
     storage: config.storage === null ? null : createS3Storage(config.storage),
+    notifications:
+      config.notifications === null
+        ? null
+        : {
+            push: new ExpoPushService({ accessToken: config.notifications.expoAccessToken }),
+            email:
+              config.notifications.resend === null
+                ? new LogEmailTransport(logger)
+                : new ResendEmailTransport(config.notifications.resend),
+            webAppUrl: config.notifications.webAppUrl,
+          },
   });
+  if (config.notifications === null) logger.warn('NOTIFICATIONS=off: nothing is notified');
+  else if (config.notifications.resend === null) {
+    logger.warn('no RESEND_API_KEY: notification emails are written to the log');
+  }
   logger.info({ config: configSummary(config) }, 'worker ready');
 
   let stopping = false;

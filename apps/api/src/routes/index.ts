@@ -25,6 +25,7 @@ import {
 import { registerHealthRoutes, type HealthOptions } from './health.js';
 import { registerInvitationRoutes } from './invitations.js';
 import { registerMeRoutes } from './me.js';
+import { registerNotificationRoutes } from './notifications.js';
 import { registerMemberRoutes } from './members.js';
 import { registerOpenApiRoute } from './openapi.js';
 import { registerReferenceValueRoutes } from './reference-values.js';
@@ -58,6 +59,10 @@ export const IMPLEMENTED_ENDPOINTS = [
   'listMySessions',
   'revokeMySession',
   'revokeMyOtherSessions',
+  'registerMyPushToken',
+  'unregisterMyPushToken',
+  'getMyNotificationPreferences',
+  'updateMyNotificationPreferences',
   'createInvitation',
   'listInvitations',
   'revokeInvitation',
@@ -278,6 +283,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerFileRoutes(app, options.files);
   registerRosterImportRoutes(app);
   registerDataSubjectRightsRoutes(app);
+  registerNotificationRoutes(app);
   // Last of the club data: the push runs the handlers of the routes above.
   registerSyncRoutes(app);
   if (options.auth !== undefined) {

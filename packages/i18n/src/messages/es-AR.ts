@@ -156,6 +156,27 @@ export const esAR = {
   'email.newSignIn.ifNotYou':
     'Si no fuiste vos, entrá a la app o a la web, abrí Sesiones activas y cerrá esa sesión. Para ingresar hace falta el código que llega a este correo: revisá quién más puede leerlo.',
 
+  // Notifications (B-328): `notification.<kind>.title|body`, the same text for push and email.
+  // Operational nudges only: never health data, metric values or a player's name next to an alert.
+  'notification.rpe_request.title': '¿Qué tan dura fue la sesión?',
+  'notification.rpe_request.body':
+    '{session, select, match {Contanos cómo te fue en el partido: cargar el RPE lleva 10 segundos.} other {Contanos cómo te fue en el entrenamiento: cargar el RPE lleva 10 segundos.}}',
+  'notification.rpe_reminder.title': 'Te falta cargar el RPE',
+  'notification.rpe_reminder.body':
+    '{session, select, match {¿Qué tan duro fue el partido de ayer?} other {¿Qué tan duro fue el entrenamiento de ayer?}} Cargalo hoy, antes de que cierre.',
+  'notification.critical_alert.title': 'Alerta crítica en {categoryName}',
+  'notification.critical_alert.body':
+    'Hay una alerta crítica nueva en {categoryName}. Revisala en el panel antes de planificar la carga.',
+  'notification.pre_training_summary.title':
+    '{categoryName}: {session, select, match {antes del partido} other {antes de entrenar}}',
+  'notification.pre_training_summary.body':
+    'A las {time}. Alertas abiertas: {critical, plural, =0 {ninguna crítica} one {# crítica} other {# críticas}} y {warning, plural, =0 {ninguna de atención} one {# de atención} other {# de atención}}. Bienestar cargado: {wellnessSubmitted} de {players}.',
+  'notification.pre_training_summary.bodyWithoutWellness':
+    'A las {time}. Alertas abiertas: {critical, plural, =0 {ninguna crítica} one {# crítica} other {# críticas}} y {warning, plural, =0 {ninguna de atención} one {# de atención} other {# de atención}}.',
+  'email.notification.cta': 'Abrir en la web',
+  'email.notification.preferences':
+    'Elegí qué avisos te llegan y por dónde en Preferencias de notificaciones, en la app o en la web.',
+
   // Roles
   'role.player': 'Jugador/a',
   'role.parent': 'Madre, padre o tutor/a',

@@ -21,6 +21,11 @@ export const QUEUES = {
   filesPurgeClubDead: 'files-purge-club-dead',
   /** Once a day: every club's file retention. */
   filesDaily: 'files-daily',
+  /** Plan and deliver the notifications of one club (B-328, ADR 0054). */
+  notificationsClub: 'notifications-club',
+  notificationsClubDead: 'notifications-club-dead',
+  /** Every minute: every club's notifications (due times are minutes apart). */
+  notificationsSweep: 'notifications-sweep',
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -82,12 +87,37 @@ export const QUEUE_DEFINITIONS: readonly Queue[] = [
     expireInSeconds: 10 * MINUTE,
     deleteAfterSeconds: 7 * DAY,
   },
+  { name: QUEUES.notificationsClubDead, policy: 'standard', deleteAfterSeconds: 30 * DAY },
+  {
+    // A retry soon: a lost minute delays a nudge, and each delivery has its own attempts.
+    name: QUEUES.notificationsClub,
+    policy: 'stately',
+    retryLimit: 5,
+    retryDelay: 30,
+    retryBackoff: true,
+    retryDelayMax: 15 * MINUTE,
+    expireInSeconds: 5 * MINUTE,
+    deleteAfterSeconds: DAY,
+    deadLetter: QUEUES.notificationsClubDead,
+  },
+  {
+    name: QUEUES.notificationsSweep,
+    policy: 'stately',
+    retryLimit: 0,
+    expireInSeconds: 2 * MINUTE,
+    deleteAfterSeconds: DAY,
+  },
 ];
 
 /** Cron schedules (UTC; each club job computes "the day" in the club's own zone). */
 export const SCHEDULES = [
   { queue: QUEUES.sweep, cron: '* * * * *' },
   { queue: QUEUES.daily, cron: '5 * * * *' },
+] as const;
+
+/** Notifications: every minute, when the worker sends them (B-328). */
+export const NOTIFICATION_SCHEDULES = [
+  { queue: QUEUES.notificationsSweep, cron: '* * * * *' },
 ] as const;
 
 /** File retention: once a day, only when the bucket is configured. */
@@ -106,11 +136,12 @@ export function parseRefreshClubJob(data: unknown): RefreshClubJob {
 
 /**
  * Creates the queues (idempotent) and the cron schedules. Without a bucket
- * the file retention schedule is removed (nothing to purge against).
+ * the file retention schedule is removed (nothing to purge against); without
+ * notification services, the notifications schedule.
  */
 export async function setUpQueues(
   boss: PgBoss,
-  options: { readonly files: boolean },
+  options: { readonly files: boolean; readonly notifications: boolean },
 ): Promise<void> {
   const existing = new Set((await boss.getQueues()).map((q) => q.name));
   for (const { name, ...options } of QUEUE_DEFINITIONS) {
@@ -133,6 +164,10 @@ export async function setUpQueues(
   for (const { queue, cron } of SCHEDULES) await boss.schedule(queue, cron, {}, { tz: 'UTC' });
   for (const { queue, cron } of FILE_SCHEDULES) {
     if (options.files) await boss.schedule(queue, cron, {}, { tz: 'UTC' });
+    else await boss.unschedule(queue);
+  }
+  for (const { queue, cron } of NOTIFICATION_SCHEDULES) {
+    if (options.notifications) await boss.schedule(queue, cron, {}, { tz: 'UTC' });
     else await boss.unschedule(queue);
   }
 }

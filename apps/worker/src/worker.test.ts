@@ -11,6 +11,7 @@ import { ConfigError, configSummary, loadConfig } from './config.js';
 import { planLoadDaily, type ParticipationLoad } from './derived/load-rows.js';
 import {
   FILE_SCHEDULES,
+  NOTIFICATION_SCHEDULES,
   QUEUES,
   QUEUE_DEFINITIONS,
   SCHEDULES,
@@ -80,12 +81,51 @@ describe('loadConfig', () => {
         STORAGE_BUCKET: 'sp-files',
         STORAGE_ACCESS_KEY_ID: randomBytes(10).toString('hex'),
         STORAGE_SECRET_ACCESS_KEY: randomBytes(30).toString('base64url'),
+        RESEND_API_KEY: `re_${randomBytes(20).toString('hex')}`,
+        EMAIL_FROM: 'Sport Performance <avisos@example.com>',
+        WEB_APP_URL: 'https://app.example.com/',
       }),
     ).toMatchObject({
       version: 'abc123',
       sentry: { environment: 'staging', release: 'abc123' },
       storage: { bucket: 'sp-files', endpoint: 'https://storage.example.com' },
+      notifications: {
+        webAppUrl: 'https://app.example.com',
+        resend: { from: 'Sport Performance <avisos@example.com>' },
+      },
     });
+  });
+
+  it('configures the notifications (B-328): log transport in development, Resend required in production', () => {
+    const local = loadConfig(base);
+    expect(local.notifications).toEqual({
+      resend: null,
+      webAppUrl: 'http://localhost:5173',
+      expoAccessToken: undefined,
+    });
+    expect(configSummary(local)).toMatchObject({ notifications: { email: 'log' } });
+    expect(loadConfig({ ...base, NOTIFICATIONS: 'off' }).notifications).toBeNull();
+    expect(() => loadConfig({ ...base, RESEND_API_KEY: 're_1234567890abc' })).toThrow(/EMAIL_FROM/);
+
+    const production = {
+      NODE_ENV: 'production',
+      DATABASE_URL: `postgres://sp_worker:${randomBytes(24).toString('base64url')}@db.internal:5432/sp`,
+      STORAGE_ENDPOINT: 'https://storage.example.com',
+      STORAGE_BUCKET: 'sp-files',
+      STORAGE_ACCESS_KEY_ID: randomBytes(10).toString('hex'),
+      STORAGE_SECRET_ACCESS_KEY: randomBytes(30).toString('base64url'),
+    };
+    expect(() => loadConfig(production)).toThrow(/RESEND_API_KEY[\s\S]*WEB_APP_URL/);
+    expect(() =>
+      loadConfig({
+        ...production,
+        RESEND_API_KEY: 're_1234567890abcdefghij',
+        EMAIL_FROM: 'avisos@example.com',
+        WEB_APP_URL: 'http://app.example.com',
+      }),
+    ).toThrow(/WEB_APP_URL: must be https/);
+    // Off: nothing to send, nothing required.
+    expect(loadConfig({ ...production, NOTIFICATIONS: 'off' }).notifications).toBeNull();
   });
 });
 
@@ -183,6 +223,12 @@ describe('queues', () => {
     expect(QUEUE_DEFINITIONS[0]?.name).toBe(QUEUES.refreshClubDead);
     expect(SCHEDULES.map((s) => s.queue).sort()).toEqual([QUEUES.daily, QUEUES.sweep].sort());
     expect(FILE_SCHEDULES.map((s) => s.queue)).toEqual([QUEUES.filesDaily]);
+    expect(NOTIFICATION_SCHEDULES.map((s) => s.queue)).toEqual([QUEUES.notificationsSweep]);
+    const notifications = QUEUE_DEFINITIONS.find((q) => q.name === QUEUES.notificationsClub);
+    expect(notifications).toMatchObject({
+      policy: 'stately',
+      deadLetter: QUEUES.notificationsClubDead,
+    });
   });
 
   it('only accepts refresh jobs with a club id', () => {

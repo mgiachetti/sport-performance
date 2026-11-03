@@ -14,6 +14,8 @@ export type LogLevel = (typeof LOG_LEVELS)[number];
 /** A database password that is clearly an example (`postgres`, `changeme`, `<password>`). */
 const PLACEHOLDER = /^(postgres|password|changeme|change-me|secret|example|<.*>|x+)$/i;
 const MIN_DATABASE_PASSWORD_LENGTH = 16;
+/** The web app of `pnpm dev` (the same default as the API's). */
+const LOCAL_WEB_URL = 'http://localhost:5173';
 
 /**
  * Environment variables of the worker, documented in `apps/worker/.env.example`.
@@ -43,13 +45,50 @@ export const envSchema = z
     APP_VERSION: z.string().min(1).max(64).optional(),
     /** Set by Railway on every deploy; used as version when `APP_VERSION` is unset. */
     RAILWAY_GIT_COMMIT_SHA: z.string().min(1).max(64).optional(),
+    // Notifications (B-328, ADR 0054)
+    /** Empty = notification emails are written to the log instead of sent (development only). */
+    RESEND_API_KEY: z.string().min(10).max(256).optional(),
+    /** `Name <address@domain>` of a domain verified in Resend (the same as the API's). */
+    EMAIL_FROM: z
+      .string()
+      .min(3)
+      .max(200)
+      .regex(/^[^<>@\s]+@[^<>@\s]+$|^[^<>]*<[^<>@\s]+@[^<>@\s]+>$/)
+      .optional(),
+    /** The web app, for the links of the notification emails. */
+    WEB_APP_URL: z.url({ protocol: /^https?$/ }).optional(),
+    /** Expo access token, when the project enables "enhanced security for push". Never logged. */
+    EXPO_ACCESS_TOKEN: z.string().min(10).max(256).optional(),
+    /** `off`: no notifications at all (a staging copy of production data, for example). */
+    NOTIFICATIONS: z.enum(['on', 'off']).default('on'),
   })
   .superRefine((env, ctx) => {
     // The bucket of the file retention job (ADR 0044): all of its variables or none.
     for (const problem of storageEnvProblems(env, env.NODE_ENV === 'production')) {
       ctx.addIssue({ code: 'custom', path: [problem.variable], message: problem.message });
     }
+    if (env.RESEND_API_KEY !== undefined && env.EMAIL_FROM === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['EMAIL_FROM'],
+        message: 'required with RESEND_API_KEY',
+      });
+    }
     if (env.NODE_ENV !== 'production') return;
+    if (env.NOTIFICATIONS === 'on') {
+      for (const variable of ['RESEND_API_KEY', 'WEB_APP_URL'] as const) {
+        if (env[variable] === undefined) {
+          ctx.addIssue({ code: 'custom', path: [variable], message: 'required in production' });
+        }
+      }
+      if (env.WEB_APP_URL !== undefined && !env.WEB_APP_URL.startsWith('https://')) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['WEB_APP_URL'],
+          message: 'must be https in production',
+        });
+      }
+    }
     let password = '';
     try {
       password = decodeURIComponent(new URL(env.DATABASE_URL).password);
@@ -88,6 +127,13 @@ export interface WorkerConfig {
   readonly sentry: SentryConfig | null;
   /** The bucket of uploaded files; `null` (development only) turns file retention off. Never logged. */
   readonly storage: S3StorageConfig | null;
+  /** `null` when `NOTIFICATIONS=off`. Secrets are never logged. */
+  readonly notifications: {
+    /** `null`: emails go to the log (development only). */
+    readonly resend: { readonly apiKey: string; readonly from: string } | null;
+    readonly webAppUrl: string;
+    readonly expoAccessToken: string | undefined;
+  } | null;
 }
 
 /** Invalid environment: the message names the variables, never their values. */
@@ -128,6 +174,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): WorkerConfig {
     clubConcurrency: e.WORKER_CLUB_CONCURRENCY,
     shutdownTimeoutMs: e.SHUTDOWN_TIMEOUT_MS,
     storage: storageConfigOf(e),
+    notifications:
+      e.NOTIFICATIONS === 'off'
+        ? null
+        : {
+            resend:
+              e.RESEND_API_KEY === undefined || e.EMAIL_FROM === undefined
+                ? null
+                : { apiKey: e.RESEND_API_KEY, from: e.EMAIL_FROM },
+            webAppUrl: (e.WEB_APP_URL ?? LOCAL_WEB_URL).replace(/\/+$/, ''),
+            expoAccessToken: e.EXPO_ACCESS_TOKEN,
+          },
     sentry:
       e.SENTRY_DSN === undefined
         ? null
@@ -148,5 +205,9 @@ export function configSummary(config: WorkerConfig): Record<string, unknown> {
     clubConcurrency: config.clubConcurrency,
     sentry: config.sentry !== null,
     storage: config.storage === null ? null : { bucket: config.storage.bucket },
+    notifications:
+      config.notifications === null
+        ? null
+        : { email: config.notifications.resend === null ? 'log' : 'resend' },
   };
 }

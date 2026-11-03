@@ -6,6 +6,7 @@ import type pg from 'pg';
 import type { Logger } from 'pino';
 import { refreshClub, type RefreshDependencies } from './derived/refresh.js';
 import { purgeClubFiles } from './files.js';
+import { runClubNotifications, type DeliveryDependencies } from './notifications/index.js';
 import { startRefreshListener, type RefreshListener } from './listener.js';
 import type { ErrorReporter } from './observability.js';
 import {
@@ -33,6 +34,11 @@ export interface StartWorkerOptions {
   readonly schedule?: boolean;
   /** The bucket of uploaded files; `null` turns the file retention job off. */
   readonly storage: ObjectStorage | null;
+  /**
+   * Push (Expo), email and the web's URL for the notifications (B-328);
+   * `null` turns the notification jobs off (tests of other jobs).
+   */
+  readonly notifications: Omit<DeliveryDependencies, 'pool' | 'logger'> | null;
   /** Current instant for "today"; injectable for tests. */
   readonly now?: () => Date;
 }
@@ -75,7 +81,10 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
     logger.warn({ warning: warning.message, type }, 'job queue warning');
   });
   await boss.start();
-  await setUpQueues(boss, { files: options.storage !== null });
+  await setUpQueues(boss, {
+    files: options.storage !== null,
+    notifications: options.notifications !== null,
+  });
   if (options.storage === null) {
     logger.warn('no bucket configured (STORAGE_*): the file retention job is off');
   }
@@ -144,6 +153,37 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
     await boss.work(QUEUES.filesDaily, { pollingIntervalSeconds }, async () => {
       for (const clubId of await listClubs(options.pool, false)) {
         await enqueueClubJob(boss, QUEUES.filesPurgeClub, clubId);
+      }
+    });
+  }
+
+  const notifications = options.notifications;
+  if (notifications !== null) {
+    const deps = {
+      ...notifications,
+      pool: options.pool,
+      logger,
+      ...(options.now && { now: options.now }),
+    };
+    await boss.work(
+      QUEUES.notificationsClub,
+      { localConcurrency: options.clubConcurrency, pollingIntervalSeconds },
+      async ([job]: Job<unknown>[]) => {
+        if (job === undefined) return;
+        const { clubId } = parseRefreshClubJob(job.data);
+        try {
+          const report = await runClubNotifications(deps, clubId, { jobId: job.id });
+          if (report.more) await enqueueClubJob(boss, QUEUES.notificationsClub, clubId);
+        } catch (error) {
+          logger.error({ err: error, clubId, jobId: job.id }, 'notifications failed');
+          reporter.capture(error, { job: QUEUES.notificationsClub, jobId: job.id, clubId });
+          throw error;
+        }
+      },
+    );
+    await boss.work(QUEUES.notificationsSweep, { pollingIntervalSeconds }, async () => {
+      for (const clubId of await listClubs(options.pool, false)) {
+        await enqueueClubJob(boss, QUEUES.notificationsClub, clubId);
       }
     });
   }
