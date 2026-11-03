@@ -1,4 +1,4 @@
-# 0069. Informe PDF del jugador por ventana: instantánea en la API, render en el worker y archivo `pdf_report`
+# 0071. Informe PDF del jugador por ventana: instantánea en la API, render en el worker y archivo `pdf_report`
 
 - Estado: Aceptado
 - Fecha: 2026-11-03
