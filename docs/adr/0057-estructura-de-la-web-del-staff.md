@@ -1,4 +1,4 @@
-# 0056. Estructura de la web del staff: rutas por sesión y club, datos por el cliente tipado, tema en runtime y estado de conexión
+# 0057. Estructura de la web del staff: rutas por sesión y club, datos por el cliente tipado, tema en runtime y estado de conexión
 
 - Estado: Aceptado
 - Fecha: 2026-11-03

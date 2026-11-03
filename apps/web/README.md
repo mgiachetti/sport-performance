@@ -1,6 +1,6 @@
 # @sport-performance/web
 
-Web del staff (B-401): React 19 + Vite + TanStack Router + TanStack Query ([ADR 0012](../../docs/adr/0012-web-staff-react-vite-tanstack.md)). La estructura está decidida en [ADR 0056](../../docs/adr/0056-estructura-de-la-web-del-staff.md); esto es la guía para trabajar.
+Web del staff (B-401): React 19 + Vite + TanStack Router + TanStack Query ([ADR 0012](../../docs/adr/0012-web-staff-react-vite-tanstack.md)). La estructura está decidida en [ADR 0057](../../docs/adr/0057-estructura-de-la-web-del-staff.md); esto es la guía para trabajar.
 
 ## Correr
 
