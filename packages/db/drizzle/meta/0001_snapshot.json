@@ -87,18 +87,26 @@
         "club_created_by_user_id_fk": {
           "name": "club_created_by_user_id_fk",
           "tableFrom": "club",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "club_updated_by_user_id_fk": {
           "name": "club_updated_by_user_id_fk",
           "tableFrom": "club",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         }
@@ -107,12 +115,16 @@
       "uniqueConstraints": {
         "club_slug_unique": {
           "name": "club_slug_unique",
-          "columns": ["slug"],
+          "columns": [
+            "slug"
+          ],
           "nullsNotDistinct": false
         },
         "club_client_uuid_key": {
           "name": "club_client_uuid_key",
-          "columns": ["client_uuid"],
+          "columns": [
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -232,9 +244,13 @@
         "account_user_id_user_id_fk": {
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
-          "columnsFrom": ["user_id"],
+          "columnsFrom": [
+            "user_id"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -322,9 +338,13 @@
         "session_user_id_user_id_fk": {
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
-          "columnsFrom": ["user_id"],
+          "columnsFrom": [
+            "user_id"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -333,7 +353,9 @@
       "uniqueConstraints": {
         "session_token_unique": {
           "name": "session_token_unique",
-          "columns": ["token"],
+          "columns": [
+            "token"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -405,7 +427,9 @@
       "uniqueConstraints": {
         "user_email_unique": {
           "name": "user_email_unique",
-          "columns": ["email"],
+          "columns": [
+            "email"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -583,27 +607,39 @@
         "category_club_id_club_id_fk": {
           "name": "category_club_id_club_id_fk",
           "tableFrom": "category",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "category_created_by_user_id_fk": {
           "name": "category_created_by_user_id_fk",
           "tableFrom": "category",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "category_updated_by_user_id_fk": {
           "name": "category_updated_by_user_id_fk",
           "tableFrom": "category",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         }
@@ -612,17 +648,28 @@
       "uniqueConstraints": {
         "category_club_id_id_key": {
           "name": "category_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "category_club_id_client_uuid_key": {
           "name": "category_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         },
         "category_club_id_sport_sex_name_key": {
           "name": "category_club_id_sport_sex_name_key",
-          "columns": ["club_id", "sport", "sex", "name"],
+          "columns": [
+            "club_id",
+            "sport",
+            "sex",
+            "name"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -767,45 +814,65 @@
         "membership_club_id_club_id_fk": {
           "name": "membership_club_id_club_id_fk",
           "tableFrom": "membership",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "membership_created_by_user_id_fk": {
           "name": "membership_created_by_user_id_fk",
           "tableFrom": "membership",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "membership_updated_by_user_id_fk": {
           "name": "membership_updated_by_user_id_fk",
           "tableFrom": "membership",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "membership_user_id_user_id_fk": {
           "name": "membership_user_id_user_id_fk",
           "tableFrom": "membership",
-          "columnsFrom": ["user_id"],
+          "columnsFrom": [
+            "user_id"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "membership_invited_by_user_id_fk": {
           "name": "membership_invited_by_user_id_fk",
           "tableFrom": "membership",
-          "columnsFrom": ["invited_by"],
+          "columnsFrom": [
+            "invited_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         }
@@ -814,12 +881,18 @@
       "uniqueConstraints": {
         "membership_club_id_id_key": {
           "name": "membership_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "membership_club_id_client_uuid_key": {
           "name": "membership_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -920,27 +993,39 @@
         "position_club_id_club_id_fk": {
           "name": "position_club_id_club_id_fk",
           "tableFrom": "position",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "position_created_by_user_id_fk": {
           "name": "position_created_by_user_id_fk",
           "tableFrom": "position",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "position_updated_by_user_id_fk": {
           "name": "position_updated_by_user_id_fk",
           "tableFrom": "position",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         }
@@ -949,17 +1034,27 @@
       "uniqueConstraints": {
         "position_club_id_id_key": {
           "name": "position_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "position_club_id_client_uuid_key": {
           "name": "position_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         },
         "position_club_id_sport_code_key": {
           "name": "position_club_id_sport_code_key",
-          "columns": ["club_id", "sport", "code"],
+          "columns": [
+            "club_id",
+            "sport",
+            "code"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -1057,27 +1152,39 @@
         "season_club_id_club_id_fk": {
           "name": "season_club_id_club_id_fk",
           "tableFrom": "season",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "season_created_by_user_id_fk": {
           "name": "season_created_by_user_id_fk",
           "tableFrom": "season",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "season_updated_by_user_id_fk": {
           "name": "season_updated_by_user_id_fk",
           "tableFrom": "season",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         }
@@ -1086,17 +1193,27 @@
       "uniqueConstraints": {
         "season_club_id_id_key": {
           "name": "season_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "season_club_id_client_uuid_key": {
           "name": "season_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         },
         "season_club_id_sport_name_key": {
           "name": "season_club_id_sport_name_key",
-          "columns": ["club_id", "sport", "name"],
+          "columns": [
+            "club_id",
+            "sport",
+            "name"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -1239,45 +1356,69 @@
         "staff_assignment_club_id_club_id_fk": {
           "name": "staff_assignment_club_id_club_id_fk",
           "tableFrom": "staff_assignment",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "staff_assignment_created_by_user_id_fk": {
           "name": "staff_assignment_created_by_user_id_fk",
           "tableFrom": "staff_assignment",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "staff_assignment_updated_by_user_id_fk": {
           "name": "staff_assignment_updated_by_user_id_fk",
           "tableFrom": "staff_assignment",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "staff_assignment_membership_id_fkey": {
           "name": "staff_assignment_membership_id_fkey",
           "tableFrom": "staff_assignment",
-          "columnsFrom": ["club_id", "membership_id"],
+          "columnsFrom": [
+            "club_id",
+            "membership_id"
+          ],
           "tableTo": "membership",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "staff_assignment_category_id_fkey": {
           "name": "staff_assignment_category_id_fkey",
           "tableFrom": "staff_assignment",
-          "columnsFrom": ["club_id", "category_id"],
+          "columnsFrom": [
+            "club_id",
+            "category_id"
+          ],
           "tableTo": "category",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -1286,12 +1427,18 @@
       "uniqueConstraints": {
         "staff_assignment_club_id_id_key": {
           "name": "staff_assignment_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "staff_assignment_club_id_client_uuid_key": {
           "name": "staff_assignment_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -1443,54 +1590,80 @@
         "consent_club_id_club_id_fk": {
           "name": "consent_club_id_club_id_fk",
           "tableFrom": "consent",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "consent_created_by_user_id_fk": {
           "name": "consent_created_by_user_id_fk",
           "tableFrom": "consent",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "consent_updated_by_user_id_fk": {
           "name": "consent_updated_by_user_id_fk",
           "tableFrom": "consent",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "consent_signed_by_user_id_fk": {
           "name": "consent_signed_by_user_id_fk",
           "tableFrom": "consent",
-          "columnsFrom": ["signed_by"],
+          "columnsFrom": [
+            "signed_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "consent_revoked_by_user_id_fk": {
           "name": "consent_revoked_by_user_id_fk",
           "tableFrom": "consent",
-          "columnsFrom": ["revoked_by"],
+          "columnsFrom": [
+            "revoked_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "consent_player_id_fkey": {
           "name": "consent_player_id_fkey",
           "tableFrom": "consent",
-          "columnsFrom": ["club_id", "player_id"],
+          "columnsFrom": [
+            "club_id",
+            "player_id"
+          ],
           "tableTo": "player",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -1499,12 +1672,18 @@
       "uniqueConstraints": {
         "consent_club_id_id_key": {
           "name": "consent_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "consent_club_id_client_uuid_key": {
           "name": "consent_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -1648,45 +1827,67 @@
         "guardian_club_id_club_id_fk": {
           "name": "guardian_club_id_club_id_fk",
           "tableFrom": "guardian",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "guardian_created_by_user_id_fk": {
           "name": "guardian_created_by_user_id_fk",
           "tableFrom": "guardian",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "guardian_updated_by_user_id_fk": {
           "name": "guardian_updated_by_user_id_fk",
           "tableFrom": "guardian",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "guardian_user_id_user_id_fk": {
           "name": "guardian_user_id_user_id_fk",
           "tableFrom": "guardian",
-          "columnsFrom": ["user_id"],
+          "columnsFrom": [
+            "user_id"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "guardian_player_id_fkey": {
           "name": "guardian_player_id_fkey",
           "tableFrom": "guardian",
-          "columnsFrom": ["club_id", "player_id"],
+          "columnsFrom": [
+            "club_id",
+            "player_id"
+          ],
           "tableTo": "player",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -1695,12 +1896,18 @@
       "uniqueConstraints": {
         "guardian_club_id_id_key": {
           "name": "guardian_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "guardian_club_id_client_uuid_key": {
           "name": "guardian_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -1923,45 +2130,67 @@
         "player_club_id_club_id_fk": {
           "name": "player_club_id_club_id_fk",
           "tableFrom": "player",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "player_created_by_user_id_fk": {
           "name": "player_created_by_user_id_fk",
           "tableFrom": "player",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "player_updated_by_user_id_fk": {
           "name": "player_updated_by_user_id_fk",
           "tableFrom": "player",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "player_user_id_user_id_fk": {
           "name": "player_user_id_user_id_fk",
           "tableFrom": "player",
-          "columnsFrom": ["user_id"],
+          "columnsFrom": [
+            "user_id"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "player_position_id_fkey": {
           "name": "player_position_id_fkey",
           "tableFrom": "player",
-          "columnsFrom": ["club_id", "position_id"],
+          "columnsFrom": [
+            "club_id",
+            "position_id"
+          ],
           "tableTo": "position",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -1970,12 +2199,18 @@
       "uniqueConstraints": {
         "player_club_id_id_key": {
           "name": "player_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "player_club_id_client_uuid_key": {
           "name": "player_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -2153,54 +2388,84 @@
         "player_category_club_id_club_id_fk": {
           "name": "player_category_club_id_club_id_fk",
           "tableFrom": "player_category",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "player_category_created_by_user_id_fk": {
           "name": "player_category_created_by_user_id_fk",
           "tableFrom": "player_category",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "player_category_updated_by_user_id_fk": {
           "name": "player_category_updated_by_user_id_fk",
           "tableFrom": "player_category",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "player_category_player_id_fkey": {
           "name": "player_category_player_id_fkey",
           "tableFrom": "player_category",
-          "columnsFrom": ["club_id", "player_id"],
+          "columnsFrom": [
+            "club_id",
+            "player_id"
+          ],
           "tableTo": "player",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "player_category_category_id_fkey": {
           "name": "player_category_category_id_fkey",
           "tableFrom": "player_category",
-          "columnsFrom": ["club_id", "category_id"],
+          "columnsFrom": [
+            "club_id",
+            "category_id"
+          ],
           "tableTo": "category",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "player_category_season_id_fkey": {
           "name": "player_category_season_id_fkey",
           "tableFrom": "player_category",
-          "columnsFrom": ["club_id", "season_id"],
+          "columnsFrom": [
+            "club_id",
+            "season_id"
+          ],
           "tableTo": "season",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -2209,12 +2474,18 @@
       "uniqueConstraints": {
         "player_category_club_id_id_key": {
           "name": "player_category_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "player_category_club_id_client_uuid_key": {
           "name": "player_category_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -2362,36 +2633,54 @@
         "player_stage_club_id_club_id_fk": {
           "name": "player_stage_club_id_club_id_fk",
           "tableFrom": "player_stage",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "player_stage_created_by_user_id_fk": {
           "name": "player_stage_created_by_user_id_fk",
           "tableFrom": "player_stage",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "player_stage_updated_by_user_id_fk": {
           "name": "player_stage_updated_by_user_id_fk",
           "tableFrom": "player_stage",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "player_stage_player_id_fkey": {
           "name": "player_stage_player_id_fkey",
           "tableFrom": "player_stage",
-          "columnsFrom": ["club_id", "player_id"],
+          "columnsFrom": [
+            "club_id",
+            "player_id"
+          ],
           "tableTo": "player",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -2400,12 +2689,18 @@
       "uniqueConstraints": {
         "player_stage_club_id_id_key": {
           "name": "player_stage_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "player_stage_club_id_client_uuid_key": {
           "name": "player_stage_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -2596,36 +2891,54 @@
         "battery_config_club_id_club_id_fk": {
           "name": "battery_config_club_id_club_id_fk",
           "tableFrom": "battery_config",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "battery_config_created_by_user_id_fk": {
           "name": "battery_config_created_by_user_id_fk",
           "tableFrom": "battery_config",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "battery_config_updated_by_user_id_fk": {
           "name": "battery_config_updated_by_user_id_fk",
           "tableFrom": "battery_config",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "battery_config_category_id_fkey": {
           "name": "battery_config_category_id_fkey",
           "tableFrom": "battery_config",
-          "columnsFrom": ["club_id", "category_id"],
+          "columnsFrom": [
+            "club_id",
+            "category_id"
+          ],
           "tableTo": "category",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -2634,12 +2947,18 @@
       "uniqueConstraints": {
         "battery_config_club_id_id_key": {
           "name": "battery_config_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "battery_config_club_id_client_uuid_key": {
           "name": "battery_config_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -2790,27 +3109,39 @@
         "device_club_id_club_id_fk": {
           "name": "device_club_id_club_id_fk",
           "tableFrom": "device",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "device_created_by_user_id_fk": {
           "name": "device_created_by_user_id_fk",
           "tableFrom": "device",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "device_updated_by_user_id_fk": {
           "name": "device_updated_by_user_id_fk",
           "tableFrom": "device",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         }
@@ -2819,12 +3150,18 @@
       "uniqueConstraints": {
         "device_club_id_id_key": {
           "name": "device_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "device_club_id_client_uuid_key": {
           "name": "device_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -2954,27 +3291,39 @@
         "metric_definition_club_id_club_id_fk": {
           "name": "metric_definition_club_id_club_id_fk",
           "tableFrom": "metric_definition",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "metric_definition_created_by_user_id_fk": {
           "name": "metric_definition_created_by_user_id_fk",
           "tableFrom": "metric_definition",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "metric_definition_updated_by_user_id_fk": {
           "name": "metric_definition_updated_by_user_id_fk",
           "tableFrom": "metric_definition",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         }
@@ -2983,17 +3332,26 @@
       "uniqueConstraints": {
         "metric_definition_club_id_id_key": {
           "name": "metric_definition_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "metric_definition_club_id_client_uuid_key": {
           "name": "metric_definition_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         },
         "metric_definition_club_id_code_key": {
           "name": "metric_definition_club_id_code_key",
-          "columns": ["club_id", "code"],
+          "columns": [
+            "club_id",
+            "code"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -3190,45 +3548,69 @@
         "reference_value_club_id_club_id_fk": {
           "name": "reference_value_club_id_club_id_fk",
           "tableFrom": "reference_value",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "reference_value_created_by_user_id_fk": {
           "name": "reference_value_created_by_user_id_fk",
           "tableFrom": "reference_value",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "reference_value_updated_by_user_id_fk": {
           "name": "reference_value_updated_by_user_id_fk",
           "tableFrom": "reference_value",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "reference_value_metric_definition_id_fkey": {
           "name": "reference_value_metric_definition_id_fkey",
           "tableFrom": "reference_value",
-          "columnsFrom": ["club_id", "metric_definition_id"],
+          "columnsFrom": [
+            "club_id",
+            "metric_definition_id"
+          ],
           "tableTo": "metric_definition",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "reference_value_position_id_fkey": {
           "name": "reference_value_position_id_fkey",
           "tableFrom": "reference_value",
-          "columnsFrom": ["club_id", "position_id"],
+          "columnsFrom": [
+            "club_id",
+            "position_id"
+          ],
           "tableTo": "position",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -3237,12 +3619,18 @@
       "uniqueConstraints": {
         "reference_value_club_id_id_key": {
           "name": "reference_value_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "reference_value_club_id_client_uuid_key": {
           "name": "reference_value_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -3410,36 +3798,54 @@
         "speed_zone_config_club_id_club_id_fk": {
           "name": "speed_zone_config_club_id_club_id_fk",
           "tableFrom": "speed_zone_config",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "speed_zone_config_created_by_user_id_fk": {
           "name": "speed_zone_config_created_by_user_id_fk",
           "tableFrom": "speed_zone_config",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "speed_zone_config_updated_by_user_id_fk": {
           "name": "speed_zone_config_updated_by_user_id_fk",
           "tableFrom": "speed_zone_config",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "speed_zone_config_player_id_fkey": {
           "name": "speed_zone_config_player_id_fkey",
           "tableFrom": "speed_zone_config",
-          "columnsFrom": ["club_id", "player_id"],
+          "columnsFrom": [
+            "club_id",
+            "player_id"
+          ],
           "tableTo": "player",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -3448,12 +3854,18 @@
       "uniqueConstraints": {
         "speed_zone_config_club_id_id_key": {
           "name": "speed_zone_config_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "speed_zone_config_club_id_client_uuid_key": {
           "name": "speed_zone_config_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -3586,27 +3998,39 @@
         "test_definition_club_id_club_id_fk": {
           "name": "test_definition_club_id_club_id_fk",
           "tableFrom": "test_definition",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "test_definition_created_by_user_id_fk": {
           "name": "test_definition_created_by_user_id_fk",
           "tableFrom": "test_definition",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "test_definition_updated_by_user_id_fk": {
           "name": "test_definition_updated_by_user_id_fk",
           "tableFrom": "test_definition",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         }
@@ -3615,17 +4039,27 @@
       "uniqueConstraints": {
         "test_definition_club_id_id_key": {
           "name": "test_definition_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "test_definition_club_id_client_uuid_key": {
           "name": "test_definition_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         },
         "test_definition_club_id_code_version_key": {
           "name": "test_definition_club_id_code_version_key",
-          "columns": ["club_id", "code", "version"],
+          "columns": [
+            "club_id",
+            "code",
+            "version"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -3759,45 +4193,69 @@
         "test_definition_metric_club_id_club_id_fk": {
           "name": "test_definition_metric_club_id_club_id_fk",
           "tableFrom": "test_definition_metric",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "test_definition_metric_created_by_user_id_fk": {
           "name": "test_definition_metric_created_by_user_id_fk",
           "tableFrom": "test_definition_metric",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "test_definition_metric_updated_by_user_id_fk": {
           "name": "test_definition_metric_updated_by_user_id_fk",
           "tableFrom": "test_definition_metric",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "test_definition_metric_test_definition_id_fkey": {
           "name": "test_definition_metric_test_definition_id_fkey",
           "tableFrom": "test_definition_metric",
-          "columnsFrom": ["club_id", "test_definition_id"],
+          "columnsFrom": [
+            "club_id",
+            "test_definition_id"
+          ],
           "tableTo": "test_definition",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "test_definition_metric_metric_definition_id_fkey": {
           "name": "test_definition_metric_metric_definition_id_fkey",
           "tableFrom": "test_definition_metric",
-          "columnsFrom": ["club_id", "metric_definition_id"],
+          "columnsFrom": [
+            "club_id",
+            "metric_definition_id"
+          ],
           "tableTo": "metric_definition",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -3806,17 +4264,27 @@
       "uniqueConstraints": {
         "test_definition_metric_club_id_id_key": {
           "name": "test_definition_metric_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "test_definition_metric_club_id_client_uuid_key": {
           "name": "test_definition_metric_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         },
         "test_definition_metric_key": {
           "name": "test_definition_metric_key",
-          "columns": ["club_id", "test_definition_id", "metric_definition_id"],
+          "columns": [
+            "club_id",
+            "test_definition_id",
+            "metric_definition_id"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -4024,54 +4492,82 @@
         "anthro_measurement_club_id_club_id_fk": {
           "name": "anthro_measurement_club_id_club_id_fk",
           "tableFrom": "anthro_measurement",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "anthro_measurement_created_by_user_id_fk": {
           "name": "anthro_measurement_created_by_user_id_fk",
           "tableFrom": "anthro_measurement",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "anthro_measurement_updated_by_user_id_fk": {
           "name": "anthro_measurement_updated_by_user_id_fk",
           "tableFrom": "anthro_measurement",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "anthro_measurement_evaluator_id_user_id_fk": {
           "name": "anthro_measurement_evaluator_id_user_id_fk",
           "tableFrom": "anthro_measurement",
-          "columnsFrom": ["evaluator_id"],
+          "columnsFrom": [
+            "evaluator_id"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "anthro_measurement_player_id_fkey": {
           "name": "anthro_measurement_player_id_fkey",
           "tableFrom": "anthro_measurement",
-          "columnsFrom": ["club_id", "player_id"],
+          "columnsFrom": [
+            "club_id",
+            "player_id"
+          ],
           "tableTo": "player",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "anthro_measurement_test_session_id_fkey": {
           "name": "anthro_measurement_test_session_id_fkey",
           "tableFrom": "anthro_measurement",
-          "columnsFrom": ["club_id", "test_session_id"],
+          "columnsFrom": [
+            "club_id",
+            "test_session_id"
+          ],
           "tableTo": "test_session",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -4080,12 +4576,18 @@
       "uniqueConstraints": {
         "anthro_measurement_club_id_id_key": {
           "name": "anthro_measurement_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "anthro_measurement_club_id_client_uuid_key": {
           "name": "anthro_measurement_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -4340,72 +4842,112 @@
         "test_result_club_id_club_id_fk": {
           "name": "test_result_club_id_club_id_fk",
           "tableFrom": "test_result",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "test_result_created_by_user_id_fk": {
           "name": "test_result_created_by_user_id_fk",
           "tableFrom": "test_result",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "test_result_updated_by_user_id_fk": {
           "name": "test_result_updated_by_user_id_fk",
           "tableFrom": "test_result",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "test_result_evaluator_id_user_id_fk": {
           "name": "test_result_evaluator_id_user_id_fk",
           "tableFrom": "test_result",
-          "columnsFrom": ["evaluator_id"],
+          "columnsFrom": [
+            "evaluator_id"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "test_result_player_id_fkey": {
           "name": "test_result_player_id_fkey",
           "tableFrom": "test_result",
-          "columnsFrom": ["club_id", "player_id"],
+          "columnsFrom": [
+            "club_id",
+            "player_id"
+          ],
           "tableTo": "player",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "test_result_test_definition_id_fkey": {
           "name": "test_result_test_definition_id_fkey",
           "tableFrom": "test_result",
-          "columnsFrom": ["club_id", "test_definition_id"],
+          "columnsFrom": [
+            "club_id",
+            "test_definition_id"
+          ],
           "tableTo": "test_definition",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "test_result_test_session_id_fkey": {
           "name": "test_result_test_session_id_fkey",
           "tableFrom": "test_result",
-          "columnsFrom": ["club_id", "test_session_id"],
+          "columnsFrom": [
+            "club_id",
+            "test_session_id"
+          ],
           "tableTo": "test_session",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "test_result_device_id_fkey": {
           "name": "test_result_device_id_fkey",
           "tableFrom": "test_result",
-          "columnsFrom": ["club_id", "device_id"],
+          "columnsFrom": [
+            "club_id",
+            "device_id"
+          ],
           "tableTo": "device",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -4414,12 +4956,18 @@
       "uniqueConstraints": {
         "test_result_club_id_id_key": {
           "name": "test_result_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "test_result_club_id_client_uuid_key": {
           "name": "test_result_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -4619,54 +5167,82 @@
         "test_result_value_club_id_club_id_fk": {
           "name": "test_result_value_club_id_club_id_fk",
           "tableFrom": "test_result_value",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "test_result_value_created_by_user_id_fk": {
           "name": "test_result_value_created_by_user_id_fk",
           "tableFrom": "test_result_value",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "test_result_value_updated_by_user_id_fk": {
           "name": "test_result_value_updated_by_user_id_fk",
           "tableFrom": "test_result_value",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "test_result_value_voided_by_user_id_fk": {
           "name": "test_result_value_voided_by_user_id_fk",
           "tableFrom": "test_result_value",
-          "columnsFrom": ["voided_by"],
+          "columnsFrom": [
+            "voided_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "test_result_value_test_result_id_fkey": {
           "name": "test_result_value_test_result_id_fkey",
           "tableFrom": "test_result_value",
-          "columnsFrom": ["club_id", "test_result_id"],
+          "columnsFrom": [
+            "club_id",
+            "test_result_id"
+          ],
           "tableTo": "test_result",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "test_result_value_metric_definition_id_fkey": {
           "name": "test_result_value_metric_definition_id_fkey",
           "tableFrom": "test_result_value",
-          "columnsFrom": ["club_id", "metric_definition_id"],
+          "columnsFrom": [
+            "club_id",
+            "metric_definition_id"
+          ],
           "tableTo": "metric_definition",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -4675,12 +5251,18 @@
       "uniqueConstraints": {
         "test_result_value_club_id_id_key": {
           "name": "test_result_value_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "test_result_value_club_id_client_uuid_key": {
           "name": "test_result_value_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -4887,45 +5469,69 @@
         "test_session_club_id_club_id_fk": {
           "name": "test_session_club_id_club_id_fk",
           "tableFrom": "test_session",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "test_session_created_by_user_id_fk": {
           "name": "test_session_created_by_user_id_fk",
           "tableFrom": "test_session",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "test_session_updated_by_user_id_fk": {
           "name": "test_session_updated_by_user_id_fk",
           "tableFrom": "test_session",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "test_session_test_window_id_fkey": {
           "name": "test_session_test_window_id_fkey",
           "tableFrom": "test_session",
-          "columnsFrom": ["club_id", "test_window_id"],
+          "columnsFrom": [
+            "club_id",
+            "test_window_id"
+          ],
           "tableTo": "test_window",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "test_session_category_id_fkey": {
           "name": "test_session_category_id_fkey",
           "tableFrom": "test_session",
-          "columnsFrom": ["club_id", "category_id"],
+          "columnsFrom": [
+            "club_id",
+            "category_id"
+          ],
           "tableTo": "category",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -4934,12 +5540,18 @@
       "uniqueConstraints": {
         "test_session_club_id_id_key": {
           "name": "test_session_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "test_session_club_id_client_uuid_key": {
           "name": "test_session_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -5032,36 +5644,54 @@
         "test_window_club_id_club_id_fk": {
           "name": "test_window_club_id_club_id_fk",
           "tableFrom": "test_window",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "test_window_created_by_user_id_fk": {
           "name": "test_window_created_by_user_id_fk",
           "tableFrom": "test_window",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "test_window_updated_by_user_id_fk": {
           "name": "test_window_updated_by_user_id_fk",
           "tableFrom": "test_window",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "test_window_season_id_fkey": {
           "name": "test_window_season_id_fkey",
           "tableFrom": "test_window",
-          "columnsFrom": ["club_id", "season_id"],
+          "columnsFrom": [
+            "club_id",
+            "season_id"
+          ],
           "tableTo": "season",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -5070,17 +5700,27 @@
       "uniqueConstraints": {
         "test_window_club_id_id_key": {
           "name": "test_window_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "test_window_club_id_client_uuid_key": {
           "name": "test_window_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         },
         "test_window_club_id_season_id_number_key": {
           "name": "test_window_club_id_season_id_number_key",
-          "columns": ["club_id", "season_id", "number"],
+          "columns": [
+            "club_id",
+            "season_id",
+            "number"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -5214,36 +5854,54 @@
         "drill_club_id_club_id_fk": {
           "name": "drill_club_id_club_id_fk",
           "tableFrom": "drill",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "drill_created_by_user_id_fk": {
           "name": "drill_created_by_user_id_fk",
           "tableFrom": "drill",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "drill_updated_by_user_id_fk": {
           "name": "drill_updated_by_user_id_fk",
           "tableFrom": "drill",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "drill_training_session_id_fkey": {
           "name": "drill_training_session_id_fkey",
           "tableFrom": "drill",
-          "columnsFrom": ["club_id", "training_session_id"],
+          "columnsFrom": [
+            "club_id",
+            "training_session_id"
+          ],
           "tableTo": "training_session",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -5252,12 +5910,18 @@
       "uniqueConstraints": {
         "drill_club_id_id_key": {
           "name": "drill_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "drill_club_id_client_uuid_key": {
           "name": "drill_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -5549,72 +6213,114 @@
         "external_metric_club_id_club_id_fk": {
           "name": "external_metric_club_id_club_id_fk",
           "tableFrom": "external_metric",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "external_metric_created_by_user_id_fk": {
           "name": "external_metric_created_by_user_id_fk",
           "tableFrom": "external_metric",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "external_metric_updated_by_user_id_fk": {
           "name": "external_metric_updated_by_user_id_fk",
           "tableFrom": "external_metric",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "external_metric_player_id_fkey": {
           "name": "external_metric_player_id_fkey",
           "tableFrom": "external_metric",
-          "columnsFrom": ["club_id", "player_id"],
+          "columnsFrom": [
+            "club_id",
+            "player_id"
+          ],
           "tableTo": "player",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "external_metric_training_session_id_fkey": {
           "name": "external_metric_training_session_id_fkey",
           "tableFrom": "external_metric",
-          "columnsFrom": ["club_id", "training_session_id"],
+          "columnsFrom": [
+            "club_id",
+            "training_session_id"
+          ],
           "tableTo": "training_session",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "external_metric_drill_id_fkey": {
           "name": "external_metric_drill_id_fkey",
           "tableFrom": "external_metric",
-          "columnsFrom": ["club_id", "drill_id"],
+          "columnsFrom": [
+            "club_id",
+            "drill_id"
+          ],
           "tableTo": "drill",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "external_metric_metric_definition_id_fkey": {
           "name": "external_metric_metric_definition_id_fkey",
           "tableFrom": "external_metric",
-          "columnsFrom": ["club_id", "metric_definition_id"],
+          "columnsFrom": [
+            "club_id",
+            "metric_definition_id"
+          ],
           "tableTo": "metric_definition",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "external_metric_device_id_fkey": {
           "name": "external_metric_device_id_fkey",
           "tableFrom": "external_metric",
-          "columnsFrom": ["club_id", "device_id"],
+          "columnsFrom": [
+            "club_id",
+            "device_id"
+          ],
           "tableTo": "device",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -5623,12 +6329,18 @@
       "uniqueConstraints": {
         "external_metric_club_id_id_key": {
           "name": "external_metric_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "external_metric_club_id_client_uuid_key": {
           "name": "external_metric_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -5790,45 +6502,69 @@
         "gym_program_club_id_club_id_fk": {
           "name": "gym_program_club_id_club_id_fk",
           "tableFrom": "gym_program",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "gym_program_created_by_user_id_fk": {
           "name": "gym_program_created_by_user_id_fk",
           "tableFrom": "gym_program",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "gym_program_updated_by_user_id_fk": {
           "name": "gym_program_updated_by_user_id_fk",
           "tableFrom": "gym_program",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "gym_program_category_id_fkey": {
           "name": "gym_program_category_id_fkey",
           "tableFrom": "gym_program",
-          "columnsFrom": ["club_id", "category_id"],
+          "columnsFrom": [
+            "club_id",
+            "category_id"
+          ],
           "tableTo": "category",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "gym_program_player_id_fkey": {
           "name": "gym_program_player_id_fkey",
           "tableFrom": "gym_program",
-          "columnsFrom": ["club_id", "player_id"],
+          "columnsFrom": [
+            "club_id",
+            "player_id"
+          ],
           "tableTo": "player",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -5837,12 +6573,18 @@
       "uniqueConstraints": {
         "gym_program_club_id_id_key": {
           "name": "gym_program_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "gym_program_club_id_client_uuid_key": {
           "name": "gym_program_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -6027,45 +6769,69 @@
         "gym_set_club_id_club_id_fk": {
           "name": "gym_set_club_id_club_id_fk",
           "tableFrom": "gym_set",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "gym_set_created_by_user_id_fk": {
           "name": "gym_set_created_by_user_id_fk",
           "tableFrom": "gym_set",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "gym_set_updated_by_user_id_fk": {
           "name": "gym_set_updated_by_user_id_fk",
           "tableFrom": "gym_set",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "gym_set_player_id_fkey": {
           "name": "gym_set_player_id_fkey",
           "tableFrom": "gym_set",
-          "columnsFrom": ["club_id", "player_id"],
+          "columnsFrom": [
+            "club_id",
+            "player_id"
+          ],
           "tableTo": "player",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "gym_set_gym_program_id_fkey": {
           "name": "gym_set_gym_program_id_fkey",
           "tableFrom": "gym_set",
-          "columnsFrom": ["club_id", "gym_program_id"],
+          "columnsFrom": [
+            "club_id",
+            "gym_program_id"
+          ],
           "tableTo": "gym_program",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -6074,12 +6840,18 @@
       "uniqueConstraints": {
         "gym_set_club_id_id_key": {
           "name": "gym_set_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "gym_set_club_id_client_uuid_key": {
           "name": "gym_set_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -6251,45 +7023,69 @@
         "participation_club_id_club_id_fk": {
           "name": "participation_club_id_club_id_fk",
           "tableFrom": "participation",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "participation_created_by_user_id_fk": {
           "name": "participation_created_by_user_id_fk",
           "tableFrom": "participation",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "participation_updated_by_user_id_fk": {
           "name": "participation_updated_by_user_id_fk",
           "tableFrom": "participation",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "participation_training_session_id_fkey": {
           "name": "participation_training_session_id_fkey",
           "tableFrom": "participation",
-          "columnsFrom": ["club_id", "training_session_id"],
+          "columnsFrom": [
+            "club_id",
+            "training_session_id"
+          ],
           "tableTo": "training_session",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "participation_player_id_fkey": {
           "name": "participation_player_id_fkey",
           "tableFrom": "participation",
-          "columnsFrom": ["club_id", "player_id"],
+          "columnsFrom": [
+            "club_id",
+            "player_id"
+          ],
           "tableTo": "player",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -6298,17 +7094,27 @@
       "uniqueConstraints": {
         "participation_club_id_id_key": {
           "name": "participation_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "participation_club_id_client_uuid_key": {
           "name": "participation_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         },
         "participation_club_id_session_player_key": {
           "name": "participation_club_id_session_player_key",
-          "columns": ["club_id", "training_session_id", "player_id"],
+          "columns": [
+            "club_id",
+            "training_session_id",
+            "player_id"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -6504,36 +7310,54 @@
         "training_session_club_id_club_id_fk": {
           "name": "training_session_club_id_club_id_fk",
           "tableFrom": "training_session",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "training_session_created_by_user_id_fk": {
           "name": "training_session_created_by_user_id_fk",
           "tableFrom": "training_session",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "training_session_updated_by_user_id_fk": {
           "name": "training_session_updated_by_user_id_fk",
           "tableFrom": "training_session",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "training_session_category_id_fkey": {
           "name": "training_session_category_id_fkey",
           "tableFrom": "training_session",
-          "columnsFrom": ["club_id", "category_id"],
+          "columnsFrom": [
+            "club_id",
+            "category_id"
+          ],
           "tableTo": "category",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -6542,12 +7366,18 @@
       "uniqueConstraints": {
         "training_session_club_id_id_key": {
           "name": "training_session_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "training_session_club_id_client_uuid_key": {
           "name": "training_session_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -6671,36 +7501,54 @@
         "wellness_club_id_club_id_fk": {
           "name": "wellness_club_id_club_id_fk",
           "tableFrom": "wellness",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "wellness_created_by_user_id_fk": {
           "name": "wellness_created_by_user_id_fk",
           "tableFrom": "wellness",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "wellness_updated_by_user_id_fk": {
           "name": "wellness_updated_by_user_id_fk",
           "tableFrom": "wellness",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "wellness_player_id_fkey": {
           "name": "wellness_player_id_fkey",
           "tableFrom": "wellness",
-          "columnsFrom": ["club_id", "player_id"],
+          "columnsFrom": [
+            "club_id",
+            "player_id"
+          ],
           "tableTo": "player",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -6709,17 +7557,27 @@
       "uniqueConstraints": {
         "wellness_club_id_id_key": {
           "name": "wellness_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "wellness_club_id_client_uuid_key": {
           "name": "wellness_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         },
         "wellness_club_id_player_id_local_date_key": {
           "name": "wellness_club_id_player_id_local_date_key",
-          "columns": ["club_id", "player_id", "local_date"],
+          "columns": [
+            "club_id",
+            "player_id",
+            "local_date"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -6938,54 +7796,82 @@
         "alert_club_id_club_id_fk": {
           "name": "alert_club_id_club_id_fk",
           "tableFrom": "alert",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "alert_created_by_user_id_fk": {
           "name": "alert_created_by_user_id_fk",
           "tableFrom": "alert",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "alert_updated_by_user_id_fk": {
           "name": "alert_updated_by_user_id_fk",
           "tableFrom": "alert",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "alert_acknowledged_by_user_id_fk": {
           "name": "alert_acknowledged_by_user_id_fk",
           "tableFrom": "alert",
-          "columnsFrom": ["acknowledged_by"],
+          "columnsFrom": [
+            "acknowledged_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "alert_alert_rule_id_fkey": {
           "name": "alert_alert_rule_id_fkey",
           "tableFrom": "alert",
-          "columnsFrom": ["club_id", "alert_rule_id"],
+          "columnsFrom": [
+            "club_id",
+            "alert_rule_id"
+          ],
           "tableTo": "alert_rule",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "alert_player_id_fkey": {
           "name": "alert_player_id_fkey",
           "tableFrom": "alert",
-          "columnsFrom": ["club_id", "player_id"],
+          "columnsFrom": [
+            "club_id",
+            "player_id"
+          ],
           "tableTo": "player",
-          "columnsTo": ["club_id", "id"],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -6994,17 +7880,28 @@
       "uniqueConstraints": {
         "alert_club_id_id_key": {
           "name": "alert_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "alert_club_id_client_uuid_key": {
           "name": "alert_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         },
         "alert_club_id_rule_player_day_key": {
           "name": "alert_club_id_rule_player_day_key",
-          "columns": ["club_id", "alert_rule_id", "player_id", "local_date"],
+          "columns": [
+            "club_id",
+            "alert_rule_id",
+            "player_id",
+            "local_date"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -7120,27 +8017,39 @@
         "alert_rule_club_id_club_id_fk": {
           "name": "alert_rule_club_id_club_id_fk",
           "tableFrom": "alert_rule",
-          "columnsFrom": ["club_id"],
+          "columnsFrom": [
+            "club_id"
+          ],
           "tableTo": "club",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "alert_rule_created_by_user_id_fk": {
           "name": "alert_rule_created_by_user_id_fk",
           "tableFrom": "alert_rule",
-          "columnsFrom": ["created_by"],
+          "columnsFrom": [
+            "created_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         },
         "alert_rule_updated_by_user_id_fk": {
           "name": "alert_rule_updated_by_user_id_fk",
           "tableFrom": "alert_rule",
-          "columnsFrom": ["updated_by"],
+          "columnsFrom": [
+            "updated_by"
+          ],
           "tableTo": "user",
-          "columnsTo": ["id"],
+          "columnsTo": [
+            "id"
+          ],
           "onUpdate": "no action",
           "onDelete": "set null"
         }
@@ -7149,17 +8058,26 @@
       "uniqueConstraints": {
         "alert_rule_club_id_id_key": {
           "name": "alert_rule_club_id_id_key",
-          "columns": ["club_id", "id"],
+          "columns": [
+            "club_id",
+            "id"
+          ],
           "nullsNotDistinct": false
         },
         "alert_rule_club_id_client_uuid_key": {
           "name": "alert_rule_club_id_client_uuid_key",
-          "columns": ["club_id", "client_uuid"],
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ],
           "nullsNotDistinct": false
         },
         "alert_rule_club_id_code_key": {
           "name": "alert_rule_club_id_code_key",
-          "columns": ["club_id", "code"],
+          "columns": [
+            "club_id",
+            "code"
+          ],
           "nullsNotDistinct": false
         }
       },
@@ -7197,32 +8115,53 @@
     "public.alert_severity": {
       "name": "alert_severity",
       "schema": "public",
-      "values": ["warning", "critical"]
+      "values": [
+        "warning",
+        "critical"
+      ]
     },
     "public.alert_status": {
       "name": "alert_status",
       "schema": "public",
-      "values": ["open", "acknowledged", "dismissed"]
+      "values": [
+        "open",
+        "acknowledged",
+        "dismissed"
+      ]
     },
     "public.attempt_aggregation": {
       "name": "attempt_aggregation",
       "schema": "public",
-      "values": ["best", "mean"]
+      "values": [
+        "best",
+        "mean"
+      ]
     },
     "public.consent_signer": {
       "name": "consent_signer",
       "schema": "public",
-      "values": ["guardian", "player"]
+      "values": [
+        "guardian",
+        "player"
+      ]
     },
     "public.consent_type": {
       "name": "consent_type",
       "schema": "public",
-      "values": ["data", "image", "health"]
+      "values": [
+        "data",
+        "image",
+        "health"
+      ]
     },
     "public.contact_level": {
       "name": "contact_level",
       "schema": "public",
-      "values": ["none", "controlled", "full"]
+      "values": [
+        "none",
+        "controlled",
+        "full"
+      ]
     },
     "public.device_kind": {
       "name": "device_kind",
@@ -7241,82 +8180,150 @@
     "public.dominant_side": {
       "name": "dominant_side",
       "schema": "public",
-      "values": ["left", "right", "both"]
+      "values": [
+        "left",
+        "right",
+        "both"
+      ]
     },
     "public.external_metric_source": {
       "name": "external_metric_source",
       "schema": "public",
-      "values": ["catapult", "pod", "hr_band", "manual"]
+      "values": [
+        "catapult",
+        "pod",
+        "hr_band",
+        "manual"
+      ]
     },
     "public.guardian_relationship": {
       "name": "guardian_relationship",
       "schema": "public",
-      "values": ["mother", "father", "legal_guardian", "other"]
+      "values": [
+        "mother",
+        "father",
+        "legal_guardian",
+        "other"
+      ]
     },
     "public.height_source": {
       "name": "height_source",
       "schema": "public",
-      "values": ["measured", "reported"]
+      "values": [
+        "measured",
+        "reported"
+      ]
     },
     "public.maturity_offset_equation": {
       "name": "maturity_offset_equation",
       "schema": "public",
-      "values": ["mirwald_2002", "moore_2015", "moore_2015_height"]
+      "values": [
+        "mirwald_2002",
+        "moore_2015",
+        "moore_2015_height"
+      ]
     },
     "public.measurement_method": {
       "name": "measurement_method",
       "schema": "public",
-      "values": ["manual", "video", "photocell", "pod", "app", "historical"]
+      "values": [
+        "manual",
+        "video",
+        "photocell",
+        "pod",
+        "app",
+        "historical"
+      ]
     },
     "public.membership_role": {
       "name": "membership_role",
       "schema": "public",
-      "values": ["player", "parent", "coach", "sc", "medical", "admin"]
+      "values": [
+        "player",
+        "parent",
+        "coach",
+        "sc",
+        "medical",
+        "admin"
+      ]
     },
     "public.metric_direction": {
       "name": "metric_direction",
       "schema": "public",
-      "values": ["higher_is_better", "lower_is_better", "neutral"]
+      "values": [
+        "higher_is_better",
+        "lower_is_better",
+        "neutral"
+      ]
     },
     "public.metric_source": {
       "name": "metric_source",
       "schema": "public",
-      "values": ["field", "test", "load"]
+      "values": [
+        "field",
+        "test",
+        "load"
+      ]
     },
     "public.participation_status": {
       "name": "participation_status",
       "schema": "public",
-      "values": ["full", "partial", "absent", "unavailable"]
+      "values": [
+        "full",
+        "partial",
+        "absent",
+        "unavailable"
+      ]
     },
     "public.session_kind": {
       "name": "session_kind",
       "schema": "public",
-      "values": ["training", "match"]
+      "values": [
+        "training",
+        "match"
+      ]
     },
     "public.sex": {
       "name": "sex",
       "schema": "public",
-      "values": ["male", "female"]
+      "values": [
+        "male",
+        "female"
+      ]
     },
     "public.speed_zone_kind": {
       "name": "speed_zone_kind",
       "schema": "public",
-      "values": ["absolute", "relative"]
+      "values": [
+        "absolute",
+        "relative"
+      ]
     },
     "public.sport": {
       "name": "sport",
       "schema": "public",
-      "values": ["rugby", "hockey"]
+      "values": [
+        "rugby",
+        "hockey"
+      ]
     },
     "public.stage_basis": {
       "name": "stage_basis",
       "schema": "public",
-      "values": ["manual", "maturation", "category"]
+      "values": [
+        "manual",
+        "maturation",
+        "category"
+      ]
     },
     "public.stage": {
       "name": "stage",
       "schema": "public",
-      "values": ["foundation", "development", "performance"]
+      "values": [
+        "foundation",
+        "development",
+        "performance"
+      ]
     },
     "public.stage_reason": {
       "name": "stage_reason",
@@ -7336,17 +8343,30 @@
     "public.test_not_done_reason": {
       "name": "test_not_done_reason",
       "schema": "public",
-      "values": ["absent", "injured", "not_applicable_to_stage", "other"]
+      "values": [
+        "absent",
+        "injured",
+        "not_applicable_to_stage",
+        "other"
+      ]
     },
     "public.test_result_status": {
       "name": "test_result_status",
       "schema": "public",
-      "values": ["done", "not_done"]
+      "values": [
+        "done",
+        "not_done"
+      ]
     },
     "public.test_session_status": {
       "name": "test_session_status",
       "schema": "public",
-      "values": ["scheduled", "in_progress", "completed", "cancelled"]
+      "values": [
+        "scheduled",
+        "in_progress",
+        "completed",
+        "cancelled"
+      ]
     },
     "public.unit": {
       "name": "unit",
