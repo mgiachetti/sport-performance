@@ -23,7 +23,7 @@ CREATE TABLE "player_report" (
 	CONSTRAINT "player_report_content_object" CHECK (jsonb_typeof("player_report"."content") = 'object'),
 	CONSTRAINT "player_report_attempts" CHECK ("player_report"."attempts" >= 0),
 	CONSTRAINT "player_report_ready" CHECK (("player_report"."status" = 'ready') = ("player_report"."file_id" is not null and "player_report"."generated_at" is not null)),
-	CONSTRAINT "player_report_failed" CHECK (("player_report"."status" = 'failed') = ("player_report"."failure_code" is not null) and ("player_report"."failure_code" is null or "player_report"."failure_code" in ('invalid_content', 'render_failed', 'too_large', 'storage_failed')))
+	CONSTRAINT "player_report_failed" CHECK (("player_report"."status" = 'failed') = ("player_report"."failure_code" is not null) and ("player_report"."failure_code" is null or "player_report"."failure_code" in ('invalid_content', 'render_failed', 'too_large', 'storage_failed', 'attempts_exhausted', 'internal_error')))
 );
 --> statement-breakpoint
 ALTER TABLE "player_report" ADD CONSTRAINT "player_report_club_id_club_id_fk" FOREIGN KEY ("club_id") REFERENCES "public"."club"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint

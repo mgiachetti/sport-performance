@@ -61,7 +61,7 @@ interface ClaimedReport {
 }
 
 /** A failure with its code; `retry` when another attempt may succeed. */
-class ReportFailure extends Error {
+export class ReportFailure extends Error {
   constructor(
     readonly code: PlayerReportFailureCode,
     readonly retry: boolean,
@@ -70,6 +70,17 @@ class ReportFailure extends Error {
     super(`Player report failed: ${code}`, options);
     this.name = 'ReportFailure';
   }
+}
+
+/**
+ * The failure to record for an error of an attempt: its own code, or
+ * `internal_error` for anything outside the known steps (the database while
+ * recording the file or the outcome, for example), retried like the rest.
+ */
+export function reportFailureOf(error: unknown): ReportFailure {
+  return error instanceof ReportFailure
+    ? error
+    : new ReportFailure('internal_error', true, { cause: error });
 }
 
 const translators = new Map<string, Translator>();
@@ -95,16 +106,29 @@ export function reportFileName(content: PlayerReportContent, translator: Transla
 
 const sha256 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('base64');
 
+/**
+ * Claims the next due report. First gives up on the due ones that already
+ * spent every attempt without finishing any: a worker that died while
+ * rendering never recorded the failure, and a PDF that crashes the process
+ * would otherwise come back after every lease, forever.
+ */
 async function claim(
   deps: ReportDependencies,
   clubId: ClubId,
   requestId: string | undefined,
   now: Date,
-): Promise<ClaimedReport | null> {
+): Promise<{ report: ClaimedReport | null; exhausted: number }> {
   return inClubTransaction(
     deps.pool,
     clubId,
     async ({ client }) => {
+      const exhausted = await client.query(
+        `update player_report set status = 'failed', failure_code = 'attempts_exhausted'
+          where id in (select id from player_report
+                        where status = 'pending' and next_attempt_at <= $1 and attempts >= $2
+                        for update skip locked)`,
+        [now, PLAYER_REPORT_MAX_ATTEMPTS],
+      );
       const { rows } = await client.query<{
         id: string;
         player_id: string;
@@ -115,16 +139,20 @@ async function claim(
             set attempts = r.attempts + 1,
                 next_attempt_at = $1::timestamptz + make_interval(mins => $2)
           where r.id = (select id from player_report
-                         where status = 'pending' and next_attempt_at <= $1
+                         where status = 'pending' and next_attempt_at <= $1 and attempts < $3
                          order by next_attempt_at, created_at, id
                          limit 1 for update skip locked)
           returning r.id, r.player_id, r.content, r.attempts`,
-        [now, REPORT_LEASE_MINUTES],
+        [now, REPORT_LEASE_MINUTES, PLAYER_REPORT_MAX_ATTEMPTS],
       );
       const row = rows[0];
-      return row === undefined
-        ? null
-        : { id: row.id, playerId: row.player_id, content: row.content, attempts: row.attempts };
+      return {
+        report:
+          row === undefined
+            ? null
+            : { id: row.id, playerId: row.player_id, content: row.content, attempts: row.attempts },
+        exhausted: exhausted.rowCount ?? 0,
+      };
     },
     { requestId },
   );
@@ -339,17 +367,21 @@ export async function runClubReports(
   let failed = 0;
   for (let i = 0; i < REPORTS_PER_JOB; i += 1) {
     const now = deps.now?.() ?? new Date();
-    const report = await claim(deps, clubId, requestId, now);
+    const { report, exhausted } = await claim(deps, clubId, requestId, now);
+    if (exhausted > 0) {
+      failed += exhausted;
+      deps.logger.warn(
+        { clubId, count: exhausted, code: 'attempts_exhausted' },
+        'reports given up after their attempts',
+      );
+    }
     if (report === null) return { clubId, ready, retried, failed, more: false };
     try {
       await produce(deps, clubId, report, requestId, now);
       ready += 1;
       deps.logger.info({ clubId, reportId: report.id, jobId: options.jobId }, 'report ready');
     } catch (error) {
-      const failure =
-        error instanceof ReportFailure
-          ? error
-          : new ReportFailure('render_failed', true, { cause: error });
+      const failure = reportFailureOf(error);
       const outcome = await recordFailure(deps, clubId, report, failure, requestId, now);
       if (outcome === 'failed') failed += 1;
       else retried += 1;

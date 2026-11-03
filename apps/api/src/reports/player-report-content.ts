@@ -2,6 +2,7 @@ import {
   playerReportContentSchema,
   type PlayerFirstTeamReference,
   type PlayerReportContent,
+  type PlayerReportEvolutionMetric,
   type PlayerReportTest,
   type TestEvolutionColumn,
   type TestEvolutionMetric,
@@ -78,7 +79,7 @@ export function reportTests(
   references: readonly PlayerFirstTeamReference[],
 ): {
   tests: PlayerReportTest[];
-  evolution: { columns: TestEvolutionColumn[]; metrics: TestEvolutionMetric[] };
+  evolution: { columns: TestEvolutionColumn[]; metrics: PlayerReportEvolutionMetric[] };
 } {
   const key = columnKeyOfWindow(windowId);
   const position = series.columns.findIndex((column) => column.key === key);
@@ -94,7 +95,7 @@ export function reportTests(
   const referenceOf = new Map(references.map((reference) => [reference.metricCode, reference]));
 
   const tests: PlayerReportTest[] = [];
-  const metrics: TestEvolutionMetric[] = [];
+  const metrics: PlayerReportEvolutionMetric[] = [];
   for (const metric of series.metrics) {
     const index = metric.points.findIndex((point) => point.columnKey === key);
     const point = metric.points[index];
@@ -111,6 +112,7 @@ export function reportTests(
         value: point.value,
         measuredOn: point.measuredOn,
         methods: point.methods,
+        protocolVersion: point.protocolVersion,
         previous:
           before === undefined || previousColumn === undefined
             ? null
@@ -120,6 +122,7 @@ export function reportTests(
                 startsOn: previousColumn.startsOn,
                 value: before.value,
                 methods: before.methods,
+                protocolVersion: before.protocolVersion,
               },
         categoryAverage: point.categoryAverage,
         categoryMixedMethods: point.categoryMixedMethods,
@@ -131,7 +134,18 @@ export function reportTests(
         warnings: metric.warnings,
       });
     }
-    const points = metric.points.filter((p) => keptKeys.has(p.columnKey));
+    // The table prints neither the category's size nor each column's protocol version.
+    const points = metric.points
+      .filter((p) => keptKeys.has(p.columnKey))
+      .map((p) => ({
+        columnKey: p.columnKey,
+        value: p.value,
+        measuredOn: p.measuredOn,
+        methods: p.methods,
+        categoryAverage: p.categoryAverage,
+        categoryMixedMethods: p.categoryMixedMethods,
+        categoryMixedProtocolVersions: p.categoryMixedProtocolVersions,
+      }));
     if (points.length > 0) metrics.push({ ...metric, points });
   }
   return { tests, evolution: { columns: kept, metrics } };

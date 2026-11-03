@@ -291,6 +291,24 @@ describe.skipIf(!hasDatabase || !hasBucket)('player report job (Postgres 16 + Mi
     expect(new Set(await bucket.keys())).toEqual(before);
   });
 
+  it('gives up on a report whose attempts all died without recording a failure', async () => {
+    // Every attempt was claimed and the process died while rendering it: nothing recorded.
+    const reportId = await insertReport();
+    await owner.query(
+      `update player_report set attempts = $2, next_attempt_at = now() - interval '1 second'
+        where id = $1`,
+      [reportId, PLAYER_REPORT_MAX_ATTEMPTS],
+    );
+    const report = await runClubReports({ pool: worker, storage, logger }, clubId);
+    expect(report).toMatchObject({ ready: 0, failed: 1, more: false });
+    expect(await stateOf(reportId)).toMatchObject({
+      status: 'failed',
+      attempts: PLAYER_REPORT_MAX_ATTEMPTS,
+      failure_code: 'attempts_exhausted',
+      file_id: null,
+    });
+  });
+
   it('takes a report asked for through the API the moment it is committed', async () => {
     const running = await startWorker({
       pool: worker,

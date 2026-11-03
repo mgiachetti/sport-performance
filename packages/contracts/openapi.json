@@ -32371,7 +32371,9 @@
                   "invalid_content",
                   "render_failed",
                   "too_large",
-                  "storage_failed"
+                  "storage_failed",
+                  "attempts_exhausted",
+                  "internal_error"
                 ]
               },
               {
@@ -37397,6 +37399,12 @@
               ]
             }
           },
+          "protocolVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Versión del protocolo de su último resultado en la columna: la del promedio de la categoría (principio 4)."
+          },
           "categoryAverage": {
             "description": "Promedio de su categoría (misma franja de edad, sexo y versión del protocolo) en la ventana, un valor por jugador; `null` con menos de 5 jugadores o mientras la ventana (o el día) no terminó.",
             "type": [
@@ -37431,6 +37439,7 @@
           "value",
           "measuredOn",
           "methods",
+          "protocolVersion",
           "categoryAverage",
           "categorySize",
           "categoryMixedMethods",

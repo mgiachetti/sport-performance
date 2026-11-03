@@ -28,6 +28,7 @@
     "@sport-performance/email": "workspace:*",
     "@sport-performance/i18n": "workspace:*",
     "@sport-performance/storage": "workspace:*",
+    "@sport-performance/ui-tokens": "workspace:*",
     "drizzle-orm": "0.45.4",
     "pdfkit": "0.20.2",
     "pg": "8.23.1",

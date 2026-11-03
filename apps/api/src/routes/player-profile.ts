@@ -667,6 +667,7 @@ export function evolution(
         value: playerValue(inColumn, metric.direction),
         measuredOn: latestDay(inColumn),
         methods: ownMethods,
+        protocolVersion: latest.protocolVersion,
         categoryAverage: enough ? mean(groupValues) : null,
         categorySize: enough ? groupValues.length : null,
         categoryMixedMethods: enough && groupMethods.size > 1,

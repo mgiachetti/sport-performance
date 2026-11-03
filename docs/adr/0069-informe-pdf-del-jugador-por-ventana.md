@@ -43,7 +43,7 @@ Faltaba decidir:
   - la marca del club (nombre, colores, escudo PNG);
   - el jugador: nombre, nacimiento, edad al cierre, deporte, categorías;
   - la ventana con sus fechas y la fecha de generación;
-  - por métrica de los tests de la ventana: su valor (el mejor según el sentido), el de su columna anterior con resultado y el cambio con su sentido en palabras ("mejor" / "peor"), el promedio de su categoría, la referencia de primera, el método y los avisos de métodos o versiones del protocolo mezclados (principio 4);
+  - por métrica de los tests de la ventana: su valor (el mejor según el sentido), el de su columna anterior con resultado y el cambio con su sentido en palabras ("mejor" / "peor"), el promedio de su categoría, la referencia de primera, el método y la versión del protocolo de su resultado y del anterior, y los avisos de métodos o versiones del protocolo mezclados (principio 4);
   - los tests no realizados sin uno hecho después;
   - la evolución de cada métrica en las ventanas del jugador hasta esta (hasta 6 columnas), con el promedio debajo;
   - la última medición antropométrica hasta el cierre (talla, talla sentado, peso, offset de PHV con la ecuación, % y talla adulta predicha, velocidad de crecimiento) y el aviso de zona de pico en lenguaje para la familia;
@@ -81,7 +81,7 @@ Faltaba decidir:
   5. pasa la fila a `ready` con la retención de `pdf_report` (365 días) y completa el informe, solo si sigue teniendo el préstamo (compara los intentos).
 
   Si la subida falla o perdió el préstamo, marca la fila `deleted` (`deletedFileExpiresAt`) y la retención borra lo que haya llegado. Nunca queda en el bucket un objeto sin fila: el informe de un menor siempre vence.
-- **Intentos:** tres (`PLAYER_REPORT_MAX_ATTEMPTS`), con 5 y 10 minutos entre ellos. Una instantánea ilegible o un PDF más grande que la política fallan sin reintento. Los códigos (`invalid_content`, `render_failed`, `too_large`, `storage_failed`) no llevan datos personales, y el log solo lleva ids y códigos.
+- **Intentos:** tres (`PLAYER_REPORT_MAX_ATTEMPTS`), con 5 y 10 minutos entre ellos. Una instantánea ilegible o un PDF más grande que la política fallan sin reintento. Un informe que ya gastó sus intentos sin terminar ninguno (el worker se cayó mientras lo dibujaba, por ejemplo, y nunca llegó a registrar el fallo) no se vuelve a reclamar: el reclamo lo da por fallido con `attempts_exhausted`, así un PDF que tumba el proceso no vuelve en cada préstamo para siempre. Un error inesperado fuera del dibujo (la base al registrar el archivo o el resultado) es `internal_error`, no `render_failed`. Los códigos (`invalid_content`, `render_failed`, `too_large`, `storage_failed`, `attempts_exhausted`, `internal_error`) no llevan datos personales, y el log solo lleva ids y códigos.
 - **Nombre de descarga:** "Informe Temporada 2026 V2 - Nombre Apellido.pdf" (texto de i18n, saneado con `sanitizeFileName`). Se baja por `GET /v1/files/{id}/download`: URL firmada de minutos, `attachment`.
 - **Lectura:** `GET /v1/players/{playerId}/reports` (cursor, más nuevos primero, filtro por ventana) y `GET /v1/player-reports/{id}`. `fileId` es `null` mientras no está listo y también una vez vencida o borrada su retención.
 
@@ -89,7 +89,7 @@ Faltaba decidir:
 
 - **pdfkit**, en JavaScript puro, sin navegador ni binarios nativos: arma texto con cortes de línea y páginas, vectores e imágenes PNG/JPEG, y subconjuntos de fuentes.
   - A4, paleta clara de alto contraste para imprimir;
-  - las rayas de la camiseta con los colores del club como sello arriba de cada página;
+  - las rayas de la camiseta con los colores del club como sello arriba de cada página. Sobre papel blanco cada color se oscurece lo justo para llegar al contraste de elementos no textuales (3:1, `ensureContrast` de `packages/ui-tokens`): un color de club muy claro no deja las rayas invisibles;
   - Barlow Condensed para títulos y cifras, Barlow para texto: OFL, de los paquetes de Fontsource, embebidas como subconjunto;
   - tablas con encabezado que se repite al cortar página y pie con club, jugador, ventana y "Página n de m";
   - metadatos de título, autor e idioma.
@@ -111,6 +111,11 @@ Faltaba decidir:
 
 - La web (ficha del jugador y área de familia) y la app suman "Pedir informe" para el staff y "Informes" para el jugador y la familia sobre estos endpoints, y bajan el PDF con la URL firmada de archivos.
 - Un cambio del contenido que un renderer anterior no sepa leer sube `PLAYER_REPORT_FORMAT_VERSION`. El worker de la versión nueva tiene que seguir dibujando las anteriores mientras queden pedidos pendientes.
-- Un informe vence con su archivo (365 días). La fila queda con su instantánea mientras exista el jugador, y se borra con él en la supresión.
+- **Retención de la instantánea.** El PDF vence a los 365 días (ADR 0044); la fila y su instantánea (`player_report.content`, con datos personales) quedan mientras el jugador exista en el club, y se exportan y borran con él en la supresión (ADR 0051). Es la regla deliberada, no un olvido:
+  - la instantánea es el registro de qué se le entregó a la familia de un menor y con qué datos, y responde un reclamo sobre un informe ya vencido;
+  - no agrega datos que el club no guarde ya del jugador: son sus propios resultados, su antropometría y promedios anónimos con mínimo, que siguen en sus tablas de origen con la misma vida;
+  - el guard la hace inmutable y ningún rol la edita, así que vaciarla pediría una excepción en el guard y un job con permisos de escritura sobre el contenido.
+
+  Si un club o una norma pidiera un plazo menor, se agrega una retención de la instantánea en el job de retención del worker (vaciar `content` y marcar el informe vencido) con su ADR.
 - El informe de categoría (B-603) puede seguir el mismo camino: instantánea en la API con las reglas de agregados y render en el worker.
 - Las fuentes cubren el alfabeto latino básico y Latin-1 (español). Un nombre con letras fuera de ese rango necesitaría sumar el subconjunto `latin-ext`.

@@ -148,7 +148,12 @@ describe('evolution', () => {
     });
     const point = evolution([at(1, 40, '2026-02-10')], group, metrics, windows, closedDay)
       .metrics[0]?.points[0];
-    expect(point).toMatchObject({ value: 40, categorySize: 5, categoryAverage: 34.4 });
+    expect(point).toMatchObject({
+      value: 40,
+      protocolVersion: 1,
+      categorySize: 5,
+      categoryAverage: 34.4,
+    });
   });
 
   it('hides the size below the minimum', () => {
@@ -183,6 +188,7 @@ describe('evolution', () => {
       closedDay,
     ).metrics[0]?.points[0];
     expect(mixed).toMatchObject({
+      protocolVersion: 2,
       categorySize: 5,
       categoryAverage: 34.4,
       categoryMixedProtocolVersions: true,

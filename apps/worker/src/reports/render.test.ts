@@ -4,7 +4,8 @@ import { createTranslator } from '@sport-performance/i18n';
 import { describe, expect, it } from 'vitest';
 import { pdfText } from '../testing/pdf-text.js';
 import { sampleReportContent } from '../testing/report-fixture.js';
-import { changeText as change, renderPlayerReport } from './render.js';
+import { contrastRatio } from '@sport-performance/ui-tokens';
+import { changeText as change, paperColors, renderPlayerReport } from './render.js';
 
 const translator = createTranslator({ locale: 'es-AR' });
 const NOW = new Date('2026-05-04T15:00:00Z');
@@ -35,7 +36,10 @@ describe('player report PDF (B-602)', () => {
       'mejor',
       '36,3 cm',
       '52,0 cm',
-      'Medido con: Video.',
+      // Method and protocol version of each result and of the previous one (principle 4).
+      'Medido con: Video · protocolo v2.',
+      'V1 Temporada 2026 · Manual · protocolo v1',
+      'Medido con: Fotocélula · protocolo v1.',
       'Sprint 40 m',
       '5,84 s',
       '505 (cambio de dirección) (12/04/2026): no disponible',
@@ -113,8 +117,19 @@ describe('player report PDF (B-602)', () => {
           startsOn: sprint.measuredOn,
           value: 5.9,
           methods: [],
+          protocolVersion: 1,
         },
       }),
     ).toBe('-0,20 s (-3,4 %) · mejor');
+  });
+
+  it('darkens a club colour too light for white paper, keeps one that reads', () => {
+    const light = paperColors({ primaryColor: '#fff6cc', secondaryColor: '#ffffff' });
+    expect(contrastRatio(light.primary, '#ffffff')).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(light.secondary, '#ffffff')).toBeGreaterThanOrEqual(3);
+    expect(paperColors({ primaryColor: '#050505', secondaryColor: '#c0392b' })).toEqual({
+      primary: '#050505',
+      secondary: '#c0392b',
+    });
   });
 });

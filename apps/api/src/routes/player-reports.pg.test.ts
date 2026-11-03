@@ -314,7 +314,8 @@ describeWithPostgres('player reports (Postgres)', (serverUrl) => {
     expect(cmj).toMatchObject({
       value: 42,
       methods: ['video'],
-      previous: { number: 1, value: 40, methods: ['manual'] },
+      protocolVersion: 1,
+      previous: { number: 1, value: 40, methods: ['manual'], protocolVersion: 1 },
       // Two peers in V2 plus the subject: below the minimum of five, no average nor size.
       categoryAverage: null,
       firstTeam: { value: 52, unit: 'cm', scope: 'squad' },

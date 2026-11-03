@@ -23,7 +23,11 @@ import { idOf, playerIdSchema, userIdSchema } from '../primitives/ids.js';
 import { pageOf, pageQuerySchema } from '../primitives/pagination.js';
 import { testWindowIdSchema } from './calendar.js';
 import { fileIdSchema } from './clubs.js';
-import { testEvolutionColumnSchema, testEvolutionMetricSchema } from './player-profile.js';
+import {
+  testEvolutionColumnSchema,
+  testEvolutionMetricSchema,
+  testEvolutionPointSchema,
+} from './player-profile.js';
 import { referenceScopeSchema } from './reference-values.js';
 import { exerciseCodeSchema, metricCodeSchema, testCodeSchema } from './tests.js';
 
@@ -56,6 +60,9 @@ export const playerReportTestSchema = z
     }),
     measuredOn: localDateSchema,
     methods: z.array(z.enum(MEASUREMENT_METHODS)),
+    protocolVersion: z.int().min(1).meta({
+      description: 'Versión del protocolo de su último resultado en la ventana (principio 4).',
+    }),
     previous: z
       .object({
         seasonName: z.string().nullable(),
@@ -63,6 +70,7 @@ export const playerReportTestSchema = z
         startsOn: localDateSchema,
         value: z.number(),
         methods: z.array(z.enum(MEASUREMENT_METHODS)),
+        protocolVersion: z.int().min(1),
       })
       .nullable()
       .meta({ description: 'Su valor en la ventana (o el día) anterior con resultado.' }),
@@ -81,6 +89,17 @@ export const playerReportTestSchema = z
     }),
   })
   .meta({ id: 'PlayerReportTest' });
+
+/**
+ * A metric of the evolution table: the profile's, without what the table does
+ * not print (the category's size and each column's protocol version, which the
+ * window's tests carry).
+ */
+export const playerReportEvolutionMetricSchema = testEvolutionMetricSchema
+  .extend({
+    points: z.array(testEvolutionPointSchema.omit({ categorySize: true, protocolVersion: true })),
+  })
+  .meta({ id: 'PlayerReportEvolutionMetric' });
 
 export const playerReportContentSchema = z
   .object({
@@ -130,7 +149,7 @@ export const playerReportContentSchema = z
       .meta({ description: 'Tests de la ventana que no hizo (sin uno hecho después).' }),
     evolution: z.object({
       columns: z.array(testEvolutionColumnSchema),
-      metrics: z.array(testEvolutionMetricSchema),
+      metrics: z.array(playerReportEvolutionMetricSchema),
     }),
     maturation: z
       .object({
@@ -158,6 +177,7 @@ export const playerReportContentSchema = z
 
 export type PlayerReportContent = z.output<typeof playerReportContentSchema>;
 export type PlayerReportTest = z.output<typeof playerReportTestSchema>;
+export type PlayerReportEvolutionMetric = z.output<typeof playerReportEvolutionMetricSchema>;
 
 // ─── The report ──────────────────────────────────────────────────────────────────────
 

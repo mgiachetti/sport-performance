@@ -8,6 +8,7 @@ import {
   isMessageKey,
   type Translator,
 } from '@sport-performance/i18n';
+import { CONTRAST, ensureContrast } from '@sport-performance/ui-tokens';
 import PDFDocument from 'pdfkit';
 
 /**
@@ -35,6 +36,22 @@ const INK = '#050505';
 const MUTED = '#5F574F';
 const LINE = '#D9D2C9';
 const PANEL = '#F4F0EB';
+const PAPER = '#FFFFFF';
+
+/**
+ * The club's colours as printed on white paper: each one darkened just enough
+ * to reach the non-text contrast (3:1, WCAG 1.4.11), so a very light club
+ * colour still draws visible stripes and rules.
+ */
+export function paperColors(club: { primaryColor: string; secondaryColor: string }): {
+  primary: string;
+  secondary: string;
+} {
+  return {
+    primary: ensureContrast(club.primaryColor, PAPER, CONTRAST.nonText),
+    secondary: ensureContrast(club.secondaryColor, PAPER, CONTRAST.nonText),
+  };
+}
 
 const PAGE_MARGIN = 40;
 const FOOTER_HEIGHT = 36;
@@ -87,6 +104,10 @@ function windowLabel(
     : t('report.evolution.window', { number: column.number, season: column.seasonName });
 }
 
+function methodNames(t: Translator['t'], methods: readonly PlayerReportTest['methods'][number][]) {
+  return methods.length === 0 ? PLACEHOLDER : methods.map((m) => t(`method.${m}`)).join(', ');
+}
+
 /** The change against the previous window, in the unit and in %, with its sense in words. */
 export function changeText(t: Translator['t'], test: PlayerReportTest): string {
   if (test.previous === null) return PLACEHOLDER;
@@ -109,6 +130,7 @@ export async function renderPlayerReport(
   options: RenderOptions,
 ): Promise<Uint8Array> {
   const { t } = options.translator;
+  const brand = paperColors(content.club);
   const playerName = `${content.player.firstName} ${content.player.lastName}`;
   const windowName = t('report.window', {
     season: content.window.seasonName,
@@ -162,7 +184,7 @@ export async function renderPlayerReport(
     for (let i = 0; i < 4; i += 1) {
       doc
         .rect(0, y + i * stripe, doc.page.width, stripe)
-        .fill(i % 2 === 0 ? content.club.primaryColor : content.club.secondaryColor);
+        .fill(i % 2 === 0 ? brand.primary : brand.secondary);
     }
   };
   stripes(0);
@@ -202,7 +224,7 @@ export async function renderPlayerReport(
     .moveTo(left, doc.y)
     .lineTo(left + width, doc.y)
     .lineWidth(2)
-    .stroke(content.club.primaryColor);
+    .stroke(brand.primary);
   doc.y += 10;
 
   const boxTop = doc.y;
@@ -273,7 +295,7 @@ export async function renderPlayerReport(
       .moveTo(left, doc.y + 1)
       .lineTo(left + 40, doc.y + 1)
       .lineWidth(2)
-      .stroke(content.club.primaryColor);
+      .stroke(brand.primary);
     doc.y += 8;
   };
   const paragraph = (text: string, size = 9.5, color = INK) => {
@@ -373,13 +395,20 @@ export async function renderPlayerReport(
         {
           text: metricLabel(t, test.metricCode, test.exercise),
           note: t('report.tests.methods', {
-            methods: test.methods.map((m) => t(`method.${m}`)).join(', '),
+            methods: methodNames(t, test.methods),
+            version: test.protocolVersion,
           }),
         },
         { text: formatUnit(test.value, test.unit) },
         {
           text: test.previous === null ? PLACEHOLDER : formatUnit(test.previous.value, test.unit),
-          ...(test.previous !== null && { note: windowLabel(t, test.previous) }),
+          ...(test.previous !== null && {
+            note: t('report.tests.previousNote', {
+              window: windowLabel(t, test.previous),
+              methods: methodNames(t, test.previous.methods),
+              version: test.previous.protocolVersion,
+            }),
+          }),
         },
         { text: changeText(t, test) },
         { text: formatUnit(test.categoryAverage, test.unit) },

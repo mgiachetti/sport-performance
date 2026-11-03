@@ -30,12 +30,18 @@ export const parsePlayerReportStatus = memberParser(
  * - `render_failed`: the PDF could not be laid out.
  * - `too_large`: the PDF is bigger than the `pdf_report` file policy allows.
  * - `storage_failed`: the bucket did not take the object.
+ * - `attempts_exhausted`: every attempt was claimed and none finished (the
+ *   worker died while rendering it, for example): the claim gives up on it.
+ * - `internal_error`: an unexpected error outside the layout (the database
+ *   while recording the file or the outcome, for example).
  */
 export const PLAYER_REPORT_FAILURE_CODES = [
   'invalid_content',
   'render_failed',
   'too_large',
   'storage_failed',
+  'attempts_exhausted',
+  'internal_error',
 ] as const;
 export type PlayerReportFailureCode = (typeof PLAYER_REPORT_FAILURE_CODES)[number];
 export const isPlayerReportFailureCode = memberGuard(PLAYER_REPORT_FAILURE_CODES);

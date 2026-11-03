@@ -21,12 +21,18 @@ function column(n: number): TestEvolutionColumn {
   };
 }
 
-function point(n: number, value: number, categoryAverage: number | null = null) {
+function point(
+  n: number,
+  value: number,
+  categoryAverage: number | null = null,
+  protocolVersion = 1,
+) {
   return {
     columnKey: `w:w${String(n)}`,
     value,
     measuredOn: day(`2026-${String(n * 2).padStart(2, '0')}-10`),
     methods: ['manual' as const],
+    protocolVersion,
     categoryAverage,
     categorySize: categoryAverage === null ? null : 6,
     categoryMixedMethods: false,
@@ -40,7 +46,7 @@ const cmj: TestEvolutionMetric = {
   exercise: null,
   unit: 'cm',
   direction: 'higher_is_better',
-  points: [point(1, 38, 33), point(3, 40, 34), point(4, 42)],
+  points: [point(1, 38, 33), point(3, 40, 34), point(4, 42, null, 2)],
   warnings: [],
 };
 const sprint: TestEvolutionMetric = {
@@ -72,8 +78,11 @@ describe('player report snapshot (B-602)', () => {
       expect.objectContaining({
         metricCode: 'cmj_height_cm',
         value: 42,
+        methods: ['manual'],
+        // The protocol of each result travels with it (principle 4).
+        protocolVersion: 2,
         // The previous column with a value (V3), not the window right before.
-        previous: expect.objectContaining({ number: 3, value: 40 }) as unknown,
+        previous: expect.objectContaining({ number: 3, value: 40, protocolVersion: 1 }) as unknown,
         categoryAverage: null,
         firstTeam: { value: 52, unit: 'cm', scope: 'line' },
       }),
@@ -89,7 +98,13 @@ describe('player report snapshot (B-602)', () => {
   it('keeps the evolution up to the window, never after it', () => {
     const { evolution } = reportTests(series, 'w3', []);
     expect(evolution.columns.map((c) => c.key)).toEqual(['w:w1', 'w:w2', 'w:w3']);
-    expect(evolution.metrics.find((m) => m.metricCode === 'cmj_height_cm')?.points).toHaveLength(2);
+    const points = evolution.metrics.find((m) => m.metricCode === 'cmj_height_cm')?.points;
+    expect(points).toHaveLength(2);
+    // The table prints neither the category's size nor each column's protocol version.
+    for (const p of points ?? []) {
+      expect(p).not.toHaveProperty('categorySize');
+      expect(p).not.toHaveProperty('protocolVersion');
+    }
     // A window without the player's results has no tests nor evolution.
     expect(reportTests(series, 'w9', [])).toEqual({
       tests: [],
