@@ -48,6 +48,7 @@ import { registerTestResultRoutes } from './test-results.js';
 import { registerTestDefinitionRoutes } from './test-definitions.js';
 import { registerTestImportRoutes } from './test-imports.js';
 import { registerTestSessionResultRoutes } from './test-sessions.js';
+import { registerTestSessionSheetRoutes } from './test-session-sheet.js';
 import { registerSyncRoutes } from './sync.js';
 import { registerSupportAccessRoutes } from './support-access.js';
 
@@ -172,6 +173,7 @@ export const IMPLEMENTED_ENDPOINTS = [
   'reviewAlert',
   'getWeeklyPanel',
   'recordTestSessionResults',
+  'getTestSessionSheet',
   'listTestResults',
   'previewTestImport',
   'createTestImport',
@@ -310,6 +312,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerAlertRoutes(app);
   registerPanelRoutes(app);
   registerTestSessionResultRoutes(app);
+  registerTestSessionSheetRoutes(app);
   registerTestResultRoutes(app);
   registerTestImportRoutes(app);
   registerAnthropometryRoutes(app);

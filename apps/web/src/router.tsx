@@ -60,6 +60,9 @@ import { parseSessionsSearch } from './training/search';
 import { SessionDetailPage } from './training/SessionDetailPage';
 import { SessionsPage } from './training/SessionsPage';
 import { ClubSupportAccessPage } from './support-access/ClubSupportAccessPage';
+import { TestDayPage } from './test-day/TestDayPage';
+import { TestDaysPage } from './test-day/TestDaysPage';
+import { parseTestDaySearch, testDaySheetQuery } from './test-day/queries';
 import { Loading } from './ui/components';
 
 /** What every route's `beforeLoad` and `loader` receive (ADR 0057). */
@@ -88,6 +91,8 @@ export interface RouterContext {
  *         ├── /sessions       training sessions and matches (B-407): list, new, one
  *         ├── /field-sessions sessions with field data (?kind) and /$trainingSessionId (B-408)
  *         ├── /calendar       season calendar (B-406): windows, test days, fixture
+ *         ├── /test-days      test days of what the user sees (B-405)
+ *         ├── /test-days/$id  the sheet of a test day, ?station=
  *         ├── /anthropometry  batch anthropometry with instant maturation (B-412)
  *         ├── /configuration  club configuration (B-409)
  *         ├── /admin          administration (B-411): one child per section
@@ -470,6 +475,25 @@ export const protocolRoute = createRoute({
   component: ProtocolPage,
 });
 
+export const testDaysRoute = createRoute({
+  getParentRoute: () => clubRoute,
+  path: '/test-days',
+  component: TestDaysPage,
+});
+
+export const testDayRoute = createRoute({
+  getParentRoute: () => clubRoute,
+  path: '/test-days/$testSessionId',
+  validateSearch: parseTestDaySearch,
+  loader: ({ context, params }) =>
+    ensureQuery(
+      context.services.queryClient,
+      testDaySheetQuery(context.services.api, context.clubSelection, params.testSessionId),
+    ),
+  pendingComponent: () => <Loading />,
+  component: TestDayPage,
+});
+
 export const routeTree = rootRoute.addChildren([
   loginRoute,
   authedRoute.addChildren([
@@ -483,6 +507,8 @@ export const routeTree = rootRoute.addChildren([
       sessionsRoute.addChildren([sessionsIndexRoute, newSessionRoute, sessionDetailRoute]),
       fieldSessionsRoute.addChildren([fieldSessionsIndexRoute, fieldSessionRoute]),
       calendarRoute,
+      testDaysRoute,
+      testDayRoute,
       anthropometryRoute,
       configurationRoute,
       adminRoute.addChildren(adminRoutes),

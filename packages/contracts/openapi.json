@@ -20599,6 +20599,80 @@
         }
       }
     },
+    "/v1/test-sessions/{testSessionId}/sheet": {
+      "get": {
+        "operationId": "getTestSessionSheet",
+        "summary": "Planilla de un día de test",
+        "description": "Mismo alcance que el día de test (`coach`, `sc` y `medical` de la categoría, la administración). Las estaciones son los tests que la batería vigente programa en la ventana del día (sin ventana, todos los de la batería) para algún jugador del plantel, más los que ya tienen resultados en el día; cada una con la versión del protocolo vigente ese día. El plantel son los jugadores de la categoría ese día más los que tienen resultados en el día, solo los que quien pide puede ver (`test_result:read`), con su etapa, si cada test les corresponde (principio 3) y el resultado anterior. De otro club: `not_found`; fuera del alcance: `forbidden`.",
+        "tags": [
+          "tests"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "testSessionId",
+            "in": "path",
+            "required": true,
+            "description": "Id de día de test (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "La planilla del día.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestDaySheet"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
     "/v1/test-windows/{testWindowId}": {
       "patch": {
         "operationId": "updateTestWindow",
@@ -35459,6 +35533,543 @@
             "maxLength": 1000
           }
         }
+      },
+      "TestDayPreviousResult": {
+        "type": "object",
+        "properties": {
+          "testCode": {
+            "type": "string",
+            "description": "Código del test (`sprint_40`).",
+            "examples": [
+              "sprint_40"
+            ]
+          },
+          "testResultId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de resultado de test (UUID, RFC 9562)."
+          },
+          "measuredOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "method": {
+            "$ref": "#/components/schemas/MeasurementMethod"
+          },
+          "protocolVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "deviceId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de dispositivo (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "exercise": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Ejercicio de un resultado de fuerza, en `snake_case`.",
+                "examples": [
+                  "trap_bar_deadlift"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestMetricScore"
+            }
+          }
+        },
+        "required": [
+          "testCode",
+          "testResultId",
+          "measuredOn",
+          "method",
+          "protocolVersion",
+          "deviceId",
+          "exercise",
+          "scores"
+        ],
+        "description": "El último resultado `done` del test antes del día (de cualquier día de test)."
+      },
+      "TestDaySheet": {
+        "type": "object",
+        "properties": {
+          "testSession": {
+            "$ref": "#/components/schemas/TestSession"
+          },
+          "testWindow": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Id de ventana de tests (UUID, RFC 9562)."
+                  },
+                  "number": {
+                    "$ref": "#/components/schemas/TestWindowNumber"
+                  },
+                  "label": {
+                    "type": "string",
+                    "enum": [
+                      "V1",
+                      "V2",
+                      "V3",
+                      "V4"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "number",
+                  "label"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestDaySheetStation"
+            },
+            "description": "En el orden de la batería."
+          },
+          "players": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestDaySheetPlayer"
+            },
+            "description": "Por apellido y nombre."
+          },
+          "devices": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "description": "Id de dispositivo (UUID, RFC 9562)."
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "phone",
+                    "tablet",
+                    "hr_band",
+                    "photocell",
+                    "reaction_lights",
+                    "dynamometer",
+                    "pod",
+                    "gps_vest"
+                  ]
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "label"
+              ]
+            },
+            "description": "Equipos vigentes del club (no retirados), por nombre."
+          }
+        },
+        "required": [
+          "testSession",
+          "testWindow",
+          "stations",
+          "players",
+          "devices"
+        ]
+      },
+      "TestDaySheetDefinition": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de versión del protocolo de un test (UUID, RFC 9562)."
+          },
+          "code": {
+            "type": "string",
+            "description": "Código del test (`sprint_40`).",
+            "examples": [
+              "sprint_40"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "sports": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Sport"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`null`: todos los deportes."
+          },
+          "attemptCount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Intentos previstos por el protocolo."
+          },
+          "attemptAggregation": {
+            "type": "string",
+            "enum": [
+              "best",
+              "mean"
+            ],
+            "description": "Cómo se reducen los intentos: el mejor (según el sentido) o el promedio."
+          },
+          "maximalLoad": {
+            "type": "boolean",
+            "description": "Test con cargas máximas (nunca M13/M14)."
+          },
+          "sameDeviceOnly": {
+            "type": "boolean",
+            "description": "Solo se compara con el mismo equipo (reacción): el resultado pide `deviceId`."
+          },
+          "entryKinds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "value",
+                "sprint_splits",
+                "cmj_flight_time",
+                "cmj_video_frames",
+                "ift_stage",
+                "strength_set"
+              ]
+            },
+            "description": "Tipos de entrada que acepta, el preferido primero."
+          },
+          "protocol": {
+            "type": "object",
+            "properties": {
+              "summary": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "steps": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "restBetweenAttemptsS": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "equipment": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "parameters": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {},
+                "description": "Parámetros del protocolo de los que depende el cálculo (etapas del 30-15, rango de reps del e1RM): la vista previa usa las mismas fórmulas del dominio."
+              }
+            },
+            "required": [
+              "summary",
+              "steps",
+              "restBetweenAttemptsS",
+              "equipment",
+              "parameters"
+            ]
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestDaySheetDefinitionMetric"
+            },
+            "description": "En el orden del protocolo."
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "validTo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                "examples": [
+                  "2026-11-01"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "version",
+          "sports",
+          "attemptCount",
+          "attemptAggregation",
+          "maximalLoad",
+          "sameDeviceOnly",
+          "entryKinds",
+          "protocol",
+          "metrics",
+          "validFrom",
+          "validTo"
+        ],
+        "description": "Una versión del protocolo de un test."
+      },
+      "TestDaySheetDefinitionMetric": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Código canónico de la métrica (`cmj_height_cm`).",
+            "examples": [
+              "cmj_height_cm"
+            ]
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "higher_is_better",
+              "lower_is_better",
+              "neutral"
+            ]
+          },
+          "derived": {
+            "type": "boolean",
+            "description": "La calcula el servidor (Vmax, asimetría, e1RM): no se carga a mano."
+          }
+        },
+        "required": [
+          "code",
+          "unit",
+          "direction",
+          "derived"
+        ]
+      },
+      "TestDaySheetPlayer": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "firstName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "lastName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "sex": {
+            "$ref": "#/components/schemas/Sex"
+          },
+          "birthDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "inCategory": {
+            "type": "boolean",
+            "description": "Está en la categoría del día de test ese día; `false`: aparece solo porque ya tiene resultados."
+          },
+          "recording": {
+            "type": "string",
+            "enum": [
+              "allowed",
+              "missing_consent",
+              "forbidden"
+            ],
+            "description": "Si quien pide puede cargarle resultados (`test_result:record`): `missing_consent` sin consentimiento de datos vigente, `forbidden` por rol o alcance."
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Etapa el día del test (por maduración, fijada o de la categoría)."
+          },
+          "strengthAssessment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "technique_reps",
+                  "estimated_rm",
+                  "direct_rm"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cómo se evalúa su fuerza ese día: técnica (M13/M14), 1RM estimado o 1RM/3RM directo."
+          },
+          "tests": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "testCode": {
+                  "type": "string",
+                  "description": "Código del test (`sprint_40`).",
+                  "examples": [
+                    "sprint_40"
+                  ]
+                },
+                "applicable": {
+                  "type": "boolean"
+                },
+                "reason": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "not_in_battery",
+                        "maximal_load_not_allowed"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Por qué no le corresponde: se carga `not_done` con `not_applicable_to_stage`."
+                }
+              },
+              "required": [
+                "testCode",
+                "applicable",
+                "reason"
+              ]
+            },
+            "description": "Por estación, en el mismo orden."
+          },
+          "previous": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestDayPreviousResult"
+            },
+            "description": "A lo sumo uno por estación."
+          }
+        },
+        "required": [
+          "id",
+          "firstName",
+          "lastName",
+          "sex",
+          "birthDate",
+          "inCategory",
+          "recording",
+          "stage",
+          "strengthAssessment",
+          "tests",
+          "previous"
+        ]
+      },
+      "TestDaySheetStation": {
+        "type": "object",
+        "properties": {
+          "testCode": {
+            "type": "string",
+            "description": "Código del test (`sprint_40`).",
+            "examples": [
+              "sprint_40"
+            ]
+          },
+          "definition": {
+            "description": "La versión del protocolo vigente el día del test, con la que se carga.",
+            "$ref": "#/components/schemas/TestDaySheetDefinition"
+          },
+          "scheduled": {
+            "type": "boolean",
+            "description": "La batería lo programa en la ventana del día para algún jugador del plantel; `false`: aparece solo porque ya tiene resultados."
+          }
+        },
+        "required": [
+          "testCode",
+          "definition",
+          "scheduled"
+        ]
       },
       "TestDefinition": {
         "type": "object",

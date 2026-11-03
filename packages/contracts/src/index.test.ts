@@ -123,6 +123,7 @@ describe('@sport-performance/contracts entry point', () => {
       'reviewAlert',
       'getWeeklyPanel',
       'recordTestSessionResults',
+      'getTestSessionSheet',
       'listTestResults',
       'getTestResult',
       'createTestResult',

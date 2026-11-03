@@ -778,6 +778,40 @@ describeWithPostgres('test days and results (Postgres)', (serverUrl) => {
         (await post(coachA, `/v1/test-sessions/${session.id}/results`, payload)).statusCode,
       ).toBe(403);
     });
+
+    it('answers and lists an injured result of the batch as unavailable but to medical', async () => {
+      const clientUuid = randomUUID();
+      const recorded = await post(scA, `/v1/test-sessions/${session.id}/results`, {
+        results: [
+          {
+            clientUuid,
+            status: 'not_done',
+            playerId: players.p13,
+            testDefinitionId: definitions.ift_3015,
+            notDoneReason: 'injured',
+            notDoneNote: 'Dolor en la rodilla',
+          },
+        ],
+      });
+      expect(recorded.statusCode, recorded.body).toBe(201);
+      const [answer] = recorded.json<{ results: { result: ResultBody }[] }>().results;
+      expect(answer?.result).toMatchObject({ notDoneReason: 'unavailable', notDoneNote: null });
+      // The sheet of the day reads the results by session: the same projection.
+      const ofTheDay = async (caller: SignedIn) =>
+        (await get(caller, `/v1/test-results?testSessionId=${session.id}&limit=100`))
+          .json<Page<ResultBody>>()
+          .items.find((r) => r.id === answer?.result.id);
+      for (const caller of [scA, coachA, adminA]) {
+        expect(await ofTheDay(caller)).toMatchObject({
+          notDoneReason: 'unavailable',
+          notDoneNote: null,
+        });
+      }
+      expect(await ofTheDay(medicalA)).toMatchObject({
+        notDoneReason: 'injured',
+        notDoneNote: 'Dolor en la rodilla',
+      });
+    });
   });
 
   describe('series of a metric', () => {
