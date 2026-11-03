@@ -121,8 +121,11 @@ export function Button({
   disabled = false,
   busy = false,
   accessibilityHint,
+  accessibilityLabel,
 }: {
   readonly label: string;
+  /** What a screen reader says, when the visible label is not enough alone ("No llegó" → whose). */
+  readonly accessibilityLabel?: string;
   readonly onPress: () => void;
   readonly variant?: ButtonVariant;
   readonly disabled?: boolean;
@@ -148,7 +151,7 @@ export function Button({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: inactive, busy }}
       disabled={inactive}

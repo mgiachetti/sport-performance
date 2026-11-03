@@ -1,11 +1,13 @@
 import { ApiError } from '@sport-performance/contracts';
-import { describe, expect, it } from 'vitest';
+import { DEFAULT_IFT_3015_SIGNAL_PROTOCOL } from '@sport-performance/domain';
+import { describe, expect, it, vi } from 'vitest';
 import {
   DEVICE_ID_KEY,
   MEMBERSHIP_ID_KEY,
   SESSION_SNAPSHOT_KEY,
   SESSION_TOKEN_KEY,
 } from '../auth/session-store.ts';
+import { IFT_RUN_STORAGE_KEY } from '../ift/run-store.ts';
 import { apiError } from '../test/fake-api.ts';
 import {
   COACH_AT_ORC,
@@ -249,6 +251,49 @@ describe('session controller: clubs and sign-out', () => {
     expect(secure.entries.get(MEMBERSHIP_ID_KEY)).toBe(PLAYER_AT_OTHER.id);
     expect(services.session.getState()).toMatchObject({ activeMembership: PLAYER_AT_OTHER });
     expect(services.session.pendingInvitation.get()).toBeNull();
+  });
+
+  it('stops the 30-15 IFT run and forgets its marks on a change of club or a sign-out', async () => {
+    const { services, api, secure, audio } = await signedInWith();
+    const { iftRunner } = services;
+    const startRun = async (membershipId: string) => {
+      await services.session.selectMembership(membershipId);
+      await iftRunner.start({
+        scope: { userId: USER.id, membershipId },
+        protocol: DEFAULT_IFT_3015_SIGNAL_PROTOCOL,
+        playerIds: ['a'],
+        categoryId: null,
+      });
+      expect(iftRunner.getState().status).toBe('running');
+      await vi.waitFor(() => {
+        expect(secure.entries.has(IFT_RUN_STORAGE_KEY)).toBe(true);
+      });
+    };
+    const expectStopped = async () => {
+      // With or without the screen open: the session layer stops it.
+      await vi.waitFor(() => {
+        expect(secure.entries.has(IFT_RUN_STORAGE_KEY)).toBe(false);
+      });
+      expect(iftRunner.getState().status).toBe('idle');
+      expect(audio.calls.at(-1)).toBe('endSession');
+    };
+
+    await startRun(COACH_AT_ORC.id);
+    await services.session.chooseAnotherClub();
+    await expectStopped();
+
+    await startRun(COACH_AT_ORC.id);
+    await services.session.selectMembership(PLAYER_AT_OTHER.id);
+    await expectStopped();
+
+    await startRun(COACH_AT_ORC.id);
+    // A refresh of the same session keeps it running.
+    await services.session.refresh();
+    expect(iftRunner.getState().status).toBe('running');
+    api.on('POST /v1/auth/sign-out', { status: 204 });
+    await services.session.signOut();
+    await expectStopped();
+    services.dispose();
   });
 
   it('signs out on the server and forgets the session even offline', async () => {

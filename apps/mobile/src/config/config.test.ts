@@ -175,6 +175,14 @@ describe('buildExpoConfig', () => {
     expect(config.plugins).toContainEqual(['@sentry/react-native', { disableAutoUpload: true }]);
   });
 
+  it('plays the 30-15 IFT signals in the background, never with the microphone', () => {
+    const config = buildExpoConfig(productionEnv);
+    expect(config.plugins).toContainEqual([
+      'expo-audio',
+      { microphonePermission: false, recordAudioAndroid: false, enableBackgroundPlayback: true },
+    ]);
+  });
+
   it('turns the Sentry source map upload on with org and project', () => {
     const config = buildExpoConfig({ ...productionEnv, SENTRY_ORG: 'org', SENTRY_PROJECT: 'app' });
     expect(config.plugins).toContainEqual([

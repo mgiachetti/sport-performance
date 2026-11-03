@@ -10,6 +10,7 @@ import { Platform as ReactNativePlatform } from 'react-native';
 import { parseRuntimeConfig, type RuntimeConfig } from '../config/runtime-config.ts';
 import type { SentryBuild } from '../observability/sentry-options.ts';
 import type { Platform } from '../state/services.ts';
+import { createNativeSignalPlayer } from './signal-audio.ts';
 import { NATIVE_APP_VERSION, parseAppBuildInfo, type AppBuildInfo } from '../version/index.ts';
 import { openNativeLocalDatabase } from './sqlite.ts';
 import type { PreferenceStorage, SecureStorage } from './storage.ts';
@@ -82,5 +83,6 @@ export function nativePlatform(config: RuntimeConfig, build: AppBuildInfo): Plat
     languageTags: getLocales().map((locale) => locale.languageTag),
     reportError,
     openLocalDatabase: () => openNativeLocalDatabase(reportError),
+    createSignalPlayer: createNativeSignalPlayer,
   };
 }
