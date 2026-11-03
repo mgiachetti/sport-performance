@@ -20,13 +20,15 @@ import { ensureQuery, meQuery } from './api/queries';
 import { CalendarPage } from './calendar/CalendarPage';
 import { parseCalendarSearch } from './calendar/model';
 import type { AppServices } from './app/services';
-import { ensureClubSelection, loadActiveClub } from './club/load';
 import { FieldSessionPage } from './field-sessions/FieldSessionPage';
 import { FieldSessionsPage } from './field-sessions/FieldSessionsPage';
 import { parseFieldSessionsSearch } from './field-sessions/search';
 import { ConfigurationPage } from './configuration/ConfigurationPage';
 import { parseConfigurationSearch } from './configuration/search';
+import { ensureAreaOfRole, ensureClubSelection, loadActiveClub } from './club/load';
 import { parseScopeSearch } from './club/scope';
+import { ChildPage } from './guardian/ChildPage';
+import { ChildrenPage } from './guardian/ChildrenPage';
 import { ClubLayout } from './layout/ClubLayout';
 import { RootLayout } from './layout/RootLayout';
 import { AnthropometryPage } from './pages/anthropometry/AnthropometryPage';
@@ -70,7 +72,9 @@ export interface RouterContext {
  *         ├── /calendar       season calendar (B-406): windows, test days, fixture
  *         ├── /anthropometry  batch anthropometry with instant maturation (B-412)
  *         ├── /configuration  club configuration (B-409)
- *         └── /admin          administration (B-411): one child per section
+ *         ├── /admin          administration (B-411): one child per section
+ *         └── /family         guardians only (ADR 0065): their children
+ *             └── $playerId   summarised profile, consents, parents' heights
  * ```
  *
  * A new screen is a child of `_club` (it inherits session, club, theme and
@@ -143,9 +147,11 @@ export const clubRoute = createRoute({
   id: '_club',
   validateSearch: parseScopeSearch,
   search: { middlewares: [retainSearchParams(['sport', 'category'])] },
-  beforeLoad: async ({ context, location }) => ({
-    clubSelection: await ensureClubSelection(context.services, location.href),
-  }),
+  beforeLoad: async ({ context, location }) => {
+    const clubSelection = await ensureClubSelection(context.services, location.href);
+    await ensureAreaOfRole(context.services, clubSelection, location.pathname);
+    return { clubSelection };
+  },
   loader: ({ context, location }) =>
     loadActiveClub(context.services, context.clubSelection, location.href),
   pendingComponent: () => <Loading />,
@@ -347,6 +353,23 @@ export const anthropometryRoute = createRoute({
   component: AnthropometryPage,
 });
 
+export const familyRoute = createRoute({
+  getParentRoute: () => clubRoute,
+  path: '/family',
+});
+
+export const childrenRoute = createRoute({
+  getParentRoute: () => familyRoute,
+  path: '/',
+  component: ChildrenPage,
+});
+
+export const childRoute = createRoute({
+  getParentRoute: () => familyRoute,
+  path: '$playerId',
+  component: ChildPage,
+});
+
 export const routeTree = rootRoute.addChildren([
   loginRoute,
   authedRoute.addChildren([
@@ -363,6 +386,7 @@ export const routeTree = rootRoute.addChildren([
       anthropometryRoute,
       configurationRoute,
       adminRoute.addChildren(adminRoutes),
+      familyRoute.addChildren([childrenRoute, childRoute]),
     ]),
   ]),
 ]);

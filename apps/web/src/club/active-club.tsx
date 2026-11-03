@@ -1,12 +1,18 @@
 import type {
   Category,
+  Child,
   Club,
   ClubTheme,
   MembershipSummary,
   SessionUser,
   StaffAssignment,
 } from '@sport-performance/contracts';
-import type { AssignmentTarget, PermissionSubject, Role } from '@sport-performance/domain';
+import type {
+  AssignmentTarget,
+  Guardianship,
+  PermissionSubject,
+  Role,
+} from '@sport-performance/domain';
 import { createContext, useContext, type ReactNode } from 'react';
 import type { ClubSelection } from '../api/club-selection';
 
@@ -16,6 +22,29 @@ export type StaffRole = (typeof STAFF_ROLES)[number];
 
 export function isStaffRole(role: Role): role is StaffRole {
   return (STAFF_ROLES as readonly Role[]).includes(role);
+}
+
+/**
+ * The family area (ADR 0065): a guardian sees their children's summarised
+ * profile, consents and parents' heights under {@link GUARDIAN_HOME}.
+ */
+export const GUARDIAN_HOME = '/family';
+
+export function isGuardianRole(role: Role): role is 'parent' {
+  return role === 'parent';
+}
+
+/** Whether a path belongs to the family area. */
+export function isGuardianPath(pathname: string): boolean {
+  return pathname === GUARDIAN_HOME || pathname.startsWith(`${GUARDIAN_HOME}/`);
+}
+
+/** Current guardian links of the matrix subject, from `GET /v1/me/children` (B-311). */
+export function guardianshipsOf(children: readonly Child[]): Guardianship[] {
+  return children.map((child) => ({
+    playerId: child.playerId,
+    confirmedByAdultPlayer: child.adultConfirmed,
+  }));
 }
 
 /** Roles that see the club through their staff assignments (ADR 0025, `assigned` scope). */
@@ -40,6 +69,8 @@ export interface ActiveClub {
   readonly categories: readonly Category[];
   /** Subject of the permission matrix (ADR 0025). */
   readonly subject: PermissionSubject;
+  /** The guardian's children (`parent` role only; empty otherwise). */
+  readonly children: readonly Child[];
 }
 
 /** Assignment targets from the API rows (the API already filtered the current ones). */
@@ -59,9 +90,12 @@ export function buildActiveClub(input: {
   theme: ClubTheme;
   assignments: readonly StaffAssignment[];
   categories: readonly Category[];
+  /** `GET /v1/me/children`, for the `parent` role. */
+  children?: readonly Child[];
 }): ActiveClub {
   const role: Role = input.membership?.role ?? 'superadmin';
   const assignments = ASSIGNED_ROLES.includes(role) ? assignmentTargets(input.assignments) : [];
+  const children = isGuardianRole(role) ? (input.children ?? []) : [];
   return {
     selection: input.selection,
     user: input.user,
@@ -71,7 +105,14 @@ export function buildActiveClub(input: {
     theme: input.theme,
     assignments,
     categories: input.categories,
-    subject: { userId: input.user.id, role, clubId: input.club.id, assignments },
+    children,
+    subject: {
+      userId: input.user.id,
+      role,
+      clubId: input.club.id,
+      assignments,
+      ...(isGuardianRole(role) ? { guardianships: guardianshipsOf(children) } : {}),
+    },
   };
 }
 

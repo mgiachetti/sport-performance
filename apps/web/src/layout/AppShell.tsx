@@ -20,6 +20,8 @@ import { ThemeSwitcher } from './ThemeSwitcher';
  */
 export function AppShell(props: {
   navItems?: readonly NavItem[];
+  /** The sport/category selector; off in the family area (ADR 0065). */
+  showScope?: boolean;
   scopeIgnored?: boolean;
   onDismissScopeIgnored?: () => void;
 }) {
@@ -85,7 +87,7 @@ export function AppShell(props: {
           <SupportBanner clubName={active.club.name} reason={active.selection.reason} />
         ) : null}
         <header className="sp-topbar">
-          <ScopeSelector />
+          {props.showScope === false ? null : <ScopeSelector />}
           <div className="sp-topbar__actions">
             <ThemeSwitcher />
             <AccountActions />

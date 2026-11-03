@@ -15,22 +15,25 @@ import {
   ASSIGNED_ROLES,
   ActiveClubProvider,
   buildActiveClub,
+  isGuardianRole,
   isStaffRole,
   type StaffRole,
 } from '../club/active-club';
+import { childrenQuery } from '../guardian/queries';
 import { resolveScope, scopeToSearch } from '../club/scope';
 import { ScopeProvider } from '../club/use-scope';
 import { StaffOnlyPage } from '../pages/StaffOnlyPage';
 import { Loading } from '../ui/components';
 import { AppShell } from './AppShell';
+import { GUARDIAN_NAV_ITEMS } from './navigation';
 
 const route = getRouteApi('/_authed/_club');
 
 /**
  * Layout of everything inside a club: resolves the `ActiveClub` from the
  * cache the route loader filled, applies the club's brand, resolves the
- * sport/category scope and renders the shell. Players and guardians get the
- * "use the app" page instead.
+ * sport/category scope and renders the shell. Guardians get the shell of the
+ * family area (ADR 0065); players, the "use the app" page.
  */
 export function ClubLayout() {
   const { selection } = useServices();
@@ -56,6 +59,11 @@ function ClubLayoutFor(props: { selection: ClubSelection }) {
     };
   }, [theme, primary, secondary]);
 
+  if (isGuardianRole(role) && props.selection.kind === 'membership') {
+    return (
+      <GuardianClubLayout selection={props.selection} me={me} club={club} clubTheme={clubTheme} />
+    );
+  }
   if (!isStaffRole(role)) return <StaffOnlyPage clubName={club.name} role={role} />;
   return (
     <StaffClubLayout
@@ -65,6 +73,37 @@ function ClubLayoutFor(props: { selection: ClubSelection }) {
       club={club}
       clubTheme={clubTheme}
     />
+  );
+}
+
+/** The family area: the guardian's children make the matrix subject; no categories, no scope. */
+function GuardianClubLayout(props: {
+  selection: ClubSelection;
+  me: Me;
+  club: Club;
+  clubTheme: ClubTheme;
+}) {
+  const { api } = useServices();
+  const { selection, me, club, clubTheme } = props;
+  const { data: children } = useSuspenseQuery(childrenQuery(api, selection));
+  const active = useMemo(
+    () =>
+      buildActiveClub({
+        selection,
+        user: me.user,
+        membership: me.activeMembership,
+        club,
+        theme: clubTheme,
+        assignments: [],
+        categories: [],
+        children,
+      }),
+    [selection, me, club, clubTheme, children],
+  );
+  return (
+    <ActiveClubProvider value={active}>
+      <AppShell navItems={GUARDIAN_NAV_ITEMS} showScope={false} />
+    </ActiveClubProvider>
   );
 }
 

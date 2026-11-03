@@ -87,6 +87,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
   }),
 ];
 
+/**
+ * Navigation of the family area (ADR 0065): a guardian's own sections. Their
+ * permissions are about one child (`player` targets), so each screen checks
+ * the concrete child; the entry itself is the guardian's home.
+ */
+export const GUARDIAN_NAV_ITEMS: readonly NavItem[] = [
+  navItem({ to: '/family', labelKey: 'guardian.nav.children', icon: 'family' }),
+];
+
 /** Entries the subject may open somewhere in what it sees. */
 export function visibleNavItems(
   items: readonly NavItem[],

@@ -68,6 +68,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0062](0062-pantalla-de-configuracion-y-lectura-del-catalogo.md) | Pantalla de configuración: matriz por etapa, cambios con vigencia y lectura del catálogo del club | Aceptado |
 | [0063](0063-administracion-en-la-web.md) | Administración en la web: secciones por permiso del club, lector de Excel en el navegador y códigos estables de los problemas del padrón | Aceptado |
 | [0064](0064-antropometria-carga-por-lote-y-maduracion-al-instante.md) | Antropometría: carga por lote del día de mediciones y maduración al instante calculada por la API | Aceptado |
+| [0065](0065-area-de-familia-en-la-web.md) | Área de familia en la web: el tutor ve la ficha resumida de sus hijos/as, firma consentimientos e informa la altura de los padres | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 

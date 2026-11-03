@@ -45,6 +45,7 @@ interface ChildBody {
   guardianId: string;
   relationship: string;
   hasAccount: boolean;
+  categories: { id: string; name: string; sport: string }[];
   canManageAccess: boolean;
 }
 
@@ -98,6 +99,7 @@ describeWithPostgres('guardians and accounts of minors (Postgres)', (serverUrl) 
   /** Club B. */
   let lucia: string;
   let motherLink: LinkBody;
+  let m15Id: string;
 
   async function insertPlayer(clubId: ClubId, firstName: string, birthDate: string) {
     const result = await database.admin.query<{ id: string }>(
@@ -130,6 +132,8 @@ describeWithPostgres('guardians and accounts of minors (Postgres)', (serverUrl) 
     clubA = await createClub(database.admin, 'club-a');
     clubB = await createClub(database.admin, 'club-b');
     const m15 = await createCategory(database.admin, clubA, 'M15');
+    m15Id = m15;
+    const m19 = await createCategory(database.admin, clubA, 'M19');
     adminA = await signIn(t, 'admin@club-a.example.com');
     adminB = await signIn(t, 'admin@club-b.example.com');
     coachA = await signIn(t, 'coach@club-a.example.com');
@@ -148,6 +152,12 @@ describeWithPostgres('guardians and accounts of minors (Postgres)', (serverUrl) 
       `insert into player_category (club_id, player_id, category_id, valid_from)
        values ($1, $2, $3, '2024-03-01')`,
       [clubA, sofia, m15],
+    );
+    // The adult's category: never shown to a guardian whose access they did not keep.
+    await database.admin.query(
+      `insert into player_category (club_id, player_id, category_id, valid_from)
+       values ($1, $2, $3, '2024-03-01')`,
+      [clubA, martin, m19],
     );
     await database.admin.query(
       `insert into staff_assignment (club_id, membership_id, category_id, valid_from)
@@ -278,8 +288,16 @@ describeWithPostgres('guardians and accounts of minors (Postgres)', (serverUrl) 
       ]);
       const mother = await get('/v1/me/children', motherA);
       expect(mother.json<Page<ChildBody>>().items).toMatchObject([
-        { playerId: sofia, relationship: 'mother', hasAccount: false, canManageAccess: true },
+        {
+          playerId: sofia,
+          relationship: 'mother',
+          hasAccount: false,
+          canManageAccess: true,
+          categories: [{ id: m15Id, name: 'M15', sport: 'rugby' }],
+        },
       ]);
+      // Tomás has no category; Martín (of age, did not keep the access) shows none.
+      expect(children.map((c) => c.categories)).toEqual([[], []]);
       // Paginates by cursor like every list.
       const first = await get('/v1/me/children?limit=1', fatherA);
       const cursor = first.json<Page<ChildBody>>().nextCursor;
