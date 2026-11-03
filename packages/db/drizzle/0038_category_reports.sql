@@ -167,3 +167,51 @@ BEGIN
   EXECUTE format('CREATE POLICY "file_app_update" ON "public"."file" FOR UPDATE TO "sport_performance_app" USING (%s) WITH CHECK (%s)', write_using, write_using);
 END
 $$;
+--> statement-breakpoint
+
+-- Whether whoever asks for a category report sees every player the report counts (ADR
+-- 0073): the players of the category at any day of `[from_date, to_date]` (the roster at
+-- the end of the window and everyone of the response period). An `sc` sees the players of
+-- the categories assigned to them today, with today's category: for a window of an earlier
+-- season, or players who moved to a category the `sc` does not have, the snapshot read with
+-- their RLS would count fewer players than the administration's, and the report says so.
+-- Answers a boolean only (never who, nor how many), to the administration and to the staff
+-- assigned to the category.
+CREATE FUNCTION "app"."category_report_coverage"(report_category uuid, from_date date, to_date date)
+RETURNS boolean
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp AS $$
+DECLARE
+  club constant uuid := "app"."current_club_id"();
+  ctx_role constant text := "app"."current_role"();
+  visible uuid[];
+BEGIN
+  IF club IS NULL OR ctx_role IS NULL THEN
+    RAISE EXCEPTION 'The coverage of a report needs a validated tenant context'
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF from_date IS NULL OR to_date IS NULL OR to_date < from_date THEN
+    RAISE EXCEPTION 'Invalid range of days' USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+  IF "app"."sees_whole_club"() THEN
+    RETURN true;
+  END IF;
+  IF NOT (ctx_role IN ('coach', 'sc', 'medical')
+          AND report_category = ANY ("app"."assigned_category_ids"())) THEN
+    RAISE EXCEPTION 'The category of the report is not assigned to the % role', ctx_role
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  visible := "app"."visible_player_ids"();
+  RETURN NOT EXISTS (
+    SELECT 1
+      FROM "public"."player_category" pc
+      JOIN "public"."player" p ON p.club_id = pc.club_id AND p.id = pc.player_id
+     WHERE pc.club_id = club AND pc.category_id = report_category
+       AND pc.valid_from <= to_date AND (pc.valid_to IS NULL OR pc.valid_to > from_date)
+       AND NOT (pc.player_id = ANY (visible)));
+END;
+$$;
+--> statement-breakpoint
+REVOKE ALL ON FUNCTION "app"."category_report_coverage"(uuid, date, date) FROM PUBLIC;
+--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION "app"."category_report_coverage"(uuid, date, date) TO "sport_performance_app";

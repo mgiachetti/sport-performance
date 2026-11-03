@@ -229,4 +229,35 @@ describe.skipIf(!hasDatabase)('category reports (Postgres 16)', () => {
       '42501',
     );
   });
+  it('tells the requester, and nobody else, whether they see every player a report counts', async () => {
+    const coverage = (context: TestContext, from: string, to: string) =>
+      inContext(app.pool, context, async (client) => {
+        const { rows } = await client.query<{ complete: boolean }>(
+          'select app.category_report_coverage($1, $2, $3) as complete',
+          [a.rows.category, from, to],
+        );
+        return must(rows[0]).complete;
+      });
+    const coach = as(a, 'coach', 'coach');
+    expect(await coverage(coach, '2026-01-01', '2026-01-31')).toBe(true);
+    // A player of M15 in 2024 who is in M17 today: the coach of M15 does not see them.
+    const { rows } = await t.pool.query<{ id: string }>(
+      `insert into player (club_id, first_name, last_name, birth_date, sex, sport, joined_on)
+       values ($1, 'Ex', 'M15', '2010-03-01', 'male', 'rugby', '2020-01-01') returning id`,
+      [a.clubId],
+    );
+    const moved = must(rows[0]).id;
+    await t.pool.query(
+      `insert into player_category (club_id, player_id, category_id, valid_from, valid_to)
+       values ($1, $2, $3, '2024-01-01', '2025-01-01'), ($1, $2, $4, '2025-01-01', null)`,
+      [a.clubId, moved, a.rows.category, m17],
+    );
+    expect(await coverage(coach, '2024-03-01', '2024-07-31')).toBe(false);
+    expect(await coverage(as(a, 'admin', 'admin'), '2024-03-01', '2024-07-31')).toBe(true);
+    // Only the administration and the staff assigned to the category ask.
+    for (const context of [as(a, 'player', 'player'), as(a, 'coachM17', 'coach')]) {
+      expect((await pgErrorOf(coverage(context, '2024-03-01', '2024-07-31'))).code).toBe('42501');
+    }
+    expect((await pgErrorOf(coverage(coach, '2024-07-31', '2024-03-01'))).code).toBe('22023');
+  });
 });

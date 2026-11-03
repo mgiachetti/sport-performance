@@ -167,6 +167,14 @@ export const categoryReportContentSchema = z
       }),
       byStage: z.array(z.object({ stage: stageSchema, players: countSchema })),
     }),
+    scope: z
+      .object({
+        complete: z.boolean().meta({
+          description:
+            'Quien lo pidió ve a todos los jugadores que el informe cuenta (el plantel al cierre y los del período de respuestas). `false` cuando un `sc` pide una ventana cerrada con jugadores que hoy están en una categoría que no tiene asignada (por ejemplo, una ventana de una temporada anterior): los números son menores que los de la administración y el PDF lo avisa.',
+        }),
+      })
+      .meta({ description: 'Alcance de la lectura con la RLS de quien lo pidió (ADR 0073).' }),
     battery: z.array(categoryReportBatteryTestSchema),
     evolution: z.object({
       columns: z.array(categoryReportColumnSchema).max(CATEGORY_REPORT_EVOLUTION_COLUMNS),

@@ -32,12 +32,10 @@ describe('category report PDF (B-603)', () => {
       'Del 01/04/2026 al 30/04/2026',
       'Generado el 04/05/2026',
       'CUMPLIMIENTO DE LA BATERÍA',
-      'Sprint 10/20/40 m',
-      '20 de 24',
-      '83 %',
+      'Esperados',
+      'Sprint 10/20/40 m 24 20 83 %',
       'No disponibles',
-      'Total de la batería',
-      '42 de 48',
+      'Total de la batería 48 42 88 %',
       'EVOLUCIÓN DEL GRUPO',
       'V1 Temporada 2026',
       '34,2 cm',
@@ -90,6 +88,18 @@ describe('category report PDF (B-603)', () => {
     expect(text).toContain('No hubo sesiones de la categoría en el período.');
     expect(text).toContain('La ventana todavía no había terminado');
     expect(text).not.toContain('CAMBIO CONTRA LA VENTANA ANTERIOR');
+    expect(text).not.toContain('no ve hoy a todos los jugadores');
+  });
+
+  it('warns when the requester did not see every player the report counts', async () => {
+    const content = sampleCategoryReportContent({ scope: { complete: false } });
+    const text = plain(
+      (
+        await pdfText(await renderCategoryReport(content, { translator, logoPng: null, now: NOW }))
+      ).join(' '),
+    );
+    expect(text).toContain('no ve hoy a todos los jugadores');
+    expect(text).toContain('pedíselo a la administración del club');
   });
 
   it('writes a rate with its counts, and nothing when nothing was expected', () => {

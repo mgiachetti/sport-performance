@@ -4,7 +4,8 @@
  * RLS), the window rules, idempotency, and the snapshot — the battery done,
  * the group's evolution with the minimum of players, the change counted per
  * player, the first team's reference and the response rate — with no name,
- * id or value of any player, nor the cause of an unavailability.
+ * id or value of any player, nor the cause of an unavailability — and a
+ * snapshot that says when its author did not see every player it counts.
  */
 import { randomUUID } from 'node:crypto';
 import type { CategoryReport, CategoryReportContent } from '@sport-performance/contracts';
@@ -328,6 +329,8 @@ describeWithPostgres('category reports (Postgres)', (serverUrl) => {
       players: 6,
       byStage: [{ stage: 'development', players: 6 }],
     });
+    // The sc sees every player of M15 in V2 and since V1: the numbers are the whole.
+    expect(content.scope).toEqual({ complete: true });
 
     // The battery of V2 for M15 (development): CMJ, sprint, 505, 30-15 and strength, never
     // what only V1 and V3 have.
@@ -440,5 +443,50 @@ describeWithPostgres('category reports (Postgres)', (serverUrl) => {
     const body = page.json<{ items: CategoryReport[]; nextCursor: string | null }>();
     expect(body.items).toHaveLength(1);
     expect(body.nextCursor).not.toBeNull();
+  });
+  it('flags the snapshot of an sc who does not see every player of an earlier season', async () => {
+    // Temporada 2025: a seventh player was in M15 in V3 and moved to M16 in 2026, a
+    // category the sc does not have.
+    const moved = await insertPlayer(m15, 'Movido');
+    await database.admin.query(
+      `update player_category set valid_from = '2025-01-01', valid_to = '2026-01-01'
+        where club_id = $1 and player_id = $2`,
+      [clubA, moved],
+    );
+    await database.admin.query(
+      `insert into player_category (club_id, player_id, category_id, valid_from)
+       values ($1, $2, $3, '2026-01-01')`,
+      [clubA, moved, categories['rugby:m16']],
+    );
+    await result(moved, 'cmj', '2025-07-10', { cmj_height_cm: [40] });
+    for (const [i, id] of players.entries()) {
+      await result(id, 'cmj', '2025-07-10', { cmj_height_cm: [28 + i] });
+    }
+    const { rows } = await database.admin.query<{ id: string }>(
+      `with s as (insert into season (club_id, sport, name, starts_on, ends_on)
+                  values ($1, 'rugby', 'Temporada 2025', '2025-02-01', '2025-11-30') returning id)
+       insert into test_window (club_id, season_id, number, starts_on, ends_on)
+       select $1, s.id, 3, '2025-07-01', '2025-07-31' from s returning id`,
+      [clubA],
+    );
+    const v3of2025 = rows[0]?.id ?? '';
+
+    const bySc = await ask(scA, m15, { testWindowId: v3of2025 });
+    expect(bySc.statusCode, bySc.body).toBe(202);
+    const partial = await contentOf(bySc.json<CategoryReport>().id);
+    expect(partial.scope).toEqual({ complete: false });
+    expect(partial.roster.players).toBe(6);
+
+    // The administration sees the whole roster of that window, and says so.
+    const byAdmin = await ask(adminA, m15, { testWindowId: v3of2025 });
+    expect(byAdmin.statusCode, byAdmin.body).toBe(202);
+    const whole = await contentOf(byAdmin.json<CategoryReport>().id);
+    expect(whole.scope).toEqual({ complete: true });
+    expect(whole.roster.players).toBe(7);
+    const cmj = whole.evolution.metrics.find((m) => m.metricCode === 'cmj_height_cm');
+    expect(cmj?.points.map((p) => p.players)).toEqual([7]);
+    // Neither snapshot names the player who moved.
+    expect(JSON.stringify(partial)).not.toContain(moved);
+    expect(JSON.stringify(whole)).not.toContain(moved);
   });
 });

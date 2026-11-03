@@ -39,6 +39,7 @@ import {
   type MetricDirection,
   type ParticipationStatus,
   type PlayerId,
+  type Role,
   type Sex,
   type Sport,
   type Stage,
@@ -94,6 +95,13 @@ const validOn = (row: { validFrom: LocalDate; validTo: LocalDate | null }, day: 
   compareLocalDates(row.validFrom, day) <= 0 &&
   (row.validTo === null || compareLocalDates(row.validTo, day) > 0);
 
+/**
+ * Whom the report reads the not-done reasons for: it leaves the platform for
+ * the club's sub-committee, which is never the medical staff, so an injury is
+ * always "not available" (ADR 0029), whoever asked for it.
+ */
+const REPORT_READER: Role = 'coach';
+
 // ─── Battery ─────────────────────────────────────────────────────────────────────────
 
 /** A result of a player in the window, as the caller may see it (`injured` is `unavailable`). */
@@ -126,8 +134,7 @@ export function batteryCompliance(
   const tally = new Map<string, CategoryReportBatteryTest>();
   const bucketOf = (reason: TestNotDoneReason | 'unavailable' | null) => {
     if (reason === null) return 'other' as const;
-    // Whoever reads it is not the medical staff: an injury is "not available" (ADR 0029).
-    const shown = reason === 'unavailable' ? reason : notDoneReasonForViewer(reason, 'coach');
+    const shown = reason === 'unavailable' ? reason : notDoneReasonForViewer(reason, REPORT_READER);
     switch (shown) {
       case 'absent':
         return 'absent' as const;
@@ -310,6 +317,9 @@ export function groupEvolution(
       const counted = pairedChange(metric.direction, pairs);
       change = counted === null ? null : { fromColumnKey: before.columnKey, ...counted };
     }
+    // A first-team reference is per metric, never per exercise (`reference_value` has no
+    // exercise): an e1RM of the bench press is not compared with the squat's. A series
+    // with an exercise gets none (ADR 0073).
     const reference = first.exercise === null ? referenceOf.get(first.metricCode) : undefined;
     result.push({
       testCode: first.testCode,
@@ -757,6 +767,13 @@ export async function buildCategoryReportContent(
     wellnessDays,
   });
 
+  // Read with the requester's RLS: an `sc` sees today's players of their categories, so a
+  // closed window may count fewer players than the administration's. The report says so.
+  const coverage = await db.execute<{ complete: boolean }>(
+    sql`select app.category_report_coverage(${category.id}::uuid, ${period.from}::date, ${period.to}::date) as complete`,
+  );
+  const complete = coverage.rows[0]?.complete === true;
+
   const content: CategoryReportContent = {
     formatVersion: CATEGORY_REPORT_FORMAT_VERSION,
     locale: clubRow.locale,
@@ -791,6 +808,7 @@ export async function buildCategoryReportContent(
         return players === 0 ? [] : [{ stage, players }];
       }),
     },
+    scope: { complete },
     battery,
     evolution: { columns, metrics: evolutionMetrics },
     responses: { from: period.from, to: period.to, ...responses },

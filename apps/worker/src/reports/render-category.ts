@@ -89,6 +89,11 @@ export async function renderCategoryReport(
     paragraph(t('categoryReport.windowOpen'), 9, MUTED);
     doc.y += 5;
   }
+  // Read with the requester's RLS: never hand over partial numbers as if they were the whole.
+  if (!content.scope.complete) {
+    paragraph(t('categoryReport.partialScope'), 9.5, INK);
+    doc.y += 5;
+  }
 
   // ─── Battery of the window ───────────────────────────────────────────────────────────
   section(t('categoryReport.battery.title'));
@@ -96,11 +101,13 @@ export async function renderCategoryReport(
     paragraph(t('categoryReport.battery.empty'), 10, MUTED);
   } else {
     paragraph(t('categoryReport.battery.description'), 8.5, MUTED);
-    const first = share(0.25);
-    const done = share(0.15);
-    const each = Math.floor((width - first - done) / 5);
+    const first = share(0.22);
+    const expected = share(0.11);
+    const done = share(0.12);
+    const each = Math.floor((width - first - expected - done) / 5);
     const columns: Column[] = [
       { header: t('categoryReport.battery.test'), width: first },
+      { header: t('categoryReport.battery.expected'), width: expected, align: 'right' },
       { header: t('categoryReport.battery.done'), width: done, align: 'right' },
       { header: t('categoryReport.battery.absent'), width: each, align: 'right' },
       { header: t('categoryReport.battery.unavailable'), width: each, align: 'right' },
@@ -143,13 +150,8 @@ export async function renderCategoryReport(
       const pct = counts.expected === 0 ? null : (counts.done / counts.expected) * 100;
       return [
         { text: name },
-        {
-          text: t('categoryReport.battery.doneOf', {
-            done: counts.done,
-            expected: counts.expected,
-          }),
-          note: formatUnit(pct, 'pct', { decimals: 0 }),
-        },
+        { text: String(counts.expected) },
+        { text: String(counts.done), note: formatUnit(pct, 'pct', { decimals: 0 }) },
         { text: String(counts.absent) },
         { text: String(counts.unavailable) },
         { text: String(counts.notApplicableToStage) },

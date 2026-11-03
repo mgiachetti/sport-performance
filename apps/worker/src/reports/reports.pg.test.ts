@@ -7,7 +7,8 @@
  * without a row, and gives up after the attempts; and a report asked for
  * through the API's login reaches the worker by its notification. A pending
  * category report (B-603, ADR 0073) goes through the same job into a
- * `category_report` file of its category.
+ * `category_report` file of its category, taking turns with the player
+ * reports.
  */
 import { createHash, randomUUID } from 'node:crypto';
 import { createDatabase, schema, type Database } from '@sport-performance/db';
@@ -31,7 +32,7 @@ import { disabledErrorReporter } from '../observability.js';
 import { startWorker } from '../worker.js';
 import { pdfText } from '../testing/pdf-text.js';
 import { sampleCategoryReportContent, sampleReportContent } from '../testing/report-fixture.js';
-import { runClubReports } from './job.js';
+import { REPORTS_PER_JOB, runClubReports } from './job.js';
 
 const { club, membership, player, season, testWindow, user } = schema;
 
@@ -302,6 +303,32 @@ describe.skipIf(!hasDatabase || !hasBucket)('player report job (Postgres 16 + Mi
     const text = (await pdfText(bytes ?? new Uint8Array())).join(' ');
     expect(text).toContain('Informe de categoría');
     expect(text).toContain('CUMPLIMIENTO DE LA BATERÍA');
+  });
+
+  it('takes both kinds in turn, so a backlog of player reports never starves a category one', async () => {
+    const content = sampleCategoryReportContent();
+    for (let i = 0; i <= REPORTS_PER_JOB; i += 1) await insertReport();
+    const { rows: inserted } = await owner.query<{ id: string }>(
+      `insert into category_report (club_id, category_id, test_window_id, format_version, content, created_by)
+       values ($1, $2, $3, 1, $4, $5) returning id`,
+      [
+        clubId,
+        categoryId,
+        windowId,
+        JSON.stringify({ ...content, category: { ...content.category, id: categoryId } }),
+        scId,
+      ],
+    );
+    const first = await runClubReports({ pool: worker, storage, logger }, clubId);
+    expect(first).toMatchObject({ ready: REPORTS_PER_JOB, failed: 0, more: true });
+    const { rows: states } = await owner.query<{ status: string }>(
+      'select status::text from category_report where id = $1',
+      [inserted[0]?.id],
+    );
+    expect(states[0]?.status).toBe('ready');
+    // The rest of the player reports go in the next job.
+    const second = await runClubReports({ pool: worker, storage, logger }, clubId);
+    expect(second).toMatchObject({ ready: 2, failed: 0, more: false });
   });
 
   it('fails at once a snapshot it cannot read', async () => {

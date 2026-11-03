@@ -494,25 +494,39 @@ async function runKind<C>(
 }
 
 /**
- * The due reports of a club, of players first and then of categories, up to
- * {@link REPORTS_PER_JOB} in one job; `more` when some may be left for the next.
+ * The due reports of a club, up to {@link REPORTS_PER_JOB} in one job, taking
+ * one of each kind in turn (a player's, a category's, …) while both have due
+ * ones: a backlog of one kind never keeps the other waiting for a whole job.
+ * `more` when some may be left for the next.
  */
 export async function runClubReports(
   deps: ReportDependencies,
   clubId: ClubId,
   options: { readonly jobId?: string } = {},
 ): Promise<ClubReportsReport> {
-  const players = await runKind(deps, PLAYER_REPORTS, clubId, REPORTS_PER_JOB, options);
-  const left = REPORTS_PER_JOB - players.handled;
-  const categories =
-    left > 0
-      ? await runKind(deps, CATEGORY_REPORTS, clubId, left, options)
-      : { ready: 0, retried: 0, failed: 0, handled: 0, more: true };
-  return {
-    clubId,
-    ready: players.ready + categories.ready,
-    retried: players.retried + categories.retried,
-    failed: players.failed + categories.failed,
-    more: players.more || categories.more,
-  };
+  const kinds: ((budget: number) => Promise<KindOutcome>)[] = [
+    (budget) => runKind(deps, PLAYER_REPORTS, clubId, budget, options),
+    (budget) => runKind(deps, CATEGORY_REPORTS, clubId, budget, options),
+  ];
+  const total = { ready: 0, retried: 0, failed: 0 };
+  let pending = kinds;
+  let left = REPORTS_PER_JOB;
+  while (left > 0 && pending.length > 0) {
+    const stillDue: typeof kinds = [];
+    for (const run of pending) {
+      if (left === 0) {
+        stillDue.push(run);
+        continue;
+      }
+      const outcome = await run(1);
+      total.ready += outcome.ready;
+      total.retried += outcome.retried;
+      total.failed += outcome.failed;
+      left -= outcome.handled;
+      // A kind with nothing due is done for this job; one that took a report may have more.
+      if (outcome.handled > 0) stillDue.push(run);
+    }
+    pending = stillDue;
+  }
+  return { clubId, ...total, more: pending.length > 0 };
 }

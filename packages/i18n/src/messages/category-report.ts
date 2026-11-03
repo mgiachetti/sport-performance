@@ -19,17 +19,20 @@ export const categoryReportMessagesEsAR = {
   'categoryReport.windowOpen':
     'La ventana todavía no había terminado cuando se generó este informe: los números de la ventana pueden cambiar.',
 
+  'categoryReport.partialScope':
+    'Atención: quien pidió este informe no ve hoy a todos los jugadores que estuvieron en la categoría en este período (por ejemplo, porque pasaron a una categoría que no tiene asignada). El plantel, la batería, la evolución y las respuestas cuentan solo a los que ve, así que los números pueden ser menores que los del informe completo. Para el informe completo, pedíselo a la administración del club.',
+
   'categoryReport.battery.title': 'Cumplimiento de la batería',
   'categoryReport.battery.description':
-    'Por cada test que la batería programa en la ventana para la etapa de cada jugador: cuántos lo hicieron y por qué no el resto.',
+    'Por cada test que la batería programa en la ventana para la etapa de cada jugador: cuántos tenían que hacerlo (esperados), cuántos lo hicieron (con el porcentaje) y por qué no el resto.',
   'categoryReport.battery.test': 'Test',
+  'categoryReport.battery.expected': 'Esperados',
   'categoryReport.battery.done': 'Hechos',
   'categoryReport.battery.absent': 'Ausentes',
   'categoryReport.battery.unavailable': 'No disponibles',
   'categoryReport.battery.notApplicable': 'No corresponde',
   'categoryReport.battery.other': 'Otro motivo',
   'categoryReport.battery.noRecord': 'Sin registro',
-  'categoryReport.battery.doneOf': '{done} de {expected}',
   'categoryReport.battery.total': 'Total de la batería',
   'categoryReport.battery.empty': 'La batería no programa tests para esta ventana.',
 

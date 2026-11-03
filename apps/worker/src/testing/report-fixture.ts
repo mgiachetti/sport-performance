@@ -200,6 +200,7 @@ export function sampleCategoryReportContent(
         { stage: 'development', players: 20 },
       ],
     },
+    scope: { complete: true },
     battery: [
       {
         testCode: 'sprint_40',
