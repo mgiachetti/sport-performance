@@ -1,6 +1,7 @@
 import type { EndpointCatalog } from '../endpoint.js';
 import { getAlert, listAlerts, reviewAlert } from './alerts.js';
 import { getWeeklyPanel } from './panel.js';
+import { getTrainingSessionFieldMetrics, listFieldSessions } from './field-sessions.js';
 import { getAppCompatibility } from './app-compatibility.js';
 import { sendSignInCode, signOut, verifySignInCode } from './auth.js';
 import {
@@ -240,6 +241,7 @@ export * from './configuration-modules.js';
 export * from './configuration-speed-zones.js';
 export * from './guardians.js';
 export * from './consents.js';
+export * from './field-sessions.js';
 export * from './files.js';
 export * from './data-subject-rights.js';
 export * from './health.js';
@@ -369,6 +371,8 @@ export const apiEndpoints = {
   listTrainingSessionRoster,
   submitSessionRpe,
   listMyTrainingSessions,
+  listFieldSessions,
+  getTrainingSessionFieldMetrics,
   getWellnessForm,
   submitWellness,
   correctWellness,

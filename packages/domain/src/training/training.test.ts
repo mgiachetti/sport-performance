@@ -3,6 +3,8 @@ import { DomainValidationError } from '../errors.js';
 import { parseLocalDate, parseTimeZone } from '../time.js';
 import {
   CONTACT_LEVELS,
+  FIELD_METRIC_SOURCES,
+  isFieldMetricSource,
   PARTICIPATION_STATUSES,
   isParticipationStatus,
   parseContactLevel,
@@ -19,6 +21,12 @@ describe('training vocabularies', () => {
     expect(CONTACT_LEVELS).toEqual(['none', 'controlled', 'full']);
     expect(isParticipationStatus('injured')).toBe(false);
     expect(() => parseContactLevel('heavy')).toThrow(DomainValidationError);
+  });
+
+  it('names where a field metric comes from', () => {
+    expect(FIELD_METRIC_SOURCES).toEqual(['catapult', 'pod', 'hr_band', 'manual']);
+    expect(isFieldMetricSource('pod')).toBe(true);
+    expect(isFieldMetricSource('gps')).toBe(false);
   });
 
   it('only full and partial carry load', () => {

@@ -13,6 +13,7 @@ import {
   DOMINANT_SIDES,
   CONTACT_LEVELS,
   EXPOSURE_CONTEXTS,
+  FIELD_METRIC_SOURCES,
   HEIGHT_SOURCES,
   FIXTURE_STATUSES,
   FIXTURE_VENUES,
@@ -212,7 +213,7 @@ export const DEVICE_KINDS = [
 export const deviceKindEnum = pgEnum('device_kind', DEVICE_KINDS);
 
 /** Where a field metric value comes from (B-601, F3). */
-export const EXTERNAL_METRIC_SOURCES = ['catapult', 'pod', 'hr_band', 'manual'] as const;
+export const EXTERNAL_METRIC_SOURCES = FIELD_METRIC_SOURCES;
 export const externalMetricSourceEnum = pgEnum('external_metric_source', EXTERNAL_METRIC_SOURCES);
 
 /** Lifecycle of a generated alert (B-327). */

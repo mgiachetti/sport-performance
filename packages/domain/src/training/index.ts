@@ -4,14 +4,17 @@
  */
 export {
   CONTACT_LEVELS,
+  FIELD_METRIC_SOURCES,
   NO_LOAD_PARTICIPATION_STATUSES,
   PARTICIPATION_STATUSES,
   isContactLevel,
+  isFieldMetricSource,
   isParticipationStatus,
   parseContactLevel,
   parseParticipationStatus,
   participationCarriesLoad,
   type ContactLevel,
+  type FieldMetricSource,
   type ParticipationStatus,
 } from './vocabularies.js';
 export {

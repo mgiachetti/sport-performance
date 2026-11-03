@@ -157,6 +157,7 @@ export {
   CANONICAL_TEST_CODES,
   UNITLESS_NAME_METRIC_CODES,
   canonicalMetricCode,
+  FIELD_METRIC_CODES,
   canonicalMetricsOfTest,
   canonicalTestCode,
   isCanonicalMetricCode,

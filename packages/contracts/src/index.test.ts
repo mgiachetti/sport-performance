@@ -109,6 +109,8 @@ describe('@sport-performance/contracts entry point', () => {
       'listTrainingSessionRoster',
       'submitSessionRpe',
       'listMyTrainingSessions',
+      'listFieldSessions',
+      'getTrainingSessionFieldMetrics',
       'getWellnessForm',
       'submitWellness',
       'correctWellness',

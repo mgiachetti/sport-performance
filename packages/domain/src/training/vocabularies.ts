@@ -42,3 +42,14 @@ export const NO_LOAD_PARTICIPATION_STATUSES = [
 export function participationCarriesLoad(status: ParticipationStatus): boolean {
   return !(NO_LOAD_PARTICIPATION_STATUSES as readonly ParticipationStatus[]).includes(status);
 }
+
+/**
+ * Where a field metric value comes from (`external_metric.source`): a
+ * Catapult OpenField import (B-601), the shared heart-rate bands (Phase 2),
+ * the player's pod (Phase 3) or typed by hand. Each one is its own method
+ * (principle 4): values of different sources are never merged or averaged.
+ */
+export const FIELD_METRIC_SOURCES = ['catapult', 'pod', 'hr_band', 'manual'] as const;
+export type FieldMetricSource = (typeof FIELD_METRIC_SOURCES)[number];
+
+export const isFieldMetricSource = memberGuard(FIELD_METRIC_SOURCES);

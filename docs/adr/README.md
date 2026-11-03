@@ -64,6 +64,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0058](0058-base-de-la-app-mobile.md) | Base de la app mobile: Expo Router con guardas por sesión, variantes por ambiente, sesión bearer en el almacenamiento seguro y tests sin simulador | Aceptado |
 | [0059](0059-panel-semanal-lectura-agregada-y-bio-banding.md) | Panel semanal: una lectura agregada de lo derivado, alcance por la matriz y bio-banding en la vista | Aceptado |
 | [0060](0060-lecturas-de-la-ficha-del-jugador.md) | Lecturas de la ficha del jugador: series derivadas por jugador, grupo de comparación anónimo e historia de la disponibilidad | Aceptado |
+| [0061](0061-vista-de-sesion-en-cancha.md) | Vista de sesión en cancha: una lectura acotada por sesión, totales por fuente y jugadores por la matriz | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 

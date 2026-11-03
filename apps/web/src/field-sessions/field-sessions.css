@@ -1,0 +1,96 @@
+/*
+ * Field session view (B-408). Colors and type from the `--sp-*` variables of
+ * packages/ui-tokens, like the shell: no hex values.
+ */
+
+.sp-fs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--sp-space-md);
+  margin-bottom: var(--sp-space-lg);
+}
+.sp-fs-toolbar label {
+  display: grid;
+  gap: var(--sp-space-xxs);
+  color: var(--sp-color-text-secondary);
+  font-size: var(--sp-text-body-small-size);
+}
+
+.sp-fs-table-wrap {
+  overflow-x: auto;
+}
+.sp-fs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--sp-text-body-small-size);
+}
+.sp-fs-table caption {
+  text-align: start;
+  color: var(--sp-color-text-secondary);
+  padding-bottom: var(--sp-space-sm);
+}
+.sp-fs-table th,
+.sp-fs-table td {
+  padding: var(--sp-space-xs) var(--sp-space-sm);
+  border-bottom: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+  text-align: start;
+  white-space: nowrap;
+}
+.sp-fs-table thead th {
+  color: var(--sp-color-text-secondary);
+  font-weight: var(--sp-text-body-strong-weight);
+}
+.sp-fs-table .sp-fs-num {
+  text-align: end;
+  font-family: var(--sp-text-metric-small-family);
+  font-variant-numeric: tabular-nums;
+}
+.sp-fs-table tbody tr:hover {
+  background: var(--sp-color-surface-raised);
+}
+.sp-fs-muted {
+  color: var(--sp-color-text-secondary);
+}
+
+.sp-fs-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--sp-space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sp-fs-kpi {
+  display: grid;
+  gap: var(--sp-space-xxs);
+  padding: var(--sp-space-lg);
+  border: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+  border-radius: var(--sp-radius-lg);
+  background: var(--sp-color-surface);
+}
+.sp-fs-kpi__label {
+  color: var(--sp-color-text-secondary);
+  font-size: var(--sp-text-body-small-size);
+}
+.sp-fs-kpi__value {
+  font-family: var(--sp-text-metric-family);
+  font-size: var(--sp-text-metric-size);
+  line-height: var(--sp-text-metric-line-height);
+  font-variant-numeric: tabular-nums;
+}
+.sp-fs-kpi__meta {
+  color: var(--sp-color-text-secondary);
+  font-size: var(--sp-text-caption-size);
+}
+
+.sp-fs-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-space-xxs);
+}
+
+.sp-fs-back {
+  display: inline-block;
+  margin-bottom: var(--sp-space-md);
+}
