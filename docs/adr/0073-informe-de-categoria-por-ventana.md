@@ -24,15 +24,15 @@ Faltaba decidir:
 
 ### El mismo camino que el informe del jugador
 
-- `POST /v1/categories/{categoryId}/reports` (`testWindowId`, `clientUuid` opcional) arma la instantánea en la transacción del pedido, con el contexto de quien lo pide, la valida con `categoryReportContentSchema` (`formatVersion = 1`) y la guarda `pending`. Responde `202`.
+- `POST /v1/categories/{categoryId}/reports` (`testWindowId`, `clientUuid` opcional) arma la instantánea en la transacción del pedido, con el contexto de quien lo pide (su RLS), la valida con `categoryReportContentSchema` (`formatVersion = 1`) y la guarda `pending`. Responde `202`.
 - La ventana es de una temporada del deporte de la categoría, ninguna de las dos archivada, ya empezada (`404` si no existe, `400` si es de otro deporte, `409` si no empezó). Una categoría archivada no recibe informes nuevos (`409`).
 - `GET /v1/categories/{categoryId}/reports` (cursor, más nuevos primero, filtro por ventana) y `GET /v1/category-reports/{id}`; el PDF se baja por `GET /v1/files/{id}/download`.
-- **Un solo job para los dos informes.** `player-reports-club` toma primero los del jugador y después los de categoría, con el mismo presupuesto por job (10), el mismo préstamo (`FOR UPDATE SKIP LOCKED`), los mismos intentos y los mismos códigos de fallo. El alta avisa por el mismo canal (`sport_performance_player_report`) y `app.worker_report_clubs()` lista los clubes con informes pendientes de las dos tablas. El pipeline es uno, parametrizado por tipo (tabla, columna del sujeto, tipo de archivo, esquema y renderer); la página del PDF (rayas del club, fuentes, tablas, pie) se comparte en `apps/worker/src/reports/layout.ts`.
+- **Un solo job para los dos informes.** `player-reports-club` toma primero los del jugador y después los de categoría, con el mismo presupuesto por job (10): con muchos informes del jugador pendientes, los de categoría esperan uno o más barridos detrás de ellos (se aceptó: son pocos por club y nadie los espera en pantalla), el mismo préstamo (`FOR UPDATE SKIP LOCKED`), los mismos intentos y los mismos códigos de fallo. El alta avisa por el mismo canal (`sport_performance_player_report`) y `app.worker_report_clubs()` lista los clubes con informes pendientes de las dos tablas. El pipeline es uno, parametrizado por tipo (tabla, columna del sujeto, tipo de archivo, esquema y renderer); la página del PDF (rayas del club, fuentes, tablas, pie) se comparte en `apps/worker/src/reports/layout.ts`.
 - **El estado y los códigos de fallo** son los del informe del jugador (`player_report_status`, `PLAYER_REPORT_FAILURE_CODES`): es el mismo ciclo de vida.
 
 ### Contenido: solo agregados del grupo
 
-El informe sale de la plataforma (se le entrega a la subcomisión), así que **nada en él baja a un jugador**: ningún nombre, id ni valor individual, ningún ranking, ningún dato de salud. Todo promedio o conteo de cambios necesita `CATEGORY_REPORT_MIN_PLAYERS` (5, el mínimo del ADR 0060); por debajo no se dice ni el valor ni cuántos son. Los conteos del plantel, de la batería y de las respuestas se dicen siempre: son cuántos, nunca quién ni con qué valor, y el staff los necesita también en grupos chicos.
+El informe sale de la plataforma (se le entrega a la subcomisión), así que **nada en él baja a un jugador**: ningún nombre, id ni valor individual, ningún ranking, ningún dato de salud. Todo promedio o conteo de cambios necesita `CATEGORY_REPORT_MIN_PLAYERS` (5, el mínimo del ADR 0060); por debajo no se dice ni el valor ni cuántos son. Los conteos del plantel, de la batería y de las respuestas se dicen siempre: son cuántos, nunca quién ni con qué valor, y el staff los necesita también en grupos chicos. En una categoría muy chica, un "no disponible: 1" puede dejar adivinar a quién se refiere; es una decisión de producto aceptada (el informe nunca dice por qué, y la lista nominal no sale del staff) que se revisa si el club la pide.
 
 - **Plantel:** jugadores de la categoría al cierre de la ventana (o hoy, si sigue abierta) y cuántos hay por etapa.
 - **Cumplimiento de la batería:** por cada test que la batería del club (`resolveBattery`, la misma lectura que la planilla del día de test, ADR 0068) programa en esa ventana para la etapa de cada jugador del plantel:
@@ -44,8 +44,10 @@ El informe sale de la plataforma (se le entrega a la subcomisión), así que **n
   Un resultado "es de la ventana" con la regla del informe del jugador: el día de test de la ventana, o sin ventana con la fecha dentro de ella.
 - **Evolución del grupo:** por métrica (y ejercicio), el promedio en la ventana y hasta 5 ventanas anteriores del deporte (`CATEGORY_REPORT_EVOLUTION_COLUMNS = 6`), siempre del **plantel actual**: muestra cómo evolucionó este grupo, no a otros jugadores que pasaron por la categoría.
   - Un valor por jugador, como los grupos de percentiles: el mejor según el sentido, o el último día en métricas neutras.
-  - Cada columna lleva sus métodos y versiones del protocolo; el PDF avisa cuando mezcla (principio 4).
-  - **Cambio contra la ventana anterior con resultados:** cuántos mejoraron, empeoraron o quedaron igual, contando solo los pares con la misma versión del protocolo en las dos ventanas.
+  - Una serie por test, métrica y ejercicio: dos tests con el mismo código de métrica no se mezclan.
+  - Cada columna lleva sus métodos y versiones del protocolo; el PDF avisa cuando el promedio de una columna mezcla (principio 4). Si el promedio no se muestra (menos del mínimo), tampoco el aviso: no hay número que advertir.
+  - **Cambio contra la ventana anterior con resultados:** cuántos mejoraron, empeoraron o quedaron igual, contando solo los pares con **el mismo método y la misma versión del protocolo** en las dos ventanas (cada valor de un jugador sale de un solo método y una sola versión). Así, V1 toda manual y V2 toda con fotocélula no dan pares aunque ninguna columna mezcle métodos.
+  - El cambio es siempre **hasta la ventana del informe**: si la métrica no tiene resultados en ella (por ejemplo, 505 o 30-15 en un informe de V2 de M13/M14, que los miden 2 veces por año), no hay cambio, en vez de contar uno entre dos ventanas anteriores.
   - La referencia de primera del plantel para el deporte y el sexo (`firstTeamReferencesOf` sin jugador: alcance `squad`).
 - **Tasa de respuesta:** del día siguiente al cierre de la ventana anterior de la temporada (o el inicio de la temporada) al cierre de esta (o hoy). Es el bloque de entrenamiento que la ventana evalúa.
   - Bienestar: un cuestionario esperado por jugador de la categoría ese día y día con sesión de la categoría (no archivada, ya empezada), salvo que todas sus participaciones de ese día sean ausente o no disponible; respondido si tiene bienestar ese día.
@@ -72,6 +74,10 @@ El informe sale de la plataforma (se le entrega a la subcomisión), así que **n
 - `file_subject` compara el tipo como texto: un valor agregado a un enum no se puede usar como tal en la migración que lo agrega.
 - **Quién lo ve:** la RLS de `file` lo muestra a quien ve su informe (`EXISTS` sobre `category_report`), como el ZIP de la exportación sigue a su exportación (ADR 0072). En la API, verlo y bajarlo pide `category_report.read` de su categoría; borrarlo antes de tiempo, `category.manage` (la administración).
 - **Nombre de descarga:** "Informe M15 Temporada 2026 V2.pdf".
+
+### Alcance de lo que se cuenta
+
+La instantánea se lee con la RLS de quien la pide. La administración ve todo el club; un `sc` ve a los jugadores de sus categorías asignadas. En la tasa de respuesta entran jugadores que estuvieron en la categoría durante el período y ya no están: si pasaron a una categoría que el `sc` no tiene asignada, sus filas no le son visibles y los conteos pueden ser menores que los de la administración para la misma categoría y ventana. Se aceptó para no abrir un camino de lectura que salte la RLS (el informe muestra lo que su autor puede ver, y queda guardado quién lo pidió); el plantel, la batería y la evolución son del plantel actual, que el `sc` asignado ve entero.
 
 ## Alternativas descartadas
 

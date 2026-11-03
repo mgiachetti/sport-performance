@@ -42,7 +42,7 @@ export const categoryReportMessagesEsAR = {
   'categoryReport.evolution.empty': 'Todavía no hay resultados del grupo para comparar.',
   'categoryReport.change.title': 'Cambio contra la ventana anterior',
   'categoryReport.change.description':
-    'Cuántos jugadores mejoraron, empeoraron o quedaron igual entre la ventana anterior con resultados y esta, solo con la misma versión del protocolo.',
+    'Cuántos jugadores mejoraron, empeoraron o quedaron igual entre la ventana anterior con resultados y esta, solo con el mismo método de medición y la misma versión del protocolo.',
   'categoryReport.change.item':
     '{metric} (desde {window}): {improved} mejoraron, {worsened} empeoraron, {unchanged} igual, de {paired}.',
   'categoryReport.change.empty': 'No hay suficientes jugadores medidos en las dos ventanas.',
@@ -68,7 +68,7 @@ export const categoryReportMessagesEsAR = {
   'categoryReport.notes.aggregates':
     'El informe muestra solo números del grupo: nunca nombres ni resultados de un jugador. Un promedio o un conteo de cambios aparece con al menos {min} jugadores.',
   'categoryReport.notes.method':
-    'Cada resultado guarda cómo se midió. Cuando una ventana mezcla métodos o versiones del test, el informe lo avisa y los cambios se cuentan solo con la misma versión.',
+    'Cada resultado guarda cómo se midió. Cuando una ventana mezcla métodos o versiones del test, el informe lo avisa y los cambios se cuentan solo con el mismo método y la misma versión.',
   'categoryReport.notes.unavailable':
     '"No disponible": el jugador no estaba en condiciones de hacer el test; el informe nunca dice por qué.',
   'categoryReport.notes.firstTeam':

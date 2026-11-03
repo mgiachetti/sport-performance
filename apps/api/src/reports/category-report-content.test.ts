@@ -135,26 +135,35 @@ describe('group evolution of a category report (B-603)', () => {
   it('averages one value per player from the minimum, and counts the changes', () => {
     const scores = [
       ...['p1', 'p2', 'p3', 'p4', 'p5'].map((id, i) => score(id, 'w:v1', 30 + i)),
+      score('p6', 'w:v1', 40),
       // p1 jumps twice in V2: the best counts.
       score('p1', 'w:v2', 29),
       score('p1', 'w:v2', 33, { measuredOn: '2026-04-20' }),
       score('p2', 'w:v2', 31),
       score('p3', 'w:v2', 31),
       score('p4', 'w:v2', 36),
-      score('p5', 'w:v2', 35, { method: 'manual' }),
+      score('p5', 'w:v2', 35),
+      // Measured by hand in V2 after a video in V1: in the average, never in a pair.
+      score('p6', 'w:v2', 41, { method: 'manual' }),
     ];
     const [cmj] = groupEvolution(columns, scores, metrics, [reference], order);
     expect(cmj?.points).toEqual([
-      { columnKey: 'w:v1', average: 32, players: 5, methods: ['video'], protocolVersions: [1] },
+      {
+        columnKey: 'w:v1',
+        average: (30 + 31 + 32 + 33 + 34 + 40) / 6,
+        players: 6,
+        methods: ['video'],
+        protocolVersions: [1],
+      },
       {
         columnKey: 'w:v2',
-        average: (33 + 31 + 31 + 36 + 35) / 5,
-        players: 5,
+        average: (33 + 31 + 31 + 36 + 35 + 41) / 6,
+        players: 6,
         methods: ['manual', 'video'],
         protocolVersions: [1],
       },
     ]);
-    // p1 30→33, p2 31→31, p3 32→31, p4 33→36, p5 34→35.
+    // p1 30→33, p2 31→31, p3 32→31, p4 33→36, p5 34→35; p6 changed method.
     expect(cmj?.change).toEqual({
       fromColumnKey: 'w:v1',
       paired: 5,
@@ -203,6 +212,52 @@ describe('group evolution of a category report (B-603)', () => {
       },
     ]);
     expect(few[0]?.change).toBeNull();
+  });
+
+  it('never pairs across measurement methods, even when no column mixes them', () => {
+    const scores = [
+      ...['p1', 'p2', 'p3', 'p4', 'p5'].map((id) => score(id, 'w:v1', 30, { method: 'manual' })),
+      ...['p1', 'p2', 'p3', 'p4', 'p5'].map((id) => score(id, 'w:v2', 35, { method: 'photocell' })),
+    ];
+    const [cmj] = groupEvolution(columns, scores, metrics, [], order);
+    expect(cmj?.points.map((p) => p.methods)).toEqual([['manual'], ['photocell']]);
+    expect(cmj?.change).toBeNull();
+  });
+
+  it('has no change when the report window has no results of the metric', () => {
+    const withPrevious: CategoryReportColumn[] = [
+      {
+        key: 'w:v3-2025',
+        testWindowId:
+          '00000000-0000-4000-8000-0000000000a0' as CategoryReportColumn['testWindowId'],
+        seasonName: 'Temporada 2025',
+        number: 3,
+        startsOn: day('2025-07-01'),
+        endsOn: day('2025-07-31'),
+      },
+      ...columns,
+    ];
+    const players = ['p1', 'p2', 'p3', 'p4', 'p5'];
+    const scores = [
+      ...players.map((id) => score(id, 'w:v3-2025', 30, { measuredOn: '2025-07-10' })),
+      ...players.map((id) => score(id, 'w:v1', 33)),
+    ];
+    const [cmj] = groupEvolution(withPrevious, scores, metrics, [], order);
+    expect(cmj?.points.map((p) => p.columnKey)).toEqual(['w:v3-2025', 'w:v1']);
+    // V3 → V1 is not a change up to V2, the report's window.
+    expect(cmj?.change).toBeNull();
+  });
+
+  it('keeps apart the series of two tests that share a metric code', () => {
+    const scores = [
+      ...['p1', 'p2', 'p3', 'p4', 'p5'].map((id) => score(id, 'w:v2', 30, { testCode: 'zz_cmj' })),
+      ...['p1', 'p2', 'p3', 'p4', 'p5'].map((id) => score(id, 'w:v2', 40, { testCode: 'cmj' })),
+    ];
+    const series = groupEvolution(columns, scores, metrics, [], order);
+    expect(series.map((m) => [m.testCode, m.points[0]?.average])).toEqual([
+      ['cmj', 40],
+      ['zz_cmj', 30],
+    ]);
   });
 
   it('leaves out metrics outside the catalog and carries no player ids', () => {

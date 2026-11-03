@@ -187,6 +187,7 @@ export interface GroupScore {
 
 interface PlayerPoint {
   readonly value: number;
+  readonly methods: ReadonlySet<MeasurementMethod>;
   readonly protocolVersions: ReadonlySet<number>;
 }
 
@@ -200,7 +201,11 @@ function playerPoint(scores: readonly GroupScore[], direction: MetricDirection):
   if (resolvePlayerAggregation(direction) === 'best') {
     const value = direction === 'lower_is_better' ? Math.min(...values) : Math.max(...values);
     const chosen = scores.filter((s) => s.value === value);
-    return { value, protocolVersions: new Set(chosen.map((s) => s.protocolVersion)) };
+    return {
+      value,
+      methods: new Set(chosen.map((s) => s.method)),
+      protocolVersions: new Set(chosen.map((s) => s.protocolVersion)),
+    };
   }
   let latest = scores[0]?.measuredOn;
   for (const s of scores) {
@@ -209,20 +214,36 @@ function playerPoint(scores: readonly GroupScore[], direction: MetricDirection):
   const day = scores.filter((s) => s.measuredOn === latest);
   return {
     value: day.reduce((sum, s) => sum + s.value, 0) / day.length,
+    methods: new Set(day.map((s) => s.method)),
     protocolVersions: new Set(day.map((s) => s.protocolVersion)),
   };
 }
 
-const onlyVersion = (point: PlayerPoint) =>
-  point.protocolVersions.size === 1 ? [...point.protocolVersions][0] : undefined;
+const only = <T>(values: ReadonlySet<T>): T | undefined =>
+  values.size === 1 ? [...values][0] : undefined;
+
+/** Two points of a player compare when both come from one method and one protocol version. */
+const comparable = (then: PlayerPoint, now: PlayerPoint) => {
+  const method = only(now.methods);
+  const version = only(now.protocolVersions);
+  return (
+    method !== undefined &&
+    version !== undefined &&
+    only(then.methods) === method &&
+    only(then.protocolVersions) === version
+  );
+};
 
 /**
  * The group's evolution: per metric (and exercise), each column's average of
  * one value per player (from the minimum of players, else neither the average
  * nor the size), the methods and protocol versions behind it, and how the
- * players changed against the previous column with results, paired only
- * within one protocol version (principle 4). Metrics without any score are
- * left out; columns keep the given order (oldest first).
+ * players changed in the report's window (the last column) against the
+ * previous column with results, paired only within one method and one
+ * protocol version (principle 4). Without results in the report's window
+ * there is no change: two older windows are not "up to this one". Series are
+ * per test, metric and exercise; metrics without any score are left out;
+ * columns keep the given order (oldest first, the report's window last).
  */
 export function groupEvolution(
   columns: readonly CategoryReportColumn[],
@@ -232,9 +253,10 @@ export function groupEvolution(
   testOrder: (a: string, b: string) => number,
 ): CategoryReportMetric[] {
   const referenceOf = new Map(references.map((r) => [r.metricCode, r]));
+  const reportColumnKey = columns.at(-1)?.key;
   const bySeries = new Map<string, GroupScore[]>();
   for (const score of scores) {
-    const key = `${score.metricCode}|${score.exercise ?? ''}`;
+    const key = `${score.testCode}|${score.metricCode}|${score.exercise ?? ''}`;
     const list = bySeries.get(key);
     if (list === undefined) bySeries.set(key, [score]);
     else list.push(score);
@@ -272,18 +294,17 @@ export function groupEvolution(
       });
     }
     if (points.length === 0) continue;
-    // The last column against the one before it with results.
+    // The report's window against the column before it with results.
     const last = points.at(-1);
     const before = points.length > 1 ? points.at(-2) : undefined;
     let change: CategoryReportMetric['change'] = null;
-    if (last !== undefined && before !== undefined) {
+    if (last !== undefined && before !== undefined && last.columnKey === reportColumnKey) {
       const current = perColumn.get(last.columnKey) ?? new Map<string, PlayerPoint>();
       const previous = perColumn.get(before.columnKey) ?? new Map<string, PlayerPoint>();
       const pairs: { previous: number; current: number }[] = [];
       for (const [id, now] of current) {
         const then = previous.get(id);
-        const version = onlyVersion(now);
-        if (then === undefined || version === undefined || onlyVersion(then) !== version) continue;
+        if (then === undefined || !comparable(then, now)) continue;
         pairs.push({ previous: then.value, current: now.value });
       }
       const counted = pairedChange(metric.direction, pairs);
@@ -549,7 +570,8 @@ export async function buildCategoryReportContent(
         lte(testWindow.startsOn, window.startsOn),
       ),
     )
-    .orderBy(asc(testWindow.startsOn));
+    // The report's window last, also beside another window that starts the same day.
+    .orderBy(asc(testWindow.startsOn), asc(sql`${testWindow.id} = ${window.id}`));
   const columns: CategoryReportColumn[] = windowRows
     .slice(-CATEGORY_REPORT_EVOLUTION_COLUMNS)
     .map((w) => ({
