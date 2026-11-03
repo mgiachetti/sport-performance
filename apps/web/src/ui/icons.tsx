@@ -14,6 +14,7 @@ export type IconName =
   | 'sync'
   | 'home'
   | 'panel'
+  | 'players'
   | 'club'
   | 'support'
   | 'signOut'
@@ -33,6 +34,7 @@ const PATHS: Record<IconName, readonly string[]> = {
   ],
   home: ['M3 11 12 3l9 8', 'M5 10v10h14V10'],
   panel: ['M3 3v18h18', 'M7 16v-4', 'M12 16V8', 'M17 16v-7'],
+  players: ['M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z', 'M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6'],
   club: ['M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z'],
   support: ['M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Z', 'M9 9a3 3 0 1 1 3 3v2', 'M12 17h.01'],
   signOut: ['M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4', 'M10 17l-5-5 5-5', 'M5 12h11'],

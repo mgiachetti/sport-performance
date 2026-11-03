@@ -263,6 +263,7 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
       'app.guardian_children',
       'app.invitation_by_token',
       'app.is_superadmin',
+      'app.percentile_samples',
       'app.player_takes_access_codes',
       'app.redeem_player_access',
       'app.register_push_token',

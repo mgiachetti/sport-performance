@@ -10624,6 +10624,108 @@
         }
       }
     },
+    "/v1/players/{playerId}/availability": {
+      "get": {
+        "operationId": "getPlayerAvailability",
+        "summary": "Disponibilidad de un jugador",
+        "description": "La disponibilidad derivada de hoy (entrenamiento, partido y la peor de las dos, con las notas del bloqueo para el staff) y su historia por tramos entre `from` y `to` (incluidos, hasta 731 días; por defecto los últimos 90 días hasta hoy). Sale de las funciones del esquema `medical` (ADR 0029), que registran cada lectura; nunca el diagnóstico ni la causa. Las notas no se muestran al jugador ni al tutor. `availability.read` del jugador.",
+        "tags": [
+          "players"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "La disponibilidad del jugador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerAvailability"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.bad_request.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
     "/v1/players/{playerId}/categories": {
       "get": {
         "operationId": "listPlayerCategories",
@@ -11367,6 +11469,108 @@
         }
       }
     },
+    "/v1/players/{playerId}/daily-monitoring": {
+      "get": {
+        "operationId": "getPlayerDailyMonitoring",
+        "summary": "Carga y bienestar diarios de un jugador",
+        "description": "La serie que calcula el worker (ADR 0046): carga diaria con EWMA, ACWR, monotonía y strain, y el bienestar de cada día con su comparación contra la media propia. Entre `from` y `to` (incluidos, hasta 366 días); por defecto los últimos 28 días hasta hoy en la zona del club. Un día sin fila es un día antes de la historia del jugador (la carga tiene fila también los días sin dato). `load_metrics.read` y `wellness.read` del jugador.",
+        "tags": [
+          "players"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "La serie del rango.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerDailyMonitoring"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.bad_request.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
     "/v1/players/{playerId}/data-exports": {
       "post": {
         "operationId": "exportPlayerData",
@@ -12024,6 +12228,80 @@
         }
       }
     },
+    "/v1/players/{playerId}/maturation": {
+      "get": {
+        "operationId": "getPlayerMaturation",
+        "summary": "Maduración de un jugador",
+        "description": "Las mediciones antropométricas del jugador (las 200 más nuevas, de la más nueva a la más vieja) con lo que derivó el worker: offset de PHV con su ecuación, talla adulta predicha y su %, velocidad de crecimiento. También la etapa vigente hoy (por maduración, fijada por el staff o la de la categoría). Si faltan datos para un derivado, queda `null`. `anthropometry.read` del jugador.",
+        "tags": [
+          "players"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "La maduración del jugador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerMaturation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
     "/v1/players/{playerId}/parent-heights": {
       "get": {
         "operationId": "getPlayerParentHeights",
@@ -12215,6 +12493,94 @@
         }
       }
     },
+    "/v1/players/{playerId}/percentiles": {
+      "get": {
+        "operationId": "getPlayerPercentiles",
+        "summary": "Percentiles de un jugador en su grupo",
+        "description": "Por cada métrica de test con sentido (más es mejor o menos es mejor), el último valor del jugador hasta `asOf` ubicado en su grupo de comparación con los parámetros del dominio (B-208: posición, línea, categoría y sexo, temporadas acumuladas, mínimo de jugadores, mismo método) y solo con resultados de la misma versión del protocolo. La etapa que autoriza es la del jugador en `asOf`. El grupo se arma con resultados de todo el club, pero de los otros jugadores solo sale el agregado: tamaño, mediana y percentil. `percentile.read` del jugador (el propio jugador, solo desde M15).",
+        "tags": [
+          "players"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "asOf",
+            "in": "query",
+            "required": false,
+            "description": "Día de referencia; por defecto, hoy en la zona del club. Nunca después de hoy, y solo el staff elige otro día: para el jugador es siempre hoy (ADR 0060).",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Los percentiles del jugador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerPercentiles"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
     "/v1/players/{playerId}/restore": {
       "post": {
         "operationId": "restorePlayer",
@@ -12267,6 +12633,108 @@
           },
           "400": {
             "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/players/{playerId}/test-evolution": {
+      "get": {
+        "operationId": "getPlayerTestEvolution",
+        "summary": "Evolución de los tests de un jugador por ventana",
+        "description": "Cada métrica de test del jugador (salvo antropometría, que es la maduración) en cada ventana V1–V4 de las temporadas de su deporte (la del día de test o la que cubre la fecha; fuera de ventana, por día), con el promedio de su categoría en esa ventana (mínimo 5 jugadores, solo cuando la ventana o el día ya terminaron). Entre `from` y `to` (incluidos) se eligen los valores del jugador; por defecto toda la historia hasta hoy. El promedio de cada columna usa siempre la ventana entera (o el día entero fuera de ventana), sin importar `from` y `to`, para que dos rangos no se puedan restar en el valor de un compañero (ADR 0060). `test_result.read` y `group_reference.read` del jugador.",
+        "tags": [
+          "players"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "La evolución del jugador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerTestEvolution"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.bad_request.validation_failed"
           },
           "401": {
             "$ref": "#/components/responses/Error.unauthenticated"
@@ -21198,6 +21666,46 @@
           "1.4.0"
         ]
       },
+      "AvailabilityPeriod": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Último día del tramo (inclusive).",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "training": {
+            "$ref": "#/components/schemas/AvailabilityStatus"
+          },
+          "match": {
+            "$ref": "#/components/schemas/AvailabilityStatus"
+          },
+          "overall": {
+            "description": "La peor de las dos.",
+            "$ref": "#/components/schemas/AvailabilityStatus"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "training",
+          "match",
+          "overall"
+        ]
+      },
       "AvailabilityStatus": {
         "type": "string",
         "enum": [
@@ -21205,7 +21713,7 @@
           "limited",
           "unavailable"
         ],
-        "description": "`available`, `limited` o `unavailable`. Nunca la causa."
+        "description": "Disponibilidad derivada: `available`, `limited` (entrena con restricciones) o `unavailable`. Nunca la causa."
       },
       "BatteryCadenceWeeks": {
         "type": "object",
@@ -25839,6 +26347,33 @@
         ],
         "description": "`full` (presente, toda la sesión), `partial` (limitado: parte de la sesión o con restricciones), `absent` (ausente) o `unavailable` (no disponible: lesionado o bloqueado; nunca la causa). Ausente y no disponible no llevan minutos, contactos ni RPE."
       },
+      "PercentileGrouping": {
+        "type": "object",
+        "properties": {
+          "dimensions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "sex",
+                "category",
+                "line",
+                "position"
+              ]
+            },
+            "description": "Con qué se armó el grupo, además del deporte y la métrica."
+          },
+          "seasonsAccumulated": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "dimensions",
+          "seasonsAccumulated"
+        ]
+      },
       "Player": {
         "type": "object",
         "properties": {
@@ -26184,6 +26719,239 @@
           "web"
         ]
       },
+      "PlayerAnthroMeasurement": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de medición antropométrica (UUID, RFC 9562)."
+          },
+          "measuredOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "heightCm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sittingHeightCm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "weightKg": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "skinfoldsSumMm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "method": {
+            "$ref": "#/components/schemas/MeasurementMethod"
+          },
+          "phvOffsetYears": {
+            "description": "Años desde el pico de velocidad de crecimiento (negativo: antes del pico).",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "maturityOffsetEquation": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "mirwald_2002",
+                  "moore_2015",
+                  "moore_2015_height"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ecuación usada para el offset (`null` sin datos suficientes)."
+          },
+          "predictedAdultHeightCm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Talla adulta predicha (Khamis-Roche); requiere la altura de los dos padres."
+          },
+          "adultHeightPct": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "% de la talla adulta predicha alcanzado."
+          },
+          "growthVelocityCmYear": {
+            "description": "Velocidad de crecimiento de la talla (cm/año) contra una medición anterior.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "derivedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cuándo calculó el worker la maduración; `null` si todavía no."
+          }
+        },
+        "required": [
+          "id",
+          "measuredOn",
+          "heightCm",
+          "sittingHeightCm",
+          "weightKg",
+          "skinfoldsSumMm",
+          "method",
+          "phvOffsetYears",
+          "maturityOffsetEquation",
+          "predictedAdultHeightCm",
+          "adultHeightPct",
+          "growthVelocityCmYear",
+          "derivedAt"
+        ]
+      },
+      "PlayerAvailability": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "today": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "from": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "current": {
+            "type": "object",
+            "properties": {
+              "training": {
+                "$ref": "#/components/schemas/AvailabilityStatus"
+              },
+              "match": {
+                "$ref": "#/components/schemas/AvailabilityStatus"
+              },
+              "overall": {
+                "$ref": "#/components/schemas/AvailabilityStatus"
+              },
+              "staffNotes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Notas de los bloqueos vigentes para el staff (sin diagnóstico)."
+              }
+            },
+            "required": [
+              "training",
+              "match",
+              "overall",
+              "staffNotes"
+            ]
+          },
+          "periods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AvailabilityPeriod"
+            },
+            "description": "Tramos consecutivos con el mismo estado, del más viejo al más nuevo."
+          }
+        },
+        "required": [
+          "playerId",
+          "today",
+          "from",
+          "to",
+          "current",
+          "periods"
+        ]
+      },
       "PlayerCategoryMembership": {
         "type": "object",
         "properties": {
@@ -26349,6 +27117,71 @@
           "requiredSigner",
           "guardianSignaturesLapseOn",
           "types"
+        ]
+      },
+      "PlayerDailyMonitoring": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "from": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "today": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Hoy en la zona del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "refreshPending": {
+            "type": "boolean",
+            "description": "Hay datos nuevos que el worker todavía no recalculó."
+          },
+          "load": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlayerLoadDay"
+            },
+            "description": "Por día, del más viejo al más nuevo."
+          },
+          "wellness": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlayerWellnessDay"
+            },
+            "description": "Por día con bienestar, del más viejo al más nuevo."
+          }
+        },
+        "required": [
+          "playerId",
+          "from",
+          "to",
+          "today",
+          "refreshPending",
+          "load",
+          "wellness"
         ]
       },
       "PlayerDataExport": {
@@ -26700,6 +27533,218 @@
         ],
         "description": "Motivo de la baja: `graduated` (terminó juveniles o pasó a primera), `transferred` (se fue a otro club), `quit` (dejó) u `other`."
       },
+      "PlayerLoadDay": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Día del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "loadAu": {
+            "type": "number",
+            "minimum": 0,
+            "description": "sRPE del día (UA); 0 sin carga."
+          },
+          "hasData": {
+            "type": "boolean",
+            "description": "Si hubo alguna sesión con RPE ese día."
+          },
+          "sessions": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Sesiones con RPE."
+          },
+          "pendingRpe": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Sesiones jugadas sin RPE todavía."
+          },
+          "historyDays": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Días de historia hasta ese día."
+          },
+          "acuteEwmaAu": {
+            "type": "number",
+            "minimum": 0,
+            "description": "EWMA aguda (N = 7 por defecto)."
+          },
+          "chronicEwmaAu": {
+            "type": "number",
+            "minimum": 0,
+            "description": "EWMA crónica (N = 28 por defecto)."
+          },
+          "acwr": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Aguda / crónica; `null` sin `ok`."
+          },
+          "acwrStatus": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "insufficient_history",
+              "zero_chronic_load"
+            ],
+            "description": "`ok`, `insufficient_history` (menos de 28 días: sin alertas de ACWR) o `zero_chronic_load`."
+          },
+          "missingDaysAcute": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "missingDaysChronic": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "weekLoadAu": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Carga de los últimos 7 días (UA)."
+          },
+          "monotony": {
+            "description": "Monotonía de Foster de la semana.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "strainAu": {
+            "description": "Strain: carga semanal × monotonía.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "monotonyStatus": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "insufficient_history",
+              "zero_variance"
+            ]
+          }
+        },
+        "required": [
+          "date",
+          "loadAu",
+          "hasData",
+          "sessions",
+          "pendingRpe",
+          "historyDays",
+          "acuteEwmaAu",
+          "chronicEwmaAu",
+          "acwr",
+          "acwrStatus",
+          "missingDaysAcute",
+          "missingDaysChronic",
+          "weekLoadAu",
+          "monotony",
+          "strainAu",
+          "monotonyStatus"
+        ]
+      },
+      "PlayerMaturation": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "today": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "stage": {
+                    "$ref": "#/components/schemas/Stage"
+                  },
+                  "basis": {
+                    "type": "string",
+                    "enum": [
+                      "manual",
+                      "maturation",
+                      "category"
+                    ],
+                    "description": "`maturation` (asignada por maduración), `manual` (fijada por el staff) o `category` (la de su categoría)."
+                  },
+                  "categoryId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Id de categoría (UUID, RFC 9562)."
+                  }
+                },
+                "required": [
+                  "stage",
+                  "basis",
+                  "categoryId"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Etapa de hoy; `null` sin categoría vigente."
+          },
+          "refreshPending": {
+            "type": "boolean",
+            "description": "Hay mediciones nuevas que el worker todavía no derivó."
+          },
+          "peakZone": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlayerPeakZone"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Zona de pico de la medición derivada más nueva (dominio, `peakHeightVelocityZone`); `null` sin medición evaluable de los últimos 120 días. No depende de las alertas: la ve todo el que lee la antropometría."
+          },
+          "measurements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlayerAnthroMeasurement"
+            }
+          }
+        },
+        "required": [
+          "playerId",
+          "today",
+          "stage",
+          "refreshPending",
+          "peakZone",
+          "measurements"
+        ]
+      },
       "PlayerPage": {
         "type": "object",
         "properties": {
@@ -26754,6 +27799,387 @@
         "required": [
           "mother",
           "father"
+        ]
+      },
+      "PlayerPeakZone": {
+        "type": "object",
+        "properties": {
+          "inZone": {
+            "type": "boolean",
+            "description": "Está en la zona de pico de crecimiento: sugiere bajar saltos y sprints, vigilar rodilla y talón."
+          },
+          "offset": {
+            "type": "string",
+            "enum": [
+              "met",
+              "not_met",
+              "unknown",
+              "disabled"
+            ],
+            "description": "Criterio por años desde el PHV (por defecto entre −1 y +1)."
+          },
+          "growthVelocity": {
+            "type": "string",
+            "enum": [
+              "met",
+              "not_met",
+              "unknown",
+              "disabled"
+            ],
+            "description": "Criterio por velocidad de crecimiento (apagado por defecto)."
+          },
+          "measuredOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Medición evaluada.",
+            "examples": [
+              "2026-11-01"
+            ]
+          }
+        },
+        "required": [
+          "inZone",
+          "offset",
+          "growthVelocity",
+          "measuredOn"
+        ]
+      },
+      "PlayerPercentile": {
+        "type": "object",
+        "properties": {
+          "metricCode": {
+            "type": "string",
+            "description": "Código canónico de la métrica (`cmj_height_cm`).",
+            "examples": [
+              "cmj_height_cm"
+            ]
+          },
+          "testCode": {
+            "type": "string",
+            "description": "Código del test (`sprint_40`).",
+            "examples": [
+              "sprint_40"
+            ]
+          },
+          "exercise": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Ejercicio de un resultado de fuerza, en `snake_case`.",
+                "examples": [
+                  "trap_bar_deadlift"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ejercicio de fuerza (`null` en los demás tests): cada ejercicio es una comparación aparte."
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "mm",
+              "cm",
+              "m",
+              "km",
+              "kg",
+              "msec",
+              "s",
+              "min",
+              "h",
+              "years",
+              "ms",
+              "kmh",
+              "m_min",
+              "cm_year",
+              "ms2",
+              "newton",
+              "deg",
+              "bpm",
+              "kg_kg",
+              "pct",
+              "au",
+              "score",
+              "n"
+            ],
+            "description": "Unidad canónica de la métrica."
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "higher_is_better",
+              "lower_is_better",
+              "neutral"
+            ],
+            "description": "Sentido de la métrica: si más es mejor, si menos es mejor o neutra."
+          },
+          "value": {
+            "type": "number",
+            "description": "Último valor del jugador (en la unidad de la métrica)."
+          },
+          "measuredOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "video",
+              "photocell",
+              "pod",
+              "app",
+              "historical"
+            ]
+          },
+          "protocolVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Versión del protocolo del último resultado del jugador: el grupo solo tiene resultados de esa versión (principio 4)."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "insufficient_sample"
+            ],
+            "description": "`insufficient_sample`: ningún grupo llegó al mínimo de jugadores; no hay percentil."
+          },
+          "percentile": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Percentil (0–100) según el sentido de la métrica: más alto es mejor."
+          },
+          "sampleSize": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Jugadores del grupo usado; `null` sin percentil: por debajo del mínimo no se dice el tamaño, para que no se pueda deducir el valor de otro jugador."
+          },
+          "grouping": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PercentileGrouping"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "seasonFrom": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "seasonTo": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "median": {
+            "description": "Mediana del grupo (P50).",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "mixedMethods": {
+            "type": "boolean",
+            "description": "El grupo mezcla métodos de medición."
+          }
+        },
+        "required": [
+          "metricCode",
+          "testCode",
+          "exercise",
+          "unit",
+          "direction",
+          "value",
+          "measuredOn",
+          "method",
+          "protocolVersion",
+          "status",
+          "percentile",
+          "sampleSize",
+          "grouping",
+          "seasonFrom",
+          "seasonTo",
+          "median",
+          "mixedMethods"
+        ]
+      },
+      "PlayerPercentiles": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "asOf": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "minSampleSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlayerPercentile"
+            }
+          }
+        },
+        "required": [
+          "playerId",
+          "asOf",
+          "minSampleSize",
+          "items"
+        ]
+      },
+      "PlayerTestEvolution": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestEvolutionColumn"
+            },
+            "description": "Por fecha."
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestEvolutionMetric"
+            }
+          }
+        },
+        "required": [
+          "playerId",
+          "columns",
+          "metrics"
+        ]
+      },
+      "PlayerWellnessDay": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "itemCount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "const": 3
+              },
+              {
+                "type": "number",
+                "const": 5
+              }
+            ],
+            "description": "Ítems del formulario: 3 (caritas, M13/M14) o 5."
+          },
+          "meanScore": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "baselineSamples": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "baselineMeanScore": {
+            "description": "Media móvil propia.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "baselineSdScore": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "zScore": {
+            "description": "Contra la media móvil propia.",
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "date",
+          "itemCount",
+          "meanScore",
+          "baselineSamples",
+          "baselineMeanScore",
+          "baselineSdScore",
+          "zScore"
         ]
       },
       "Position": {
@@ -30252,6 +31678,249 @@
           }
         ],
         "description": "Un intento como lo carga el evaluador. `value`: el valor de una métrica en su unidad; el resto son entradas crudas que el servidor convierte con las fórmulas del dominio (sprint: t10/t20/t40 y Vmax 20–40; CMJ: tiempo de vuelo o cuadros de video, `h = g·t²/8`; 30-15 IFT: última etapa → VIFT; fuerza: serie peso/reps/RIR → e1RM de Epley con RIR). Las métricas derivadas no se cargan a mano."
+      },
+      "TestEvolutionColumn": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Ventana (`w:<id>`) o, fuera de toda ventana, el día del resultado (`d:<fecha>`)."
+          },
+          "testWindowId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de ventana de tests (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "seasonName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "V1 a V4."
+          },
+          "startsOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "endsOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "testWindowId",
+          "seasonName",
+          "number",
+          "startsOn",
+          "endsOn"
+        ]
+      },
+      "TestEvolutionMetric": {
+        "type": "object",
+        "properties": {
+          "metricCode": {
+            "type": "string",
+            "description": "Código canónico de la métrica (`cmj_height_cm`).",
+            "examples": [
+              "cmj_height_cm"
+            ]
+          },
+          "testCode": {
+            "type": "string",
+            "description": "Código del test (`sprint_40`).",
+            "examples": [
+              "sprint_40"
+            ]
+          },
+          "exercise": {
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "Ejercicio de un resultado de fuerza, en `snake_case`.",
+                "examples": [
+                  "trap_bar_deadlift"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ejercicio de fuerza (`null` en los demás tests): cada ejercicio es una comparación aparte."
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "mm",
+              "cm",
+              "m",
+              "km",
+              "kg",
+              "msec",
+              "s",
+              "min",
+              "h",
+              "years",
+              "ms",
+              "kmh",
+              "m_min",
+              "cm_year",
+              "ms2",
+              "newton",
+              "deg",
+              "bpm",
+              "kg_kg",
+              "pct",
+              "au",
+              "score",
+              "n"
+            ],
+            "description": "Unidad canónica de la métrica."
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "higher_is_better",
+              "lower_is_better",
+              "neutral"
+            ],
+            "description": "Sentido de la métrica: si más es mejor, si menos es mejor o neutra."
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TestEvolutionPoint"
+            },
+            "description": "En el orden de las columnas."
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "mixed_methods",
+                "mixed_protocol_versions",
+                "mixed_devices",
+                "mixed_exercises"
+              ]
+            },
+            "description": "Sobre la serie del jugador: `mixed_methods` o `mixed_protocol_versions` (principio 4). La UI los muestra junto al gráfico."
+          }
+        },
+        "required": [
+          "metricCode",
+          "testCode",
+          "exercise",
+          "unit",
+          "direction",
+          "points",
+          "warnings"
+        ]
+      },
+      "TestEvolutionPoint": {
+        "type": "object",
+        "properties": {
+          "columnKey": {
+            "type": "string",
+            "minLength": 1
+          },
+          "value": {
+            "type": "number",
+            "description": "Valor del jugador en la ventana: el mejor según el sentido (o el último, en métricas neutras)."
+          },
+          "measuredOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Último día con resultado en la ventana.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "methods": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "manual",
+                "video",
+                "photocell",
+                "pod",
+                "app",
+                "historical"
+              ]
+            }
+          },
+          "categoryAverage": {
+            "description": "Promedio de su categoría (misma franja de edad, sexo y versión del protocolo) en la ventana, un valor por jugador; `null` con menos de 5 jugadores o mientras la ventana (o el día) no terminó.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "categorySize": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 5,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Jugadores de su categoría en la ventana; `null` por debajo del mínimo (5), para no decir cuántos hay."
+          },
+          "categoryMixedMethods": {
+            "type": "boolean",
+            "description": "El promedio mezcla métodos o usa otro que el del jugador."
+          },
+          "categoryMixedProtocolVersions": {
+            "type": "boolean",
+            "description": "Los valores del jugador en la columna mezclan versiones del protocolo y el promedio usa solo la de su último resultado (principio 4)."
+          }
+        },
+        "required": [
+          "columnKey",
+          "value",
+          "measuredOn",
+          "methods",
+          "categoryAverage",
+          "categorySize",
+          "categoryMixedMethods",
+          "categoryMixedProtocolVersions"
+        ]
       },
       "TestImport": {
         "type": "object",

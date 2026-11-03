@@ -34,6 +34,13 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: 'panel',
     permission: { kind: 'alert', action: 'read' },
   }),
+  // The roster and the profiles (B-404): staff who see categories; each block checks the player.
+  navItem({
+    to: '/players',
+    labelKey: 'nav.players',
+    icon: 'players',
+    permission: { kind: 'category', action: 'read' },
+  }),
 ];
 
 /** Entries the subject may open somewhere in what it sees. */

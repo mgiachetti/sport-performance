@@ -19,6 +19,8 @@ import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { PanelPage } from './pages/panel/PanelPage';
 import { parsePanelSearch } from './pages/panel/panel-search';
+import { PlayerProfilePage } from './pages/players/PlayerProfilePage';
+import { PlayersPage } from './pages/players/PlayersPage';
 import { SupportPage } from './pages/SupportPage';
 import { parseClubsSearch, parseLoginSearch, safeRedirect } from './routing/redirect';
 import { Loading } from './ui/components';
@@ -39,7 +41,9 @@ export interface RouterContext {
  *     ├── /support            superadmin: reason + club of the registry
  *     └── _club               needs a club: ActiveClub, layout, ?sport&category
  *         ├── /               home of the club
- *         └── /panel          weekly panel (?week&group)
+ *         ├── /panel          weekly panel (?week&group)
+ *         ├── /players        roster of what the user sees (B-404)
+ *         └── /players/$id    profile of a player (B-404)
  * ```
  *
  * A new screen is a child of `_club` (it inherits session, club, theme and
@@ -134,12 +138,27 @@ export const panelRoute = createRoute({
   component: PanelPage,
 });
 
+export const playersRoute = createRoute({
+  getParentRoute: () => clubRoute,
+  path: '/players',
+  component: PlayersPage,
+});
+
+export const playerProfileRoute = createRoute({
+  getParentRoute: () => clubRoute,
+  path: '/players/$playerId',
+  component: function PlayerProfileRoute() {
+    const { playerId } = playerProfileRoute.useParams();
+    return <PlayerProfilePage playerId={playerId} />;
+  },
+});
+
 export const routeTree = rootRoute.addChildren([
   loginRoute,
   authedRoute.addChildren([
     clubsRoute,
     supportRoute,
-    clubRoute.addChildren([homeRoute, panelRoute]),
+    clubRoute.addChildren([homeRoute, panelRoute, playersRoute, playerProfileRoute]),
   ]),
 ]);
 

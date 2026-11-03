@@ -124,6 +124,13 @@ import {
 } from './invitations.js';
 import { getMe, listMyMemberships } from './me.js';
 import {
+  getPlayerAvailability,
+  getPlayerDailyMonitoring,
+  getPlayerMaturation,
+  getPlayerPercentiles,
+  getPlayerTestEvolution,
+} from './player-profile.js';
+import {
   archiveReferenceValue,
   createReferenceValue,
   getPlayerFirstTeamReferences,
@@ -244,6 +251,7 @@ export * from './sessions.js';
 export * from './members.js';
 export * from './staff-assignments.js';
 export * from './players.js';
+export * from './player-profile.js';
 export * from './season-rollovers.js';
 export * from './training.js';
 export * from './wellness.js';
@@ -387,6 +395,11 @@ export const apiEndpoints = {
   restoreReferenceValue,
   importReferenceValues,
   getPlayerFirstTeamReferences,
+  getPlayerDailyMonitoring,
+  getPlayerMaturation,
+  getPlayerAvailability,
+  getPlayerPercentiles,
+  getPlayerTestEvolution,
   listBatteryEntries,
   getEffectiveBattery,
   getBatteryEntry,
