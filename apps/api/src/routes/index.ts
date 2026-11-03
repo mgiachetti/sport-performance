@@ -13,6 +13,7 @@ import { registerCategoryRoutes } from './categories.js';
 import { registerClubRoutes } from './clubs.js';
 import { registerAlertRuleRoutes } from './configuration-alert-rules.js';
 import { registerBatteryRoutes } from './configuration-battery.js';
+import { registerCatalogRoutes } from './configuration-catalog.js';
 import { registerModuleRoutes } from './configuration-modules.js';
 import { registerSpeedZoneRoutes } from './configuration-speed-zones.js';
 import { registerGuardianRoutes } from './guardians.js';
@@ -210,6 +211,8 @@ export const IMPLEMENTED_ENDPOINTS = [
   'updateAlertRule',
   'getClubModules',
   'updateClubModules',
+  'listCatalogTests',
+  'listCatalogMetrics',
   'listPlayerGuardians',
   'createPlayerGuardian',
   'updateGuardian',
@@ -295,6 +298,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerBatteryRoutes(app);
   registerSpeedZoneRoutes(app);
   registerAlertRuleRoutes(app);
+  registerCatalogRoutes(app);
   registerModuleRoutes(app);
   registerConsentRoutes(app);
   registerFileRoutes(app, options.files);

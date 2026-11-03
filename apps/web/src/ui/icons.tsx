@@ -28,7 +28,8 @@ export type IconName =
   | 'stopwatch'
   | 'flag'
   | 'chevronLeft'
-  | 'chevronRight';
+  | 'chevronRight'
+  | 'settings';
 
 const PATHS: Record<IconName, readonly string[]> = {
   ok: ['M20 6 9 17l-5-5'],
@@ -59,6 +60,10 @@ const PATHS: Record<IconName, readonly string[]> = {
   flag: ['M5 21V4', 'M5 4h11l-2 4 2 4H5'],
   chevronLeft: ['m15 18-6-6 6-6'],
   chevronRight: ['m9 18 6-6-6-6'],
+  settings: [
+    'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z',
+    'M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2',
+  ],
 };
 
 export function Icon({

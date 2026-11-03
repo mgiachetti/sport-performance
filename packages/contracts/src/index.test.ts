@@ -165,6 +165,8 @@ describe('@sport-performance/contracts entry point', () => {
       'updateAlertRule',
       'getClubModules',
       'updateClubModules',
+      'listCatalogTests',
+      'listCatalogMetrics',
       'listPlayerGuardians',
       'createPlayerGuardian',
       'updateGuardian',

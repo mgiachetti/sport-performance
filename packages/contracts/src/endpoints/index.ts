@@ -54,6 +54,7 @@ import {
   restoreBatteryEntry,
   updateBatteryEntry,
 } from './configuration-battery.js';
+import { listCatalogMetrics, listCatalogTests } from './configuration-catalog.js';
 import { getClubModules, updateClubModules } from './configuration-modules.js';
 import {
   archiveSpeedZoneConfig,
@@ -236,6 +237,7 @@ export * from './club-theme.js';
 export * from './clubs.js';
 export * from './configuration-alert-rules.js';
 export * from './configuration-battery.js';
+export * from './configuration-catalog.js';
 export * from './configuration-common.js';
 export * from './configuration-modules.js';
 export * from './configuration-speed-zones.js';
@@ -427,6 +429,8 @@ export const apiEndpoints = {
   updateAlertRule,
   getClubModules,
   updateClubModules,
+  listCatalogTests,
+  listCatalogMetrics,
   listPlayerGuardians,
   createPlayerGuardian,
   updateGuardian,

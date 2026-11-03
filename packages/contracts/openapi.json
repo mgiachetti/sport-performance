@@ -979,6 +979,270 @@
         }
       }
     },
+    "/v1/catalog/metrics": {
+      "get": {
+        "operationId": "listCatalogMetrics",
+        "summary": "Diccionario de métricas del club",
+        "description": "Código, unidad, sentido, origen, test y alias de Catapult de cada métrica (principio 1). Lectura: `coach`, `sc`, `medical` y la administración (`configuration.read`).",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "sport",
+            "in": "query",
+            "required": false,
+            "description": "Solo las métricas que aplican a ese deporte (o a todos).",
+            "schema": {
+              "$ref": "#/components/schemas/Sport"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/MetricSource"
+            }
+          },
+          {
+            "name": "testCode",
+            "in": "query",
+            "required": false,
+            "description": "Código del test del catálogo del club.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "examples": [
+                "cmj",
+                "sprint_40"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "`active` (por defecto), `archived` o `all`.",
+            "schema": {
+              "default": "active",
+              "type": "string",
+              "enum": [
+                "active",
+                "archived",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `code`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "code",
+              "type": "string",
+              "enum": [
+                "code",
+                "-code"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de métricas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogMetricPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.bad_request.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/catalog/tests": {
+      "get": {
+        "operationId": "listCatalogTests",
+        "summary": "Tests del catálogo del club",
+        "description": "Un ítem por código de test: la versión del protocolo vigente en `onDate` o, si ninguna lo está, la última. Lectura: `coach`, `sc`, `medical` y la administración (`configuration.read`).",
+        "tags": [
+          "configuration"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "sport",
+            "in": "query",
+            "required": false,
+            "description": "Solo los tests que aplican a ese deporte (o a todos).",
+            "schema": {
+              "$ref": "#/components/schemas/Sport"
+            }
+          },
+          {
+            "name": "onDate",
+            "in": "query",
+            "required": false,
+            "description": "Día a resolver; por defecto, hoy en la zona horaria del club.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `code`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "code",
+              "type": "string",
+              "enum": [
+                "code",
+                "-code"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de tests del catálogo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogTestPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.bad_request.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
     "/v1/categories": {
       "get": {
         "operationId": "listCategories",
@@ -22446,6 +22710,331 @@
           "nextCursor"
         ]
       },
+      "CatalogMetric": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de métrica (UUID, RFC 9562)."
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Código canónico de la métrica.",
+            "examples": [
+              "cmj_height_cm"
+            ]
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "mm",
+              "cm",
+              "m",
+              "km",
+              "kg",
+              "msec",
+              "s",
+              "min",
+              "h",
+              "years",
+              "ms",
+              "kmh",
+              "m_min",
+              "cm_year",
+              "ms2",
+              "newton",
+              "deg",
+              "bpm",
+              "kg_kg",
+              "pct",
+              "au",
+              "score",
+              "n"
+            ],
+            "description": "Unidad canónica."
+          },
+          "source": {
+            "$ref": "#/components/schemas/MetricSource"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/MetricDirection"
+          },
+          "testCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "description": "Código del test del catálogo del club.",
+                "examples": [
+                  "cmj",
+                  "sprint_40"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Test que la produce (`source = test`)."
+          },
+          "sports": {
+            "anyOf": [
+              {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Sport"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Deportes donde aplica; `null` = todos."
+          },
+          "description": {
+            "description": "Definición corta para el glosario del staff.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "catapultAliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Columnas de OpenField que se importan a esta métrica."
+          },
+          "isCanonical": {
+            "type": "boolean",
+            "description": "Del diccionario canónico (mismo que la primera)."
+          },
+          "archivedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cuándo se archivó; `null` si está activo."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "version": {
+            "$ref": "#/components/schemas/ResourceVersion"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "unit",
+          "source",
+          "direction",
+          "testCode",
+          "sports",
+          "description",
+          "catapultAliases",
+          "isCanonical",
+          "archivedAt",
+          "createdAt",
+          "updatedAt",
+          "version"
+        ]
+      },
+      "CatalogMetricPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogMetric"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "CatalogTest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Código del test del catálogo del club.",
+            "examples": [
+              "cmj",
+              "sprint_40"
+            ]
+          },
+          "testDefinitionId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "La versión del protocolo que se muestra (la vigente ese día, o la última)."
+          },
+          "protocolVersion": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Número de versión del protocolo."
+          },
+          "inForce": {
+            "type": "boolean",
+            "description": "La versión está vigente el día pedido. `false`: no hay ninguna vigente y se muestra la última."
+          },
+          "sports": {
+            "anyOf": [
+              {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Sport"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Deportes donde aplica; `null` = todos."
+          },
+          "maximalLoad": {
+            "type": "boolean",
+            "description": "Test con cargas máximas: solo para la etapa `performance` y franjas que las permitan (principio 3)."
+          },
+          "attemptCount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "attemptAggregation": {
+            "type": "string",
+            "enum": [
+              "best",
+              "mean"
+            ],
+            "description": "Cómo se resumen los intentos: el mejor (`best`) o el promedio (`mean`)."
+          },
+          "metricCodes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "description": "Código canónico de la métrica.",
+              "examples": [
+                "cmj_height_cm"
+              ]
+            },
+            "description": "Métricas que produce la versión, en su orden."
+          },
+          "validFrom": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Primer día de vigencia (inclusive), en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "validTo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                "examples": [
+                  "2026-11-01"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fin de la vigencia (exclusivo: ese día ya no vale); `null` mientras siga vigente sin fecha de cierre."
+          }
+        },
+        "required": [
+          "code",
+          "testDefinitionId",
+          "protocolVersion",
+          "inForce",
+          "sports",
+          "maximalLoad",
+          "attemptCount",
+          "attemptAggregation",
+          "metricCodes",
+          "validFrom",
+          "validTo"
+        ]
+      },
+      "CatalogTestPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogTest"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
       "Category": {
         "type": "object",
         "properties": {
@@ -26084,6 +26673,24 @@
           "ended"
         ],
         "description": "`active`: la membresía está vigente; `ended`: terminó (`endedAt`)."
+      },
+      "MetricDirection": {
+        "type": "string",
+        "enum": [
+          "higher_is_better",
+          "lower_is_better",
+          "neutral"
+        ],
+        "description": "Si más es mejor, si menos es mejor o neutra."
+      },
+      "MetricSource": {
+        "type": "string",
+        "enum": [
+          "field",
+          "test",
+          "load"
+        ],
+        "description": "De dónde sale: `field` (cancha, equivalente a Catapult), `test` (la batería) o `load` (RPE y sRPE)."
       },
       "MonotonyStatus": {
         "type": "string",

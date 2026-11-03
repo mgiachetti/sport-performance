@@ -59,6 +59,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: 'calendar',
     permission: { kind: 'season', action: 'read' },
   }),
+  navItem({
+    to: '/configuration',
+    labelKey: 'configuration.nav',
+    icon: 'settings',
+    permission: { kind: 'configuration', action: 'read' },
+  }),
 ];
 
 /** Entries the subject may open somewhere in what it sees. */
