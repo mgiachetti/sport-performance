@@ -23,6 +23,11 @@ export interface IftRunSnapshot {
   readonly scope: IftRunScope;
   readonly runId: string;
   readonly categoryId: string | null;
+  /**
+   * The field test day it was started from (B-505, ADR 0071), or `null` when
+   * started from Inicio: only that day's 30-15 station can record its stages.
+   */
+  readonly testSessionId: string | null;
   readonly protocol: Ift3015SignalProtocol;
   /** Wall-clock time (ms since 1970) of the start of stage 1. */
   readonly stage1WallMs: number;
@@ -119,6 +124,9 @@ export function parseIftRunSnapshot(text: string | null): IftRunSnapshot | null 
     value;
   if (!isRecord(scope) || !isString(scope.userId) || !isString(scope.membershipId)) return null;
   if (!isString(runId) || (categoryId !== null && !isString(categoryId))) return null;
+  // Absent in runs stored before B-505: started outside any test day.
+  const testSessionId = value.testSessionId ?? null;
+  if (testSessionId !== null && !isString(testSessionId)) return null;
   if (!isFiniteNumber(stage1WallMs)) return null;
   if (status !== 'running' && status !== 'finished') return null;
   if (!isFiniteNumber(lastAliveWallMs)) return null;
@@ -133,6 +141,7 @@ export function parseIftRunSnapshot(text: string | null): IftRunSnapshot | null 
     scope: { userId: scope.userId, membershipId: scope.membershipId },
     runId,
     categoryId,
+    testSessionId,
     protocol,
     stage1WallMs,
     status,

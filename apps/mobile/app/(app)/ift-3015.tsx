@@ -261,6 +261,13 @@ export default function Ift3015() {
                 // In roster order: the order the staff sees on the field.
                 playerIds: roster.filter((p) => selected.has(p.id)).map((p) => p.id),
                 categoryId: chosenCategoryId,
+                // Tied to the day only while it runs that day's protocol and category.
+                testSessionId:
+                  daySheet !== null &&
+                  iftParameters !== null &&
+                  chosenCategoryId === daySheet.testSession.categoryId
+                    ? daySheet.testSession.id
+                    : null,
               })
               .catch(() => {
                 setAudioError(true);

@@ -422,9 +422,15 @@ describe('IFT runner', () => {
         'scope',
         'stage1WallMs',
         'status',
+        'testSessionId',
         'version',
       ].sort(),
     );
+    // Started from Inicio: no test day. A run stored before B-505 reads the same.
+    expect(parsed?.testSessionId).toBeNull();
+    const before = JSON.parse(text) as Record<string, unknown>;
+    delete before.testSessionId;
+    expect(parseIftRunSnapshot(JSON.stringify(before))?.testSessionId).toBeNull();
     expect(parseIftRunSnapshot('{"version":2}')).toBeNull();
     expect(parseIftRunSnapshot('nope')).toBeNull();
     expect(parseIftRunSnapshot(text.replace('"running"', '"paused"'))).toBeNull();

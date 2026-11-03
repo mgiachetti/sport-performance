@@ -23,6 +23,7 @@ import {
   type UnitCode,
 } from '@sport-performance/domain';
 import { parseNumber } from '@sport-performance/i18n';
+import { z } from 'zod';
 import type { TestDaySheetStation } from '../endpoints/test-day-sheet.js';
 import type { TestResult } from '../endpoints/tests.js';
 
@@ -171,6 +172,20 @@ export const STAFF_METHODS = [
   'app',
   'pod',
 ] as const satisfies readonly MeasurementMethod[];
+
+/**
+ * The settings of a station kept on a phone (ADR 0071): the entry mode, the
+ * method, the device and the strength exercise, each optional. A stored
+ * document that no longer fits (another build) is a miss; whether each value
+ * still fits the station is checked when it is read back.
+ */
+export const fieldStationSettingsSchema = z.object({
+  mode: z.enum(TYPED_ENTRY_MODES as [EntryMode, ...EntryMode[]]).optional(),
+  method: z.enum(STAFF_METHODS).optional(),
+  deviceId: z.string().min(1).nullable().optional(),
+  exercise: z.string().min(1).nullable().optional(),
+});
+export type FieldStationSettings = z.infer<typeof fieldStationSettingsSchema>;
 
 // ─── Parsing an attempt ──────────────────────────────────────────────────────────────
 

@@ -298,6 +298,19 @@ function TestDaysOf({
         writeContext={() => controller.writeContext(sheet.data, station, stationView.settings)}
         onSubmit={async (writes) => {
           await controller.submit(writes);
+          // Rows read again before the form is free: a quick second attempt
+          // goes onto the result just queued, never into a second result.
+          const code = station.testCode;
+          const fresh = await controller.results(sheet.data);
+          const view = await controller.station(sheet.data, station, fresh);
+          setResults(fresh);
+          setLoadedView((current) => ({
+            code,
+            view: {
+              ...view,
+              settings: current?.code === code ? current.view.settings : view.settings,
+            },
+          }));
           bump();
         }}
         onChangeSettings={(next: StationSettings) => {

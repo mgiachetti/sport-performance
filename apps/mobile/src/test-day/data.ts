@@ -1,4 +1,5 @@
 import {
+  fieldStationSettingsSchema,
   testDaySheetSchema,
   type ApiClient,
   type TestDaySheet,
@@ -241,15 +242,20 @@ export async function enqueueWrites(
   }
 }
 
+/** The settings of a station on this phone, checked with their contract. */
 export const stationSettingsSchema: ReadSchema<Partial<StationSettings>> = {
   safeParse(value) {
-    if (typeof value !== 'object' || value === null) return { success: false };
-    const { mode, method, deviceId, exercise } = value as Record<string, unknown>;
-    const data: { -readonly [K in keyof StationSettings]?: StationSettings[K] } = {};
-    if (typeof mode === 'string') data.mode = mode as StationSettings['mode'];
-    if (typeof method === 'string') data.method = method as StationSettings['method'];
-    if (typeof deviceId === 'string' || deviceId === null) data.deviceId = deviceId;
-    if (typeof exercise === 'string' || exercise === null) data.exercise = exercise;
-    return { success: true, data };
+    const parsed = fieldStationSettingsSchema.safeParse(value);
+    if (!parsed.success) return { success: false };
+    const { mode, method, deviceId, exercise } = parsed.data;
+    return {
+      success: true,
+      data: {
+        ...(mode === undefined ? {} : { mode }),
+        ...(method === undefined ? {} : { method }),
+        ...(deviceId === undefined ? {} : { deviceId }),
+        ...(exercise === undefined ? {} : { exercise }),
+      },
+    };
   },
 };

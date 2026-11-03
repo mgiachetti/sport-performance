@@ -785,7 +785,12 @@ function PlayerCard({
   const [method, setMethod] = useState<MeasurementMethod | null>(null);
   const [changeReason, setChangeReason] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
-  const [warnings, setWarnings] = useState<readonly FieldPlausibilityWarning[]>([]);
+  // The warnings, with the attempt they were raised for: «Guardar igual»
+  // confirms only that attempt, never values edited after it.
+  const [warned, setWarned] = useState<{
+    readonly key: string;
+    readonly warnings: readonly FieldPlausibilityWarning[];
+  } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [notDoneOpen, setNotDoneOpen] = useState(false);
   const [reason, setReason] = useState<TestNotDoneReason | null>(null);
@@ -794,6 +799,11 @@ function PlayerCard({
 
   const canRecord = !cancelled && row.player.recording === 'allowed';
   const rowMethod = row.primary?.method ?? method ?? settings.method;
+  const attemptKey = JSON.stringify([settings.mode, rowMethod, row.nextAttemptNumber, values]);
+  const warnings = warned?.key === attemptKey ? warned.warnings : [];
+  const setWarnings = (next: readonly FieldPlausibilityWarning[], key = attemptKey) => {
+    setWarned(next.length === 0 ? null : { key, warnings: next });
+  };
   const fields = fieldsOf(station, settings.mode).filter((f) =>
     fieldAllowed(f, settings.mode, row.player.strengthAssessment),
   );
@@ -815,6 +825,7 @@ function PlayerCard({
     confirmed: boolean,
     done: string,
   ) => {
+    const key = attemptKey;
     setBusy(true);
     try {
       const planned = await actions.submit(plan, confirmed);
@@ -824,7 +835,7 @@ function PlayerCard({
         return planned;
       }
       if (planned.warnings.length > 0 && !confirmed) {
-        setWarnings(planned.warnings);
+        setWarnings(planned.warnings, key);
         setProblem(null);
         return planned;
       }
@@ -842,7 +853,8 @@ function PlayerCard({
     void run(
       (context) =>
         planAttempt(context, row, values, {
-          ...(row.state === 'empty' ? { method: rowMethod } : {}),
+          // A new result, or a not done one turned into done: the method chosen on the row.
+          ...(row.primary === null ? { method: rowMethod } : {}),
           changeReason,
         }),
       confirmed,
@@ -958,12 +970,15 @@ function PlayerCard({
               <AppText role="bodyStrong" accessibilityRole="header">
                 {t('fieldTest.attempt.form', { number: row.nextAttemptNumber })}
               </AppText>
-              {row.state === 'empty' ? (
+              {row.primary === null ? (
                 <Choices
                   label={t('testDay.method.row', { player: name })}
                   options={STAFF_METHODS.map((m) => ({ value: m, label: t(`method.${m}`) }))}
                   value={rowMethod}
-                  onChange={setMethod}
+                  onChange={(next) => {
+                    setMethod(next);
+                    setWarnings([]);
+                  }}
                 />
               ) : savedMethod !== null ? (
                 <AppText tone="secondary">{`${t('testDay.table.method')}: ${t(`method.${savedMethod}`)}`}</AppText>

@@ -87,6 +87,8 @@ export interface StartIftRun {
   readonly protocol: Ift3015SignalProtocol;
   readonly playerIds: readonly string[];
   readonly categoryId: string | null;
+  /** The field test day it is started from (B-505); absent or `null` from Inicio. */
+  readonly testSessionId?: string | null;
 }
 
 /** Its functions do not use `this`: they can be passed around as callbacks. */
@@ -367,7 +369,7 @@ export function createIftRunner(deps: IftRunnerDeps): IftRunner {
       await store.clearUnlessScope(scope);
     },
 
-    async start({ scope, protocol, playerIds, categoryId }) {
+    async start({ scope, protocol, playerIds, categoryId, testSessionId = null }) {
       if (state.status !== 'idle') return;
       const players = [...new Set(playerIds)].map(newIft3015PlayerMarks);
       if (players.length === 0) return;
@@ -392,6 +394,7 @@ export function createIftRunner(deps: IftRunnerDeps): IftRunner {
         scope,
         runId: deps.randomUUID(),
         categoryId,
+        testSessionId,
         protocol,
         stage1WallMs: wallClock() + leadInMs,
         status: 'running',

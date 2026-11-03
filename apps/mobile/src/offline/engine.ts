@@ -252,9 +252,8 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   const maxPullPages = Math.max(1, options.maxPullPages ?? MAX_PULL_PAGES);
   const clock: DeviceClock = createDeviceClock({ now, randomUUID: options.randomUUID });
   const store = createLocalStore(database);
-  const cache = createReadCache(database, now);
-
   let scope: SyncScopeRef | null = null;
+  const cache = createReadCache(database, { now, currentScope: () => scope });
   let status: SyncStatus = {
     membershipId: null,
     phase: 'idle',
