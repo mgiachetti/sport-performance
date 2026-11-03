@@ -1,4 +1,4 @@
-import type { PlayerReportContent } from '@sport-performance/contracts';
+import type { CategoryReportContent, PlayerReportContent } from '@sport-performance/contracts';
 
 /**
  * A report snapshot as the API freezes it (B-602), for the renderer's and
@@ -149,6 +149,158 @@ export function sampleReportContent(
       adultHeightPct: 92.4,
       growthVelocityCmYear: 8.4,
       inPeakZone: true,
+    },
+    ...overrides,
+  };
+}
+
+/**
+ * A category report snapshot as the API freezes it (B-603): a closed V2 of
+ * M15 with its battery (one unavailable), the CMJ of the group against V1
+ * with the change counted, a sprint below the minimum and two weeks of
+ * responses.
+ */
+export function sampleCategoryReportContent(
+  overrides: Partial<CategoryReportContent> = {},
+): CategoryReportContent {
+  const v1 = 'w:00000000-0000-4000-8000-0000000000a1';
+  const v2 = 'w:00000000-0000-4000-8000-0000000000a2';
+  const day = (value: string) => value as CategoryReportContent['generatedOn'];
+  return {
+    formatVersion: 1,
+    locale: 'es-AR',
+    timeZone: 'America/Argentina/Buenos_Aires',
+    generatedOn: day('2026-05-04'),
+    club: {
+      name: 'Olivos Rugby Club',
+      shortName: 'ORC',
+      primaryColor: '#f1882a',
+      secondaryColor: '#050505',
+      logoFileId: null,
+    },
+    category: {
+      id: '00000000-0000-4000-8000-0000000000c5' as CategoryReportContent['category']['id'],
+      name: 'M15',
+      sport: 'rugby',
+      sex: 'male',
+      ageBandCode: 'm15',
+    },
+    window: {
+      id: '00000000-0000-4000-8000-0000000000a2' as CategoryReportContent['window']['id'],
+      seasonName: 'Temporada 2026',
+      number: 2,
+      startsOn: day('2026-04-01'),
+      endsOn: day('2026-04-30'),
+      closed: true,
+    },
+    roster: {
+      players: 24,
+      byStage: [
+        { stage: 'foundation', players: 4 },
+        { stage: 'development', players: 20 },
+      ],
+    },
+    battery: [
+      {
+        testCode: 'sprint_40',
+        expected: 24,
+        done: 20,
+        notDone: { absent: 2, unavailable: 1, notApplicableToStage: 0, other: 0 },
+        noRecord: 1,
+      },
+      {
+        testCode: 'cmj',
+        expected: 24,
+        done: 22,
+        notDone: { absent: 1, unavailable: 0, notApplicableToStage: 0, other: 0 },
+        noRecord: 1,
+      },
+    ],
+    evolution: {
+      columns: [
+        {
+          key: v1,
+          testWindowId:
+            '00000000-0000-4000-8000-0000000000a1' as CategoryReportContent['window']['id'],
+          seasonName: 'Temporada 2026',
+          number: 1,
+          startsOn: day('2026-02-01'),
+          endsOn: day('2026-02-28'),
+        },
+        {
+          key: v2,
+          testWindowId:
+            '00000000-0000-4000-8000-0000000000a2' as CategoryReportContent['window']['id'],
+          seasonName: 'Temporada 2026',
+          number: 2,
+          startsOn: day('2026-04-01'),
+          endsOn: day('2026-04-30'),
+        },
+      ],
+      metrics: [
+        {
+          testCode: 'cmj',
+          metricCode: 'cmj_height_cm',
+          exercise: null,
+          unit: 'cm',
+          direction: 'higher_is_better',
+          points: [
+            {
+              columnKey: v1,
+              average: 34.2,
+              players: 21,
+              methods: ['video'],
+              protocolVersions: [1],
+            },
+            {
+              columnKey: v2,
+              average: 36.1,
+              players: 22,
+              methods: ['manual', 'video'],
+              protocolVersions: [1],
+            },
+          ],
+          change: { fromColumnKey: v1, paired: 20, improved: 14, worsened: 4, unchanged: 2 },
+          firstTeam: { value: 52, unit: 'cm', scope: 'squad' },
+        },
+        {
+          testCode: 'sprint_40',
+          metricCode: 'sprint_40_s',
+          exercise: null,
+          unit: 's',
+          direction: 'lower_is_better',
+          points: [
+            {
+              columnKey: v2,
+              average: null,
+              players: null,
+              methods: ['photocell'],
+              protocolVersions: [1],
+            },
+          ],
+          change: null,
+          firstTeam: null,
+        },
+      ],
+    },
+    responses: {
+      from: day('2026-03-01'),
+      to: day('2026-04-30'),
+      sessionDays: 6,
+      wellness: { expected: 120, answered: 96 },
+      rpe: { expected: 100, answered: 70 },
+      weeks: [
+        {
+          weekStart: day('2026-04-20'),
+          wellness: { expected: 60, answered: 51 },
+          rpe: { expected: 50, answered: 40 },
+        },
+        {
+          weekStart: day('2026-04-27'),
+          wellness: { expected: 60, answered: 45 },
+          rpe: { expected: 50, answered: 30 },
+        },
+      ],
     },
     ...overrides,
   };

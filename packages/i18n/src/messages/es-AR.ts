@@ -1,5 +1,6 @@
 import { mobileMessagesEsAR } from './mobile.js';
 import { reportMessagesEsAR } from './report.js';
+import { categoryReportMessagesEsAR } from './category-report.js';
 import { webPanelMessagesEsAR } from './web-panel.js';
 import { webPlayerMessagesEsAR } from './web-player.js';
 import { webCalendarMessagesEsAR } from './web-calendar.js';
@@ -437,6 +438,7 @@ export const sourceMessageFiles = {
   'protocols.ts': protocolMessagesEsAR,
   'web-help.ts': webHelpMessagesEsAR,
   'report.ts': reportMessagesEsAR,
+  'category-report.ts': categoryReportMessagesEsAR,
 } as const;
 
 export const esAR = {
@@ -459,4 +461,6 @@ export const esAR = {
   ...webHelpMessagesEsAR,
   // The PDF report of a player (B-602), rendered by the worker
   ...reportMessagesEsAR,
+  // The PDF report of a category (B-603), rendered by the worker
+  ...categoryReportMessagesEsAR,
 } as const;

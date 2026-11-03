@@ -1,5 +1,10 @@
 import { createHash } from 'node:crypto';
-import { playerReportContentSchema, type PlayerReportContent } from '@sport-performance/contracts';
+import {
+  categoryReportContentSchema,
+  playerReportContentSchema,
+  type CategoryReportContent,
+  type PlayerReportContent,
+} from '@sport-performance/contracts';
 import {
   FILE_KIND_POLICIES,
   PLAYER_REPORT_MAX_ATTEMPTS,
@@ -17,12 +22,14 @@ import type { ObjectStorage } from '@sport-performance/storage';
 import type pg from 'pg';
 import type { Logger } from 'pino';
 import { inClubTransaction } from '../database.js';
+import { renderCategoryReport } from './render-category.js';
 import { renderPlayerReport } from './render.js';
 
 /**
- * The report job of one club (B-602, ADR 0069): takes the pending reports
- * that are due, renders each snapshot into a PDF, uploads it and records it
- * as a `pdf_report` file. Each report is claimed with a lease (`FOR UPDATE
+ * The report job of one club (B-602, ADR 0071; B-603, ADR 0073): takes the
+ * pending reports that are due, of players and of categories, renders each
+ * snapshot into a PDF, uploads it and records it as a `pdf_report` or a
+ * `category_report` file. Each report is claimed with a lease (`FOR UPDATE
  * SKIP LOCKED`, `next_attempt_at` pushed ahead), so two workers never render
  * the same one and a worker that dies leaves it for a later attempt. The
  * file row is written before the upload: an object never lands in the bucket
@@ -55,9 +62,27 @@ const LOGO_MAX_BYTES = FILE_KIND_POLICIES.club_logo.maxSizeBytes;
 
 interface ClaimedReport {
   readonly id: string;
-  readonly playerId: string;
+  /** The player or the category the report is of (`player_id` / `category_id`). */
+  readonly subjectId: string;
   readonly content: unknown;
   readonly attempts: number;
+}
+
+/**
+ * What differs between the reports of a player and of a category: their
+ * table, the column of their subject (also the file's), the kind of their
+ * file, the format of their snapshot and their renderer. The claim, the
+ * upload and the retries are one pipeline.
+ */
+interface ReportKind<C> {
+  readonly table: 'player_report' | 'category_report';
+  readonly subjectColumn: 'player_id' | 'category_id';
+  readonly fileKind: 'pdf_report' | 'category_report';
+  parse(content: unknown): { success: true; data: C } | { success: false; error: unknown };
+  render(content: C, options: Parameters<typeof renderPlayerReport>[1]): Promise<Uint8Array>;
+  fileName(content: C, translator: Translator): string;
+  readonly club: (content: C) => { readonly logoFileId: string | null };
+  readonly locale: (content: C) => string;
 }
 
 /** A failure with its code; `retry` when another attempt may succeed. */
@@ -104,45 +129,83 @@ export function reportFileName(content: PlayerReportContent, translator: Transla
   return sanitizeFileName(name.replace(/[\\/]/g, '-'));
 }
 
+/** The download name of a category report: `Informe M15 Temporada 2026 V2.pdf`. */
+export function categoryReportFileName(
+  content: CategoryReportContent,
+  translator: Translator,
+): string {
+  const name = translator.t('categoryReport.fileName', {
+    category: content.category.name,
+    season: content.window.seasonName,
+    number: content.window.number,
+  });
+  return sanitizeFileName(name.replace(/[\\/]/g, '-'));
+}
+
+const PLAYER_REPORTS: ReportKind<PlayerReportContent> = {
+  table: 'player_report',
+  subjectColumn: 'player_id',
+  fileKind: 'pdf_report',
+  parse: (content) => playerReportContentSchema.safeParse(content),
+  render: renderPlayerReport,
+  fileName: reportFileName,
+  club: (content) => content.club,
+  locale: (content) => content.locale,
+};
+
+const CATEGORY_REPORTS: ReportKind<CategoryReportContent> = {
+  table: 'category_report',
+  subjectColumn: 'category_id',
+  fileKind: 'category_report',
+  parse: (content) => categoryReportContentSchema.safeParse(content),
+  render: renderCategoryReport,
+  fileName: categoryReportFileName,
+  club: (content) => content.club,
+  locale: (content) => content.locale,
+};
+
 const sha256 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('base64');
 
 /**
- * Claims the next due report. First gives up on the due ones that already
- * spent every attempt without finishing any: a worker that died while
- * rendering never recorded the failure, and a PDF that crashes the process
- * would otherwise come back after every lease, forever.
+ * Claims the next due report of a kind. First gives up on the due ones that
+ * already spent every attempt without finishing any: a worker that died
+ * while rendering never recorded the failure, and a PDF that crashes the
+ * process would otherwise come back after every lease, forever.
  */
-async function claim(
+async function claim<C>(
   deps: ReportDependencies,
+  kind: ReportKind<C>,
   clubId: ClubId,
   requestId: string | undefined,
   now: Date,
 ): Promise<{ report: ClaimedReport | null; exhausted: number }> {
+  // `table` and `subjectColumn` are constants of the two kinds, never input.
+  const { table, subjectColumn } = kind;
   return inClubTransaction(
     deps.pool,
     clubId,
     async ({ client }) => {
       const exhausted = await client.query(
-        `update player_report set status = 'failed', failure_code = 'attempts_exhausted'
-          where id in (select id from player_report
+        `update ${table} set status = 'failed', failure_code = 'attempts_exhausted'
+          where id in (select id from ${table}
                         where status = 'pending' and next_attempt_at <= $1 and attempts >= $2
                         for update skip locked)`,
         [now, PLAYER_REPORT_MAX_ATTEMPTS],
       );
       const { rows } = await client.query<{
         id: string;
-        player_id: string;
+        subject_id: string;
         content: unknown;
         attempts: number;
       }>(
-        `update player_report r
+        `update ${table} r
             set attempts = r.attempts + 1,
                 next_attempt_at = $1::timestamptz + make_interval(mins => $2)
-          where r.id = (select id from player_report
+          where r.id = (select id from ${table}
                          where status = 'pending' and next_attempt_at <= $1 and attempts < $3
                          order by next_attempt_at, created_at, id
                          limit 1 for update skip locked)
-          returning r.id, r.player_id, r.content, r.attempts`,
+          returning r.id, r.${subjectColumn} as subject_id, r.content, r.attempts`,
         [now, REPORT_LEASE_MINUTES, PLAYER_REPORT_MAX_ATTEMPTS],
       );
       const row = rows[0];
@@ -150,7 +213,12 @@ async function claim(
         report:
           row === undefined
             ? null
-            : { id: row.id, playerId: row.player_id, content: row.content, attempts: row.attempts },
+            : {
+                id: row.id,
+                subjectId: row.subject_id,
+                content: row.content,
+                attempts: row.attempts,
+              },
         exhausted: exhausted.rowCount ?? 0,
       };
     },
@@ -192,30 +260,32 @@ async function readLogo(
   }
 }
 
-async function produce(
+async function produce<C>(
   deps: ReportDependencies,
+  kind: ReportKind<C>,
   clubId: ClubId,
   report: ClaimedReport,
   requestId: string | undefined,
   now: Date,
 ): Promise<void> {
-  const parsed = playerReportContentSchema.safeParse(report.content);
+  const parsed = kind.parse(report.content);
   if (!parsed.success) throw new ReportFailure('invalid_content', false, { cause: parsed.error });
   const content = parsed.data;
-  const translator = translatorFor(content.locale);
-  const logoPng = await readLogo(deps, clubId, content.club.logoFileId, requestId);
+  const translator = translatorFor(kind.locale(content));
+  const logoPng = await readLogo(deps, clubId, kind.club(content).logoFileId, requestId);
+  const policy = FILE_KIND_POLICIES[kind.fileKind];
 
   let pdf: Uint8Array;
   try {
-    pdf = await renderPlayerReport(content, { translator, logoPng, now });
+    pdf = await kind.render(content, { translator, logoPng, now });
   } catch (error) {
     throw new ReportFailure('render_failed', true, { cause: error });
   }
-  if (pdf.byteLength > FILE_KIND_POLICIES.pdf_report.maxSizeBytes) {
+  if (pdf.byteLength > policy.maxSizeBytes) {
     throw new ReportFailure('too_large', false);
   }
   const checksum = sha256(pdf);
-  const contentType = FILE_KIND_POLICIES.pdf_report.contentTypes[0];
+  const contentType = policy.contentTypes[0];
 
   // The row first: whatever reaches the bucket has a row that expires (ADR 0044).
   const fileId = await inClubTransaction(
@@ -224,16 +294,17 @@ async function produce(
     async ({ client }) =>
       (
         await client.query<{ id: string }>(
-          `insert into file (club_id, kind, status, player_id, content_type, size_bytes,
+          `insert into file (club_id, kind, status, ${kind.subjectColumn}, content_type, size_bytes,
                              checksum_sha256, file_name, expires_at)
-           values ($1, 'pdf_report', 'pending', $2, $3, $4, $5, $6, $7) returning id`,
+           values ($1, $2, 'pending', $3, $4, $5, $6, $7, $8) returning id`,
           [
             clubId,
-            report.playerId,
+            kind.fileKind,
+            report.subjectId,
             contentType,
             pdf.byteLength,
             checksum,
-            reportFileName(content, translator),
+            kind.fileName(content, translator),
             pendingUploadExpiresAt(now),
           ],
         )
@@ -244,7 +315,7 @@ async function produce(
 
   try {
     await deps.storage.put({
-      key: fileObjectKey({ clubId, kind: 'pdf_report', id: fileId }),
+      key: fileObjectKey({ clubId, kind: kind.fileKind, id: fileId }),
       contentType,
       body: pdf,
       checksumSha256: checksum,
@@ -262,12 +333,12 @@ async function produce(
       await client.query(
         `update file set status = 'ready', uploaded_at = $2, expires_at = $3
           where id = $1 and status = 'pending'`,
-        [fileId, uploadedAt, fileExpiresAt('pdf_report', uploadedAt)],
+        [fileId, uploadedAt, fileExpiresAt(kind.fileKind, uploadedAt)],
       );
       // Only while this worker still holds the claim: a lease that ran out and was taken
       // by another worker leaves this file to the retention job.
       const { rowCount } = await client.query(
-        `update player_report set status = 'ready', file_id = $2, generated_at = $3
+        `update ${kind.table} set status = 'ready', file_id = $2, generated_at = $3
           where id = $1 and status = 'pending' and attempts = $4`,
         [report.id, fileId, uploadedAt, report.attempts],
       );
@@ -276,7 +347,10 @@ async function produce(
     { requestId },
   );
   if (!completed) {
-    deps.logger.warn({ clubId, reportId: report.id }, 'report claim lost; discarding its file');
+    deps.logger.warn(
+      { clubId, reportId: report.id, table: kind.table },
+      'report claim lost; discarding its file',
+    );
     await discardFile(deps, clubId, fileId, requestId, now);
   }
 }
@@ -323,8 +397,9 @@ async function discardFile(
 }
 
 /** After a failure: retry later with backoff, or give up with the code. */
-async function recordFailure(
+async function recordFailure<C>(
   deps: ReportDependencies,
+  kind: ReportKind<C>,
   clubId: ClubId,
   report: ClaimedReport,
   failure: ReportFailure,
@@ -338,13 +413,13 @@ async function recordFailure(
     async ({ client }) => {
       if (giveUp) {
         await client.query(
-          `update player_report set status = 'failed', failure_code = $2
+          `update ${kind.table} set status = 'failed', failure_code = $2
             where id = $1 and status = 'pending' and attempts = $3`,
           [report.id, failure.code, report.attempts],
         );
       } else {
         await client.query(
-          `update player_report
+          `update ${kind.table}
               set next_attempt_at = $2::timestamptz + make_interval(mins => $3)
             where id = $1 and status = 'pending' and attempts = $4`,
           [report.id, now, report.attempts * PLAYER_REPORT_RETRY_MINUTES, report.attempts],
@@ -356,48 +431,88 @@ async function recordFailure(
   return giveUp ? 'failed' : 'retried';
 }
 
-export async function runClubReports(
+interface KindOutcome {
+  ready: number;
+  retried: number;
+  failed: number;
+  /** Reports of the kind claimed, out of the job's budget. */
+  handled: number;
+  /** The budget ran out with due reports of the kind maybe left. */
+  more: boolean;
+}
+
+async function runKind<C>(
   deps: ReportDependencies,
+  kind: ReportKind<C>,
   clubId: ClubId,
-  options: { readonly jobId?: string } = {},
-): Promise<ClubReportsReport> {
+  budget: number,
+  options: { readonly jobId?: string },
+): Promise<KindOutcome> {
   const requestId = options.jobId === undefined ? undefined : `job:${options.jobId}`;
-  let ready = 0;
-  let retried = 0;
-  let failed = 0;
-  for (let i = 0; i < REPORTS_PER_JOB; i += 1) {
+  const outcome: KindOutcome = { ready: 0, retried: 0, failed: 0, handled: 0, more: false };
+  for (let i = 0; i < budget; i += 1) {
     const now = deps.now?.() ?? new Date();
-    const { report, exhausted } = await claim(deps, clubId, requestId, now);
+    const { report, exhausted } = await claim(deps, kind, clubId, requestId, now);
     if (exhausted > 0) {
-      failed += exhausted;
+      outcome.failed += exhausted;
       deps.logger.warn(
-        { clubId, count: exhausted, code: 'attempts_exhausted' },
+        { clubId, table: kind.table, count: exhausted, code: 'attempts_exhausted' },
         'reports given up after their attempts',
       );
     }
-    if (report === null) return { clubId, ready, retried, failed, more: false };
+    if (report === null) return outcome;
+    outcome.handled += 1;
     try {
-      await produce(deps, clubId, report, requestId, now);
-      ready += 1;
-      deps.logger.info({ clubId, reportId: report.id, jobId: options.jobId }, 'report ready');
+      await produce(deps, kind, clubId, report, requestId, now);
+      outcome.ready += 1;
+      deps.logger.info(
+        { clubId, table: kind.table, reportId: report.id, jobId: options.jobId },
+        'report ready',
+      );
     } catch (error) {
       const failure = reportFailureOf(error);
-      const outcome = await recordFailure(deps, clubId, report, failure, requestId, now);
-      if (outcome === 'failed') failed += 1;
-      else retried += 1;
+      const result = await recordFailure(deps, kind, clubId, report, failure, requestId, now);
+      if (result === 'failed') outcome.failed += 1;
+      else outcome.retried += 1;
       // Codes and ids only: the snapshot has personal data and never reaches the logs.
       deps.logger.warn(
         {
           clubId,
+          table: kind.table,
           reportId: report.id,
           code: failure.code,
           attempt: report.attempts,
-          outcome,
+          outcome: result,
           err: failure.cause instanceof Error ? { name: failure.cause.name } : undefined,
         },
         'report not generated',
       );
     }
   }
-  return { clubId, ready, retried, failed, more: true };
+  outcome.more = true;
+  return outcome;
+}
+
+/**
+ * The due reports of a club, of players first and then of categories, up to
+ * {@link REPORTS_PER_JOB} in one job; `more` when some may be left for the next.
+ */
+export async function runClubReports(
+  deps: ReportDependencies,
+  clubId: ClubId,
+  options: { readonly jobId?: string } = {},
+): Promise<ClubReportsReport> {
+  const players = await runKind(deps, PLAYER_REPORTS, clubId, REPORTS_PER_JOB, options);
+  const left = REPORTS_PER_JOB - players.handled;
+  const categories =
+    left > 0
+      ? await runKind(deps, CATEGORY_REPORTS, clubId, left, options)
+      : { ready: 0, retried: 0, failed: 0, handled: 0, more: true };
+  return {
+    clubId,
+    ready: players.ready + categories.ready,
+    retried: players.retried + categories.retried,
+    failed: players.failed + categories.failed,
+    more: players.more || categories.more,
+  };
 }

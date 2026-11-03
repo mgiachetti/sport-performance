@@ -25,8 +25,14 @@ function kindList(kinds: readonly FileKind[]) {
 }
 
 const PLAYER_KINDS = FILE_KINDS.filter((kind) => FILE_KIND_POLICIES[kind].subject === 'player');
-const CATEGORY_KINDS = FILE_KINDS.filter(
-  (kind) => FILE_KIND_POLICIES[kind].subject === 'category_optional',
+/** Kinds that may carry a category, with it optional or required. */
+const CATEGORY_KINDS = FILE_KINDS.filter((kind) => {
+  const { subject } = FILE_KIND_POLICIES[kind];
+  return subject === 'category' || subject === 'category_optional';
+});
+/** Kinds that always belong to a category (the category report, B-603). */
+const REQUIRED_CATEGORY_KINDS = FILE_KINDS.filter(
+  (kind) => FILE_KIND_POLICIES[kind].subject === 'category',
 );
 
 /**
@@ -88,10 +94,12 @@ export const file = pgTable(
     ),
     // What a file belongs to follows its kind (`FILE_KIND_POLICIES[kind].subject`). A
     // deleted file of an erased player loses its player (`app.erase_player`, ADR 0051): the
-    // row stays, without them, until the retention job removes the object.
+    // row stays, without them, until the retention job removes the object. The kind is
+    // compared as text: a value added to the enum cannot be used as such in the migration
+    // that adds it (`category_report`, 0038).
     check(
       'file_subject',
-      sql`((${t.kind} in (${kindList(PLAYER_KINDS)})) = (${t.playerId} is not null) or (${t.status} = 'deleted' and ${t.playerId} is null)) and (${t.categoryId} is null or ${t.kind} in (${kindList(CATEGORY_KINDS)}))`,
+      sql`((${t.kind}::text in (${kindList(PLAYER_KINDS)})) = (${t.playerId} is not null) or (${t.status} = 'deleted' and ${t.playerId} is null)) and (${t.categoryId} is null or ${t.kind}::text in (${kindList(CATEGORY_KINDS)})) and (${t.kind}::text not in (${kindList(REQUIRED_CATEGORY_KINDS)}) or ${t.categoryId} is not null)`,
     ),
     check(
       'file_lifecycle',

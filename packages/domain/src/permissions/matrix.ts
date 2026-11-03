@@ -308,6 +308,13 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
     read: { ...ownAndStaffRead, parent: guardian },
     generate: { ...administration, sc: assigned },
   },
+  // The report of a category for a window (B-603, ADR 0073): aggregates of the group only
+  // (no names, ids or values of one player, nothing medical), for the staff of the category
+  // and, through the club, its sub-committee. Asked for by the test staff, like the player's.
+  category_report: {
+    read: staffRead,
+    generate: { ...administration, sc: assigned },
+  },
   // The club's data as CSV (B-608, ADR 0072): the administration, the whole club; the S&C
   // staff, their assigned categories (the analysts of the tests and the load). Each player
   // in it needs a current data consent, like any export of their data. Never the superadmin:

@@ -56,6 +56,7 @@ import { protocolMediaInUse } from './test-definitions.js';
  * | `data_import` | `data_import.run`| `data_import.run`    | `data_import.run`     |
  * | `protocol_media` | `configuration.update` | `configuration.read` | `configuration.update` |
  * | `data_export` | (the worker)     | `club_data_export.read` | `club_data_export.read` |
+ * | `category_report` | (the worker) | `category_report.read` | `category.manage`     |
  *
  * `media` needs a current image consent of the player to upload or show a
  * video: the matrix checks it with the player's facts.
@@ -106,6 +107,13 @@ const FILE_PERMISSIONS: Record<FileKind, Record<FileAction, FilePermission | nul
     // that already lives in the platform, so deleting it only takes the copy out of the
     // bucket before its 7 days; nothing is lost, and asking again writes it anew.
     delete: { kind: 'club_data_export', action: 'read' },
+  },
+  category_report: {
+    // Written by the worker for the staff of the category (B-603, ADR 0073); deleting it
+    // early is the administration's, like a player's report.
+    upload: null,
+    read: { kind: 'category_report', action: 'read' },
+    delete: { kind: 'category', action: 'manage' },
   },
 };
 

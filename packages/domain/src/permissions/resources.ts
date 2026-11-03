@@ -119,6 +119,13 @@ export const PERMISSION_RESOURCES = {
    */
   player_report: { target: 'player', medical: false, actions: ['read', 'generate'] },
   /**
+   * The PDF report of a category for a test window (B-603, ADR 0073): the
+   * group's evolution, the battery done and the response rate, aggregates
+   * only. The test staff and the administration ask for it (`generate`); the
+   * staff of the category and the administration read and download it.
+   */
+  category_report: { target: 'category', medical: false, actions: ['read', 'generate'] },
+  /**
    * CSV export of the club's data (B-608, ADR 0072): `run` asks for one (the
    * players it covers follow the scope and, row by row, the `data` consent),
    * `read` lists and downloads them. Never health data: availability only.

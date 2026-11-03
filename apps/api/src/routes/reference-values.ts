@@ -453,11 +453,13 @@ export async function referenceSportOf(
  * `asOf` (ADR 0040): their sport and sex, the most specific scope (their
  * main position, then its line, then the squad) and the newest validity not
  * after `asOf`. Only values of the first team: no data of other players.
+ * Without a player (`id: null`, the report of a category) the references are
+ * those of the whole squad of the sport and sex.
  */
 export async function firstTeamReferencesOf(
   db: TenantDatabase,
   clubId: ClubId,
-  target: { id: PlayerId; sex: Sex },
+  target: { id: PlayerId | null; sex: Sex },
   sport: Sport,
   asOf: LocalDate,
   onlyMetricCode?: string,
@@ -467,16 +469,22 @@ export async function firstTeamReferencesOf(
   items: PlayerFirstTeamReference[];
 }> {
   // The main position of the player (`sort_order` 0, B-315).
-  const [ownPosition] = await db
-    .select({ code: position.code, lineCode: position.lineCode, sport: position.sport })
-    .from(playerPosition)
-    .innerJoin(
-      position,
-      and(eq(position.clubId, playerPosition.clubId), eq(position.id, playerPosition.positionId)),
-    )
-    .where(and(eq(playerPosition.clubId, clubId), eq(playerPosition.playerId, target.id)))
-    .orderBy(asc(playerPosition.sortOrder))
-    .limit(1);
+  const [ownPosition] =
+    target.id === null
+      ? []
+      : await db
+          .select({ code: position.code, lineCode: position.lineCode, sport: position.sport })
+          .from(playerPosition)
+          .innerJoin(
+            position,
+            and(
+              eq(position.clubId, playerPosition.clubId),
+              eq(position.id, playerPosition.positionId),
+            ),
+          )
+          .where(and(eq(playerPosition.clubId, clubId), eq(playerPosition.playerId, target.id)))
+          .orderBy(asc(playerPosition.sortOrder))
+          .limit(1);
   const positionOfSport = ownPosition?.sport === sport ? ownPosition : undefined;
 
   const rows = await db
