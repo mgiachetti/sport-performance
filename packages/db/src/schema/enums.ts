@@ -1,7 +1,9 @@
 import {
   ACWR_STATUSES,
+  ALERT_EVENT_TYPES,
   ALERT_RULE_KINDS,
   ALERT_SEVERITIES,
+  ALERT_STATUSES,
   ATTEMPT_AGGREGATIONS,
   COEFFICIENT_VERIFICATION_STATUSES,
   CONSENT_SIGNERS,
@@ -196,8 +198,10 @@ export const EXTERNAL_METRIC_SOURCES = ['catapult', 'pod', 'hr_band', 'manual'] 
 export const externalMetricSourceEnum = pgEnum('external_metric_source', EXTERNAL_METRIC_SOURCES);
 
 /** Lifecycle of a generated alert (B-327). */
-export const ALERT_STATUSES = ['open', 'acknowledged', 'dismissed'] as const;
+export { ALERT_STATUSES };
 export const alertStatusEnum = pgEnum('alert_status', ALERT_STATUSES);
+/** What happened to an alert (B-327, `alert_event`). */
+export const alertEventTypeEnum = pgEnum('alert_event_type', ALERT_EVENT_TYPES);
 
 /** Status of the ACWR and of Foster's monotony of a day (B-202, `player_load_daily`). */
 export const acwrStatusEnum = pgEnum('acwr_status', ACWR_STATUSES);

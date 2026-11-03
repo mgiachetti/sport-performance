@@ -4,7 +4,9 @@ import { and, eq } from 'drizzle-orm';
 import type { Database } from '../client.js';
 import {
   alert,
+  alertEvent,
   alertRule,
+  playerAlertEvaluation,
   anthroMeasurement,
   batteryConfig,
   category,
@@ -689,10 +691,25 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         playerId: assigned,
         kind: 'acwr_high',
         severity: 'warning',
+        currentSeverity: 'warning',
         localDate: day('2026-03-11'),
+        lastSeenOn: day('2026-03-11'),
         observedOn: day('2026-03-11'),
       })
       .returning({ id: alert.id }),
+  );
+  // The trigger recorded the raise (ADR 0053).
+  rows.alert_event = await id(
+    db
+      .select({ id: alertEvent.id })
+      .from(alertEvent)
+      .where(and(eq(alertEvent.clubId, clubId), eq(alertEvent.alertId, rows.alert))),
+  );
+  rows.player_alert_evaluation = await id(
+    db
+      .insert(playerAlertEvaluation)
+      .values({ ...base, playerId: assigned, evaluatedOn: day('2026-03-11') })
+      .returning({ id: playerAlertEvaluation.id }),
   );
 
   rows.invitation = await id(

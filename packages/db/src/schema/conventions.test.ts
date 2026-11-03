@@ -36,12 +36,13 @@ const tenantTables = allTables
 const tenantTableNames = new Set(tenantTables.map(qualified));
 
 describe('schema conventions', () => {
-  it('defines the B-301 model, the B-306 reference tables, the B-309 access tables, the B-305 history, the B-315 roster and the B-316 season change tables', () => {
+  it('defines the B-301 model, the B-306 reference tables, the B-309 access tables, the B-305 history, the B-315 roster and the B-316 season change and the B-327 alert tables', () => {
     const names = tables.map((t) => t.name).sort();
     expect(names).toEqual(
       [
         'account',
         'alert',
+        'alert_event',
         'alert_rule',
         'anthro_measurement',
         'auth_rate_limit',
@@ -72,6 +73,7 @@ describe('schema conventions', () => {
         'participation',
         'player',
         'player_access_code',
+        'player_alert_evaluation',
         'player_category',
         'player_load_daily',
         'player_parent_height',

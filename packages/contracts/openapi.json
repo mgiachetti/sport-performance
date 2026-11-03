@@ -51,6 +51,10 @@
       "description": "Bienestar antes de entrenar: una carga por jugador y día del club."
     },
     {
+      "name": "alerts",
+      "description": "Alertas de carga (heurísticas, nunca un diagnóstico): episodios, historial y acuse del staff (B-327)."
+    },
+    {
       "name": "tests",
       "description": "Días de test, resultados con sus intentos y series comparables (B-320)."
     },
@@ -88,6 +92,384 @@
     }
   ],
   "paths": {
+    "/v1/alerts": {
+      "get": {
+        "operationId": "listAlerts",
+        "summary": "Alertas",
+        "description": "`coach`, `sc` y `medical` ven las de los jugadores de sus asignaciones; la administración, todo el club. Jugadores y tutores nunca. `categoryId` filtra por la categoría vigente hoy; `from`/`to`, por el día en que se abrió. Por defecto, las más recientes primero.",
+        "tags": [
+          "alerts"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "playerId",
+            "in": "query",
+            "required": false,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "query",
+            "required": false,
+            "description": "Id de categoría (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "description": "`active` (sin resolver), `resolved` o `all`.",
+            "schema": {
+              "default": "all",
+              "type": "string",
+              "enum": [
+                "active",
+                "resolved",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/AlertStatus"
+            }
+          },
+          {
+            "name": "severity",
+            "in": "query",
+            "required": false,
+            "description": "Por la severidad más alta del episodio.",
+            "schema": {
+              "$ref": "#/components/schemas/AlertSeverity"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/AlertRuleKind"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Abiertas desde este día (inclusive).",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "Abiertas hasta este día (inclusive).",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `raisedOn`, `lastSeenOn`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "-raisedOn",
+              "type": "string",
+              "enum": [
+                "raisedOn",
+                "-raisedOn",
+                "lastSeenOn",
+                "-lastSeenOn"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de alertas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.bad_request.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/alerts/{alertId}": {
+      "get": {
+        "operationId": "getAlert",
+        "summary": "Una alerta con su historial",
+        "description": "Mismo alcance que la lista. Una alerta de otro club o de un jugador que no se ve: `not_found`.",
+        "tags": [
+          "alerts"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "alertId",
+            "in": "path",
+            "required": true,
+            "description": "Id de alerta (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "La alerta y sus eventos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/alerts/{alertId}/review": {
+      "post": {
+        "operationId": "reviewAlert",
+        "summary": "Acusar o descartar una alerta",
+        "description": "Staff con `alert.acknowledge` sobre el jugador. `acknowledged` (vista; nota opcional) o `dismissed` (no aplica; nota obligatoria). Solo una alerta pendiente (`open`) y con la `version` leída: si ya se revisó o cambió, `conflict`. Si después escala a una severidad mayor, vuelve a quedar pendiente. Queda en el historial con quién y cuándo.",
+        "tags": [
+          "alerts"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "alertId",
+            "in": "path",
+            "required": true,
+            "description": "Id de alerta (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "description": "Versión que el cliente leyó (`version` de la respuesta). Si no es la actual: `409 conflict`.",
+                    "$ref": "#/components/schemas/ResourceVersion"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "acknowledged",
+                      "dismissed"
+                    ],
+                    "description": "`acknowledged` o `dismissed`."
+                  },
+                  "note": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000,
+                    "description": "Nota de la revisión (1 a 1000 caracteres)."
+                  }
+                },
+                "required": [
+                  "version",
+                  "status"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "La alerta revisada, con su historial.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error.conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
     "/v1/app/compatibility": {
       "get": {
         "operationId": "getAppCompatibility",
@@ -19293,6 +19675,494 @@
         ],
         "description": "Franja de edad del dominio (M13 a M19; no hay M18)."
       },
+      "Alert": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de alerta (UUID, RFC 9562)."
+          },
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "ruleId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de regla de alerta (UUID, RFC 9562)."
+          },
+          "ruleCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Código único en el club, inglés `snake_case`.",
+            "examples": [
+              "acwr_high",
+              "wellness_low_m15"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AlertRuleKind"
+          },
+          "severity": {
+            "description": "La severidad más alta del episodio (nunca baja).",
+            "$ref": "#/components/schemas/AlertSeverity"
+          },
+          "currentSeverity": {
+            "description": "La severidad del último día en que la regla se cumplió.",
+            "$ref": "#/components/schemas/AlertSeverity"
+          },
+          "raisedOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Día del club en que se abrió.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "lastSeenOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Último día del club en que se cumplió.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "resolvedOn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                "examples": [
+                  "2026-11-01"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Primer día del club en que dejó de cumplirse; `null` mientras está activa."
+          },
+          "observedOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Día del dato detrás de la última vez (bienestar, CMJ, talla); el mismo día para el ACWR.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "messageKey": {
+            "type": "string",
+            "description": "Clave del texto en `packages/i18n` (`alert.<kind>.message`)."
+          },
+          "suggestionKey": {
+            "type": "string",
+            "description": "Clave de la sugerencia en `packages/i18n` (`alert.<kind>.suggestion`)."
+          },
+          "values": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Valor observado, umbral cruzado y contexto de la última vez, sin redondear, para interpolar el texto."
+          },
+          "status": {
+            "$ref": "#/components/schemas/AlertStatus"
+          },
+          "acknowledgedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "acknowledgedBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de usuario (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "acknowledgementNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "version": {
+            "$ref": "#/components/schemas/ResourceVersion"
+          }
+        },
+        "required": [
+          "id",
+          "playerId",
+          "ruleId",
+          "ruleCode",
+          "kind",
+          "severity",
+          "currentSeverity",
+          "raisedOn",
+          "lastSeenOn",
+          "resolvedOn",
+          "observedOn",
+          "messageKey",
+          "suggestionKey",
+          "values",
+          "status",
+          "acknowledgedAt",
+          "acknowledgedBy",
+          "acknowledgementNote",
+          "createdAt",
+          "updatedAt",
+          "version"
+        ]
+      },
+      "AlertDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de alerta (UUID, RFC 9562)."
+          },
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "ruleId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de regla de alerta (UUID, RFC 9562)."
+          },
+          "ruleCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Código único en el club, inglés `snake_case`.",
+            "examples": [
+              "acwr_high",
+              "wellness_low_m15"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AlertRuleKind"
+          },
+          "severity": {
+            "description": "La severidad más alta del episodio (nunca baja).",
+            "$ref": "#/components/schemas/AlertSeverity"
+          },
+          "currentSeverity": {
+            "description": "La severidad del último día en que la regla se cumplió.",
+            "$ref": "#/components/schemas/AlertSeverity"
+          },
+          "raisedOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Día del club en que se abrió.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "lastSeenOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Último día del club en que se cumplió.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "resolvedOn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                "examples": [
+                  "2026-11-01"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Primer día del club en que dejó de cumplirse; `null` mientras está activa."
+          },
+          "observedOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Día del dato detrás de la última vez (bienestar, CMJ, talla); el mismo día para el ACWR.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "messageKey": {
+            "type": "string",
+            "description": "Clave del texto en `packages/i18n` (`alert.<kind>.message`)."
+          },
+          "suggestionKey": {
+            "type": "string",
+            "description": "Clave de la sugerencia en `packages/i18n` (`alert.<kind>.suggestion`)."
+          },
+          "values": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Valor observado, umbral cruzado y contexto de la última vez, sin redondear, para interpolar el texto."
+          },
+          "status": {
+            "$ref": "#/components/schemas/AlertStatus"
+          },
+          "acknowledgedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "acknowledgedBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de usuario (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "acknowledgementNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "version": {
+            "$ref": "#/components/schemas/ResourceVersion"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AlertEvent"
+            },
+            "description": "Historial, del más viejo al más nuevo."
+          }
+        },
+        "required": [
+          "id",
+          "playerId",
+          "ruleId",
+          "ruleCode",
+          "kind",
+          "severity",
+          "currentSeverity",
+          "raisedOn",
+          "lastSeenOn",
+          "resolvedOn",
+          "observedOn",
+          "messageKey",
+          "suggestionKey",
+          "values",
+          "status",
+          "acknowledgedAt",
+          "acknowledgedBy",
+          "acknowledgementNote",
+          "createdAt",
+          "updatedAt",
+          "version",
+          "events"
+        ]
+      },
+      "AlertEvent": {
+        "type": "object",
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Orden de los eventos del club."
+          },
+          "type": {
+            "$ref": "#/components/schemas/AlertEventType"
+          },
+          "localDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Día del club del evento.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "severity": {
+            "description": "Severidad de la alerta después del evento.",
+            "$ref": "#/components/schemas/AlertSeverity"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "actorId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de usuario (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Quién revisó; `null` para lo que hace el sistema (abrir, escalar, resolver)."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          }
+        },
+        "required": [
+          "seq",
+          "type",
+          "localDate",
+          "severity",
+          "note",
+          "actorId",
+          "createdAt"
+        ]
+      },
+      "AlertEventType": {
+        "type": "string",
+        "enum": [
+          "raised",
+          "escalated",
+          "resolved",
+          "reopened",
+          "acknowledged",
+          "dismissed"
+        ],
+        "description": "`raised` (se abrió), `escalated` (llegó a una severidad mayor), `resolved` (dejó de cumplirse), `reopened` (volvió a cumplirse el mismo día que se resolvió), `acknowledged` o `dismissed` (revisión del staff)."
+      },
+      "AlertPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Alert"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
       "AlertRule": {
         "oneOf": [
           {
@@ -19789,6 +20659,23 @@
         },
         "additionalProperties": false,
         "description": "A quién aplica: tienen que coincidir todas las dimensiones presentes; una dimensión ausente es \"todos\"."
+      },
+      "AlertSeverity": {
+        "type": "string",
+        "enum": [
+          "warning",
+          "critical"
+        ],
+        "description": "Severidad: `warning` (amarillo, atención) o `critical` (rojo)."
+      },
+      "AlertStatus": {
+        "type": "string",
+        "enum": [
+          "open",
+          "acknowledged",
+          "dismissed"
+        ],
+        "description": "Revisión del staff: `open` (pendiente de acuse), `acknowledged` (vista, con nota opcional) o `dismissed` (descartada, con nota)."
       },
       "ApiVersionInfo": {
         "type": "object",

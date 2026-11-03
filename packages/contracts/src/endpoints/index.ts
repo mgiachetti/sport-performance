@@ -1,4 +1,5 @@
 import type { EndpointCatalog } from '../endpoint.js';
+import { getAlert, listAlerts, reviewAlert } from './alerts.js';
 import { getAppCompatibility } from './app-compatibility.js';
 import { sendSignInCode, signOut, verifySignInCode } from './auth.js';
 import {
@@ -210,6 +211,7 @@ import {
   previewTestImport,
 } from './test-imports.js';
 
+export * from './alerts.js';
 export * from './app-compatibility.js';
 export * from './auth.js';
 export * from './calendar.js';
@@ -348,6 +350,9 @@ export const apiEndpoints = {
   correctWellness,
   listWellness,
   getWellness,
+  listAlerts,
+  getAlert,
+  reviewAlert,
   recordTestSessionResults,
   listTestResults,
   getTestResult,

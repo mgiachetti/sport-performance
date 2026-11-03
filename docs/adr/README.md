@@ -56,6 +56,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0050](0050-sincronizacion-sin-conexion.md) | Sincronización sin conexión: push por los handlers en línea, reloj por campo y log de cambios por transacción | Aceptado |
 | [0051](0051-derechos-del-titular.md) | Derechos del titular: exportación desde el catálogo, supresión por la administración y borrado o anonimización de la cuenta | Aceptado |
 | [0052](0052-importacion-de-historicos.md) | Importación de históricos: resultados `historical` con su importación, vista previa en un savepoint y reglas de etapa como avisos | Aceptado |
+| [0053](0053-alertas-episodios-eventos-y-revision.md) | Alertas: episodios por regla y jugador, eventos append-only y revisión del staff | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 

@@ -36,6 +36,7 @@ import { registerSeasonRolloverRoutes } from './season-rollovers.js';
 import { registerParticipationRoutes } from './participations.js';
 import { registerTrainingSessionRoutes } from './training-sessions.js';
 import { registerWellnessRoutes } from './wellness.js';
+import { registerAlertRoutes } from './alerts.js';
 import { registerTestResultRoutes } from './test-results.js';
 import { registerTestImportRoutes } from './test-imports.js';
 import { registerTestSessionResultRoutes } from './test-sessions.js';
@@ -148,6 +149,9 @@ export const IMPLEMENTED_ENDPOINTS = [
   'correctWellness',
   'listWellness',
   'getWellness',
+  'listAlerts',
+  'getAlert',
+  'reviewAlert',
   'recordTestSessionResults',
   'listTestResults',
   'previewTestImport',
@@ -261,6 +265,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerTrainingSessionRoutes(app);
   registerParticipationRoutes(app);
   registerWellnessRoutes(app);
+  registerAlertRoutes(app);
   registerTestSessionResultRoutes(app);
   registerTestResultRoutes(app);
   registerTestImportRoutes(app);
