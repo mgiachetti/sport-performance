@@ -119,6 +119,12 @@ export const PERMISSION_RESOURCES = {
    */
   player_report: { target: 'player', medical: false, actions: ['read', 'generate'] },
   /**
+   * CSV export of the club's data (B-608, ADR 0072): `run` asks for one (the
+   * players it covers follow the scope and, row by row, the `data` consent),
+   * `read` lists and downloads them. Never health data: availability only.
+   */
+  club_data_export: { target: 'category', medical: false, actions: ['run', 'read'] },
+  /**
    * Erasure of a player's data (Ley 25.326, art. 16; B-329): the holder or
    * the administration asks (`request`) and sees the requests (`read`); only
    * the administration, the club being the controller, erases (`execute`).

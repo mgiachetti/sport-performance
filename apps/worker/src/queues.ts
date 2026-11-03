@@ -21,6 +21,11 @@ export const QUEUES = {
   filesPurgeClubDead: 'files-purge-club-dead',
   /** Once a day: every club's file retention. */
   filesDaily: 'files-daily',
+  /** Write the pending CSV exports of one club (B-608, ADR 0072). */
+  dataExportClub: 'data-export-club',
+  dataExportClubDead: 'data-export-club-dead',
+  /** Every minute: clubs with a pending export (in case a notification was lost). */
+  dataExportSweep: 'data-export-sweep',
   /** Plan and deliver the notifications of one club (B-328, ADR 0054). */
   notificationsClub: 'notifications-club',
   notificationsClubDead: 'notifications-club-dead',
@@ -92,6 +97,28 @@ export const QUEUE_DEFINITIONS: readonly Queue[] = [
     expireInSeconds: 10 * MINUTE,
     deleteAfterSeconds: 7 * DAY,
   },
+  { name: QUEUES.dataExportClubDead, policy: 'standard', deleteAfterSeconds: 30 * DAY },
+  {
+    // An export of years of a big club takes minutes; expiring before the stale window of
+    // the export (30 min) means pg-boss gives up on a stuck job before another run takes
+    // the export over.
+    name: QUEUES.dataExportClub,
+    policy: 'stately',
+    retryLimit: 3,
+    retryDelay: 60,
+    retryBackoff: true,
+    retryDelayMax: 30 * MINUTE,
+    expireInSeconds: 25 * MINUTE,
+    deleteAfterSeconds: 7 * DAY,
+    deadLetter: QUEUES.dataExportClubDead,
+  },
+  {
+    name: QUEUES.dataExportSweep,
+    policy: 'stately',
+    retryLimit: 0,
+    expireInSeconds: 2 * MINUTE,
+    deleteAfterSeconds: DAY,
+  },
   { name: QUEUES.notificationsClubDead, policy: 'standard', deleteAfterSeconds: 30 * DAY },
   {
     // A retry soon: a lost minute delays a nudge, and each delivery has its own attempts.
@@ -146,12 +173,14 @@ export const NOTIFICATION_SCHEDULES = [
 ] as const;
 
 /**
- * Bucket jobs, only when the bucket is configured: file retention once a
- * day, and the sweep of the player reports every minute.
+/**
+ * Bucket jobs, only when the bucket is configured: file retention once a day, and the
+ * sweeps of the player reports and of the pending CSV exports every minute.
  */
 export const FILE_SCHEDULES = [
   { queue: QUEUES.filesDaily, cron: '17 6 * * *' },
   { queue: QUEUES.playerReportsSweep, cron: '* * * * *' },
+  { queue: QUEUES.dataExportSweep, cron: '* * * * *' },
 ] as const;
 
 export interface RefreshClubJob {

@@ -48,6 +48,7 @@ function fakeStorage(removed: string[]): ObjectStorage {
   const unused = () => Promise.reject(new Error('not used by the worker'));
   return {
     presignUpload: unused,
+    putObject: unused,
     presignDownload: unused,
     stat: unused,
     put: unused,
@@ -611,6 +612,7 @@ describe.skipIf(!hasDatabase)('worker and derived values (Postgres 16)', () => {
         'select name from pgboss.schedule order by name',
       );
       expect(schedules.map((s) => s.name)).toEqual([
+        'data-export-sweep',
         'derived-daily',
         'derived-sweep',
         'files-daily',

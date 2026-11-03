@@ -91,6 +91,8 @@ export const API_TAGS = {
   privacy:
     'Derechos del titular (Ley 25.326): exportación de todos los datos, pedidos de supresión y borrado de la cuenta.',
   reports: 'Informes en PDF del jugador por ventana de test, para el jugador y su familia (B-602).',
+  exports:
+    'Exportación en CSV de los datos del club (B-608): la pide la administración o el preparador físico, la genera el sistema y se baja con una URL firmada.',
   notifications:
     'Notificaciones push y por email: el token del dispositivo y las preferencias de cada usuario (B-328).',
   support:

@@ -523,6 +523,9 @@ importers:
       drizzle-orm:
         specifier: 0.45.4
         version: 0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(expo-sqlite@58.0.15(expo@58.0.22)(react-native@0.88.1(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.88.1(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.1)(supports-color@8.1.1))(react@19.3.1))(kysely@0.29.7)(pg@8.23.1)
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
       pdfkit:
         specifier: 0.20.2
         version: 0.20.2

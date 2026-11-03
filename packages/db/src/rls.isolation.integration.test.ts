@@ -37,10 +37,12 @@ const CLUB_TABLES = (Object.values(schema) as unknown[])
  * Club tables the application never updates (no UPDATE grant): the change history (ADR 0030),
  * the published consent texts (ADR 0043), what the worker derives (ADR 0046), the record of
  * roster imports (ADR 0047), the offline sync log and mutations (ADR 0050), the imports of
- * historical results (ADR 0052) and the deliveries of notifications (ADR 0054).
+ * historical results (ADR 0052), the deliveries of notifications (ADR 0054) and the CSV exports,
+ * which only the worker moves on (ADR 0072).
  */
 const APPEND_ONLY_TABLES = [
   'alert_event',
+  'club_data_export',
   'change_history',
   'consent_document',
   'derived_refresh',

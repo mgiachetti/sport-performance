@@ -18,6 +18,7 @@ export {
   contentDisposition,
   type DownloadRequest,
   type ObjectStorage,
+  type PutObjectRequest,
   type PutRequest,
   type SignedDownload,
   type SignedUpload,

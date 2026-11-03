@@ -18,6 +18,8 @@ const upload = await storage.presignUpload({ key, contentType: 'video/mp4', size
 const download = await storage.presignDownload({ key, expiresInS: 300, contentType: 'video/mp4', contentDisposition: 'inline' });
 await storage.stat(key); // { sizeBytes, contentType, checksumSha256 } | null
 await storage.remove(key); // idempotente
+// Un objeto que escribe el servidor (las exportaciones del worker, ADR 0072): el bucket verifica tamaño y SHA-256.
+await storage.putObject({ key, contentType: 'application/zip', sizeBytes, checksumSha256, body: () => createReadStream(path) });
 
 // Worker (#57): una vez por club, en una transacción con app.club_id y el rol del worker.
 const report = await purgeExpiredFiles(db, storage, { now: new Date() }); // { purged, failed, more }

@@ -52,6 +52,7 @@ describe('schema conventions', () => {
         'change_history',
         'club',
         'club_branch',
+        'club_data_export',
         'consent',
         'consent_document',
         'derived_refresh',

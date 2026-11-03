@@ -19,6 +19,7 @@ import { registerSpeedZoneRoutes } from './configuration-speed-zones.js';
 import { registerGuardianRoutes } from './guardians.js';
 import { registerConsentRoutes } from './consents.js';
 import { registerFileRoutes } from './files.js';
+import { registerClubDataExportRoutes } from './club-data-exports.js';
 import {
   registerAccountDeletionRoute,
   registerDataSubjectRightsRoutes,
@@ -275,6 +276,10 @@ export const IMPLEMENTED_ENDPOINTS = [
   'requestPlayerReport',
   'listPlayerReports',
   'getPlayerReport',
+  'createClubDataExport',
+  'listClubDataExports',
+  'getClubDataExport',
+  'getClubDataExportDownload',
 ] as const satisfies readonly (keyof ApiEndpoints)[];
 
 /** Declared in the contract but served by a later issue (`'#N (B-xxx): why'`). */
@@ -332,6 +337,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerFileRoutes(app, options.files);
   registerRosterImportRoutes(app);
   registerDataSubjectRightsRoutes(app);
+  registerClubDataExportRoutes(app, options.files);
   registerNotificationRoutes(app);
   // Last of the club data: the push runs the handlers of the routes above.
   registerSyncRoutes(app);

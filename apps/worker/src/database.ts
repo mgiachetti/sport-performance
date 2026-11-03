@@ -26,6 +26,11 @@ export interface ClubTransactionOptions {
    * 0030): the job id, so a derived change can be traced to its job.
    */
   readonly requestId?: string | undefined;
+  /**
+   * Transaction mode, set by `BEGIN` before anything else runs. `repeatable read read only`
+   * reads every statement from one snapshot (the CSV export, ADR 0072).
+   */
+  readonly isolation?: 'read committed' | 'repeatable read read only';
 }
 
 export async function inClubTransaction<T>(
@@ -42,7 +47,11 @@ export async function inClubTransaction<T>(
   const client = await pool.connect();
   let broken = false;
   try {
-    await client.query('begin');
+    await client.query(
+      options.isolation === 'repeatable read read only'
+        ? 'begin isolation level repeatable read read only'
+        : 'begin',
+    );
     try {
       await client.query(SET_WORKER_CONTEXT_SQL, [clubId, requestId]);
       const result = await work({ client, db: createDatabase(client) });

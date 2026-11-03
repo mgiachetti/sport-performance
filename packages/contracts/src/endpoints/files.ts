@@ -24,7 +24,7 @@ import { fileIdSchema } from './clubs.js';
 export const fileKindSchema = z.enum(FILE_KINDS).meta({
   id: 'FileKind',
   description:
-    '`club_logo` (escudo del club), `cmj_video` (video del CMJ de un jugador), `pdf_report` (informe de un jugador, lo genera el sistema), `data_import` (planilla a importar) o `protocol_media` (imagen o video de cómo se hace un test).',
+    '`club_logo` (escudo del club), `cmj_video` (video del CMJ de un jugador), `pdf_report` (informe de un jugador, lo genera el sistema), `data_import` (planilla a importar), `protocol_media` (imagen o video de cómo se hace un test) o `data_export` (ZIP con los CSV de una exportación de datos del club, lo genera el sistema; se baja por `GET /v1/data-exports/{exportId}/download`).',
 });
 
 export const fileStatusSchema = z.enum(FILE_STATUSES).meta({
