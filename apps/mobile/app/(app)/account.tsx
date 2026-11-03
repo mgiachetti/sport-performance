@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { versionLabel } from '../../src/platform/native.ts';
 import { AccountScreen } from '../../src/screens/app.tsx';
@@ -10,6 +11,8 @@ import {
   useSyncIssues,
   useSyncStatus,
 } from '../../src/state/app-context.tsx';
+import { useTranslator } from '../../src/ui/i18n.tsx';
+import { Button, Card } from '../../src/ui/primitives.tsx';
 
 export default function Account() {
   const services = useServices();
@@ -18,6 +21,7 @@ export default function Account() {
   const syncStatus = useSyncStatus();
   const issues = useSyncIssues();
   const now = useNow();
+  const { t } = useTranslator();
   const [signingOut, setSigningOut] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   if (state.status !== 'signedIn' || state.activeMembership === null) return null;
@@ -32,6 +36,20 @@ export default function Account() {
       signingOut={signingOut}
       pendingCount={syncStatus.pendingCount}
       confirmSignOut={confirmSignOut}
+      extra={
+        // The player's consents (B-503): the guardian signs them while a minor.
+        state.activeMembership.role === 'player' ? (
+          <Card>
+            <Button
+              variant="secondary"
+              label={t('playerApp.consents.open')}
+              onPress={() => {
+                router.push('/consents');
+              }}
+            />
+          </Card>
+        ) : undefined
+      }
       sync={
         <>
           <SyncIndicator

@@ -9,6 +9,7 @@ import {
   useSession,
   useSyncStatus,
 } from '../../src/state/app-context.tsx';
+import { PlayerToday } from '../../src/state/player-screens.tsx';
 
 export default function Home() {
   const services = useServices();
@@ -17,6 +18,17 @@ export default function Home() {
   const syncStatus = useSyncStatus();
   const now = useNow();
   if (state.status !== 'signedIn' || state.activeMembership === null) return null;
+  const sync = (
+    <SyncIndicator
+      status={syncStatus}
+      nowMs={now}
+      onSyncNow={() => {
+        services.sync.requestSync({ force: true });
+      }}
+    />
+  );
+  // The player's home is their day (B-503): wellness, RPE, streak and the next test day.
+  if (state.activeMembership.role === 'player') return <PlayerToday sync={sync} />;
   return (
     <HomeScreen
       userName={state.user.name}
@@ -24,15 +36,7 @@ export default function Home() {
       clubTheme={clubTheme}
       // The indicator already says so when the sync got no answer.
       offline={state.offline && syncStatus.phase !== 'offline'}
-      sync={
-        <SyncIndicator
-          status={syncStatus}
-          nowMs={now}
-          onSyncNow={() => {
-            services.sync.requestSync({ force: true });
-          }}
-        />
-      }
+      sync={sync}
       onOpenIft3015={
         canRunIft3015(state.activeMembership.role)
           ? () => {

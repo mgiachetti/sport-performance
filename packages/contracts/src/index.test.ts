@@ -15,6 +15,8 @@ describe('@sport-performance/contracts entry point', () => {
       'signOut',
       'getMe',
       'listMyMemberships',
+      'getMyPlayer',
+      'listMyTestDays',
       'listMySessions',
       'revokeMySession',
       'revokeMyOtherSessions',

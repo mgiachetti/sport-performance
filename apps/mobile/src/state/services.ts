@@ -11,6 +11,7 @@ import type { SignalPlayer } from '../ift/signal-player.ts';
 import type { RuntimeConfig } from '../config/runtime-config.ts';
 import { reopeningLocalDatabase, type LocalDatabase } from '../offline/db/database.ts';
 import { createSyncEngine, type SyncEngine } from '../offline/engine.ts';
+import { createReadCache, type ReadCache } from '../offline/read-cache.ts';
 import { bindSyncToSession } from '../offline/session-binding.ts';
 import type { PreferenceStorage, SecureStorage } from '../platform/storage.ts';
 import { createAppTranslator } from '../ui/i18n.tsx';
@@ -59,6 +60,10 @@ export interface AppServices {
    * changing club does.
    */
   readonly iftRunner: IftRunner;
+  /** Last answers of the API reads the sync does not move (ADR 0071), in the same database. */
+  readonly readCache: ReadCache;
+  /** Ids generated on the device (`clientUuid` of the writes it queues). */
+  readonly randomUUID: () => string;
   readonly reportError: (error: unknown) => void;
   /** Stops listening to the API client (tests; the app lives as long as the process). */
   dispose(): void;
@@ -93,8 +98,11 @@ export function createAppServices(platform: Platform): AppServices {
     }),
   );
   const queryClient = createQueryClient();
+  // One database for the sync and the read cache: an open that failed is
+  // retried for both (ADR 0069).
+  const localDatabase = reopeningLocalDatabase(platform.openLocalDatabase);
   const sync = createSyncEngine({
-    database: reopeningLocalDatabase(platform.openLocalDatabase),
+    database: localDatabase,
     api: api.client,
     randomUUID: platform.randomUUID,
     reportError,
@@ -164,6 +172,8 @@ export function createAppServices(platform: Platform): AppServices {
     sync,
     iftRunStore,
     iftRunner,
+    readCache: createReadCache(localDatabase),
+    randomUUID: platform.randomUUID,
     reportError,
     dispose() {
       unsubscribe();

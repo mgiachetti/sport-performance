@@ -1,6 +1,7 @@
 import { mobileMessagesEsAR } from './mobile.js';
 import { reportMessagesEsAR } from './report.js';
 import { categoryReportMessagesEsAR } from './category-report.js';
+import { mobilePlayerMessagesEsAR } from './mobile-player.js';
 import { webPanelMessagesEsAR } from './web-panel.js';
 import { webPlayerMessagesEsAR } from './web-player.js';
 import { webCalendarMessagesEsAR } from './web-calendar.js';
@@ -435,6 +436,7 @@ export const sourceMessageFiles = {
   'web-console.ts': webConsoleMessagesEsAR,
   'web-test-day.ts': webTestDayMessagesEsAR,
   'mobile.ts': mobileMessagesEsAR,
+  'mobile-player.ts': mobilePlayerMessagesEsAR,
   'protocols.ts': protocolMessagesEsAR,
   'web-help.ts': webHelpMessagesEsAR,
   'report.ts': reportMessagesEsAR,
@@ -457,6 +459,8 @@ export const esAR = {
   ...webConsoleMessagesEsAR,
   ...webTestDayMessagesEsAR,
   ...mobileMessagesEsAR,
+  // Player app (B-503)
+  ...mobilePlayerMessagesEsAR,
   ...protocolMessagesEsAR,
   ...webHelpMessagesEsAR,
   // The PDF report of a player (B-602), rendered by the worker
