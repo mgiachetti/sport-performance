@@ -3,6 +3,7 @@ import {
   ROSTER_IMPORT_ACTIONS,
   ROSTER_IMPORT_MAX_GUARDIANS,
   ROSTER_MATCH_REASONS,
+  ROSTER_ROW_ISSUE_CODES,
   ROSTER_ROW_RESULTS,
   type RosterImportGuardian,
 } from '@sport-performance/domain';
@@ -198,7 +199,7 @@ export const rosterPreviewRowSchema = z
     index: z.int().min(0),
     sourceRow: z.int().min(1).nullable(),
     issues: z.array(validationIssueSchema).meta({
-      description: 'Problemas de la fila (`["body", "rows", i, campo]`); vacía si vale.',
+      description: `Problemas de la fila (\`["body", "rows", i, campo]\`); vacía si vale. \`code\` es estable para mostrarlo en el idioma del cliente: ${ROSTER_ROW_ISSUE_CODES.map((code) => `\`${code}\``).join(', ')}.`,
     }),
     action: rosterImportActionSchema.nullable().meta({
       description: 'Lo que haría la importación; `null` si la fila no vale o falta decidir.',
@@ -292,6 +293,8 @@ export const rosterInvitationToSendSchema = z
     description:
       'Invitación a enviar con `POST /v1/invitations` (rol `parent`, `playerId` y `relationship`).',
   });
+
+export type RosterInvitationToSend = z.output<typeof rosterInvitationToSendSchema>;
 
 export const previewRosterImport = defineEndpoint({
   method: 'POST',

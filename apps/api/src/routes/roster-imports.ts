@@ -36,6 +36,7 @@ import {
   type RosterImportAction,
   type RosterImportRowOutcome,
   type RosterMatchReason,
+  type RosterRowIssueCode,
   type Sex,
   type Sport,
 } from '@sport-performance/domain';
@@ -282,8 +283,13 @@ interface RowPlan {
   guardians: RowGuardian[];
 }
 
-function issue(index: number, field: (string | number)[], message: string): ValidationIssue {
-  return { path: ['body', 'rows', index, ...field], code: 'custom', message };
+function issue(
+  index: number,
+  field: (string | number)[],
+  code: RosterRowIssueCode,
+  message: string,
+): ValidationIssue {
+  return { path: ['body', 'rows', index, ...field], code, message };
 }
 
 /** A category of the branch by name, or by age band code (`M15`) if only one has it. */
@@ -292,7 +298,7 @@ function resolveCategory(
   text: string,
   sport: Sport,
   sex: Sex,
-): { id: CategoryId } | { message: string } {
+): { id: CategoryId } | { code: RosterRowIssueCode; message: string } {
   const wanted = normalizeHeader(text);
   const ofBranch = snapshot.categories.filter((c) => c.sport === sport && c.sex === sex);
   const byName = ofBranch.filter((c) => normalizeHeader(c.name) === wanted);
@@ -301,11 +307,13 @@ function resolveCategory(
   if (byBand.length === 1 && byBand[0] !== undefined) return { id: byBand[0].id };
   if (byBand.length > 1) {
     return {
+      code: 'category_ambiguous',
       message: `More than one category of the branch has that age band: use its name (${byBand.map((c) => c.name).join(', ')})`,
     };
   }
   const names = ofBranch.map((c) => c.name).join(', ');
   return {
+    code: names === '' ? 'branch_without_categories' : 'category_not_found',
     message:
       names === ''
         ? 'The branch of the player has no active category'
@@ -353,7 +361,7 @@ function planRow(
   };
 
   if (compareLocalDates(row.birthDate, snapshot.today) > 0) {
-    issues.push(issue(index, ['birthDate'], 'The date cannot be in the future'));
+    issues.push(issue(index, ['birthDate'], 'future_date', 'The date cannot be in the future'));
   }
 
   const person = { ...row, sport };
@@ -361,7 +369,9 @@ function planRow(
   const first = seen.get(key);
   if (first !== undefined) {
     plan.duplicateOfIndex = first;
-    issues.push(issue(index, [], `The same person as row ${String(first)} of the import`));
+    issues.push(
+      issue(index, [], 'duplicate_row', `The same person as row ${String(first)} of the import`),
+    );
   } else {
     seen.set(key, index);
   }
@@ -381,14 +391,14 @@ function planRow(
       plan.targetPlayer = exact[0].player;
     } else if (plan.matches.length > 0) {
       plan.resolutionRequired = true;
-      issues.push({
-        ...issue(
+      issues.push(
+        issue(
           index,
           ['resolution'],
+          'resolution_required',
           'The row may be a player of the club: decide create, skip or update',
         ),
-        code: 'resolution_required',
-      });
+      );
     } else {
       action = 'create';
     }
@@ -398,6 +408,7 @@ function planRow(
         issue(
           index,
           ['resolution'],
+          exact[0]?.player.archived === true ? 'already_exists_archived' : 'already_exists',
           exact[0]?.player.archived === true
             ? 'The player already exists and left the club: restore them instead'
             : 'The player already exists: skip or update it',
@@ -412,10 +423,17 @@ function planRow(
   } else {
     const candidate = plan.matches.find((m) => m.playerId === resolution.playerId);
     if (candidate === undefined) {
-      issues.push(issue(index, ['resolution', 'playerId'], 'Not a match of this row'));
+      issues.push(
+        issue(index, ['resolution', 'playerId'], 'not_a_match', 'Not a match of this row'),
+      );
     } else if (candidate.player.archived) {
       issues.push(
-        issue(index, ['resolution', 'playerId'], 'The player left the club: restore them first'),
+        issue(
+          index,
+          ['resolution', 'playerId'],
+          'player_archived',
+          'The player left the club: restore them first',
+        ),
       );
     } else {
       action = 'update';
@@ -428,14 +446,28 @@ function planRow(
   const branchSex = action === 'update' && target !== null ? target.sex : row.sex;
   if (action === 'create') {
     if (!snapshot.branches.has(branchKey(sport, row.sex))) {
-      issues.push(issue(index, ['sport'], 'The branch (sport and sex) is not enabled in the club'));
+      issues.push(
+        issue(
+          index,
+          ['sport'],
+          'branch_not_enabled',
+          'The branch (sport and sex) is not enabled in the club',
+        ),
+      );
     }
     const joinedOn = row.joinedOn;
     if (joinedOn !== undefined) {
       if (compareLocalDates(joinedOn, snapshot.today) > 0) {
-        issues.push(issue(index, ['joinedOn'], 'The date cannot be in the future'));
+        issues.push(issue(index, ['joinedOn'], 'future_date', 'The date cannot be in the future'));
       } else if (compareLocalDates(joinedOn, row.birthDate) < 0) {
-        issues.push(issue(index, ['joinedOn'], 'The player cannot join before being born'));
+        issues.push(
+          issue(
+            index,
+            ['joinedOn'],
+            'joined_before_birth',
+            'The player cannot join before being born',
+          ),
+        );
       }
     }
   }
@@ -443,7 +475,7 @@ function planRow(
   if (row.category !== undefined && action !== 'skip') {
     const resolved = resolveCategory(snapshot, row.category, sport, branchSex);
     if ('message' in resolved) {
-      issues.push(issue(index, ['category'], resolved.message));
+      issues.push(issue(index, ['category'], resolved.code, resolved.message));
     } else {
       plan.categoryId = resolved.id;
       if (action === 'create') {
@@ -455,6 +487,7 @@ function planRow(
             issue(
               index,
               ['category'],
+              'category_transfer',
               'The player is in another category: a change of category is a transfer (pase), not an import',
             ),
           );
@@ -468,9 +501,11 @@ function planRow(
     row.positions.forEach((text, at) => {
       const id = resolvePosition(snapshot, text, sport);
       if (id === undefined) {
-        issues.push(issue(index, ['positions', at], 'Not a position of the sport'));
+        issues.push(
+          issue(index, ['positions', at], 'position_not_found', 'Not a position of the sport'),
+        );
       } else if (ids.includes(id)) {
-        issues.push(issue(index, ['positions', at], 'Repeated position'));
+        issues.push(issue(index, ['positions', at], 'position_repeated', 'Repeated position'));
       } else {
         ids.push(id);
       }
@@ -489,7 +524,14 @@ function planRow(
     const parent = snapshot.parents.get(email);
     if (parent !== undefined) {
       if (target?.userId === parent.userId) {
-        issues.push(issue(index, ['guardians', at, 'email'], 'A player is not their own guardian'));
+        issues.push(
+          issue(
+            index,
+            ['guardians', at, 'email'],
+            'self_guardian',
+            'A player is not their own guardian',
+          ),
+        );
         return { ...base, outcome: 'skipped' };
       }
       if (playerId !== null && snapshot.openLinks.has(`${playerId}|${parent.userId}`)) {

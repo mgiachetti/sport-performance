@@ -6,6 +6,15 @@ import {
   retainSearchParams,
   type RouterHistory,
 } from '@tanstack/react-router';
+import { AdminGuard, AdminIndex, AdminLayout } from './admin/AdminLayout';
+import { AssignmentsSection } from './admin/AssignmentsSection';
+import { CategoriesSection } from './admin/CategoriesSection';
+import { ClubSection } from './admin/ClubSection';
+import { InvitationsSection } from './admin/InvitationsSection';
+import { MembersSection } from './admin/MembersSection';
+import { RosterImportSection } from './admin/RosterImportSection';
+import { SeasonRolloverPage } from './admin/SeasonRolloverPage';
+import { SeasonsSection } from './admin/SeasonsSection';
 import { isSessionExpired } from './api/errors';
 import { ensureQuery, meQuery } from './api/queries';
 import { CalendarPage } from './calendar/CalendarPage';
@@ -58,7 +67,8 @@ export interface RouterContext {
  *         ├── /sessions       training sessions and matches (B-407): list, new, one
  *         ├── /field-sessions sessions with field data (?kind) and /$trainingSessionId (B-408)
  *         ├── /calendar       season calendar (B-406): windows, test days, fixture
- *         └── /configuration  club configuration (B-409)
+ *         ├── /configuration  club configuration (B-409)
+ *         └── /admin          administration (B-411): one child per section
  * ```
  *
  * A new screen is a child of `_club` (it inherits session, club, theme and
@@ -224,6 +234,111 @@ export const configurationRoute = createRoute({
   component: ConfigurationPage,
 });
 
+export const adminRoute = createRoute({
+  getParentRoute: () => clubRoute,
+  path: '/admin',
+  component: AdminLayout,
+});
+
+const adminIndexRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/',
+  component: AdminIndex,
+});
+
+// Sections of the administration, each guarded by its permissions (`ADMIN_TABS`).
+const adminMembersRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: 'members',
+  component: () => (
+    <AdminGuard to="/admin/members">
+      <MembersSection />
+    </AdminGuard>
+  ),
+});
+
+const adminInvitationsRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: 'invitations',
+  component: () => (
+    <AdminGuard to="/admin/invitations">
+      <InvitationsSection />
+    </AdminGuard>
+  ),
+});
+
+const adminAssignmentsRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: 'assignments',
+  component: () => (
+    <AdminGuard to="/admin/assignments">
+      <AssignmentsSection />
+    </AdminGuard>
+  ),
+});
+
+const adminClubRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: 'club',
+  component: () => (
+    <AdminGuard to="/admin/club">
+      <ClubSection />
+    </AdminGuard>
+  ),
+});
+
+const adminCategoriesRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: 'categories',
+  component: () => (
+    <AdminGuard to="/admin/categories">
+      <CategoriesSection />
+    </AdminGuard>
+  ),
+});
+
+const adminSeasonsRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: 'seasons',
+  component: () => (
+    <AdminGuard to="/admin/seasons">
+      <SeasonsSection />
+    </AdminGuard>
+  ),
+});
+
+const adminRosterRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: 'roster',
+  component: () => (
+    <AdminGuard to="/admin/roster">
+      <RosterImportSection />
+    </AdminGuard>
+  ),
+});
+
+const adminSeasonRolloverRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: 'seasons/$seasonId',
+  component: () => (
+    <AdminGuard to="/admin/seasons">
+      <SeasonRolloverPage />
+    </AdminGuard>
+  ),
+});
+
+const adminRoutes = [
+  adminIndexRoute,
+  adminMembersRoute,
+  adminInvitationsRoute,
+  adminAssignmentsRoute,
+  adminClubRoute,
+  adminCategoriesRoute,
+  adminSeasonsRoute,
+  adminSeasonRolloverRoute,
+  adminRosterRoute,
+];
+
 export const routeTree = rootRoute.addChildren([
   loginRoute,
   authedRoute.addChildren([
@@ -238,6 +353,7 @@ export const routeTree = rootRoute.addChildren([
       fieldSessionsRoute.addChildren([fieldSessionsIndexRoute, fieldSessionRoute]),
       calendarRoute,
       configurationRoute,
+      adminRoute.addChildren(adminRoutes),
     ]),
   ]),
 ]);

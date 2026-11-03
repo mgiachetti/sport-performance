@@ -56,3 +56,43 @@ export interface RosterImportRowOutcome {
   /** Outcome of each guardian of the row, in order. */
   guardians: RosterGuardianOutcome[];
 }
+
+/**
+ * Why the club rejects a row of the import (the `code` of each issue of the
+ * preview and of a `validation_failed`), so a client can say it in its
+ * language. Contract problems of the body keep zod's codes.
+ *
+ * - `future_date`: the birth or join date is after today in the club;
+ * - `joined_before_birth`: the join date is before the birth date;
+ * - `duplicate_row`: the same person as an earlier row of the file;
+ * - `resolution_required`: a possible match and no decision for the row;
+ * - `already_exists` / `already_exists_archived`: `create` with an exact
+ *   match (active, or a player who left the club: restore them instead);
+ * - `not_a_match`: `update` with a player that is not a candidate of the row;
+ * - `player_archived`: `update` of a player who left the club;
+ * - `branch_not_enabled`: the sport and sex of the row is not a branch of the club;
+ * - `category_not_found` / `category_ambiguous` / `branch_without_categories`:
+ *   the category cell does not name one active category of the branch;
+ * - `category_transfer`: the player is in another category (that is a transfer);
+ * - `position_not_found` / `position_repeated`: a position cell;
+ * - `self_guardian`: the guardian's email is the player's own account.
+ */
+export const ROSTER_ROW_ISSUE_CODES = [
+  'future_date',
+  'joined_before_birth',
+  'duplicate_row',
+  'resolution_required',
+  'already_exists',
+  'already_exists_archived',
+  'not_a_match',
+  'player_archived',
+  'branch_not_enabled',
+  'category_not_found',
+  'category_ambiguous',
+  'branch_without_categories',
+  'category_transfer',
+  'position_not_found',
+  'position_repeated',
+  'self_guardian',
+] as const;
+export type RosterRowIssueCode = (typeof ROSTER_ROW_ISSUE_CODES)[number];

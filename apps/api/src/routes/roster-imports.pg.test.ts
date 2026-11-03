@@ -310,6 +310,15 @@ describeWithPostgres('roster import (Postgres)', (serverUrl) => {
       const paths = result.rows.map((r) => r.issues.map((i) => i.path.slice(3).join('.')));
       expect(paths[0]).toEqual(['birthDate', 'category', 'positions.0']);
       expect(result.rows[0]?.issues[1]?.message).toContain('M15');
+      // Stable codes, so a client can say it in its language (B-411).
+      const codes = result.rows.map((r) => r.issues.map((i) => i.code));
+      expect(codes).toEqual([
+        ['future_date', 'category_not_found', 'position_not_found'],
+        ['branch_not_enabled'],
+        ['joined_before_birth'],
+        ['position_repeated'],
+        ['duplicate_row'],
+      ]);
       // Rugby female is not a branch of the club.
       expect(paths[1]).toEqual(['sport']);
       expect(paths[2]).toEqual(['joinedOn']);
@@ -629,6 +638,7 @@ describeWithPostgres('roster import (Postgres)', (serverUrl) => {
       });
       expect(response.statusCode).toBe(400);
       expect(errorOf(response).details?.[0]?.message).toContain('transfer');
+      expect(errorOf(response).details?.[0]?.code).toBe('category_transfer');
       // Its own category is fine.
       const same = await post(adminA, '/v1/roster-imports', {
         clientUuid: randomUUID(),

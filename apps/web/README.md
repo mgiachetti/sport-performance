@@ -23,6 +23,7 @@ La API se levanta como dice [su README](../api/README.md#correr); en desarrollo 
 | `src/layout/` | Shell del club (`AppShell`), navegación (`navigation.ts`), selectores de alcance y de colores. |
 | `src/pages/` | Ingreso, selector de club, soporte, inicio, "la web es para el staff", 404 y error. `pages/panel/`: panel semanal (B-403, [ADR 0059](../../docs/adr/0059-panel-semanal-lectura-agregada-y-bio-banding.md)). |
 | `src/pages/players/` | Plantel (`/players`) y ficha del jugador (`/players/$playerId`, B-404, [ADR 0060](../../docs/adr/0060-lecturas-de-la-ficha-del-jugador.md)): un bloque por permiso de la matriz, cada uno con su consulta. |
+| `src/admin/` | Administración (B-411, [ADR 0063](../../docs/adr/0063-administracion-en-la-web.md)): usuarios y roles, invitaciones, asignaciones, marca y escudo, ramas y categorías, cambio de temporada e importación del padrón (CSV o `.xlsx`). |
 | `src/status/` | Estado de conexión, monitor (`onlineManager` + `/v1/health`) y aviso de pestaña vieja. |
 | `src/theme/` | Tema en runtime (`ThemeStore`, `ThemeController`). |
 | `src/lib/` | Utilidades sin UI: `alertText` (texto de una alerta con sus valores formateados es-AR). |
