@@ -61,6 +61,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0055](0055-club-demo-y-datos-de-prueba.md) | Club demo y datos de prueba: generador determinístico, filas con id estable, `club.is_demo` y guardas contra producción | Aceptado |
 | [0056](0056-graficos-nucleo-compartido-y-renderer-web.md) | Gráficos: núcleo compartido sin plataforma y renderer web en SVG con variables de tema | Aceptado |
 | [0057](0057-estructura-de-la-web-del-staff.md) | Estructura de la web del staff: rutas por sesión y club, datos por el cliente tipado, tema en runtime y estado de conexión | Aceptado |
+| [0058](0058-base-de-la-app-mobile.md) | Base de la app mobile: Expo Router con guardas por sesión, variantes por ambiente, sesión bearer en el almacenamiento seguro y tests sin simulador | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 

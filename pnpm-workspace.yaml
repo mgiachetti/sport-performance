@@ -6,3 +6,6 @@ packages:
 # only re-verifies the binary, so it is not allowed to run.
 allowBuilds:
   esbuild: false
+  # @sentry/cli (via @sentry/react-native) takes its binary from a platform optionalDependency;
+  # its postinstall only re-checks or downloads it again, so it is not allowed to run.
+  '@sentry/cli': false

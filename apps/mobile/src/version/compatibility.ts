@@ -6,7 +6,7 @@ import {
   parseAppVersionPolicy,
   type ParsedAppVersionPolicy,
 } from '@sport-performance/domain';
-import { parseAppBuildInfo, type AppBuildInfo } from './client-headers.js';
+import { parseAppBuildInfo, type AppBuildInfo } from './client-headers.ts';
 
 /**
  * What the app does about its own version (B-324, ADR 0045):

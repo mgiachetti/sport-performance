@@ -4,19 +4,15 @@
  * same rules as `es-AR.ts`. Screens add their own namespace here or next to it.
  */
 export const webMessagesEsAR = {
-  'app.name': 'Sport Performance',
   'app.documentTitle': '{page} · {appName}',
 
   // Layout and accessibility
   'layout.skipToContent': 'Saltar al contenido',
   'nav.label': 'Secciones',
-  'nav.home': 'Inicio',
   'account.menu': 'Tu cuenta',
 
   // Home of the club
   'home.title': 'Inicio',
-  'home.greeting': 'Hola, {name}',
-  'home.greetingAnonymous': 'Hola',
   'home.role': 'Tu rol en {clubName}: {role}',
   'home.scope.title': 'Lo que ves',
   'home.scope.club': 'Todas las categorías del club.',
@@ -24,28 +20,11 @@ export const webMessagesEsAR = {
     '{count, plural, =0 {Todavía no tenés categorías asignadas. Pedile a la administración del club que te asigne.} one {# categoría asignada.} other {# categorías asignadas.}}',
   'home.scope.selected': 'Mirando: {scope}',
 
-  // Sign-in (email OTP, cookie session)
-  'auth.signIn.title': 'Ingresá a {appName}',
-  'auth.signIn.subtitle': 'Te mandamos un código de un solo uso a tu email. No hay contraseña.',
-  'auth.email.submit': 'Mandame el código',
-  'auth.email.invalid': 'Ingresá un email válido.',
-  'auth.otp.submit': 'Ingresar',
-  'auth.otp.format': 'El código tiene {length} dígitos.',
-  'auth.otp.expiresIn':
-    'El código vence en {minutes, plural, one {# minuto} other {# minutos}} y sirve una sola vez.',
-  'auth.otp.resend': 'Mandame otro código',
-  'auth.otp.resent': 'Te mandamos un código nuevo. El anterior ya no sirve.',
-  'auth.otp.changeEmail': 'Usar otro email',
-  'auth.rateLimitedFor':
-    'Hiciste muchos intentos seguidos. Probá de nuevo en {seconds, plural, one {# segundo} other {# segundos}}.',
-
   // Club selector
   'club.select.subtitle': 'Tenés acceso a más de un club. Elegí con cuál querés trabajar.',
   'club.select.none':
     'Tu cuenta no tiene acceso a ningún club. Si te invitaron, abrí el link de la invitación.',
   'club.select.unavailable': 'Ya no tenés acceso a ese club. Elegí otro.',
-  'club.switch': 'Cambiar de club',
-  'club.logoAlt': 'Escudo de {clubName}',
   'club.staffOnly.title': 'La web es para el staff',
   'club.staffOnly.body':
     'Con tu rol en {clubName} ({role}) usás la app en el teléfono: ahí cargás el bienestar y el RPE y ves la ficha.',
@@ -100,24 +79,11 @@ export const webMessagesEsAR = {
     'Recargá la página para seguir con la última versión. Guardá antes lo que estés cargando.',
   'webUpdate.action': 'Recargar',
 
-  // Error envelope: one message per API error code (packages/contracts ERROR_STATUS)
+  // Errors of the shell (the per-code messages of the envelope are shared, in `es-AR.ts`)
   'error.title': 'No pudimos cargar esto',
   'error.requestId': 'Código para soporte: {requestId}',
-  'error.code.bad_request': 'El pedido no es válido. Revisá los datos y probá de nuevo.',
-  'error.code.validation_failed': 'Hay datos que no son válidos. Revisalos y probá de nuevo.',
-  'error.code.consent_required':
-    'Falta el consentimiento del jugador o de su tutor/a para hacer esto.',
-  'error.code.reauthentication_required':
-    'Por seguridad, volvé a ingresar con un código nuevo y probá otra vez.',
-  'error.code.conflict':
-    'Alguien cambió estos datos mientras los editabas. Recargá para ver la última versión.',
-  'error.code.payload_too_large': 'Lo que mandaste es demasiado grande.',
-  'error.code.rate_limited': 'Hiciste muchos pedidos seguidos. Esperá un momento y probá de nuevo.',
-  'error.code.service_unavailable':
-    'El servicio no está disponible en este momento. Probá de nuevo en unos minutos.',
   'error.contract': 'La web quedó desactualizada respecto del servidor. Recargá la página.',
   'error.pageNotFound.title': 'Esta página no existe',
   'error.pageNotFound.body': 'Revisá el link o volvé al inicio.',
-  'error.goHome': 'Ir al inicio',
   'error.reload': 'Recargar',
 } as const;

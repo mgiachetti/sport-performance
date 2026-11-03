@@ -1,7 +1,16 @@
 {
   "extends": "@sport-performance/config/tsconfig/bundler.json",
   "compilerOptions": {
+    "jsx": "react-jsx",
+    "customConditions": ["react-native"],
+    // Imports keep their `.ts` / `.tsx` extension: Metro resolves them, and so
+    // does Node when the Expo CLI loads `app.config.ts` and its imports (ADR 0058).
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    // An app, not a library: nothing is declared for other packages.
+    "declaration": false,
+    "declarationMap": false,
     "types": ["node"]
   },
-  "include": ["src", "vitest.config.ts"]
+  "include": ["app", "src", "app.config.ts", "vitest.config.ts", "vitest.setup.ts"]
 }

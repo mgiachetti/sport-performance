@@ -53,6 +53,7 @@ export {
   unitMessageKey,
 } from './format/unit.js';
 export { formatDuration } from './format/duration.js';
+export { retryWaitValues } from './format/wait.js';
 export {
   type DateFormatOptions,
   type LongDateOptions,

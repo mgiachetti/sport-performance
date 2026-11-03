@@ -1,5 +1,5 @@
 import type { Translator } from '@sport-performance/i18n';
-import type { UpdateGate } from './compatibility.js';
+import type { UpdateGate } from './compatibility.ts';
 
 /**
  * What the UI shows for the version gate (B-324): the view model of the
