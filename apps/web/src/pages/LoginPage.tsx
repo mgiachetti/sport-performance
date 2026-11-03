@@ -12,7 +12,7 @@ import { useServices } from '../app/services';
 import { translate, useT } from '../i18n/i18n';
 import { StandaloneLayout } from '../layout/RootLayout';
 import { Button, Notice, Page, TextField } from '../ui/components';
-import type { MessageKey, MessageValues } from '@sport-performance/i18n';
+import { type MessageKey, type MessageValues, retryWaitValues } from '@sport-performance/i18n';
 
 const route = getRouteApi('/login');
 
@@ -27,7 +27,7 @@ export function signInProblem(error: unknown, step: 'email' | 'code'): Problem {
   if (error instanceof ApiError) {
     if (error.status === 429) {
       if (error.retryAfterS !== undefined && error.retryAfterS > 0) {
-        return { key: 'auth.rateLimitedFor', values: { seconds: error.retryAfterS } };
+        return { key: 'auth.rateLimitedFor', values: retryWaitValues(error.retryAfterS) };
       }
       // A burnt code (3 attempts) answers 429 without Retry-After: ask for another one.
       return { key: step === 'code' ? 'auth.otp.tooManyAttempts' : 'auth.rateLimited' };
@@ -187,7 +187,7 @@ export function LoginPage() {
               }}
             />
             <Button type="submit" disabled={verify.isPending}>
-              {verify.isPending ? t('common.loading') : t('auth.otp.submit')}
+              {verify.isPending ? t('common.loading') : t('auth.signIn')}
             </Button>
             <div className="sp-form__secondary">
               <Button variant="ghost" onClick={resend} disabled={send.isPending}>

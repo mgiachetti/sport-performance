@@ -16,6 +16,7 @@ t('rpe.sessionLoad', { load: formatUnit(420, 'au') }); // 'Carga de la sesión: 
 ```
 
 - El catálogo fuente es [`src/messages/es-AR.ts`](src/messages/es-AR.ts). Las claves están tipadas: una clave inexistente no compila y un mensaje con argumentos exige valores.
+- El catálogo se arma con tres archivos: [`es-AR.ts`](src/messages/es-AR.ts) (lo compartido por la API, la web y la app), [`web.ts`](src/messages/web.ts) (solo la web del staff) y [`mobile.ts`](src/messages/mobile.ts) (solo la app). Cada clave vive en un solo archivo (`files.test.ts` falla si se repite): un concepto que muestran las dos apps tiene una clave, un texto y unos argumentos, en `es-AR.ts`.
 - Los argumentos son `string | number`. Fechas y medidas se formatean antes (con la zona horaria del club) y se pasan como texto.
 - Overrides por club (terminología white-label): `createTranslator({ overrides })`. Validarlos con `validateCatalog(overrides)` antes de guardarlos.
 - Del lado del servidor: `resolveLocale(parseAcceptLanguage(req.headers['accept-language']))`.

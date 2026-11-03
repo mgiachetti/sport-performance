@@ -25,7 +25,7 @@ import {
   type GetAppCompatibility,
   type KeyValueStore,
   type UpdateGate,
-} from './index.js';
+} from './index.ts';
 
 const build: AppBuildInfo = { platform: 'ios', nativeVersion: '1.1.0', runtimeVersion: '1.1.0' };
 const STORE = 'https://apps.apple.com/app/id0000000000';

@@ -5,8 +5,8 @@ export {
   expoVersionConfig,
   runtimeVersionOf,
   type ExpoVersionConfig,
-} from './release.js';
-export { appClientHeaders, parseAppBuildInfo, type AppBuildInfo } from './client-headers.js';
+} from './release.ts';
+export { appClientHeaders, parseAppBuildInfo, type AppBuildInfo } from './client-headers.ts';
 export {
   BLOCKED_STORAGE_KEY,
   DISMISSED_STORAGE_KEY,
@@ -21,5 +21,5 @@ export {
   type GetAppCompatibility,
   type KeyValueStore,
   type UpdateGate,
-} from './compatibility.js';
-export { updatePrompt, type UpdatePrompt } from './update-prompt.js';
+} from './compatibility.ts';
+export { updatePrompt, type UpdatePrompt } from './update-prompt.ts';

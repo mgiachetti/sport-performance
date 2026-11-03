@@ -1,3 +1,4 @@
+import { mobileMessagesEsAR } from './mobile.js';
 import { webMessagesEsAR } from './web.js';
 
 /**
@@ -10,11 +11,12 @@ import { webMessagesEsAR } from './web.js';
  *   being passed (`formatDate`, `formatUnit`, ...) so that they use the club time zone and SI units.
  * - Flat keys, `namespace.name` in camelCase; domain codes keep their `snake_case` (`test.sprint_40`).
  * - Status texts always exist as words: the UI never conveys a state by color alone.
+ *
+ * The catalog is assembled from several files: this one (messages shared by the API, the web and
+ * the app), `web.ts` (only the staff web) and `mobile.ts` (only the app). A key lives in exactly
+ * one of them: a concept both apps show has one key, one text and one set of arguments, here.
  */
-export const esAR = {
-  // Staff web shell (B-401): kept in its own file
-  ...webMessagesEsAR,
-
+export const commonMessagesEsAR = {
   // Shared actions and labels
   'common.save': 'Guardar',
   'common.cancel': 'Cancelar',
@@ -33,6 +35,15 @@ export const esAR = {
   'common.yesterday': 'Ayer',
   'common.category': 'Categoría {name}',
   'common.showTable': 'Ver como tabla',
+
+  // App name and navigation shared by the web and the mobile app
+  'app.name': 'Sport Performance',
+  'nav.home': 'Inicio',
+  'nav.goHome': 'Ir al inicio',
+  'home.greeting': 'Hola, {name}',
+  'home.greetingAnonymous': 'Hola',
+  'club.switch': 'Cambiar de club',
+  'club.logoAlt': 'Escudo de {clubName}',
 
   // Status: always shown with icon + text, never color alone
   'status.ok': 'Bien',
@@ -78,7 +89,21 @@ export const esAR = {
   'error.validation.number': 'Ingresá un número válido, con coma decimal (por ejemplo, 1,85).',
   'error.validation.range': 'Ingresá un valor entre {min} y {max}.',
 
-  // Auth (email OTP)
+  // Error envelope: one message per API error code (packages/contracts ERROR_STATUS)
+  'error.code.bad_request': 'El pedido no es válido. Revisá los datos y probá de nuevo.',
+  'error.code.validation_failed': 'Hay datos que no son válidos. Revisalos y probá de nuevo.',
+  'error.code.consent_required':
+    'Falta el consentimiento del jugador o de su tutor/a para hacer esto.',
+  'error.code.reauthentication_required':
+    'Por seguridad, volvé a ingresar con un código nuevo y probá otra vez.',
+  'error.code.conflict':
+    'Alguien cambió estos datos mientras los editabas. Recargá para ver la última versión.',
+  'error.code.payload_too_large': 'Lo que mandaste es demasiado grande.',
+  'error.code.rate_limited': 'Hiciste muchos pedidos seguidos. Esperá un momento y probá de nuevo.',
+  'error.code.service_unavailable':
+    'El servicio no está disponible en este momento. Probá de nuevo en unos minutos.',
+
+  // Auth (email OTP), the same on the web (cookie session) and the app (bearer session)
   'auth.signIn': 'Ingresar',
   'auth.signOut': 'Cerrar sesión',
   'auth.email.label': 'Email',
@@ -87,6 +112,18 @@ export const esAR = {
   'auth.otp.invalid': 'El código no es válido o ya venció. Pedí uno nuevo.',
   'auth.otp.tooManyAttempts': 'Probaste demasiadas veces. Pedí un código nuevo.',
   'auth.rateLimited': 'Hiciste muchos intentos seguidos. Esperá unos minutos y probá de nuevo.',
+  'auth.signIn.title': 'Ingresá a {appName}',
+  'auth.signIn.subtitle': 'Te mandamos un código de un solo uso a tu email. No hay contraseña.',
+  'auth.email.submit': 'Mandame el código',
+  'auth.email.invalid': 'Ingresá un email válido.',
+  'auth.otp.format': 'El código tiene {length} dígitos.',
+  'auth.otp.expiresIn':
+    'El código vence en {minutes, plural, one {# minuto} other {# minutos}} y sirve una sola vez.',
+  'auth.otp.resend': 'Mandame otro código',
+  'auth.otp.resent': 'Te mandamos un código nuevo. El anterior ya no sirve.',
+  'auth.otp.changeEmail': 'Usar otro email',
+  'auth.rateLimitedFor':
+    'Hiciste muchos intentos seguidos. Probá de nuevo en {unit, select, seconds {{amount, plural, one {# segundo} other {# segundos}}} other {{amount, plural, one {# minuto} other {# minutos}}}}.',
 
   // Active sessions per device (B-333)
   'session.title': 'Sesiones activas',
@@ -326,4 +363,20 @@ export const esAR = {
   // Disclaimers
   'legal.notMedicalDevice':
     'Esta app monitorea la carga de entrenamiento. No diagnostica ni reemplaza al staff médico.',
+} as const;
+
+/**
+ * The files the source catalog is assembled from, by file name. A test checks that no key is
+ * defined in more than one of them: a spread would let one side win silently.
+ */
+export const sourceMessageFiles = {
+  'es-AR.ts': commonMessagesEsAR,
+  'web.ts': webMessagesEsAR,
+  'mobile.ts': mobileMessagesEsAR,
+} as const;
+
+export const esAR = {
+  ...commonMessagesEsAR,
+  ...webMessagesEsAR,
+  ...mobileMessagesEsAR,
 } as const;

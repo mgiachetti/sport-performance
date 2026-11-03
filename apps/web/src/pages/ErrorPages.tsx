@@ -12,7 +12,7 @@ export function NotFoundPage() {
     <StandaloneLayout>
       <Page title={t('error.pageNotFound.title')} subtitle={t('error.pageNotFound.body')}>
         <Link to="/" className="sp-button sp-button--primary">
-          {t('error.goHome')}
+          {t('nav.goHome')}
         </Link>
       </Page>
     </StandaloneLayout>
@@ -49,7 +49,7 @@ export function RouteErrorPage({ error, reset }: ErrorComponentProps) {
           }
         />
         <Link to="/" className="sp-button sp-button--ghost">
-          {t('error.goHome')}
+          {t('nav.goHome')}
         </Link>
       </Page>
     </StandaloneLayout>
