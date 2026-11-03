@@ -59,6 +59,12 @@ export interface SyncStatus {
   readonly pendingCount: number;
   /** Issues to show (rejected or superseded mutations not dismissed). */
   readonly issueCount: number;
+  /**
+   * Changes whenever the list of issues may have changed (one recorded,
+   * dismissed, wiped), also when their count stays the same: what a screen
+   * re-reads `issues()` on. Always set by the engine.
+   */
+  readonly issuesVersion?: number;
   readonly lastSyncedAt: number | null;
   readonly nextAttemptAt: number | null;
 }
@@ -78,7 +84,7 @@ export interface SyncIssue {
 
 export type SyncCycleOutcome =
   | { readonly status: 'synced'; readonly pushed: number; readonly pulled: number }
-  | { readonly status: 'skipped'; readonly reason: 'no_scope' | 'paused' }
+  | { readonly status: 'skipped'; readonly reason: 'no_scope' | 'paused' | 'retry_after' }
   | { readonly status: 'failed'; readonly phase: 'offline' | 'failing' | 'paused' };
 
 export interface RequestSyncOptions {
@@ -135,6 +141,8 @@ export interface SyncEngineOptions {
   readonly pullLimit?: number;
   /** Collections to pull; by default, every one the role can read. */
   readonly collections?: readonly SyncCollection[];
+  /** Pull pages per cycle before giving up on a server that never ends (`MAX_PULL_PAGES`). */
+  readonly maxPullPages?: number;
 }
 
 /**
@@ -147,7 +155,7 @@ export const ACKED_OVERLAY_MAX_MS = 2 * 60_000;
 export const ENQUEUE_SYNC_DELAY_MS = 1_000;
 const OWNER_KEY = 'owner.userId';
 /** Pull pages per cycle, a guard against a server that never says `hasMore: false`. */
-const MAX_PULL_PAGES = 1_000;
+export const MAX_PULL_PAGES = 1_000;
 
 class CycleAbort extends Error {
   readonly phase: 'offline' | 'failing' | 'paused';
@@ -176,9 +184,28 @@ function pauseOf(error: ApiError): SyncPause | null {
   return null;
 }
 
-/** An answer that may succeed later on its own; a `4xx` is an answer about the request. */
+/** An answer that may succeed later on its own. */
 function isTransient(error: ApiError): boolean {
   return error.status >= 500 || error.status === 429 || error.status === 408;
+}
+
+/**
+ * The server refused a whole push because of what it carries: the envelope
+ * of a mutation it no longer accepts (`400 validation_failed`, or the client
+ * contract refusing the request), a conflict (`409 conflict`) or a body too
+ * big (`413`). Only these send the batch one mutation at a time and reject
+ * the one refused alone. Anything else (`404`, `405`, `410`, `431`, a `400`
+ * without the validation code, a proxy page) says nothing about the
+ * mutations: a misconfigured deploy, proxy or route. Rejecting on those
+ * would empty the queue of a day of work, so the queue stays and the cycle
+ * backs off like a failing server (ADR 0069).
+ */
+export function refusesMutations(error: unknown): boolean {
+  if (error instanceof ApiContractError) return error.side === 'request';
+  if (!(error instanceof ApiError)) return false;
+  if (error.status === 400) return error.code === 'validation_failed';
+  if (error.status === 409) return error.code === 'conflict';
+  return error.status === 413;
 }
 
 /**
@@ -203,6 +230,7 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     });
   const pushBatchSize = Math.min(options.pushBatchSize ?? SYNC_PUSH_MAX, SYNC_PUSH_MAX);
   const pullLimit = Math.min(options.pullLimit ?? 200, SYNC_PULL_LIMIT_MAX);
+  const maxPullPages = Math.max(1, options.maxPullPages ?? MAX_PULL_PAGES);
   const clock: DeviceClock = createDeviceClock({ now, randomUUID: options.randomUUID });
   const store = createLocalStore(database);
 
@@ -213,9 +241,12 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     pause: null,
     pendingCount: 0,
     issueCount: 0,
+    issuesVersion: 0,
     lastSyncedAt: null,
     nextAttemptAt: null,
   };
+  /** Bumped by every write to the issues; published by `refreshCounts`. */
+  let issuesVersion = 0;
   const listeners = new Set<() => void>();
   let running: Promise<SyncCycleOutcome> | null = null;
   /** The membership of the last cycle that started. */
@@ -246,7 +277,13 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   async function refreshCounts(): Promise<void> {
     const current = scope;
     if (current === null) {
-      setStatus({ membershipId: null, pendingCount: 0, issueCount: 0, lastSyncedAt: null });
+      setStatus({
+        membershipId: null,
+        pendingCount: 0,
+        issueCount: 0,
+        issuesVersion,
+        lastSyncedAt: null,
+      });
       return;
     }
     const counts = await database.read(async (db) => {
@@ -269,7 +306,7 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
       };
     });
     if (scope?.membershipId !== current.membershipId) return;
-    setStatus({ membershipId: current.membershipId, ...counts });
+    setStatus({ membershipId: current.membershipId, ...counts, issuesVersion });
   }
 
   async function ensureScope(db: LocalDb, ref: SyncScopeRef): Promise<void> {
@@ -321,6 +358,7 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     kind: SyncIssueKind,
     detail: { errorCode?: string; errorPaths?: string[]; fields?: string[] },
   ): Promise<void> {
+    issuesVersion += 1;
     await db.insert(syncIssue).values({
       membershipId: ref.membershipId,
       mutationId: queued.mutationId,
@@ -389,7 +427,13 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     });
   }
 
-  function failureOf(error: unknown): CycleAbort {
+  /**
+   * How a failed request ends the cycle. With `unexpected`, a `4xx` that is
+   * neither a pause nor transient (a route the server does not have, headers
+   * a proxy refuses) is also reported: a deployment problem to look at, not
+   * something the device can fix.
+   */
+  function failureOf(error: unknown, failure: { unexpected?: boolean } = {}): CycleAbort {
     if (error instanceof CycleAbort) return error;
     if (error instanceof ApiNetworkError) return new CycleAbort('offline');
     if (error instanceof ApiError) {
@@ -398,6 +442,7 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
         setStatus({ pause });
         return new CycleAbort('paused');
       }
+      if (failure.unexpected === true && !isTransient(error)) report(error);
       return new CycleAbort('failing', error.retryAfterS);
     }
     report(error);
@@ -438,9 +483,11 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   }
 
   /**
-   * A `4xx` about the whole push (the envelope of one mutation no longer
-   * valid for this server) would block the queue forever: the batch goes one
-   * mutation at a time, and the one the server refuses alone is rejected.
+   * A refusal of the whole push because of a mutation in it
+   * (`refusesMutations`: the envelope of one no longer valid for this server)
+   * would block the queue forever: the batch goes one mutation at a time,
+   * and only the one the server refuses alone, with that same kind of
+   * refusal, is rejected. Any other answer stops here and keeps the rest.
    */
   async function pushOneByOne(
     ref: SyncScopeRef,
@@ -452,12 +499,9 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
         const answer = await sendPush(ref, [queued], signal);
         await applyPushAnswer(ref, [queued], answer);
       } catch (error) {
-        const refused =
-          (error instanceof ApiError && !isTransient(error) && pauseOf(error) === null) ||
-          (error instanceof ApiContractError && error.side === 'request');
-        if (!refused) {
+        if (!refusesMutations(error)) {
           await countAttempt([queued]);
-          throw failureOf(error);
+          throw failureOf(error, { unexpected: true });
         }
         await database.write(async (db) => {
           await recordIssue(db, ref, queued, 'rejected', {
@@ -480,14 +524,11 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
         const answer = await sendPush(ref, batch, signal);
         await applyPushAnswer(ref, batch, answer);
       } catch (error) {
-        const refused =
-          (error instanceof ApiError && !isTransient(error) && pauseOf(error) === null) ||
-          (error instanceof ApiContractError && error.side === 'request');
-        if (refused) {
+        if (refusesMutations(error)) {
           await pushOneByOne(ref, batch, signal);
         } else {
           await countAttempt(batch);
-          throw failureOf(error);
+          throw failureOf(error, { unexpected: true });
         }
       }
       pushed += batch.length;
@@ -538,7 +579,8 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
       cursor = null;
     }
     let retriedCursor = false;
-    for (let pageNumber = 0; pageNumber < MAX_PULL_PAGES; pageNumber += 1) {
+    let complete = false;
+    for (let pageNumber = 0; pageNumber < maxPullPages; pageNumber += 1) {
       let page;
       try {
         page = await api.pullSyncChanges(
@@ -563,7 +605,7 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
           cursor = null;
           continue;
         }
-        throw failureOf(error);
+        throw failureOf(error, { unexpected: true });
       }
       const current = page;
       await database.write(async (db) => {
@@ -588,7 +630,17 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
       });
       pulled += current.items.length;
       cursor = current.cursor;
-      if (!current.hasMore) break;
+      if (!current.hasMore) {
+        complete = true;
+        break;
+      }
+    }
+    if (!complete) {
+      // The pages applied so far stay, each with its cursor (the next cycle
+      // goes on from there), but this is not a sync: `lastSyncedAt` and the
+      // acked overlays stay as they were until a pull reaches the end.
+      report(new Error(`Sync pull did not finish within ${String(maxPullPages)} pages`));
+      throw new CycleAbort('failing');
     }
     // Applied a while before this full pull started and never seen: the server has them.
     await database.write((db) =>
@@ -613,6 +665,9 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     cycleScope = ref?.membershipId ?? null;
     if (ref === null) return { status: 'skipped', reason: 'no_scope' };
     if (status.pause !== null) return { status: 'skipped', reason: 'paused' };
+    // Never before the server's `Retry-After`, whoever asks (the background
+    // task, a screen): the timer already waits for it.
+    if (now() < retryAfterUntil) return { status: 'skipped', reason: 'retry_after' };
     clearTimerIfAny();
     setStatus({ phase: 'syncing', nextAttemptAt: null });
     try {
@@ -719,6 +774,7 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
           return row?.value ?? null;
         });
         if (owner !== next.userId) {
+          issuesVersion += 1;
           await database.write(async (db) => {
             await db.delete(syncScope).where(ne(syncScope.userId, next.userId));
             await db
@@ -792,6 +848,7 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
           .delete(syncIssue)
           .where(and(eq(syncIssue.id, id), eq(syncIssue.membershipId, ref.membershipId))),
       );
+      issuesVersion += 1;
       await refreshCounts();
     },
     async dismissAllIssues() {
@@ -800,6 +857,7 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
       await database.write((db) =>
         db.delete(syncIssue).where(eq(syncIssue.membershipId, ref.membershipId)),
       );
+      issuesVersion += 1;
       await refreshCounts();
     },
     async wipe() {
@@ -816,6 +874,7 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
         await task;
       } finally {
         wiping = null;
+        issuesVersion += 1;
       }
       await refreshCounts();
     },

@@ -90,6 +90,59 @@ const testResultVoid: Overlay<'test_result.void_entries', TestResult> = (row, { 
   };
 };
 
+type TestEntry = TestResult['entries'][number];
+
+/** The unit the row already shows for a metric (the device has no metric catalog). */
+function knownUnit(row: TestResult, metricCode: string): string | null {
+  for (const score of row.scores) if (score.metricCode === metricCode) return score.unit;
+  for (const entry of row.entries) {
+    for (const value of entry.values) if (value.metricCode === metricCode) return value.unit;
+  }
+  return null;
+}
+
+/**
+ * Attempts added offline (B-505), shown at the end of the row until the pull
+ * brings them computed: the id is their `clientUuid` (the id the server
+ * gives them), `inputs` is what the evaluator typed, as the server stores it.
+ * A direct value shows with the unit the row already uses for its metric;
+ * what the server computes from a raw entry (Vmax, CMJ height, VIFT, e1RM),
+ * its protocol issues and the scores of the result stay out until then. An
+ * attempt the row already has (a resend that the pull brought) is not added
+ * twice.
+ */
+const testResultAddEntries: Overlay<'test_result.add_entries', TestResult> = (row, { body }) => {
+  const present = new Set(row.entries.map((entry) => entry.id));
+  const added: TestEntry[] = [];
+  for (const input of body.entries) {
+    const id = input.clientUuid;
+    if (id === undefined || present.has(id)) continue;
+    present.add(id);
+    let values: TestEntry['values'] = [];
+    if (input.kind === 'value') {
+      const unit = knownUnit(row, input.metricCode);
+      values =
+        unit === null
+          ? []
+          : [{ id, metricCode: input.metricCode, unit, value: input.value, computed: false }];
+    }
+    added.push({
+      id,
+      kind: input.kind,
+      attemptNumber: input.attemptNumber ?? null,
+      recordedAt: input.recordedAt ?? row.updatedAt,
+      inputs:
+        input.kind === 'value'
+          ? null
+          : Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)),
+      values,
+      issues: [],
+      voided: null,
+    });
+  }
+  return added.length === 0 ? row : { ...row, entries: [...row.entries, ...added] };
+};
+
 type AnyOverlay = (row: unknown, input: unknown) => unknown;
 
 /** The overlay of each edit; operations without one show the row as served. */
@@ -99,6 +152,7 @@ export const OVERLAYS: Partial<Record<SyncOperation, AnyOverlay>> = {
   'participation.record': participationRecord as AnyOverlay,
   'rpe.submit': rpeSubmit as AnyOverlay,
   'test_result.update': testResultUpdate as AnyOverlay,
+  'test_result.add_entries': testResultAddEntries as AnyOverlay,
   'test_result.void_entries': testResultVoid as AnyOverlay,
 };
 

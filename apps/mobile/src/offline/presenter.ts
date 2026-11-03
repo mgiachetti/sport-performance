@@ -22,6 +22,31 @@ export function lastSyncedText(lastSyncedAt: number | null, nowMs: number, { t }
 }
 
 /**
+ * The one line of an idle queue with nothing waiting (one ICU message, so it
+ * never says "all synced" next to "never synced"): when it last synced, or
+ * that this phone never did yet.
+ */
+export function idleSummary(
+  lastSyncedAt: number | null,
+  nowMs: number,
+  { t }: Translator,
+): StatusLine {
+  if (lastSyncedAt === null) {
+    return { level: 'warning', text: t('sync.idleSummary', { since: 'never', count: 0 }) };
+  }
+  const age = Math.max(0, nowMs - lastSyncedAt);
+  const [since, count] =
+    age < MINUTE_MS
+      ? (['now', 0] as const)
+      : age < HOUR_MS
+        ? (['minutes', Math.floor(age / MINUTE_MS)] as const)
+        : age < DAY_MS
+          ? (['hours', Math.floor(age / HOUR_MS)] as const)
+          : (['days', Math.floor(age / DAY_MS)] as const);
+  return { level: 'ok', text: t('sync.idleSummary', { since, count }) };
+}
+
+/**
  * What the sync indicator says (ADR 0069), most important first: a pause,
  * no signal or a failing server, then what waits to be sent and what could
  * not be applied. Always text with the level's icon, never color alone.
@@ -48,10 +73,7 @@ export function syncStatusLines(
   if (status.pendingCount > 0) {
     lines.push({ level: 'warning', text: t('sync.pending', { count: status.pendingCount }) });
   } else if (status.phase === 'idle') {
-    lines.push({
-      level: 'ok',
-      text: `${t('sync.synced')}. ${lastSyncedText(status.lastSyncedAt, nowMs, translator)}`,
-    });
+    lines.push(idleSummary(status.lastSyncedAt, nowMs, translator));
   }
   if (status.issueCount > 0) {
     lines.push({ level: 'critical', text: t('sync.issues.summary', { count: status.issueCount }) });

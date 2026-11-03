@@ -14,6 +14,9 @@ import {
   wellnessDto,
 } from '../test/fake-sync-server.ts';
 import { nodeSqliteDriver, temporaryDatabaseFile } from '../test/node-sqlite.ts';
+import type { SessionState } from '../state/session-controller.ts';
+import { COACH_AT_ORC, USER } from '../test/fixtures.ts';
+import { runBackgroundSync } from './background.ts';
 import { openLocalDatabase } from './db/database.ts';
 import { deviceMeta } from './db/schema.ts';
 import { ACKED_OVERLAY_MAX_MS, createSyncEngine, type SyncEngineOptions } from './engine.ts';
@@ -297,6 +300,91 @@ describe('push', () => {
     expect(engine.getStatus().pendingCount).toBe(0);
   });
 
+  it.each([
+    ['a route the deploy lost', apiError(404, 'not_found')],
+    ['a method the proxy refuses', apiError(405, 'bad_request')],
+    ['headers a proxy refuses', apiError(431, 'bad_request')],
+    ['a gone route', apiError(410, 'bad_request')],
+    ['a 400 that is not about the mutations', apiError(400, 'bad_request')],
+    ['a proxy page without the envelope', { status: 404, body: '<html>Not Found</html>' }],
+  ])('keeps the whole queue and backs off on %s instead of rejecting it', async (_, failure) => {
+    const { engine, server, errors } = await setup();
+    const queued = [];
+    for (let i = 0; i < 3; i += 1) {
+      queued.push(await engine.enqueue('wellness.submit', submitWellness()));
+    }
+    server.failPush(failure, failure, failure, failure);
+    expect(await engine.syncNow()).toEqual({ status: 'failed', phase: 'failing' });
+    // One request: the batch is not split, nobody is singled out.
+    expect(server.pushes).toHaveLength(1);
+    expect(await engine.issues()).toEqual([]);
+    const pending = await engine.store.pending(SCOPE.membershipId);
+    expect(pending.map((m) => [m.mutationId, m.state, m.attempts])).toEqual(
+      queued.map((m) => [m.mutationId, 'pending', 1]),
+    );
+    expect(engine.getStatus()).toMatchObject({ phase: 'failing', pendingCount: 3, issueCount: 0 });
+    expect(engine.getStatus().nextAttemptAt).not.toBeNull();
+    // A deployment problem to look at: reported.
+    expect(errors).toHaveLength(1);
+  });
+
+  it('keeps the rest of the queue when the one-by-one resend meets a misconfigured server', async () => {
+    const { engine, server, errors } = await setup();
+    const bad = await engine.enqueue('wellness.submit', submitWellness());
+    const next = await engine.enqueue('wellness.submit', submitWellness());
+    const last = await engine.enqueue('wellness.submit', submitWellness());
+    server.refuseWhole((m) => m.mutationId === bad.mutationId);
+    // The batch and the culprit alone get the validation refusal; then the route vanishes.
+    server.failPush(
+      apiError(400, 'validation_failed'),
+      apiError(400, 'validation_failed'),
+      apiError(404, 'not_found'),
+    );
+    expect(await engine.syncNow()).toEqual({ status: 'failed', phase: 'failing' });
+    expect(await engine.issues()).toEqual([
+      expect.objectContaining({ mutationId: bad.mutationId, errorCode: 'validation_failed' }),
+    ]);
+    expect((await engine.store.pending(SCOPE.membershipId)).map((m) => m.mutationId)).toEqual([
+      next.mutationId,
+      last.mutationId,
+    ]);
+    expect(errors).toHaveLength(1);
+
+    // The server is back: the rest goes out.
+    server.refuseWhole(() => false);
+    expect(await engine.syncNow()).toEqual({ status: 'synced', pushed: 2, pulled: 0 });
+    expect(engine.getStatus()).toMatchObject({ pendingCount: 0, issueCount: 1 });
+  });
+
+  it('rejects alone a mutation whose body is too big or that conflicts as a whole push', async () => {
+    const { engine, server } = await setup();
+    const big = await engine.enqueue('wellness.submit', submitWellness());
+    const fine = await engine.enqueue('wellness.submit', submitWellness());
+    server.failPush(apiError(413, 'payload_too_large'), apiError(413, 'payload_too_large'));
+    expect(await engine.syncNow()).toMatchObject({ status: 'synced' });
+    expect(server.pushes.map((batch) => batch.map((m) => m.mutationId))).toEqual([
+      [big.mutationId, fine.mutationId],
+      [big.mutationId],
+      [fine.mutationId],
+    ]);
+    expect(await engine.issues()).toEqual([
+      expect.objectContaining({ mutationId: big.mutationId, errorCode: 'payload_too_large' }),
+    ]);
+  });
+
+  it('never runs a cycle before an active Retry-After, whoever asks', async () => {
+    const { engine, server, advance, timers } = await setup();
+    await engine.enqueue('wellness.submit', submitWellness());
+    server.failPush(apiError(503, 'service_unavailable', { 'retry-after': '30' }));
+    await engine.syncNow();
+    expect(timers.at(-1)?.ms).toBe(30_000);
+    advance(29_999);
+    expect(await engine.syncNow()).toEqual({ status: 'skipped', reason: 'retry_after' });
+    expect(server.pushes).toHaveLength(1);
+    advance(1);
+    expect(await engine.syncNow()).toMatchObject({ status: 'synced', pushed: 1 });
+  });
+
   it('runs a single cycle at a time and once more for writes made meanwhile', async () => {
     const { engine, server } = await setup();
     await engine.enqueue('wellness.submit', submitWellness());
@@ -392,6 +480,29 @@ describe('pull', () => {
     expect(await engine.store.list(SCOPE.membershipId, 'wellness')).toHaveLength(1);
   });
 
+  it('is not a sync when the pull stops at the page limit before the end', async () => {
+    const { engine, server, advance, errors } = await setup({
+      engine: { pullLimit: 1, maxPullPages: 2 },
+    });
+    await engine.enqueue('wellness.submit', submitWellness());
+    expect(await engine.syncNow()).toEqual({ status: 'synced', pushed: 1, pulled: 0 });
+    const syncedAt = engine.getStatus().lastSyncedAt;
+    advance(ACKED_OVERLAY_MAX_MS);
+    server.publish(...Array.from({ length: 3 }, () => upsert('wellness', wellnessDto())));
+    expect(await engine.syncNow()).toEqual({ status: 'failed', phase: 'failing' });
+    expect(errors).toHaveLength(1);
+    expect(engine.getStatus()).toMatchObject({ phase: 'failing', lastSyncedAt: syncedAt });
+    // The acked create stays laid over: the pull that could bring its row did not end.
+    expect(await engine.store.pending(SCOPE.membershipId)).toHaveLength(1);
+    // The pages applied stay; the next cycle goes on from their cursor and ends.
+    expect(await engine.store.list(SCOPE.membershipId, 'wellness')).toHaveLength(2);
+    advance(60_000);
+    expect(await engine.syncNow()).toEqual({ status: 'synced', pushed: 0, pulled: 1 });
+    expect(server.pulls.at(-1)?.cursor).toBe('c:2');
+    expect(engine.getStatus().lastSyncedAt).toBeGreaterThan(syncedAt ?? 0);
+    expect(await engine.store.pending(SCOPE.membershipId)).toEqual([]);
+  });
+
   it('drops an applied mutation a while after a full pull that never brought its row', async () => {
     const { engine, advance } = await setup();
     await engine.enqueue('wellness.submit', submitWellness());
@@ -403,6 +514,54 @@ describe('pull', () => {
     advance(1);
     await engine.syncNow();
     expect(await engine.store.pending(SCOPE.membershipId)).toEqual([]);
+  });
+});
+
+describe('issues', () => {
+  it('tells the screens the list changed also when the count stays the same', async () => {
+    const { engine, server } = await setup();
+    server.decide(() => ({
+      status: 'rejected',
+      hlc: null,
+      error: { code: 'conflict', message: 'exists', details: [] },
+    }));
+    await engine.enqueue('wellness.submit', submitWellness());
+    await engine.syncNow();
+    const [first] = await engine.issues();
+    const before = engine.getStatus().issuesVersion;
+    await engine.dismissIssue(first?.id ?? 0);
+    await engine.enqueue('wellness.submit', submitWellness());
+    await engine.syncNow();
+    expect(engine.getStatus().issueCount).toBe(1);
+    expect(engine.getStatus().issuesVersion).not.toBe(before);
+    const [second] = await engine.issues();
+    expect(second?.id).not.toBe(first?.id);
+  });
+});
+
+describe('background', () => {
+  it('does not sync from the background task before an active Retry-After', async () => {
+    const { engine, server } = await setup({
+      scope: { membershipId: COACH_AT_ORC.id, userId: USER.id },
+    });
+    await engine.enqueue('wellness.submit', submitWellness());
+    server.failPush(apiError(429, 'rate_limited', { 'retry-after': '120' }));
+    await engine.syncNow();
+    const session = {
+      getState: (): SessionState => ({
+        status: 'signedIn',
+        user: USER,
+        email: USER.email,
+        memberships: [COACH_AT_ORC],
+        activeMembership: COACH_AT_ORC,
+        clubNotice: null,
+        offline: false,
+      }),
+      subscribe: () => () => undefined,
+    };
+    expect(await runBackgroundSync({ session, sync: engine }, 1_000)).toBe(false);
+    expect(server.pushes).toHaveLength(1);
+    expect(engine.getStatus().pendingCount).toBe(1);
   });
 });
 

@@ -72,9 +72,84 @@ describe('overlays', () => {
     expect(next).toMatchObject({ status: 'partial', minutes: 30, srpeAu: 180 });
   });
 
-  it('leaves operations without an overlay (creates, attempts) as served', () => {
+  it('leaves operations without an overlay (creates) as served', () => {
     const row = testResult();
-    expect(applyOverlay('test_result.add_entries', row, {})).toBe(row);
+    expect(applyOverlay('test_result.create', row, {})).toBe(row);
+  });
+
+  it('shows attempts added offline after the served ones, once, with what was typed', () => {
+    const row = testResult();
+    row.scores = [
+      {
+        metricCode: 'cmj_height_cm',
+        unit: 'cm',
+        value: 31,
+        aggregation: 'best',
+        attemptCount: 1,
+        derived: false,
+      },
+    ];
+    const served = uuid();
+    row.entries = row.entries.map((entry) => ({ ...entry, id: served as typeof entry.id }));
+    const value = uuid();
+    const flight = uuid();
+    const unknownMetric = uuid();
+    const { input } = prepareMutation('test_result.add_entries', {
+      target: { id: row.id },
+      body: {
+        entries: [
+          { clientUuid: value, kind: 'value', metricCode: 'cmj_height_cm', value: 33.5 },
+          {
+            clientUuid: flight,
+            kind: 'cmj_flight_time',
+            flightTimeS: 0.52,
+            attemptNumber: 3,
+            recordedAt: '2026-11-03T11:05:00.000Z',
+          },
+          { clientUuid: unknownMetric, kind: 'value', metricCode: 'other_metric_cm', value: 4 },
+          // Already in the row (a resend the pull brought): not twice.
+          { clientUuid: served, kind: 'value', metricCode: 'cmj_height_cm', value: 1 },
+        ],
+      },
+    });
+    const next = applyOverlay('test_result.add_entries', row, input) as TestResult;
+    expect(next.entries.map((entry) => entry.id)).toEqual([served, value, flight, unknownMetric]);
+    expect(next.entries[1]).toMatchObject({
+      kind: 'value',
+      attemptNumber: null,
+      recordedAt: row.updatedAt,
+      inputs: null,
+      values: [
+        { id: value, metricCode: 'cmj_height_cm', unit: 'cm', value: 33.5, computed: false },
+      ],
+      voided: null,
+    });
+    // The server computes the height of a flight time: only what was typed until the pull.
+    expect(next.entries[2]).toMatchObject({
+      kind: 'cmj_flight_time',
+      attemptNumber: 3,
+      recordedAt: '2026-11-03T11:05:00.000Z',
+      inputs: { kind: 'cmj_flight_time', flightTimeS: 0.52 },
+      values: [],
+    });
+    // No unit known for the metric on this row: the value waits for the pull.
+    expect(next.entries[3]?.values).toEqual([]);
+    expect(next.scores).toEqual(row.scores);
+    expect(row.entries).toHaveLength(1);
+  });
+
+  it('voids an attempt added offline when the void comes after it in the queue', () => {
+    const row = testResult();
+    const id = uuid();
+    const added = applyOverlay('test_result.add_entries', row, {
+      target: { id: row.id },
+      body: { entries: [{ clientUuid: id, kind: 'cmj_flight_time', flightTimeS: 0.5 }] },
+    });
+    const next = applyOverlay('test_result.void_entries', added, {
+      target: { id: row.id },
+      body: { entryIds: [id], reason: 'pisó la línea' },
+    }) as TestResult;
+    expect(next.entries[1]?.voided).toMatchObject({ reason: 'pisó la línea' });
   });
 });
 
