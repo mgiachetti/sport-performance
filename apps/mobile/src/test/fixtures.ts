@@ -9,6 +9,7 @@ import {
 import { runtimeConfigFromEnv } from '../config/runtime-config.ts';
 import { memoryPreferenceStorage, memorySecureStorage } from '../platform/storage.ts';
 import { openLocalDatabase } from '../offline/db/database.ts';
+import { recordingSignalPlayer } from '../ift/signal-player.ts';
 import { createAppServices, type Platform } from '../state/services.ts';
 import { createFakeApi, type FakeApi } from './fake-api.ts';
 import { nodeSqliteDriver } from './node-sqlite.ts';
@@ -80,6 +81,7 @@ export function testServices(options: { secure?: Record<string, string> } = {}) 
   const secure = memorySecureStorage(options.secure);
   const preferences = memoryPreferenceStorage();
   const errors: unknown[] = [];
+  const audio = recordingSignalPlayer();
   const platform: Platform = {
     config: runtimeConfigFromEnv({ API_BASE_URL: api.baseUrl }, 'sportperformance-dev'),
     build: { platform: 'ios', nativeVersion: '1.0.0', runtimeVersion: null },
@@ -88,9 +90,10 @@ export function testServices(options: { secure?: Record<string, string> } = {}) 
     randomUUID: () => DEVICE_ID,
     languageTags: ['es-AR'],
     reportError: (error) => errors.push(error),
+    createSignalPlayer: () => audio,
     fetch: api.fetch,
     openLocalDatabase: () => openLocalDatabase(nodeSqliteDriver()),
   };
   const services = createAppServices(platform);
-  return { api, secure, preferences, errors, services };
+  return { api, secure, preferences, errors, audio, services };
 }

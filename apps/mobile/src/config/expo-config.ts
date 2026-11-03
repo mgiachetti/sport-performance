@@ -58,8 +58,9 @@ export function buildExpoConfig(env: BuildEnv): ExpoConfig {
       ...(webHost !== null && { associatedDomains: [`applinks:${webHost}`] }),
       config: { usesNonExemptEncryption: false },
       infoPlist: {
-        // No tracking. The background mode (`processing`, for the offline sync)
-        // is added by the `expo-background-task` plugin.
+        // No tracking. The background modes are added by the plugins: `processing`
+        // (`expo-background-task`, for the offline sync) and `audio` (`expo-audio`:
+        // the 30-15 IFT signals go on with the app in the background).
         ITSAppUsesNonExemptEncryption: false,
       },
     },
@@ -102,6 +103,13 @@ export function buildExpoConfig(env: BuildEnv): ExpoConfig {
       // The local database is encrypted with SQLCipher; its key lives in the secure storage (ADR 0065).
       ['expo-sqlite', { useSQLCipher: true }],
       'expo-background-task',
+      [
+        // 30-15 IFT signals (B-507, ADR 0070): playback in the background
+        // (`UIBackgroundModes: audio`, the media playback service on Android)
+        // and never the microphone.
+        'expo-audio',
+        { microphonePermission: false, recordAudioAndroid: false, enableBackgroundPlayback: true },
+      ],
       [
         'expo-splash-screen',
         { backgroundColor: background, resizeMode: 'contain', imageWidth: 160 },

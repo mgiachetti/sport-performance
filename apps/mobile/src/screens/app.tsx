@@ -37,6 +37,7 @@ export function HomeScreen({
   clubTheme,
   offline,
   sync,
+  onOpenIft3015 = null,
 }: {
   readonly userName: string;
   readonly membership: MembershipSummary;
@@ -44,6 +45,8 @@ export function HomeScreen({
   readonly offline: boolean;
   /** The sync indicator (`SyncIndicator`). */
   readonly sync?: ReactNode;
+  /** Field tools of the staff who records tests (B-507); `null` hides them. */
+  readonly onOpenIft3015?: (() => void) | null;
 }) {
   const { t } = useTranslator();
   const name = userName.trim();
@@ -58,6 +61,12 @@ export function HomeScreen({
       <Card>
         <AppText tone="secondary">{t('home.next')}</AppText>
       </Card>
+      {onOpenIft3015 === null ? null : (
+        <Card>
+          <AppText tone="secondary">{t('ift.open.hint')}</AppText>
+          <Button variant="secondary" label={t('ift.open')} onPress={onOpenIft3015} />
+        </Card>
+      )}
       <AppText role="caption" tone="muted">
         {t('legal.notMedicalDevice')}
       </AppText>
