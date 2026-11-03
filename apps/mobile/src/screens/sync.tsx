@@ -6,7 +6,7 @@ import { AppText, Button, Card, StatusMessage } from '../ui/primitives.tsx';
 import { useTheme } from '../ui/theme.tsx';
 
 /**
- * The sync indicator (B-502, ADR 0065): what waits to be sent, whether there
+ * The sync indicator (B-502, ADR 0069): what waits to be sent, whether there
  * is signal, when it last synced and how many changes could not be applied.
  * Announced as a status; each line has its icon and text.
  */

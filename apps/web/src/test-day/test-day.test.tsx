@@ -356,6 +356,38 @@ describe('the sheet of a test day', () => {
     });
   });
 
+  it('never sends the note of «Otro motivo» once another reason hides it', async () => {
+    let sent: { results: unknown[] } | undefined;
+    const { user } = renderApp({
+      path: DAY_PATH,
+      handlers: staff('sc', {
+        recordTestSessionResults: (request) => {
+          sent = request.body as { results: unknown[] };
+          return { results: [] };
+        },
+      }),
+    });
+    await user.selectOptions(
+      await screen.findByLabelText('Estado de Benítez, Juan'),
+      'No realizado',
+    );
+    const reason = screen.getByLabelText('Motivo de Benítez, Juan');
+    await user.selectOptions(reason, 'Otro motivo');
+    await user.type(
+      screen.getByLabelText('Nota del motivo de Benítez, Juan'),
+      'Viaje con la escuela',
+    );
+    await user.selectOptions(reason, 'No disponible');
+    expect(screen.queryByLabelText('Nota del motivo de Benítez, Juan')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Guardar 1 resultado' }));
+    await waitFor(() => {
+      expect(sent?.results).toEqual([
+        expect.objectContaining({ notDoneReason: 'injured', playerId: BRUNO_ID }),
+      ]);
+    });
+    expect(sent?.results[0]).not.toHaveProperty('notDoneNote');
+  });
+
   it.each([['unavailable' as const], ['injured' as const]])(
     'shows a saved injured result to the coach as «No disponible» (API sends %s)',
     async (notDoneReason) => {
@@ -535,6 +567,25 @@ describe('the sheet of a test day', () => {
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.queryByRole('button', { name: /Guardar/ })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Cerrar el día' })).toBeNull();
+  });
+
+  it('is read-only for the medical staff, who never records results (no reason to choose)', async () => {
+    renderApp({
+      path: DAY_PATH,
+      handlers: staff('medical', {
+        getTestSessionSheet: () => {
+          const base = sheet();
+          return {
+            ...base,
+            players: base.players.map((p) => ({ ...p, recording: 'forbidden' as const })),
+          };
+        },
+      }),
+    });
+    await screen.findByRole('row', { name: /Álvarez, Juan/ });
+    expect(screen.queryByLabelText('Estado de Benítez, Juan')).toBeNull();
+    expect(screen.queryByLabelText('Motivo de Benítez, Juan')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Guardar/ })).toBeNull();
   });
 
   it('opens the station of the link and keeps a suspended day read-only', async () => {

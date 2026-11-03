@@ -10,7 +10,7 @@ import {
 } from 'drizzle-orm/sqlite-core';
 
 /**
- * Local database of the app (B-502, ADR 0015, ADR 0065). The migrations in
+ * Local database of the app (B-502, ADR 0015, ADR 0069). The migrations in
  * `migrations.ts` create exactly these tables (a test checks it). Times are
  * epoch milliseconds; JSON columns are `TEXT`.
  *

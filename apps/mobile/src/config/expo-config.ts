@@ -100,7 +100,7 @@ export function buildExpoConfig(env: BuildEnv): ExpoConfig {
       'expo-router',
       'expo-secure-store',
       'expo-localization',
-      // The local database is encrypted with SQLCipher; its key lives in the secure storage (ADR 0065).
+      // The local database is encrypted with SQLCipher; its key lives in the secure storage (ADR 0069).
       ['expo-sqlite', { useSQLCipher: true }],
       'expo-background-task',
       [

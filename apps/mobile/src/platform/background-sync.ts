@@ -1,7 +1,7 @@
 import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
 
-/** The background task of the sync (ADR 0065), as `expo-background-task` registers it. */
+/** The background task of the sync (ADR 0069), as `expo-background-task` registers it. */
 export const BACKGROUND_SYNC_TASK = 'sport-performance.sync';
 /** Minutes between runs the system is asked for (it decides; 15 is the minimum it honors). */
 const MINIMUM_INTERVAL_MIN = 15;

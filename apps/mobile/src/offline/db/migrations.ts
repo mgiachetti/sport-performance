@@ -1,5 +1,5 @@
 /**
- * Migrations of the local database, in order (ADR 0065). The number of a
+ * Migrations of the local database, in order (ADR 0069). The number of a
  * migration is its position plus one, recorded in `PRAGMA user_version`;
  * each one runs in its own transaction. A published migration is never
  * edited: a change is a new one at the end. They must create exactly the

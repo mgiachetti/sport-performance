@@ -7,7 +7,7 @@ import type {
 import { participationCarriesLoad, type SyncOperation } from '@sport-performance/domain';
 
 /**
- * How a queued edit shows on the row the server last served (ADR 0065):
+ * How a queued edit shows on the row the server last served (ADR 0069):
  * pure functions from the DTO and the mutation's input to the DTO the user
  * expects to see. They only touch what the edit sets; what the server
  * derives and the device cannot know (the scores of a result, the alerts)

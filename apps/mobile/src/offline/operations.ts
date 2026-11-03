@@ -6,7 +6,7 @@ import {
 import type { SyncCollection, SyncOperation } from '@sport-performance/domain';
 
 /**
- * A row a queued mutation writes (ADR 0065). It matches a row of a pull
+ * A row a queued mutation writes (ADR 0069). It matches a row of a pull
  * by its `id`, by the `clientUuid` it was created with, or by its session
  * and player (a participation the staff already created keeps its own
  * `clientUuid` when the batch or the RPE of the device updates it).

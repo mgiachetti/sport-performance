@@ -33,7 +33,16 @@ B-507 pide que las señales las genere la app, con la pantalla encendida, y que 
 
 ## Consecuencias
 
-- Los resultados quedan en el teléfono en el formato de la entrada `ift_stage`; **guardarlos en el servidor** lo hace el día de test en cancha (B-505) con la cola sin conexión (B-502, ADR 0015 / 0050), que también pasa los `parameters` de la versión del protocolo de su definición de test. Hasta entonces la pantalla usa el protocolo estándar y el staff carga las etapas en el día de test.
+- Los resultados quedan en el teléfono en el formato de la entrada `ift_stage`; **guardarlos en el servidor** lo hace el día de test en cancha (B-505) con la cola sin conexión (B-502, ADR 0015 / 0050 / 0069), que también pasa los `parameters` de la versión del protocolo de su definición de test. Hasta entonces la pantalla usa el protocolo estándar y el staff carga las etapas en el día de test.
 - Un club con otra progresión o tiempos los define en una versión nueva del protocolo; la app los toma de ahí sin cambios de código.
 - Cambiar un tono obliga a subir `SIGNAL_TONES_VERSION` para que se reescriban los archivos de la caché.
 - La precisión depende del tiempo de arranque del reproductor nativo (decenas de ms, constante): muy por debajo de la zona de 3 m (a 20 km/h, 50 ms son 28 cm).
+
+### Dónde vive la corrida: evaluación posterior (#200, 2026-11-03)
+
+Con la base local y la cola de mutaciones de ADR 0069 ya en la app, se evaluó si la foto de la corrida tenía que pasar del almacenamiento seguro a esa base. **Conclusión: no se migra; la decisión de este ADR se mantiene** y la base local entra recién con el resultado, en B-505.
+
+- **La corrida en curso no es un dato del servidor.** Es el estado de un cronómetro en un teléfono: se reescribe entera con el latido cada segundo, se descarta al cambiar de usuario o club y se borra cuando el staff la limpia. La cola de ADR 0069 es para escrituras que el servidor va a aplicar (`client_uuid`, reloj por campo, idempotencia por `mutationId`): encolar una mutación por latido o por marca mandaría al servidor decenas de cambios de algo que todavía no es un resultado, y `synced_row` solo guarda lo que sirvió un pull. Una tabla local propia para la corrida no suma nada frente a una sola clave cifrada que se reescribe atómicamente.
+- **El resguardo de privacidad es el mismo.** La base local está cifrada con SQLCipher y su clave vive en el almacenamiento seguro; la corrida ya está en el Keychain / Keystore, con ids y números, sin nombres, y atada a usuario y membresía (`clearUnlessScope`, `leaveScope`). Moverla no mejora la protección de los datos de menores.
+- **El tamaño entra.** La foto son unos cientos de bytes de protocolo más ~150 bytes por jugador; `expo-secure-store` 58 no impone un tope por valor (el aviso de 2 KB de versiones viejas ya no existe), así que un plantel completo entra en una clave.
+- **Lo que sí va a la base local y a la cola es el resultado.** Cuando el día de test en cancha (B-505) guarde el 30-15, el staff confirma los resultados de la corrida terminada y la pantalla escribe por la cola una mutación `test_session.record_results` con un `clientUuid` por jugador (la entrada `ift_stage` de cada uno, o "no realizado"), sobre el día de test y la versión del protocolo de su definición. Recién con esa mutación en la cola se borra la foto del almacenamiento seguro, así el resultado nunca queda en dos lugares sin dueño ni se pierde entre ambos. Esto no cambia la clave (`ift3015.run`) ni el formato (`version: 1`) de la foto.

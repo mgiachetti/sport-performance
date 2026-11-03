@@ -52,7 +52,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   navItem({
     to: '/sessions',
     labelKey: 'training.nav',
-    icon: 'calendar',
+    icon: 'clipboard',
     permission: { kind: 'training_session', action: 'read' },
   }),
   navItem({

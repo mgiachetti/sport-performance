@@ -6,7 +6,7 @@ import { localSchema } from './schema.ts';
 export type LocalDb = SqliteRemoteDatabase<typeof localSchema>;
 
 /**
- * The local database (ADR 0065): one SQLite connection behind a lock. Every
+ * The local database (ADR 0069): one SQLite connection behind a lock. Every
  * access takes the lock, so a transaction never interleaves with another
  * caller's statements on the same connection. A task gets the Drizzle
  * handle and must use only it: calling `read` or `write` again from inside a

@@ -48,7 +48,7 @@ Los imports llevan la extensión `.ts` / `.tsx` (ADR 0058).
 
 ## Datos sin conexión (B-502)
 
-La app lee de la base local y la red solo sincroniza (ADR 0015, 0050 y 0065). Una pantalla:
+La app lee de la base local y la red solo sincroniza (ADR 0015, 0050 y 0069). Una pantalla:
 
 - **escribe** con `services.sync.enqueue(op, input)`: `op` es una de `SYNC_OPERATIONS` y `input` lo que pide `SYNC_OPERATION_INPUTS` (el mismo contrato del servidor), con `clientUuid` en cada alta, fila de lote e intento. Se valida, se guarda con su HLC en una transacción y se pide una sincronización;
 - **lee** con `services.sync.store.list(membershipId, collection, filtro)` / `get`: la fila del servidor con las ediciones pendientes superpuestas (`pending: true`), y las altas que todavía no volvieron con `store.pending(membershipId, [op])`;

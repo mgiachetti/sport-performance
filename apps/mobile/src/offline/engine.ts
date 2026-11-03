@@ -38,7 +38,7 @@ export interface SyncScopeRef {
 }
 
 /**
- * What the indicator shows (ADR 0065):
+ * What the indicator shows (ADR 0069):
  * - `idle`: nothing running; `pendingCount` says whether something waits.
  * - `syncing`: a cycle is running.
  * - `offline`: the last attempt got no answer; it retries at `nextAttemptAt`
@@ -182,7 +182,7 @@ function isTransient(error: ApiError): boolean {
 }
 
 /**
- * The offline sync engine of the app (B-502, ADR 0015, ADR 0050, ADR 0065):
+ * The offline sync engine of the app (B-502, ADR 0015, ADR 0050, ADR 0069):
  * pushes the queue in order and pulls the changes since the cursor, for the
  * active membership, one cycle at a time, with backoff, and keeps the status
  * the indicator shows. Everything it knows is in the local database, so a

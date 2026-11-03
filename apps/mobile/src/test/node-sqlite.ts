@@ -11,7 +11,7 @@ export interface NodeSqliteDriver extends SqlDriver {
 }
 
 /**
- * The local database driver over `node:sqlite` (ADR 0065), for tests: real
+ * The local database driver over `node:sqlite` (ADR 0069), for tests: real
  * SQLite with the same migrations and queries as `expo-sqlite` on the phone.
  */
 export function nodeSqliteDriver(path = ':memory:'): NodeSqliteDriver {

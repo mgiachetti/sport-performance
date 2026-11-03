@@ -16,6 +16,7 @@ import {
   entryModesOf,
   fieldsOf,
   issuesByPlayer,
+  notDoneReasonOptions,
   notDoneReasonView,
   nextAttemptNumber,
   parseAttempt,
@@ -263,6 +264,32 @@ describe('the batch of a station', () => {
     });
   });
 
+  it('sends the note only with «Otro motivo», never one left hidden by another reason', () => {
+    const other = buildRow(
+      context,
+      player,
+      draftWith([{}], { status: 'not_done', reason: 'other', note: ' Viaje con la escuela ' }),
+    );
+    expect(other.kind === 'result' && other.input).toMatchObject({
+      notDoneReason: 'other',
+      notDoneNote: 'Viaje con la escuela',
+    });
+    const switched = buildRow(
+      context,
+      player,
+      draftWith([{}], { status: 'not_done', reason: 'injured', note: 'Viaje con la escuela' }),
+    );
+    expect(switched.kind === 'result' && switched.input).toEqual({
+      clientUuid: '0192e7a0-aaaa-7000-8000-000000000001',
+      status: 'not_done',
+      playerId: ANA_ID,
+      testDefinitionId: SPRINT.definition.id,
+      notDoneReason: 'injured',
+    });
+    // The note stays in the draft: going back to «Otro motivo» brings it back.
+    expect(switched.kind === 'result' && switched.draft.note).toBe('Viaje con la escuela');
+  });
+
   it('asks for the strength exercise and the device of a same-device test', () => {
     const strength = buildRow(
       { station: STRENGTH, mode: 'strength_set', exercise: null, deviceId: null },
@@ -382,5 +409,27 @@ describe('not-done reasons as the viewer reads them', () => {
     }
     expect(notDoneReasonView('injured', 'medical')).toBe('injured');
     expect(notDoneReasonView('unavailable', 'medical')).toBe('unavailable');
+  });
+
+  it('offers injured as «Lesionado/a» to medical and as «No disponible» to the rest', () => {
+    expect(notDoneReasonOptions(true, 'medical')).toEqual([
+      { reason: 'absent', view: 'absent' },
+      { reason: 'injured', view: 'injured' },
+      { reason: 'not_applicable_to_stage', view: 'not_applicable_to_stage' },
+      { reason: 'other', view: 'other' },
+    ]);
+    for (const role of ['coach', 'sc', 'admin', 'superadmin'] as const) {
+      const options = notDoneReasonOptions(true, role);
+      expect(options).toContainEqual({ reason: 'injured', view: 'unavailable' });
+      expect(options.map((o) => o.view)).not.toContain('injured');
+    }
+  });
+
+  it('offers only «No corresponde a la etapa» to a player outside the battery', () => {
+    for (const role of ['medical', 'sc'] as const) {
+      expect(notDoneReasonOptions(false, role)).toEqual([
+        { reason: 'not_applicable_to_stage', view: 'not_applicable_to_stage' },
+      ]);
+    }
   });
 });

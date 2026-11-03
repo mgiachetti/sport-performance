@@ -1,5 +1,5 @@
 /**
- * The few things the local database needs from SQLite (ADR 0065): one
+ * The few things the local database needs from SQLite (ADR 0069): one
  * connection that runs a script and runs one statement with positional
  * parameters, answering rows as arrays of column values (what Drizzle's
  * `sqlite-proxy` driver maps). `expo-sqlite` implements it on the phone
