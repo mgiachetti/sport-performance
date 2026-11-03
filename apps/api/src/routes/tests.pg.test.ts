@@ -564,9 +564,9 @@ describeWithPostgres('test days and results (Postgres)', (serverUrl) => {
         measuredOn: '2026-03-03',
         method: 'photocell',
         entries: [
+          { kind: 'value', attemptNumber: 1, metricCode: 'cod505_right_s', value: 2.4 },
           { kind: 'value', attemptNumber: 1, metricCode: 'cod505_left_s', value: 2.5 },
           { kind: 'value', attemptNumber: 2, metricCode: 'cod505_left_s', value: 2.3 },
-          { kind: 'value', attemptNumber: 1, metricCode: 'cod505_right_s', value: 2.4 },
         ],
       });
       expect(response.statusCode, response.body).toBe(201);
@@ -617,6 +617,17 @@ describeWithPostgres('test days and results (Postgres)', (serverUrl) => {
         [clubA, typo?.values[0]?.id],
       );
       expect(history.rows).toEqual([{ reason: 'Se tipeó mal el tiempo' }]);
+      // The derived values (the first and the recalculated one) name their inputs in the
+      // canonical order, the same as an import (issue #175).
+      const derivedInputs = await database.admin.query<{ inputs: unknown }>(
+        `select inputs from test_result_value where club_id = $1 and test_result_id = $2
+            and inputs ->> 'kind' = 'derived' order by created_at, id`,
+        [clubA, cod.id],
+      );
+      expect(derivedInputs.rows.map((r) => r.inputs)).toEqual([
+        { kind: 'derived', from: ['cod505_left_s', 'cod505_right_s'] },
+        { kind: 'derived', from: ['cod505_left_s', 'cod505_right_s'] },
+      ]);
     });
 
     it('appends entries idempotently by their clientUuid', async () => {

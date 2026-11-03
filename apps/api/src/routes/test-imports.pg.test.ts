@@ -82,9 +82,22 @@ interface Page<T> {
   nextCursor: string | null;
 }
 
-/** The contract limit of rows in one import, and the time budget of the preview or the import. */
+/**
+ * The contract limit of rows in one import, and the time budget of the preview or the import:
+ * well under the connection timeout of the API (60 s by default) with room for a busy runner
+ * (about 2,5 s locally). `TEST_IMPORT_BUDGET_MS` changes it (issue #175).
+ */
 const TEST_IMPORT_ROWS = 1000;
-const TEST_IMPORT_BUDGET_MS = 30_000;
+const TEST_IMPORT_BUDGET_MS = importBudgetMs(process.env.TEST_IMPORT_BUDGET_MS);
+
+function importBudgetMs(value: string | undefined): number {
+  if (value === undefined || value === '') return 45_000;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`TEST_IMPORT_BUDGET_MS must be a positive integer of ms, got "${value}"`);
+  }
+  return parsed;
+}
 
 const SUPPORT_REASON = encodeURIComponent('Alta del club para los tests de B-331');
 
@@ -799,6 +812,70 @@ describeWithPostgres('imports of historical results (Postgres)', (serverUrl) => 
     });
   });
 
+  describe('concurrency and derived values', () => {
+    it('answers a retryable 503 when another import of the club holds the lock too long', async () => {
+      const payload = {
+        clientUuid: randomUUID(),
+        source: 'Planilla mientras otra importa',
+        measuredOn: '2019-04-10',
+        rows: [{ player: { playerId: players.p15 }, testCode: 'cmj', entries: [cmjValue(40)] }],
+      };
+      const before = await importCount();
+      // Another import of club A, as far as the lock goes: it holds it past the wait.
+      const holder = await database.admin.connect();
+      try {
+        await holder.query('begin');
+        await holder.query('select pg_advisory_xact_lock(hashtextextended($1, 0))', [
+          `test_import:${clubA}`,
+        ]);
+        const busy = await post(adminA, '/v1/test-imports', payload);
+        expect(busy.statusCode, busy.body).toBe(503);
+        expect(errorOf(busy).code).toBe('service_unavailable');
+        expect(busy.headers['retry-after']).toBe('5');
+        expect(await importCount()).toBe(before);
+        // The preview takes no lock: it answers meanwhile.
+        const preview = await post(adminA, '/v1/test-imports/preview', payload);
+        expect(preview.statusCode, preview.body).toBe(200);
+      } finally {
+        await holder.query('rollback');
+        holder.release();
+      }
+      // Sent again once the other import ended: imported.
+      const retried = await post(adminA, '/v1/test-imports', payload);
+      expect(retried.statusCode, retried.body).toBe(201);
+      expect(await importCount()).toBe(before + 1);
+    });
+
+    it('stores the inputs of a derived value in the canonical order', async () => {
+      const imported = await post(adminA, '/v1/test-imports', {
+        clientUuid: randomUUID(),
+        source: 'Planilla del 505',
+        measuredOn: '2019-05-10',
+        rows: [
+          {
+            player: { playerId: players.p15 },
+            testCode: 'cod_505',
+            entries: [
+              { kind: 'value', attemptNumber: 1, metricCode: 'cod505_right_s', value: 2.4 },
+              { kind: 'value', attemptNumber: 1, metricCode: 'cod505_left_s', value: 2.5 },
+            ],
+          },
+        ],
+      });
+      expect(imported.statusCode, imported.body).toBe(201);
+      const resultId = imported.json<ImportBody>().rows[0]?.testResultId ?? '';
+      const derived = await database.admin.query<{ inputs: unknown }>(
+        `select inputs from test_result_value where club_id = $1 and test_result_id = $2
+            and inputs ->> 'kind' = 'derived'`,
+        [clubA, resultId],
+      );
+      // The same order as a result recorded through POST /v1/test-results.
+      expect(derived.rows).toEqual([
+        { inputs: { kind: 'derived', from: ['cod505_left_s', 'cod505_right_s'] } },
+      ]);
+    });
+  });
+
   describe('a batch of the size limit', () => {
     it('previews and imports 1000 rows within the time budget', async () => {
       const many: string[] = [];
@@ -846,7 +923,6 @@ describeWithPostgres('imports of historical results (Postgres)', (serverUrl) => 
       expect(imported.statusCode, imported.body).toBe(201);
       expect(imported.json<ImportBody>().import.createdCount).toBe(TEST_IMPORT_ROWS);
       expect(await historicalCount()).toBe(resultsBefore + TEST_IMPORT_ROWS);
-      // Well under the connection timeout of the API (60 s by default), with room for CI.
       expect(previewMs, `preview: ${String(Math.round(previewMs))} ms`).toBeLessThan(
         TEST_IMPORT_BUDGET_MS,
       );

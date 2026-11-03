@@ -16,7 +16,7 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "env": ["DATABASE_URL", "STORAGE_TEST_URL"],
+      "env": ["DATABASE_URL", "STORAGE_TEST_URL", "TEST_IMPORT_BUDGET_MS"],
       "outputs": []
     },
     "dev": {

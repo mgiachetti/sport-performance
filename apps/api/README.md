@@ -133,7 +133,7 @@ Variables: [`.env.example`](.env.example). Se validan al arrancar; si falta o es
 
 ## Tests
 
-`pnpm --filter @sport-performance/api test`. Los tests `*.pg.test.ts` corren contra Postgres real con `DATABASE_URL` (en CI, el servicio `postgres:16`); sin esa variable se saltean en local y fallan en CI. `DATABASE_URL` es un superusuario: cada archivo crea su base, corre las migraciones con él (que también arma los datos de cada test) y la API se conecta con logins temporales de `sport_performance_app` y `sport_performance_auth`, como en producción. Los de auth usan el transporte de email en memoria.
+`pnpm --filter @sport-performance/api test`. Los tests `*.pg.test.ts` corren contra Postgres real con `DATABASE_URL` (en CI, el servicio `postgres:16`); sin esa variable se saltean en local y fallan en CI. `DATABASE_URL` es un superusuario: cada archivo crea su base, corre las migraciones con él (que también arma los datos de cada test) y la API se conecta con logins temporales de `sport_performance_app` y `sport_performance_auth`, como en producción. Los de auth usan el transporte de email en memoria. El test de una importación de 1000 filas (`test-imports.pg.test.ts`) tiene un presupuesto de 45 s por pedido; `TEST_IMPORT_BUDGET_MS` lo cambia (ms) en un runner muy cargado o para ajustarlo.
 
 ```sh
 docker run -d --rm --name pg-test -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=sport_performance_test -p 5433:5432 postgres:16
