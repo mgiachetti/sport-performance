@@ -4,6 +4,7 @@ import type { FetchLike, FetchRequestInit, FetchResponseLike } from '@sport-perf
 export interface RecordedRequest {
   readonly method: string;
   readonly path: string;
+  readonly query: URLSearchParams;
   readonly headers: Readonly<Record<string, string>>;
   readonly body: unknown;
 }
@@ -28,10 +29,11 @@ export function createFakeApi(baseUrl = 'https://api.test') {
   let offline = false;
 
   const fetch: FetchLike = (url: string, init: FetchRequestInit): Promise<FetchResponseLike> => {
-    const path = url.slice(baseUrl.length).split('?', 1)[0] ?? '';
+    const [path = '', search = ''] = url.slice(baseUrl.length).split('?', 2);
     const request: RecordedRequest = {
       method: init.method,
       path,
+      query: new URLSearchParams(search),
       headers: init.headers,
       body: init.body === undefined ? undefined : (JSON.parse(init.body) as unknown),
     };

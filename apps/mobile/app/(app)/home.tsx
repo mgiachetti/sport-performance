@@ -1,16 +1,36 @@
 import { HomeScreen } from '../../src/screens/app.tsx';
-import { useClubTheme, useSession } from '../../src/state/app-context.tsx';
+import { SyncIndicator } from '../../src/screens/sync.tsx';
+import {
+  useClubTheme,
+  useNow,
+  useServices,
+  useSession,
+  useSyncStatus,
+} from '../../src/state/app-context.tsx';
 
 export default function Home() {
+  const services = useServices();
   const state = useSession();
   const clubTheme = useClubTheme();
+  const syncStatus = useSyncStatus();
+  const now = useNow();
   if (state.status !== 'signedIn' || state.activeMembership === null) return null;
   return (
     <HomeScreen
       userName={state.user.name}
       membership={state.activeMembership}
       clubTheme={clubTheme}
-      offline={state.offline}
+      // The indicator already says so when the sync got no answer.
+      offline={state.offline && syncStatus.phase !== 'offline'}
+      sync={
+        <SyncIndicator
+          status={syncStatus}
+          nowMs={now}
+          onSyncNow={() => {
+            services.sync.requestSync({ force: true });
+          }}
+        />
+      }
     />
   );
 }

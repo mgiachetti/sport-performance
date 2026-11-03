@@ -183,6 +183,14 @@ describe('buildExpoConfig', () => {
     ]);
   });
 
+  it('encrypts the local database and registers the background sync (ADR 0065)', () => {
+    const config = buildExpoConfig(productionEnv);
+    expect(config.plugins).toContainEqual(['expo-sqlite', { useSQLCipher: true }]);
+    expect(config.plugins).toContain('expo-background-task');
+    // Health data of minors never goes to a cloud backup.
+    expect(config.android?.allowBackup).toBe(false);
+  });
+
   it('rejects a malformed EAS project id', () => {
     expect(() => buildExpoConfig({ ...productionEnv, EAS_PROJECT_ID: 'my-project' })).toThrow(
       'EAS_PROJECT_ID',

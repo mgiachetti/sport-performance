@@ -6,6 +6,9 @@ import { createQueryClient } from '../api/query-client.ts';
 import { createSessionStore, type SessionStore } from '../auth/session-store.ts';
 import { createBrandingStore, type BrandingStore } from '../branding/club-branding.ts';
 import type { RuntimeConfig } from '../config/runtime-config.ts';
+import { deferredLocalDatabase, type LocalDatabase } from '../offline/db/database.ts';
+import { createSyncEngine, type SyncEngine } from '../offline/engine.ts';
+import { bindSyncToSession } from '../offline/session-binding.ts';
 import type { PreferenceStorage, SecureStorage } from '../platform/storage.ts';
 import { createAppTranslator } from '../ui/i18n.tsx';
 import { createCompatibilityChecker, type AppBuildInfo } from '../version/index.ts';
@@ -23,6 +26,8 @@ export interface Platform {
   readonly languageTags: readonly string[];
   readonly reportError: (error: unknown) => void;
   readonly fetch?: FetchLike;
+  /** The local database (ADR 0065): encrypted SQLite on the phone, `node:sqlite` in tests. */
+  readonly openLocalDatabase: () => Promise<LocalDatabase>;
 }
 
 export interface AppServices {
@@ -35,6 +40,8 @@ export interface AppServices {
   readonly versionGate: VersionGate;
   readonly branding: BrandingStore;
   readonly queryClient: QueryClient;
+  /** The local database and the offline queue (B-502): screens read and write through it. */
+  readonly sync: SyncEngine;
   readonly reportError: (error: unknown) => void;
   /** Stops listening to the API client (tests; the app lives as long as the process). */
   dispose(): void;
@@ -69,6 +76,13 @@ export function createAppServices(platform: Platform): AppServices {
     }),
   );
   const queryClient = createQueryClient();
+  const sync = createSyncEngine({
+    database: deferredLocalDatabase(platform.openLocalDatabase()),
+    api: api.client,
+    randomUUID: platform.randomUUID,
+    reportError,
+  });
+  const unbindSync = bindSyncToSession(sync, session, reportError);
 
   const unsubscribe = api.onFailure((event) => {
     if (event.kind === 'update_required') {
@@ -101,10 +115,13 @@ export function createAppServices(platform: Platform): AppServices {
     versionGate,
     branding: createBrandingStore(platform.preferences),
     queryClient,
+    sync,
     reportError,
     dispose() {
       unsubscribe();
       unsubscribeSession();
+      unbindSync();
+      sync.dispose();
     },
   };
 }

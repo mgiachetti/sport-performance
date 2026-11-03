@@ -138,6 +138,11 @@ export type SyncOperationInput<Op extends SyncOperation> = z.output<
   (typeof SYNC_OPERATION_INPUTS)[Op]
 >;
 
+/** What a client writes for an operation before validation (ids as plain strings). */
+export type SyncOperationRequest<Op extends SyncOperation> = z.input<
+  (typeof SYNC_OPERATION_INPUTS)[Op]
+>;
+
 /**
  * A mutation as it travels. The envelope is checked with the request; the
  * part of each operation (`SYNC_OPERATION_INPUTS`) is checked per mutation,

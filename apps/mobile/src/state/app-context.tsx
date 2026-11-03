@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from 'react';
 import { nativeThemeFor } from '../branding/club-branding.ts';
+import type { SyncIssue, SyncStatus } from '../offline/engine.ts';
 import { TranslatorProvider } from '../ui/i18n.tsx';
 import { ThemeProvider } from '../ui/theme.tsx';
 import type { UpdateGate } from '../version/index.ts';
@@ -34,6 +35,46 @@ export function useApi(): ApiClient {
 export function useSession(): SessionState {
   const { session } = useServices();
   return useSyncExternalStore(session.subscribe, session.getState, session.getState);
+}
+
+/** The sync indicator's state (B-502): pending, signal, last sync, issues. */
+export function useSyncStatus(): SyncStatus {
+  const { sync } = useServices();
+  return useSyncExternalStore(sync.subscribe, sync.getStatus, sync.getStatus);
+}
+
+/** The issues of the queue of the active membership, re-read when their count changes. */
+export function useSyncIssues(): readonly SyncIssue[] {
+  const { sync, reportError } = useServices();
+  const { membershipId, issueCount } = useSyncStatus();
+  const [issues, setIssues] = useState<readonly SyncIssue[]>([]);
+  useEffect(() => {
+    let active = true;
+    sync
+      .issues()
+      .then((next) => {
+        if (active) setIssues(next);
+      })
+      .catch(reportError);
+    return () => {
+      active = false;
+    };
+  }, [sync, reportError, membershipId, issueCount]);
+  return issues;
+}
+
+/** The current time, refreshed every `intervalMs` (relative times like "hace 5 minutos"). */
+export function useNow(intervalMs = 30_000): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const handle = setInterval(() => {
+      setNow(Date.now());
+    }, intervalMs);
+    return () => {
+      clearInterval(handle);
+    };
+  }, [intervalMs]);
+  return now;
 }
 
 export function useVersionGate(): UpdateGate {

@@ -34,7 +34,8 @@ pnpm --filter @sport-performance/mobile start   # después, solo el bundler
 - `src/api`: cliente tipado con bearer, club y versión; textos de errores; cliente de TanStack Query.
 - `src/auth`, `src/clubs`, `src/branding`, `src/linking`, `src/observability`, `src/version`: lógica sin React Native.
 - `src/state`: servicios de la app, controlador de sesión, compuerta de versión y contextos de React (`useServices`, `useApi`, `useSession`, `useClubTheme`).
-- `src/platform`: lo nativo (`expo-secure-store`, AsyncStorage, `expo-application`, `expo-updates`, `expo-localization`) detrás de interfaces.
+- `src/offline`: base local y sincronización (B-502, [ADR 0069](../../docs/adr/0069-base-local-y-motor-de-sincronizacion-mobile.md)): driver, esquema Drizzle y migraciones (`db/`), cola y validación (`operations.ts`), lectura con lo pendiente superpuesto (`local-store.ts`, `overlay.ts`), motor (`engine.ts`), disparadores, tarea en segundo plano y textos del indicador.
+- `src/platform`: lo nativo (`expo-secure-store`, AsyncStorage, `expo-application`, `expo-updates`, `expo-localization`, `expo-sqlite` con SQLCipher, `expo-network`, `expo-background-task`) detrás de interfaces.
 - `src/screens`: pantallas de presentación (datos y callbacks por props); `src/ui`: tema, traductor, primitivas accesibles y fuentes.
 
 Los imports llevan la extensión `.ts` / `.tsx` (ADR 0058).
@@ -45,9 +46,19 @@ Los imports llevan la extensión `.ts` / `.tsx` (ADR 0058).
 2. Textos en `packages/i18n` (es-AR, vos); estados siempre con `StatusMessage` (ícono + texto).
 3. Test del componente con `renderScreen` (`src/test/render.tsx`) y, si hay lógica, test en Node.
 
+## Datos sin conexión (B-502)
+
+La app lee de la base local y la red solo sincroniza (ADR 0015, 0050 y 0065). Una pantalla:
+
+- **escribe** con `services.sync.enqueue(op, input)`: `op` es una de `SYNC_OPERATIONS` y `input` lo que pide `SYNC_OPERATION_INPUTS` (el mismo contrato del servidor), con `clientUuid` en cada alta, fila de lote e intento. Se valida, se guarda con su HLC en una transacción y se pide una sincronización;
+- **lee** con `services.sync.store.list(membershipId, collection, filtro)` / `get`: la fila del servidor con las ediciones pendientes superpuestas (`pending: true`), y las altas que todavía no volvieron con `store.pending(membershipId, [op])`;
+- **muestra el estado** con `useSyncStatus()` y `SyncIndicator`.
+
+Una operación de edición nueva suma su superposición en `src/offline/overlay.ts` y sus filas en `OPERATION_SPECS`; un cambio del esquema local es una migración nueva al final de `src/offline/db/migrations.ts` (el test la compara con `schema.ts`). Cerrar sesión borra todo lo del club en el teléfono.
+
 ## Tests
 
-`pnpm --filter @sport-performance/mobile test`. Vitest en Node para la lógica (con el cliente tipado real contra un `fetch` falso, `src/test/fake-api.ts`) y Testing Library sobre `react-native-web` en jsdom para las pantallas (`// @vitest-environment jsdom`). Para verificar que el bundle arma: `pnpm --filter @sport-performance/mobile exec expo export --platform ios --output-dir /tmp/sp-export`.
+`pnpm --filter @sport-performance/mobile test`. Vitest en Node para la lógica (con el cliente tipado real contra un `fetch` falso, `src/test/fake-api.ts`; la base local sobre `node:sqlite` real, `src/test/node-sqlite.ts`, y el protocolo de sincronización en memoria, `src/test/fake-sync-server.ts`) y Testing Library sobre `react-native-web` en jsdom para las pantallas (`// @vitest-environment jsdom`). Para verificar que el bundle arma: `pnpm --filter @sport-performance/mobile exec expo export --platform ios --output-dir /tmp/sp-export`.
 
 ## Versiones (B-324, ADR 0045)
 

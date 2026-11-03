@@ -1,5 +1,6 @@
 import type { MembershipSummary } from '@sport-performance/contracts';
 import type { ClubTheme } from '@sport-performance/contracts';
+import type { ReactNode } from 'react';
 import { Switch, View } from 'react-native';
 import type { UpdatePrompt } from '../version/index.ts';
 import { roleLabel, useTranslator } from '../ui/i18n.tsx';
@@ -35,11 +36,14 @@ export function HomeScreen({
   membership,
   clubTheme,
   offline,
+  sync,
 }: {
   readonly userName: string;
   readonly membership: MembershipSummary;
   readonly clubTheme: ClubTheme | null;
   readonly offline: boolean;
+  /** The sync indicator (`SyncIndicator`). */
+  readonly sync?: ReactNode;
 }) {
   const { t } = useTranslator();
   const name = userName.trim();
@@ -50,6 +54,7 @@ export function HomeScreen({
         {name === '' ? t('home.greetingAnonymous') : t('home.greeting', { name })}
       </AppText>
       {offline ? <StatusMessage level="warning">{t('sync.offline')}</StatusMessage> : null}
+      {sync}
       <Card>
         <AppText tone="secondary">{t('home.next')}</AppText>
       </Card>
@@ -68,6 +73,9 @@ export function AccountScreen({
   version,
   offline,
   signingOut,
+  sync,
+  pendingCount = 0,
+  confirmSignOut = false,
   onChangeClub,
   onSignOut,
 }: {
@@ -79,6 +87,12 @@ export function AccountScreen({
   readonly version: string;
   readonly offline: boolean;
   readonly signingOut: boolean;
+  /** The sync section: indicator and the changes that were not applied. */
+  readonly sync?: ReactNode;
+  /** Changes not sent yet: signing out loses them, so it asks to confirm. */
+  readonly pendingCount?: number;
+  /** The user pressed "sign out" with changes pending: the next press signs out anyway. */
+  readonly confirmSignOut?: boolean;
   readonly onChangeClub: () => void;
   readonly onSignOut: () => void;
 }) {
@@ -128,10 +142,30 @@ export function AccountScreen({
           />
         </View>
       </Card>
+      {sync !== undefined ? (
+        <Card>
+          <AppText role="overline" tone="secondary" accessibilityRole="header">
+            {t('sync.title')}
+          </AppText>
+          {sync}
+        </Card>
+      ) : null}
       {offline ? (
         <StatusMessage level="warning">{t('account.signOut.offline')}</StatusMessage>
       ) : null}
-      <Button variant="secondary" label={t('auth.signOut')} onPress={onSignOut} busy={signingOut} />
+      {confirmSignOut && pendingCount > 0 ? (
+        <StatusMessage level="critical">
+          {t('account.signOut.pending', { count: pendingCount })}
+        </StatusMessage>
+      ) : null}
+      <Button
+        variant="secondary"
+        label={
+          confirmSignOut && pendingCount > 0 ? t('account.signOut.confirm') : t('auth.signOut')
+        }
+        onPress={onSignOut}
+        busy={signingOut}
+      />
       <AppText role="caption" tone="muted">
         {t('account.version', { version })}
       </AppText>

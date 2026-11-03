@@ -11,6 +11,7 @@ import { parseRuntimeConfig, type RuntimeConfig } from '../config/runtime-config
 import type { SentryBuild } from '../observability/sentry-options.ts';
 import type { Platform } from '../state/services.ts';
 import { NATIVE_APP_VERSION, parseAppBuildInfo, type AppBuildInfo } from '../version/index.ts';
+import { openNativeLocalDatabase } from './sqlite.ts';
 import type { PreferenceStorage, SecureStorage } from './storage.ts';
 
 /**
@@ -69,6 +70,9 @@ export function versionLabel(build: AppBuildInfo): string {
 
 /** The device as the app services see it. */
 export function nativePlatform(config: RuntimeConfig, build: AppBuildInfo): Platform {
+  const reportError = (error: unknown) => {
+    if (config.sentry !== null) Sentry.captureException(error);
+  };
   return {
     config,
     build,
@@ -76,8 +80,7 @@ export function nativePlatform(config: RuntimeConfig, build: AppBuildInfo): Plat
     preferences,
     randomUUID,
     languageTags: getLocales().map((locale) => locale.languageTag),
-    reportError: (error) => {
-      if (config.sentry !== null) Sentry.captureException(error);
-    },
+    reportError,
+    openLocalDatabase: () => openNativeLocalDatabase(reportError),
   };
 }
