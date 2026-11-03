@@ -1,0 +1,216 @@
+/*
+ * Configuration of the club (B-409). Only `--sp-*` tokens, like `styles/app.css`. The first block
+ * holds the shared screen pieces it uses (inline status, tables, form rows and actions); they are
+ * the same rules other screens declare, so loading both is harmless.
+ */
+
+.sp-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-space-xs);
+  font-size: var(--sp-text-body-small-size);
+}
+.sp-status--ok svg {
+  color: var(--sp-color-status-ok-fg);
+}
+.sp-status--warning svg {
+  color: var(--sp-color-status-warning-fg);
+}
+.sp-status--critical svg {
+  color: var(--sp-color-status-critical-fg);
+}
+.sp-table-wrap {
+  margin-top: var(--sp-space-md);
+  overflow-x: auto;
+}
+.sp-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.sp-table th,
+.sp-table td {
+  padding: var(--sp-space-sm) var(--sp-space-md);
+  border-bottom: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+  text-align: left;
+  vertical-align: middle;
+}
+.sp-table thead th {
+  color: var(--sp-color-text-secondary);
+  font-size: var(--sp-text-body-small-size);
+  font-weight: var(--sp-text-body-strong-weight);
+  white-space: nowrap;
+}
+.sp-form__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--sp-space-md);
+}
+.sp-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-space-sm);
+}
+
+/* Section tabs */
+.sp-tabs ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-space-xs);
+  margin: 0 0 var(--sp-space-lg);
+  padding: 0;
+  list-style: none;
+  border-bottom: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+}
+.sp-tabs__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--sp-size-touch-target);
+  padding: 0 var(--sp-space-md);
+  color: var(--sp-color-text-secondary);
+  text-decoration: none;
+  border-bottom: var(--sp-border-width-thick) solid transparent;
+}
+.sp-tabs__link:hover {
+  color: var(--sp-color-text-primary);
+}
+.sp-tabs__link[aria-current='page'] {
+  color: var(--sp-color-text-primary);
+  font-weight: var(--sp-text-body-strong-weight);
+  border-bottom-color: var(--sp-color-brand-solid);
+}
+
+/* Checkboxes */
+.sp-check {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-sm);
+  min-height: var(--sp-size-touch-target);
+}
+.sp-check__input {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--sp-color-brand-solid);
+}
+.sp-check-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.sp-check-group__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-space-xs) var(--sp-space-lg);
+}
+
+/* Screen */
+.sp-config__group {
+  max-width: 24rem;
+  margin-bottom: var(--sp-space-md);
+}
+.sp-config__subtitle {
+  margin: var(--sp-space-xl) 0 var(--sp-space-xs);
+  font-family: var(--sp-text-title-family);
+  font-weight: var(--sp-text-title-weight);
+}
+.sp-config__editor {
+  margin-top: var(--sp-space-lg);
+  padding: var(--sp-space-lg);
+  border: var(--sp-border-width-hairline) solid var(--sp-color-border-strong);
+  border-radius: var(--sp-radius-md);
+  background: var(--sp-color-surface-raised);
+}
+.sp-config__stop {
+  margin-top: var(--sp-space-lg);
+  padding-top: var(--sp-space-lg);
+  border-top: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+}
+.sp-config__after-table {
+  margin-top: var(--sp-space-md);
+}
+.sp-config__zones {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
+  gap: var(--sp-space-lg);
+}
+.sp-config__zone-list {
+  display: grid;
+  gap: var(--sp-space-sm);
+  margin: 0;
+  padding-left: var(--sp-space-lg);
+}
+.sp-config__history {
+  display: grid;
+  gap: var(--sp-space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sp-config__history li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-space-md);
+}
+.sp-config__code {
+  display: block;
+  color: var(--sp-color-text-secondary);
+  font-size: var(--sp-text-caption-size);
+}
+.sp-config__row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-space-xs);
+}
+.sp-num {
+  font-family: var(--sp-text-metric-small-family);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.sp-table th.sp-num,
+.sp-table td.sp-num {
+  text-align: right;
+}
+
+/* Battery matrix */
+.sp-matrix td,
+.sp-matrix thead th {
+  text-align: center;
+}
+.sp-matrix thead th:first-child,
+.sp-matrix tbody th {
+  text-align: left;
+}
+.sp-matrix__tag {
+  margin-left: var(--sp-space-xs);
+}
+.sp-matrix__cell {
+  min-width: 6rem;
+  min-height: var(--sp-size-touch-target);
+  padding: var(--sp-space-xs) var(--sp-space-sm);
+  border: var(--sp-border-width-hairline) solid var(--sp-color-border-strong);
+  border-radius: var(--sp-radius-md);
+  background: transparent;
+  color: var(--sp-color-text-secondary);
+  font-family: var(--sp-text-metric-small-family);
+  font-weight: var(--sp-text-metric-small-weight);
+  cursor: pointer;
+}
+.sp-matrix__cell--on {
+  border-color: var(--sp-color-brand-solid);
+  background: var(--sp-color-brand-subtle);
+  color: var(--sp-color-text-primary);
+}
+.sp-matrix__cell:hover,
+.sp-matrix__cell[aria-expanded='true'] {
+  border-color: var(--sp-color-brand-accent);
+}
+.sp-matrix__value {
+  font-family: var(--sp-text-metric-small-family);
+  font-weight: var(--sp-text-metric-small-weight);
+}
+.sp-matrix__note {
+  display: block;
+  margin-top: var(--sp-space-xxs);
+  color: var(--sp-color-text-secondary);
+  font-size: var(--sp-text-caption-size);
+}

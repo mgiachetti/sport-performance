@@ -65,6 +65,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0059](0059-panel-semanal-lectura-agregada-y-bio-banding.md) | Panel semanal: una lectura agregada de lo derivado, alcance por la matriz y bio-banding en la vista | Aceptado |
 | [0060](0060-lecturas-de-la-ficha-del-jugador.md) | Lecturas de la ficha del jugador: series derivadas por jugador, grupo de comparación anónimo e historia de la disponibilidad | Aceptado |
 | [0061](0061-vista-de-sesion-en-cancha.md) | Vista de sesión en cancha: una lectura acotada por sesión, totales por fuente y jugadores por la matriz | Aceptado |
+| [0062](0062-pantalla-de-configuracion-y-lectura-del-catalogo.md) | Pantalla de configuración: matriz por etapa, cambios con vigencia y lectura del catálogo del club | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 

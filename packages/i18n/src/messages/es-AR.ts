@@ -5,6 +5,7 @@ import { webCalendarMessagesEsAR } from './web-calendar.js';
 import { webMessagesEsAR } from './web.js';
 import { webTrainingMessagesEsAR } from './web-training.js';
 import { webFieldSessionMessagesEsAR } from './web-field-session.js';
+import { webConfigurationMessagesEsAR } from './web-configuration.js';
 
 /**
  * Source catalog: Rioplatense Spanish (vos). Every key exists here first; other locales and club
@@ -383,6 +384,7 @@ export const sourceMessageFiles = {
   'web-training.ts': webTrainingMessagesEsAR,
   'web-field-session.ts': webFieldSessionMessagesEsAR,
   'web-calendar.ts': webCalendarMessagesEsAR,
+  'web-configuration.ts': webConfigurationMessagesEsAR,
   'mobile.ts': mobileMessagesEsAR,
 } as const;
 
@@ -395,5 +397,6 @@ export const esAR = {
   ...webTrainingMessagesEsAR,
   ...webFieldSessionMessagesEsAR,
   ...webCalendarMessagesEsAR,
+  ...webConfigurationMessagesEsAR,
   ...mobileMessagesEsAR,
 } as const;

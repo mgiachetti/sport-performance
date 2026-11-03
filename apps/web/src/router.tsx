@@ -15,6 +15,8 @@ import { ensureClubSelection, loadActiveClub } from './club/load';
 import { FieldSessionPage } from './field-sessions/FieldSessionPage';
 import { FieldSessionsPage } from './field-sessions/FieldSessionsPage';
 import { parseFieldSessionsSearch } from './field-sessions/search';
+import { ConfigurationPage } from './configuration/ConfigurationPage';
+import { parseConfigurationSearch } from './configuration/search';
 import { parseScopeSearch } from './club/scope';
 import { ClubLayout } from './layout/ClubLayout';
 import { RootLayout } from './layout/RootLayout';
@@ -55,7 +57,8 @@ export interface RouterContext {
  *         ├── /players/$id    profile of a player (B-404)
  *         ├── /sessions       training sessions and matches (B-407): list, new, one
  *         ├── /field-sessions sessions with field data (?kind) and /$trainingSessionId (B-408)
- *         └── /calendar       season calendar (B-406): windows, test days, fixture
+ *         ├── /calendar       season calendar (B-406): windows, test days, fixture
+ *         └── /configuration  club configuration (B-409)
  * ```
  *
  * A new screen is a child of `_club` (it inherits session, club, theme and
@@ -214,6 +217,13 @@ export const calendarRoute = createRoute({
   component: CalendarPage,
 });
 
+export const configurationRoute = createRoute({
+  getParentRoute: () => clubRoute,
+  path: '/configuration',
+  validateSearch: parseConfigurationSearch,
+  component: ConfigurationPage,
+});
+
 export const routeTree = rootRoute.addChildren([
   loginRoute,
   authedRoute.addChildren([
@@ -227,6 +237,7 @@ export const routeTree = rootRoute.addChildren([
       sessionsRoute.addChildren([sessionsIndexRoute, newSessionRoute, sessionDetailRoute]),
       fieldSessionsRoute.addChildren([fieldSessionsIndexRoute, fieldSessionRoute]),
       calendarRoute,
+      configurationRoute,
     ]),
   ]),
 ]);
