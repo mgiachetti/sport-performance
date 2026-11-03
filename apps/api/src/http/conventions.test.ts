@@ -78,6 +78,8 @@ function register(app: FastifyInstance): void {
           throw pgError('40P01');
         case 'serialization':
           throw pgError('40001');
+        case 'lock-timeout':
+          throw pgError('55P03');
         default:
           return Promise.resolve({ secret: 'medical data' });
       }
@@ -205,6 +207,7 @@ describe('errors of the conventions', () => {
     ['other-check', 500, 'internal_error'],
     ['deadlock', 503, 'service_unavailable'],
     ['serialization', 503, 'service_unavailable'],
+    ['lock-timeout', 503, 'service_unavailable'],
   ])('answers %s with %i %s, without the database detail', async (fail, status, code) => {
     const { app, logs } = await start(admin);
     const response = await app.inject({
@@ -228,6 +231,11 @@ describe('errors of the conventions', () => {
         code: 'service_unavailable',
         sqlState: fail === 'deadlock' ? '40P01' : '40001',
       });
+    }
+    if (fail === 'lock-timeout') {
+      // A lock not granted within lock_timeout (ADR 0052): retryable too.
+      expect(response.headers['retry-after']).toBe('5');
+      expect(logs.lines().some((l) => l.msg === 'unexpected error')).toBe(false);
     }
     if (fail === 'permission') {
       // The client is not told which rule denied; the logs are.

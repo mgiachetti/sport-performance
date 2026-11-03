@@ -123,6 +123,14 @@ function classifyDatabaseError(error: unknown):
         message: 'The request ran into a concurrent one: send it again',
         headers: { 'retry-after': '1' },
       };
+    case '55P03':
+      // lock_not_available: a lock was not granted within the `lock_timeout` of the
+      // transaction (another request holds it, ADR 0052). Rolled back; retryable.
+      return {
+        code: 'service_unavailable',
+        message: 'The request waited too long for a concurrent one: send it again',
+        headers: { 'retry-after': '5' },
+      };
     case '42501':
       // A row-level policy or a guard of the database refused: the second line of defense.
       return { code: 'forbidden', message: 'The database policies do not allow this' };

@@ -40,6 +40,7 @@ import {
 } from '@sport-performance/domain';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
+import { waitForAdvisoryLock } from '../db/advisory-locks.js';
 import type { TenantDatabase } from '../db/database.js';
 import { registerEndpoint } from '../http/endpoint.js';
 import { HttpError } from '../http/errors.js';
@@ -80,6 +81,12 @@ import {
  */
 
 const plausibility = createPlausibilityChecker();
+
+/** Key of the advisory lock that runs one import of the club at a time (ADR 0052). */
+export const testImportLockKey = (clubId: string): string => `test_import:${clubId}`;
+
+/** `Retry-After` of an import that waited too long for another one of the club (about one import). */
+const TEST_IMPORT_RETRY_AFTER_S = 5;
 
 const importColumns = {
   id: testImport.id,
@@ -992,10 +999,12 @@ export function registerTestImportRoutes(app: FastifyInstance): void {
       const { clubId } = caller.membership;
       // One import of the club at a time (until the transaction ends): two concurrent batches
       // cannot both miss each other's results in the duplicate check, and a concurrent
-      // identical batch waits and is then a replay.
-      await db.execute(
-        sql`select pg_advisory_xact_lock(hashtextextended(${`test_import:${clubId}`}, 0))`,
-      );
+      // identical batch waits and is then a replay. The wait is bounded: a batch that waits
+      // longer answers a retryable 503, never a statement timeout (ADR 0052).
+      await waitForAdvisoryLock(db, testImportLockKey(clubId), {
+        busyMessage: 'Another import of the club is running: send the batch again',
+        retryAfterS: TEST_IMPORT_RETRY_AFTER_S,
+      });
       const replay = async () => {
         const previous = await readImport(db, clubId, { clientUuid: body.clientUuid });
         if (previous === undefined) return undefined;

@@ -891,9 +891,18 @@ export function deriveResultValues(
   return { next, from: [...scores.keys()] };
 }
 
-/** `inputs` of a derived value: the metrics it comes from. */
+/**
+ * `inputs` of a derived value: the metrics it comes from, sorted by code, so
+ * the same result stores the same `from` whatever the order its entries were
+ * recorded in (a new result, a recalculation or an import, issue #175).
+ * Values stored before are append-only and keep their order: read `from` as
+ * a set.
+ */
 export function derivedInputs(from: readonly string[], code: string): Record<string, unknown> {
-  return { kind: 'derived', from: from.filter((k) => k !== code) };
+  return {
+    kind: 'derived',
+    from: [...new Set(from)].filter((k) => k !== code).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
+  };
 }
 
 /**

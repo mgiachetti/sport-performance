@@ -245,7 +245,7 @@ export const createTestImport = defineEndpoint({
   method: 'POST',
   path: '/v1/test-imports',
   summary: 'Importar resultados históricos',
-  description: `${IMPORT_RULES} Todo o nada: si alguna fila no vale, \`validation_failed\` con el detalle por fila y no se escribe nada. Idempotente por \`clientUuid\` del lote: reenviar el mismo lote devuelve lo mismo con \`X-Idempotent-Replay: true\` (sin los avisos, que no se guardan); el mismo \`clientUuid\` con otro lote es \`conflict\`, y reenviarlo sin ver a todos sus jugadores es \`forbidden\`.`,
+  description: `${IMPORT_RULES} Todo o nada: si alguna fila no vale, \`validation_failed\` con el detalle por fila y no se escribe nada. Idempotente por \`clientUuid\` del lote: reenviar el mismo lote devuelve lo mismo con \`X-Idempotent-Replay: true\` (sin los avisos, que no se guardan); el mismo \`clientUuid\` con otro lote es \`conflict\`, y reenviarlo sin ver a todos sus jugadores es \`forbidden\`. Las importaciones de un club corren de a una: si otra tarda más que la espera, \`service_unavailable\` con \`Retry-After\` y no se escribe nada; el mismo lote se reenvía.`,
   tags: ['tests'],
   auth: 'club',
   body: testImportBodySchema,
