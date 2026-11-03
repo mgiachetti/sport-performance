@@ -129,8 +129,8 @@ describe('group evolution of a category report (B-603)', () => {
     value: 52,
     method: null,
     validFrom: day('2026-01-01'),
-    source: null,
-  } as PlayerFirstTeamReference;
+    source: 'Primera 2025',
+  };
 
   it('averages one value per player from the minimum, and counts the changes', () => {
     const scores = [

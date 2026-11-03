@@ -376,7 +376,7 @@ export function responseCounts(
     );
     for (const playerId of players) {
       const statuses = statusesOf.get(`${playerId}|${day}`);
-      if (statuses !== undefined && statuses.every((s) => !participationCarriesLoad(s))) continue;
+      if (statuses?.every((s) => !participationCarriesLoad(s)) === true) continue;
       const week = weekOf(day);
       const done = answered.has(`${playerId}|${day}`) ? 1 : 0;
       total.wellness.expected += 1;
@@ -619,7 +619,8 @@ export async function buildCategoryReportContent(
     );
     scores = dtos.flatMap((dto) => {
       const columnKey = placed.get(dto.id);
-      if (columnKey === undefined || dto.method === null) return [];
+      const { method } = dto;
+      if (columnKey === undefined || method === null) return [];
       return dto.scores
         .filter((score) => metrics.has(score.metricCode))
         .map((score) => ({
@@ -629,7 +630,7 @@ export async function buildCategoryReportContent(
           metricCode: score.metricCode,
           exercise: dto.exercise,
           measuredOn: dto.measuredOn,
-          method: dto.method as MeasurementMethod,
+          method,
           protocolVersion: dto.protocolVersion,
           value: score.value,
         }));
