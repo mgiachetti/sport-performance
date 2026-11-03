@@ -297,8 +297,8 @@ describe('gym block of the player profile', () => {
         listPositions: () => fixtures.page([]),
         getPlayerGymSummary: () => ({
           playerId: PLAYER_ID as never,
-          from: null,
-          to: null,
+          from: '2025-11-03' as never,
+          to: '2026-11-03' as never,
           exercises: [
             {
               exerciseCode: 'trap_bar_deadlift',

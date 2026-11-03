@@ -10871,7 +10871,7 @@
       "patch": {
         "operationId": "correctGymSet",
         "summary": "Corregir una serie de gimnasio",
-        "description": "Quien puede cargarla (el jugador, solo dentro de su semana). Los campos que se mandan; `null` borra. Con la `version` leída y el motivo (queda en el historial). Desactualizada o serie anulada: `conflict`.",
+        "description": "Quien puede cargarla (el jugador, solo dentro de su semana). Los campos que se mandan; `null` borra. La nota técnica es del staff: si el jugador manda una distinta de la guardada (también `null`), `validation_failed`. Con la `version` leída y el motivo (queda en el historial). Desactualizada o serie anulada: `conflict`.",
         "tags": [
           "gym"
         ],
@@ -11048,7 +11048,7 @@
       "post": {
         "operationId": "voidGymSet",
         "summary": "Anular una serie de gimnasio",
-        "description": "Quien puede corregirla. Una serie cargada por error se anula con motivo, nunca se borra: deja de contar para el e1RM. Idempotente.",
+        "description": "Quien puede corregirla; el jugador, solo las que cargó él (una que cargó el staff, con su nota técnica, la anula el staff: `forbidden`). Una serie cargada por error se anula con motivo, nunca se borra: deja de contar para el e1RM. Idempotente.",
         "tags": [
           "gym"
         ],
@@ -15643,7 +15643,7 @@
       "get": {
         "operationId": "getPlayerGymSummary",
         "summary": "Resumen de gimnasio de un jugador",
-        "description": "Por ejercicio: series, último día, mejor e1RM y su evolución por día (sin series anuladas). Mismo alcance que las series.",
+        "description": "Por ejercicio: series, último día, mejor e1RM y su evolución por día (sin series anuladas). Sin `to`, hasta hoy en el club; sin `from`, los 365 días que terminan en `to`. `from` después de `to`: `validation_failed`. Mismo alcance que las series.",
         "tags": [
           "gym"
         ],
@@ -35671,35 +35671,21 @@
             "description": "Id de jugador/a (UUID, RFC 9562)."
           },
           "from": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date",
-                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
-                "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
-                "examples": [
-                  "2026-11-01"
-                ]
-              },
-              {
-                "type": "null"
-              }
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Primer día del resumen (inclusive).",
+            "examples": [
+              "2026-11-01"
             ]
           },
           "to": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date",
-                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
-                "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
-                "examples": [
-                  "2026-11-01"
-                ]
-              },
-              {
-                "type": "null"
-              }
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Último día del resumen (inclusive).",
+            "examples": [
+              "2026-11-01"
             ]
           },
           "exercises": {

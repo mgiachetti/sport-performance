@@ -30,6 +30,7 @@ export {
 export {
   GYM_PLAYER_WINDOW_DAYS,
   GYM_SET_ISSUES,
+  GYM_SUMMARY_DEFAULT_DAYS,
   GYM_SET_WARNINGS,
   gymSetE1rmKg,
   gymSetIssues,

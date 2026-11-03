@@ -508,6 +508,51 @@ describeWithPostgres('gym (Postgres)', (serverUrl) => {
       expect(outside.statusCode).toBe(404);
     });
 
+    it("keeps the staff's technique score and sets from the player", async () => {
+      const logged = await send(scM15, 'POST', '/v1/gym-sets', {
+        playerId: p15,
+        sets: [{ exerciseCode: 'push_up', setNumber: 1, reps: 10, techniqueScore: 2 }],
+      });
+      expect(logged.statusCode, logged.body).toBe(201);
+      const set = logged.json<{ items: { set: SetBody }[] }>().items[0]?.set;
+      if (set === undefined) throw new Error('no set');
+      // `null` would clear the score the S&C staff gave: refused like any other value.
+      for (const techniqueScore of [null, 3]) {
+        const cleared = await send(player15, 'PATCH', `/v1/gym-sets/${set.id}`, {
+          version: set.version,
+          changeReason: 'Sin nota',
+          techniqueScore,
+        });
+        expect(cleared.statusCode).toBe(400);
+        expect(paths(cleared)).toEqual(['body.techniqueScore']);
+      }
+      // Echoing the stored score (a full form) is not a change: the reps are corrected.
+      const echoed = await send(player15, 'PATCH', `/v1/gym-sets/${set.id}`, {
+        version: set.version,
+        changeReason: 'Fueron 11',
+        reps: 11,
+        techniqueScore: 2,
+      });
+      expect(echoed.statusCode, echoed.body).toBe(200);
+      expect(echoed.json<SetBody>()).toMatchObject({ reps: 11, techniqueScore: 2 });
+      // A set the staff logged is the staff's to void.
+      const byPlayer = await send(player15, 'POST', `/v1/gym-sets/${set.id}/void`, {
+        reason: 'No la hice',
+      });
+      expect(byPlayer.statusCode).toBe(403);
+      const byStaff = await send(scM15, 'POST', `/v1/gym-sets/${set.id}/void`, {
+        reason: 'Cargada de prueba',
+      });
+      expect(byStaff.statusCode, byStaff.body).toBe(200);
+      // A day only with its program.
+      const dayOnly = await send(player15, 'POST', '/v1/gym-sets', {
+        dayKey: 'a',
+        sets: [{ exerciseCode: 'push_up', setNumber: 1, reps: 10 }],
+      });
+      expect(dayOnly.statusCode).toBe(400);
+      expect(paths(dayOnly)).toEqual(['body.dayKey']);
+    });
+
     it('corrects at a version with a reason in the history', async () => {
       const current = (await get(player15, `/v1/gym-sets/${loggedId}`)).json<SetBody>();
       const corrected = await t.app.inject({
@@ -560,6 +605,16 @@ describeWithPostgres('gym (Postgres)', (serverUrl) => {
     it('summarizes the best e1RM per exercise', async () => {
       const response = await get(coachM15, `/v1/players/${p15}/gym-summary`);
       expect(response.statusCode, response.body).toBe(200);
+      // Without a range, the year up to today: the read stays bounded.
+      const range = response.json<{ from: string; to: string }>();
+      expect(range.from).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(range.to).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(Date.parse(range.to) - Date.parse(range.from)).toBe(364 * 86_400_000);
+      const backwards = await get(
+        coachM15,
+        `/v1/players/${p15}/gym-summary?from=2026-03-02&to=2026-03-01`,
+      );
+      expect(backwards.statusCode).toBe(400);
       const exercises = response.json<{
         exercises: { exerciseCode: string; bestE1rmKg: number | null; setsN: number }[];
       }>().exercises;

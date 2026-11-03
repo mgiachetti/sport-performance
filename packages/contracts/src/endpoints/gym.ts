@@ -454,7 +454,7 @@ export const correctGymSet = defineEndpoint({
   path: '/v1/gym-sets/{gymSetId}',
   summary: 'Corregir una serie de gimnasio',
   description:
-    'Quien puede cargarla (el jugador, solo dentro de su semana). Los campos que se mandan; `null` borra. Con la `version` leída y el motivo (queda en el historial). Desactualizada o serie anulada: `conflict`.',
+    'Quien puede cargarla (el jugador, solo dentro de su semana). Los campos que se mandan; `null` borra. La nota técnica es del staff: si el jugador manda una distinta de la guardada (también `null`), `validation_failed`. Con la `version` leída y el motivo (queda en el historial). Desactualizada o serie anulada: `conflict`.',
   tags: ['gym'],
   auth: 'club',
   params: setParams,
@@ -477,7 +477,7 @@ export const voidGymSet = defineEndpoint({
   path: '/v1/gym-sets/{gymSetId}/void',
   summary: 'Anular una serie de gimnasio',
   description:
-    'Quien puede corregirla. Una serie cargada por error se anula con motivo, nunca se borra: deja de contar para el e1RM. Idempotente.',
+    'Quien puede corregirla; el jugador, solo las que cargó él (una que cargó el staff, con su nota técnica, la anula el staff: `forbidden`). Una serie cargada por error se anula con motivo, nunca se borra: deja de contar para el e1RM. Idempotente.',
   tags: ['gym'],
   auth: 'club',
   params: setParams,
@@ -543,8 +543,8 @@ export const gymExerciseSummarySchema = z
 export const playerGymSummarySchema = z
   .object({
     playerId: playerIdSchema,
-    from: localDateSchema.nullable(),
-    to: localDateSchema.nullable(),
+    from: localDateSchema.meta({ description: 'Primer día del resumen (inclusive).' }),
+    to: localDateSchema.meta({ description: 'Último día del resumen (inclusive).' }),
     exercises: z.array(gymExerciseSummarySchema).meta({
       description: 'Por ejercicio, del último hecho al más viejo.',
     }),
@@ -559,7 +559,7 @@ export const getPlayerGymSummary = defineEndpoint({
   path: '/v1/players/{playerId}/gym-summary',
   summary: 'Resumen de gimnasio de un jugador',
   description:
-    'Por ejercicio: series, último día, mejor e1RM y su evolución por día (sin series anuladas). Mismo alcance que las series.',
+    'Por ejercicio: series, último día, mejor e1RM y su evolución por día (sin series anuladas). Sin `to`, hasta hoy en el club; sin `from`, los 365 días que terminan en `to`. `from` después de `to`: `validation_failed`. Mismo alcance que las series.',
   tags: ['gym'],
   auth: 'club',
   params: playerParams,

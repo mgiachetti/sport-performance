@@ -311,7 +311,12 @@ function profileHandlers(overrides: FakeHandlers = {}): FakeHandlers {
   return {
     getPlayer: () => player(),
     listPositions: () => fixtures.page([]),
-    getPlayerGymSummary: () => ({ playerId: PLAYER_ID, from: null, to: null, exercises: [] }),
+    getPlayerGymSummary: () => ({
+      playerId: PLAYER_ID,
+      from: '2025-11-03' as LocalDate,
+      to: '2026-11-03' as LocalDate,
+      exercises: [],
+    }),
     listGymSets: () => fixtures.page([]),
     getPlayerDailyMonitoring: () => dailyMonitoring(),
     getPlayerMaturation: () => maturation(),

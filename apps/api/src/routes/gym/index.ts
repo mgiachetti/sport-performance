@@ -16,6 +16,8 @@ import {
 } from '@sport-performance/contracts';
 import { gymProgram, gymSet } from '@sport-performance/db/schema';
 import {
+  GYM_SUMMARY_DEFAULT_DAYS,
+  addDays,
   compareLocalDates,
   gymPlanIssues,
   gymSetIssues,
@@ -250,12 +252,17 @@ async function windowToday(
   return recordedAt === undefined ? clubToday(db) : clubDayOf(db, clubId, recordedAt);
 }
 
+/**
+ * The technique score is the staff's: the player may only echo the one stored (none on a
+ * new set). Sending `null` over the score the `sc` gave would clear it.
+ */
 function techniqueByPlayer(
   by: 'player' | 'staff',
   techniqueScore: number | null | undefined,
+  stored: number | null,
   path: (string | number)[],
 ): ValidationIssue[] {
-  if (by === 'player' && techniqueScore !== undefined && techniqueScore !== null) {
+  if (by === 'player' && techniqueScore !== undefined && techniqueScore !== stored) {
     return [issue(path, 'The technique score is given by the staff')];
   }
   return [];
@@ -617,7 +624,9 @@ export function registerGymRoutes(app: FastifyInstance): void {
         }
         const specs = fresh.map(({ set, index }) => {
           const base = ['body', 'sets', index];
-          issues.push(...techniqueByPlayer(by, set.techniqueScore, [...base, 'techniqueScore']));
+          issues.push(
+            ...techniqueByPlayer(by, set.techniqueScore, null, [...base, 'techniqueScore']),
+          );
           const spec = exerciseSpecOf(set.exerciseCode, program, dayKey);
           if (spec === undefined) {
             issues.push(
@@ -702,7 +711,10 @@ export function registerGymRoutes(app: FastifyInstance): void {
       if (!isWithinGymLogWindow(current.performedOn, today, by)) {
         throw new HttpError('conflict', 'The player corrects the sets of the last week only');
       }
-      const issues = techniqueByPlayer(by, body.techniqueScore, ['body', 'techniqueScore']);
+      const issues = techniqueByPlayer(by, body.techniqueScore, current.techniqueScore, [
+        'body',
+        'techniqueScore',
+      ]);
       const values: GymSetValues = {
         reps: body.reps === undefined ? current.reps : body.reps,
         loadKg: body.loadKg === undefined ? current.loadKg : body.loadKg,
@@ -761,6 +773,16 @@ export function registerGymRoutes(app: FastifyInstance): void {
       await permissions.authorize('gym_set', 'correct', { player: context.facts });
       // The window holds for a replay too: past it, voiding is the staff's.
       const by = loggerOf(await permissions.subject());
+      if (by === 'player' && current.voidedAt === null) {
+        // A set the staff logged (with its technique score) is the staff's to void.
+        const [owner] = await db
+          .select({ createdBy: gymSet.createdBy })
+          .from(gymSet)
+          .where(and(eq(gymSet.clubId, clubId), eq(gymSet.id, current.id)));
+        if (owner?.createdBy !== caller.userId) {
+          throw new HttpError('forbidden', 'The player voids the sets they logged only');
+        }
+      }
       const today = await windowToday(db, clubId, recordedAt);
       if (!isWithinGymLogWindow(current.performedOn, today, by)) {
         throw new HttpError('conflict', 'The player voids the sets of the last week only');
@@ -857,6 +879,14 @@ export function registerGymRoutes(app: FastifyInstance): void {
       const { clubId } = caller.membership;
       const context = await playerContext(db, clubId, params.playerId);
       await permissions.authorize('gym_set', 'read', { player: context.facts });
+      // Without `from`, the year up to `to` (or today): the read stays bounded.
+      const to = query.to ?? (await clubToday(db));
+      const from = query.from ?? addDays(to, -(GYM_SUMMARY_DEFAULT_DAYS - 1));
+      if (compareLocalDates(from, to) > 0) {
+        throw new HttpError('validation_failed', 'The range ends before it starts', {
+          details: [issue(['query', 'to'], 'A day on or after from')],
+        });
+      }
       const rows = await db
         .select(gymSetColumns)
         .from(gymSet)
@@ -865,8 +895,8 @@ export function registerGymRoutes(app: FastifyInstance): void {
             eq(gymSet.clubId, clubId),
             eq(gymSet.playerId, context.id),
             isNull(gymSet.voidedAt),
-            query.from === undefined ? undefined : gte(gymSet.performedOn, query.from),
-            query.to === undefined ? undefined : lte(gymSet.performedOn, query.to),
+            gte(gymSet.performedOn, from),
+            lte(gymSet.performedOn, to),
           ),
         );
       const dtos = await gymSetDtos(db, clubId, rows);
@@ -879,8 +909,8 @@ export function registerGymRoutes(app: FastifyInstance): void {
       );
       return {
         playerId: context.id,
-        from: query.from ?? null,
-        to: query.to ?? null,
+        from,
+        to,
         exercises: exercises.map((e) => ({ ...e, series: [...e.series] })),
       };
     },

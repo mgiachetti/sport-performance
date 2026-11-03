@@ -241,6 +241,9 @@ export function summarizeGymSets(points: readonly GymE1rmPoint[]): GymExerciseSu
  */
 export const GYM_PLAYER_WINDOW_DAYS = 7;
 
+/** The days the gym summary covers when no `from` is given: a year up to `to`. */
+export const GYM_SUMMARY_DEFAULT_DAYS = 365;
+
 /** Whether `day` can be logged: never after `today`; the player only within the window. */
 export function isWithinGymLogWindow(
   day: LocalDate,
