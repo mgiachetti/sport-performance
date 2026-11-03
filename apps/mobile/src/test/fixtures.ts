@@ -8,8 +8,10 @@ import {
 } from '@sport-performance/contracts';
 import { runtimeConfigFromEnv } from '../config/runtime-config.ts';
 import { memoryPreferenceStorage, memorySecureStorage } from '../platform/storage.ts';
+import { openLocalDatabase } from '../offline/db/database.ts';
 import { createAppServices, type Platform } from '../state/services.ts';
 import { createFakeApi, type FakeApi } from './fake-api.ts';
+import { nodeSqliteDriver } from './node-sqlite.ts';
 
 export const USER: SessionUser = sessionUserSchema.parse({
   id: '1f2e3d4c-5b6a-4789-8abc-def012345678',
@@ -87,6 +89,7 @@ export function testServices(options: { secure?: Record<string, string> } = {}) 
     languageTags: ['es-AR'],
     reportError: (error) => errors.push(error),
     fetch: api.fetch,
+    openLocalDatabase: () => openLocalDatabase(nodeSqliteDriver()),
   };
   const services = createAppServices(platform);
   return { api, secure, preferences, errors, services };

@@ -53,6 +53,46 @@ export const mobileMessagesEsAR = {
   'account.signOut.offline':
     'Sin conexión: la sesión se cierra en este teléfono. Para cerrarla también en el servidor, entrá desde otro dispositivo a Sesiones activas.',
 
+  'account.signOut.pending':
+    '{count, plural, one {Tenés # cambio sin enviar} other {Tenés # cambios sin enviar}}. Si cerrás sesión ahora, se pierden. Conectate y esperá a que se sincronice.',
+  'account.signOut.confirm': 'Cerrar sesión igual',
+
+  // Local database and sync (B-502)
+  'sync.title': 'Sincronización',
+  'sync.now': 'Sincronizar ahora',
+  'sync.paused':
+    'Sincronización en pausa hasta que vuelvas a ingresar o elijas tu club. Lo que cargues queda guardado en el teléfono.',
+  'sync.never': 'Este teléfono todavía no se sincronizó.',
+  'sync.lastSyncedNow': 'Sincronizado recién',
+  'sync.lastSyncedMinutes':
+    '{count, plural, one {Sincronizado hace # minuto} other {Sincronizado hace # minutos}}',
+  'sync.lastSyncedHours':
+    '{count, plural, one {Sincronizado hace # hora} other {Sincronizado hace # horas}}',
+  'sync.lastSyncedDays':
+    '{count, plural, one {Sincronizado hace # día} other {Sincronizado hace # días}}',
+  'sync.issues.title': 'Cambios que no se aplicaron',
+  'sync.issues.summary':
+    '{count, plural, one {# cambio no se pudo aplicar. Revisalo en Cuenta.} other {# cambios no se pudieron aplicar. Revisalos en Cuenta.}}',
+  'sync.issues.dismissAll': 'Descartar todos',
+  'sync.issue.dismiss': 'Entendido',
+  'sync.issue.rejected': 'No se guardó. {reason}',
+  'sync.issue.superseded':
+    'Alguien lo cambió después que vos y quedó su versión. Revisalo si hace falta.',
+  'sync.reason.conflict':
+    'Ya había una carga de ese dato, desde otro teléfono o la web. Revisá la que quedó y corregila si hace falta.',
+  'sync.reason.forbidden': 'No tenés permiso para cargar esto.',
+  'sync.reason.not_found': 'Lo que corregiste ya no existe o ya no lo podés ver.',
+  'sync.op.wellness.submit': 'Bienestar',
+  'sync.op.wellness.correct': 'Corrección de bienestar',
+  'sync.op.rpe.submit': 'Esfuerzo de la sesión (RPE)',
+  'sync.op.participation.record': 'Participación de la sesión',
+  'sync.op.participation.update': 'Corrección de participación',
+  'sync.op.test_result.create': 'Resultado de un test',
+  'sync.op.test_session.record_results': 'Resultados del día de test',
+  'sync.op.test_result.update': 'Corrección de un resultado',
+  'sync.op.test_result.add_entries': 'Intentos de un test',
+  'sync.op.test_result.void_entries': 'Anulación de intentos',
+
   // Invitation links
   'invitation.invalidLink':
     'El link de la invitación no es válido. Abrilo de nuevo desde el email que te llegó.',

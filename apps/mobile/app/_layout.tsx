@@ -7,8 +7,15 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
 import { AppState, Linking, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { runBackgroundSync } from '../src/offline/background.ts';
+import { startSyncTriggers } from '../src/offline/triggers.ts';
 import { sentryOptions } from '../src/observability/sentry-options.ts';
+import {
+  registerBackgroundSync,
+  setBackgroundSyncRunner,
+} from '../src/platform/background-sync.ts';
 import { buildInfo, nativePlatform, runtimeConfig, sentryBuild } from '../src/platform/native.ts';
+import { nativeSyncTriggerSources } from '../src/platform/sync-sources.ts';
 import {
   AppProviders,
   useServices,
@@ -33,6 +40,11 @@ if (sentry !== null) Sentry.init(sentry);
 const services = createAppServices(nativePlatform(config, build));
 void services.session.start();
 void services.versionGate.check();
+// Offline sync (B-502, ADR 0065): foreground, network back, every few minutes,
+// and a periodic background task; writes ask for a sync on their own.
+startSyncTriggers(services.sync, nativeSyncTriggerSources);
+setBackgroundSyncRunner(() => runBackgroundSync(services));
+registerBackgroundSync().catch(services.reportError);
 
 function useForegroundRefresh(): void {
   const { session, versionGate, reportError } = useServices();

@@ -58,7 +58,8 @@ export function buildExpoConfig(env: BuildEnv): ExpoConfig {
       ...(webHost !== null && { associatedDomains: [`applinks:${webHost}`] }),
       config: { usesNonExemptEncryption: false },
       infoPlist: {
-        // Only Barlow is bundled; no tracking, no background modes yet.
+        // No tracking. The background mode (`processing`, for the offline sync)
+        // is added by the `expo-background-task` plugin.
         ITSAppUsesNonExemptEncryption: false,
       },
     },
@@ -98,6 +99,9 @@ export function buildExpoConfig(env: BuildEnv): ExpoConfig {
       'expo-router',
       'expo-secure-store',
       'expo-localization',
+      // The local database is encrypted with SQLCipher; its key lives in the secure storage (ADR 0065).
+      ['expo-sqlite', { useSQLCipher: true }],
+      'expo-background-task',
       [
         'expo-splash-screen',
         { backgroundColor: background, resizeMode: 'contain', imageWidth: 160 },
