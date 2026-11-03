@@ -285,6 +285,34 @@ export const esAR = {
   'alert.growth_peak.suggestion':
     'Bajá el volumen de saltos y sprints y vigilá molestias en rodilla y talón.',
 
+  // Charts (B-402, packages/charts). Values arrive already formatted (es-AR, with their unit).
+  'chart.reference.firstTeam': 'Primera',
+  'chart.reference.directLabel': '{label} {value}',
+  'chart.legend': 'Leyenda',
+  'chart.table.show': 'Ver como tabla',
+  'chart.table.hide': 'Ocultar tabla',
+  'chart.table.caption': 'Datos de «{title}»',
+  'chart.table.item': 'Dato',
+  'chart.table.value': 'Valor',
+  'chart.table.status': 'Estado',
+  'chart.table.group': 'Grupo',
+  'chart.keyboardHint':
+    'Usá las flechas para recorrer los valores y Escape para cerrar el detalle.',
+  'chart.noValue': 'Sin dato',
+  'chart.summary.empty': '{title}. Sin datos para mostrar.',
+  'chart.summary.series':
+    '{series}: {count, plural, one {# valor} other {# valores}}, de {first} ({firstLabel}) a {last} ({lastLabel}).',
+  'chart.summary.seriesEmpty': '{series}: sin valores.',
+  'chart.summary.reference': 'Referencia de {label}: {value}.',
+  'chart.summary.bars':
+    '{count, plural, one {# barra} other {# barras}}; la más alta, {max} ({maxLabel}); la más baja, {min} ({minLabel}).',
+  'chart.summary.heatmap':
+    '{rows, plural, one {# fila} other {# filas}} por {columns, plural, one {# columna} other {# columnas}}; valores de {min} a {max}.',
+  'chart.summary.status':
+    '{count, plural, one {# valor marcado} other {# valores marcados}} con un estado.',
+  'chart.heatmap.scale': 'Escala',
+  'chart.heatmap.bin': 'De {from} a {to}',
+
   // Time spans
   'duration.days': '{count, plural, one {# día} other {# días}}',
   'duration.weeks': '{count, plural, one {# semana} other {# semanas}}',
