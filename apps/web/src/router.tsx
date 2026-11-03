@@ -23,6 +23,8 @@ import { CalendarPage } from './calendar/CalendarPage';
 import { parseCalendarSearch } from './calendar/model';
 import type { AppServices } from './app/services';
 import { FieldSessionPage } from './field-sessions/FieldSessionPage';
+import { GymProgramPage, NewGymProgramPage } from './gym/GymProgramPage';
+import { GymProgramsPage } from './gym/GymProgramsPage';
 import { FieldSessionsPage } from './field-sessions/FieldSessionsPage';
 import { parseFieldSessionsSearch } from './field-sessions/search';
 import { ConfigurationPage } from './configuration/ConfigurationPage';
@@ -309,6 +311,29 @@ export const fieldSessionRoute = createRoute({
   component: FieldSessionPage,
 });
 
+export const gymRoute = createRoute({
+  getParentRoute: () => clubRoute,
+  path: '/gym',
+});
+
+export const gymIndexRoute = createRoute({
+  getParentRoute: () => gymRoute,
+  path: '/',
+  component: GymProgramsPage,
+});
+
+export const newGymProgramRoute = createRoute({
+  getParentRoute: () => gymRoute,
+  path: '/new',
+  component: NewGymProgramPage,
+});
+
+export const gymProgramRoute = createRoute({
+  getParentRoute: () => gymRoute,
+  path: '/$gymProgramId',
+  component: GymProgramPage,
+});
+
 export const calendarRoute = createRoute({
   getParentRoute: () => clubRoute,
   path: '/calendar',
@@ -506,6 +531,7 @@ export const routeTree = rootRoute.addChildren([
       playerProfileRoute,
       sessionsRoute.addChildren([sessionsIndexRoute, newSessionRoute, sessionDetailRoute]),
       fieldSessionsRoute.addChildren([fieldSessionsIndexRoute, fieldSessionRoute]),
+      gymRoute.addChildren([gymIndexRoute, newGymProgramRoute, gymProgramRoute]),
       calendarRoute,
       testDaysRoute,
       testDayRoute,

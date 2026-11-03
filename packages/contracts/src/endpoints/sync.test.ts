@@ -89,7 +89,7 @@ describe('sync endpoints', () => {
   it('takes a comma-separated list of known collections', () => {
     const query = pullSyncChanges.query;
     expect(query.safeParse({ collections: 'wellness,test_result' }).success).toBe(true);
-    expect(query.safeParse({ collections: 'wellness,gym_set' }).success).toBe(false);
+    expect(query.safeParse({ collections: 'wellness,gym_sets' }).success).toBe(false);
     expect(query.parse({}).limit).toBe(200);
     expect(query.safeParse({ limit: '501' }).success).toBe(false);
   });

@@ -1,5 +1,6 @@
 import {
   addTestResultEntries,
+  correctGymSet,
   correctWellness,
   createTestResult,
   recordParticipations,
@@ -8,12 +9,20 @@ import {
   submitWellness,
   updateParticipation,
   updateTestResult,
+  voidGymSet,
   voidTestResultEntries,
+  logGymSets,
   type EndpointDefinition,
   type SyncOperationInput,
   type ValidationIssue,
 } from '@sport-performance/contracts';
-import { participation, syncChange, testResult, wellness } from '@sport-performance/db/schema';
+import {
+  gymSet,
+  participation,
+  syncChange,
+  testResult,
+  wellness,
+} from '@sport-performance/db/schema';
 import {
   WELLNESS_ITEMS,
   compareHlc,
@@ -128,7 +137,7 @@ function requireClientUuid(body: { clientUuid?: string | undefined }, path: (str
 }
 
 /** Tables whose rows the offline queue edits. */
-type EditedTable = typeof wellness | typeof participation | typeof testResult;
+type EditedTable = typeof wellness | typeof participation | typeof testResult | typeof gymSet;
 
 /**
  * The id of the row a mutation edits, visible to the caller (RLS): by `id`
@@ -616,6 +625,77 @@ const testResultVoidEntries: Resolver<'test_result.void_entries'> = async (
   return create({ endpoint: voidTestResultEntries, params: { testResultId: id }, body });
 };
 
+// ─── Gym ─────────────────────────────────────────────────────────────────────────────
+
+const GYM_SET_FIELDS = ['reps', 'loadKg', 'rir', 'techniqueScore', 'durationS', 'notes'] as const;
+type GymSetField = (typeof GYM_SET_FIELDS)[number];
+const GYM_SET_COLUMNS: Record<GymSetField, SyncFieldColumn<'gym_set'>> = {
+  reps: 'reps',
+  loadKg: 'load_kg',
+  rir: 'rir',
+  techniqueScore: 'technique_score',
+  durationS: 'duration_s',
+  notes: 'notes',
+};
+
+const gymSetLog: Resolver<'gym_set.log'> = async ({ body }, ctx) => {
+  body.sets.forEach((set, index) => {
+    requireClientUuid(set, [...ctx.path, 'body', 'sets', index]);
+  });
+  return Promise.resolve({
+    ...create({ endpoint: logGymSets, body }),
+    settle: (output) => {
+      const items = (output as { items: readonly { outcome: string }[] }).items;
+      return {
+        stamps: [],
+        appliedFields: [],
+        supersededFields: [],
+        replayed: items.length > 0 && items.every((item) => item.outcome === 'replayed'),
+      };
+    },
+  });
+};
+
+const gymSetCorrect: Resolver<'gym_set.correct'> = async ({ target, body }, ctx) => {
+  const id = await targetId(ctx.db, gymSet, ctx.clubId, target, 'Gym set');
+  await lockRows(ctx.db, 'gym_set', [id]);
+  const [current] = await ctx.db
+    .select({ version: rowVersion(gymSet.updatedAt) })
+    .from(gymSet)
+    .where(and(eq(gymSet.clubId, ctx.clubId), eq(gymSet.id, id)));
+  if (current === undefined) throw new HttpError('not_found', 'Gym set not found');
+  const clocks = (await fieldClocks(ctx.db, ctx.clubId, 'gym_set', [id])).get(id);
+  const edited = editedKeys(body, GYM_SET_FIELDS);
+  const { winners, losers } = splitFields<'gym_set', GymSetField>(
+    clocks,
+    ctx.hlc,
+    edited,
+    (field) => GYM_SET_COLUMNS[field],
+  );
+  const checkOnly = winners.length === 0;
+  const sent = checkOnly ? edited : winners;
+  const fields = Object.fromEntries(sent.map((field) => [field, body[field]]));
+  return {
+    checkOnly,
+    call: {
+      endpoint: correctGymSet,
+      params: { gymSetId: id },
+      body: { version: current.version, changeReason: body.changeReason, ...fields },
+    },
+    stamps: checkOnly
+      ? []
+      : [{ collection: 'gym_set', rowId: id, columns: winners.map((f) => GYM_SET_COLUMNS[f]) }],
+    appliedFields: winners,
+    supersededFields: losers,
+  };
+};
+
+const gymSetVoid: Resolver<'gym_set.void'> = async ({ target, body }, ctx) => {
+  const id = await targetId(ctx.db, gymSet, ctx.clubId, target, 'Gym set');
+  // A void is final and idempotent: never in conflict.
+  return create({ endpoint: voidGymSet, params: { gymSetId: id }, body });
+};
+
 /** The resolver of each operation. */
 export const SYNC_RESOLVERS: { readonly [Op in SyncOperation]: Resolver<Op> } = {
   'wellness.submit': wellnessSubmit,
@@ -628,6 +708,9 @@ export const SYNC_RESOLVERS: { readonly [Op in SyncOperation]: Resolver<Op> } = 
   'test_result.update': testResultUpdate,
   'test_result.add_entries': testResultAddEntries,
   'test_result.void_entries': testResultVoidEntries,
+  'gym_set.log': gymSetLog,
+  'gym_set.correct': gymSetCorrect,
+  'gym_set.void': gymSetVoid,
 };
 
 /** Every endpoint a sync operation may call (all must be registered transactional routes). */
@@ -642,4 +725,7 @@ export const SYNC_ENDPOINTS: readonly EndpointDefinition[] = [
   updateTestResult,
   addTestResultEntries,
   voidTestResultEntries,
+  logGymSets,
+  correctGymSet,
+  voidGymSet,
 ];

@@ -78,6 +78,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0072](0072-exportacion-csv-de-los-datos-del-club.md) | Exportación CSV de los datos del club: pedido con alcance fijado en la API, ZIP generado por el worker y guardado en el bucket | Aceptado |
 | [0073](0073-informe-de-categoria-por-ventana.md) | Informe de categoría por ventana: agregados del grupo con mínimo, instantánea en la API y archivo `category_report` | Aceptado |
 | [0074](0074-app-del-jugador-lecturas-propias-y-cache-local.md) | App del jugador: lecturas propias del rol `player`, caché local de lecturas por membresía y escrituras solo por la cola | Aceptado |
+| [0075](0075-gimnasio-programas-por-etapa-series-y-e1rm.md) | Gimnasio: programas por etapa, series con su tipo de carga y e1RM del protocolo de fuerza | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 

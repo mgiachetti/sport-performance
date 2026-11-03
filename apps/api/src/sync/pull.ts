@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import type { SyncChange } from '@sport-performance/contracts';
 import {
   category,
+  gymProgram,
+  gymSet,
   participation,
   playerCategory,
   syncChange,
@@ -36,6 +38,16 @@ import {
   sessionDto,
 } from '../routes/training-shared.js';
 import { wellnessColumns, wellnessDto } from '../routes/wellness.js';
+import {
+  appliesTo,
+  assignedPrograms,
+  gymProgramColumns,
+  gymProgramDto,
+  gymSetColumns,
+  gymSetDtos,
+  playerDayOf,
+} from '../routes/gym/model.js';
+import { loadStageSources } from '../routes/tests/model.js';
 
 /**
  * The pull of the offline sync (B-323, ADR 0050): the rows of the synced
@@ -51,6 +63,8 @@ const READ_KIND = {
   training_session: 'training_session',
   test_session: 'test_session',
   test_result: 'test_result',
+  gym_program: 'gym_program',
+  gym_set: 'gym_set',
 } as const satisfies Record<SyncCollection, ResourceKind>;
 
 type Scope = Exclude<ListScope, { kind: 'none' } | { kind: 'platform' }>;
@@ -163,6 +177,21 @@ export async function pullFingerprint(
     sql`select coalesce((select array_agg(v order by v) from unnest(app.visible_player_ids()) v), '{}')::text[] as ids,
                coalesce((select array_agg(v order by v) from unnest(app.assigned_category_ids()) v), '{}')::text[] as categories`,
   );
+  // Which category programs reach a player follows their categories and stage today: a
+  // change of either can bring or take programs without a change in the log.
+  const programScope = scopes.get('gym_program');
+  const playerDays =
+    programScope?.kind === 'players'
+      ? await (async () => {
+          if (subject.clubId === null) throw new Error('pull: a players scope outside a club');
+          const sources = await loadStageSources(db, subject.clubId, programScope.playerIds);
+          const today = await clubToday(db);
+          return programScope.playerIds.map((id) => {
+            const day = playerDayOf(sources, id, today);
+            return [id, [...day.categoryIds].sort(), day.stage];
+          });
+        })()
+      : null;
   const scopeKeys = [...scopes.entries()]
     .sort(([a], [b]) => (a < b ? -1 : 1))
     .map(([collection, scope]) => [
@@ -180,6 +209,7 @@ export async function pullFingerprint(
         scopeKeys,
         rows[0]?.ids ?? [],
         rows[0]?.categories ?? [],
+        ...(playerDays === null ? [] : [playerDays]),
       ]),
     )
     .digest('base64url')
@@ -399,6 +429,68 @@ async function loadRows(
           ),
         );
       const dtos = await testResultDtos(db, clubId, rows);
+      rows.forEach((row, index) => {
+        out.set(row.id, {
+          collection,
+          op: 'upsert',
+          id: row.id,
+          clientUuid: row.clientUuid,
+          data: dtos[index],
+        } as Upsert);
+      });
+      return out;
+    }
+    case 'gym_program': {
+      let filter: SQL | undefined;
+      switch (scope.kind) {
+        case 'club':
+          filter = undefined;
+          break;
+        case 'assigned':
+          filter = assignedPrograms(today, scope.categoryIds, scope.sports);
+          break;
+        case 'players': {
+          const sources = await loadStageSources(db, clubId, scope.playerIds);
+          const days = scope.playerIds.map((id) => appliesTo(playerDayOf(sources, id, today)));
+          filter = days.length === 0 ? sql`false` : sql`(${sql.join(days, sql` or `)})`;
+          break;
+        }
+      }
+      // An archived program leaves the phone (a delete): it no longer applies.
+      const rows = await db
+        .select(gymProgramColumns)
+        .from(gymProgram)
+        .where(
+          and(
+            eq(gymProgram.clubId, clubId),
+            inArray(gymProgram.id, [...ids]),
+            sql`${gymProgram.archivedAt} is null`,
+            filter,
+          ),
+        );
+      for (const row of rows) {
+        out.set(row.id, {
+          collection,
+          op: 'upsert',
+          id: row.id,
+          clientUuid: row.clientUuid,
+          data: gymProgramDto(row),
+        } as Upsert);
+      }
+      return out;
+    }
+    case 'gym_set': {
+      const rows = await db
+        .select(gymSetColumns)
+        .from(gymSet)
+        .where(
+          and(
+            eq(gymSet.clubId, clubId),
+            inArray(gymSet.id, [...ids]),
+            playerScope(scope, gymSet.clubId, gymSet.playerId, today),
+          ),
+        );
+      const dtos = await gymSetDtos(db, clubId, rows);
       rows.forEach((row, index) => {
         out.set(row.id, {
           collection,

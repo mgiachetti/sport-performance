@@ -578,8 +578,8 @@ describe.skipIf(!hasDatabase)('change history (Postgres 16)', () => {
     it('an owner delete is recorded with the whole row', async () => {
       const gymSetId = must(a.rows.gym_set);
       const { rows } = await t.pool.query<{ id: string }>(
-        `insert into gym_set (club_id, player_id, performed_on, exercise_code, set_number, reps)
-         select club_id, player_id, performed_on, exercise_code, set_number + 1, reps from gym_set where id = $1
+        `insert into gym_set (club_id, player_id, performed_on, exercise_code, load_kind, set_number, reps, load_kg, rir)
+         select club_id, player_id, performed_on, exercise_code, load_kind, set_number + 1, reps, load_kg, rir from gym_set where id = $1
          returning id`,
         [gymSetId],
       );

@@ -246,6 +246,8 @@ export {
 } from './plausibility/index.js';
 export * from './player-stage/index.js';
 export * from './physical-tests/index.js';
+// Gym: programs by stage, sets and e1RM (B-607).
+export * from './gym/index.js';
 export * from './load/index.js';
 export * from './maturation/index.js';
 // Derived values for the panel (B-326).

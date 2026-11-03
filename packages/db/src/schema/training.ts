@@ -15,8 +15,10 @@ import {
 } from 'drizzle-orm/pg-core';
 import { codeCheck, finite, rangeCheck, validityCheck } from './checks.js';
 import { localDate, timestamptz } from './columns.js';
+import { user } from './auth.js';
 import {
   contactLevelEnum,
+  gymLoadKindEnum,
   externalMetricSourceEnum,
   participationStatusEnum,
   sessionKindEnum,
@@ -221,7 +223,12 @@ export const externalMetric = pgTable(
   ],
 );
 
-/** A gym program for a category, a stage or one player. `plan` holds its structure. */
+/**
+ * A gym program (B-607, ADR 0075) for exactly one target: a category (all
+ * its players, or with `stage` only those in that stage) or one player.
+ * `plan` holds its days and exercises (`GymPlan` of the domain, checked by
+ * the API against the rules of the stage). Archived, never deleted.
+ */
 export const gymProgram = pgTable(
   'gym_program',
   {
@@ -234,6 +241,7 @@ export const gymProgram = pgTable(
     notes: text('notes'),
     validFrom: localDate('valid_from').notNull(),
     validTo: localDate('valid_to'),
+    archivedAt: timestamptz('archived_at'),
   },
   (t) => [
     ...tenantConstraints('gym_program', t),
@@ -242,12 +250,18 @@ export const gymProgram = pgTable(
     index('gym_program_category_idx').on(t.clubId, t.categoryId),
     index('gym_program_player_idx').on(t.clubId, t.playerId),
     validityCheck('gym_program_validity', t.validFrom, t.validTo),
+    check('gym_program_target', sql`num_nonnulls(${t.categoryId}, ${t.playerId}) = 1`),
+    check('gym_program_stage_target', sql`${t.stage} is null or ${t.categoryId} is not null`),
+    check('gym_program_name', sql`char_length(${t.name}) between 1 and 80`),
+    check('gym_program_plan_object', sql`jsonb_typeof(${t.plan}) = 'object'`),
   ],
 );
 
 /**
  * A performed set. M15/M16 log submaximal sets with RIR for the e1RM
- * (never to failure); M13/M14 log reps and a 1–3 technique score.
+ * (never to failure); M13/M14 log reps and a 1–3 technique score. The load
+ * kind is kept as it was when the set was logged (how it was measured);
+ * a wrong set is voided with a reason, never deleted.
  */
 export const gymSet = pgTable(
   'gym_set',
@@ -255,9 +269,12 @@ export const gymSet = pgTable(
     ...tenantColumns(),
     playerId: uuid('player_id').notNull().$type<PlayerId>(),
     gymProgramId: uuid('gym_program_id'),
+    /** Key of the program's day the set belongs to (`GymPlanDay.key`). */
+    dayKey: text('day_key'),
     performedOn: localDate('performed_on').notNull(),
     /** Exercise code (`goblet_squat`, `trap_bar_deadlift`). */
     exerciseCode: text('exercise_code').notNull(),
+    loadKind: gymLoadKindEnum('load_kind').notNull(),
     setNumber: smallint('set_number').notNull(),
     reps: smallint('reps'),
     loadKg: doublePrecision('load_kg'),
@@ -266,6 +283,9 @@ export const gymSet = pgTable(
     techniqueScore: smallint('technique_score'),
     durationS: integer('duration_s'),
     notes: text('notes'),
+    voidedAt: timestamptz('voided_at'),
+    voidedBy: text('voided_by').references(() => user.id, { onDelete: 'set null' }),
+    voidReason: text('void_reason'),
   },
   (t) => [
     ...tenantConstraints('gym_set', t),
@@ -273,6 +293,7 @@ export const gymSet = pgTable(
     tenantReference('gym_set', t.clubId, t.gymProgramId, gymProgram),
     tenantReferenceIndex('gym_set', t.clubId, t.gymProgramId),
     index('gym_set_player_idx').on(t.clubId, t.playerId, t.performedOn),
+    index('gym_set_voided_by_idx').on(t.voidedBy),
     codeCheck('gym_set_exercise_code_format', t.exerciseCode),
     check('gym_set_set_number', sql`${t.setNumber} >= 1`),
     check('gym_set_reps', sql`${t.reps} is null or ${t.reps} >= 0`),
@@ -281,5 +302,9 @@ export const gymSet = pgTable(
     rangeCheck('gym_set_technique_score', t.techniqueScore, 1, 3),
     check('gym_set_duration', sql`${t.durationS} is null or ${t.durationS} > 0`),
     check('gym_set_has_value', sql`num_nonnulls(${t.reps}, ${t.durationS}) >= 1`),
+    check('gym_set_load_kind', sql`(${t.loadKind} = 'bodyweight') = (${t.loadKg} is null)`),
+    check('gym_set_day_key', sql`${t.dayKey} is null or ${t.gymProgramId} is not null`),
+    check('gym_set_void', sql`(${t.voidedAt} is null) = (${t.voidReason} is null)`),
+    check('gym_set_voided_by', sql`${t.voidedAt} is not null or ${t.voidedBy} is null`),
   ],
 );

@@ -506,8 +506,8 @@ describeWithPostgres('rights of the data subject (Postgres)', (serverUrl) => {
       // A set of another player against it, from before the guard that now refuses it.
       await database.admin.query('alter table gym_set disable trigger gym_set_program_guard');
       await database.admin.query(
-        `insert into gym_set (club_id, player_id, gym_program_id, performed_on, exercise_code, set_number, reps)
-         values ($1, $2, $3, '2026-03-01', 'goblet_squat', 1, 5)`,
+        `insert into gym_set (club_id, player_id, gym_program_id, performed_on, exercise_code, load_kind, set_number, reps)
+         values ($1, $2, $3, '2026-03-01', 'push_up', 'bodyweight', 1, 5)`,
         [clubA, adult, program.rows[0]?.id],
       );
       await database.admin.query('alter table gym_set enable trigger gym_set_program_guard');

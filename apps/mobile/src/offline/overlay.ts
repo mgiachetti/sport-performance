@@ -1,4 +1,5 @@
 import type {
+  GymSet,
   Participation,
   SyncOperationInput,
   TestResult,
@@ -158,6 +159,32 @@ const testResultAddEntries: Overlay<'test_result.add_entries', TestResult> = (
   return added.length === 0 ? row : { ...row, entries: [...row.entries, ...added] };
 };
 
+/**
+ * A set corrected offline (B-607): the values typed, on top of the served
+ * row. The e1RM and the warnings the server derives stay as served until
+ * the pull brings them again (they depend on the stage and the protocol).
+ */
+const gymSetCorrect: Overlay<'gym_set.correct', GymSet> = (row, { body }) => ({
+  ...row,
+  ...(body.reps !== undefined && { reps: body.reps }),
+  ...(body.loadKg !== undefined && { loadKg: body.loadKg }),
+  ...(body.rir !== undefined && { rir: body.rir }),
+  ...(body.techniqueScore !== undefined && { techniqueScore: body.techniqueScore }),
+  ...(body.durationS !== undefined && { durationS: body.durationS }),
+  ...(body.notes !== undefined && { notes: body.notes }),
+});
+
+/** A set voided offline: voided now, with the reason, and no longer counting for the e1RM. */
+const gymSetVoid: Overlay<'gym_set.void', GymSet> = (row, { body }, { enqueuedAt }) =>
+  row.voidedAt !== null
+    ? row
+    : {
+        ...row,
+        voidedAt: new Date(enqueuedAt).toISOString(),
+        voidReason: body.reason,
+        e1rmKg: null,
+      };
+
 type AnyOverlay = (row: unknown, input: unknown, context: OverlayContext) => unknown;
 
 /** The overlay of each edit; operations without one show the row as served. */
@@ -169,6 +196,8 @@ export const OVERLAYS: Partial<Record<SyncOperation, AnyOverlay>> = {
   'test_result.update': testResultUpdate as AnyOverlay,
   'test_result.add_entries': testResultAddEntries as AnyOverlay,
   'test_result.void_entries': testResultVoid as AnyOverlay,
+  'gym_set.correct': gymSetCorrect as AnyOverlay,
+  'gym_set.void': gymSetVoid as AnyOverlay,
 };
 
 export function applyOverlay(

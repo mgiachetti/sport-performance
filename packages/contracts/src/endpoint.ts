@@ -76,6 +76,7 @@ export const API_TAGS = {
   panel:
     'Panel semanal del staff: una lectura agregada de bienestar, carga, maduración, disponibilidad y alertas (B-403).',
   tests: 'Días de test, resultados con sus intentos y series comparables (B-320).',
+  gym: 'Gimnasio: programas por etapa, series (peso × repeticiones × RIR) y e1RM (B-607).',
   references: 'Referencias de primera por métrica, deporte, sexo y alcance (B-321).',
   configuration:
     'Configuración del club: batería de tests, zonas de velocidad, reglas de alerta y módulos activos.',

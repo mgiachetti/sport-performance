@@ -233,6 +233,19 @@ describe('@sport-performance/contracts entry point', () => {
       'listClubDataExports',
       'getClubDataExport',
       'getClubDataExportDownload',
+      'listGymPrograms',
+      'getGymProgram',
+      'createGymProgram',
+      'updateGymProgram',
+      'archiveGymProgram',
+      'restoreGymProgram',
+      'getPlayerGymPrograms',
+      'logGymSets',
+      'correctGymSet',
+      'voidGymSet',
+      'listGymSets',
+      'getGymSet',
+      'getPlayerGymSummary',
     ]);
     expect(contracts.MEMBERSHIP_HEADER).toBe('x-membership-id');
     expect(contracts.SUPPORT_CLUB_HEADER).toBe('x-support-club-id');

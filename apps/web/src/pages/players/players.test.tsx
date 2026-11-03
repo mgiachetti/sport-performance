@@ -311,6 +311,8 @@ function profileHandlers(overrides: FakeHandlers = {}): FakeHandlers {
   return {
     getPlayer: () => player(),
     listPositions: () => fixtures.page([]),
+    getPlayerGymSummary: () => ({ playerId: PLAYER_ID, from: null, to: null, exercises: [] }),
+    listGymSets: () => fixtures.page([]),
     getPlayerDailyMonitoring: () => dailyMonitoring(),
     getPlayerMaturation: () => maturation(),
     getPlayerAvailability: () => availability(),

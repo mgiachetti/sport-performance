@@ -18,6 +18,7 @@ import {
   FIXTURE_STATUSES,
   FIXTURE_VENUES,
   GUARDIAN_RELATIONSHIPS,
+  GYM_LOAD_KINDS,
   FILE_KINDS,
   FILE_STATUSES,
   MATURITY_OFFSET_EQUATIONS,
@@ -89,6 +90,7 @@ function exhaustive<Union extends string>() {
 export const sportEnum = pgEnum('sport', SPORTS);
 export const sexEnum = pgEnum('sex', SEXES);
 export const stageEnum = pgEnum('stage', STAGES);
+export const gymLoadKindEnum = pgEnum('gym_load_kind', GYM_LOAD_KINDS);
 export const membershipRoleEnum = pgEnum('membership_role', MEMBERSHIP_ROLES);
 export const measurementMethodEnum = pgEnum('measurement_method', MEASUREMENT_METHODS);
 export const testResultStatusEnum = pgEnum('test_result_status', TEST_RESULT_STATUSES);
