@@ -25,6 +25,7 @@ Faltaba decidir: a quién apunta un programa, qué forma tiene el plan, qué se 
 - **Ejercicios**: una biblioteca por defecto en el dominio (`GYM_EXERCISE_LIBRARY`: código, tipo de carga y medida; nombres en `packages/i18n`) más ejercicios propios del club dentro del plan, con nombre y tipo de carga. Un catálogo de ejercicios por club en la base queda para cuando haga falta compartirlo entre programas.
 - **Tipo de carga**: `external` (kg), `bodyweight` (cuerpo o palo, sin kg) y `bodyweight_plus` (lastre: se cargan los kg agregados y el total suma la masa corporal).
 - **Reglas de la etapa** (`gymPlanIssues`), por cómo se evalúa la fuerza en la etapa del destino (`strengthAssessmentFor`: la etapa indicada o la de la categoría, y la del jugador en ese día para un programa individual): en `technique_reps` (M13/M14) no hay ejercicios con carga externa ni lastre; en `estimated_rm` (M15/M16) todo ejercicio con carga prescribe un RIR objetivo y nunca menor al mínimo del protocolo del club; en `direct_rm` (M17/M19), libre. La API responde `validation_failed` con la ruta del campo (`body.plan.days[i].exercises[j].targetRir`), y la web la muestra en el campo.
+- **A quién llega un programa de categoría**: a los jugadores de la categoría ese día en la etapa del programa (la fijada por el staff o por maduración, si no la de la categoría). Uno sin `stage` se validó contra la etapa por defecto de la categoría, así que llega solo a quien se evalúa igual (`strengthAssessmentFor` de su etapa = el de la etapa por defecto): un M15 de maduración tardía fijado en `foundation` no recibe el programa con cargas de su categoría ni un M17 fijado en `development` uno al fallo; reciben los de su etapa. La regla es la misma en la lectura, el pull y el registro de series.
 - Se archivan (`archived_at`) en vez de borrarse; sus series se conservan.
 
 ### Series
@@ -57,6 +58,6 @@ Faltaba decidir: a quién apunta un programa, qué forma tiene el plan, qué se 
 ## Consecuencias
 
 - Las reglas de etapa viven en el dominio y se evalúan igual en la API y, como avisos, en las pantallas; un cambio del protocolo del club se aplica al leer.
-- Leer series cuesta cuatro consultas por pedido (etapas, masas, protocolo), sin importar cuántas sean.
+- Leer series cuesta cinco consultas por pedido (etapas, masas, protocolo y la categoría de sus programas), sin importar cuántas sean. Una serie de un programa de categoría se evalúa con la etapa de esa categoría (un jugador en dos ese día).
 - Un programa de categoría deja ver su id en el log a cualquier miembro del club (no su contenido sin la RLS de `gym_program`, que ya lo permitía).
 - Quedan para después: un catálogo de ejercicios por club en la base, plantillas de periodización entre temporadas y la detección de técnica por video o encoders (Fase 2).

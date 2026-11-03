@@ -43,7 +43,13 @@ import {
   updateAtVersion,
   versionMatches,
 } from '../../http/writes.js';
-import { loadPlayer, loadStageSources, stageContext, type PlayerContext } from '../tests/model.js';
+import {
+  loadPlayer,
+  loadStageSources,
+  stageContext,
+  stageContextOn,
+  type PlayerContext,
+} from '../tests/model.js';
 import {
   appliesTo,
   assessmentOf,
@@ -63,6 +69,7 @@ import {
   planOf,
   playerDayOf,
   programAppliesTo,
+  programCategories,
   programValidOn,
   readGymProgram,
   readGymSet,
@@ -577,11 +584,7 @@ export function registerGymRoutes(app: FastifyInstance): void {
             ],
           });
         }
-        const stage = await stageContext(db, clubId, context.id, day, null);
-        const assessment = assessmentOf(stage);
-        if (assessment === null) {
-          throw new HttpError('conflict', 'The player is not in any category that day');
-        }
+        const sources = await loadStageSources(db, clubId, [context.id]);
         const programId = body.gymProgramId ?? null;
         const dayKey = body.dayKey ?? null;
         if (programId !== null) {
@@ -589,7 +592,6 @@ export function registerGymRoutes(app: FastifyInstance): void {
             .select(gymProgramColumns)
             .from(gymProgram)
             .where(and(eq(gymProgram.clubId, clubId), eq(gymProgram.id, programId)));
-          const sources = await loadStageSources(db, clubId, [context.id]);
           const applies =
             row?.archivedAt === null &&
             compareLocalDates(row.validFrom, day) <= 0 &&
@@ -605,6 +607,13 @@ export function registerGymRoutes(app: FastifyInstance): void {
               issues.push(issue(['body', 'dayKey'], 'A day of the program'));
             }
           }
+        }
+        // Against a category program, the stage in that category (a player in two that day).
+        const assessment = assessmentOf(
+          stageContextOn(sources, context.id, day, program?.categoryId ?? null),
+        );
+        if (assessment === null) {
+          throw new HttpError('conflict', 'The player is not in any category that day');
         }
         const specs = fresh.map(({ set, index }) => {
           const base = ['body', 'sets', index];
@@ -702,8 +711,14 @@ export function registerGymRoutes(app: FastifyInstance): void {
           body.techniqueScore === undefined ? current.techniqueScore : body.techniqueScore,
         durationS: body.durationS === undefined ? current.durationS : body.durationS,
       };
+      const programCategory =
+        current.gymProgramId === null
+          ? null
+          : ((await programCategories(db, clubId, [current.gymProgramId])).get(
+              current.gymProgramId,
+            ) ?? null);
       const assessment = assessmentOf(
-        await stageContext(db, clubId, current.playerId, current.performedOn, null),
+        await stageContext(db, clubId, current.playerId, current.performedOn, programCategory),
       );
       if (assessment === null) {
         throw new HttpError('conflict', 'The player is not in any category that day');
@@ -744,12 +759,13 @@ export function registerGymRoutes(app: FastifyInstance): void {
       const current = await readGymSet(db, clubId, params.gymSetId);
       const context = await playerContext(db, clubId, current.playerId);
       await permissions.authorize('gym_set', 'correct', { player: context.facts });
+      // The window holds for a replay too: past it, voiding is the staff's.
+      const by = loggerOf(await permissions.subject());
+      const today = await windowToday(db, clubId, recordedAt);
+      if (!isWithinGymLogWindow(current.performedOn, today, by)) {
+        throw new HttpError('conflict', 'The player voids the sets of the last week only');
+      }
       if (current.voidedAt === null) {
-        const by = loggerOf(await permissions.subject());
-        const today = await windowToday(db, clubId, recordedAt);
-        if (!isWithinGymLogWindow(current.performedOn, today, by)) {
-          throw new HttpError('conflict', 'The player voids the sets of the last week only');
-        }
         await db
           .update(gymSet)
           .set({

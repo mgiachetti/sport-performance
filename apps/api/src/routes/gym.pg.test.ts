@@ -679,4 +679,115 @@ describeWithPostgres('gym (Postgres)', (serverUrl) => {
       expect(m13Items.map((i) => i.data?.name)).toEqual(['Técnica M13']);
     });
   });
+
+  describe('stage by maturation', () => {
+    let lateMaturer: SignedIn;
+    let pLate: string;
+    let pEarlyM17: string;
+    let foundationProgram: ProgramBody;
+    let m17Program: ProgramBody;
+
+    async function pin(playerId: string, stage: string): Promise<void> {
+      await database.admin.query(
+        `insert into player_stage (club_id, player_id, stage, basis, reason, valid_from)
+         values ($1, $2, $3, 'manual', 'pinned', '2020-01-01')`,
+        [clubA, playerId, stage],
+      );
+    }
+
+    beforeAll(async () => {
+      lateMaturer = await signIn(t, 'late15@gym-a.example.com');
+      await createMembership(database.admin, lateMaturer.userId, clubA, 'player');
+      // A late-maturing M15 pinned to `foundation`: assessed by technique, no loads.
+      pLate = await insertPlayer(clubA, categories.m15 ?? '', '2011-09-01', {
+        userId: lateMaturer.userId,
+      });
+      await pin(pLate, 'foundation');
+      // An M17 pinned to `development`: e1RM, never to failure.
+      pEarlyM17 = await insertPlayer(clubA, categories.m17 ?? '', '2009-09-01');
+      await pin(pEarlyM17, 'development');
+
+      const foundation = await send(adminA, 'POST', '/v1/gym-programs', {
+        name: 'Técnica M15 (formación)',
+        categoryId: categories.m15,
+        stage: 'foundation',
+        plan: plan(pushUps),
+        validFrom: '2026-01-01',
+      });
+      expect(foundation.statusCode, foundation.body).toBe(201);
+      foundationProgram = foundation.json<ProgramBody>();
+      const m17 = await send(adminA, 'POST', '/v1/gym-programs', {
+        name: 'Fuerza M17',
+        categoryId: categories.m17,
+        plan: plan(trapBar({ targetRir: 0 })),
+        validFrom: '2026-01-01',
+      });
+      expect(m17.statusCode, m17.body).toBe(201);
+      m17Program = m17.json<ProgramBody>();
+    });
+
+    it("keeps a category's stage-less program from a player pinned to another stage", async () => {
+      const response = await get(lateMaturer, `/v1/players/${pLate}/gym-programs`);
+      expect(response.statusCode, response.body).toBe(200);
+      expect(response.json()).toMatchObject({
+        stage: 'foundation',
+        strengthAssessment: 'technique_reps',
+        programs: [{ id: foundationProgram.id }],
+      });
+      // The M15 program with loads neither lists nor reads for him.
+      const list = await get(lateMaturer, '/v1/gym-programs');
+      expect(list.json<Page<ProgramBody>>().items.map((p) => p.id)).toEqual([foundationProgram.id]);
+      expect((await get(lateMaturer, `/v1/gym-programs/${m15Program.id}`)).statusCode).toBe(404);
+      // Nor can he log against it.
+      const logged = await send(lateMaturer, 'POST', '/v1/gym-sets', {
+        gymProgramId: m15Program.id,
+        dayKey: 'a',
+        sets: [{ exerciseCode: 'push_up', setNumber: 1, reps: 10 }],
+      });
+      expect(logged.statusCode, logged.body).toBe(400);
+      expect(paths(logged)).toContain('body.gymProgramId');
+      // The program of his stage he logs against.
+      const own = await send(lateMaturer, 'POST', '/v1/gym-sets', {
+        gymProgramId: foundationProgram.id,
+        dayKey: 'a',
+        sets: [{ exerciseCode: 'push_up', setNumber: 1, reps: 10 }],
+      });
+      expect(own.statusCode, own.body).toBe(201);
+      // The rest of the category still gets the stage-less program, not the foundation one.
+      const others = await get(player15, `/v1/players/${p15}/gym-programs`);
+      expect(others.json<{ programs: { id: string }[] }>().programs.map((p) => p.id)).toEqual([
+        m15Program.id,
+      ]);
+    });
+
+    it('never prescribes to failure to an M17 pinned to development', async () => {
+      const response = await get(adminA, `/v1/players/${pEarlyM17}/gym-programs`);
+      expect(response.statusCode, response.body).toBe(200);
+      expect(response.json()).toMatchObject({
+        stage: 'development',
+        strengthAssessment: 'estimated_rm',
+        programs: [],
+      });
+      expect(m17Program.stage).toBeNull();
+    });
+
+    it('pulls a pinned player only the programs of their stage', async () => {
+      const deadline = Date.now() + 30_000;
+      for (;;) {
+        const { rows } = await database.admin.query<{ done: boolean }>(
+          `select coalesce(max(txid) < pg_snapshot_xmin(pg_current_snapshot()), true) as done
+             from sync_change`,
+        );
+        if (rows[0]?.done === true) break;
+        if (Date.now() > deadline) throw new Error('the pull horizon did not move');
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      const response = await get(lateMaturer, '/v1/sync/changes?collections=gym_program');
+      expect(response.statusCode, response.body).toBe(200);
+      const programs = response
+        .json<{ items: { op: string; data: { id: string } | null }[] }>()
+        .items.filter((i) => i.op === 'upsert');
+      expect(programs.map((i) => i.data?.id)).toEqual([foundationProgram.id]);
+    });
+  });
 });

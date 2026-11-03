@@ -128,11 +128,26 @@ export function programValidOn(day: LocalDate): SQL {
   return sql`(${gymProgram.validFrom} <= ${day}::date and (${gymProgram.validTo} is null or ${gymProgram.validTo} > ${day}::date))`;
 }
 
+/** A category of the player on a day, and what of its programs reach the player. */
+export interface PlayerCategoryDay {
+  readonly id: CategoryId;
+  /** The player's stage in the category that day (pinned, else the category's default). */
+  readonly stage: Stage;
+  /**
+   * Whether the category's programs without a stage reach the player: they
+   * were validated against the category's default stage (ADR 0073), so they
+   * reach only a player whose strength assessment in the category is the
+   * same (a late or early maturer pinned to another stage gets the programs
+   * of their own stage).
+   */
+  readonly stageLessApplies: boolean;
+}
+
 /** What decides which category programs apply to a player on a day. */
 export interface PlayerDay {
   readonly playerId: PlayerId;
-  /** Categories of the player that day. */
-  readonly categoryIds: readonly CategoryId[];
+  /** Categories of the player that day, with the player's stage in each. */
+  readonly categories: readonly PlayerCategoryDay[];
   /** Stage of the player that day (pinned or by maturation, else the category's). */
   readonly stage: Stage | null;
 }
@@ -142,28 +157,39 @@ export function playerDayOf(sources: StageSources, playerId: PlayerId, on: Local
   const validOn = (row: { validFrom: LocalDate; validTo: LocalDate | null }) =>
     compareLocalDates(row.validFrom, on) <= 0 &&
     (row.validTo === null || compareLocalDates(row.validTo, on) > 0);
-  const categoryIds = sources.categories
+  const pinned = sources.stages.find((s) => s.playerId === playerId && validOn(s));
+  const categories = sources.categories
     .filter((c) => c.playerId === playerId && validOn(c))
-    .map((c) => c.id);
+    .map((c): PlayerCategoryDay => {
+      const stage = pinned?.stage ?? c.defaultStage;
+      return {
+        id: c.id,
+        stage,
+        stageLessApplies: categoryAssessment(c, stage) === categoryAssessment(c, null),
+      };
+    });
   return {
     playerId,
-    categoryIds,
+    categories,
     stage: stageContextOn(sources, playerId, on, null)?.stage ?? null,
   };
 }
 
-/** Programs that apply to the player that day: their own, or of their category (and stage). */
+/**
+ * Programs that apply to the player that day: their own, or of one of their
+ * categories at the player's stage in it (one without a stage only when the
+ * player is assessed as at the category's default stage).
+ */
 export function appliesTo(day: PlayerDay): SQL {
-  const ofCategory =
-    day.categoryIds.length === 0
-      ? sql`false`
-      : and(
-          inArray(gymProgram.categoryId, [...day.categoryIds]),
-          day.stage === null
-            ? isNull(gymProgram.stage)
-            : or(isNull(gymProgram.stage), eq(gymProgram.stage, day.stage)),
-        );
-  return or(eq(gymProgram.playerId, day.playerId), ofCategory) ?? sql`false`;
+  const ofCategories = day.categories.map((c) =>
+    and(
+      eq(gymProgram.categoryId, c.id),
+      c.stageLessApplies
+        ? or(isNull(gymProgram.stage), eq(gymProgram.stage, c.stage))
+        : eq(gymProgram.stage, c.stage),
+    ),
+  );
+  return or(eq(gymProgram.playerId, day.playerId), ...ofCategories) ?? sql`false`;
 }
 
 /** Whether a program row applies to the player that day (same rule as {@link appliesTo}). */
@@ -172,8 +198,24 @@ export function programAppliesTo(
   day: PlayerDay,
 ): boolean {
   if (row.playerId !== null) return row.playerId === day.playerId;
-  if (row.categoryId === null || !day.categoryIds.includes(row.categoryId)) return false;
-  return row.stage === null || row.stage === day.stage;
+  const category = day.categories.find((c) => c.id === row.categoryId);
+  if (category === undefined) return false;
+  return row.stage === null ? category.stageLessApplies : row.stage === category.stage;
+}
+
+/** The category of each program (`null` for a player's own), for the stage of its sets. */
+export async function programCategories(
+  db: TenantDatabase,
+  clubId: ClubId,
+  programIds: readonly string[],
+): Promise<ReadonlyMap<string, CategoryId | null>> {
+  const ids = [...new Set(programIds)];
+  if (ids.length === 0) return new Map();
+  const rows = await db
+    .select({ id: gymProgram.id, categoryId: gymProgram.categoryId })
+    .from(gymProgram)
+    .where(and(eq(gymProgram.clubId, clubId), inArray(gymProgram.id, ids)));
+  return new Map(rows.map((row) => [row.id, row.categoryId]));
 }
 
 /** Programs of the assigned categories or sports, or of the assigned players. */
@@ -344,7 +386,7 @@ export function storedSpec(row: Pick<GymSetRow, 'loadKind' | 'durationS'>): GymE
  * The sets as the contract renders them, with what the server derives: the
  * strength assessment of the player that day, the e1RM (Epley with RIR,
  * the club's protocol, body mass for an added load) and the warnings. A
- * voided set keeps its values but gives no e1RM. Four queries for any
+ * voided set keeps its values but gives no e1RM. Five queries for any
  * number of sets.
  */
 export async function gymSetDtos(
@@ -354,13 +396,20 @@ export async function gymSetDtos(
 ): Promise<GymSet[]> {
   if (rows.length === 0) return [];
   const players = [...new Set(rows.map((row) => row.playerId))];
-  const [sources, bodyMass, protocols] = [
+  const [sources, bodyMass, protocols, categoryOf] = [
     await loadStageSources(db, clubId, players),
     await loadBodyMasses(db, clubId, players),
     await loadE1rmProtocols(db, clubId),
+    await programCategories(
+      db,
+      clubId,
+      rows.flatMap((row) => (row.gymProgramId === null ? [] : [row.gymProgramId])),
+    ),
   ];
   return rows.map((row) => {
-    const context = stageContextOn(sources, row.playerId, row.performedOn, null);
+    // Logged against a category program: the stage in that category (a player in two).
+    const preferred = row.gymProgramId === null ? null : (categoryOf.get(row.gymProgramId) ?? null);
+    const context = stageContextOn(sources, row.playerId, row.performedOn, preferred);
     const assessment = assessmentOf(context);
     const spec = storedSpec(row);
     const protocol = protocols(context?.sport ?? null, row.performedOn);

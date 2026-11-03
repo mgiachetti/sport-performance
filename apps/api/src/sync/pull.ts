@@ -188,7 +188,10 @@ export async function pullFingerprint(
           const today = await clubToday(db);
           return programScope.playerIds.map((id) => {
             const day = playerDayOf(sources, id, today);
-            return [id, [...day.categoryIds].sort(), day.stage];
+            const categories = day.categories
+              .map((c) => [c.id, c.stage, c.stageLessApplies] as const)
+              .sort(([a], [b]) => (a < b ? -1 : 1));
+            return [id, categories, day.stage];
           });
         })()
       : null;
