@@ -22,7 +22,7 @@ export function lastSyncedText(lastSyncedAt: number | null, nowMs: number, { t }
 }
 
 /**
- * What the sync indicator says (ADR 0065), most important first: a pause,
+ * What the sync indicator says (ADR 0069), most important first: a pause,
  * no signal or a failing server, then what waits to be sent and what could
  * not be applied. Always text with the level's icon, never color alone.
  */

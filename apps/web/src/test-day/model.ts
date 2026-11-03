@@ -8,6 +8,7 @@ import type {
 } from '@sport-performance/contracts';
 import {
   DomainValidationError,
+  TEST_NOT_DONE_REASONS,
   UNIT_CODES,
   aggregateAttempts,
   canonicalMetricCode,
@@ -53,6 +54,28 @@ export type NotDoneReasonView = TestNotDoneReason | 'unavailable';
  */
 export function notDoneReasonView(reason: NotDoneReasonView, viewer: Role): NotDoneReasonView {
   return reason === 'unavailable' ? reason : notDoneReasonForViewer(reason, viewer);
+}
+
+/** One option of the not-done reason of a row: what is sent and how the viewer reads it. */
+export interface NotDoneReasonOption {
+  readonly reason: TestNotDoneReason;
+  readonly view: NotDoneReasonView;
+}
+
+/**
+ * The not-done reasons a row offers, in order, with the label the viewer
+ * reads (`notDoneReasonView`): a player outside the battery of their stage
+ * only takes `not_applicable_to_stage`; otherwise every reason, `injured`
+ * labelled «No disponible» for all but medical (and still sent as `injured`).
+ */
+export function notDoneReasonOptions(
+  applicable: boolean,
+  viewer: Role,
+): readonly NotDoneReasonOption[] {
+  const reasons: readonly TestNotDoneReason[] = applicable
+    ? TEST_NOT_DONE_REASONS
+    : ['not_applicable_to_stage'];
+  return reasons.map((reason) => ({ reason, view: notDoneReasonView(reason, viewer) }));
 }
 
 // ─── Entry modes and fields ──────────────────────────────────────────────────────────
@@ -519,7 +542,9 @@ export function buildRow(
   const definitionId = station.definition.id;
   if (draft.status === 'not_done') {
     if (draft.reason === null) return { kind: 'problems', problems: [{ kind: 'reason' }] };
-    const note = draft.note.trim();
+    // The note is only typed (and shown) for «Otro motivo»: one left in the
+    // draft after switching to another reason is hidden, so it is never sent.
+    const note = draft.reason === 'other' ? draft.note.trim() : '';
     if (draft.reason === 'other' && note === '')
       return { kind: 'problems', problems: [{ kind: 'note' }] };
     return {

@@ -4,7 +4,7 @@ import * as SQLite from 'expo-sqlite';
 import { openLocalDatabase, type LocalDatabase } from '../offline/db/database.ts';
 import type { SqlDriver, SqlValue } from '../offline/db/driver.ts';
 
-/** The one database file of the installation (ADR 0065). */
+/** The one database file of the installation (ADR 0069). */
 export const LOCAL_DATABASE_NAME = 'sport-performance.db';
 /** Keychain / Keystore item with the SQLCipher key of the file. */
 const DATABASE_KEY_ITEM = 'localDatabaseKey';

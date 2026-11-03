@@ -7,7 +7,7 @@ function scopeOf(state: SessionState): SyncScopeRef | null {
 }
 
 /**
- * Keeps the engine on the membership the app acts in (ADR 0065):
+ * Keeps the engine on the membership the app acts in (ADR 0069):
  * - signed in with a club: that membership (another user than the one whose
  *   data the device holds wipes it first, `SyncEngine.setScope`);
  * - choosing a club, or signed out: nothing syncs;

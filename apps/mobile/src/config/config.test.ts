@@ -191,7 +191,7 @@ describe('buildExpoConfig', () => {
     ]);
   });
 
-  it('encrypts the local database and registers the background sync (ADR 0065)', () => {
+  it('encrypts the local database and registers the background sync (ADR 0069)', () => {
     const config = buildExpoConfig(productionEnv);
     expect(config.plugins).toContainEqual(['expo-sqlite', { useSQLCipher: true }]);
     expect(config.plugins).toContain('expo-background-task');

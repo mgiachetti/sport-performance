@@ -7,7 +7,7 @@ function usable(state: Network.NetworkState): boolean {
   return state.isConnected === true && state.isInternetReachable !== false;
 }
 
-/** The app state and the network of the phone, as the sync triggers read them (ADR 0065). */
+/** The app state and the network of the phone, as the sync triggers read them (ADR 0069). */
 export const nativeSyncTriggerSources: SyncTriggerSources = {
   onAppActive(listener) {
     const subscription = AppState.addEventListener('change', (state) => {

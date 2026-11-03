@@ -35,7 +35,7 @@ export interface Platform {
     readonly reportError: (error: unknown) => void;
   }) => SignalPlayer;
   readonly fetch?: FetchLike;
-  /** The local database (ADR 0065): encrypted SQLite on the phone, `node:sqlite` in tests. */
+  /** The local database (ADR 0069): encrypted SQLite on the phone, `node:sqlite` in tests. */
   readonly openLocalDatabase: () => Promise<LocalDatabase>;
 }
 

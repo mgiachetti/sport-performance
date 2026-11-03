@@ -7,7 +7,6 @@ import {
   type TestResult,
 } from '@sport-performance/contracts';
 import {
-  TEST_NOT_DONE_REASONS,
   UNIT_CODES,
   isWellFormedCode,
   type MeasurementMethod,
@@ -39,6 +38,7 @@ import {
   fieldsOf,
   isDirty,
   issuesByPlayer,
+  notDoneReasonOptions,
   notDoneReasonView,
   nextAttemptNumber,
   previewRow,
@@ -102,8 +102,6 @@ function isUnit(unit: string): unit is UnitCode {
 function formatValue(value: number, unit: string): string {
   return isUnit(unit) ? formatUnit(value, unit) : formatNumber(value);
 }
-
-const NOT_DONE_REASONS = TEST_NOT_DONE_REASONS;
 
 /**
  * One station of the day: its protocol and settings (how it is entered, the
@@ -825,9 +823,7 @@ function StateCell(props: {
   const t = useT();
   const { role } = useActiveClub();
   const { draft, name } = props;
-  const reasons: readonly TestNotDoneReason[] = props.applicable
-    ? NOT_DONE_REASONS
-    : ['not_applicable_to_stage'];
+  const reasons = notDoneReasonOptions(props.applicable, role);
   return (
     <div className="sp-td-state">
       <select
@@ -856,9 +852,9 @@ function StateCell(props: {
             }}
           >
             {props.applicable ? <option value="">{t('testDay.reason.choose')}</option> : null}
-            {reasons.map((reason) => (
+            {reasons.map(({ reason, view }) => (
               <option key={reason} value={reason}>
-                {t(`testDay.reason.${notDoneReasonView(reason, role)}`)}
+                {t(`testDay.reason.${view}`)}
               </option>
             ))}
           </select>

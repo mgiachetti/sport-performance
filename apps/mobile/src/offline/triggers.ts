@@ -13,7 +13,7 @@ export interface SyncTriggerSources {
 }
 
 /**
- * When the engine syncs on its own (ADR 0065), besides right after a write:
+ * When the engine syncs on its own (ADR 0069), besides right after a write:
  * on coming to the foreground and on getting the connection back (both
  * "now": they skip a backoff and resume a pause), and every few minutes
  * while in the foreground (a plain request: it never skips a backoff). The

@@ -40,7 +40,7 @@ if (sentry !== null) Sentry.init(sentry);
 const services = createAppServices(nativePlatform(config, build));
 void services.session.start();
 void services.versionGate.check();
-// Offline sync (B-502, ADR 0065): foreground, network back, every few minutes,
+// Offline sync (B-502, ADR 0069): foreground, network back, every few minutes,
 // and a periodic background task; writes ask for a sync on their own.
 startSyncTriggers(services.sync, nativeSyncTriggerSources);
 setBackgroundSyncRunner(() => runBackgroundSync(services));
