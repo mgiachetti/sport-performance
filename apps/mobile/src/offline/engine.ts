@@ -8,6 +8,7 @@ import {
   type SyncMutationResult,
   type SyncOperationInput,
   type SyncOperationRequest,
+  type ValidationIssue,
 } from '@sport-performance/contracts';
 import {
   SYNC_PULL_LIMIT_MAX,
@@ -190,20 +191,34 @@ function isTransient(error: ApiError): boolean {
 }
 
 /**
+ * The issues all point at the body of the request (`['body', ...]`, as the
+ * API and the client contract locate them by part). Without issues, or with
+ * one on the headers (`['headers', ...]`: the client headers of the app,
+ * ADR 0045), params or query, the refusal is not about the mutations.
+ */
+function pointsAtBody(issues: readonly ValidationIssue[]): boolean {
+  return issues.length > 0 && issues.every((issue) => issue.path[0] === 'body');
+}
+
+/**
  * The server refused a whole push because of what it carries: the envelope
- * of a mutation it no longer accepts (`400 validation_failed`, or the client
- * contract refusing the request), a conflict (`409 conflict`) or a body too
- * big (`413`). Only these send the batch one mutation at a time and reject
- * the one refused alone. Anything else (`404`, `405`, `410`, `431`, a `400`
- * without the validation code, a proxy page) says nothing about the
- * mutations: a misconfigured deploy, proxy or route. Rejecting on those
- * would empty the queue of a day of work, so the queue stays and the cycle
- * backs off like a failing server (ADR 0069).
+ * of a mutation it no longer accepts (`400 validation_failed` with every
+ * issue in the body, or the client contract refusing the body), a conflict
+ * (`409 conflict`) or a body too big (`413`). Only these send the batch one
+ * mutation at a time and reject the one refused alone. Anything else (`404`,
+ * `405`, `410`, `431`, a `400` without the validation code or with an issue
+ * outside the body, such as malformed client headers, a proxy page) says
+ * nothing about the mutations: a misconfigured deploy, proxy, route or
+ * client. Rejecting on those would empty the queue of a day of work, so the
+ * queue stays and the cycle backs off like a failing server (ADR 0069).
  */
 export function refusesMutations(error: unknown): boolean {
-  if (error instanceof ApiContractError) return error.side === 'request';
+  if (error instanceof ApiContractError) {
+    return error.side === 'request' && pointsAtBody(error.issues);
+  }
   if (!(error instanceof ApiError)) return false;
-  if (error.status === 400) return error.code === 'validation_failed';
+  if (error.status === 400)
+    return error.code === 'validation_failed' && pointsAtBody(error.details);
   if (error.status === 409) return error.code === 'conflict';
   return error.status === 413;
 }

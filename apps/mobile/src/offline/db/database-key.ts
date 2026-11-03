@@ -127,7 +127,8 @@ function parseLoss(value: string | null): LossRecord | null {
  *   launches over `DATABASE_KEY_LOSS_MIN_MS`; only then is it given up as
  *   lost (restored on another phone): deleted and created with a new key.
  *
- * The decisions are reported (never with data) so they show in Sentry.
+ * The decisions are reported (never with data) so they show in Sentry; a
+ * key unavailable, once per launch.
  */
 export function createEncryptedDatabaseOpener(options: OpenEncryptedDatabaseOptions) {
   const { keys, file, lossLog, reportError } = options;
@@ -135,6 +136,20 @@ export function createEncryptedDatabaseOpener(options: OpenEncryptedDatabaseOpti
   const sleep = options.sleep ?? defaultSleep;
   /** One count per launch: retries within it are the same observation. */
   let lossCountedThisLaunch = false;
+  /**
+   * `LocalDatabaseKeyUnavailableError` is reported once per launch: a later
+   * access opens again every few seconds (`reopeningLocalDatabase`) and would
+   * report the same state each time.
+   */
+  let unavailableReported = false;
+
+  function unavailable(error: LocalDatabaseKeyUnavailableError): LocalDatabaseKeyUnavailableError {
+    if (!unavailableReported) {
+      unavailableReported = true;
+      reportError(error);
+    }
+    return error;
+  }
 
   async function readKey(): Promise<KeyRead> {
     let last: KeyRead = { kind: 'missing' };
@@ -195,18 +210,14 @@ export function createEncryptedDatabaseOpener(options: OpenEncryptedDatabaseOpti
       return openWithKey(read.key);
     }
     if (read.kind === 'unreadable') {
-      const error = new LocalDatabaseKeyUnavailableError('unreadable', { cause: read.error });
-      reportError(error);
-      throw error;
+      throw unavailable(new LocalDatabaseKeyUnavailableError('unreadable', { cause: read.error }));
     }
     if (!(await file.exists())) {
       await lossLog.clear();
       return file.open(await createKey());
     }
     if (!(await recordLoss())) {
-      const error = new LocalDatabaseKeyUnavailableError('missing');
-      reportError(error);
-      throw error;
+      throw unavailable(new LocalDatabaseKeyUnavailableError('missing'));
     }
     reportError(new LocalDatabaseKeyLostError());
     await file.remove();

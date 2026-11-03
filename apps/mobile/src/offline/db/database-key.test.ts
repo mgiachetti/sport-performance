@@ -171,6 +171,22 @@ describe('the key of the local database', () => {
     expect(device.events).toEqual(['open']);
   });
 
+  it('reports an unavailable key once per launch, however often it is opened again', async () => {
+    const device = phone();
+    device.loseKey();
+    const open = device.launch();
+    for (let i = 0; i < 4; i += 1) {
+      await expect(open()).rejects.toBeInstanceOf(LocalDatabaseKeyUnavailableError);
+    }
+    device.reads.push(new Error('locked'), new Error('locked'), new Error('locked'));
+    await expect(open()).rejects.toBeInstanceOf(LocalDatabaseKeyUnavailableError);
+    expect(device.errors).toHaveLength(1);
+    expect(device.errors[0]).toBeInstanceOf(LocalDatabaseKeyUnavailableError);
+    // The next launch reports it again.
+    await expect(device.launch()()).rejects.toBeInstanceOf(LocalDatabaseKeyUnavailableError);
+    expect(device.errors).toHaveLength(2);
+  });
+
   it('creates the file again when it does not open with its own key', async () => {
     const device = phone();
     // Written by a newer build that an update rolled back, or damaged.

@@ -1,7 +1,7 @@
 import { createApiClient } from '@sport-performance/contracts';
 import { compareHlc, formatHlc, serverHlc } from '@sport-performance/domain';
 import { afterEach, describe, expect, it } from 'vitest';
-import { apiError, createFakeApi } from '../test/fake-api.ts';
+import { apiError, createFakeApi, validationFailed } from '../test/fake-api.ts';
 import {
   PLAYER_ID,
   SESSION_ID,
@@ -328,6 +328,54 @@ describe('push', () => {
     expect(errors).toHaveLength(1);
   });
 
+  it.each([
+    ['malformed client headers', validationFailed(['headers', 'x-client-version'])],
+    [
+      'issues on the headers and the body',
+      validationFailed(['headers', 'x-client-platform'], ['body', 'mutations', 0]),
+    ],
+    ['a validation refusal that says where nothing is', apiError(400, 'validation_failed')],
+  ])('keeps the whole queue on a 400 validation_failed for %s', async (_, failure) => {
+    const { engine, server, errors } = await setup();
+    const queued = [];
+    for (let i = 0; i < 3; i += 1) {
+      queued.push(await engine.enqueue('wellness.submit', submitWellness()));
+    }
+    // Every push gets it, as when the client headers drift: no mutation is to blame.
+    server.failPush(failure, failure, failure, failure);
+    expect(await engine.syncNow()).toEqual({ status: 'failed', phase: 'failing' });
+    expect(server.pushes).toHaveLength(1);
+    expect(await engine.issues()).toEqual([]);
+    const pending = await engine.store.pending(SCOPE.membershipId);
+    expect(pending.map((m) => [m.mutationId, m.state, m.attempts])).toEqual(
+      queued.map((m) => [m.mutationId, 'pending', 1]),
+    );
+    expect(engine.getStatus()).toMatchObject({ phase: 'failing', pendingCount: 3, issueCount: 0 });
+    expect(engine.getStatus().nextAttemptAt).not.toBeNull();
+    expect(errors).toHaveLength(1);
+  });
+
+  it('rejects only the culprit of a 400 validation_failed located in the body', async () => {
+    const { engine, server, errors } = await setup();
+    const good = await engine.enqueue('wellness.submit', submitWellness());
+    const bad = await engine.enqueue('wellness.submit', submitWellness());
+    const after = await engine.enqueue('wellness.submit', submitWellness());
+    // The whole push and the culprit alone: `400` with the issue at `['body', 'mutations', i, ...]`.
+    server.refuseWhole((m) => m.mutationId === bad.mutationId);
+    expect(await engine.syncNow()).toMatchObject({ status: 'synced' });
+    expect(server.pushes.map((batch) => batch.map((m) => m.mutationId))).toEqual([
+      [good.mutationId, bad.mutationId, after.mutationId],
+      [good.mutationId],
+      [bad.mutationId],
+      [after.mutationId],
+    ]);
+    expect(await engine.issues()).toEqual([
+      expect.objectContaining({ mutationId: bad.mutationId, errorCode: 'validation_failed' }),
+    ]);
+    expect(engine.getStatus().pendingCount).toBe(0);
+    expect(errors).toEqual([]);
+  });
+
   it('keeps the rest of the queue when the one-by-one resend meets a misconfigured server', async () => {
     const { engine, server, errors } = await setup();
     const bad = await engine.enqueue('wellness.submit', submitWellness());
@@ -336,8 +384,8 @@ describe('push', () => {
     server.refuseWhole((m) => m.mutationId === bad.mutationId);
     // The batch and the culprit alone get the validation refusal; then the route vanishes.
     server.failPush(
-      apiError(400, 'validation_failed'),
-      apiError(400, 'validation_failed'),
+      validationFailed(['body', 'mutations', 0, 'body']),
+      validationFailed(['body', 'mutations', 0, 'body']),
       apiError(404, 'not_found'),
     );
     expect(await engine.syncNow()).toEqual({ status: 'failed', phase: 'failing' });
