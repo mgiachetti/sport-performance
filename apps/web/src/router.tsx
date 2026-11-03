@@ -8,6 +8,8 @@ import {
 } from '@tanstack/react-router';
 import { isSessionExpired } from './api/errors';
 import { ensureQuery, meQuery } from './api/queries';
+import { CalendarPage } from './calendar/CalendarPage';
+import { parseCalendarSearch } from './calendar/model';
 import type { AppServices } from './app/services';
 import { ensureClubSelection, loadActiveClub } from './club/load';
 import { FieldSessionPage } from './field-sessions/FieldSessionPage';
@@ -52,7 +54,8 @@ export interface RouterContext {
  *         ├── /players        roster of what the user sees (B-404)
  *         ├── /players/$id    profile of a player (B-404)
  *         ├── /sessions       training sessions and matches (B-407): list, new, one
- *         └── /field-sessions sessions with field data (?kind) and /$trainingSessionId (B-408)
+ *         ├── /field-sessions sessions with field data (?kind) and /$trainingSessionId (B-408)
+ *         └── /calendar       season calendar (B-406): windows, test days, fixture
  * ```
  *
  * A new screen is a child of `_club` (it inherits session, club, theme and
@@ -204,6 +207,13 @@ export const fieldSessionRoute = createRoute({
   component: FieldSessionPage,
 });
 
+export const calendarRoute = createRoute({
+  getParentRoute: () => clubRoute,
+  path: '/calendar',
+  validateSearch: parseCalendarSearch,
+  component: CalendarPage,
+});
+
 export const routeTree = rootRoute.addChildren([
   loginRoute,
   authedRoute.addChildren([
@@ -216,6 +226,7 @@ export const routeTree = rootRoute.addChildren([
       playerProfileRoute,
       sessionsRoute.addChildren([sessionsIndexRoute, newSessionRoute, sessionDetailRoute]),
       fieldSessionsRoute.addChildren([fieldSessionsIndexRoute, fieldSessionRoute]),
+      calendarRoute,
     ]),
   ]),
 ]);

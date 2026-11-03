@@ -1,0 +1,303 @@
+/*
+ * Season calendar (B-406): toolbar, month grid, list, editors and seasons.
+ * Only `--sp-*` tokens, like `styles/app.css`. The first block holds the
+ * shared screen pieces the calendar uses (inline status, tables, form rows
+ * and actions); they are the same rules other screens declare, so loading
+ * both is harmless.
+ */
+
+.sp-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-space-xs);
+  font-size: var(--sp-text-body-small-size);
+}
+.sp-status--ok svg {
+  color: var(--sp-color-status-ok-fg);
+}
+.sp-status--warning svg {
+  color: var(--sp-color-status-warning-fg);
+}
+.sp-status--critical svg {
+  color: var(--sp-color-status-critical-fg);
+}
+.sp-table-wrap {
+  margin-top: var(--sp-space-md);
+  overflow-x: auto;
+}
+.sp-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.sp-table th,
+.sp-table td {
+  padding: var(--sp-space-sm) var(--sp-space-md);
+  border-bottom: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+  text-align: left;
+  vertical-align: middle;
+}
+.sp-table thead th {
+  color: var(--sp-color-text-secondary);
+  font-size: var(--sp-text-body-small-size);
+  font-weight: var(--sp-text-body-strong-weight);
+  white-space: nowrap;
+}
+.sp-form__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--sp-space-md);
+}
+.sp-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-space-sm);
+}
+.sp-field__textarea {
+  min-height: 5rem;
+  padding: var(--sp-space-sm) var(--sp-space-md);
+  resize: vertical;
+}
+
+/* Toolbar */
+.sp-cal__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-space-md);
+  margin-top: var(--sp-space-lg);
+}
+.sp-cal__month-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-sm);
+}
+.sp-cal__month {
+  min-width: 12rem;
+  font-size: var(--sp-text-heading-size);
+  text-align: center;
+  text-transform: capitalize;
+}
+.sp-cal__views {
+  display: flex;
+  gap: var(--sp-space-xs);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.sp-cal__view-option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-space-xs);
+  min-height: var(--sp-size-touch-target);
+  padding: 0 var(--sp-space-md);
+  border: var(--sp-border-width-hairline) solid var(--sp-color-border-strong);
+  border-radius: var(--sp-radius-pill);
+  cursor: pointer;
+}
+.sp-cal__view-option:has(input:checked) {
+  border-color: var(--sp-color-brand-accent);
+  background: var(--sp-color-brand-subtle);
+  font-weight: var(--sp-text-body-strong-weight);
+}
+.sp-cal__view-option:has(input:focus-visible) {
+  outline: var(--sp-focus-ring-width) solid var(--sp-color-focus);
+  outline-offset: var(--sp-focus-ring-offset);
+}
+.sp-cal__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-space-lg);
+  margin: var(--sp-space-md) 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--sp-color-text-secondary);
+  font-size: var(--sp-text-body-small-size);
+}
+.sp-cal__legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-space-xs);
+}
+.sp-cal__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-space-xs);
+  min-height: var(--sp-size-touch-target);
+}
+
+/* Month grid */
+.sp-cal__grid-wrap {
+  margin-top: var(--sp-space-lg);
+  overflow-x: auto;
+}
+.sp-cal__grid {
+  width: 100%;
+  min-width: 48rem;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.sp-cal__grid th {
+  padding: var(--sp-space-xs);
+  color: var(--sp-color-text-secondary);
+  font-size: var(--sp-text-body-small-size);
+  text-transform: capitalize;
+}
+.sp-cal__grid abbr {
+  text-decoration: none;
+}
+.sp-cal__day {
+  height: 7rem;
+  padding: var(--sp-space-xs);
+  border: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+  background: var(--sp-color-surface);
+  vertical-align: top;
+}
+.sp-cal__day--outside {
+  background: var(--sp-color-background);
+  color: var(--sp-color-text-secondary);
+}
+.sp-cal__day--window {
+  box-shadow: inset 0 var(--sp-border-width-thick) 0 var(--sp-color-brand-accent);
+}
+.sp-cal__day--today {
+  outline: var(--sp-border-width-thick) solid var(--sp-color-brand-accent);
+  outline-offset: calc(-1 * var(--sp-border-width-thick));
+}
+.sp-cal__day-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-xs);
+}
+.sp-cal__day-number {
+  font-family: var(--sp-text-metric-small-family);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--sp-text-metric-small-weight);
+}
+.sp-cal__today {
+  padding: 0 var(--sp-space-xs);
+  border-radius: var(--sp-radius-pill);
+  background: var(--sp-color-brand-solid);
+  color: var(--sp-color-brand-on-solid);
+  font-size: var(--sp-text-caption-size);
+  font-weight: var(--sp-text-body-strong-weight);
+}
+.sp-cal__window {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-xxs);
+  margin-top: var(--sp-space-xxs);
+  color: var(--sp-color-brand-accent);
+  font-size: var(--sp-text-caption-size);
+  font-weight: var(--sp-text-body-strong-weight);
+}
+.sp-cal__events {
+  display: grid;
+  gap: var(--sp-space-xxs);
+  margin: var(--sp-space-xs) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.sp-cal__event {
+  width: 100%;
+  padding: var(--sp-space-xxs) var(--sp-space-xs);
+  border: var(--sp-border-width-hairline) solid var(--sp-color-border-strong);
+  border-radius: var(--sp-radius-md);
+  background: var(--sp-color-surface-raised);
+  color: var(--sp-color-text-primary);
+  font: inherit;
+  font-size: var(--sp-text-body-small-size);
+  text-align: left;
+  cursor: pointer;
+}
+.sp-cal__event:hover {
+  border-color: var(--sp-color-brand-accent);
+}
+.sp-cal__event-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-space-xxs) var(--sp-space-xs);
+}
+.sp-cal__event-main {
+  overflow-wrap: anywhere;
+}
+
+/* List */
+.sp-cal__agenda {
+  display: grid;
+  gap: var(--sp-space-lg);
+  margin-top: var(--sp-space-lg);
+}
+.sp-cal__agenda-title {
+  font-size: var(--sp-text-heading-size);
+}
+.sp-cal__agenda-list {
+  display: grid;
+  gap: var(--sp-space-md);
+  margin: var(--sp-space-sm) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.sp-cal__agenda-window {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-sm);
+}
+.sp-cal__agenda-day {
+  padding-bottom: var(--sp-space-md);
+  border-bottom: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+}
+.sp-cal__agenda-date {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-sm);
+  font-size: var(--sp-text-body-size);
+  text-transform: capitalize;
+}
+.sp-cal__agenda-meta {
+  color: var(--sp-color-brand-accent);
+  font-size: var(--sp-text-body-small-size);
+}
+.sp-cal__agenda .sp-cal__event {
+  max-width: 40rem;
+  font-size: var(--sp-text-body-size);
+}
+
+/* Editors and seasons */
+.sp-cal__editor {
+  border-color: var(--sp-color-brand-accent);
+}
+.sp-cal__editor-head,
+.sp-cal__section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-space-md);
+}
+.sp-cal__details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--sp-space-xs) var(--sp-space-lg);
+  margin: 0;
+}
+.sp-cal__details dt {
+  color: var(--sp-color-text-secondary);
+}
+.sp-cal__details dd {
+  margin: 0;
+}
+.sp-cal__season {
+  margin-top: var(--sp-space-lg);
+  padding-top: var(--sp-space-lg);
+  border-top: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+}
+.sp-cal__season-name {
+  font-size: var(--sp-text-heading-size);
+}
+.sp-cal__problems {
+  margin: 0;
+  padding-left: var(--sp-space-lg);
+}

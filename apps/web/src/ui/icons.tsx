@@ -24,7 +24,11 @@ export type IconName =
   | 'arrowUp'
   | 'arrowDown'
   | 'trash'
-  | 'field';
+  | 'field'
+  | 'stopwatch'
+  | 'flag'
+  | 'chevronLeft'
+  | 'chevronRight';
 
 const PATHS: Record<IconName, readonly string[]> = {
   ok: ['M20 6 9 17l-5-5'],
@@ -51,6 +55,10 @@ const PATHS: Record<IconName, readonly string[]> = {
   arrowDown: ['M12 5v14', 'm19 12-7 7-7-7'],
   trash: ['M3 6h18', 'M8 6V4h8v2', 'M6 6l1 15h10l1-15'],
   field: ['M3 17l5-6 4 3 4-7 5 5', 'M3 21h18'],
+  stopwatch: ['M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z', 'M12 13V9', 'M9 2h6'],
+  flag: ['M5 21V4', 'M5 4h11l-2 4 2 4H5'],
+  chevronLeft: ['m15 18-6-6 6-6'],
+  chevronRight: ['m9 18 6-6-6-6'],
 };
 
 export function Icon({

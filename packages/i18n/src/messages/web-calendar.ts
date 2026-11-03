@@ -1,0 +1,202 @@
+/**
+ * Messages of the season calendar of the staff web (B-406): month grid and list, seasons and
+ * their testing windows V1–V4, scheduled test days and the fixture. Merged into the `es-AR` source
+ * catalog; same rules as `es-AR.ts`. Every key starts with `calendar.`.
+ */
+export const webCalendarMessagesEsAR = {
+  'calendar.nav': 'Calendario',
+  'calendar.title': 'Calendario de temporada',
+  'calendar.subtitle.category': 'Ventanas de tests, días de test y partidos de {category}.',
+  'calendar.subtitle.sport': 'Ventanas de tests, días de test y partidos de {sport}.',
+  'calendar.subtitle.all': 'Ventanas de tests, días de test y partidos de todo lo que ves.',
+
+  // Toolbar
+  'calendar.toolbar.label': 'Mes y vista',
+  'calendar.month.previous': 'Mes anterior',
+  'calendar.month.next': 'Mes siguiente',
+  'calendar.month.current': 'Este mes',
+  'calendar.view.label': 'Vista',
+  'calendar.view.month': 'Mes',
+  'calendar.view.list': 'Lista',
+  'calendar.legend.label': 'Referencias',
+  'calendar.action.newTestSession': 'Programar día de test',
+  'calendar.action.newFixture': 'Agregar partido',
+
+  // Grid and list
+  'calendar.grid.caption': 'Calendario de {month}',
+  'calendar.weekday.1': 'lunes',
+  'calendar.weekday.2': 'martes',
+  'calendar.weekday.3': 'miércoles',
+  'calendar.weekday.4': 'jueves',
+  'calendar.weekday.5': 'viernes',
+  'calendar.weekday.6': 'sábado',
+  'calendar.weekday.7': 'domingo',
+  'calendar.weekdayShort.1': 'lun',
+  'calendar.weekdayShort.2': 'mar',
+  'calendar.weekdayShort.3': 'mié',
+  'calendar.weekdayShort.4': 'jue',
+  'calendar.weekdayShort.5': 'vie',
+  'calendar.weekdayShort.6': 'sáb',
+  'calendar.weekdayShort.7': 'dom',
+  'calendar.day.today': 'Hoy',
+  'calendar.day.outsideMonth': 'otro mes',
+  'calendar.day.inWindow': 'Ventana {label}',
+  'calendar.list.windows': 'Ventanas de tests de este mes',
+  'calendar.list.days': 'Días con actividad',
+  'calendar.list.empty': 'No hay días de test ni partidos este mes.',
+  'calendar.list.noWindows': 'Ninguna ventana de tests cae en este mes.',
+  'calendar.empty': 'No hay ventanas, días de test ni partidos en este mes.',
+  'calendar.noCategories':
+    'Todavía no ves ninguna categoría. Pedile a la administración del club que te asigne.',
+
+  // Events
+  'calendar.event.window': 'Ventana de tests',
+  'calendar.event.testSession': 'Día de test',
+  'calendar.event.fixture': 'Partido',
+  'calendar.event.windowLabel': '{label} · {season}',
+  'calendar.event.windowSpan': '{name}: del {from} al {to}',
+  'calendar.event.historical': 'Histórico',
+  'calendar.event.vs': 'vs. {opponent}',
+  'calendar.event.noTime': 'Hora a confirmar',
+  'calendar.event.open': 'Abrir {name}',
+
+  'calendar.testSession.status.scheduled': 'Programado',
+  'calendar.testSession.status.in_progress': 'En curso',
+  'calendar.testSession.status.completed': 'Cerrado',
+  'calendar.testSession.status.cancelled': 'Suspendido',
+  'calendar.fixture.status.scheduled': 'Programado',
+  'calendar.fixture.status.postponed': 'Postergado',
+  'calendar.fixture.status.cancelled': 'Suspendido',
+  'calendar.fixture.venue.home': 'Local',
+  'calendar.fixture.venue.away': 'Visitante',
+  'calendar.fixture.venue.neutral': 'Neutral',
+
+  // Editor of a test day
+  'calendar.testSession.newTitle': 'Programar un día de test',
+  'calendar.testSession.title': 'Día de test de {category}',
+  'calendar.testSession.category': 'Categoría',
+  'calendar.testSession.date': 'Fecha',
+  'calendar.testSession.window': 'Ventana',
+  'calendar.testSession.window.none': 'Sin ventana',
+  'calendar.testSession.window.help':
+    'Las ventanas activas del deporte que contienen la fecha. Sin ventana, el día no cuenta para V1–V4.',
+  'calendar.testSession.window.noneForDate': 'Ninguna ventana activa contiene esta fecha.',
+  'calendar.testSession.window.current': 'La ventana actual (ya no está activa)',
+  'calendar.testSession.reason': 'Motivo del cambio',
+  'calendar.testSession.reason.help':
+    'Cambiar un dato ya cargado queda en el historial de cambios con este motivo. Por ejemplo: "Lluvia: se pasa al viernes".',
+  'calendar.testSession.location': 'Lugar',
+  'calendar.testSession.notes': 'Notas',
+  'calendar.testSession.save': 'Guardar día de test',
+  'calendar.testSession.cancel': 'Suspender el día',
+  'calendar.testSession.restore': 'Volver a programarlo',
+  'calendar.testSession.cancelConfirm':
+    'Suspender el día lo saca del calendario de la categoría. Podés volver a programarlo después. ¿Lo suspendés?',
+  'calendar.testSession.cancelYes': 'Sí, suspenderlo',
+  'calendar.testSession.readOnlyRun':
+    'Este día ya empezó: se corre y se edita desde el día de test.',
+  'calendar.testSession.readOnlyCancelled':
+    'Este día está suspendido. Volvé a programarlo para editarlo.',
+  'calendar.testSession.saved': 'Día de test guardado.',
+  'calendar.testSession.cancelled': 'Día de test suspendido.',
+  'calendar.testSession.restored': 'Día de test programado de nuevo.',
+
+  // Editor of a match
+  'calendar.fixture.newTitle': 'Agregar un partido',
+  'calendar.fixture.title': 'Partido de {category}',
+  'calendar.fixture.category': 'Categoría',
+  'calendar.fixture.opponent': 'Rival',
+  'calendar.fixture.venue': 'Condición',
+  'calendar.fixture.competition': 'Torneo',
+  'calendar.fixture.date': 'Fecha',
+  'calendar.fixture.kickoff': 'Hora de inicio',
+  'calendar.fixture.kickoff.help': 'En la hora del club. Dejala vacía si no está confirmada.',
+  'calendar.fixture.location': 'Lugar',
+  'calendar.fixture.status': 'Estado',
+  'calendar.fixture.notes': 'Notas',
+  'calendar.fixture.save': 'Guardar partido',
+  'calendar.fixture.archive': 'Archivar el partido',
+  'calendar.fixture.archiveConfirm':
+    'Archivar es para un partido cargado por error. Si se suspendió o se postergó, cambiá el estado. ¿Lo archivás?',
+  'calendar.fixture.archiveYes': 'Sí, archivarlo',
+  'calendar.fixture.saved': 'Partido guardado.',
+  'calendar.fixture.archived': 'Partido archivado.',
+
+  // Common editor bits
+  'calendar.editor.close': 'Cerrar',
+  'calendar.editor.readOnly': 'Solo lectura: no podés editarlo con tu rol.',
+  'calendar.field.required': 'Completá este dato.',
+  'calendar.field.invalidDate': 'Ingresá una fecha válida.',
+  'calendar.field.invalidTime': 'Ingresá una hora válida (HH:MM).',
+  'calendar.field.reasonRequired': 'Contá por qué lo cambiás.',
+  'calendar.field.tooLong': 'Es demasiado largo (hasta {max} caracteres).',
+  'calendar.conflict':
+    'Alguien lo cambió mientras lo editabas, o choca con otro dato del calendario. Recargamos los datos: revisalos y probá de nuevo.',
+
+  // Seasons and windows
+  'calendar.seasons.title': 'Temporadas y ventanas',
+  'calendar.seasons.intro':
+    'Cada deporte planifica su año en una temporada con sus ventanas de tests V1 a V4 (referencia: V1 febrero, V2 abril, V3 julio, V4 noviembre).',
+  'calendar.seasons.empty': 'Todavía no hay temporadas cargadas.',
+  'calendar.seasons.showArchived': 'Ver archivadas',
+  'calendar.seasons.archivedBadge': 'Archivada',
+  'calendar.seasons.span': 'Del {from} al {to}',
+  'calendar.seasons.new': 'Nueva temporada',
+  'calendar.seasons.edit': 'Editar la temporada',
+  'calendar.seasons.archive': 'Archivar la temporada',
+  'calendar.seasons.restore': 'Restaurar la temporada',
+  'calendar.seasons.archiveConfirm':
+    'Archivar la temporada {name} saca sus ventanas del calendario y ya no se pueden programar días de test en ellas. Podés restaurarla después. ¿La archivás?',
+  'calendar.seasons.restoreConfirm':
+    'Restaurar la temporada {name} la muestra de nuevo con sus ventanas activas. ¿La restaurás?',
+  'calendar.season.newTitle': 'Nueva temporada',
+  'calendar.season.editTitle': 'Editar la temporada {name}',
+  'calendar.season.sport': 'Deporte',
+  'calendar.season.name': 'Nombre',
+  'calendar.season.name.help': 'Por ejemplo, el año: 2027.',
+  'calendar.season.startsOn': 'Desde',
+  'calendar.season.endsOn': 'Hasta',
+  'calendar.season.save': 'Guardar temporada',
+  'calendar.season.saved': 'Temporada guardada.',
+  'calendar.season.archived': 'Temporada archivada.',
+  'calendar.season.restored': 'Temporada restaurada.',
+  'calendar.season.problem.ends_before_start': 'La fecha de fin es anterior a la de inicio.',
+  'calendar.season.problem.too_long': 'Una temporada dura hasta {max} días.',
+  'calendar.season.problem.windowsOutside':
+    'Sus ventanas activas tienen que quedar adentro de las fechas nuevas.',
+
+  'calendar.windows.caption': 'Ventanas de la temporada {name}',
+  'calendar.windows.number': 'Ventana',
+  'calendar.windows.span': 'Fechas',
+  'calendar.windows.state': 'Estado',
+  'calendar.windows.actions': 'Acciones',
+  'calendar.windows.active': 'Activa',
+  'calendar.windows.archived': 'Archivada',
+  'calendar.windows.missing': 'Sin planificar',
+  'calendar.windows.add': 'Planificar {label}',
+  'calendar.windows.edit': 'Cambiar fechas de {label}',
+  'calendar.windows.archive': 'Archivar {label}',
+  'calendar.windows.restore': 'Restaurar {label}',
+  'calendar.windows.archiveConfirm':
+    'Archivar {label} de la temporada {season} la saca del calendario y ya no se puede elegir para un día de test. Podés restaurarla después. ¿La archivás?',
+  'calendar.windows.restoreConfirm':
+    'Restaurar {label} de la temporada {season} la ofrece de nuevo para los días de test. ¿La restaurás?',
+  'calendar.confirm.archiveYes': 'Sí, archivarla',
+  'calendar.confirm.restoreYes': 'Sí, restaurarla',
+  'calendar.window.newTitle': 'Planificar {label} de la temporada {season}',
+  'calendar.window.editTitle': 'Fechas de {label} de la temporada {season}',
+  'calendar.window.suggested':
+    'Te sugerimos el mes de referencia de {label}; ajustalo al fixture del club.',
+  'calendar.window.startsOn': 'Desde',
+  'calendar.window.endsOn': 'Hasta',
+  'calendar.window.save': 'Guardar ventana',
+  'calendar.window.saved': 'Ventana guardada.',
+  'calendar.window.archived': 'Ventana archivada.',
+  'calendar.window.restored': 'Ventana restaurada.',
+  'calendar.window.problem.ends_before_start': 'La fecha de fin es anterior a la de inicio.',
+  'calendar.window.problem.outside_season': 'La ventana tiene que quedar dentro de la temporada.',
+  'calendar.window.problem.duplicate_number': 'Ya hay otra ventana {label} en la temporada.',
+  'calendar.window.problem.overlaps': 'Se superpone con {other}.',
+  'calendar.window.problem.out_of_order':
+    'Las ventanas van en orden (V1, V2, V3, V4): no puede quedar antes o después de {other}.',
+} as const;

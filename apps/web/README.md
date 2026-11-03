@@ -29,6 +29,7 @@ La API se levanta como dice [su README](../api/README.md#correr); en desarrollo 
 | `src/ui/` | Componentes base (`Button`, `TextField`, `Notice`, `ErrorNotice`, `Page`, `Stripes`, `Icon`) y campos de formulario (`SelectField`, `TextAreaField`, `StatusLabel`, en `fields.tsx`). |
 | `src/training/` | Sesiones y carga del entrenador (B-407): lista, alta, detalle con bloques y planilla de participación. |
 | `src/field-sessions/` | Vista de sesión en cancha (B-408, [ADR 0061](../../docs/adr/0061-vista-de-sesion-en-cancha.md)): lista de sesiones con datos de cancha y la vista de una sesión (resumen, barras por jugador, tabla). |
+| `src/calendar/` | Calendario de temporada (B-406): grilla del mes y lista, temporadas y ventanas, días de test y fixture. |
 | `src/test/` | Setup de Vitest, API falsa, fixtures y `renderApp`. |
 
 ## Agregar una pantalla

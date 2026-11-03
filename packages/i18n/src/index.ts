@@ -62,5 +62,6 @@ export {
   formatDateTime,
   formatLocalDate,
   formatLocalDateLong,
+  formatLocalMonth,
   formatTime,
 } from './format/date.js';

@@ -6,6 +6,7 @@ import {
   formatDateTime,
   formatLocalDate,
   formatLocalDateLong,
+  formatLocalMonth,
   formatTime,
 } from './date.js';
 import { PLACEHOLDER } from './number.js';
@@ -81,5 +82,19 @@ describe('local dates', () => {
       '31 de diciembre de 2026',
     );
     expect(formatLocalDateLong(undefined)).toBe(PLACEHOLDER);
+  });
+});
+
+describe('formatLocalMonth', () => {
+  it('names the month and year of the calendar, whatever the time zone', () => {
+    expect(formatLocalMonth(2026, 11)).toBe('noviembre de 2026');
+    expect(formatLocalMonth(2027, 1)).toBe('enero de 2027');
+    expect(formatLocalMonth(2026, 12)).toBe('diciembre de 2026');
+  });
+
+  it('rejects a month out of 1–12', () => {
+    expect(() => formatLocalMonth(2026, 0)).toThrow(RangeError);
+    expect(() => formatLocalMonth(2026, 13)).toThrow(RangeError);
+    expect(() => formatLocalMonth(2026, 1.5)).toThrow(RangeError);
   });
 });
