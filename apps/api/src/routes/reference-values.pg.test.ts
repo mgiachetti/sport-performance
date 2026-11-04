@@ -708,7 +708,11 @@ describeWithPostgres('first-team references (Postgres)', (serverUrl) => {
         ['cmj_height_cm', 'squad', 38.5, 'Primera femenina 2026'],
       ]);
       // And the other way round: a man of the same sport sees only the men's one.
-      // The club has no men's hockey branch: open a category for him.
+      // The club has no men's hockey branch: open one and a category for him.
+      await database.admin.query(
+        `insert into club_branch (club_id, sport, sex) values ($1, 'hockey', 'male')`,
+        [clubA],
+      );
       await database.admin.query(
         `insert into category (club_id, sport, sex, age_band_code, name, default_stage)
          values ($1, 'hockey', 'male', 'm15', 'Sub 15 hockey masculino', 'development')`,
