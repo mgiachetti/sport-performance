@@ -84,7 +84,15 @@ type Failure = FakeResponse | 'network-error';
  * `mutationId`s (`replayed` on a resend); a pull pages a change log by
  * cursor (`c:<position>`), with a reset on demand.
  */
-export function createFakeSyncServer(api: FakeApi, options: { serverTimeMs?: number } = {}) {
+export function createFakeSyncServer(
+  api: FakeApi,
+  options: {
+    serverTimeMs?: number;
+    /** What the role reads (every collection by default). */
+    readable?: readonly SyncCollection[];
+  } = {},
+) {
+  const readable: readonly SyncCollection[] = options.readable ?? SYNC_COLLECTIONS;
   const log: SyncChange[] = [];
   const pushes: SyncMutation[][] = [];
   const pulls: { cursor: string | null; limit: number; collections: string | null }[] = [];
@@ -135,23 +143,37 @@ export function createFakeSyncServer(api: FakeApi, options: { serverTimeMs?: num
     if (failure !== undefined) return failure;
     const cursor = request.query.get('cursor');
     const limit = Number(request.query.get('limit') ?? '200');
-    pulls.push({ cursor, limit, collections: request.query.get('collections') });
-    if (cursor !== null && !/^c:\d+$/.test(cursor)) {
+    const asked = request.query.get('collections');
+    pulls.push({ cursor, limit, collections: asked });
+    const match = cursor === null ? null : /^c:(\d+)(?::([a-z_,]*))?$/.exec(cursor);
+    if (cursor !== null && match === null) {
       return apiError(400, 'bad_request');
     }
-    const reset = resetNext;
+    // Like the real server: only the collections asked for that the role reads,
+    // and the set is part of the cursor (another set answers `reset`).
+    const requested = asked === null ? SYNC_COLLECTIONS : asked.split(',');
+    const covered = SYNC_COLLECTIONS.filter((c) => requested.includes(c) && readable.includes(c));
+    const view = covered.join(',');
+    const reset =
+      resetNext || (match !== null && (match[2] ?? SYNC_COLLECTIONS.join(',')) !== view);
     resetNext = false;
-    const from = reset || cursor === null ? 0 : Number(cursor.slice(2));
-    const items = log.slice(from, from + limit);
-    const next = from + items.length;
+    const from = reset || match === null ? 0 : Number(match[1]);
+    const items: SyncChange[] = [];
+    let next = from;
+    while (next < log.length && items.length < limit) {
+      const change = log[next];
+      next += 1;
+      if (change !== undefined && covered.includes(change.collection)) items.push(change);
+    }
     return {
       status: 200,
       body: {
         items,
-        cursor: `c:${String(next)}`,
+        cursor:
+          view === SYNC_COLLECTIONS.join(',') ? `c:${String(next)}` : `c:${String(next)}:${view}`,
         hasMore: next < log.length,
         reset,
-        collections: [...SYNC_COLLECTIONS],
+        collections: covered,
         serverHlc: hlc,
       },
     };

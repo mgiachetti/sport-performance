@@ -18,6 +18,7 @@ function render(props: Partial<Parameters<typeof GymScreen>[0]> = {}) {
   const onLog = vi.fn(() => Promise.resolve('logged' as const));
   renderScreen(
     <GymScreen
+      moduleOn
       allowed
       state={{ status: 'ready', data: data() }}
       offline={false}
@@ -33,6 +34,14 @@ function render(props: Partial<Parameters<typeof GymScreen>[0]> = {}) {
 }
 
 describe('GymScreen', () => {
+  it('says the club turned the module off and shows no program', () => {
+    const { onLog } = render({ moduleOn: false });
+    expect(screen.getByText(t('gym.mobile.moduleOff'))).toBeDefined();
+    expect(screen.queryByText('Fuerza M15')).toBeNull();
+    expect(screen.queryByRole('button', { name: t('gym.mobile.log', { number: 1 }) })).toBeNull();
+    expect(onLog).not.toHaveBeenCalled();
+  });
+
   it('shows the day of the program with what is prescribed', () => {
     render();
     expect(screen.getByText('Fuerza M15')).toBeDefined();

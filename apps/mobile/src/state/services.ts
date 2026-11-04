@@ -5,6 +5,7 @@ import { createMobileApi, type MobileApi } from '../api/client.ts';
 import { createQueryClient } from '../api/query-client.ts';
 import { createSessionStore, type SessionStore } from '../auth/session-store.ts';
 import { createBrandingStore, type BrandingStore } from '../branding/club-branding.ts';
+import { effectiveClubModules, keptClubModules, pulledCollections } from '../clubs/modules.ts';
 import { createClubTimeZoneStore, type ClubTimeZoneStore } from '../external-load/club-day.ts';
 import {
   createCmjVideoService,
@@ -159,11 +160,17 @@ export function createAppServices(platform: Platform): AppServices {
   // One database for the sync and the read cache: an open that failed is
   // retried for both (ADR 0069).
   const localDatabase = reopeningLocalDatabase(platform.openLocalDatabase);
+  const readCache = createReadCache(localDatabase, {
+    activeScope: () => syncScopeOf(session.getState()),
+  });
   const sync = createSyncEngine({
     database: localDatabase,
     api: api.client,
     randomUUID: platform.randomUUID,
     reportError,
+    // A module the club turned off is not pulled (issue #215): the kept modules, else the defaults.
+    collections: async (scope) =>
+      pulledCollections(effectiveClubModules(await keptClubModules(readCache, scope.membershipId))),
   });
   const unbindSync = bindSyncToSession(sync, session, reportError);
   const iftRunStore = createSecureIftRunStore(platform.secureStorage);
@@ -271,9 +278,7 @@ export function createAppServices(platform: Platform): AppServices {
     iftRunner,
     measuringInstallation: createMeasuringInstallation(platform.secureStorage, platform.randomUUID),
     hardware: platform.hardware,
-    readCache: createReadCache(localDatabase, {
-      activeScope: () => syncScopeOf(session.getState()),
-    }),
+    readCache,
     push,
     pushDevice,
     randomUUID: platform.randomUUID,

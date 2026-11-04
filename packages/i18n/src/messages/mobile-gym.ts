@@ -7,6 +7,8 @@ export const mobileGymMessagesEsAR = {
   'gym.mobile.title': 'Gimnasio',
   'gym.mobile.staffOnWeb':
     'Desde el teléfono cargan el gimnasio los jugadores. Las rutinas y las series del plantel se cargan en la web.',
+  'gym.mobile.moduleOff':
+    'El club apagó el módulo de gimnasio: por ahora no hay programas ni series para cargar en la app.',
   'gym.mobile.loading': 'Cargando tu programa…',
   'gym.mobile.loadError': 'No pudimos leer tu programa en el teléfono.',
   'gym.mobile.noProgram':
