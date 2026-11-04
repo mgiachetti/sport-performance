@@ -76,6 +76,11 @@ describe('recordParticipations', () => {
     expect(
       recordParticipations.body.safeParse({ rows: [{ ...periods, periodMinutes: [] }] }).success,
     ).toBe(false);
+    expect(
+      recordParticipations.body.safeParse({
+        rows: [{ ...periods, periodMinutes: [200, 200, 200, 200] }],
+      }).success,
+    ).toBe(false);
   });
 
   it('accepts up to 100 rows, one per player and clientUuid', () => {

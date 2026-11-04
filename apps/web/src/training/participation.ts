@@ -259,8 +259,9 @@ export function isDirty(row: DraftRow, participation: Participation | null): boo
     values.status !== saved.status ||
     numberText(values.minutes) !== saved.minutes ||
     numberText(values.contactsN) !== saved.contacts ||
+    // In a sheet by period, typed periods that differ, or every period of a
+    // row saved by period cleared (it is saved back as its total).
     (values.periodMinutes !== undefined &&
-      values.periodMinutes !== null &&
       !samePeriods(values.periodMinutes, participation.periodMinutes))
   );
 }

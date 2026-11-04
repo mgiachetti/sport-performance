@@ -254,6 +254,40 @@ describeWithPostgres('hockey field data (Postgres)', (serverUrl) => {
       ]);
     });
 
+    it('refuses periods adding up to more than 600 minutes, by batch and by the queue', async () => {
+      // Without a planned duration no period is too long: the total cap is what stops it.
+      const created = await createSession({
+        kind: 'match',
+        categoryId: hockeyM17,
+        startsAt: hoursFromNow(-4),
+        opponent: 'Banco Nación',
+      });
+      expect(created.statusCode, created.body).toBe(201);
+      const unplanned = created.json<SessionBody>();
+      const response = await batch(unplanned.id, [
+        { playerId: ana, status: 'full', periodMinutes: [200, 200, 200, 200] },
+      ]);
+      expect(response.statusCode, response.body).toBe(400);
+      expect(errorOf(response).code).toBe('validation_failed');
+      expect(errorOf(response).details?.map((d) => d.path)).toContainEqual([
+        'body',
+        'rows',
+        0,
+        'periodMinutes',
+      ]);
+      expect(await participationOf(ana, unplanned.id)).toBeUndefined();
+
+      const [result] = await push([
+        {
+          hlc: hlc(Date.now()),
+          op: 'participation.update',
+          target: { id: (await participationOf(ana))?.id ?? '' },
+          body: { changeReason: 'Tramos', periodMinutes: [200, 200, 200, 200] },
+        },
+      ]);
+      expect(result).toMatchObject({ status: 'rejected', error: { code: 'validation_failed' } });
+    });
+
     it('records a correction of the periods in the change history', async () => {
       const current = await participationOf(ana);
       const response = await t.app.inject({

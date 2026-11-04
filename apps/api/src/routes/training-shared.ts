@@ -184,7 +184,6 @@ export function participationDto(row: ParticipationRow): Participation {
   };
 }
 
-/** One session of the club, or `404` (another club's rows are invisible under RLS). */
 /** One issue of a `validation_failed` answer. */
 interface FieldIssue {
   path: (string | number)[];
@@ -279,20 +278,21 @@ export async function assertFieldDataFitsSession(
   sessionId: string,
   next: { sport: Sport; kind: ExposureContext },
 ): Promise<void> {
+  const contactLevels = db
+    .select({ held: sql<boolean>`bool_or(${drill.contactLevel} <> 'none')` })
+    .from(drill)
+    .where(and(eq(drill.clubId, clubId), eq(drill.trainingSessionId, sessionId)));
   const [held] = await db
     .select({
       contacts: sql<boolean>`bool_or(${participation.contactsN} is not null)`,
       periods: sql<boolean>`bool_or(${participation.periodMinutes} is not null)`,
+      contactLevels: sql<boolean>`(${contactLevels})`,
     })
     .from(participation)
     .where(and(eq(participation.clubId, clubId), eq(participation.trainingSessionId, sessionId)));
-  const [drills] = await db
-    .select({ contactLevels: sql<boolean>`bool_or(${drill.contactLevel} <> 'none')` })
-    .from(drill)
-    .where(and(eq(drill.clubId, clubId), eq(drill.trainingSessionId, sessionId)));
   if (
     !sportRecordsContacts(next.sport) &&
-    (held?.contacts === true || drills?.contactLevels === true)
+    (held?.contacts === true || held?.contactLevels === true)
   ) {
     throw new HttpError(
       'conflict',
@@ -307,6 +307,7 @@ export async function assertFieldDataFitsSession(
   }
 }
 
+/** One session of the club, or `404` (another club's rows are invisible under RLS). */
 export async function readSession(
   db: TenantDatabase,
   clubId: ClubId,

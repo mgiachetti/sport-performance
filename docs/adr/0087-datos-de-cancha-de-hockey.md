@@ -37,7 +37,7 @@ Faltaba decidir:
   - `participation.period_minutes smallint[]` guarda los minutos de cada tramo en orden. Solo va en partidos de deportes con cambios ilimitados.
   - `minutes` es siempre la suma de los tramos. Un `CHECK` lo garantiza: el arreglo es de una dimensión, empieza en 1, tiene de 1 a 8 tramos sin huecos y cada tramo va de 0 a 600. Ausente y no disponible no llevan tramos, igual que con los minutos.
   - En la API, mandar `periodMinutes` fija los minutos como su suma; mandar `minutes` sin tramos guarda un total y borra los tramos; `periodMinutes: null` los borra y deja el total.
-  - El contrato rechaza minutos que no sean la suma. La API rechaza tramos en un entrenamiento o en rugby, y un tramo más largo que el partido planificado (`validation_failed` en el campo).
+  - El contrato rechaza minutos que no sean la suma y tramos que sumen más de 600 minutos (el tope de cualquier participación), así que la suma nunca llega al `CHECK` de la base como un error interno. La API rechaza tramos en un entrenamiento o en rugby, y un tramo más largo que el partido planificado entero (`validation_failed` en el campo). Ese tope por tramo es deliberadamente laxo: comparar cada tramo con la duración planificada dividida por la cantidad de tramos rechazaría prórrogas, tiempo agregado y formatos juveniles con tramos desparejos.
   - El historial de cambios (ADR 0030) registra la columna como cualquier otra: corregir un tramo ya cargado pide motivo.
   - La exportación del club suma la columna `minutos_por_tramo`.
 - **Total y tramos son un solo campo en la sincronización.**
@@ -51,7 +51,7 @@ Faltaba decidir:
   - La web oculta la columna de contactos y el nivel de contacto de los bloques. La vista de sesión en cancha no muestra la tarjeta "Contactos". La app oculta el contador.
 - **Web.** En un partido de hockey, la planilla de participación tiene una columna por tramo y el total calculado. "Todos presentes" reparte los minutos planificados entre los tramos.
 - **Mobile.** En un partido de hockey, cada pausa del reloj de cancha (ADR 0080) cierra un tramo: el botón dice "Terminar el tramo". Al terminar, a cada jugadora se le pasan los minutos de cada tramo, y el total es la suma de los tramos redondeados. Escribir un total a mano reemplaza los tramos. El borrador guarda los tramos y los cierres del reloj; un borrador de una versión anterior sigue leyéndose.
-- **Cancha para el mapa de calor.** `GET /v1/training-sessions/{id}/field-metrics` devuelve `fieldRules` con la cancha del deporte, la modalidad de cambios, los tramos y si registra contactos. El mapa de calor la toma cuando haya posiciones x/y del pod (F3).
+- **Cancha para el mapa de calor.** `GET /v1/training-sessions/{id}/field-metrics` devuelve `fieldRules` con la cancha del deporte, la modalidad de cambios, los tramos y si registra contactos. No incluye `source` (la cita del reglamento): es documentación para quien mantiene la tabla en el dominio, no un dato que la pantalla muestre, y mandarla en cada respuesta solo agrandaría el contrato. El mapa de calor la toma cuando haya posiciones x/y del pod (F3).
 - **Alias de Catapult por deporte.**
   - `catapultAliasIndex(metricas, deporte)` es una función pura del dominio. Arma el índice columna normalizada → métrica con las métricas activas que aplican al deporte (`metric_definition.sports`).
   - Un alias de dos métricas del mismo deporte es un conflicto y no mapea a ninguna: el importador pregunta en vez de adivinar.

@@ -98,11 +98,17 @@ export const contactsSchema = z.int().min(0).max(PARTICIPATION_CONTACTS_MAX).met
   description:
     'Contactos (tackles, rucks, scrums) registrados. Solo en los deportes con contacto (rugby); en hockey siempre `null` (B-803).',
 });
-export const periodMinutesSchema = z.array(minutesSchema).min(1).max(MATCH_PERIODS_MAX).meta({
-  id: 'PeriodMinutes',
-  description:
-    'Minutos jugados en cada tramo del partido (cuartos, tiempos), en orden. Solo en partidos de deportes con cambios ilimitados (hockey, B-803); `minutes` es su suma. Ningún tramo puede superar la duración planificada del partido.',
-});
+export const periodMinutesSchema = z
+  .array(minutesSchema)
+  .min(1)
+  .max(MATCH_PERIODS_MAX)
+  .refine((periods) => periodMinutesTotal(periods) <= PARTICIPATION_MINUTES_MAX, {
+    message: `The periods add up to more than ${String(PARTICIPATION_MINUTES_MAX)} minutes`,
+  })
+  .meta({
+    id: 'PeriodMinutes',
+    description: `Minutos jugados en cada tramo del partido (cuartos, tiempos), en orden. Solo en partidos de deportes con cambios ilimitados (hockey, B-803); \`minutes\` es su suma, que no puede superar ${String(PARTICIPATION_MINUTES_MAX)}. Ningún tramo puede superar la duración planificada del partido.`,
+  });
 export const rpeSchema = z
   .int()
   .min(RPE_CR10_MIN)

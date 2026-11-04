@@ -328,6 +328,18 @@ describe('participation sheet by sport (B-803)', () => {
     expect(withStatus(draft, 'absent').periods).toEqual(['', '', '', '']);
     expect(isDirty(draft, saved)).toBe(false);
     expect(isDirty(withPeriod(draft, 3, '7'), saved)).toBe(true);
+    // Every period cleared: dirty, saved back as its total (a correction).
+    const cleared = [0, 1, 2, 3].reduce((row, index) => withPeriod(row, index, ''), draft);
+    expect(isDirty(cleared, saved)).toBe(true);
+    expect(rowValues(cleared)).toEqual({
+      status: 'partial',
+      minutes: 42,
+      contactsN: null,
+      periodMinutes: null,
+    });
+    expect(
+      isCorrection({ status: 'partial', minutes: 42, contactsN: null, periodMinutes: null }, saved),
+    ).toBe(true);
     expect(
       isCorrection(
         { status: 'partial', minutes: 43, contactsN: null, periodMinutes: [12, 9, 15, 7] },

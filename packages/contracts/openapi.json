@@ -37864,7 +37864,7 @@
           "maximum": 600,
           "description": "Minutos que participó."
         },
-        "description": "Minutos jugados en cada tramo del partido (cuartos, tiempos), en orden. Solo en partidos de deportes con cambios ilimitados (hockey, B-803); `minutes` es su suma. Ningún tramo puede superar la duración planificada del partido."
+        "description": "Minutos jugados en cada tramo del partido (cuartos, tiempos), en orden. Solo en partidos de deportes con cambios ilimitados (hockey, B-803); `minutes` es su suma, que no puede superar 600. Ningún tramo puede superar la duración planificada del partido."
       },
       "Player": {
         "type": "object",
