@@ -21295,7 +21295,7 @@
             "schema": {
               "type": "string",
               "maxLength": 256,
-              "pattern": "^(wellness|participation|training_session|test_session|test_result|gym_program|gym_set)(,(wellness|participation|training_session|test_session|test_result|gym_program|gym_set))*$"
+              "pattern": "^(wellness|participation|training_session|test_session|test_result|gym_program|gym_set|anthro_measurement)(,(wellness|participation|training_session|test_session|test_result|gym_program|gym_set|anthro_measurement))*$"
             }
           },
           {
@@ -40878,9 +40878,10 @@
           "test_session",
           "test_result",
           "gym_program",
-          "gym_set"
+          "gym_set",
+          "anthro_measurement"
         ],
-        "description": "Colección sincronizable: `wellness`, `participation`, `training_session`, `test_session`, `test_result` (con sus intentos), `gym_program` (solo lectura) o `gym_set`."
+        "description": "Colección sincronizable: `wellness`, `participation`, `training_session`, `test_session`, `test_result` (con sus intentos), `gym_program` (solo lectura), `gym_set` o `anthro_measurement` (con la maduración que deriva el worker)."
       },
       "SyncMutation": {
         "type": "object",
@@ -40896,7 +40897,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 64,
-            "description": "Operación: `wellness.submit`, `wellness.correct`, `rpe.submit`, `participation.record`, `participation.update`, `test_result.create`, `test_session.record_results`, `test_result.update`, `test_result.add_entries`, `test_result.void_entries`, `gym_set.log`, `gym_set.correct`, `gym_set.void`, `pain_report.submit`. Una desconocida se rechaza sola."
+            "description": "Operación: `wellness.submit`, `wellness.correct`, `rpe.submit`, `participation.record`, `participation.update`, `test_result.create`, `test_session.record_results`, `test_result.update`, `test_result.add_entries`, `test_result.void_entries`, `gym_set.log`, `gym_set.correct`, `gym_set.void`, `pain_report.submit`, `anthro.record`, `anthro.update`. Una desconocida se rechaza sola."
           },
           "params": {
             "description": "Parámetros de ruta del endpoint en línea (`trainingSessionId`, `testSessionId`)."
@@ -41349,6 +41350,49 @@
               },
               "data": {
                 "$ref": "#/components/schemas/GymSet"
+              }
+            },
+            "required": [
+              "collection",
+              "op",
+              "id",
+              "clientUuid",
+              "data"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "collection": {
+                "type": "string",
+                "const": "anthro_measurement"
+              },
+              "op": {
+                "type": "string",
+                "const": "upsert"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "UUID (RFC 9562). El servidor lo emite en minúsculas.",
+                "examples": [
+                  "0192e7a0-5c1a-7b7e-9f3a-2d4c6b8a1e0f"
+                ]
+              },
+              "clientUuid": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ClientUuid"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "El `clientUuid` con que se creó la fila, para reconciliar lo creado sin conexión."
+              },
+              "data": {
+                "$ref": "#/components/schemas/AnthroMeasurement"
               }
             },
             "required": [

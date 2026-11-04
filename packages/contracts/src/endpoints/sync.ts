@@ -12,6 +12,11 @@ import {
 } from '@sport-performance/domain';
 import { z } from 'zod';
 import { defineEndpoint } from '../endpoint.js';
+import {
+  anthroMeasurementSchema,
+  recordAnthroMeasurements,
+  updateAnthroMeasurement,
+} from './anthropometry.js';
 import { clientUuidSchema } from '../primitives/conventions.js';
 import { errorBodySchema } from '../primitives/errors.js';
 import { uuidSchema } from '../primitives/ids.js';
@@ -48,7 +53,7 @@ import { correctGymSet, gymProgramSchema, gymSetSchema, logGymSets, voidGymSet }
 export const syncCollectionSchema = z.enum(SYNC_COLLECTIONS).meta({
   id: 'SyncCollection',
   description:
-    'Colección sincronizable: `wellness`, `participation`, `training_session`, `test_session`, `test_result` (con sus intentos), `gym_program` (solo lectura) o `gym_set`.',
+    'Colección sincronizable: `wellness`, `participation`, `training_session`, `test_session`, `test_result` (con sus intentos), `gym_program` (solo lectura), `gym_set` o `anthro_measurement` (con la maduración que deriva el worker).',
 });
 
 export const syncOperationSchema = z.enum(SYNC_OPERATIONS).meta({
@@ -85,6 +90,9 @@ const participationFields = {
 
 /** The fields of the online correction of a result, without its `version`. */
 const resultUpdateBody = updateTestResult.body.omit({ version: true });
+
+/** The online correction of a measurement, without its `version` (the reason stays required). */
+const anthroUpdateBody = updateAnthroMeasurement.body.omit({ version: true });
 
 /**
  * What each operation carries besides `mutationId`, `hlc` and `op`. Bodies
@@ -141,6 +149,11 @@ export const SYNC_OPERATION_INPUTS = {
   }),
   'gym_set.void': z.strictObject({ target: syncTargetSchema, body: voidGymSet.body }),
   'pain_report.submit': z.strictObject({ body: submitPainReport.body }),
+  'anthro.record': z.strictObject({ body: recordAnthroMeasurements.body }),
+  'anthro.update': z.strictObject({
+    target: syncTargetSchema,
+    body: anthroUpdateBody,
+  }),
 } as const satisfies Record<SyncOperation, z.ZodType>;
 
 export type SyncOperationInput<Op extends SyncOperation> = z.output<
@@ -296,6 +309,12 @@ const upsertChange = z
       op: z.literal('upsert'),
       ...changeBase,
       data: gymSetSchema,
+    }),
+    z.object({
+      collection: z.literal('anthro_measurement'),
+      op: z.literal('upsert'),
+      ...changeBase,
+      data: anthroMeasurementSchema,
     }),
   ])
   .meta({ id: 'SyncUpsert' });

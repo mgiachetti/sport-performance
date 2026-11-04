@@ -216,6 +216,24 @@ export const OPERATION_SPECS: { readonly [Op in SyncOperation]: OperationSpec<Op
     clientUuidPaths: ({ body }) => [{ path: ['body', 'clientUuid'], value: body.clientUuid }],
     forgetOnAck: true,
   },
+  'anthro.record': {
+    kind: 'create',
+    targets: ({ body }) =>
+      body.measurements.map((measurement) => ({
+        collection: 'anthro_measurement',
+        ...(measurement.clientUuid !== undefined && { clientUuid: measurement.clientUuid }),
+      })),
+    clientUuidPaths: ({ body }) =>
+      body.measurements.map((measurement, index) => ({
+        path: ['body', 'measurements', index, 'clientUuid'],
+        value: measurement.clientUuid,
+      })),
+  },
+  'anthro.update': {
+    kind: 'edit',
+    targets: ({ target }) => [toTarget('anthro_measurement', target)],
+    clientUuidPaths: none,
+  },
 };
 
 /** Whether a mutation of `op` leaves the queue as soon as the server applied it. */

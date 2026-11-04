@@ -87,6 +87,10 @@ export default function AppLayout() {
         options={{ title: t('staff.notifications.title'), href: null }}
       />
       <Tabs.Screen name="sprint-video" options={{ title: t('sprintVideo.title'), href: null }} />
+      <Tabs.Screen
+        name="anthropometry"
+        options={{ title: t('anthropometry.field.open'), href: null }}
+      />
     </Tabs>
   );
 }

@@ -65,6 +65,35 @@ describe('sync endpoints', () => {
     expect(update.safeParse({ target: { id: ID, clientUuid: ID }, body: {} }).success).toBe(false);
   });
 
+  it('carries the anthropometry batch of a measurement day and its corrections with a reason', () => {
+    const record = SYNC_OPERATION_INPUTS['anthro.record'];
+    expect(
+      record.safeParse({
+        body: {
+          measurements: [
+            { clientUuid: ID, playerId: ID, measuredOn: '2026-11-03', heightCm: 165.4 },
+          ],
+        },
+      }).success,
+    ).toBe(true);
+    expect(record.safeParse({ body: { measurements: [] } }).success).toBe(false);
+    const update = SYNC_OPERATION_INPUTS['anthro.update'];
+    expect(
+      update.safeParse({
+        target: { clientUuid: ID },
+        body: { changeReason: 'Talla mal tipeada', heightCm: 165.4 },
+      }).success,
+    ).toBe(true);
+    // A correction of a loaded value always says why, offline too (ADR 0030).
+    expect(update.safeParse({ target: { id: ID }, body: { heightCm: 165.4 } }).success).toBe(false);
+    expect(
+      update.safeParse({
+        target: { id: ID },
+        body: { version: '1', changeReason: 'Talla mal tipeada', heightCm: 165.4 },
+      }).success,
+    ).toBe(false);
+  });
+
   it('describes upserts with the read DTO and tombstones without data', () => {
     expect(
       syncChangeSchema.safeParse({

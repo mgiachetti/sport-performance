@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { canRecordAnthropometry } from '../../src/anthropometry/data.ts';
 import { canRunIft3015 } from '../../src/ift/roster.ts';
 import { canRecordWeeklyCmj } from '../../src/weekly-cmj/model.ts';
 import { HomeScreen } from '../../src/screens/app.tsx';
@@ -73,6 +74,13 @@ export default function Home() {
         canFilmSprint(state.activeMembership.role)
           ? () => {
               router.push('/sprint-video');
+            }
+          : null
+      }
+      onOpenAnthropometry={
+        canRecordAnthropometry(state.activeMembership.role)
+          ? () => {
+              router.push('/anthropometry');
             }
           : null
       }

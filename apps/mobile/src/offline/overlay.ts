@@ -1,5 +1,6 @@
 import type {
   GymSet,
+  AnthroMeasurement,
   Participation,
   SyncOperationInput,
   TestResult,
@@ -185,6 +186,32 @@ const gymSetVoid: Overlay<'gym_set.void', GymSet> = (row, { body }, { enqueuedAt
         e1rmKg: null,
       };
 
+/**
+ * A correction of a measurement (B-508). The maturation the worker derived
+ * from the old values is shown as pending (`derivedAt: null`, "Calculando…")
+ * when a value it depends on changes: the device has neither the
+ * Khamis-Roche table nor the history to recompute it, and the pull brings
+ * the new one.
+ */
+const anthroUpdate: Overlay<'anthro.update', AnthroMeasurement> = (row, { body }) => {
+  const next: AnthroMeasurement = { ...row };
+  if (body.measuredOn !== undefined) next.measuredOn = body.measuredOn;
+  if (body.heightCm !== undefined) next.heightCm = body.heightCm;
+  if (body.sittingHeightCm !== undefined) next.sittingHeightCm = body.sittingHeightCm;
+  if (body.weightKg !== undefined) next.weightKg = body.weightKg;
+  if (body.skinfoldsSumMm !== undefined) next.skinfoldsSumMm = body.skinfoldsSumMm;
+  if (body.method !== undefined) next.method = body.method;
+  if (body.evaluatorId !== undefined) next.evaluatorId = body.evaluatorId;
+  // The correction replaces the conditions whole, as the server does.
+  if (body.conditions !== undefined) next.conditions = { ...body.conditions };
+  if (body.notes !== undefined) next.notes = body.notes;
+  const maturationInputs = ['measuredOn', 'heightCm', 'sittingHeightCm', 'weightKg'] as const;
+  if (maturationInputs.some((field) => body[field] !== undefined && body[field] !== row[field])) {
+    next.maturation = { ...row.maturation, derivedAt: null };
+  }
+  return next;
+};
+
 type AnyOverlay = (row: unknown, input: unknown, context: OverlayContext) => unknown;
 
 /** The overlay of each edit; operations without one show the row as served. */
@@ -198,6 +225,7 @@ export const OVERLAYS: Partial<Record<SyncOperation, AnyOverlay>> = {
   'test_result.void_entries': testResultVoid as AnyOverlay,
   'gym_set.correct': gymSetCorrect as AnyOverlay,
   'gym_set.void': gymSetVoid as AnyOverlay,
+  'anthro.update': anthroUpdate as AnyOverlay,
 };
 
 export function applyOverlay(

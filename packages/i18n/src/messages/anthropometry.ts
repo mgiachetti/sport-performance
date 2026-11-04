@@ -1,9 +1,11 @@
 /**
- * Messages of the anthropometry screen of the staff web (B-412): the sheet of a measurement day
- * with the maturation computed while typing, the parents' heights and the latest measurements.
- * Merged into the `es-AR` source catalog; same rules as `es-AR.ts`. Keys under `anthropometry.*`.
+ * Messages of anthropometry shared by the staff web (B-412: the sheet of a measurement day with
+ * the maturation computed while typing, the parents' heights and the latest measurements) and the
+ * field sheet of the mobile app (B-508: fields, gaps, plausibility and errors are the same).
+ * Merged into the `es-AR` source catalog; same rules as `es-AR.ts`. Keys under
+ * `anthropometry.*`; what only the phone says lives in `mobile-anthropometry.ts`.
  */
-export const webAnthropometryMessagesEsAR = {
+export const anthropometryMessagesEsAR = {
   'anthropometry.nav': 'Antropometría',
   'anthropometry.title': 'Antropometría',
   'anthropometry.subtitle':

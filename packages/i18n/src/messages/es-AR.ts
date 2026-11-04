@@ -9,6 +9,7 @@ import { mobileWeeklyCmjMessagesEsAR } from './mobile-weekly-cmj.js';
 import { mobileCoachSessionMessagesEsAR } from './mobile-coach-session.js';
 import { mobileStaffMessagesEsAR } from './mobile-staff.js';
 import { mobileSprintVideoMessagesEsAR } from './mobile-sprint-video.js';
+import { mobileAnthropometryMessagesEsAR } from './mobile-anthropometry.js';
 import { reportMessagesEsAR } from './report.js';
 import { categoryReportMessagesEsAR } from './category-report.js';
 import { mobilePlayerMessagesEsAR } from './mobile-player.js';
@@ -16,7 +17,7 @@ import { webPanelMessagesEsAR } from './web-panel.js';
 import { webPlayerMessagesEsAR } from './web-player.js';
 import { webCalendarMessagesEsAR } from './web-calendar.js';
 import { webAdminMessagesEsAR } from './web-admin.js';
-import { webAnthropometryMessagesEsAR } from './web-anthropometry.js';
+import { anthropometryMessagesEsAR } from './anthropometry.js';
 import { webGuardianMessagesEsAR } from './web-guardian.js';
 import { webConsoleMessagesEsAR } from './web-console.js';
 import { protocolMessagesEsAR } from './protocols.js';
@@ -477,7 +478,7 @@ export const sourceMessageFiles = {
   'web-calendar.ts': webCalendarMessagesEsAR,
   'web-configuration.ts': webConfigurationMessagesEsAR,
   'web-admin.ts': webAdminMessagesEsAR,
-  'web-anthropometry.ts': webAnthropometryMessagesEsAR,
+  'anthropometry.ts': anthropometryMessagesEsAR,
   'web-guardian.ts': webGuardianMessagesEsAR,
   'web-console.ts': webConsoleMessagesEsAR,
   'web-test-day.ts': webTestDayMessagesEsAR,
@@ -493,6 +494,7 @@ export const sourceMessageFiles = {
   'mobile-coach-session.ts': mobileCoachSessionMessagesEsAR,
   'mobile-staff.ts': mobileStaffMessagesEsAR,
   'mobile-sprint-video.ts': mobileSprintVideoMessagesEsAR,
+  'mobile-anthropometry.ts': mobileAnthropometryMessagesEsAR,
   'protocols.ts': protocolMessagesEsAR,
   'web-help.ts': webHelpMessagesEsAR,
   'report.ts': reportMessagesEsAR,
@@ -510,7 +512,8 @@ export const esAR = {
   ...webCalendarMessagesEsAR,
   ...webConfigurationMessagesEsAR,
   ...webAdminMessagesEsAR,
-  ...webAnthropometryMessagesEsAR,
+  // Anthropometry, shared by the web and the field sheet of the app (B-412, B-508)
+  ...anthropometryMessagesEsAR,
   ...webGuardianMessagesEsAR,
   ...webConsoleMessagesEsAR,
   ...webTestDayMessagesEsAR,
@@ -533,6 +536,7 @@ export const esAR = {
   ...mobileStaffMessagesEsAR,
   // The sprint by video in the app (B-605)
   ...mobileSprintVideoMessagesEsAR,
+  ...mobileAnthropometryMessagesEsAR,
   ...protocolMessagesEsAR,
   ...webHelpMessagesEsAR,
   // The PDF report of a player (B-602), rendered by the worker

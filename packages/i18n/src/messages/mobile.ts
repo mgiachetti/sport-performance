@@ -95,6 +95,8 @@ export const mobileMessagesEsAR = {
   'sync.op.test_result.add_entries': 'Intentos de un test',
   'sync.op.test_result.void_entries': 'Anulación de intentos',
   'sync.op.pain_report.submit': 'Reporte de dolor',
+  'sync.op.anthro.record': 'Medición antropométrica',
+  'sync.op.anthro.update': 'Corrección de una medición antropométrica',
 
   // Invitation links
   'invitation.invalidLink':
