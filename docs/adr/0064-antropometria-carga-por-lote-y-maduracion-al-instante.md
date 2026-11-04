@@ -27,5 +27,5 @@ B-412 pide la carga por lote del día de mediciones "con offset de PHV y % de ta
 ## Consecuencias
 
 - La vista previa es una lectura que se hace por `POST` (el cuerpo es el plantel); no escribe, así que cuenta en la clase de límites de lectura (ADR 0031), no en la de escritura.
-- La app mobile (B-502) puede usar el mismo endpoint con conexión; sin conexión la maduración aparece al sincronizar. La sincronización de antropometría por `POST /v1/sync/push` queda para cuando la app cargue mediciones.
+- La app mobile (B-502) puede usar el mismo endpoint con conexión; sin conexión la maduración aparece al sincronizar. La sincronización de antropometría por `POST /v1/sync/push` queda para cuando la app cargue mediciones (B-508, [ADR 0083](0083-antropometria-en-cancha.md)).
 - Si un club cambia la ecuación o la tabla, la vista previa y el worker cambian juntos: leen la misma configuración.

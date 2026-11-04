@@ -5,11 +5,15 @@ import {
 } from '@sport-performance/domain';
 import { describe, expect, it } from 'vitest';
 import { esAR, isMessageKey } from './index.js';
-import { webAnthropometryMessagesEsAR } from './web-anthropometry.js';
+import { anthropometryMessagesEsAR } from './anthropometry.js';
+import { mobileAnthropometryMessagesEsAR } from './mobile-anthropometry.js';
 
-describe('anthropometry messages of the staff web', () => {
+describe('anthropometry messages of the staff web and the field sheet', () => {
   it('are part of the source catalog under their own namespace', () => {
-    for (const [key, message] of Object.entries(webAnthropometryMessagesEsAR)) {
+    for (const [key, message] of Object.entries({
+      ...anthropometryMessagesEsAR,
+      ...mobileAnthropometryMessagesEsAR,
+    })) {
       expect(key, key).toMatch(/^anthropometry\./);
       expect(esAR[key as keyof typeof esAR], key).toBe(message);
     }

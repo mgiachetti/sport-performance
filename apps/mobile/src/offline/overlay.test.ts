@@ -1,4 +1,5 @@
-import type { TestResult } from '@sport-performance/contracts';
+import type { AnthroMeasurement, TestResult } from '@sport-performance/contracts';
+import { anthroDto } from '../test/anthro-fixtures.ts';
 import { describe, expect, it } from 'vitest';
 import { PLAYER_ID, SESSION_ID, participationDto, uuid } from '../test/fake-sync-server.ts';
 import { matchesTarget, prepareMutation } from './operations.ts';
@@ -47,6 +48,24 @@ function testResult(): TestResult {
 }
 
 describe('overlays', () => {
+  it('lays a correction of a measurement over it, the maturation pending only when it changes', () => {
+    const row = anthroDto();
+    const notes = applyOverlay('anthro.update', row, {
+      target: { id: row.id },
+      body: { changeReason: 'Nota', notes: 'Con zapatillas', conditions: { footwear: 'cleats' } },
+    }) as AnthroMeasurement;
+    expect(notes).toMatchObject({ notes: 'Con zapatillas', heightCm: 165.4 });
+    expect(notes.conditions).toEqual({ footwear: 'cleats' });
+    expect(notes.maturation).toEqual(row.maturation);
+    const height = applyOverlay('anthro.update', row, {
+      target: { id: row.id },
+      body: { changeReason: 'Talla', heightCm: 166.4, skinfoldsSumMm: null },
+    }) as AnthroMeasurement;
+    expect(height).toMatchObject({ heightCm: 166.4, skinfoldsSumMm: null });
+    expect(height.maturation).toEqual({ ...row.maturation, derivedAt: null });
+    expect(row.heightCm).toBe(165.4);
+  });
+
   it('lays a correction of a result over only the fields it sets', () => {
     const row = testResult();
     const next = applyOverlay('test_result.update', row, {

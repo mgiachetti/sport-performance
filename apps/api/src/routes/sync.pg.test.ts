@@ -933,6 +933,7 @@ describeWithPostgres('offline sync (Postgres)', (serverUrl) => {
         'test_result',
         'gym_program',
         'gym_set',
+        'anthro_measurement',
       ]);
 
       const coach = await pullAll(coachM15);
@@ -1694,6 +1695,168 @@ describeWithPostgres('offline sync (Postgres)', (serverUrl) => {
       const [rpe] = await pushOk(player15, [playerRpe(session, 150)]);
       expect(rpe).toMatchObject({ status: 'applied', appliedFields: ['rpe'] });
       expect(await participationOf(session)).toMatchObject({ minutes: 50, rpe: 6 });
+    });
+  });
+
+  describe('anthropometry from the field (B-508)', () => {
+    const measurementUuid = randomUUID();
+    const recordMutationId = randomUUID();
+
+    function measurement(playerId: string, clientUuid: string, values: Record<string, number>) {
+      return {
+        hlc: hlc(200),
+        op: 'anthro.record',
+        body: { measurements: [{ clientUuid, playerId, measuredOn: '2026-03-02', ...values }] },
+      };
+    }
+
+    async function measurementRow(clientUuid: string) {
+      const { rows } = await database.admin.query<{
+        id: string;
+        height_cm: number | null;
+        sitting_height_cm: number | null;
+        weight_kg: number | null;
+        notes: string | null;
+      }>(
+        'select id, height_cm, sitting_height_cm, weight_kg, notes from anthro_measurement where client_uuid = $1',
+        [clientUuid],
+      );
+      return rows[0];
+    }
+
+    it('records a measurement offline through the online batch, idempotent by clientUuid', async () => {
+      const results = await pushOk(scM15, [
+        {
+          mutationId: recordMutationId,
+          ...measurement(p15, measurementUuid, {
+            heightCm: 165.4,
+            sittingHeightCm: 85.2,
+            weightKg: 55.1,
+          }),
+        },
+        // The player without a data consent is the problem of their own mutation only.
+        measurement(p15NoConsent, randomUUID(), { heightCm: 160 }),
+        // The same measurement in a new mutation (a queue rebuilt after a reinstall).
+        { ...measurement(p15, measurementUuid, { heightCm: 165.4 }), hlc: hlc(201) },
+      ]);
+      expect(results.map((r) => r.status)).toEqual(['applied', 'rejected', 'replayed']);
+      expect(results[1]?.error?.code).toBe('validation_failed');
+      expect(results[1]?.error?.details?.[0]?.path).toEqual([
+        'body',
+        'measurements',
+        0,
+        'playerId',
+      ]);
+      const row = await measurementRow(measurementUuid);
+      expect(row).toMatchObject({ height_cm: 165.4, sitting_height_cm: 85.2, weight_kg: 55.1 });
+      // Only what the device entered has a clock: not the method, evaluator or conditions the
+      // handler filled in, nor the fields left empty.
+      expect(Object.keys(await clocksOf('anthro_measurement', row?.id ?? '')).sort()).toEqual([
+        'height_cm',
+        'measured_on',
+        'sitting_height_cm',
+        'weight_kg',
+      ]);
+      // A lost response: the same mutation again is answered from the log.
+      const [again] = await pushOk(scM15, [
+        { mutationId: recordMutationId, ...measurement(p15, measurementUuid, { heightCm: 165.4 }) },
+      ]);
+      expect(again).toMatchObject({ status: 'replayed', firstOutcome: 'applied' });
+      const { rows } = await database.admin.query<{ n: number }>(
+        'select count(*)::int as n from anthro_measurement where player_id = $1',
+        [p15],
+      );
+      expect(rows[0]?.n).toBe(1);
+    });
+
+    it('resolves the corrections of two devices per field and keeps the reason', async () => {
+      const results = await pushOk(scM15, [
+        {
+          hlc: hlc(220, DEVICE_B),
+          op: 'anthro.update',
+          target: { clientUuid: measurementUuid },
+          body: { changeReason: 'Peso con zapatillas', weightKg: 54.3 },
+        },
+        // Older, arrives later: its weight loses, its height (nobody else edited it) wins.
+        {
+          hlc: hlc(210, DEVICE_A),
+          op: 'anthro.update',
+          target: { clientUuid: measurementUuid },
+          body: { changeReason: 'Talla mal tipeada', heightCm: 166.4, weightKg: 56 },
+        },
+        // Every field lost: superseded, nothing written.
+        {
+          hlc: hlc(205, DEVICE_A),
+          op: 'anthro.update',
+          target: { clientUuid: measurementUuid },
+          body: { changeReason: 'Otra vez', weightKg: 57 },
+        },
+      ]);
+      const row = await measurementRow(measurementUuid);
+      expect(results.map((r) => [r.status, r.appliedFields, r.supersededFields])).toEqual([
+        ['applied', ['weightKg'], []],
+        ['applied', ['heightCm'], ['weightKg']],
+        ['superseded', [], ['weightKg']],
+      ]);
+      expect(await measurementRow(measurementUuid)).toMatchObject({
+        height_cm: 166.4,
+        weight_kg: 54.3,
+      });
+      const { rows } = await database.admin.query<{ reason: string }>(
+        `select reason from change_history
+          where table_name = 'anthro_measurement' and record_id = $1 and operation = 'update'
+          order by seq`,
+        [row?.id],
+      );
+      expect(rows.map((r) => r.reason)).toEqual(['Peso con zapatillas', 'Talla mal tipeada']);
+    });
+
+    it('rejects an offline correction of a value outside the rules, as online', async () => {
+      const [result] = await pushOk(scM15, [
+        {
+          hlc: hlc(230),
+          op: 'anthro.update',
+          target: { clientUuid: measurementUuid },
+          // Skinfolds only in the performance stage (M17/M19): p15 is in M15.
+          body: { changeReason: 'Pliegues', skinfoldsSumMm: 60 },
+        },
+      ]);
+      expect(result).toMatchObject({ status: 'rejected', error: { code: 'validation_failed' } });
+      // A coach records no anthropometry, online or offline.
+      const [coach] = await pushOk(coachM15, [measurement(p15, randomUUID(), { heightCm: 170 })]);
+      expect(coach).toMatchObject({ status: 'rejected', error: { code: 'forbidden' } });
+    });
+
+    it('pulls the measurements with the scope of their list, then the derived maturation', async () => {
+      const row = await measurementRow(measurementUuid);
+      const own = (items: Change[]) =>
+        items.filter((i) => i.collection === 'anthro_measurement').map((i) => i.clientUuid);
+      expect(own((await pullAll(scM15)).items)).toEqual([measurementUuid]);
+      expect(own((await pullAll(player15)).items)).toEqual([measurementUuid]);
+      expect(own((await pullAll(adminB)).items)).toEqual([]);
+      expect(own((await pullAll(parent15)).items)).toEqual([]);
+      const before = await pullAll(scM15);
+      const pending = before.items.find((i) => i.clientUuid === measurementUuid)?.data as {
+        heightCm: number;
+        maturation: { derivedAt: string | null };
+      };
+      expect(pending).toMatchObject({ heightCm: 166.4, maturation: { derivedAt: null } });
+
+      // The worker derives the maturation (B-326): the row comes back with it, without a clock.
+      const clocks = await clocksOf('anthro_measurement', row?.id ?? '');
+      await database.admin.query('delete from derived_refresh where player_id = $1', [p15]);
+      await database.admin.query(
+        `update anthro_measurement set phv_offset_years = -0.8, maturity_offset_equation = 'mirwald_2002',
+                derived_at = now() where id = $1`,
+        [row?.id],
+      );
+      const after = await pullAll(scM15, { cursor: before.cursor });
+      const derived = after.items.find((i) => i.clientUuid === measurementUuid)?.data as {
+        maturation: { phvOffsetYears: number; derivedAt: string | null };
+      };
+      expect(derived.maturation.phvOffsetYears).toBe(-0.8);
+      expect(derived.maturation.derivedAt).not.toBeNull();
+      expect(await clocksOf('anthro_measurement', row?.id ?? '')).toEqual(clocks);
     });
   });
 });

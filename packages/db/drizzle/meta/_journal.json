@@ -288,6 +288,13 @@
       "when": 1793759427765,
       "tag": "0040_pain_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1793765503709,
+      "tag": "0041_anthro_measurement_sync",
+      "breakpoints": true
     }
   ]
 }

@@ -13,6 +13,7 @@ export const SYNC_COLLECTIONS = [
   'test_result',
   'gym_program',
   'gym_set',
+  'anthro_measurement',
 ] as const;
 export type SyncCollection = (typeof SYNC_COLLECTIONS)[number];
 
@@ -45,6 +46,18 @@ export const SYNC_FIELD_COLUMNS = {
     'notes',
   ],
   gym_set: ['reps', 'load_kg', 'rir', 'technique_score', 'duration_s', 'notes'],
+  // The values and context of a measurement; the maturation the worker derives is not edited.
+  anthro_measurement: [
+    'measured_on',
+    'height_cm',
+    'sitting_height_cm',
+    'weight_kg',
+    'skinfolds_sum_mm',
+    'method',
+    'evaluator_id',
+    'conditions',
+    'notes',
+  ],
 } as const satisfies Partial<Record<SyncCollection, readonly string[]>>;
 
 export type SyncFieldTable = keyof typeof SYNC_FIELD_COLUMNS;
@@ -72,6 +85,8 @@ export const SYNC_OPERATIONS = [
   // Create only (B-609, ADR 0078): health data the player gives, written to `medical`. Never
   // pulled back: it is not a collection, so it does not stay on the device once sent.
   'pain_report.submit',
+  'anthro.record',
+  'anthro.update',
 ] as const;
 export type SyncOperation = (typeof SYNC_OPERATIONS)[number];
 

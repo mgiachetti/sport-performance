@@ -50,6 +50,7 @@ import { HttpError } from '../http/errors.js';
 import { keysetPage, type KeysetSpec } from '../http/pagination.js';
 import { clubToday, type RequestPermissions } from '../http/permissions.js';
 import { rowVersion, updateAtVersion, versionMatches } from '../http/writes.js';
+import { withDefaultedFields, type DefaultedField } from '../sync/defaults.js';
 import {
   clubStaffIds,
   invalid,
@@ -81,7 +82,8 @@ const pendingMaturation = sql<boolean>`exists (
      and ${derivedRefresh.playerId} = ${anthroMeasurement.playerId}
      and ${derivedRefresh.maturation})`;
 
-const measurementColumns = {
+/** The columns of the read DTO (also the pull of the offline sync, B-508). */
+export const measurementColumns = {
   id: anthroMeasurement.id,
   playerId: anthroMeasurement.playerId,
   testSessionId: anthroMeasurement.testSessionId,
@@ -106,7 +108,7 @@ const measurementColumns = {
   version: rowVersion(anthroMeasurement.updatedAt),
 };
 
-interface MeasurementRow {
+export interface MeasurementRow {
   id: string;
   playerId: PlayerId;
   testSessionId: string | null;
@@ -131,7 +133,7 @@ interface MeasurementRow {
   version: string;
 }
 
-function measurementDto(row: MeasurementRow): AnthroMeasurement {
+export function measurementDto(row: MeasurementRow): AnthroMeasurement {
   return {
     id: row.id as AnthroMeasurement['id'],
     playerId: row.playerId,
@@ -346,6 +348,8 @@ const SESSION_DATE_MESSAGE = 'A measurement of a test day is on the date of the 
 interface PlannedInsert {
   readonly index: number;
   readonly values: typeof anthroMeasurement.$inferInsert;
+  /** What the caller did not send and the insert fills in: no clock in the change log. */
+  readonly defaulted: readonly DefaultedField[];
 }
 
 interface BatchContext {
@@ -366,7 +370,7 @@ async function planInsert(
   ctx: BatchContext,
   input: AnthroMeasurementInput,
   path: IssuePath,
-): Promise<{ issues: ValidationIssue[]; values?: PlannedInsert['values'] }> {
+): Promise<{ issues: ValidationIssue[]; planned?: Omit<PlannedInsert, 'index'> }> {
   const context = ctx.players.get(input.playerId);
   if (context === undefined) return { issues: [issue([...path, 'playerId'], 'Player not found')] };
   if ((await authorizeRow(ctx.permissions, context)) === 'consent_required') {
@@ -429,24 +433,35 @@ async function planInsert(
     evaluatorId = session?.evaluatorId ?? (ctx.callerIsStaff ? ctx.userId : null);
   }
   if (issues.length > 0) return { issues };
+  // Values the caller did not send (the day of the test day, the method, the evaluator, the
+  // conditions) are defaults: no clock, so a correction from the field wins over them (ADR 0050).
+  const defaulted: DefaultedField[] = [
+    ...(input.measuredOn === undefined ? (['anthro_measurement.measured_on'] as const) : []),
+    ...(input.method === undefined ? (['anthro_measurement.method'] as const) : []),
+    ...(input.evaluatorId === undefined ? (['anthro_measurement.evaluator_id'] as const) : []),
+    ...(input.conditions === undefined ? (['anthro_measurement.conditions'] as const) : []),
+  ];
   return {
     issues,
-    values: {
-      clubId: ctx.clubId,
-      ...(input.clientUuid !== undefined && { clientUuid: input.clientUuid }),
-      playerId: context.id,
-      testSessionId: session?.id ?? null,
-      measuredOn,
-      ...values,
-      method: input.method ?? 'manual',
-      evaluatorId,
-      conditions:
-        input.conditions === undefined
-          ? (session?.conditions ?? {})
-          : toConditions(input.conditions),
-      notes: input.notes ?? null,
-      createdBy: ctx.userId,
-      updatedBy: ctx.userId,
+    planned: {
+      defaulted,
+      values: {
+        clubId: ctx.clubId,
+        ...(input.clientUuid !== undefined && { clientUuid: input.clientUuid }),
+        playerId: context.id,
+        testSessionId: session?.id ?? null,
+        measuredOn,
+        ...values,
+        method: input.method ?? 'manual',
+        evaluatorId,
+        conditions:
+          input.conditions === undefined
+            ? (session?.conditions ?? {})
+            : toConditions(input.conditions),
+        notes: input.notes ?? null,
+        createdBy: ctx.userId,
+        updatedBy: ctx.userId,
+      },
     },
   };
 }
@@ -632,8 +647,7 @@ export function registerAnthropometryRoutes(app: FastifyInstance): void {
         }
         const planned = await planInsert(ctx, input, path);
         issues.push(...planned.issues);
-        if (planned.values !== undefined)
-          outcome.push({ insert: { index, values: planned.values } });
+        if (planned.planned !== undefined) outcome.push({ insert: { index, ...planned.planned } });
       }
       throwIssues(issues);
 
@@ -643,11 +657,15 @@ export function registerAnthropometryRoutes(app: FastifyInstance): void {
           recorded.push(item);
           continue;
         }
-        const [inserted] = await db
-          .insert(anthroMeasurement)
-          .values(item.insert.values)
-          .onConflictDoNothing({ target: [anthroMeasurement.clubId, anthroMeasurement.clientUuid] })
-          .returning({ id: anthroMeasurement.id });
+        const [inserted] = await withDefaultedFields(db, item.insert.defaulted, () =>
+          db
+            .insert(anthroMeasurement)
+            .values(item.insert.values)
+            .onConflictDoNothing({
+              target: [anthroMeasurement.clubId, anthroMeasurement.clientUuid],
+            })
+            .returning({ id: anthroMeasurement.id }),
+        );
         if (inserted === undefined) {
           // Same clientUuid inserted by a concurrent request, or invisible to the caller.
           throw new HttpError('conflict', 'This clientUuid was already used');

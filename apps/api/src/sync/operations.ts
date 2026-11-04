@@ -13,11 +13,14 @@ import {
   voidGymSet,
   voidTestResultEntries,
   logGymSets,
+  recordAnthroMeasurements,
+  updateAnthroMeasurement,
   type EndpointDefinition,
   type SyncOperationInput,
   type ValidationIssue,
 } from '@sport-performance/contracts';
 import {
+  anthroMeasurement,
   gymSet,
   participation,
   syncChange,
@@ -138,7 +141,12 @@ function requireClientUuid(body: { clientUuid?: string | undefined }, path: (str
 }
 
 /** Tables whose rows the offline queue edits. */
-type EditedTable = typeof wellness | typeof participation | typeof testResult | typeof gymSet;
+type EditedTable =
+  | typeof wellness
+  | typeof participation
+  | typeof testResult
+  | typeof gymSet
+  | typeof anthroMeasurement;
 
 /**
  * The id of the row a mutation edits, visible to the caller (RLS): by `id`
@@ -705,6 +713,93 @@ const painReportSubmit: Resolver<'pain_report.submit'> = async ({ body }, ctx) =
   return Promise.resolve(create({ endpoint: submitPainReport, body }));
 };
 
+// ─── Anthropometry ───────────────────────────────────────────────────────────────────
+
+const anthroRecord: Resolver<'anthro.record'> = async ({ body }, ctx) => {
+  body.measurements.forEach((measurement, index) => {
+    requireClientUuid(measurement, [...ctx.path, 'body', 'measurements', index]);
+  });
+  return Promise.resolve({
+    ...create({ endpoint: recordAnthroMeasurements, body }),
+    // The batch answers, per measurement, whether it was already there by its clientUuid.
+    settle: (output) => {
+      const measurements = (output as { measurements: readonly { replayed: boolean }[] })
+        .measurements;
+      return {
+        stamps: [],
+        appliedFields: [],
+        supersededFields: [],
+        replayed: measurements.length > 0 && measurements.every((item) => item.replayed),
+      };
+    },
+  });
+};
+
+const ANTHRO_FIELDS = [
+  'measuredOn',
+  'heightCm',
+  'sittingHeightCm',
+  'weightKg',
+  'skinfoldsSumMm',
+  'method',
+  'evaluatorId',
+  'conditions',
+  'notes',
+] as const;
+type AnthroField = (typeof ANTHRO_FIELDS)[number];
+const ANTHRO_COLUMNS: Record<AnthroField, SyncFieldColumn<'anthro_measurement'>> = {
+  measuredOn: 'measured_on',
+  heightCm: 'height_cm',
+  sittingHeightCm: 'sitting_height_cm',
+  weightKg: 'weight_kg',
+  skinfoldsSumMm: 'skinfolds_sum_mm',
+  method: 'method',
+  evaluatorId: 'evaluator_id',
+  conditions: 'conditions',
+  notes: 'notes',
+};
+
+const anthroUpdate: Resolver<'anthro.update'> = async ({ target, body }, ctx) => {
+  const id = await targetId(ctx.db, anthroMeasurement, ctx.clubId, target, 'Measurement');
+  await lockRows(ctx.db, 'anthro_measurement', [id]);
+  const [current] = await ctx.db
+    .select({ version: rowVersion(anthroMeasurement.updatedAt) })
+    .from(anthroMeasurement)
+    .where(and(eq(anthroMeasurement.clubId, ctx.clubId), eq(anthroMeasurement.id, id)));
+  if (current === undefined) throw new HttpError('not_found', 'Measurement not found');
+  const clocks = (await fieldClocks(ctx.db, ctx.clubId, 'anthro_measurement', [id])).get(id);
+  const edited = editedKeys(body, ANTHRO_FIELDS);
+  const { winners, losers } = splitFields<'anthro_measurement', AnthroField>(
+    clocks,
+    ctx.hlc,
+    edited,
+    (field) => ANTHRO_COLUMNS[field],
+  );
+  const checkOnly = winners.length === 0;
+  const sent = checkOnly ? edited : winners;
+  const fields = Object.fromEntries(sent.map((field) => [field, body[field]]));
+  return {
+    checkOnly,
+    call: {
+      endpoint: updateAnthroMeasurement,
+      params: { anthroMeasurementId: id },
+      // The reason is required online and offline: a correction of a loaded value (ADR 0030).
+      body: { version: current.version, changeReason: body.changeReason, ...fields },
+    },
+    stamps: checkOnly
+      ? []
+      : [
+          {
+            collection: 'anthro_measurement',
+            rowId: id,
+            columns: winners.map((field) => ANTHRO_COLUMNS[field]),
+          },
+        ],
+    appliedFields: winners,
+    supersededFields: losers,
+  };
+};
+
 /** The resolver of each operation. */
 export const SYNC_RESOLVERS: { readonly [Op in SyncOperation]: Resolver<Op> } = {
   'wellness.submit': wellnessSubmit,
@@ -721,6 +816,8 @@ export const SYNC_RESOLVERS: { readonly [Op in SyncOperation]: Resolver<Op> } = 
   'gym_set.correct': gymSetCorrect,
   'gym_set.void': gymSetVoid,
   'pain_report.submit': painReportSubmit,
+  'anthro.record': anthroRecord,
+  'anthro.update': anthroUpdate,
 };
 
 /** Every endpoint a sync operation may call (all must be registered transactional routes). */
@@ -739,4 +836,6 @@ export const SYNC_ENDPOINTS: readonly EndpointDefinition[] = [
   correctGymSet,
   voidGymSet,
   submitPainReport,
+  recordAnthroMeasurements,
+  updateAnthroMeasurement,
 ];

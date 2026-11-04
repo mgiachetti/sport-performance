@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { SyncChange } from '@sport-performance/contracts';
 import {
+  anthroMeasurement,
   category,
   gymProgram,
   gymSet,
@@ -37,6 +38,7 @@ import {
   sessionColumns,
   sessionDto,
 } from '../routes/training-shared.js';
+import { measurementColumns, measurementDto } from '../routes/anthropometry.js';
 import { wellnessColumns, wellnessDto } from '../routes/wellness.js';
 import {
   appliesTo,
@@ -57,7 +59,7 @@ import { loadStageSources } from '../routes/tests/model.js';
  * them and filtered by the same permission scope and RLS as their lists.
  */
 
-/** Every collection is read with the `read` action of the matrix resource of its name. */
+/** Every collection is read with the `read` action of its matrix resource (its name, or `anthropometry`). */
 const READ_KIND = {
   wellness: 'wellness',
   participation: 'participation',
@@ -66,6 +68,7 @@ const READ_KIND = {
   test_result: 'test_result',
   gym_program: 'gym_program',
   gym_set: 'gym_set',
+  anthro_measurement: 'anthropometry',
 } as const satisfies Record<SyncCollection, ResourceKind>;
 
 type Scope = Exclude<ListScope, { kind: 'none' } | { kind: 'platform' }>;
@@ -521,6 +524,28 @@ async function loadRows(
           data: dtos[index],
         } as Upsert);
       });
+      return out;
+    }
+    case 'anthro_measurement': {
+      const rows = await db
+        .select({ ...measurementColumns, clientUuid: anthroMeasurement.clientUuid })
+        .from(anthroMeasurement)
+        .where(
+          and(
+            eq(anthroMeasurement.clubId, clubId),
+            inArray(anthroMeasurement.id, [...ids]),
+            playerScope(scope, anthroMeasurement.clubId, anthroMeasurement.playerId, today),
+          ),
+        );
+      for (const row of rows) {
+        out.set(row.id, {
+          collection,
+          op: 'upsert',
+          id: row.id,
+          clientUuid: row.clientUuid,
+          data: measurementDto(row),
+        } as Upsert);
+      }
       return out;
     }
   }

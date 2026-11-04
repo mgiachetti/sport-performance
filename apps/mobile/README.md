@@ -42,6 +42,7 @@ pnpm --filter @sport-performance/mobile start   # después, solo el bundler
 - `src/reaction`: test de reacción (B-606, [ADR 0077](../../docs/adr/0077-test-de-reaccion-en-la-app.md)): este teléfono como equipo del club (id de instalación), corrida de las series con el reloj monotónico, resultado por la cola y comparación solo con el mismo jugador en el mismo equipo.
 - `src/weekly-cmj`: CMJ semanal de M17/M19 (B-506, [ADR 0079](../../docs/adr/0079-cmj-semanal-en-la-app.md)): reglas puras (`model.ts`: plantel por etapa, resultados de la base local y la cola, base y veredicto con las funciones del motor de alertas, mutaciones) y datos (`data.ts`: lecturas guardadas y escrituras por la cola).
 - `src/sprint-video`: sprint por video (B-605, [ADR 0082](../../docs/adr/0082-sprint-por-video-foto-finish.md)): permisos y destino del intento, armado de la cancha, marcado cuadro a cuadro, guardado por la cola y videos temporales que se borran.
+- `src/anthropometry`: la planilla de antropometría en cancha (B-508, [ADR 0083](../../docs/adr/0083-antropometria-en-cancha.md)): modelo puro (parseo es-AR, reglas, plausibilidad del dominio, entradas de la cola) y lecturas de la base local, de la cola y del contexto en caché.
 - `src/screens`: pantallas de presentación (datos y callbacks por props); `src/ui`: tema, traductor, primitivas accesibles y fuentes.
 
 Los imports llevan la extensión `.ts` / `.tsx` (ADR 0058).
@@ -60,6 +61,7 @@ La app lee de la base local y la red solo sincroniza (ADR 0015, 0050 y 0069). Un
 - **lee** con `services.sync.store.list(membershipId, collection, filtro)` / `get`: la fila del servidor con las ediciones pendientes superpuestas (`pending: true`), y las altas que todavía no volvieron con `store.pending(membershipId, [op])`;
 - **muestra el estado** con `useSyncStatus()` y `SyncIndicator`.
 - lee de la base local con `useLocalRead` (se repite al cambiar la cola o terminar un ciclo) y las lecturas de la API que no viajan por la sincronización con `useOfflineRead` (`src/state/offline-reads.ts`): la última respuesta queda en `cached_read` por membresía y se muestra sin señal ([ADR 0074](../../docs/adr/0074-app-del-jugador-lecturas-propias-y-cache-local.md)).
+- **guarda lo que no es una colección** (categorías, plantel, contexto de cada jugador) con `services.readCache.put(scope, key, value)` y lo lee con `readCache.get(membershipId, key, schema)`: se lee primero lo guardado y se refresca con señal; se borra con la membresía.
 
 La app del jugador (B-503) está en `src/player` (racha, récords, sesiones a puntuar: funciones puras), `src/screens/player-*.tsx` y `src/state/player-screens.tsx`; sus pestañas ("Hoy", "Mis tests") y Consentimientos solo aparecen con el rol `player`.
 

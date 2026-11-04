@@ -41,6 +41,7 @@ export function HomeScreen({
   onOpenReaction = null,
   onOpenWeeklyCmj = null,
   onOpenSprintVideo = null,
+  onOpenAnthropometry = null,
 }: {
   readonly userName: string;
   readonly membership: MembershipSummary;
@@ -56,6 +57,8 @@ export function HomeScreen({
   readonly onOpenWeeklyCmj?: (() => void) | null;
   /** The sprint by video (B-605); `null` hides it. */
   readonly onOpenSprintVideo?: (() => void) | null;
+  /** The field anthropometry sheet (B-508), for whoever records measurements; `null` hides it. */
+  readonly onOpenAnthropometry?: (() => void) | null;
 }) {
   const { t } = useTranslator();
   const name = userName.trim();
@@ -92,6 +95,16 @@ export function HomeScreen({
         <Card>
           <AppText tone="secondary">{t('sprintVideo.open.hint')}</AppText>
           <Button variant="secondary" label={t('sprintVideo.open')} onPress={onOpenSprintVideo} />
+        </Card>
+      )}
+      {onOpenAnthropometry === null ? null : (
+        <Card>
+          <AppText tone="secondary">{t('anthropometry.field.subtitle')}</AppText>
+          <Button
+            variant="secondary"
+            label={t('anthropometry.field.open')}
+            onPress={onOpenAnthropometry}
+          />
         </Card>
       )}
       <AppText role="caption" tone="muted">
