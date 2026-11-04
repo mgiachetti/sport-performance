@@ -493,6 +493,37 @@ describeWithPostgres('menstrual cycle (Postgres)', (serverUrl) => {
     });
   });
 
+  describe('its consent', () => {
+    const consents = (caller: SignedIn, query = '') =>
+      t.app.inject({ url: `/v1/players/${pA}/consents${query}`, headers: caller.headers });
+
+    it('only the player and her guardian see it: the staff cannot tell whether she signed', async () => {
+      for (const caller of [playerA, parentA]) {
+        const response = await consents(caller);
+        expect(response.statusCode, response.body).toBe(200);
+        expect(response.json<{ types: { type: string }[] }>().types.map((s) => s.type)).toContain(
+          'menstrual_cycle',
+        );
+      }
+      for (const caller of [coachA, scA, medicalA, adminA]) {
+        const response = await consents(caller);
+        expect(response.statusCode, response.body).toBe(200);
+        expect(response.json<{ types: { type: string }[] }>().types.map((s) => s.type)).toEqual([
+          'data',
+          'image',
+          'health',
+        ]);
+        const history = await consents(caller, '/history?type=menstrual_cycle');
+        expect(history.statusCode, history.body).toBe(200);
+        expect(history.json<{ items: unknown[] }>().items).toEqual([]);
+        const all = await consents(caller, '/history');
+        expect(all.body).not.toContain('menstrual_cycle');
+      }
+      const own = await consents(parentA, '/history?type=menstrual_cycle');
+      expect(own.json<{ items: unknown[] }>().items.length).toBeGreaterThan(0);
+    });
+  });
+
   describe('losing the access', () => {
     const sharedWithMe = (caller: SignedIn) =>
       t.app.inject({ url: '/v1/menstrual-cycle/shared-with-me', headers: caller.headers });
@@ -533,6 +564,34 @@ describeWithPostgres('menstrual cycle (Postgres)', (serverUrl) => {
       const list = await sharedWithMe(scA);
       expect(list.statusCode).toBeGreaterThanOrEqual(400);
       expect(list.body).not.toContain(pA);
+    });
+  });
+
+  // Last: publishing a new text of the cycle consent changes what is current.
+  describe('signing its consent', () => {
+    it('is not signed where the module is not offered', async () => {
+      const published = await t.app.inject({
+        method: 'POST',
+        url: '/v1/consent-documents',
+        headers: adminA.headers,
+        payload: { type: 'menstrual_cycle', version: 'ciclo-v2', title: 'Ciclo', body: 'Texto' },
+      });
+      expect(published.statusCode, published.body).toBe(201);
+      const documentId = published.json<{ id: string }>().id;
+      const signIt = () =>
+        t.app.inject({
+          method: 'POST',
+          url: `/v1/players/${pA}/consents`,
+          headers: parentA.headers,
+          payload: { documentId },
+        });
+      await setModule(clubA, false);
+      const off = await signIt();
+      expect(off.statusCode, off.body).toBe(409);
+      expect(errorOf(off).code).toBe('conflict');
+      await setModule(clubA, true);
+      const on = await signIt();
+      expect(on.statusCode, on.body).toBe(201);
     });
   });
 });
