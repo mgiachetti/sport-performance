@@ -188,11 +188,8 @@ describe.skipIf(!hasDatabase)('menarche in the medical schema (Postgres 16)', ()
       });
       await signHealthConsent(club);
     }
-    // Club A's assigned player is a girl (born 2011: a minor); club B's stays a boy.
-    await t.db
-      .update(player)
-      .set({ sex: 'female' })
-      .where(and(eq(player.clubId, a.clubId), eq(player.id, a.players.assigned)));
+    // Club A's players are girls (born 2011: minors); club B's stay boys.
+    await t.db.update(player).set({ sex: 'female' }).where(eq(player.clubId, a.clubId));
     app = await connectAs(t, 'app');
   });
 
