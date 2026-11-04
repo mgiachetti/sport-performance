@@ -30,7 +30,7 @@ import {
   type QueuedMutation,
   type StoredTarget,
 } from './local-store.ts';
-import { matchesTarget, prepareMutation, type TargetableRow } from './operations.ts';
+import { forgetsOnAck, matchesTarget, prepareMutation, type TargetableRow } from './operations.ts';
 
 /** The membership the device syncs: what `X-Membership-Id` names. */
 export interface SyncScopeRef {
@@ -383,7 +383,9 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
       errorCode: detail.errorCode ?? null,
       errorPaths: detail.errorPaths === undefined ? null : JSON.stringify(detail.errorPaths),
       fields: detail.fields === undefined ? null : JSON.stringify(detail.fields),
-      input: JSON.stringify(queued.input),
+      // Health data (the pain report, ADR 0078) never stays on the device once sent, not
+      // even when the server rejects it: the issue says what failed, without the answer.
+      input: forgetsOnAck(queued.op) ? '{}' : JSON.stringify(queued.input),
       recordedAt: queued.createdAt,
       createdAt: now(),
     });
@@ -410,6 +412,11 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     }
     if (result.status === 'superseded') {
       // A later edit won every field: the pull brings it; nothing of this one to show.
+      await db.delete(mutation).where(eq(mutation.mutationId, queued.mutationId));
+      return;
+    }
+    if (forgetsOnAck(queued.op)) {
+      // Nothing of it comes back in a pull (health data, ADR 0078): out of the device now.
       await db.delete(mutation).where(eq(mutation.mutationId, queued.mutationId));
       return;
     }

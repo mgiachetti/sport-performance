@@ -315,6 +315,19 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
     set: { ...nobody, medical: assigned },
     lift: { ...nobody, medical: assigned },
   },
+  // Health data the player gives (B-609, ADR 0078): only with a data and a health consent,
+  // read like the medical record (the medical staff and the holder) and never by the rest of
+  // the staff, who keep seeing the wellness without any trace of it.
+  pain_report: {
+    read: {
+      ...nobody,
+      player: allow('self', 'health'),
+      parent: allow('guardian', 'health', 'minor'),
+      medical: assigned,
+    },
+    submit: { ...nobody, player: allow('self', 'data', 'health') },
+    review: { ...nobody, medical: assigned },
+  },
   data_export: {
     export: {
       ...nobody,

@@ -143,6 +143,35 @@ describe('PlayerTodayScreen: wellness', () => {
     });
   });
 
+  it('offers "¿Te duele algo?" after the check-in only when the club asks it (B-609)', () => {
+    const submitted = {
+      wellness: {
+        kind: 'form' as const,
+        itemCount: 3 as const,
+        items: ['sleep', 'fatigue', 'soreness'] as const,
+        entry: {
+          scores: { sleep: 4, fatigue: 4, soreness: 2 },
+          target: { clientUuid: 'd2222222-2222-4222-8222-222222222222' },
+          pending: false,
+        },
+      },
+    };
+    const onOpenPainReport = vi.fn();
+    const { unmount } = renderScreen(
+      <PlayerTodayScreen
+        greeting="Hola, Tomás"
+        state={{ status: 'ready', data: data(submitted) }}
+        notice={null}
+        actions={{ ...actions(), onOpenPainReport }}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: t('pain.title') }));
+    expect(onOpenPainReport).toHaveBeenCalledOnce();
+    unmount();
+    renderToday(submitted);
+    expect(screen.queryByRole('button', { name: t('pain.title') })).toBeNull();
+  });
+
   it('explains why there is nothing to load without a data consent', () => {
     renderToday({
       wellness: { kind: 'unavailable', reason: 'no_consent' },

@@ -121,3 +121,5 @@ export function wellnessStageOn(input: {
   }
   return youngest;
 }
+
+export * from './pain-report.js';

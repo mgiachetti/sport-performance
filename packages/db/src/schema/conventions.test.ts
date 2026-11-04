@@ -115,7 +115,7 @@ describe('schema conventions', () => {
     );
   });
 
-  it('defines the B-304 medical tables in their own schema', () => {
+  it('defines the medical tables (B-304, B-609) in their own schema', () => {
     expect(medicalTables.map((t) => t.name).sort()).toEqual([
       'access_log',
       'concussion',
@@ -123,6 +123,8 @@ describe('schema conventions', () => {
       'hold',
       'injury',
       'note',
+      'pain_report',
+      'pain_report_area',
     ]);
   });
 

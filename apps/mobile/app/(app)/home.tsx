@@ -28,7 +28,16 @@ export default function Home() {
     />
   );
   // The player's home is their day (B-503): wellness, RPE, streak and the next test day.
-  if (state.activeMembership.role === 'player') return <PlayerToday sync={sync} />;
+  if (state.activeMembership.role === 'player') {
+    return (
+      <PlayerToday
+        sync={sync}
+        onOpenPainReport={() => {
+          router.push('/pain-report');
+        }}
+      />
+    );
+  }
   return (
     <HomeScreen
       userName={state.user.name}

@@ -53,6 +53,8 @@ export default function AppLayout() {
       {/* The player's consents, opened from Cuenta. */}
       <Tabs.Screen name="consents" options={{ title: t('playerApp.consents.title'), href: null }} />
       <Tabs.Screen name="reaction" options={{ title: t('reaction.title'), href: null }} />
+      {/* A step of the player's wellness (B-609), opened from Inicio and after the check-in. */}
+      <Tabs.Screen name="pain-report" options={{ title: t('pain.title'), href: null }} />
     </Tabs>
   );
 }

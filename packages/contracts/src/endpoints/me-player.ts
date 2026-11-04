@@ -65,6 +65,10 @@ export const myPlayerSchema = z
           description:
             'Puede ver sus percentiles (desde M15, según su etapa y la franja de su categoría).',
         }),
+        reportPain: z.boolean().meta({
+          description:
+            'Se le pregunta "¿te duele algo?" en el bienestar (B-609): el club tiene los módulos `wellness` y `pain_report` y tiene los consentimientos de datos y de salud vigentes.',
+        }),
       })
       .meta({ description: 'Lo que la matriz de permisos le deja hacer hoy.' }),
   })

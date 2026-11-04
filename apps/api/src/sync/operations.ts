@@ -5,6 +5,7 @@ import {
   createTestResult,
   recordParticipations,
   recordTestSessionResults,
+  submitPainReport,
   submitSessionRpe,
   submitWellness,
   updateParticipation,
@@ -696,6 +697,14 @@ const gymSetVoid: Resolver<'gym_set.void'> = async ({ target, body }, ctx) => {
   return create({ endpoint: voidGymSet, params: { gymSetId: id }, body });
 };
 
+// ─── Pain report (B-609, ADR 0078) ───────────────────────────────────────────────────
+
+const painReportSubmit: Resolver<'pain_report.submit'> = async ({ body }, ctx) => {
+  requireClientUuid(body, [...ctx.path, 'body']);
+  // Append-only: a create, never in conflict. Replayed by its clientUuid.
+  return Promise.resolve(create({ endpoint: submitPainReport, body }));
+};
+
 /** The resolver of each operation. */
 export const SYNC_RESOLVERS: { readonly [Op in SyncOperation]: Resolver<Op> } = {
   'wellness.submit': wellnessSubmit,
@@ -711,6 +720,7 @@ export const SYNC_RESOLVERS: { readonly [Op in SyncOperation]: Resolver<Op> } = 
   'gym_set.log': gymSetLog,
   'gym_set.correct': gymSetCorrect,
   'gym_set.void': gymSetVoid,
+  'pain_report.submit': painReportSubmit,
 };
 
 /** Every endpoint a sync operation may call (all must be registered transactional routes). */
@@ -728,4 +738,5 @@ export const SYNC_ENDPOINTS: readonly EndpointDefinition[] = [
   logGymSets,
   correctGymSet,
   voidGymSet,
+  submitPainReport,
 ];

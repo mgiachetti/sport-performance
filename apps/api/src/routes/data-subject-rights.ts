@@ -248,22 +248,88 @@ function projectNotDoneReasons(tables: ExportedTables, viewer: Role): ExportedTa
   };
 }
 
-/** Clinical tables read through the audited functions of the `medical` schema (ADR 0029). */
-export const MEDICAL_READS = {
-  'medical.injury': 'medical.read_injuries',
-  'medical.concussion': 'medical.read_concussions',
-  'medical.concussion_stage': 'medical.read_concussion_stages',
-  'medical.note': 'medical.read_notes',
-} as const;
+/**
+ * The rows of one clinical table. `once` shares a read between the tables it
+ * feeds (the pain reports and their areas): one audited call, one log row.
+ */
+type MedicalReader = (
+  db: TenantDatabase,
+  playerId: PlayerId,
+  once: <T>(key: string, read: () => Promise<T>) => Promise<T>,
+) => Promise<ExportedRow[]>;
 
-async function readMedical(db: TenantDatabase, playerId: PlayerId): Promise<ExportedTables> {
-  const tables: ExportedTables = {};
-  for (const [table, reader] of Object.entries(MEDICAL_READS)) {
+/** A clinical table read by one call of its audited function (ADR 0029). */
+const readAll =
+  (reader: string): MedicalReader =>
+  async (db, playerId) => {
     const { rows } = await db.execute<{ rows: ExportedRow[] }>(
       sql`select coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb) as rows
             from ${sql.raw(reader)}(array[${playerId}]::uuid[]) x`,
     );
-    tables[table] = rows[0]?.rows ?? [];
+    return rows[0]?.rows ?? [];
+  };
+
+/**
+ * The pain reports of the wellness (B-609, ADR 0078), all of them: the
+ * audited read answers pages of at most 101, newest first, by keyset.
+ */
+async function readPainReports(db: TenantDatabase, playerId: PlayerId): Promise<ExportedRow[]> {
+  const all: ExportedRow[] = [];
+  let before: { us: string; id: string } | null = null;
+  for (;;) {
+    const page: { rows: (ExportedRow & { created_us: string; id: string })[] } = await db.execute(
+      sql`select to_jsonb(x) - 'areas' as row, x.areas, x.id::text as id,
+                 (extract(epoch from x.created_at) * 1000000)::bigint::text as created_us
+            from medical.read_pain_reports(
+              array[${playerId}]::uuid[], null::date, null::date, false,
+              ${before === null ? sql`null::timestamptz` : sql`timestamptz 'epoch' + ${before.us}::bigint * interval '1 microsecond'`},
+              ${before === null ? null : before.id}::uuid, 101, null::uuid[], null::uuid[]) x`,
+    );
+    all.push(...page.rows);
+    const last = page.rows.at(-1);
+    if (page.rows.length < 101 || last === undefined) return all;
+    before = { us: last.created_us, id: last.id };
+  }
+}
+
+const painReports: MedicalReader = async (db, playerId, once) =>
+  (await once('pain_report', () => readPainReports(db, playerId))).map(
+    (entry) => entry.row as ExportedRow,
+  );
+
+const painReportAreas: MedicalReader = async (db, playerId, once) =>
+  (await once('pain_report', () => readPainReports(db, playerId))).flatMap((entry) =>
+    (entry.areas as { region: string; side: string; intensity: number }[]).map((area) => ({
+      report_id: entry.id,
+      body_region: area.region,
+      side: area.side,
+      intensity: area.intensity,
+    })),
+  );
+
+/** Clinical tables read through the audited functions of the `medical` schema (ADR 0029). */
+export const MEDICAL_READS: Readonly<Record<string, MedicalReader>> = {
+  'medical.injury': readAll('medical.read_injuries'),
+  'medical.concussion': readAll('medical.read_concussions'),
+  'medical.concussion_stage': readAll('medical.read_concussion_stages'),
+  'medical.note': readAll('medical.read_notes'),
+  'medical.pain_report': painReports,
+  'medical.pain_report_area': painReportAreas,
+};
+
+async function readMedical(db: TenantDatabase, playerId: PlayerId): Promise<ExportedTables> {
+  const tables: ExportedTables = {};
+  const shared = new Map<string, Promise<unknown>>();
+  const once = <T>(key: string, read: () => Promise<T>): Promise<T> => {
+    let pending = shared.get(key) as Promise<T> | undefined;
+    if (pending === undefined) {
+      pending = read();
+      shared.set(key, pending);
+    }
+    return pending;
+  };
+  for (const [table, read] of Object.entries(MEDICAL_READS)) {
+    tables[table] = await read(db, playerId, once);
   }
   return tables;
 }

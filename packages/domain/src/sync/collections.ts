@@ -69,6 +69,9 @@ export const SYNC_OPERATIONS = [
   'gym_set.log',
   'gym_set.correct',
   'gym_set.void',
+  // Create only (B-609, ADR 0078): health data the player gives, written to `medical`. Never
+  // pulled back: it is not a collection, so it does not stay on the device once sent.
+  'pain_report.submit',
 ] as const;
 export type SyncOperation = (typeof SYNC_OPERATIONS)[number];
 

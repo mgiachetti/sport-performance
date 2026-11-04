@@ -4,6 +4,7 @@ import { mobileMessagesEsAR } from './mobile.js';
 import { webGymMessagesEsAR } from './web-gym.js';
 import { mobileTestDayMessagesEsAR } from './mobile-test-day.js';
 import { mobileReactionMessagesEsAR } from './mobile-reaction.js';
+import { mobilePainMessagesEsAR } from './mobile-pain.js';
 import { reportMessagesEsAR } from './report.js';
 import { categoryReportMessagesEsAR } from './category-report.js';
 import { mobilePlayerMessagesEsAR } from './mobile-player.js';
@@ -417,6 +418,32 @@ export const commonMessagesEsAR = {
   'duration.weeks': '{count, plural, one {# semana} other {# semanas}}',
   'duration.years': '{count, plural, one {# año} other {# años}}',
 
+  // Body regions of the medical vocabulary (injuries and the pain body map, B-609), and sides.
+  'body.region.head_face': 'Cabeza y cara',
+  'body.region.neck': 'Cuello',
+  'body.region.shoulder': 'Hombro',
+  'body.region.upper_arm': 'Brazo',
+  'body.region.elbow': 'Codo',
+  'body.region.forearm': 'Antebrazo',
+  'body.region.wrist_hand': 'Muñeca y mano',
+  'body.region.chest': 'Pecho',
+  'body.region.thoracic_spine': 'Espalda alta',
+  'body.region.lumbar_spine': 'Espalda baja (lumbar)',
+  'body.region.abdomen': 'Abdomen',
+  'body.region.pelvis_hip_groin': 'Cadera, glúteo e ingle',
+  'body.region.thigh_anterior': 'Muslo (adelante)',
+  'body.region.thigh_posterior': 'Muslo (atrás, isquios)',
+  'body.region.knee': 'Rodilla',
+  'body.region.lower_leg': 'Pierna (gemelo y tibia)',
+  'body.region.ankle': 'Tobillo y talón',
+  'body.region.foot': 'Pie',
+  'body.region.other': 'Otra zona',
+  'body.side.left': 'lado izquierdo',
+  'body.side.right': 'lado derecho',
+  'body.side.central': 'centro',
+  // A limb or a hip with its side ("Rodilla, lado izquierdo"); the trunk goes by its region alone.
+  'body.area': '{region}, {side}',
+
   // Disclaimers
   'legal.notMedicalDevice':
     'Esta app monitorea la carga de entrenamiento. No diagnostica ni reemplaza al staff médico.',
@@ -447,6 +474,7 @@ export const sourceMessageFiles = {
   'web-gym.ts': webGymMessagesEsAR,
   'mobile-gym.ts': mobileGymMessagesEsAR,
   'mobile-reaction.ts': mobileReactionMessagesEsAR,
+  'mobile-pain.ts': mobilePainMessagesEsAR,
   'protocols.ts': protocolMessagesEsAR,
   'web-help.ts': webHelpMessagesEsAR,
   'report.ts': reportMessagesEsAR,
@@ -478,6 +506,8 @@ export const esAR = {
   ...mobileGymMessagesEsAR,
   // The reaction test in the app (B-606)
   ...mobileReactionMessagesEsAR,
+  // The pain report of the wellness in the app (B-609)
+  ...mobilePainMessagesEsAR,
   ...protocolMessagesEsAR,
   ...webHelpMessagesEsAR,
   // The PDF report of a player (B-602), rendered by the worker

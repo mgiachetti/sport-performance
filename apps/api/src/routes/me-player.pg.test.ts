@@ -26,7 +26,12 @@ interface MyPlayerBody {
   categoryId: string | null;
   stage: string | null;
   wellness: { itemCount: number; items: string[] } | null;
-  permissions: { submitWellness: boolean; submitRpe: boolean; readPercentiles: boolean };
+  permissions: {
+    submitWellness: boolean;
+    submitRpe: boolean;
+    readPercentiles: boolean;
+    reportPain: boolean;
+  };
 }
 
 interface TestDaysBody {
@@ -259,6 +264,8 @@ describeWithPostgres('player app reads (Postgres)', (serverUrl) => {
       submitWellness: true,
       submitRpe: true,
       readPercentiles: false,
+      // The club does not have the pain report module on (the default).
+      reportPain: false,
     });
   });
 
