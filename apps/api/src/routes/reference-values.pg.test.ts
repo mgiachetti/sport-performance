@@ -674,15 +674,16 @@ describeWithPostgres('first-team references (Postgres)', (serverUrl) => {
            returning id`,
           [clubA, firstName, sex],
         );
-        return rows[0]?.id ?? '';
+        const id = rows[0]?.id ?? '';
+        await database.admin.query(
+          `insert into player_category (club_id, player_id, category_id, valid_from)
+           values ($1, $2, (select id from category where club_id = $1 and sport = 'hockey'
+                            and sex = $3 and age_band_code = 'm15'), '2020-01-01')`,
+          [clubA, id, sex],
+        );
+        return id;
       };
       const woman = await hockeyPlayer('Jugadora', 'female');
-      await database.admin.query(
-        `insert into player_category (club_id, player_id, category_id, valid_from)
-         values ($1, $2, (select id from category where club_id = $1 and sport = 'hockey'
-                          and sex = 'female' and age_band_code = 'm15'), '2020-01-01')`,
-        [clubA, woman],
-      );
       // A men's reference of the same sport and metric: only the sex tells them apart.
       const menHockey = await create(
         scA,
@@ -707,6 +708,12 @@ describeWithPostgres('first-team references (Postgres)', (serverUrl) => {
         ['cmj_height_cm', 'squad', 38.5, 'Primera femenina 2026'],
       ]);
       // And the other way round: a man of the same sport sees only the men's one.
+      // The club has no men's hockey branch: open a category for him.
+      await database.admin.query(
+        `insert into category (club_id, sport, sex, age_band_code, name, default_stage)
+         values ($1, 'hockey', 'male', 'm15', 'Sub 15 hockey masculino', 'development')`,
+        [clubA],
+      );
       const man = await hockeyPlayer('Jugador', 'male');
       const forMan = await view(adminA, man, '?asOf=2026-05-01');
       expect(forMan.statusCode, forMan.body).toBe(200);
