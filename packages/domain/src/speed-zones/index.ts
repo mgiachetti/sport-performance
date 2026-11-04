@@ -21,8 +21,13 @@ export {
 } from './zones.js';
 export {
   DEFAULT_ABSOLUTE_SPEED_ZONES,
+  DEFAULT_FEMALE_ABSOLUTE_SPEED_ZONES,
   DEFAULT_RELATIVE_SPEED_ZONES,
   DEFAULT_SPEED_ZONE_SETS,
+  DEFAULT_SPEED_ZONE_SETS_BY_SEX,
+  DEFAULT_SPEED_ZONE_SOURCES,
+  defaultSpeedZoneSet,
+  type SexSpeedZoneDefaults,
 } from './defaults.js';
 export {
   findSpeedZoneConfigConflicts,

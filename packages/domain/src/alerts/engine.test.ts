@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_ALERT_RULES,
+  DEFAULT_ALERT_RULE_SOURCES,
   DomainValidationError,
   addDays,
   alertRuleAppliesTo,
@@ -14,6 +15,7 @@ import {
   type AlertRule,
   type AlertRuleKind,
   type PlayerDailyState,
+  type Sex,
   type WellnessDailyScore,
 } from '../index.js';
 
@@ -311,6 +313,7 @@ describe('cmj_drop', () => {
 
 describe('growth_peak', () => {
   const growth = (velocityCmYear: number | null, ageDays = 10): Omit<PlayerDailyState, 'date'> => ({
+    sex: 'male',
     growth: { velocityCmYear, measuredOn: addDays(DAY, -ageDays) },
   });
 
@@ -337,7 +340,64 @@ describe('growth_peak', () => {
     expect(reasonOf(only('growth_peak', growth(9, 121)))).toBe('stale_data');
     expect(reasonOf(only('growth_peak', growth(null)))).toBe('no_data');
     expect(reasonOf(only('growth_peak', growth(9, -1)))).toBe('no_data');
-    expect(reasonOf(only('growth_peak', {}))).toBe('no_data');
+    expect(reasonOf(only('growth_peak', { sex: 'male' }))).toBe('no_data');
+  });
+});
+
+describe('growth peak by sex (B-804)', () => {
+  const growthOf = (sex: Sex, velocityCmYear: number): PlayerDailyState => ({
+    date: DAY,
+    sport: 'hockey',
+    sex,
+    growth: { velocityCmYear, measuredOn: addDays(DAY, -10) },
+  });
+  const growthRules = DEFAULT_ALERT_RULES.filter((rule) => rule.kind === 'growth_peak');
+
+  it('has one default growth rule per sex', () => {
+    expect(growthRules.map((rule) => [rule.code, rule.appliesTo?.sexes])).toEqual([
+      ['growth_peak', ['male']],
+      ['growth_peak_female', ['female']],
+    ]);
+  });
+
+  it.each([
+    ['female', 5.9, []],
+    ['female', 6, [['growth_peak_female', 6]]],
+    ['female', 9, [['growth_peak_female', 6]]],
+    ['male', 6.5, []],
+    ['male', 7.2, [['growth_peak', 7.2]]],
+  ] as const)('a %s player at %s cm/year raises %j', (sex, velocity, expected) => {
+    const evaluation = evaluateAlertRules(growthRules, growthOf(sex, velocity));
+    expect(evaluation.alerts.map((a) => [a.ruleCode, a.values.thresholdCmYear])).toEqual(expected);
+    // The rule of the other sex never reaches the player.
+    expect(evaluation.skipped).toContainEqual({
+      ruleCode: sex === 'female' ? 'growth_peak' : 'growth_peak_female',
+      kind: 'growth_peak',
+      reason: 'not_applicable',
+    });
+  });
+
+  it('skips both growth rules when the sex is unknown', () => {
+    const evaluation = evaluateAlertRules(growthRules, {
+      date: DAY,
+      growth: { velocityCmYear: 9, measuredOn: addDays(DAY, -10) },
+    });
+    expect(evaluation.alerts).toEqual([]);
+    expect(evaluation.skipped.map((s) => s.reason)).toEqual(['not_applicable', 'not_applicable']);
+  });
+
+  it('cites the source of every sex-specific default, unverified until checked', () => {
+    const scoped = DEFAULT_ALERT_RULES.filter((rule) => rule.appliesTo?.sexes !== undefined);
+    expect(scoped.map((rule) => rule.code).sort()).toEqual(
+      Object.keys(DEFAULT_ALERT_RULE_SOURCES).sort(),
+    );
+    for (const source of Object.values(DEFAULT_ALERT_RULE_SOURCES)) {
+      expect(source.citation.length).toBeGreaterThan(20);
+      // The DOI of the main source, or of the supporting article when the main one is a book.
+      expect(source.doi ?? source.citation).toMatch(/10\.\d{4,}\//);
+      expect(source.verification).toBe('unverified');
+      expect(source.verificationNotes).toMatch(/before production/);
+    }
   });
 });
 
@@ -375,6 +435,7 @@ describe('evaluateAlertRules', () => {
         kind: 'wellness_zscore_low',
         reason: 'insufficient_history',
       },
+      { ruleCode: 'growth_peak_female', kind: 'growth_peak', reason: 'not_applicable' },
     ]);
     expect(highestAlertSeverity(evaluation.alerts)).toBe('critical');
   });
@@ -382,7 +443,12 @@ describe('evaluateAlertRules', () => {
   it('raises nothing on an empty state', () => {
     const evaluation = evaluateAlertRules(DEFAULT_ALERT_RULES, { date: DAY });
     expect(evaluation.alerts).toEqual([]);
-    expect(evaluation.skipped.map((s) => s.reason)).toEqual(Array<string>(6).fill('no_data'));
+    // Without a sex the growth rules (one per sex) do not apply.
+    expect(evaluation.skipped.map((s) => s.reason)).toEqual([
+      ...Array<string>(5).fill('no_data'),
+      'not_applicable',
+      'not_applicable',
+    ]);
     expect(highestAlertSeverity(evaluation.alerts)).toBeNull();
   });
 

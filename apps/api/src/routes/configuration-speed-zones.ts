@@ -10,8 +10,8 @@ import {
 } from '@sport-performance/contracts';
 import { speedZoneConfig } from '@sport-performance/db/schema';
 import {
-  DEFAULT_SPEED_ZONE_SETS,
   DomainValidationError,
+  defaultSpeedZoneSet,
   findSpeedZoneConfigConflicts,
   resolveSpeedZoneConfig,
   validateSpeedZoneSet,
@@ -55,7 +55,8 @@ import {
  * Speed zones of the club (B-209, B-322): every zone set is validated by the
  * domain (`validateSpeedZoneSet`), overlaps are found with
  * `findSpeedZoneConfigConflicts` and the zones in force come from
- * `resolveSpeedZoneConfig`, with the seeded defaults as fallback.
+ * `resolveSpeedZoneConfig`, with the default of the sex as fallback
+ * (`defaultSpeedZoneSet`, B-804).
  */
 
 /** Stands for "no player" in a domain query once the player rows are filtered out. */
@@ -302,7 +303,7 @@ export function registerSpeedZoneRoutes(app: FastifyInstance): void {
         source: resolved === null ? ('default' as const) : ('club' as const),
         config: resolved === null ? null : zoneDto(resolved.row),
         zoneSet: (resolved?.zoneSet ??
-          DEFAULT_SPEED_ZONE_SETS[query.kind]) as SpeedZoneConfigDto['zoneSet'],
+          defaultSpeedZoneSet(query.kind, query.sex)) as SpeedZoneConfigDto['zoneSet'],
       };
     },
   });

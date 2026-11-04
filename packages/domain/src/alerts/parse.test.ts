@@ -3,6 +3,7 @@ import {
   ALERT_RULE_KINDS,
   AlertRuleValidationError,
   DEFAULT_ALERT_RULES,
+  SEXES,
   DomainValidationError,
   parseAlertRule,
   parseAlertRuleSet,
@@ -38,8 +39,21 @@ describe('DEFAULT_ALERT_RULES', () => {
     expect(parseAlertRuleSet(json)).toEqual(DEFAULT_ALERT_RULES);
   });
 
-  it('covers every rule kind once', () => {
-    expect(DEFAULT_ALERT_RULES.map((r) => r.kind).sort()).toEqual([...ALERT_RULE_KINDS].sort());
+  it('covers every rule kind, with unique codes', () => {
+    expect([...new Set(DEFAULT_ALERT_RULES.map((r) => r.kind))].sort()).toEqual(
+      [...ALERT_RULE_KINDS].sort(),
+    );
+    const codes = DEFAULT_ALERT_RULES.map((r) => r.code);
+    expect(new Set(codes).size).toBe(codes.length);
+  });
+
+  it('has more than one rule of a kind only when each covers a different sex (B-804)', () => {
+    for (const kind of ALERT_RULE_KINDS) {
+      const rules = DEFAULT_ALERT_RULES.filter((r) => r.kind === kind);
+      if (rules.length === 1) continue;
+      const sexes: string[] = rules.flatMap((r) => r.appliesTo?.sexes ?? SEXES);
+      expect(sexes.sort(), kind).toEqual(['female', 'male']);
+    }
   });
 
   it('carries the thresholds of CLAUDE.md', () => {

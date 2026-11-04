@@ -6,7 +6,7 @@
  * creates, versions, archive, cursors, superadmin support.
  */
 import { randomUUID } from 'node:crypto';
-import type { ClubId } from '@sport-performance/domain';
+import { DEFAULT_FEMALE_ABSOLUTE_SPEED_ZONES, type ClubId } from '@sport-performance/domain';
 import type { LightMyRequestResponse } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
@@ -577,9 +577,9 @@ describeWithPostgres('club configuration (Postgres)', (serverUrl) => {
       expect(
         response
           .json<Page<ZoneBody>>()
-          .items.map((z) => z.kind)
+          .items.map((z) => `${z.kind}:${String(z.sex)}`)
           .sort(),
-      ).toEqual(['absolute', 'relative']);
+      ).toEqual(['absolute:female', 'absolute:null', 'relative:null']);
       const denied = await inject(player, 'GET', '/v1/configuration/speed-zones');
       expect(denied.statusCode).toBe(403);
       const effective = await inject(
@@ -594,6 +594,33 @@ describeWithPostgres('club configuration (Postgres)', (serverUrl) => {
         source: 'club',
         zoneSet: { highSpeedZoneCode: 'high_speed_running' },
       });
+    });
+
+    it('resolves the women zones for a woman and the club-wide ones for a man (B-804)', async () => {
+      const effective = async (sport: string, sex: string) => {
+        const response = await inject(
+          coach,
+          'GET',
+          `/v1/configuration/speed-zones/effective?kind=absolute&sport=${sport}&sex=${sex}`,
+        );
+        expect(response.statusCode, response.body).toBe(200);
+        return response.json<{
+          source: string;
+          config: { sex: string | null } | null;
+          zoneSet: { zones: { code: string; minSpeedMs: number }[] };
+        }>();
+      };
+      const highSpeed = (body: Awaited<ReturnType<typeof effective>>) =>
+        body.zoneSet.zones.find((z) => z.code === 'high_speed_running')?.minSpeedMs;
+      for (const sport of ['hockey', 'rugby']) {
+        const women = await effective(sport, 'female');
+        expect(women).toMatchObject({ source: 'club', config: { sex: 'female' } });
+        expect(women.zoneSet).toEqual(DEFAULT_FEMALE_ABSOLUTE_SPEED_ZONES);
+        expect(highSpeed(women)).toBe(5.28);
+      }
+      const men = await effective('rugby', 'male');
+      expect(men).toMatchObject({ source: 'club', config: { sex: null } });
+      expect(highSpeed(men)).toBe(5.5);
     });
 
     it('validates zone sets with the domain', async () => {
@@ -744,10 +771,18 @@ describeWithPostgres('club configuration (Postgres)', (serverUrl) => {
         'acwr_low',
         'cmj_drop',
         'growth_peak',
+        'growth_peak_female',
         'wellness_low',
         'wellness_zscore_low',
       ]);
       expect(rules.every((r) => r.isDefault)).toBe(true);
+      // Growth is the one sex-specific default (B-804): one rule per sex.
+      expect(
+        rules.filter((r) => r.kind === 'growth_peak').map((r) => [r.code, r.appliesTo]),
+      ).toEqual([
+        ['growth_peak', { sexes: ['male'] }],
+        ['growth_peak_female', { sexes: ['female'] }],
+      ]);
       acwrHigh = rules[0] ?? acwrHigh;
       expect(acwrHigh.params).toEqual({
         warningAboveRatio: 1.3,

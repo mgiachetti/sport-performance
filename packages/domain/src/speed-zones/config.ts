@@ -3,7 +3,7 @@ import { isUuid, type ClubId, type PlayerId } from '../ids.js';
 import { isSex, type Sex } from '../sex.js';
 import { isSport, type Sport } from '../sport.js';
 import { compareLocalDates, isLocalDate, type LocalDate } from '../time.js';
-import { DEFAULT_SPEED_ZONE_SETS } from './defaults.js';
+import { defaultSpeedZoneSet } from './defaults.js';
 import {
   validateSpeedZoneSet,
   type SpeedZoneKind,
@@ -153,13 +153,13 @@ export function resolveSpeedZoneConfig<K extends SpeedZoneKind, C extends SpeedZ
 
 /**
  * The zone set in force for the query, falling back to `fallback` (by default
- * the seeded {@link DEFAULT_SPEED_ZONE_SETS} of the kind) when the club has no
- * applicable configuration.
+ * the seeded default of the kind for the query's sex, `defaultSpeedZoneSet`)
+ * when the club has no applicable configuration.
  */
 export function resolveSpeedZoneSet<K extends SpeedZoneKind>(
   configs: readonly SpeedZoneConfig[],
   query: SpeedZoneQuery<K>,
-  fallback: SpeedZoneSetOfKind<K> = DEFAULT_SPEED_ZONE_SETS[query.kind],
+  fallback: SpeedZoneSetOfKind<K> = defaultSpeedZoneSet(query.kind, query.sex),
 ): SpeedZoneSetOfKind<K> {
   return resolveSpeedZoneConfig(configs, query)?.zoneSet ?? fallback;
 }

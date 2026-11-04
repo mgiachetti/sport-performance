@@ -666,6 +666,70 @@ describeWithPostgres('first-team references (Postgres)', (serverUrl) => {
       expect(filtered.json<PlayerReferences>().items).toHaveLength(1);
     });
 
+    it("shows a woman only the women's first-team references of her sport (B-804)", async () => {
+      const hockeyPlayer = async (firstName: string, sex: 'female' | 'male'): Promise<string> => {
+        const { rows } = await database.admin.query<{ id: string }>(
+          `insert into player (club_id, first_name, last_name, birth_date, sex, sport, joined_on)
+           values ($1, $2, 'Test', '2011-03-02', $3, 'hockey', '2020-01-01')
+           returning id`,
+          [clubA, firstName, sex],
+        );
+        const id = rows[0]?.id ?? '';
+        await database.admin.query(
+          `insert into player_category (club_id, player_id, category_id, valid_from)
+           values ($1, $2, (select id from category where club_id = $1 and sport = 'hockey'
+                            and sex = $3 and age_band_code = 'm15'), '2020-01-01')`,
+          [clubA, id, sex],
+        );
+        return id;
+      };
+      const woman = await hockeyPlayer('Jugadora', 'female');
+      // A men's reference of the same sport and metric: only the sex tells them apart.
+      const menHockey = await create(
+        scA,
+        cmj({ sport: 'hockey', sex: 'male', value: 47.5, source: 'Primera masculina 2026' }),
+      );
+      expect(menHockey.statusCode, menHockey.body).toBe(201);
+      // Before any women's reference, the men's ones never stand in for them.
+      const none = await view(adminA, woman, '?asOf=2026-05-01');
+      expect(none.statusCode, none.body).toBe(200);
+      expect(none.json<PlayerReferences>()).toMatchObject({
+        sport: 'hockey',
+        sex: 'female',
+        items: [],
+      });
+      const created = await create(
+        scA,
+        cmj({ sport: 'hockey', sex: 'female', value: 38.5, source: 'Primera femenina 2026' }),
+      );
+      expect(created.statusCode, created.body).toBe(201);
+      const body = (await view(adminA, woman, '?asOf=2026-05-01')).json<PlayerReferences>();
+      expect(body.items.map((i) => [i.metricCode, i.scope, i.value, i.source])).toEqual([
+        ['cmj_height_cm', 'squad', 38.5, 'Primera femenina 2026'],
+      ]);
+      // And the other way round: a man of the same sport sees only the men's one.
+      // The club has no men's hockey branch: open one and a category for him.
+      await database.admin.query(
+        `insert into club_branch (club_id, sport, sex) values ($1, 'hockey', 'male')`,
+        [clubA],
+      );
+      await database.admin.query(
+        `insert into category (club_id, sport, sex, age_band_code, name, default_stage)
+         values ($1, 'hockey', 'male', 'm15', 'Sub 15 hockey masculino', 'development')`,
+        [clubA],
+      );
+      const man = await hockeyPlayer('Jugador', 'male');
+      const forMan = await view(adminA, man, '?asOf=2026-05-01');
+      expect(forMan.statusCode, forMan.body).toBe(200);
+      expect(
+        forMan.json<PlayerReferences>().items.map((i) => [i.metricCode, i.value, i.source]),
+      ).toEqual([['cmj_height_cm', 47.5, 'Primera masculina 2026']]);
+      // And the rugby men keep theirs.
+      const men = (await view(playerA, ownPlayer, '?asOf=2026-05-01')).json<PlayerReferences>();
+      expect(men.items.map((i) => i.value)).not.toContain(38.5);
+      expect(men.items.map((i) => i.value)).not.toContain(47.5);
+    });
+
     it('lets the assigned staff in, never another player, the parent or other clubs', async () => {
       expect((await view(coachA, ownPlayer)).statusCode).toBe(200);
       // The coach is assigned to M15 only.
