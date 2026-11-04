@@ -104,6 +104,8 @@ medical_block.lift       -                     -               -               -
 pain_report.read         self+health           guardian+health+minor -               -               assigned         -           -
 pain_report.submit       self+data+health      -               -               -               -                -           -
 pain_report.review       -                     -               -               -               assigned         -           -
+menarche.read            self+health           guardian+health+minor -               -               assigned+health  -           -
+menarche.report          self+data+health      guardian+data+health+minor -               -               assigned+health  -           -
 data_export.export       self+adult            guardian+minor  -               -               -                club+data   -
 player_report.read       self                  guardian        assigned        assigned        assigned         club        club
 player_report.generate   -                     -               -               assigned        -                club        club
@@ -628,8 +630,19 @@ describe('privacy invariants (independent of the specification)', () => {
         expect(cell.rule).toEqual(allow('self', 'data', 'health'));
         continue;
       }
+      // B-805, ADR 0087: the girl, or her guardian while she is a minor, tells her menarche.
+      if (key === 'menarche.report') {
+        expect(cell.rule).toEqual(
+          cell.role === 'player'
+            ? allow('self', 'data', 'health')
+            : allow('guardian', 'data', 'health', 'minor'),
+        );
+        continue;
+      }
       // ADR 0029: the right of access of the holder (Ley 25.326, art. 14).
-      expect(['medical_record.read', 'pain_report.read'], cell.role).toContain(key);
+      expect(['medical_record.read', 'pain_report.read', 'menarche.read'], cell.role).toContain(
+        key,
+      );
       expect(['player', 'parent']).toContain(cell.role);
       expect(cell.rule.effect === 'allow' && cell.rule.consents, key).toContain('health');
       expect(cell.rule.effect === 'allow' && cell.rule.scope, key).toBe(
@@ -648,6 +661,13 @@ describe('privacy invariants (independent of the specification)', () => {
     expect(percentile.effect === 'allow' && percentile.conditions).toContain('own_percentiles');
   });
 
+  it('every reader and writer of the menarche needs a current health consent, the medical staff too', () => {
+    for (const cell of allowedCells.filter((c) => c.kind === 'menarche')) {
+      expect(['player', 'parent', 'medical']).toContain(cell.role);
+      expect(cell.rule.effect === 'allow' && cell.rule.consents, cell.role).toContain('health');
+    }
+  });
+
   it("parents never see rankings or percentiles, and of health only a minor's record", () => {
     for (const kind of ['named_ranking', 'percentile', 'medical_block'] as const) {
       for (const cell of cells.filter((c) => c.kind === kind)) {
@@ -659,6 +679,10 @@ describe('privacy invariants (independent of the specification)', () => {
     )) {
       if (cell.action !== 'read') expect(cell.rule.effect, cell.action).toBe('deny');
       else expect(cell.rule.effect === 'allow' && cell.rule.conditions).toContain('minor');
+    }
+    // The menarche of a minor, which the guardian may also tell (B-805).
+    for (const cell of cells.filter((c) => c.kind === 'menarche' && c.role === 'parent')) {
+      expect(cell.rule.effect === 'allow' && cell.rule.conditions, cell.action).toContain('minor');
     }
   });
 
@@ -720,12 +744,14 @@ describe('privacy invariants (independent of the specification)', () => {
       'medical_record.record',
       'medical_record.update',
       'pain_report.submit',
+      'menarche.report',
     ];
     const required: Readonly<Record<string, ConsentType>> = {
       'media.upload': 'image',
       'medical_record.record': 'health',
       'medical_record.update': 'health',
       'pain_report.submit': 'health',
+      'menarche.report': 'health',
     };
     for (const cell of allowedCells) {
       const key = `${cell.kind}.${cell.action}`;

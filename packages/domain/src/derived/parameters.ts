@@ -8,12 +8,15 @@ import {
   DEFAULT_GROWTH_VELOCITY_PARAMS,
   DEFAULT_KHAMIS_ROCHE_PARAMS,
   DEFAULT_MATURITY_OFFSET_EQUATION,
+  DEFAULT_MENARCHE_REFERENCE,
   KHAMIS_ROCHE_1994_TABLE,
   isKhamisRocheAgeMode,
   isMaturityOffsetEquation,
   type GrowthVelocityParams,
   type KhamisRocheAgeMode,
   type MaturityOffsetEquation,
+  type MenarcheReference,
+  parseMenarcheReference,
 } from '../maturation/index.js';
 import { assertIntegerInRange } from '../load/validate.js';
 
@@ -49,6 +52,12 @@ export interface MaturationParams {
   /** `code` of the club's seeded Khamis-Roche table (`khamis_roche_table.code`). */
   readonly khamisRocheTableCode: string;
   readonly khamisRocheAgeMode: KhamisRocheAgeMode;
+  /**
+   * Menarche against PHV (B-805): bounds the offset of a girl with a
+   * menarche record. Read only where the menarche is (the medical schema's
+   * readers); it never changes the offset the rest of the staff sees.
+   */
+  readonly menarche: MenarcheReference;
 }
 
 export const DEFAULT_MATURATION_PARAMS: MaturationParams = Object.freeze({
@@ -56,6 +65,7 @@ export const DEFAULT_MATURATION_PARAMS: MaturationParams = Object.freeze({
   growthVelocity: Object.freeze({ ...DEFAULT_GROWTH_VELOCITY_PARAMS }),
   khamisRocheTableCode: KHAMIS_ROCHE_1994_TABLE.code,
   khamisRocheAgeMode: DEFAULT_KHAMIS_ROCHE_PARAMS.ageMode,
+  menarche: DEFAULT_MENARCHE_REFERENCE,
 });
 
 export interface DerivedParameters {
@@ -105,7 +115,13 @@ function resolveMaturation(value: unknown): MaturationParams {
   assertObject(value, 'maturation');
   assertKnownKeys(
     value,
-    ['maturityOffsetEquation', 'growthVelocity', 'khamisRocheTableCode', 'khamisRocheAgeMode'],
+    [
+      'maturityOffsetEquation',
+      'growthVelocity',
+      'khamisRocheTableCode',
+      'khamisRocheAgeMode',
+      'menarche',
+    ],
     'maturation',
   );
   const equation = value.maturityOffsetEquation ?? DEFAULT_MATURATION_PARAMS.maturityOffsetEquation;
@@ -131,11 +147,20 @@ function resolveMaturation(value: unknown): MaturationParams {
     assertIntegerInRange(maxIntervalDays, 'growthVelocity.maxIntervalDays', minIntervalDays, 3650);
     growthVelocity = Object.freeze({ minIntervalDays, maxIntervalDays });
   }
+  let menarche = DEFAULT_MATURATION_PARAMS.menarche;
+  if (value.menarche !== undefined) {
+    const m = value.menarche;
+    assertObject(m, 'maturation.menarche');
+    const keys = Object.keys(DEFAULT_MENARCHE_REFERENCE);
+    assertKnownKeys(m, keys, 'maturation.menarche');
+    menarche = parseMenarcheReference({ ...DEFAULT_MENARCHE_REFERENCE, ...m });
+  }
   return Object.freeze({
     maturityOffsetEquation: equation,
     growthVelocity,
     khamisRocheTableCode: tableCode,
     khamisRocheAgeMode: ageMode,
+    menarche,
   });
 }
 

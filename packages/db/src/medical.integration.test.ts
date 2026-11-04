@@ -31,17 +31,21 @@ import { seedClubFixture, type ClubFixture, type FixtureUser } from './testing/t
 const STAFF_TABLES = ['concussion', 'concussion_stage', 'hold', 'injury', 'note'];
 /** Written by the player (B-609, ADR 0078; `pain-reports.integration.test.ts`). */
 const PAIN_TABLES = ['pain_report', 'pain_report_area'];
-const CLINICAL_TABLES = [...STAFF_TABLES, ...PAIN_TABLES].sort();
+/** Told by the girl, her guardian or the medical staff (B-805, ADR 0087; `menarche.integration.test.ts`). */
+const MENARCHE_TABLES = ['menarche_report'];
+const CLINICAL_TABLES = [...STAFF_TABLES, ...PAIN_TABLES, ...MENARCHE_TABLES].sort();
 const MEDICAL_TABLES = [...CLINICAL_TABLES, 'access_log'].sort();
 const ENTRY_POINTS = [
   'availability',
   'availability_history',
+  'may_report_menarche',
   'may_report_pain',
   'may_write',
   'read_concussion_stages',
   'read_concussions',
   'read_holds',
   'read_injuries',
+  'read_menarche_reports',
   'read_notes',
   'read_pain_reports',
 ];
@@ -234,9 +238,11 @@ describe.skipIf(!hasDatabase)('medical schema and audit (Postgres 16)', () => {
           order by 1, 2, 3`,
         [Object.values(DATABASE_ROLES)],
       );
-      // Pain areas are not even found by id: nobody updates them.
+      // Pain areas and menarche reports are not even found by id: nobody updates them.
       expect(rows).toEqual(
-        CLINICAL_TABLES.filter((table) => table !== 'pain_report_area').map((table) => ({
+        CLINICAL_TABLES.filter(
+          (table) => table !== 'pain_report_area' && table !== 'menarche_report',
+        ).map((table) => ({
           role: DATABASE_ROLES.app,
           table,
           column: 'id',
@@ -262,7 +268,7 @@ describe.skipIf(!hasDatabase)('medical schema and audit (Postgres 16)', () => {
       const expected = CLINICAL_TABLES.flatMap((table) => [
         { role: DATABASE_ROLES.app, table: `medical.${table}`, privilege: 'INSERT' },
         // Clinical notes and pain areas are append-only.
-        ...(table === 'note' || table === 'pain_report_area'
+        ...(table === 'note' || table === 'pain_report_area' || table === 'menarche_report'
           ? []
           : [{ role: DATABASE_ROLES.app, table: `medical.${table}`, privilege: 'UPDATE' }]),
       ]);

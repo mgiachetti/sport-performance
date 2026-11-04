@@ -248,6 +248,17 @@ describeWithPostgres('rights of the data subject (Postgres)', (serverUrl) => {
        select club_id, player_id, id, 'knee', 'left', 4 from r`,
       [clubA, minor],
     );
+    // A menarche report (B-805): only for girls, so the minor is one here.
+    await database.admin.query(`update player set sex = 'female' where club_id = $1 and id = $2`, [
+      clubA,
+      minor,
+    ]);
+    await database.admin.query(
+      `insert into medical.menarche_report
+         (club_id, player_id, status, occurred_on, precision, reported_on, reported_by)
+       values ($1, $2, 'occurred', '2025-02-01', 'month', '2026-03-12', 'parent')`,
+      [clubA, minor],
+    );
   }, 60_000);
 
   afterAll(async () => {
@@ -300,6 +311,15 @@ describeWithPostgres('rights of the data subject (Postgres)', (serverUrl) => {
       ]);
       expect(body.medical.tables['medical.pain_report_area']).toEqual([
         expect.objectContaining({ body_region: 'knee', side: 'left', intensity: 4 }),
+      ]);
+      // The menarche (B-805).
+      expect(body.medical.tables['medical.menarche_report']).toEqual([
+        expect.objectContaining({
+          status: 'occurred',
+          occurred_on: '2025-02-01',
+          precision: 'month',
+          reported_by: 'parent',
+        }),
       ]);
       // The reads are audited, and the export is recorded as a completed access request.
       const log = await database.admin.query(
@@ -491,6 +511,7 @@ describeWithPostgres('rights of the data subject (Postgres)', (serverUrl) => {
         'medical.note': 2,
         'medical.pain_report': 1,
         'medical.pain_report_area': 1,
+        'medical.menarche_report': 1,
       });
       for (const [table, column] of [
         ['player', 'id'],
@@ -500,6 +521,7 @@ describeWithPostgres('rights of the data subject (Postgres)', (serverUrl) => {
         ['medical.note', 'player_id'],
         ['medical.pain_report', 'player_id'],
         ['medical.pain_report_area', 'player_id'],
+        ['medical.menarche_report', 'player_id'],
       ] as const) {
         const { rowCount } = await database.admin.query(
           `select 1 from ${table} where ${column} = $1`,

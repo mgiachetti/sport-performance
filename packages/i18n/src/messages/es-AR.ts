@@ -21,6 +21,7 @@ import { webPlayerMessagesEsAR } from './web-player.js';
 import { webCalendarMessagesEsAR } from './web-calendar.js';
 import { webAdminMessagesEsAR } from './web-admin.js';
 import { anthropometryMessagesEsAR } from './anthropometry.js';
+import { menarcheMessagesEsAR } from './menarche.js';
 import { webGuardianMessagesEsAR } from './web-guardian.js';
 import { webConsoleMessagesEsAR } from './web-console.js';
 import { protocolMessagesEsAR } from './protocols.js';
@@ -482,6 +483,7 @@ export const sourceMessageFiles = {
   'web-configuration.ts': webConfigurationMessagesEsAR,
   'web-admin.ts': webAdminMessagesEsAR,
   'anthropometry.ts': anthropometryMessagesEsAR,
+  'menarche.ts': menarcheMessagesEsAR,
   'web-guardian.ts': webGuardianMessagesEsAR,
   'web-console.ts': webConsoleMessagesEsAR,
   'web-test-day.ts': webTestDayMessagesEsAR,
@@ -520,6 +522,8 @@ export const esAR = {
   ...webAdminMessagesEsAR,
   // Anthropometry, shared by the web and the field sheet of the app (B-412, B-508)
   ...anthropometryMessagesEsAR,
+  // Menarche, health data of the player, her guardian and the medical staff (B-805)
+  ...menarcheMessagesEsAR,
   ...webGuardianMessagesEsAR,
   ...webConsoleMessagesEsAR,
   ...webTestDayMessagesEsAR,

@@ -307,6 +307,29 @@ const painReportAreas: MedicalReader = async (db, playerId, once) =>
     })),
   );
 
+/**
+ * The menarche reports of a girl (B-805, ADR 0087), all of them: the audited
+ * read answers pages of at most 101, newest first, by keyset.
+ */
+const menarcheReports: MedicalReader = async (db, playerId) => {
+  const all: ExportedRow[] = [];
+  let before: { us: string; id: string } | null = null;
+  for (;;) {
+    const page: { rows: { row: ExportedRow; id: string; created_us: string }[] } = await db.execute(
+      sql`select to_jsonb(x) as row, x.id::text as id,
+                   (extract(epoch from x.created_at) * 1000000)::bigint::text as created_us
+              from medical.read_menarche_reports(
+                array[${playerId}]::uuid[],
+                ${before === null ? sql`null::timestamptz` : sql`timestamptz 'epoch' + ${before.us}::bigint * interval '1 microsecond'`},
+                ${before === null ? null : before.id}::uuid, 101, null::uuid[], null::uuid[]) x`,
+    );
+    all.push(...page.rows.map((entry) => entry.row));
+    const last = page.rows.at(-1);
+    if (page.rows.length < 101 || last === undefined) return all;
+    before = { us: last.created_us, id: last.id };
+  }
+};
+
 /** Clinical tables read through the audited functions of the `medical` schema (ADR 0029). */
 export const MEDICAL_READS: Readonly<Record<string, MedicalReader>> = {
   'medical.injury': readAll('medical.read_injuries'),
@@ -315,6 +338,7 @@ export const MEDICAL_READS: Readonly<Record<string, MedicalReader>> = {
   'medical.note': readAll('medical.read_notes'),
   'medical.pain_report': painReports,
   'medical.pain_report_area': painReportAreas,
+  'medical.menarche_report': menarcheReports,
 };
 
 async function readMedical(db: TenantDatabase, playerId: PlayerId): Promise<ExportedTables> {

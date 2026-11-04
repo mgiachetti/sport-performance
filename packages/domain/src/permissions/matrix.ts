@@ -351,6 +351,23 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
     submit: { ...nobody, player: allow('self', 'data', 'health') },
     review: { ...nobody, medical: assigned },
   },
+  // Menarche (B-805, ADR 0087): health data of a girl, told by herself, her guardian while
+  // she is a minor or the medical staff, and read only by them. Everyone needs a current
+  // health consent, the medical staff too: revoking it hides the record from all of them.
+  menarche: {
+    read: {
+      ...nobody,
+      player: allow('self', 'health'),
+      parent: allow('guardian', 'health', 'minor'),
+      medical: allow('assigned', 'health'),
+    },
+    report: {
+      ...nobody,
+      player: allow('self', 'data', 'health'),
+      parent: allow('guardian', 'data', 'health', 'minor'),
+      medical: allow('assigned', 'health'),
+    },
+  },
   data_export: {
     export: {
       ...nobody,

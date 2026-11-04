@@ -8,6 +8,9 @@ import {
   INJURY_SIDES,
   MEDICAL_ACCESS_ACTIONS,
   MEDICAL_NOTE_VISIBILITIES,
+  MENARCHE_DATE_PRECISIONS,
+  MENARCHE_REPORTERS,
+  MENARCHE_STATUSES,
   CENTRAL_PAIN_REGIONS,
   PAIN_COMMENT_MAX_LENGTH,
   PAIN_INTENSITY_MAX,
@@ -76,6 +79,12 @@ export const concussionStageOutcomeEnum = medicalSchema.enum(
 );
 export const noteVisibilityEnum = medicalSchema.enum('note_visibility', MEDICAL_NOTE_VISIBILITIES);
 export const accessActionEnum = medicalSchema.enum('access_action', MEDICAL_ACCESS_ACTIONS);
+export const menarcheStatusEnum = medicalSchema.enum('menarche_status', MENARCHE_STATUSES);
+export const menarcheDatePrecisionEnum = medicalSchema.enum(
+  'menarche_date_precision',
+  MENARCHE_DATE_PRECISIONS,
+);
+export const menarcheReporterEnum = medicalSchema.enum('menarche_reporter', MENARCHE_REPORTERS);
 
 /** `(club_id, column, player_id) → target (club_id, id, player_id)`: same club and same player. */
 function samePlayerReference(
@@ -380,6 +389,48 @@ export const medicalPainReportArea = medicalSchema.table(
     check(
       'pain_report_area_intensity',
       sql`${t.intensity} between ${sql.raw(String(PAIN_INTENSITY_MIN))} and ${sql.raw(String(PAIN_INTENSITY_MAX))}`,
+    ),
+  ],
+);
+
+/**
+ * The menarche of a girl (B-805, ADR 0087), optional: "not yet" as of the
+ * report day, or the date it happened with its precision (stored truncated
+ * to the first day of the month or the year). Told by the player, her
+ * guardian while she is a minor, or the assigned medical staff, all with a
+ * health consent (`medical.may_report_menarche`), and append-only: a new
+ * report supersedes the previous one, the latest counts. Only for girls
+ * (trigger). Read only through `medical.read_menarche_reports`, with a
+ * health consent for every reader.
+ */
+export const medicalMenarcheReport = medicalSchema.table(
+  'menarche_report',
+  {
+    ...tenantColumns(),
+    playerId: uuid('player_id').notNull().$type<PlayerId>(),
+    status: menarcheStatusEnum('status').notNull(),
+    occurredOn: localDate('occurred_on'),
+    precision: menarcheDatePrecisionEnum('precision'),
+    /** Club day of the report: the "as of" date of `not_yet`. */
+    reportedOn: localDate('reported_on').notNull(),
+    /** Validated role of who told it (`app.current_role()`, policy). */
+    reportedBy: menarcheReporterEnum('reported_by').notNull(),
+  },
+  (t) => [
+    ...tenantConstraints('menarche_report', t),
+    tenantReference('menarche_report', t.clubId, t.playerId, player),
+    index('menarche_report_player_idx').on(t.clubId, t.playerId, t.createdAt),
+    check(
+      'menarche_report_date',
+      sql`(${t.status} = 'occurred') = (${t.occurredOn} is not null) and (${t.occurredOn} is null) = (${t.precision} is null)`,
+    ),
+    check(
+      'menarche_report_date_truncated',
+      sql`${t.precision} is null or ${t.precision} = 'day' or (extract(day from ${t.occurredOn}) = 1 and (${t.precision} = 'month' or extract(month from ${t.occurredOn}) = 1))`,
+    ),
+    check(
+      'menarche_report_date_not_after_report',
+      sql`${t.occurredOn} is null or ${t.occurredOn} <= ${t.reportedOn}`,
     ),
   ],
 );
