@@ -2,6 +2,7 @@ export {
   ALERT_RULE_KINDS,
   ALERT_SEVERITIES,
   DEFAULT_ALERT_RULES,
+  DEFAULT_ALERT_RULE_SOURCES,
   alertMessageKey,
   alertSuggestionKey,
   compareAlertSeverities,

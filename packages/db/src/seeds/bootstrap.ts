@@ -3,6 +3,7 @@ import {
   DEFAULT_ALERT_RULES,
   DEFAULT_POSITION_LINES,
   DEFAULT_SPEED_ZONE_SETS,
+  DEFAULT_SPEED_ZONE_SETS_BY_SEX,
   SPEED_ZONE_KINDS,
   defaultCategoryName,
   isLocalDate,
@@ -14,9 +15,10 @@ import {
   type ClubId,
   type LocalDate,
   type Sex,
+  type SpeedZoneSet,
   type Sport,
 } from '@sport-performance/domain';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import { alertRule } from '../schema/alerts.js';
 import {
   batteryConfig,
@@ -135,6 +137,15 @@ function validateOptions(options: BootstrapClubOptions): LocalDate {
   return validFrom;
 }
 
+/** The sex-specific default zone sets of a sex (B-804), in kind order. */
+export function sexSpecificZoneSets(sex: Sex): SpeedZoneSet[] {
+  const bySex = DEFAULT_SPEED_ZONE_SETS_BY_SEX[sex];
+  return SPEED_ZONE_KINDS.flatMap((kind) => {
+    const zoneSet = bySex[kind];
+    return zoneSet === undefined ? [] : [zoneSet];
+  });
+}
+
 /**
  * Seeds the default configuration of a club. Runs in a transaction (a
  * savepoint when `db` already is one), serialised per club with an advisory
@@ -163,6 +174,19 @@ export async function bootstrapClub(
       validTo: null,
       zoneSet: DEFAULT_SPEED_ZONE_SETS[kind],
     });
+  }
+  for (const branch of branches) {
+    for (const zoneSet of sexSpecificZoneSets(branch.sex)) {
+      validateSpeedZoneConfig({
+        clubId,
+        sport: null,
+        sex: branch.sex,
+        playerId: null,
+        validFrom,
+        validTo: null,
+        zoneSet,
+      });
+    }
   }
 
   return db.transaction(async (tx) => {
@@ -376,17 +400,49 @@ export async function bootstrapClub(
           )
       ).map((z) => z.kind),
     );
-    const zoneRows = SPEED_ZONE_KINDS.filter((kind) => !existingZoneKinds.has(kind)).map(
-      (kind) => ({
-        clubId,
-        sport: null,
-        sex: null,
-        playerId: null,
-        kind,
-        zoneSet: DEFAULT_SPEED_ZONE_SETS[kind],
-        validFrom,
-      }),
+    const zoneRows: (typeof speedZoneConfig.$inferInsert)[] = SPEED_ZONE_KINDS.filter(
+      (kind) => !existingZoneKinds.has(kind),
+    ).map((kind) => ({
+      clubId,
+      sport: null,
+      sex: null,
+      playerId: null,
+      kind,
+      zoneSet: DEFAULT_SPEED_ZONE_SETS[kind],
+      validFrom,
+    }));
+    // Sex-specific defaults (B-804): one row scoped to the sex (any sport, no player) per
+    // kind with a default of its own, for each sex the club has a branch of, unless the
+    // club has any such row (current, closed or archived).
+    const existingSexZones = new Set(
+      (
+        await tx
+          .select({ kind: speedZoneConfig.kind, sex: speedZoneConfig.sex })
+          .from(speedZoneConfig)
+          .where(
+            and(
+              eq(speedZoneConfig.clubId, clubId),
+              isNull(speedZoneConfig.sport),
+              isNotNull(speedZoneConfig.sex),
+              isNull(speedZoneConfig.playerId),
+            ),
+          )
+      ).map((z) => `${String(z.sex)}:${z.kind}`),
     );
+    const sexZoneRows = [...new Set(branches.map((b) => b.sex))].flatMap((sex) =>
+      sexSpecificZoneSets(sex)
+        .filter((zoneSet) => !existingSexZones.has(`${sex}:${zoneSet.kind}`))
+        .map((zoneSet) => ({
+          clubId,
+          sport: null,
+          sex,
+          playerId: null,
+          kind: zoneSet.kind,
+          zoneSet,
+          validFrom,
+        })),
+    );
+    zoneRows.push(...sexZoneRows);
     if (zoneRows.length > 0) await tx.insert(speedZoneConfig).values(zoneRows);
 
     // Khamis-Roche coefficient tables (reference data, copied from the domain).

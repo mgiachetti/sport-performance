@@ -666,6 +666,42 @@ describeWithPostgres('first-team references (Postgres)', (serverUrl) => {
       expect(filtered.json<PlayerReferences>().items).toHaveLength(1);
     });
 
+    it("shows a woman only the women's first-team references of her sport (B-804)", async () => {
+      const { rows } = await database.admin.query<{ id: string }>(
+        `insert into player (club_id, first_name, last_name, birth_date, sex, sport, joined_on)
+         values ($1, 'Jugadora', 'Test', '2011-03-02', 'female', 'hockey', '2020-01-01')
+         returning id`,
+        [clubA],
+      );
+      const woman = rows[0]?.id ?? '';
+      await database.admin.query(
+        `insert into player_category (club_id, player_id, category_id, valid_from)
+         values ($1, $2, (select id from category where club_id = $1 and sport = 'hockey'
+                          and sex = 'female' and age_band_code = 'm15'), '2020-01-01')`,
+        [clubA, woman],
+      );
+      // Before any women's reference, the men's ones never stand in for them.
+      const none = await view(adminA, woman, '?asOf=2026-05-01');
+      expect(none.statusCode, none.body).toBe(200);
+      expect(none.json<PlayerReferences>()).toMatchObject({
+        sport: 'hockey',
+        sex: 'female',
+        items: [],
+      });
+      const created = await create(
+        scA,
+        cmj({ sport: 'hockey', sex: 'female', value: 38.5, source: 'Primera femenina 2026' }),
+      );
+      expect(created.statusCode, created.body).toBe(201);
+      const body = (await view(adminA, woman, '?asOf=2026-05-01')).json<PlayerReferences>();
+      expect(body.items.map((i) => [i.metricCode, i.scope, i.value, i.source])).toEqual([
+        ['cmj_height_cm', 'squad', 38.5, 'Primera femenina 2026'],
+      ]);
+      // And the men keep theirs.
+      const men = (await view(playerA, ownPlayer, '?asOf=2026-05-01')).json<PlayerReferences>();
+      expect(men.items.map((i) => i.value)).not.toContain(38.5);
+    });
+
     it('lets the assigned staff in, never another player, the parent or other clubs', async () => {
       expect((await view(coachA, ownPlayer)).statusCode).toBe(200);
       // The coach is assigned to M15 only.

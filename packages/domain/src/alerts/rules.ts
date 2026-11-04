@@ -1,4 +1,5 @@
 import { memberGuard, memberParser } from '../enum.js';
+import type { CoefficientProvenance } from '../maturation/provenance.js';
 import type { Sex } from '../sex.js';
 import type { Sport } from '../sport.js';
 import type { Stage } from '../stage.js';
@@ -167,7 +168,14 @@ export function alertSuggestionKey(kind: AlertRuleKind): AlertSuggestionKey {
  * Default rule set, ready to be seeded for every new club (B-306) and edited
  * per club. Thresholds from CLAUDE.md ("Alertas por defecto"); the values
  * CLAUDE.md does not fix (z-score, windows, sample sizes, growth threshold,
- * data age) are documented in ADR 0019.
+ * data age) are documented in ADR 0022.
+ *
+ * **By sex (B-804, ADR 0087).** Only growth is sex specific: girls reach a
+ * lower peak height velocity than boys, so `growth_peak` applies to boys and
+ * `growth_peak_female` to girls, and nobody gets two growth alerts for one
+ * measurement. ACWR, wellness and CMJ are read against the player's own
+ * load, scale or baseline, so one rule serves both sexes. The source of each
+ * sex-specific threshold is in {@link DEFAULT_ALERT_RULE_SOURCES}.
  */
 export const DEFAULT_ALERT_RULES: readonly AlertRule[] = [
   {
@@ -215,10 +223,60 @@ export const DEFAULT_ALERT_RULES: readonly AlertRule[] = [
     code: 'growth_peak',
     kind: 'growth_peak',
     enabled: true,
+    appliesTo: { sexes: ['male'] },
     params: {
       warningAtOrAboveCmYear: 7.2,
       criticalAtOrAboveCmYear: null,
       maxMeasurementAgeDays: 120,
     },
   },
+  {
+    code: 'growth_peak_female',
+    kind: 'growth_peak',
+    enabled: true,
+    appliesTo: { sexes: ['female'] },
+    params: {
+      warningAtOrAboveCmYear: 6,
+      criticalAtOrAboveCmYear: null,
+      maxMeasurementAgeDays: 120,
+    },
+  },
 ];
+
+/**
+ * Where the threshold of each sex-specific default rule comes from and how
+ * far it was checked (the same shape as the maturation coefficients). Every
+ * rule of {@link DEFAULT_ALERT_RULES} scoped by sex has an entry; a test keeps
+ * them in step. **Verify against the papers before production.**
+ */
+export const DEFAULT_ALERT_RULE_SOURCES: Readonly<Record<string, CoefficientProvenance>> = {
+  growth_peak: {
+    citation:
+      'Kemper GLJ, van der Sluis A, Brink MS, Visscher C, Frencken WGP, Elferink-Gemser MT. ' +
+      'Anthropometric injury risk factors in elite-standard youth soccer. ' +
+      'Int J Sports Med. 2015;36(13):1112-1117.',
+    // Recorded when the article is checked (see the notes).
+    doi: null,
+    errata: [],
+    verification: 'unverified',
+    verificationNotes:
+      'Rapid growth from 0.6 cm/month (7.2 cm/year) in male academy players, as quoted by ' +
+      'academy growth-monitoring guidance (ADR 0022). Pending: record the DOI, compare with the ' +
+      'original article and agree the threshold with the staff before production.',
+  },
+  growth_peak_female: {
+    citation:
+      'Malina RM, Bouchard C, Bar-Or O. Growth, Maturation, and Physical Activity. 2nd ed. ' +
+      'Champaign (IL): Human Kinetics; 2004. Peak height velocity of girls about 8.0 cm/year ' +
+      'against about 9.5 cm/year in boys (also Tanner JM, Whitehouse RH, Takaishi M. ' +
+      'Arch Dis Child. 1966;41(219):454-471).',
+    doi: null,
+    errata: [],
+    verification: 'unverified',
+    verificationNotes:
+      'No published injury threshold for girls: 6.0 cm/year is the boys threshold (7.2 cm/year, ' +
+      'Kemper et al. 2015) scaled by the ratio of peak height velocities, 7.2 x 8.0 / 9.5 = 6.06, ' +
+      'rounded down. Pending: compare the peak velocities with the originals and agree the ' +
+      'threshold with the medical and S&C staff before production.',
+  },
+};

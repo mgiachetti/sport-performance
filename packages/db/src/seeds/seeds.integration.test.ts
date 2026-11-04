@@ -4,6 +4,7 @@ import {
   CONSENT_TYPES,
   DEFAULT_AGE_BANDS,
   DEFAULT_ALERT_RULES,
+  DEFAULT_FEMALE_ABSOLUTE_SPEED_ZONES,
   DEFAULT_SPEED_ZONE_SETS,
   KHAMIS_ROCHE_1994_TABLE,
   parseAlertRule,
@@ -217,20 +218,69 @@ describe.skipIf(!hasDatabase)('seeds (Postgres 16)', () => {
         code: row.code,
         kind: row.kind,
         enabled: row.enabled,
+        ...(row.sexes !== null && { appliesTo: { sexes: row.sexes } }),
         params: row.params,
       });
       expect(rule).toEqual(DEFAULT_ALERT_RULES.find((r) => r.code === row.code));
     }
+    // One growth rule per sex (B-804).
+    expect(
+      rows
+        .filter((r) => r.kind === 'growth_peak')
+        .map((r) => [r.code, r.sexes])
+        .sort(),
+    ).toEqual([
+      ['growth_peak', ['male']],
+      ['growth_peak_female', ['female']],
+    ]);
   });
 
-  it('seeds club-wide absolute and relative speed zones', async () => {
+  it('seeds club-wide speed zones and the absolute zones of women (B-804)', async () => {
     const rows = await t.db.select().from(speedZoneConfig).where(eq(speedZoneConfig.clubId, orc));
-    expect(rows.map((r) => r.kind).sort()).toEqual(['absolute', 'relative']);
+    expect(rows.map((r) => `${r.kind}:${String(r.sex)}`).sort()).toEqual([
+      'absolute:female',
+      'absolute:null',
+      'relative:null',
+    ]);
     for (const row of rows) {
-      expect(row).toMatchObject({ sport: null, sex: null, playerId: null, validTo: null });
+      expect(row).toMatchObject({ sport: null, playerId: null, validTo: null });
       validateSpeedZoneSet(row.zoneSet);
-      expect(row.zoneSet).toEqual(DEFAULT_SPEED_ZONE_SETS[row.kind]);
+      expect(row.zoneSet).toEqual(
+        row.sex === null ? DEFAULT_SPEED_ZONE_SETS[row.kind] : DEFAULT_FEMALE_ABSOLUTE_SPEED_ZONES,
+      );
     }
+  });
+
+  it('seeds no women zones for a club without a women branch', async () => {
+    const [menOnly] = await t.db
+      .insert(club)
+      .values({ slug: 'men-only', name: 'Club de varones', shortName: 'MO' })
+      .returning({ id: club.id });
+    const clubId = must(menOnly).id;
+    const report = await bootstrapClub(t.db, {
+      clubId,
+      branches: [{ sport: 'rugby', sex: 'male' }],
+    });
+    expect(report.speedZoneConfigs).toBe(2);
+    const rows = await t.db
+      .select()
+      .from(speedZoneConfig)
+      .where(eq(speedZoneConfig.clubId, clubId));
+    expect(rows.every((r) => r.sex === null)).toBe(true);
+    // Enabling a women branch later adds them, once.
+    const later = await bootstrapClub(t.db, {
+      clubId,
+      branches: [
+        { sport: 'rugby', sex: 'male' },
+        { sport: 'rugby', sex: 'female' },
+      ],
+    });
+    expect(later.speedZoneConfigs).toBe(1);
+    const again = await bootstrapClub(t.db, {
+      clubId,
+      branches: [{ sport: 'rugby', sex: 'female' }],
+    });
+    expect(again.speedZoneConfigs).toBe(0);
   });
 
   it('stores Khamis-Roche as data and predicts the same as the domain table', async () => {
@@ -402,7 +452,8 @@ describe.skipIf(!hasDatabase)('seeds (Postgres 16)', () => {
       .select()
       .from(speedZoneConfig)
       .where(and(eq(speedZoneConfig.clubId, clubId), eq(speedZoneConfig.kind, 'absolute')));
-    expect(zones).toHaveLength(2);
+    // The closed club-wide and women rows and the club's replacement; nothing reopened.
+    expect(zones).toHaveLength(3);
   });
 
   it('keeps every club’s seeded rows in its own club', async () => {

@@ -116,7 +116,7 @@ export const CANONICAL_METRICS = {
   hsr_abs_m: field(
     'm',
     'higher_is_better',
-    'Distance above the absolute HSR threshold (default 5.5 m/s).',
+    'Distance above the absolute HSR threshold (default 5.5 m/s for men, 5.28 m/s for women).',
   ),
   hsr_rel_m: field('m', 'higher_is_better', "Distance above 60% of the player's Vmax."),
   vmax_ms: field('ms', 'higher_is_better', 'Peak speed in the session.'),
