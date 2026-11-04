@@ -13,7 +13,7 @@ ALTER TABLE "participation" ADD CONSTRAINT "participation_period_minutes" CHECK 
           + coalesce("participation"."period_minutes"[7], 0) + coalesce("participation"."period_minutes"[8], 0)
       ));--> statement-breakpoint
 ALTER TABLE "participation" ADD CONSTRAINT "participation_absent_has_no_load" CHECK ("participation"."status" not in ('absent', 'unavailable') or (coalesce("participation"."minutes", 0) = 0 and "participation"."rpe" is null and "participation"."period_minutes" is null));--> statement-breakpoint
--- Hockey field data (B-803, ADR 0090): with rolling substitutions a player plays several
+-- Hockey field data (B-803, ADR 0091): with rolling substitutions a player plays several
 -- stints, so a match's minutes are loaded by period and `minutes` is their sum (the CHECK
 -- above). The staff writes the periods like the minutes.
 GRANT UPDATE ("period_minutes") ON "public"."participation" TO "sport_performance_app", "sport_performance_worker";--> statement-breakpoint

@@ -199,7 +199,7 @@ function refuseFieldIssues(issues: readonly FieldIssue[]): void {
 }
 
 /**
- * The field rules of the session's sport (B-803, ADR 0090) for written
+ * The field rules of the session's sport (B-803, ADR 0091) for written
  * participations: no contacts in a sport without them (hockey), and minutes
  * by period only in matches with rolling substitutions, none longer than the
  * planned match. `400` at the offending field of each row.

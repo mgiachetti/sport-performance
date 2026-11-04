@@ -108,7 +108,7 @@ export const drill = pgTable(
 /**
  * A player in a session: status, minutes, contacts and session RPE (CR-10).
  * `srpe_au` = RPE × minutes is a generated column, so it can never drift.
- * In a match of a sport with rolling substitutions (hockey, B-803, ADR 0090)
+ * In a match of a sport with rolling substitutions (hockey, B-803, ADR 0091)
  * the minutes are loaded by period: `period_minutes` keeps them in order and
  * `minutes` is always their sum (checked here, so it never drifts either).
  * Contacts only exist in sports that record them (`SPORT_FIELD_RULES`).

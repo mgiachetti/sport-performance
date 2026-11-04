@@ -253,7 +253,7 @@ const AVAILABILITY_LEVEL: Readonly<Record<string, StatusLevel>> = {
 };
 
 /**
- * What the sheet asks for, from the sport's field rules (B-803, ADR 0090):
+ * What the sheet asks for, from the sport's field rules (B-803, ADR 0091):
  * contacts only in sports with contacts; minutes by period in a match with
  * rolling substitutions (hockey).
  */

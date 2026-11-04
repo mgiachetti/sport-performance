@@ -1,4 +1,4 @@
-# 0090. Datos de cancha de hockey: reglas de cancha por deporte en el dominio, minutos por tramo con su suma en la base, sin contactos y alias de Catapult por deporte
+# 0091. Datos de cancha de hockey: reglas de cancha por deporte en el dominio, minutos por tramo con su suma en la base, sin contactos y alias de Catapult por deporte
 
 - Estado: Aceptado
 - Fecha: 2026-11-04

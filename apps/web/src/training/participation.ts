@@ -39,7 +39,7 @@ export type RowError = 'minutes' | 'contacts' | 'periods';
 
 /**
  * What the sheet of a session asks for, from the field rules of its sport
- * (B-803, ADR 0090): contacts only in sports with contacts; in a match with
+ * (B-803, ADR 0091): contacts only in sports with contacts; in a match with
  * rolling substitutions, the minutes of each period instead of a total.
  */
 export interface SheetRules {

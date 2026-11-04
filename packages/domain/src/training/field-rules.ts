@@ -2,7 +2,7 @@ import type { ExposureContext } from '../exposure/contexts.js';
 import type { Sport } from '../sport.js';
 
 /**
- * Field rules of each sport (B-803, ADR 0090): what a session of the sport
+ * Field rules of each sport (B-803, ADR 0091): what a session of the sport
  * records and on what pitch. They are rules of the sport, not settings of a
  * club, and every client evaluates the same data: the API to validate, the
  * web and the app to show or hide a column. Adding a sport is adding a row

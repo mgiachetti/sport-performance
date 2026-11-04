@@ -71,7 +71,7 @@ interface ParticipationValues {
 }
 
 /**
- * The minutes and periods after a write (B-803, ADR 0090): periods set the
+ * The minutes and periods after a write (B-803, ADR 0091): periods set the
  * minutes as their sum; minutes alone are a total and clear the periods;
  * `periodMinutes: null` clears the periods and keeps (or sets) the total.
  */
