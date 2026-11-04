@@ -123,6 +123,13 @@ export const PERMISSION_RESOURCES = {
   /** Medical block of a player (no disponible). */
   medical_block: { target: 'player', medical: true, actions: ['read', 'set', 'lift'] },
   /**
+   * Pain report of the wellness (B-609, ADR 0078): "¿te duele algo?" with a
+   * body map. The player answers it (`submit`), it goes straight to the
+   * medical staff, who reads it and marks it as reviewed (`review`); the
+   * coach never sees it.
+   */
+  pain_report: { target: 'player', medical: true, actions: ['read', 'submit', 'review'] },
+  /**
    * Export of a player's data outside the club: the holder's right of access
    * (Ley 25.326, art. 14) or sharing with a third party.
    */

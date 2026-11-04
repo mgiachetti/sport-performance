@@ -10,6 +10,7 @@ import { player, playerCategory, testSession, testWindow } from '@sport-performa
 import {
   addDays,
   can,
+  painReportModuleOn,
   wellnessItemSetForStage,
   type ClubId,
   type PermissionSubject,
@@ -25,6 +26,7 @@ import { HttpError } from '../http/errors.js';
 import type { RequestPermissions } from '../http/permissions.js';
 import { batteryEntries, byBatteryOrder, scheduledTests } from './test-session-sheet.js';
 import { loadStageSources, stageContext, stageContextOn } from './tests/model.js';
+import { clubModules } from './pain-reports.js';
 import { clubTimeZone } from './training-shared.js';
 import { wellnessStageOf } from './wellness.js';
 
@@ -109,6 +111,10 @@ export function registerMePlayerRoutes(app: FastifyInstance): void {
             set !== null && can(subject, 'submit', { kind: 'wellness', ...target(facts) }),
           submitRpe: can(subject, 'submit', { kind: 'rpe', ...target(facts) }),
           readPercentiles: can(subject, 'read', { kind: 'percentile', ...target(withStage) }),
+          // The pain report of the wellness (B-609): the club's modules and the matrix.
+          reportPain:
+            painReportModuleOn(await clubModules(db, clubId)) &&
+            can(subject, 'submit', { kind: 'pain_report', ...target(facts) }),
         },
       };
     },

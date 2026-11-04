@@ -13300,6 +13300,402 @@
         }
       }
     },
+    "/v1/pain-reports": {
+      "get": {
+        "operationId": "listPainReports",
+        "summary": "Reportes de dolor",
+        "description": "El staff médico, los de los jugadores de sus asignaciones; el jugador, los suyos, y el tutor, los de su hijo/a menor, con consentimiento de salud vigente. Nadie más (`forbidden`). Del más nuevo al más viejo. Cada lectura queda en el registro de accesos a datos de salud.",
+        "tags": [
+          "wellness"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "playerId",
+            "in": "query",
+            "required": false,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "categoryId",
+            "in": "query",
+            "required": false,
+            "description": "Jugadores que hoy están en la categoría.",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Desde este día del club (inclusive).",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "Hasta este día del club (inclusive).",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "`pending`: solo los que el staff médico no revisó; `all` (por defecto).",
+            "schema": {
+              "default": "all",
+              "type": "string",
+              "enum": [
+                "all",
+                "pending"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de reportes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PainReportPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.bad_request.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "submitPainReport",
+        "summary": "Responder \"¿te duele algo?\"",
+        "description": "Solo el jugador, sobre sí mismo, con consentimientos de datos y de salud vigentes y los módulos `wellness` y `pain_report` del club prendidos (si no, `forbidden`). Con dolor, de 1 a 12 zonas distintas, cada una con un lado de su zona; sin dolor, sin zonas ni comentario. `localDate` es hoy o ayer (cola offline). Nunca se edita: otra respuesta del día es otro reporte y vale la última. Va al esquema médico: el entrenador no la ve. Idempotente por `clientUuid`.",
+        "tags": [
+          "wellness"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientUuid": {
+                    "$ref": "#/components/schemas/ClientUuid"
+                  },
+                  "localDate": {
+                    "description": "Día del club de la respuesta: hoy (por defecto) o ayer.",
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "examples": [
+                      "2026-11-01"
+                    ]
+                  },
+                  "hasPain": {
+                    "type": "boolean"
+                  },
+                  "areas": {
+                    "default": [],
+                    "maxItems": 12,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/PainArea"
+                    }
+                  },
+                  "comment": {
+                    "description": "Comentario opcional, solo con dolor: hasta 280 caracteres, no vacío.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 560
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "hasPain"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Respuesta registrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PainReport"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/pain-reports/{painReportId}/review": {
+      "post": {
+        "operationId": "reviewPainReport",
+        "summary": "Marcar un reporte de dolor como revisado",
+        "description": "Solo el staff médico asignado al jugador. Una vez, firmado por quien lo revisa: ya revisado es `conflict`. No diagnostica ni bloquea: la lesión o el bloqueo se registran aparte.",
+        "tags": [
+          "wellness"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "painReportId",
+            "in": "path",
+            "required": true,
+            "description": "Id de reporte de dolor (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "El reporte revisado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PainReport"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error.conflict"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/pain-reports/today": {
+      "get": {
+        "operationId": "getPainReportForm",
+        "summary": "Pregunta de dolor de hoy del jugador",
+        "description": "Solo el jugador, sobre sí mismo. Dice si hoy se le pregunta \"¿te duele algo?\" (módulos del club y consentimientos de datos y salud) y su última respuesta del día. La lectura queda en el registro de accesos a datos de salud.",
+        "tags": [
+          "wellness"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estado de hoy.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PainReportForm"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
     "/v1/panel/weekly": {
       "get": {
         "operationId": "getWeeklyPanel",
@@ -33971,12 +34367,17 @@
               "readPercentiles": {
                 "type": "boolean",
                 "description": "Puede ver sus percentiles (desde M15, según su etapa y la franja de su categoría)."
+              },
+              "reportPain": {
+                "type": "boolean",
+                "description": "Se le pregunta \"¿te duele algo?\" en el bienestar (B-609): el club tiene los módulos `wellness` y `pain_report` y tiene los consentimientos de datos y de salud vigentes."
               }
             },
             "required": [
               "submitWellness",
               "submitRpe",
-              "readPercentiles"
+              "readPercentiles",
+              "reportPain"
             ],
             "description": "Lo que la matriz de permisos le deja hacer hoy."
           }
@@ -34210,6 +34611,255 @@
         "required": [
           "items"
         ]
+      },
+      "PainArea": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "$ref": "#/components/schemas/PainBodyRegion"
+          },
+          "side": {
+            "$ref": "#/components/schemas/PainSide"
+          },
+          "intensity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10,
+            "description": "Intensidad en la escala numérica 0–10; una zona que duele es de 1 a 10."
+          }
+        },
+        "required": [
+          "region",
+          "side",
+          "intensity"
+        ],
+        "additionalProperties": false
+      },
+      "PainBodyRegion": {
+        "type": "string",
+        "enum": [
+          "head_face",
+          "neck",
+          "shoulder",
+          "upper_arm",
+          "elbow",
+          "forearm",
+          "wrist_hand",
+          "chest",
+          "thoracic_spine",
+          "lumbar_spine",
+          "abdomen",
+          "pelvis_hip_groin",
+          "thigh_anterior",
+          "thigh_posterior",
+          "knee",
+          "lower_leg",
+          "ankle",
+          "foot"
+        ],
+        "description": "Zona del mapa del cuerpo (el vocabulario de las lesiones, sin `other`): `head_face`, `neck`, `shoulder`, `upper_arm`, `elbow`, `forearm`, `wrist_hand`, `chest`, `thoracic_spine`, `lumbar_spine`, `abdomen`, `pelvis_hip_groin`, `thigh_anterior`, `thigh_posterior`, `knee`, `lower_leg`, `ankle`, `foot`."
+      },
+      "PainReport": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de reporte de dolor (UUID, RFC 9562)."
+          },
+          "clientUuid": {
+            "$ref": "#/components/schemas/ClientUuid"
+          },
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "localDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Día del club de la respuesta.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "hasPain": {
+            "type": "boolean",
+            "description": "Respondió que le duele algo."
+          },
+          "areas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PainArea"
+            },
+            "description": "Zonas que marcó, en el orden del vocabulario; vacío sin dolor."
+          },
+          "comment": {
+            "description": "Lo que agregó, solo con dolor.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "maxIntensity": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10,
+            "description": "La intensidad más alta de sus zonas (`0` sin dolor)."
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "reviewedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cuándo lo revisó el staff médico; `null` si sigue pendiente."
+          },
+          "reviewedBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de usuario (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Quién lo revisó."
+          }
+        },
+        "required": [
+          "id",
+          "clientUuid",
+          "playerId",
+          "localDate",
+          "hasPain",
+          "areas",
+          "comment",
+          "maxIntensity",
+          "submittedAt",
+          "reviewedAt",
+          "reviewedBy"
+        ]
+      },
+      "PainReportForm": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "localDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Hoy en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Si la app pregunta \"¿te duele algo?\" hoy."
+          },
+          "unavailableReason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PainReportUnavailableReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PainReport"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Su última respuesta de hoy, si ya respondió (y puede leerla)."
+          }
+        },
+        "required": [
+          "playerId",
+          "localDate",
+          "enabled",
+          "unavailableReason",
+          "latest"
+        ]
+      },
+      "PainReportPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PainReport"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "PainReportUnavailableReason": {
+        "type": "string",
+        "enum": [
+          "module_off",
+          "missing_consent"
+        ],
+        "description": "`module_off`: el club no pregunta por dolor (módulos `wellness` y `pain_report`); `missing_consent`: falta el consentimiento de datos o de salud vigente."
+      },
+      "PainSide": {
+        "type": "string",
+        "enum": [
+          "left",
+          "right",
+          "central"
+        ],
+        "description": "Lado: `left` o `right` en brazos, piernas y cadera; `central` en cabeza, cuello y tronco."
       },
       "PanelAlert": {
         "type": "object",
@@ -36133,7 +36783,7 @@
                     "additionalProperties": {}
                   }
                 },
-                "description": "Lesiones, conmociones, etapas del retorno y notas compartidas, leídas por las funciones auditadas del esquema `medical`. Vacío si no se incluyó."
+                "description": "Lesiones, conmociones, etapas del retorno, notas compartidas y reportes de dolor del bienestar con sus zonas, leídos por las funciones auditadas del esquema `medical`. Vacío si no se incluyó."
               }
             },
             "required": [
@@ -40246,7 +40896,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 64,
-            "description": "Operación: `wellness.submit`, `wellness.correct`, `rpe.submit`, `participation.record`, `participation.update`, `test_result.create`, `test_session.record_results`, `test_result.update`, `test_result.add_entries`, `test_result.void_entries`, `gym_set.log`, `gym_set.correct`, `gym_set.void`. Una desconocida se rechaza sola."
+            "description": "Operación: `wellness.submit`, `wellness.correct`, `rpe.submit`, `participation.record`, `participation.update`, `test_result.create`, `test_session.record_results`, `test_result.update`, `test_result.add_entries`, `test_result.void_entries`, `gym_set.log`, `gym_set.correct`, `gym_set.void`, `pain_report.submit`. Una desconocida se rechaza sola."
           },
           "params": {
             "description": "Parámetros de ruta del endpoint en línea (`trainingSessionId`, `testSessionId`)."

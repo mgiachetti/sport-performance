@@ -7,7 +7,7 @@ import type { Stage } from '../stage.js';
 import { decide, listScope, type DenialReason, type PermissionDecision } from './evaluate.js';
 import { PERMISSION_MATRIX, permissionCells, type RoleRules } from './matrix.js';
 import { PERMISSION_RESOURCES, type ResourceKind } from './resources.js';
-import { deny, describeRule, isPermissionScope, isPlayerCondition } from './rules.js';
+import { allow, deny, describeRule, isPermissionScope, isPlayerCondition } from './rules.js';
 import type { PermissionResource, PermissionSubject, PlayerFacts } from './subject.js';
 
 /**
@@ -97,6 +97,9 @@ medical_record.update    -                     -               -               -
 medical_block.read       -                     -               -               -               assigned         -           -
 medical_block.set        -                     -               -               -               assigned         -           -
 medical_block.lift       -                     -               -               -               assigned         -           -
+pain_report.read         self+health           guardian+health+minor -               -               assigned         -           -
+pain_report.submit       self+data+health      -               -               -               -                -           -
+pain_report.review       -                     -               -               -               assigned         -           -
 data_export.export       self+adult            guardian+minor  -               -               -                club+data   -
 player_report.read       self                  guardian        assigned        assigned        assigned         club        club
 player_report.generate   -                     -               -               assigned        -                club        club
@@ -615,8 +618,14 @@ describe('privacy invariants (independent of the specification)', () => {
     for (const cell of medical) {
       const key = `${cell.kind}.${cell.action}`;
       if (cell.role === 'medical') continue;
+      // B-609, ADR 0078: the player tells their own pain, with a data and a health consent.
+      if (key === 'pain_report.submit') {
+        expect(cell.role).toBe('player');
+        expect(cell.rule).toEqual(allow('self', 'data', 'health'));
+        continue;
+      }
       // ADR 0029: the right of access of the holder (Ley 25.326, art. 14).
-      expect(key, cell.role).toBe('medical_record.read');
+      expect(['medical_record.read', 'pain_report.read'], cell.role).toContain(key);
       expect(['player', 'parent']).toContain(cell.role);
       expect(cell.rule.effect === 'allow' && cell.rule.consents, key).toContain('health');
       expect(cell.rule.effect === 'allow' && cell.rule.scope, key).toBe(
@@ -641,7 +650,9 @@ describe('privacy invariants (independent of the specification)', () => {
         expect(cell.role === 'parent' ? cell.rule.effect : 'deny').toBe('deny');
       }
     }
-    for (const cell of cells.filter((c) => c.kind === 'medical_record' && c.role === 'parent')) {
+    for (const cell of cells.filter(
+      (c) => (c.kind === 'medical_record' || c.kind === 'pain_report') && c.role === 'parent',
+    )) {
       if (cell.action !== 'read') expect(cell.rule.effect, cell.action).toBe('deny');
       else expect(cell.rule.effect === 'allow' && cell.rule.conditions).toContain('minor');
     }
@@ -701,11 +712,13 @@ describe('privacy invariants (independent of the specification)', () => {
       'media.upload',
       'medical_record.record',
       'medical_record.update',
+      'pain_report.submit',
     ];
     const required: Readonly<Record<string, ConsentType>> = {
       'media.upload': 'image',
       'medical_record.record': 'health',
       'medical_record.update': 'health',
+      'pain_report.submit': 'health',
     };
     for (const cell of allowedCells) {
       const key = `${cell.kind}.${cell.action}`;

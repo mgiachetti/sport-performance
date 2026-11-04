@@ -61,7 +61,7 @@ La app del jugador (B-503) está en `src/player` (racha, récords, sesiones a pu
 
 Lo que una pantalla necesita sin señal y no es una colección va a `services.readCache` (la misma `cached_read`): las lecturas del jugador por `useOfflineRead` y, en el día de test, la planilla de cada día y el contexto del club (`put` con la membresía, `get` y `list` con su contrato, ADR 0076); se borra con la membresía al cerrar sesión.
 
-Una operación de edición nueva suma su superposición en `src/offline/overlay.ts` y sus filas en `OPERATION_SPECS`; un cambio del esquema local es una migración nueva al final de `src/offline/db/migrations.ts` (el test la compara con `schema.ts`). Cerrar sesión borra todo lo del club en el teléfono.
+Una operación que no vuelve en un pull (el reporte de dolor, datos de salud: ADR 0078) se marca `forgetOnAck` en `OPERATION_SPECS` y sale de la cola apenas el servidor la aplica. Una operación de edición nueva suma su superposición en `src/offline/overlay.ts` y sus filas en `OPERATION_SPECS`; un cambio del esquema local es una migración nueva al final de `src/offline/db/migrations.ts` (el test la compara con `schema.ts`). Cerrar sesión borra todo lo del club en el teléfono.
 
 ## Tests
 

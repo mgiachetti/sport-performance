@@ -78,6 +78,13 @@ interface OperationSpec<Op extends SyncOperation> {
     path: (string | number)[];
     value: string | undefined;
   }[];
+  /**
+   * `true`: nothing of it comes back in a pull (it writes no synced
+   * collection): once the server applied it, it leaves the queue right away
+   * instead of staying laid over until a pull. Health data (the pain report,
+   * ADR 0078) never stays on the device after it was sent.
+   */
+  readonly forgetOnAck?: true;
 }
 
 type Target = { id: string } | { clientUuid: string };
@@ -202,7 +209,19 @@ export const OPERATION_SPECS: { readonly [Op in SyncOperation]: OperationSpec<Op
     targets: ({ target }) => [toTarget('gym_set', target)],
     clientUuidPaths: none,
   },
+  'pain_report.submit': {
+    kind: 'create',
+    // Goes to the `medical` schema: no synced collection, nothing to lay over.
+    targets: none,
+    clientUuidPaths: ({ body }) => [{ path: ['body', 'clientUuid'], value: body.clientUuid }],
+    forgetOnAck: true,
+  },
 };
+
+/** Whether a mutation of `op` leaves the queue as soon as the server applied it. */
+export function forgetsOnAck(op: SyncOperation): boolean {
+  return OPERATION_SPECS[op].forgetOnAck === true;
+}
 
 export interface PreparedMutation<Op extends SyncOperation = SyncOperation> {
   readonly op: Op;

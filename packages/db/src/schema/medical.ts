@@ -8,6 +8,11 @@ import {
   INJURY_SIDES,
   MEDICAL_ACCESS_ACTIONS,
   MEDICAL_NOTE_VISIBILITIES,
+  CENTRAL_PAIN_REGIONS,
+  PAIN_COMMENT_MAX_LENGTH,
+  PAIN_INTENSITY_MAX,
+  PAIN_INTENSITY_MIN,
+  PAIN_SIDES,
   type ClubId,
   type PlayerId,
 } from '@sport-performance/domain';
@@ -303,6 +308,79 @@ export const medicalNote = medicalSchema.table(
     samePlayerIndex('note', t, t.amendsNoteId),
     index('note_player_idx').on(t.clubId, t.playerId, t.createdAt),
     check('note_body_not_blank', sql`btrim(${t.body}) <> ''`),
+  ],
+);
+
+/** `'a', 'b'`: a closed list of the domain as SQL literals (all of them are plain codes). */
+const sqlList = (values: readonly string[]) =>
+  sql.raw(values.map((value) => `'${value}'`).join(', '));
+
+/**
+ * The answer of a player to "¿te duele algo?" in the wellness (B-609, ADR
+ * 0078). Written by the player themselves (not by the medical staff) with a
+ * data and a health consent, and append-only: a new answer of the same day
+ * is another row, the latest one counts. Only the review by the medical
+ * staff (`reviewed_*`) is written later, once. `has_pain` with its
+ * {@link medicalPainReportArea} rows (at least one, deferred trigger).
+ */
+export const medicalPainReport = medicalSchema.table(
+  'pain_report',
+  {
+    ...tenantColumns(),
+    playerId: uuid('player_id').notNull().$type<PlayerId>(),
+    /** Club day the answer is about (today or yesterday, as the wellness). */
+    localDate: localDate('local_date').notNull(),
+    hasPain: boolean('has_pain').notNull(),
+    /** What the player adds, only with pain. Only ever visible through the medical functions. */
+    comment: text('comment'),
+    /** The medical staff saw it: when and who. Once, never undone. */
+    reviewedAt: timestamptz('reviewed_at'),
+    reviewedBy: text('reviewed_by').references(() => user.id, { onDelete: 'restrict' }),
+  },
+  (t) => [
+    ...tenantConstraints('pain_report', t),
+    unique('pain_report_club_id_id_player_id_key').on(t.clubId, t.id, t.playerId),
+    tenantReference('pain_report', t.clubId, t.playerId, player),
+    index('pain_report_player_idx').on(t.clubId, t.playerId, t.localDate),
+    index('pain_report_recent_idx').on(t.clubId, t.createdAt, t.id),
+    check(
+      'pain_report_comment',
+      sql`${t.comment} is null or (${t.hasPain} and btrim(${t.comment}) <> '' and char_length(${t.comment}) <= ${sql.raw(String(PAIN_COMMENT_MAX_LENGTH))})`,
+    ),
+    check('pain_report_review', sql`(${t.reviewedAt} is null) = (${t.reviewedBy} is null)`),
+  ],
+);
+
+/**
+ * One area of the body map in a pain report: the region (the injury
+ * vocabulary without `other`), its side and the intensity on the 0–10 scale
+ * (an area that hurts is at least 1). Added only with its report, in the
+ * same transaction; never changed.
+ */
+export const medicalPainReportArea = medicalSchema.table(
+  'pain_report_area',
+  {
+    ...tenantColumns(),
+    playerId: uuid('player_id').notNull().$type<PlayerId>(),
+    reportId: uuid('report_id').notNull(),
+    bodyRegion: injuryBodyRegionEnum('body_region').notNull(),
+    side: injurySideEnum('side').notNull(),
+    intensity: smallint('intensity').notNull(),
+  },
+  (t) => [
+    ...tenantConstraints('pain_report_area', t),
+    samePlayerReference('pain_report_area', t, t.reportId, medicalPainReport),
+    unique('pain_report_area_key').on(t.clubId, t.reportId, t.bodyRegion, t.side),
+    check('pain_report_area_region', sql`${t.bodyRegion} <> 'other'`),
+    check('pain_report_area_side', sql`${t.side} in (${sqlList(PAIN_SIDES)})`),
+    check(
+      'pain_report_area_side_of_region',
+      sql`(${t.side} = 'central') = (${t.bodyRegion} in (${sqlList(CENTRAL_PAIN_REGIONS)}))`,
+    ),
+    check(
+      'pain_report_area_intensity',
+      sql`${t.intensity} between ${sql.raw(String(PAIN_INTENSITY_MIN))} and ${sql.raw(String(PAIN_INTENSITY_MAX))}`,
+    ),
   ],
 );
 

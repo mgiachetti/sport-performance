@@ -18,7 +18,7 @@ import type { SessionState } from '../state/session-controller.ts';
 import { COACH_AT_ORC, USER } from '../test/fixtures.ts';
 import { runBackgroundSync } from './background.ts';
 import { openLocalDatabase } from './db/database.ts';
-import { deviceMeta } from './db/schema.ts';
+import { deviceMeta, mutation, syncIssue } from './db/schema.ts';
 import { ACKED_OVERLAY_MAX_MS, createSyncEngine, type SyncEngineOptions } from './engine.ts';
 import { InvalidMutationError, MissingClientUuidError } from './operations.ts';
 
@@ -160,6 +160,67 @@ describe('push', () => {
     const rows = await engine.store.list(SCOPE.membershipId, 'wellness');
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ clientUuid, pending: false });
+  });
+
+  it('forgets a pain report as soon as the server applied it (health data, ADR 0078)', async () => {
+    const { engine, server } = await setup();
+    const clientUuid = uuid();
+    await engine.enqueue('pain_report.submit', {
+      body: {
+        clientUuid,
+        hasPain: true,
+        areas: [{ region: 'knee', side: 'left', intensity: 5 }],
+      },
+    });
+    let queue = await engine.store.pending(SCOPE.membershipId, ['pain_report.submit']);
+    expect(queue.map((m) => [m.state, m.targets])).toEqual([['pending', []]]);
+    await engine.syncNow();
+    expect(server.pushes.flat().map((m) => m.op)).toEqual(['pain_report.submit']);
+    // Nothing of it comes back in a pull: no overlay, nothing left on the device.
+    queue = await engine.store.pending(SCOPE.membershipId);
+    expect(queue).toEqual([]);
+    expect(engine.getStatus()).toMatchObject({ pendingCount: 0, issueCount: 0 });
+    await expect(
+      engine.enqueue('pain_report.submit', { body: { hasPain: false } }),
+    ).rejects.toBeInstanceOf(MissingClientUuidError);
+  });
+
+  it('keeps nothing of a rejected pain report but the issue (health data, ADR 0078)', async () => {
+    const { engine, server, database } = await setup();
+    const queued = await engine.enqueue('pain_report.submit', {
+      body: {
+        clientUuid: uuid(),
+        hasPain: true,
+        areas: [{ region: 'knee', side: 'left', intensity: 5 }],
+        comment: 'Me duele al saltar',
+      },
+    });
+    // The health consent was revoked (or the module turned off) while it was queued.
+    server.decide(() => ({
+      status: 'rejected',
+      hlc: null,
+      error: { code: 'forbidden', message: 'forbidden' },
+    }));
+    await engine.syncNow();
+    expect(await engine.store.pending(SCOPE.membershipId)).toEqual([]);
+    const issues = await engine.issues();
+    expect(issues).toEqual([
+      expect.objectContaining({
+        mutationId: queued.mutationId,
+        op: 'pain_report.submit',
+        kind: 'rejected',
+        errorCode: 'forbidden',
+        input: {},
+      }),
+    ]);
+    const stored = await database.read(async (db) => [
+      ...(await db.select().from(syncIssue)),
+      ...(await db.select().from(mutation)),
+    ]);
+    const raw = JSON.stringify(stored);
+    for (const leaked of ['knee', 'Me duele', 'intensity', 'hasPain']) {
+      expect(raw).not.toContain(leaked);
+    }
   });
 
   it('surfaces a rejected mutation with its reason and takes it out of the queue', async () => {

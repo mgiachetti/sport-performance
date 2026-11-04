@@ -68,6 +68,11 @@ export interface PlayerTodayActions {
   ) => Promise<void>;
   readonly onSubmitRpe: (sessionId: string, rpe: number, reason: string | null) => Promise<void>;
   readonly onRetry: () => void;
+  /**
+   * "¿Te duele algo?" after the check-in (B-609): only when the club asks it
+   * and the player has the health consent; `null` (or absent) hides it.
+   */
+  readonly onOpenPainReport?: (() => void) | null;
 }
 
 /** The reason of a correction, as the contract wants it (1–500 chars, trimmed). */
@@ -195,6 +200,13 @@ function WellnessCard({
           </AppText>
         ))}
         <SentState pending={entry.pending} />
+        {actions.onOpenPainReport ? (
+          <Button
+            label={t('pain.title')}
+            accessibilityHint={t('pain.privacy')}
+            onPress={actions.onOpenPainReport}
+          />
+        ) : null}
         <Button
           variant="secondary"
           label={t('playerApp.wellness.correct')}

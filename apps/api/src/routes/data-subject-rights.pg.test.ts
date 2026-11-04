@@ -239,6 +239,15 @@ describeWithPostgres('rights of the data subject (Postgres)', (serverUrl) => {
               ($1, $2, 'Solo para el médico', 'medical')`,
       [clubA, minor],
     );
+    // A pain report of the wellness with its area (B-609), in one statement (deferred check).
+    await database.admin.query(
+      `with r as (
+         insert into medical.pain_report (club_id, player_id, local_date, has_pain, comment)
+         values ($1, $2, '2026-03-12', true, 'Rodilla') returning id, club_id, player_id)
+       insert into medical.pain_report_area (club_id, player_id, report_id, body_region, side, intensity)
+       select club_id, player_id, id, 'knee', 'left', 4 from r`,
+      [clubA, minor],
+    );
   }, 60_000);
 
   afterAll(async () => {
@@ -285,6 +294,13 @@ describeWithPostgres('rights of the data subject (Postgres)', (serverUrl) => {
       ]);
       // Only the shared notes reach the holder.
       expect(body.medical.tables['medical.note']?.map((n) => n.body)).toEqual(['Control']);
+      // The pain reports of the wellness and their areas (B-609).
+      expect(body.medical.tables['medical.pain_report']).toEqual([
+        expect.objectContaining({ has_pain: true, comment: 'Rodilla', local_date: '2026-03-12' }),
+      ]);
+      expect(body.medical.tables['medical.pain_report_area']).toEqual([
+        expect.objectContaining({ body_region: 'knee', side: 'left', intensity: 4 }),
+      ]);
       // The reads are audited, and the export is recorded as a completed access request.
       const log = await database.admin.query(
         `select resource from medical.access_log where player_id = $1 and actor_user_id = $2`,
@@ -293,6 +309,10 @@ describeWithPostgres('rights of the data subject (Postgres)', (serverUrl) => {
       expect(log.rows.map((r: { resource: string }) => r.resource)).toEqual(
         expect.arrayContaining(['injury', 'note']),
       );
+      // The reports and their areas come from one audited read: one log row.
+      expect(
+        log.rows.filter((r: { resource: string }) => r.resource === 'pain_report'),
+      ).toHaveLength(1);
       const recorded = await t.app.inject({
         url: `/v1/data-subject-requests/${body.requestId}`,
         headers: parentA.headers,
@@ -469,6 +489,8 @@ describeWithPostgres('rights of the data subject (Postgres)', (serverUrl) => {
         'public.guardian': 1,
         'medical.injury': 1,
         'medical.note': 2,
+        'medical.pain_report': 1,
+        'medical.pain_report_area': 1,
       });
       for (const [table, column] of [
         ['player', 'id'],
@@ -476,6 +498,8 @@ describeWithPostgres('rights of the data subject (Postgres)', (serverUrl) => {
         ['consent', 'player_id'],
         ['medical.injury', 'player_id'],
         ['medical.note', 'player_id'],
+        ['medical.pain_report', 'player_id'],
+        ['medical.pain_report_area', 'player_id'],
       ] as const) {
         const { rowCount } = await database.admin.query(
           `select 1 from ${table} where ${column} = $1`,

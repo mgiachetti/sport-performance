@@ -94,6 +94,7 @@ export const mobileMessagesEsAR = {
   'sync.op.test_result.update': 'Corrección de un resultado',
   'sync.op.test_result.add_entries': 'Intentos de un test',
   'sync.op.test_result.void_entries': 'Anulación de intentos',
+  'sync.op.pain_report.submit': 'Reporte de dolor',
 
   // Invitation links
   'invitation.invalidLink':

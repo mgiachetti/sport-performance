@@ -27,17 +27,23 @@ import { seedClubFixture, type ClubFixture, type FixtureUser } from './testing/t
  * between clubs, an immutable log and the GRTP rules.
  */
 
-const CLINICAL_TABLES = ['concussion', 'concussion_stage', 'hold', 'injury', 'note'];
+/** Written by the medical staff (`app_admin.secure_medical_table`). */
+const STAFF_TABLES = ['concussion', 'concussion_stage', 'hold', 'injury', 'note'];
+/** Written by the player (B-609, ADR 0078; `pain-reports.integration.test.ts`). */
+const PAIN_TABLES = ['pain_report', 'pain_report_area'];
+const CLINICAL_TABLES = [...STAFF_TABLES, ...PAIN_TABLES].sort();
 const MEDICAL_TABLES = [...CLINICAL_TABLES, 'access_log'].sort();
 const ENTRY_POINTS = [
   'availability',
   'availability_history',
+  'may_report_pain',
   'may_write',
   'read_concussion_stages',
   'read_concussions',
   'read_holds',
   'read_injuries',
   'read_notes',
+  'read_pain_reports',
 ];
 
 async function pgCode(promise: Promise<unknown>): Promise<string | undefined> {
@@ -228,8 +234,13 @@ describe.skipIf(!hasDatabase)('medical schema and audit (Postgres 16)', () => {
           order by 1, 2, 3`,
         [Object.values(DATABASE_ROLES)],
       );
+      // Pain areas are not even found by id: nobody updates them.
       expect(rows).toEqual(
-        CLINICAL_TABLES.map((table) => ({ role: DATABASE_ROLES.app, table, column: 'id' })),
+        CLINICAL_TABLES.filter((table) => table !== 'pain_report_area').map((table) => ({
+          role: DATABASE_ROLES.app,
+          table,
+          column: 'id',
+        })),
       );
     });
 
@@ -243,14 +254,15 @@ describe.skipIf(!hasDatabase)('medical schema and audit (Postgres 16)', () => {
           where n.nspname in ('medical', 'support') and c.relkind = 'r'
             and r.rolname = any($1::text[])
             and (has_table_privilege(r.oid, c.oid, p.privilege)
-                 or (p.privilege = 'UPDATE' and has_any_column_privilege(r.oid, c.oid, 'UPDATE')))
+                 or (p.privilege in ('INSERT', 'UPDATE')
+                     and has_any_column_privilege(r.oid, c.oid, p.privilege)))
           order by 1, 2, 3`,
         [Object.values(DATABASE_ROLES)],
       );
       const expected = CLINICAL_TABLES.flatMap((table) => [
         { role: DATABASE_ROLES.app, table: `medical.${table}`, privilege: 'INSERT' },
-        // Clinical notes are append-only.
-        ...(table === 'note'
+        // Clinical notes and pain areas are append-only.
+        ...(table === 'note' || table === 'pain_report_area'
           ? []
           : [{ role: DATABASE_ROLES.app, table: `medical.${table}`, privilege: 'UPDATE' }]),
       ]);

@@ -35,6 +35,7 @@ import {
   trainingSessionIdSchema,
   trainingSessionSchema,
 } from './training.js';
+import { submitPainReport } from './pain-reports.js';
 import { submitWellness, wellnessSchema, wellnessScoresInputSchema } from './wellness.js';
 import { correctGymSet, gymProgramSchema, gymSetSchema, logGymSets, voidGymSet } from './gym.js';
 
@@ -139,6 +140,7 @@ export const SYNC_OPERATION_INPUTS = {
     body: correctGymSet.body.omit({ version: true }),
   }),
   'gym_set.void': z.strictObject({ target: syncTargetSchema, body: voidGymSet.body }),
+  'pain_report.submit': z.strictObject({ body: submitPainReport.body }),
 } as const satisfies Record<SyncOperation, z.ZodType>;
 
 export type SyncOperationInput<Op extends SyncOperation> = z.output<

@@ -70,7 +70,7 @@ function useMyTestDays() {
 }
 
 /** Today in the club's time zone, from the phone's clock: also offline (CLAUDE.md). */
-function clubDay(
+export function clubDay(
   me: MyPlayer | undefined,
   nowMs: number,
 ): { today: LocalDate; timeZone: TimeZone } | null {
@@ -124,7 +124,14 @@ function wellnessSection(
 }
 
 /** "Hoy" of the player: wellness, RPE, streak and the next test day. */
-export function PlayerToday({ sync }: { readonly sync?: ReactNode }) {
+export function PlayerToday({
+  sync,
+  onOpenPainReport,
+}: {
+  readonly sync?: ReactNode;
+  /** Opens "¿Te duele algo?" (B-609); offered after the check-in when the club asks it. */
+  readonly onOpenPainReport?: () => void;
+}) {
   const services = useServices();
   const api = useApi();
   const session = useSession();
@@ -263,6 +270,7 @@ export function PlayerToday({ sync }: { readonly sync?: ReactNode }) {
       me.refetch();
       services.sync.requestSync({ force: true });
     },
+    onOpenPainReport: me.value?.permissions.reportPain === true ? (onOpenPainReport ?? null) : null,
   };
 
   return (

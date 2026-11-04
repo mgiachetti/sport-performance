@@ -246,6 +246,12 @@ import {
   submitWellness,
 } from './wellness.js';
 import {
+  getPainReportForm,
+  listPainReports,
+  reviewPainReport,
+  submitPainReport,
+} from './pain-reports.js';
+import {
   addTestResultEntries,
   createTestResult,
   getTestResult,
@@ -321,6 +327,7 @@ export * from './season-rollovers.js';
 export * from './training.js';
 export * from './session-roster.js';
 export * from './wellness.js';
+export * from './pain-reports.js';
 export * from './tests.js';
 export * from './sync.js';
 export * from './support-access.js';
@@ -448,6 +455,10 @@ export const apiEndpoints = {
   correctWellness,
   listWellness,
   getWellness,
+  getPainReportForm,
+  submitPainReport,
+  listPainReports,
+  reviewPainReport,
   listAlerts,
   getAlert,
   reviewAlert,
