@@ -364,13 +364,15 @@ export async function testMetrics(
       code: metricDefinition.code,
       unit: metricDefinition.unit,
       direction: metricDefinition.direction,
+      // Compared as JSON, never cast: a value that is not a boolean is "no" (as the
+      // domain's `=== true`), not an error that fails every comparison of the club.
       sameDeviceOnly: sql<boolean>`exists (
         select 1
           from test_definition_metric tdm
           join test_definition td on td.club_id = tdm.club_id and td.id = tdm.test_definition_id
          where tdm.club_id = "metric_definition"."club_id"
            and tdm.metric_definition_id = "metric_definition"."id"
-           and coalesce((td.protocol -> 'parameters' ->> 'sameDeviceOnly')::boolean, false))`,
+           and coalesce(td.protocol -> 'parameters' -> 'sameDeviceOnly' = 'true'::jsonb, false))`,
     })
     .from(metricDefinition)
     .where(

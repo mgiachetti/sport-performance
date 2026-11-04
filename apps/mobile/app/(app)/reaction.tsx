@@ -5,6 +5,7 @@ import { AppState } from 'react-native';
 import { canRunIft3015 } from '../../src/ift/roster.ts';
 import {
   clubToday,
+  definitionFor,
   loadReactionRoster,
   loadReactionSetup,
   protocolOf,
@@ -166,7 +167,12 @@ export default function Reaction() {
     },
   });
 
-  const protocol = useMemo(() => (setup === null ? null : protocolOf(setup)), [setup]);
+  // The version of the chosen category's sport: never another sport's protocol.
+  const definition = useMemo(
+    () => (setup === null ? null : definitionFor(setup, categoryId)),
+    [setup, categoryId],
+  );
+  const protocol = useMemo(() => protocolOf(definition), [definition]);
   const device = setup?.device ?? null;
 
   // The run ended: the player's own earlier times on this device, from the phone.
@@ -222,12 +228,11 @@ export default function Reaction() {
       />
     );
   }
-  if (setup === null || protocol === null || scope === null || installationId === null) {
+  if (setup === null || scope === null || installationId === null) {
     return <ReactionLoadingScreen />;
   }
 
-  if (player !== null && device !== null && setup.definition !== null) {
-    const definition = setup.definition;
+  if (player !== null && device !== null && definition !== null) {
     switch (run.phase) {
       case 'intro':
         return (
@@ -352,7 +357,7 @@ export default function Reaction() {
     <ReactionSetupScreen
       offline={offline}
       fromCache={setupQuery.data?.fromCache === true}
-      hasDefinition={setup.definition !== null}
+      hasDefinition={categoryId === null ? setup.definitions.length > 0 : definition !== null}
       device={deviceStatus}
       canManageDevice={canManageDevice}
       deviceLabel={deviceLabel}
@@ -400,7 +405,7 @@ export default function Reaction() {
       }
       onSelectPlayer={(playerId) => {
         const chosen = roster.find((p) => p.id === playerId);
-        if (chosen === undefined) return;
+        if (chosen === undefined || definition === null) return;
         setNotice(null);
         setHistory(null);
         setInterrupted(false);

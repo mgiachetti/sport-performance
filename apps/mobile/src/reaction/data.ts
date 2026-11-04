@@ -31,7 +31,8 @@ import {
 
 /**
  * What the reaction test keeps on the phone (B-606, ADR 0077): the club's
- * time zone, its categories, the protocol version in force and this phone
+ * time zone, its categories (with their sport), the protocol versions in
+ * force (each category takes the one of its sport) and this phone
  * as a device of the club are a cached read; the roster of each category
  * another. Both live under the membership in the local database (deleted
  * on sign-out) and are refreshed with signal every time the screen opens,
@@ -45,10 +46,11 @@ export const reactionSetupKey = (installationId: string): string =>
 export const reactionRosterKey = (categoryId: string): string => `reaction.roster.${categoryId}`;
 
 export const reactionSetupSchema = clubSchema.pick({ timeZone: true }).extend({
-  categories: categorySchema.pick({ id: true, name: true, sortOrder: true }).array(),
-  definition: testDefinitionSchema
-    .pick({ id: true, version: true, attemptCount: true, protocol: true })
-    .nullable(),
+  categories: categorySchema.pick({ id: true, name: true, sortOrder: true, sport: true }).array(),
+  /** The versions in force today, each with the sports it applies to (`null`: all). */
+  definitions: testDefinitionSchema
+    .pick({ id: true, version: true, sports: true, attemptCount: true, protocol: true })
+    .array(),
   /** This phone as a device of the club, found by its installation id; `null`: not registered. */
   device: deviceSchema.pick({ id: true, label: true, kind: true, retiredAt: true }).nullable(),
 });
@@ -130,22 +132,19 @@ export async function refreshReactionSetup(
     api.listTestDefinitions({ query: { code: REACTION_TEST_CODE, limit: 10 } }, options),
     findThisDevice(api, installationId, signal),
   ]);
-  // The version in force today; with several (one per sport), the latest.
-  const definition = [...definitions.items].sort((a, b) => b.version - a.version)[0];
   const setup: ReactionSetup = {
     timeZone: club.timeZone,
     categories: [...categories]
       .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'es'))
-      .map(({ id, name, sortOrder }) => ({ id, name, sortOrder })),
-    definition:
-      definition === undefined
-        ? null
-        : {
-            id: definition.id,
-            version: definition.version,
-            attemptCount: definition.attemptCount,
-            protocol: definition.protocol,
-          },
+      .map(({ id, name, sortOrder, sport }) => ({ id, name, sortOrder, sport })),
+    // Every version in force (one per sport, or one for all): the category picks its own.
+    definitions: definitions.items.map(({ id, version, sports, attemptCount, protocol }) => ({
+      id,
+      version,
+      sports,
+      attemptCount,
+      protocol,
+    })),
     device,
   };
   await cache.put(scope, reactionSetupKey(installationId), setup, Date.now());
@@ -246,9 +245,28 @@ export function clubToday(setup: ReactionSetup | null, nowMs: number): LocalDate
   return localDateInTimeZone(new Date(nowMs), clubTimeZoneOf(setup));
 }
 
-/** The protocol of the version in force (its parameters and its valid stimuli). */
-export function protocolOf(setup: ReactionSetup): ReactionProtocol {
-  return reactionProtocol(setup.definition?.protocol.parameters, setup.definition?.attemptCount);
+export type ReactionDefinition = ReactionSetup['definitions'][number];
+
+/**
+ * The version in force for a category: one that applies to its sport (or
+ * to all), the latest if several do. `null` without a category or without
+ * a version for its sport: a player never takes another sport's protocol.
+ */
+export function definitionFor(
+  setup: ReactionSetup,
+  categoryId: string | null,
+): ReactionDefinition | null {
+  const category = setup.categories.find((c) => c.id === categoryId);
+  if (category === undefined) return null;
+  const applicable = setup.definitions.filter(
+    (d) => d.sports === null || d.sports.includes(category.sport),
+  );
+  return [...applicable].sort((a, b) => b.version - a.version)[0] ?? null;
+}
+
+/** The protocol of a version (its parameters and its valid stimuli). */
+export function protocolOf(definition: ReactionDefinition | null): ReactionProtocol {
+  return reactionProtocol(definition?.protocol.parameters, definition?.attemptCount);
 }
 
 /** The player's earlier means on this device, from the local database and the queue. */

@@ -28,12 +28,14 @@ import {
 } from '../test/reaction-fixtures.ts';
 import {
   clubToday,
+  definitionFor,
   loadReactionRoster,
   loadReactionSetup,
   protocolOf,
   readReactionHistory,
   refreshReactionRoster,
   refreshReactionSetup,
+  reactionSetupSchema,
   registerThisDevice,
 } from './data.ts';
 import { reactionResultInput } from './model.ts';
@@ -89,8 +91,8 @@ describe('reaction test data', () => {
     reactionRoutes(api);
     const fresh = await refreshReactionSetup(client, cache, SCOPE, INSTALLATION_ID);
     expect(fresh.device).toMatchObject({ id: THIS_DEVICE_ID, label: 'Celular de la PF' });
-    expect(fresh.definition?.id).toBe(REACTION_DEFINITION_ID);
-    expect(protocolOf(fresh)).toEqual(DEFAULT_REACTION_PROTOCOL);
+    expect(definitionFor(fresh, M15_ID)?.id).toBe(REACTION_DEFINITION_ID);
+    expect(protocolOf(definitionFor(fresh, M15_ID))).toEqual(DEFAULT_REACTION_PROTOCOL);
     // The phone looks for itself by its installation id, retired ones included.
     const devices = api.last('GET /v1/devices');
     expect(devices?.query.get('serialNumber')).toBe(INSTALLATION_ID);
@@ -114,7 +116,40 @@ describe('reaction test data', () => {
       definition: reactionDefinitionDto({ sameDeviceOnly: true, practiceTrials: 2 }),
     });
     const fresh = await refreshReactionSetup(client, cache, SCOPE, INSTALLATION_ID);
-    expect(protocolOf(fresh)).toMatchObject({ practiceTrials: 2, validTrials: 5 });
+    expect(protocolOf(definitionFor(fresh, M15_ID))).toMatchObject({
+      practiceTrials: 2,
+      validTrials: 5,
+    });
+  });
+
+  it("gives each category the version of its sport, never another sport's", async () => {
+    const { api, client, cache } = await setup();
+    reactionRoutes(api);
+    const fresh = await refreshReactionSetup(client, cache, SCOPE, INSTALLATION_ID);
+    const base = definitionFor(fresh, M15_ID);
+    if (base === null) throw new Error('no definition');
+    const hockeyId = uuid();
+    const both = reactionSetupSchema.parse({
+      ...fresh,
+      categories: [
+        ...fresh.categories,
+        { id: hockeyId, name: 'Sub 16 F', sortOrder: 1, sport: 'hockey' },
+      ],
+      definitions: [
+        base,
+        { ...base, id: uuid(), version: 2, sports: ['rugby'] },
+        // The highest version is hockey's: a rugby category never takes it.
+        { ...base, id: uuid(), version: 3, sports: ['hockey'] },
+      ],
+    });
+    const [, rugby, hockey] = both.definitions;
+    if (rugby === undefined || hockey === undefined) throw new Error('no definitions');
+    expect(definitionFor(both, M15_ID)?.id).toBe(rugby.id);
+    expect(definitionFor(both, hockeyId)?.id).toBe(hockey.id);
+    // A version for all sports applies when the sport has none of its own.
+    expect(definitionFor({ ...both, definitions: [base, rugby] }, hockeyId)?.id).toBe(base.id);
+    expect(definitionFor({ ...both, definitions: [rugby] }, hockeyId)).toBeNull();
+    expect(definitionFor(both, null)).toBeNull();
   });
 
   it('registers this phone with its installation id and keeps it', async () => {
