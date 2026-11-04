@@ -43,6 +43,8 @@ season.plan_windows      -                     -               -               c
 metric_catalog.read      club                  club            club            club            club             club        club
 configuration.read       -                     -               club            club            club             club        club
 configuration.update     -                     -               -               club            -                club        club
+device.read              -                     -               club            club            club             club        club
+device.manage            -                     -               -               club            -                club        club
 data_import.run          -                     -               -               assigned        -                club        club
 change_history.read      -                     -               assigned        assigned        assigned         club        club
 player_profile.read      self                  -               assigned        assigned        assigned         club        club

@@ -9,6 +9,11 @@ import { createSecureIftRunStore, type IftRunStore } from '../ift/run-store.ts';
 import { createIftRunner, type IftRunner } from '../ift/runner.ts';
 import type { SignalPlayer } from '../ift/signal-player.ts';
 import type { RuntimeConfig } from '../config/runtime-config.ts';
+import {
+  createMeasuringInstallation,
+  type HardwareInfo,
+  type MeasuringInstallation,
+} from '../reaction/installation.ts';
 import { reopeningLocalDatabase, type LocalDatabase } from '../offline/db/database.ts';
 import { createSyncEngine, type SyncEngine } from '../offline/engine.ts';
 import { bindSyncToSession } from '../offline/session-binding.ts';
@@ -34,6 +39,8 @@ export interface Platform {
     readonly sessionTitle: string;
     readonly reportError: (error: unknown) => void;
   }) => SignalPlayer;
+  /** What the phone says about itself when it registers as a measuring device (B-606). */
+  readonly hardware: HardwareInfo;
   readonly fetch?: FetchLike;
   /** The local database (ADR 0069): encrypted SQLite on the phone, `node:sqlite` in tests. */
   readonly openLocalDatabase: () => Promise<LocalDatabase>;
@@ -59,6 +66,11 @@ export interface AppServices {
    * changing club does.
    */
   readonly iftRunner: IftRunner;
+  /** This installation as a measuring device of the club (B-606, ADR 0073). */
+  readonly measuringInstallation: MeasuringInstallation;
+  readonly hardware: HardwareInfo;
+  /** UUIDs of what the app creates (`clientUuid` of a result and of each attempt). */
+  readonly randomUUID: () => string;
   readonly reportError: (error: unknown) => void;
   /** Stops listening to the API client (tests; the app lives as long as the process). */
   dispose(): void;
@@ -164,6 +176,9 @@ export function createAppServices(platform: Platform): AppServices {
     sync,
     iftRunStore,
     iftRunner,
+    measuringInstallation: createMeasuringInstallation(platform.secureStorage, platform.randomUUID),
+    hardware: platform.hardware,
+    randomUUID: platform.randomUUID,
     reportError,
     dispose() {
       unsubscribe();

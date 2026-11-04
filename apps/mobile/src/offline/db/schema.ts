@@ -166,4 +166,30 @@ export const syncIssue = sqliteTable(
   ],
 );
 
-export const localSchema = { deviceMeta, syncScope, syncedRow, mutation, syncIssue };
+/**
+ * Reads that are not sync collections, kept for using the app offline
+ * (ADR 0073): the sheet of a test day, the club's categories and time
+ * zone, the settings of a station on this phone. One JSON document per
+ * membership and key, replaced whole by the next successful read. Belongs
+ * to its membership like every club row: signing out deletes it.
+ */
+export const cachedRead = sqliteTable(
+  'cached_read',
+  {
+    membershipId: text('membership_id').notNull(),
+    key: text('key').notNull(),
+    data: text('data').notNull(),
+    /** When it was read from the server (or written on the phone). */
+    fetchedAt: integer('fetched_at').notNull(),
+  },
+  (table) => [
+    primaryKey({ name: 'cached_read_pk', columns: [table.membershipId, table.key] }),
+    foreignKey({
+      name: 'cached_read_scope_fk',
+      columns: [table.membershipId],
+      foreignColumns: [syncScope.membershipId],
+    }).onDelete('cascade'),
+  ],
+);
+
+export const localSchema = { deviceMeta, syncScope, syncedRow, mutation, syncIssue, cachedRead };

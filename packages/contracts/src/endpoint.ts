@@ -76,6 +76,8 @@ export const API_TAGS = {
   panel:
     'Panel semanal del staff: una lectura agregada de bienestar, carga, maduración, disponibilidad y alertas (B-403).',
   tests: 'Días de test, resultados con sus intentos y series comparables (B-320).',
+  devices:
+    'Equipos del club con los que se mide (teléfonos, tablets y hardware compartido): el test de reacción solo se compara en el mismo equipo (B-606).',
   references: 'Referencias de primera por métrica, deporte, sexo y alcance (B-321).',
   configuration:
     'Configuración del club: batería de tests, zonas de velocidad, reglas de alerta y módulos activos.',

@@ -140,6 +140,10 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
     read: { ...administration, coach: club, sc: club, medical: club },
     update: { ...administration, sc: club },
   },
+  device: {
+    read: { ...administration, coach: club, sc: club, medical: club },
+    manage: { ...administration, sc: club },
+  },
   data_import: {
     run: { ...administration, sc: assigned },
   },

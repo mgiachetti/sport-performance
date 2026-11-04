@@ -2,12 +2,15 @@ import type { LocalDate } from '@sport-performance/domain';
 import { describe, expect, it } from 'vitest';
 import {
   availabilityPeriods,
+  comparableGroup,
   evolution,
   groupSpan,
   peakZoneOf,
   percentileItems,
   playerValue,
+  rankableMetrics,
   type ScoredSample,
+  type TestMetricInfo,
   type WindowInfo,
 } from './player-profile.js';
 import { DEFAULT_PERCENTILE_SETTINGS, type PlayerFacts } from '@sport-performance/domain';
@@ -53,6 +56,48 @@ describe('availabilityPeriods', () => {
       },
     ]);
     expect(availabilityPeriods([])).toEqual([]);
+  });
+});
+
+describe('metrics compared only on the same device', () => {
+  const metrics = new Map<string, TestMetricInfo>([
+    ['sprint_40_s', { unit: 's', direction: 'lower_is_better', sameDeviceOnly: false }],
+    ['reaction_simple_msec', { unit: 'msec', direction: 'lower_is_better', sameDeviceOnly: true }],
+  ]);
+  const sample = (metricCode: string, playerKey: number): ScoredSample => ({
+    playerKey,
+    isSubject: playerKey === 1,
+    testCode: metricCode.startsWith('reaction') ? 'reaction' : 'sprint_40',
+    protocolVersion: 1,
+    exercise: null,
+    metricCode,
+    direction: 'lower_is_better',
+    sex: 'male',
+    ageBandCode: 'm15',
+    positionCode: null,
+    lineCode: null,
+    measuredOn: d('2026-04-10'),
+    seasonYear: 2026,
+    testWindowId: null,
+    method: 'app',
+    value: 1,
+  });
+
+  it('never enter a percentile', () => {
+    expect([...rankableMetrics(metrics).keys()]).toEqual(['sprint_40_s']);
+  });
+
+  it('never enter the category average of the evolution: only the player sees them', () => {
+    const group = [
+      sample('sprint_40_s', 1),
+      sample('sprint_40_s', 2),
+      sample('reaction_simple_msec', 1),
+      sample('reaction_simple_msec', 2),
+    ];
+    expect(comparableGroup(group, metrics).map((s) => [s.metricCode, s.playerKey])).toEqual([
+      ['sprint_40_s', 1],
+      ['sprint_40_s', 2],
+    ]);
   });
 });
 

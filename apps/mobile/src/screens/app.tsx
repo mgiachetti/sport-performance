@@ -38,6 +38,7 @@ export function HomeScreen({
   offline,
   sync,
   onOpenIft3015 = null,
+  onOpenReaction = null,
 }: {
   readonly userName: string;
   readonly membership: MembershipSummary;
@@ -47,6 +48,8 @@ export function HomeScreen({
   readonly sync?: ReactNode;
   /** Field tools of the staff who records tests (B-507); `null` hides them. */
   readonly onOpenIft3015?: (() => void) | null;
+  /** The reaction test on this phone (B-606); `null` hides it. */
+  readonly onOpenReaction?: (() => void) | null;
 }) {
   const { t } = useTranslator();
   const name = userName.trim();
@@ -65,6 +68,12 @@ export function HomeScreen({
         <Card>
           <AppText tone="secondary">{t('ift.open.hint')}</AppText>
           <Button variant="secondary" label={t('ift.open')} onPress={onOpenIft3015} />
+        </Card>
+      )}
+      {onOpenReaction === null ? null : (
+        <Card>
+          <AppText tone="secondary">{t('reaction.open.hint')}</AppText>
+          <Button variant="secondary" label={t('reaction.open')} onPress={onOpenReaction} />
         </Card>
       )}
       <AppText role="caption" tone="muted">

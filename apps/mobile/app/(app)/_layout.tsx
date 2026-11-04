@@ -33,6 +33,7 @@ export default function AppLayout() {
       <Tabs.Screen name="account" options={{ title: t('nav.account') }} />
       {/* Opened from Inicio by the staff who records tests; not a tab of its own. */}
       <Tabs.Screen name="ift-3015" options={{ title: t('ift.title'), href: null }} />
+      <Tabs.Screen name="reaction" options={{ title: t('reaction.title'), href: null }} />
     </Tabs>
   );
 }

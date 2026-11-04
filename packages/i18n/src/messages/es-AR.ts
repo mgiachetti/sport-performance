@@ -1,4 +1,5 @@
 import { mobileMessagesEsAR } from './mobile.js';
+import { mobileReactionMessagesEsAR } from './mobile-reaction.js';
 import { reportMessagesEsAR } from './report.js';
 import { webPanelMessagesEsAR } from './web-panel.js';
 import { webPlayerMessagesEsAR } from './web-player.js';
@@ -434,6 +435,7 @@ export const sourceMessageFiles = {
   'web-console.ts': webConsoleMessagesEsAR,
   'web-test-day.ts': webTestDayMessagesEsAR,
   'mobile.ts': mobileMessagesEsAR,
+  'mobile-reaction.ts': mobileReactionMessagesEsAR,
   'protocols.ts': protocolMessagesEsAR,
   'web-help.ts': webHelpMessagesEsAR,
   'report.ts': reportMessagesEsAR,
@@ -455,6 +457,8 @@ export const esAR = {
   ...webConsoleMessagesEsAR,
   ...webTestDayMessagesEsAR,
   ...mobileMessagesEsAR,
+  // The reaction test in the app (B-606)
+  ...mobileReactionMessagesEsAR,
   ...protocolMessagesEsAR,
   ...webHelpMessagesEsAR,
   // The PDF report of a player (B-602), rendered by the worker

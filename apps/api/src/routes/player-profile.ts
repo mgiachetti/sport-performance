@@ -338,17 +338,39 @@ export async function readSamples(
   return scoreSamples(rows);
 }
 
-/** Codes of the club's test metrics (not anthropometry), with their unit and direction. */
+/** A test metric of the club as the comparisons read it. */
+export interface TestMetricInfo {
+  unit: UnitCode;
+  direction: MetricDirection;
+  /**
+   * A metric of a test compared only on the same device (`sameDeviceOnly`
+   * in a version of its protocol: the reaction test, B-606): only against
+   * the player's own values, never in a percentile or a category average.
+   */
+  sameDeviceOnly: boolean;
+}
+
+/**
+ * Codes of the club's test metrics (not anthropometry), with their unit,
+ * direction and whether they are compared only on the same device.
+ */
 export async function testMetrics(
   db: TenantDatabase,
   clubId: ClubId,
   directionalOnly: boolean,
-): Promise<Map<string, { unit: UnitCode; direction: MetricDirection }>> {
+): Promise<Map<string, TestMetricInfo>> {
   const rows = await db
     .select({
       code: metricDefinition.code,
       unit: metricDefinition.unit,
       direction: metricDefinition.direction,
+      sameDeviceOnly: sql<boolean>`exists (
+        select 1
+          from test_definition_metric tdm
+          join test_definition td on td.club_id = tdm.club_id and td.id = tdm.test_definition_id
+         where tdm.club_id = ${metricDefinition.clubId}
+           and tdm.metric_definition_id = ${metricDefinition.id}
+           and coalesce((td.protocol -> 'parameters' ->> 'sameDeviceOnly')::boolean, false))`,
     })
     .from(metricDefinition)
     .where(
@@ -359,7 +381,34 @@ export async function testMetrics(
         ...(directionalOnly ? [ne(metricDefinition.direction, 'neutral')] : []),
       ),
     );
-  return new Map(rows.map((row) => [row.code, { unit: row.unit, direction: row.direction }]));
+  return new Map(
+    rows.map((row) => [
+      row.code,
+      { unit: row.unit, direction: row.direction, sameDeviceOnly: row.sameDeviceOnly },
+    ]),
+  );
+}
+
+/**
+ * The metrics a percentile may rank: never one compared only on the same
+ * device (each player's touch screen adds its own latency).
+ */
+export function rankableMetrics(
+  metrics: ReadonlyMap<string, TestMetricInfo>,
+): Map<string, TestMetricInfo> {
+  return new Map([...metrics].filter(([, metric]) => !metric.sameDeviceOnly));
+}
+
+/**
+ * The comparison group without the metrics compared only on the same
+ * device: their evolution shows the player's own values, with no category
+ * average.
+ */
+export function comparableGroup(
+  group: readonly ScoredSample[],
+  metrics: ReadonlyMap<string, TestMetricInfo>,
+): ScoredSample[] {
+  return group.filter((sample) => metrics.get(sample.metricCode)?.sameDeviceOnly !== true);
 }
 
 /** Age bands the player has been in (the comparison groups are always within one). */
@@ -918,7 +967,7 @@ export function registerPlayerProfileRoutes(app: FastifyInstance): void {
           : { ...target.facts, stage: stage.stage, ageBand: stage.ageBand };
       await permissions.authorize('percentile', 'read', { player: facts });
       const settings: PercentileSettings = DEFAULT_PERCENTILE_SETTINGS;
-      const metrics = await testMetrics(db, clubId, true);
+      const metrics = rankableMetrics(await testMetrics(db, clubId, true));
       const seasons = Math.max(...settings.groupings.map((g) => g.seasonsAccumulated));
       const from = localDate(localDateParts(asOf).year - seasons, 1, 1);
       const samples = await readSamples(db, {
@@ -992,7 +1041,7 @@ export function registerPlayerProfileRoutes(app: FastifyInstance): void {
       // …and the comparison group of each of their columns over the whole window or day,
       // never cut by `from`/`to` (ADR 0060).
       const span = groupSpan(own, windows);
-      const group = span === null ? [] : await read(span);
+      const group = span === null ? [] : comparableGroup(await read(span), metrics);
       const { columns, metrics: series } = evolution(own, group, metrics, windows, today);
       return { playerId: target.id, columns, metrics: series };
     },

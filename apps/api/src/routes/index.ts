@@ -20,6 +20,7 @@ import { registerGuardianRoutes } from './guardians.js';
 import { registerConsentRoutes } from './consents.js';
 import { registerFileRoutes } from './files.js';
 import { registerClubDataExportRoutes } from './club-data-exports.js';
+import { registerDeviceRoutes } from './devices.js';
 import {
   registerAccountDeletionRoute,
   registerDataSubjectRightsRoutes,
@@ -280,6 +281,12 @@ export const IMPLEMENTED_ENDPOINTS = [
   'listClubDataExports',
   'getClubDataExport',
   'getClubDataExportDownload',
+  'listDevices',
+  'getDevice',
+  'registerDevice',
+  'updateDevice',
+  'retireDevice',
+  'restoreDevice',
 ] as const satisfies readonly (keyof ApiEndpoints)[];
 
 /** Declared in the contract but served by a later issue (`'#N (B-xxx): why'`). */
@@ -325,6 +332,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerTestSessionSheetRoutes(app);
   registerTestResultRoutes(app);
   registerTestImportRoutes(app);
+  registerDeviceRoutes(app);
   registerAnthropometryRoutes(app);
   registerTestDefinitionRoutes(app);
   registerReferenceValueRoutes(app);

@@ -44,6 +44,13 @@ export const PERMISSION_RESOURCES = {
   metric_catalog: { target: 'club', medical: false, actions: ['read'] },
   /** Club configuration (B-322): batteries, speed zones, alert rules, first-team references. */
   configuration: { target: 'club', medical: false, actions: ['read', 'update'] },
+  /**
+   * Measuring devices of the club (B-606, ADR 0073): the phones and tablets a
+   * test is timed on (reaction is compared only on the same one), and the
+   * shared hardware of Phase 2. No personal data: the staff reads them,
+   * `sc` and the administration register, edit and retire them.
+   */
+  device: { target: 'club', medical: false, actions: ['read', 'manage'] },
   /** Imports: Catapult exports for a category, roster (padrón) for the club. */
   data_import: { target: 'category', medical: false, actions: ['run'] },
   /** Change history of results, sessions and measurements (B-305). */
