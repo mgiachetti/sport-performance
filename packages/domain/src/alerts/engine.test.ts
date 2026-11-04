@@ -368,9 +368,7 @@ describe('growth peak by sex (B-804)', () => {
     ['male', 7.2, [['growth_peak', 7.2]]],
   ] as const)('a %s player at %s cm/year raises %j', (sex, velocity, expected) => {
     const evaluation = evaluateAlertRules(growthRules, growthOf(sex, velocity));
-    expect(evaluation.alerts.map((a) => [a.ruleCode, a.values['thresholdCmYear']])).toEqual(
-      expected,
-    );
+    expect(evaluation.alerts.map((a) => [a.ruleCode, a.values.thresholdCmYear])).toEqual(expected);
     // The rule of the other sex never reaches the player.
     expect(evaluation.skipped).toContainEqual({
       ruleCode: sex === 'female' ? 'growth_peak' : 'growth_peak_female',

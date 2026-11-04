@@ -38,9 +38,9 @@ describe('sex-specific default zones (B-804)', () => {
     const bounds = Object.fromEntries(
       DEFAULT_FEMALE_ABSOLUTE_SPEED_ZONES.zones.map((z) => [z.code, kmh(z.minSpeedMs)]),
     );
-    expect(bounds['running']).toBeCloseTo(12.5, 1);
-    expect(bounds['high_speed_running']).toBeCloseTo(19.0, 1);
-    expect(bounds['sprinting']).toBeCloseTo(22.5, 1);
+    expect(bounds.running).toBeCloseTo(12.5, 1);
+    expect(bounds.high_speed_running).toBeCloseTo(19.0, 1);
+    expect(bounds.sprinting).toBeCloseTo(22.5, 1);
     expect(highSpeedThresholdMs(DEFAULT_FEMALE_ABSOLUTE_SPEED_ZONES)).toBe(5.28);
     // Every female bound is at or below the male one.
     DEFAULT_FEMALE_ABSOLUTE_SPEED_ZONES.zones.forEach((zone, index) => {

@@ -89,7 +89,7 @@ export type SexSpeedZoneDefaults = { readonly [K in SpeedZoneKind]?: SpeedZoneSe
  * share of each player's own Vmax, so they already scale with sex, and the
  * general absolute zones are the men's ones.
  */
-export const DEFAULT_SPEED_ZONE_SETS_BY_SEX: { readonly [S in Sex]: SexSpeedZoneDefaults } = {
+export const DEFAULT_SPEED_ZONE_SETS_BY_SEX: Readonly<Record<Sex, SexSpeedZoneDefaults>> = {
   male: {},
   female: { absolute: DEFAULT_FEMALE_ABSOLUTE_SPEED_ZONES },
 };
@@ -99,9 +99,9 @@ export const DEFAULT_SPEED_ZONE_SETS_BY_SEX: { readonly [S in Sex]: SexSpeedZone
  * same shape as the maturation coefficients). One entry per set of
  * {@link DEFAULT_SPEED_ZONE_SETS_BY_SEX}; a test keeps them in step.
  */
-export const DEFAULT_SPEED_ZONE_SOURCES: {
-  readonly [S in Sex]: { readonly [K in SpeedZoneKind]?: CoefficientProvenance };
-} = {
+export const DEFAULT_SPEED_ZONE_SOURCES: Readonly<
+  Record<Sex, Readonly<Partial<Record<SpeedZoneKind, CoefficientProvenance>>>>
+> = {
   male: {},
   female: {
     absolute: {
