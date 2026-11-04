@@ -209,7 +209,7 @@ export const logMenstrualCycleDay = defineEndpoint({
   method: 'POST',
   path: '/v1/menstrual-cycle/days',
   summary: 'Registrar un día del ciclo',
-  description: `Solo la jugadora, con el seguimiento activo, el módulo y los tres consentimientos (si no, \`forbidden\`). \`localDate\` es uno de los últimos ${String(MENSTRUAL_LOG_WINDOW_DAYS)} días del club (por defecto hoy). Nunca se edita: volver a cargar el día es otro registro y vale el último. Idempotente por \`clientUuid\` (cola sin conexión).`,
+  description: `Solo la jugadora, con el seguimiento activo, el módulo y los tres consentimientos (si no, \`forbidden\`). \`localDate\` es hoy o ayer en el día del club (los últimos ${String(MENSTRUAL_LOG_WINDOW_DAYS)} días; por defecto hoy). Nunca se edita: volver a cargar el día es otro registro y vale el último. Idempotente por \`clientUuid\` (cola sin conexión).`,
   tags: ['menstrual_cycle'],
   auth: 'club',
   body: z.strictObject({

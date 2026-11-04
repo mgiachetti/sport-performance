@@ -8,16 +8,14 @@ import {
   type PainReportForm,
   type ValidationIssue,
 } from '@sport-performance/contracts';
-import { club, playerCategory } from '@sport-performance/db/schema';
+import { playerCategory } from '@sport-performance/db/schema';
 import {
   isWithinWellnessWindow,
   maxPainIntensity,
   painReportIssues,
   painReportModuleOn,
   painReportUnavailableReason,
-  resolveClubModules,
   type ClubId,
-  type ClubModules,
   type LocalDate,
   type PainArea,
   type PainReportProblem,
@@ -27,6 +25,7 @@ import {
 import { and, eq, isNull, gt, lte, or, sql, type SQL } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { TenantDatabase } from '../db/database.js';
+import { clubModules } from '../http/club-modules.js';
 import { requirePlayerFacts } from '../http/consents.js';
 import { registerEndpoint } from '../http/endpoint.js';
 import { HttpError } from '../http/errors.js';
@@ -113,13 +112,6 @@ function painReportDto(row: EntryRow): PainReport {
     reviewedAt: row.reviewed_at === null ? null : new Date(row.reviewed_at).toISOString(),
     reviewedBy: row.reviewed_by as PainReport['reviewedBy'],
   };
-}
-
-/** The modules of the club (B-322): the question needs `wellness` and `pain_report` on. */
-export async function clubModules(db: TenantDatabase, clubId: ClubId): Promise<ClubModules> {
-  const [row] = await db.select({ settings: club.settings }).from(club).where(eq(club.id, clubId));
-  if (row === undefined) throw new HttpError('forbidden', 'The club of the request is not visible');
-  return resolveClubModules(row.settings.modules);
 }
 
 /** The caller's own player: only a player answers, about themselves. */

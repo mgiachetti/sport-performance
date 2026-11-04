@@ -76,10 +76,10 @@ export const parseMenstrualSymptom = memberParser(
 export const MENSTRUAL_NOTE_MAX_LENGTH = 280;
 
 /**
- * How far back the player logs a day (club days, today included): a period
- * remembered a few days later still goes in; older history is not a diary.
+ * How far back the player logs a day (club days, today included): today or
+ * yesterday, as B-806 asks. A day remembered later is not a diary entry.
  */
-export const MENSTRUAL_LOG_WINDOW_DAYS = 14;
+export const MENSTRUAL_LOG_WINDOW_DAYS = 2;
 
 /** Longest range of days read at once (one read of the logged access). */
 export const MENSTRUAL_READ_MAX_DAYS = 400;
@@ -285,4 +285,34 @@ export function consentTypesAskedFor(
   const cycleOffered =
     (modules.menstrual_cycle && sex === 'female') || signedTypes.includes('menstrual_cycle');
   return CONSENT_TYPES.filter((type) => type !== 'menstrual_cycle' || cycleOffered);
+}
+
+/**
+ * Whether a new `type` consent can be signed for this player: only what is
+ * offered to her today, so a `menstrual_cycle` consent is never signed for a
+ * male player or with the club's module off (one signed before can still be
+ * revoked: {@link consentTypesAskedFor} keeps showing it).
+ */
+export function consentTypeSignable(
+  modules: Pick<ClubModules, 'menstrual_cycle'>,
+  sex: Sex,
+  type: ConsentType,
+): boolean {
+  return consentTypesAskedFor(modules, sex, []).includes(type);
+}
+
+/**
+ * Whether `role` sees a player's `menstrual_cycle` consent at all (its status
+ * and its signatures): only the player and her guardian, who sign and revoke
+ * it. Never the staff or the administration: whether she signed it would tell
+ * them what the empty answer of the days hides ("did not sign" against "did
+ * not authorize me"), and an adult player signs it herself.
+ */
+export function seesMenstrualCycleConsent(role: Role): boolean {
+  return role === 'player' || role === 'parent';
+}
+
+/** `types` without `menstrual_cycle` unless `role` sees it ({@link seesMenstrualCycleConsent}). */
+export function consentTypesVisibleTo(role: Role, types: readonly ConsentType[]): ConsentType[] {
+  return types.filter((type) => type !== 'menstrual_cycle' || seesMenstrualCycleConsent(role));
 }

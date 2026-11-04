@@ -20,13 +20,13 @@ import {
 import { and, asc, eq, exists, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { TenantDatabase } from '../db/database.js';
+import { clubModules } from '../http/club-modules.js';
 import { loadPlayerFacts, type LoadedPlayer } from '../http/consents.js';
 import { registerEndpoint } from '../http/endpoint.js';
 import { HttpError } from '../http/errors.js';
 import type { RequestPermissions } from '../http/permissions.js';
 import { batteryEntries, byBatteryOrder, scheduledTests } from './test-session-sheet.js';
 import { loadStageSources, stageContext, stageContextOn } from './tests/model.js';
-import { clubModules } from './pain-reports.js';
 import { clubTimeZone } from './training-shared.js';
 import { wellnessStageOf } from './wellness.js';
 

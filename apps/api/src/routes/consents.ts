@@ -16,29 +16,33 @@ import { consent, consentDocument, player } from '@sport-performance/db/schema';
 import {
   CONSENT_TYPES,
   consentSignerOfRole,
+  consentTypeSignable,
   consentTypesAskedFor,
+  consentTypesVisibleTo,
   consentStates,
   guardianConsentsLapseOn,
   guardianConsentsLapsed,
   permittedActions,
   requiredConsentSigner,
+  seesMenstrualCycleConsent,
   type ClubId,
   type ConsentSigner,
   type ConsentType,
   type CurrentConsentDocument,
   type PermissionSubject,
   type PlayerId,
+  type Sex,
   type UserId,
 } from '@sport-performance/domain';
-import { and, eq, isNull, sql, type SQL } from 'drizzle-orm';
+import { and, eq, isNull, ne, sql, type SQL } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { TenantDatabase } from '../db/database.js';
+import { clubModules } from '../http/club-modules.js';
 import { requirePlayerFacts, type LoadedPlayer } from '../http/consents.js';
 import { registerEndpoint } from '../http/endpoint.js';
 import { HttpError } from '../http/errors.js';
 import { keysetPage, type KeysetSpec } from '../http/pagination.js';
 import { insertIdempotent, markReplay } from '../http/writes.js';
-import { clubModules } from './pain-reports.js';
 
 /**
  * Consents (B-312, ADR 0043): versioned texts of the club, signature and
@@ -238,10 +242,7 @@ async function askedTypes(
   clubId: ClubId,
   playerId: PlayerId,
 ): Promise<ConsentType[]> {
-  const [row] = await db
-    .select({ sex: player.sex })
-    .from(player)
-    .where(and(eq(player.clubId, clubId), eq(player.id, playerId)));
+  const row = await playerSex(db, clubId, playerId);
   const signed = await db
     .selectDistinct({ type: consent.type })
     .from(consent)
@@ -253,6 +254,18 @@ async function askedTypes(
         row.sex,
         signed.map((s) => s.type),
       );
+}
+
+async function playerSex(
+  db: TenantDatabase,
+  clubId: ClubId,
+  playerId: PlayerId,
+): Promise<{ sex: Sex } | undefined> {
+  const [row] = await db
+    .select({ sex: player.sex })
+    .from(player)
+    .where(and(eq(player.clubId, clubId), eq(player.id, playerId)));
+  return row;
 }
 
 export function registerConsentRoutes(app: FastifyInstance): void {
@@ -351,7 +364,8 @@ export function registerConsentRoutes(app: FastifyInstance): void {
           clubId,
           await permissions.subject(),
           loaded,
-          await askedTypes(db, clubId, facts.id),
+          // The cycle consent only for the player and her guardian (ADR 0087).
+          consentTypesVisibleTo(caller.membership.role, await askedTypes(db, clubId, facts.id)),
         ),
       };
     },
@@ -371,6 +385,10 @@ export function registerConsentRoutes(app: FastifyInstance): void {
           and(
             ofPlayer(clubId, facts.id),
             query.type === undefined ? undefined : eq(consent.type, query.type),
+            // The cycle consent only for the player and her guardian (ADR 0087).
+            seesMenstrualCycleConsent(caller.membership.role)
+              ? undefined
+              : ne(consent.type, 'menstrual_cycle'),
             plan.where,
           ),
         )
@@ -418,6 +436,15 @@ export function registerConsentRoutes(app: FastifyInstance): void {
           'conflict',
           'This is not the current version of the consent text: sign the current one',
         );
+      }
+      // Only a type asked of her today: never the cycle consent of a male player or with the
+      // module off (ADR 0087).
+      const sex = await playerSex(db, clubId, facts.id);
+      if (
+        sex === undefined ||
+        !consentTypeSignable(await clubModules(db, clubId), sex.sex, document.type)
+      ) {
+        throw new HttpError('conflict', 'This consent is not asked for this player');
       }
       // Once per text and signer: the adult signs the text their guardian signed (B-311).
       const [already] = await db

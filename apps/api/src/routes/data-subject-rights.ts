@@ -367,10 +367,21 @@ export const MEDICAL_READS: Readonly<Record<string, MedicalReader>> = {
   'medical.menstrual_cycle_share': onlyToThePlayer(readCycleShares),
 };
 
+/**
+ * The menstrual cycle tables: the player's own record, exported to her always,
+ * also without a current health consent (ADR 0087).
+ */
+const MENSTRUAL_CYCLE_TABLES: ReadonlySet<string> = new Set([
+  'medical.menstrual_cycle_enrollment',
+  'medical.menstrual_cycle_log',
+  'medical.menstrual_cycle_share',
+]);
+
 async function readMedical(
   db: TenantDatabase,
   playerId: PlayerId,
   role: Role,
+  only?: ReadonlySet<string>,
 ): Promise<ExportedTables> {
   const tables: ExportedTables = {};
   const shared = new Map<string, Promise<unknown>>();
@@ -383,6 +394,7 @@ async function readMedical(
     return pending;
   };
   for (const [table, read] of Object.entries(MEDICAL_READS)) {
+    if (only !== undefined && !only.has(table)) continue;
     const rows = await read(db, playerId, once, role);
     if (rows !== null) tables[table] = rows;
   }
@@ -398,7 +410,10 @@ async function exportMedical(
   if (allowed)
     return { included: true, reason: null, tables: await readMedical(db, facts.id, role) };
   const reason = role === 'admin' ? 'not_holder' : 'no_health_consent';
-  return { included: false, reason, tables: {} };
+  // Without the health consent the clinical record stays out, but her cycle is hers, always.
+  const tables =
+    role === 'player' ? await readMedical(db, facts.id, role, MENSTRUAL_CYCLE_TABLES) : {};
+  return { included: false, reason, tables };
 }
 
 /** The player's own account: for the player and the administration (never the guardian). */

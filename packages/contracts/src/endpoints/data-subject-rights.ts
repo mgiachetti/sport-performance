@@ -104,7 +104,7 @@ export const playerDataExportSchema = z
         }),
         tables: z.record(z.string(), exportedRowsSchema).meta({
           description:
-            'Lesiones, conmociones, etapas del retorno, notas compartidas y reportes de dolor del bienestar con sus zonas, leídos por las funciones auditadas del esquema `medical`. Vacío si no se incluyó.',
+            'Lesiones, conmociones, etapas del retorno, notas compartidas y reportes de dolor del bienestar con sus zonas, leídos por las funciones auditadas del esquema `medical`. Vacío si no se incluyó, salvo el registro del ciclo menstrual (`medical.menstrual_cycle_*`), que la jugadora recibe siempre en su propia exportación; nunca la del tutor ni la de la administración.',
         }),
       })
       .meta({

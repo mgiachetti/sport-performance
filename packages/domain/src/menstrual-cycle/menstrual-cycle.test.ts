@@ -4,8 +4,11 @@ import type { LocalDate } from '../time.js';
 import {
   MENSTRUAL_CYCLE_VIEWER_ROLES,
   MENSTRUAL_FLOWS,
+  MENSTRUAL_LOG_WINDOW_DAYS,
   MENSTRUAL_NOTE_MAX_LENGTH,
+  consentTypeSignable,
   consentTypesAskedFor,
+  consentTypesVisibleTo,
   isPeriodFlow,
   isWithinMenstrualLogWindow,
   latestMenstrualEntryPerDay,
@@ -13,6 +16,7 @@ import {
   menstrualCycleUnavailableReason,
   menstrualSummaryReadFrom,
   normalizeMenstrualSymptoms,
+  seesMenstrualCycleConsent,
   summarizeMenstrualCycle,
   type MenstrualFlow,
 } from './index.js';
@@ -75,11 +79,13 @@ describe('menstrualCycleDayIssues', () => {
 });
 
 describe('isWithinMenstrualLogWindow', () => {
-  it('takes the last 14 club days, today included, never the future', () => {
+  it('takes today or yesterday (club days), never earlier or the future', () => {
     const today = d('2026-11-04');
+    expect(MENSTRUAL_LOG_WINDOW_DAYS).toBe(2);
     expect(isWithinMenstrualLogWindow(today, today)).toBe(true);
-    expect(isWithinMenstrualLogWindow(d('2026-10-22'), today)).toBe(true);
-    expect(isWithinMenstrualLogWindow(d('2026-10-21'), today)).toBe(false);
+    expect(isWithinMenstrualLogWindow(d('2026-11-03'), today)).toBe(true);
+    expect(isWithinMenstrualLogWindow(d('2026-11-02'), today)).toBe(false);
+    expect(isWithinMenstrualLogWindow(d('2026-03-01'), d('2026-03-02'))).toBe(true);
     expect(isWithinMenstrualLogWindow(d('2026-11-05'), today)).toBe(false);
   });
 });
@@ -225,5 +231,28 @@ describe('consentTypesAskedFor', () => {
     expect(consentTypesAskedFor(DEFAULT_CLUB_MODULES, 'female', ['menstrual_cycle'])).toContain(
       'menstrual_cycle',
     );
+  });
+});
+
+describe('consentTypeSignable', () => {
+  it('signs the cycle consent only where the module is offered to her', () => {
+    expect(consentTypeSignable(ON, 'female', 'menstrual_cycle')).toBe(true);
+    expect(consentTypeSignable(ON, 'male', 'menstrual_cycle')).toBe(false);
+    expect(consentTypeSignable(DEFAULT_CLUB_MODULES, 'female', 'menstrual_cycle')).toBe(false);
+    expect(consentTypeSignable(DEFAULT_CLUB_MODULES, 'male', 'health')).toBe(true);
+  });
+});
+
+describe('consentTypesVisibleTo', () => {
+  it('shows the cycle consent only to the player and her guardian', () => {
+    const all = ['data', 'image', 'health', 'menstrual_cycle'] as const;
+    for (const role of ['player', 'parent'] as const) {
+      expect(seesMenstrualCycleConsent(role)).toBe(true);
+      expect(consentTypesVisibleTo(role, all)).toEqual(all);
+    }
+    for (const role of ['coach', 'sc', 'medical', 'admin', 'superadmin'] as const) {
+      expect(seesMenstrualCycleConsent(role)).toBe(false);
+      expect(consentTypesVisibleTo(role, all)).toEqual(['data', 'image', 'health']);
+    }
   });
 });

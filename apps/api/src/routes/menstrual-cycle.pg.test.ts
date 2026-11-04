@@ -305,6 +305,13 @@ describeWithPostgres('menstrual cycle (Postgres)', (serverUrl) => {
         localDate: '2999-01-01',
       });
       expect(future.statusCode).toBe(400);
+      // Today or yesterday: the day before yesterday is out.
+      const twoDaysAgo = await post(playerA, '/v1/menstrual-cycle/days', {
+        flow: 'light',
+        localDate: addDays(today as LocalDate, -2),
+      });
+      expect(twoDaysAgo.statusCode).toBe(400);
+      expect(errorOf(twoDaysAgo).code).toBe('validation_failed');
     });
 
     it('goes through the offline queue, and a resend is a replay', async () => {
@@ -336,35 +343,34 @@ describeWithPostgres('menstrual cycle (Postgres)', (serverUrl) => {
 
     it('a period that crosses `from` does not start on `from`', async () => {
       const ago = (n: number) => addDays(today as LocalDate, -n);
-      for (const n of [3, 2, 1]) {
-        const logged = await post(playerA, '/v1/menstrual-cycle/days', {
-          flow: 'heavy',
-          localDate: ago(n),
-        });
-        expect(logged.statusCode, logged.body).toBe(201);
-      }
-      // The whole period: it starts 3 days ago, today is day 4.
+      // Today already has a period day (`light`, from the queue); yesterday is `heavy`.
+      const logged = await post(playerA, '/v1/menstrual-cycle/days', {
+        flow: 'heavy',
+        localDate: ago(1),
+      });
+      expect(logged.statusCode, logged.body).toBe(201);
+      // The whole period: it starts yesterday, today is day 2.
       const whole = (await days(playerA, pA, `?from=${ago(10)}`)).json<DaysBody>();
       expect(whole.summary).toMatchObject({
-        periodStarts: [ago(3)],
-        lastPeriodStart: ago(3),
-        cycleDay: 4,
+        periodStarts: [ago(1)],
+        lastPeriodStart: ago(1),
+        cycleDay: 2,
       });
       // From the middle of the period: it came from before, nothing starts in the range.
-      const middle = await days(playerA, pA, `?from=${ago(2)}`);
+      const middle = await days(playerA, pA, `?from=${today}`);
       expect(middle.statusCode, middle.body).toBe(200);
       const body = middle.json<DaysBody>();
-      expect(body.days.map((day) => day.localDate)).toEqual([ago(2), ago(1), today]);
+      expect(body.days.map((day) => day.localDate)).toEqual([today]);
       expect(body.summary).toEqual({
         periodStarts: [],
         lastPeriodStart: null,
         cycleDay: null,
         cycleLengthsDays: [],
-        daysLogged: 3,
+        daysLogged: 1,
       });
       // A past range counts the cycle day on its last day, not on today.
-      const past = (await days(playerA, pA, `?from=${ago(5)}&to=${ago(2)}`)).json<DaysBody>();
-      expect(past.summary).toMatchObject({ periodStarts: [ago(3)], cycleDay: 2, daysLogged: 2 });
+      const past = (await days(playerA, pA, `?from=${ago(5)}&to=${ago(1)}`)).json<DaysBody>();
+      expect(past.summary).toMatchObject({ periodStarts: [ago(1)], cycleDay: 1, daysLogged: 1 });
     });
 
     it('nobody else logs a day', async () => {

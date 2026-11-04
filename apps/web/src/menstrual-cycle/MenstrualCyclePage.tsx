@@ -133,11 +133,8 @@ function PlayerDays({
         <Loading />
       ) : days.error !== null ? (
         <ErrorNotice error={days.error} />
-      ) : days.data.days.length === 0 && days.data.summary.daysLogged === 0 ? (
-        <Notice level="info">
-          <p>{t('cycle.shared.unavailable')}</p>
-        </Notice>
       ) : (
+        // An empty answer is the same whether she logged nothing or the read was cut (ADR 0087).
         <DaysTable days={days.data} />
       )}
     </section>

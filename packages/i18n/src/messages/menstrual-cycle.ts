@@ -96,9 +96,8 @@ export const menstrualCycleMessagesEsAR = {
   'cycle.shared.column.note': 'Nota',
   'cycle.shared.cycleDay': 'Día {day} del ciclo',
   'cycle.shared.lengths': 'Ciclos registrados',
-  'cycle.shared.noDays': 'No hay días cargados en este período.',
-  'cycle.shared.unavailable':
-    'No hay datos para mostrar: la jugadora no te autorizó, desactivó el seguimiento o falta un consentimiento.',
+  'cycle.shared.noDays':
+    'No hay días para mostrar en los últimos 90 días. Puede que no haya cargado ninguno o que ya no puedas verlos: si te sacó la autorización, desactivó el seguimiento o falta un consentimiento, no se muestran.',
   'cycle.shared.error': 'No pudimos cargar el registro.',
   'nav.cycle': 'Ciclo menstrual',
 } as const;

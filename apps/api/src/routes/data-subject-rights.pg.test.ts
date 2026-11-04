@@ -354,8 +354,16 @@ describeWithPostgres('rights of the data subject (Postgres)', (serverUrl) => {
         id: adultPlayer.userId,
         email: 'mayor@rights-a.example.com',
       });
-      // No health consent: the section says why.
-      expect(body.medical).toEqual({ included: false, reason: 'no_health_consent', tables: {} });
+      // No health consent: the section says why, and keeps only her own menstrual cycle (ADR 0087).
+      expect(body.medical).toEqual({
+        included: false,
+        reason: 'no_health_consent',
+        tables: {
+          'medical.menstrual_cycle_enrollment': [],
+          'medical.menstrual_cycle_log': [],
+          'medical.menstrual_cycle_share': [],
+        },
+      });
     });
 
     it('lets the administration export without clinical data', async () => {

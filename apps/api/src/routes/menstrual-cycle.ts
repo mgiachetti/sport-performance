@@ -42,13 +42,13 @@ import {
 import { and, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { TenantDatabase } from '../db/database.js';
+import { clubModules } from '../http/club-modules.js';
 import { requirePlayerFacts } from '../http/consents.js';
 import { registerEndpoint } from '../http/endpoint.js';
 import { HttpError } from '../http/errors.js';
 import type { RequestPermissions } from '../http/permissions.js';
 import { markReplay } from '../http/writes.js';
 import { lockKeys } from '../sync/locks.js';
-import { clubModules } from './pain-reports.js';
 
 /**
  * Menstrual cycle tracking (B-806, ADR 0087). Health data in the `medical`
@@ -378,7 +378,7 @@ export function registerMenstrualCycleRoutes(app: FastifyInstance): void {
       await requireTracking(db, clubId, own, true);
       const day = body.localDate ?? own.today;
       if (!isWithinMenstrualLogWindow(day, own.today)) {
-        throw new HttpError('validation_failed', 'A day of the cycle is one of the last days', {
+        throw new HttpError('validation_failed', 'A day of the cycle is today or yesterday', {
           details: [
             {
               path: ['body', 'localDate'],
