@@ -1,12 +1,14 @@
 import { createMemoryHistory } from '@tanstack/react-router';
-import { render, type RenderResult } from '@testing-library/react';
+import { render, screen, type RenderResult } from '@testing-library/react';
 import { userEvent, type UserEvent } from '@testing-library/user-event';
+import { beforeAll } from 'vitest';
 import type { UploadFetch } from '../api/storage-upload';
 import { App, defaultTranslator } from '../app/App';
 import { createWebApp, type WebApp } from '../app/create-app';
 import type { MembershipSummary, SessionUser } from '@sport-performance/contracts';
 import { apiError, createFakeApi, type FakeApi, type FakeHandlers } from './fake-api';
 import * as fixtures from './fixtures';
+import { resetTestEnvironment } from './reset';
 
 export const TEST_API_URL = 'https://api.test';
 
@@ -66,6 +68,32 @@ export function renderApp(options: RenderAppOptions = {}): RenderedApp {
   const result = render(<App app={app} translator={defaultTranslator(['es-AR'])} />);
   return { ...result, app, api, user, uploads };
 }
+
+/** Below the shared `hookTimeout` (60 s): room for a busy runner, still catches a hang. */
+const WARM_UP_TIMEOUT_MS = 30_000;
+
+/**
+ * Warm-up of every file that renders the app. Each test file runs in a fresh
+ * worker (new jsdom, modules evaluated again), so the first mount of the app
+ * in a file pays a cold start the next ones do not: about 5 times a warm
+ * mount (270 ms vs 50 ms on an idle machine), split among the first render of
+ * the router and the shell, the first parse of each contract and the first
+ * role query over jsdom's computed styles (110 ms of it). Under CPU
+ * contention that alone took the first test of a file, usually «is in the
+ * navigation…», past Testing Library's wait. The hook pays it once, under the
+ * hook timeout, with the mount the screens start from (a staff member at
+ * `/`, until the navigation is on screen), and leaves the document as a fresh
+ * test expects.
+ */
+beforeAll(async () => {
+  const { app } = renderApp({ path: '/', handlers: signedIn() });
+  try {
+    await screen.findByRole('link', { name: 'Calendario' }, { timeout: WARM_UP_TIMEOUT_MS });
+  } finally {
+    resetTestEnvironment();
+    app.services.queryClient.clear();
+  }
+});
 
 /**
  * Handlers of a signed-in user with the given memberships, in ORC: session,
