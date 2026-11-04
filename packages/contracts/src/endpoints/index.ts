@@ -53,12 +53,16 @@ import {
 } from './calendar.js';
 import {
   archiveCategory,
+  archivePosition,
   createCategory,
+  createPosition,
   getCategory,
   listCategories,
   listPositions,
   restoreCategory,
+  restorePosition,
   updateCategory,
+  updatePosition,
 } from './categories.js';
 import { getClubTheme } from './club-theme.js';
 import {
@@ -392,6 +396,10 @@ export const apiEndpoints = {
   archiveCategory,
   restoreCategory,
   listPositions,
+  createPosition,
+  updatePosition,
+  archivePosition,
+  restorePosition,
   listMembers,
   getMember,
   changeMemberRole,

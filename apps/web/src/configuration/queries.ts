@@ -202,7 +202,8 @@ export function positionsQuery(api: ApiClient, selection: ClubSelection | null, 
     queryFn: ({ signal }) =>
       fetchAllPages((cursor) =>
         api.listPositions(
-          { query: { sport, limit: MAX_PAGE_LIMIT, ...withCursor(cursor) } },
+          // Archived too: a reference keeps naming the position it was set for (B-801).
+          { query: { sport, status: 'all', limit: MAX_PAGE_LIMIT, ...withCursor(cursor) } },
           { signal },
         ),
       ),

@@ -56,6 +56,17 @@ interface CategoryBody {
   version: string;
 }
 
+interface PositionBody {
+  id: string;
+  sport: string;
+  code: string;
+  label: string | null;
+  lineCode: string | null;
+  sortOrder: number;
+  archivedAt: string | null;
+  version: string;
+}
+
 interface Page<T> {
   items: T[];
   nextCursor: string | null;
@@ -805,6 +816,30 @@ describeWithPostgres('clubs, branches and categories (Postgres)', (serverUrl) =>
       expect(list).toHaveLength(6);
     });
 
+    it('names a new category after the band in its sport when it has no name', async () => {
+      // The seeded hockey M15 is "Sub 15" (B-801); the club renames it, and a new one takes the default.
+      const [seeded] = await categoriesOf(adminA, '?sport=hockey&ageBandCode=m15');
+      if (seeded === undefined) throw new Error('no hockey M15');
+      expect(seeded.name).toBe('Sub 15');
+      const rename = await t.app.inject({
+        method: 'PATCH',
+        url: `/v1/categories/${seeded.id}`,
+        headers: adminA.headers,
+        payload: { version: seeded.version, name: 'Quinta' },
+      });
+      expect(rename.statusCode, rename.body).toBe(200);
+      const create = await t.app.inject({
+        method: 'POST',
+        url: '/v1/categories',
+        headers: adminA.headers,
+        payload: { sport: 'hockey', sex: 'female', ageBandCode: 'm15' },
+      });
+      expect(create.statusCode, create.body).toBe(201);
+      expect(create.json<CategoryBody>()).toMatchObject({ name: 'Sub 15', ageBandCode: 'm15' });
+      const rugby = await categoriesOf(adminA, '?sport=rugby&ageBandCode=m15');
+      expect(rugby.map((c) => c.name)).toContain('M15');
+    });
+
     it('lets a supporting superadmin manage categories', async () => {
       const response = await t.app.inject({
         method: 'POST',
@@ -834,6 +869,187 @@ describeWithPostgres('clubs, branches and categories (Postgres)', (serverUrl) =>
         headers: adminB.headers,
       });
       expect(otherClub.json<Page<unknown>>().items).toHaveLength(0);
+    });
+
+    async function positionsOf(caller: SignedIn, query = ''): Promise<PositionBody[]> {
+      const response = await t.app.inject({
+        url: `/v1/positions${query}`,
+        headers: caller.headers,
+      });
+      expect(response.statusCode, response.body).toBe(200);
+      return response.json<Page<PositionBody>>().items;
+    }
+
+    const sweeper = {
+      sport: 'hockey',
+      code: 'sweeper',
+      label: 'Líbero',
+      lineCode: 'defenders',
+    };
+
+    it('seeds the four hockey positions with their lines and versions', async () => {
+      const hockey = await positionsOf(adminA, '?sport=hockey');
+      expect(hockey.map((p) => [p.code, p.lineCode])).toEqual([
+        ['goalkeeper', 'goalkeepers'],
+        ['defender', 'defenders'],
+        ['midfielder', 'midfielders'],
+        ['forward', 'forwards'],
+      ]);
+      expect(hockey.every((p) => p.label === null && p.archivedAt === null)).toBe(true);
+      expect(hockey.every((p) => /^\d+$/.test(p.version))).toBe(true);
+    });
+
+    it('lets the admin add a position of the club inside a line, idempotently', async () => {
+      const clientUuid = randomUUID();
+      const create = (payload: Record<string, unknown>, caller: SignedIn = adminA) =>
+        t.app.inject({
+          method: 'POST',
+          url: '/v1/positions',
+          headers: caller.headers,
+          payload,
+        });
+      const first = await create({ ...sweeper, clientUuid });
+      expect(first.statusCode, first.body).toBe(201);
+      const created = first.json<PositionBody>();
+      // After the seeded ones of the sport by default.
+      expect(created).toMatchObject({ ...sweeper, archivedAt: null });
+      const hockey = await positionsOf(adminA, '?sport=hockey');
+      expect(hockey.at(-1)?.id).toBe(created.id);
+
+      const replay = await create({ ...sweeper, clientUuid });
+      expect(replay.statusCode).toBe(201);
+      expect(replay.headers['x-idempotent-replay']).toBe('true');
+      expect(replay.json<PositionBody>().id).toBe(created.id);
+
+      // Same code in the sport: conflict; the same code in another sport is another position.
+      expect((await create(sweeper)).statusCode).toBe(409);
+      // A line of another sport, or a sport the club does not run (club B has no hockey).
+      const wrongLine = await create({ ...sweeper, code: 'half_back', lineCode: 'backs' });
+      expect(wrongLine.statusCode).toBe(400);
+      expect(errorOf(wrongLine).details?.[0]?.path).toEqual(['body', 'lineCode']);
+      const noBranch = await create({ ...sweeper, code: 'sweeper_b' }, adminB);
+      expect(noBranch.statusCode).toBe(400);
+      expect(errorOf(noBranch).details?.[0]?.path).toEqual(['body', 'sport']);
+      // Only the administration.
+      for (const caller of [coachA, playerA, parentA]) {
+        expect((await create({ ...sweeper, code: 'sweeper_c' }, caller)).statusCode).toBe(403);
+      }
+    });
+
+    it('edits label, line and order with the version; null label only for a default position', async () => {
+      const [defender] = (await positionsOf(adminA, '?sport=hockey')).filter(
+        (p) => p.code === 'defender',
+      );
+      if (defender === undefined) throw new Error('no hockey defender');
+      const patch = (id: string, payload: Record<string, unknown>, caller: SignedIn = adminA) =>
+        t.app.inject({
+          method: 'PATCH',
+          url: `/v1/positions/${id}`,
+          headers: caller.headers,
+          payload,
+        });
+      const renamed = await patch(defender.id, {
+        version: defender.version,
+        label: 'Defensora central',
+        sortOrder: 7,
+      });
+      expect(renamed.statusCode, renamed.body).toBe(200);
+      const after = renamed.json<PositionBody>();
+      expect(after).toMatchObject({ label: 'Defensora central', sortOrder: 7, code: 'defender' });
+      expect(after.version).not.toBe(defender.version);
+      expect((await patch(defender.id, { version: defender.version, label: 'X' })).statusCode).toBe(
+        409,
+      );
+      const back = await patch(defender.id, { version: after.version, label: null, sortOrder: 1 });
+      expect(back.statusCode, back.body).toBe(200);
+      expect(back.json<PositionBody>().label).toBeNull();
+      // The line is one of the sport's.
+      const wrongLine = await patch(defender.id, {
+        version: back.json<PositionBody>().version,
+        lineCode: 'backs',
+      });
+      expect(wrongLine.statusCode).toBe(400);
+      // The code and the sport never change.
+      const code = await patch(defender.id, { version: after.version, code: 'centre_back' });
+      expect(code.statusCode).toBe(400);
+
+      // A position of the club always keeps its own label.
+      const [own] = (await positionsOf(adminA, '?sport=hockey')).filter(
+        (p) => p.code === 'sweeper',
+      );
+      if (own === undefined) throw new Error('no sweeper');
+      const unnamed = await patch(own.id, { version: own.version, label: null });
+      expect(unnamed.statusCode).toBe(400);
+      expect(errorOf(unnamed).details?.[0]?.path).toEqual(['body', 'label']);
+      const moved = await patch(own.id, { version: own.version, lineCode: 'midfielders' });
+      expect(moved.statusCode, moved.body).toBe(200);
+      expect(moved.json<PositionBody>().lineCode).toBe('midfielders');
+
+      expect((await patch(own.id, { version: own.version, label: 'Y' }, coachA)).statusCode).toBe(
+        403,
+      );
+      // Another club does not see it.
+      expect((await patch(own.id, { version: own.version, label: 'Y' }, adminB)).statusCode).toBe(
+        404,
+      );
+    });
+
+    it('archives and restores, hiding archived positions unless asked', async () => {
+      const [own] = (await positionsOf(adminA, '?sport=hockey')).filter(
+        (p) => p.code === 'sweeper',
+      );
+      if (own === undefined) throw new Error('no sweeper');
+      const action = (verb: 'archive' | 'restore', caller: SignedIn = adminA) =>
+        t.app.inject({
+          method: 'POST',
+          url: `/v1/positions/${own.id}/${verb}`,
+          headers: caller.headers,
+        });
+      const archived = await action('archive');
+      expect(archived.statusCode, archived.body).toBe(200);
+      const body = archived.json<PositionBody>();
+      expect(body.archivedAt).not.toBeNull();
+      expect((await action('archive')).statusCode).toBe(200);
+      expect((await positionsOf(playerA, '?sport=hockey')).map((p) => p.id)).not.toContain(own.id);
+      expect(
+        (await positionsOf(playerA, '?sport=hockey&status=archived')).map((p) => p.id),
+      ).toEqual([own.id]);
+      expect((await positionsOf(playerA, '?sport=hockey&status=all')).map((p) => p.id)).toContain(
+        own.id,
+      );
+      // Read-only while archived.
+      const edit = await t.app.inject({
+        method: 'PATCH',
+        url: `/v1/positions/${own.id}`,
+        headers: adminA.headers,
+        payload: { version: body.version, label: 'Líbera' },
+      });
+      expect(edit.statusCode).toBe(409);
+      expect((await action('restore', coachA)).statusCode).toBe(403);
+      const restored = await action('restore');
+      expect(restored.statusCode).toBe(200);
+      expect(restored.json<PositionBody>().archivedAt).toBeNull();
+      expect((await action('restore')).statusCode).toBe(200);
+      // Another club: not found through the API, and RLS keeps it out.
+      const foreign = await t.app.inject({
+        method: 'POST',
+        url: `/v1/positions/${own.id}/archive`,
+        headers: adminB.headers,
+      });
+      expect(foreign.statusCode).toBe(404);
+    });
+
+    it('lets a supporting superadmin manage positions of the club', async () => {
+      const response = await t.app.inject({
+        method: 'POST',
+        url: '/v1/positions',
+        headers: supporting(clubB.id),
+        payload: { sport: 'rugby', code: 'utility_back', label: 'Utility', lineCode: 'backs' },
+      });
+      expect(response.statusCode, response.body).toBe(201);
+      expect((await positionsOf(adminB, '?sport=rugby&limit=100')).map((p) => p.code)).toContain(
+        'utility_back',
+      );
     });
   });
 });

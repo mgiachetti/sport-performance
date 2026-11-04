@@ -371,16 +371,22 @@ async function branchIsActive(
   return row !== undefined;
 }
 
-/** Every position exists in the club and is of the sport (the trigger is the backstop). */
+/**
+ * Every position exists in the club and is of the sport (the trigger is the
+ * backstop), and is active unless the player already had it (`kept`): an
+ * archived position stays with whoever has it but is never assigned again
+ * (B-801, ADR 0087).
+ */
 async function checkPositions(
   db: TenantDatabase,
   clubId: ClubId,
   sport: Sport,
   positionIds: readonly string[],
+  kept: readonly string[] = [],
 ): Promise<void> {
   if (positionIds.length === 0) return;
   const rows = await db
-    .select({ id: position.id })
+    .select({ id: position.id, archivedAt: position.archivedAt })
     .from(position)
     .where(
       and(
@@ -391,6 +397,9 @@ async function checkPositions(
     );
   if (rows.length !== positionIds.length) {
     throw invalid(['body', 'positionIds'], 'Every position must be of the sport of the player');
+  }
+  if (rows.some((row) => row.archivedAt !== null && !kept.includes(row.id))) {
+    throw invalid(['body', 'positionIds'], 'An archived position is not assigned to new players');
   }
 }
 
@@ -733,7 +742,7 @@ export function registerPlayerRoutes(app: FastifyInstance): void {
         throw invalid(['body', 'sex'], 'The branch (sport and sex) is not enabled in the club');
       }
       if (body.positionIds !== undefined) {
-        await checkPositions(db, clubId, current.sport, body.positionIds);
+        await checkPositions(db, clubId, current.sport, body.positionIds, current.positionIds);
       }
 
       const where = and(eq(player.clubId, clubId), eq(player.id, params.playerId));

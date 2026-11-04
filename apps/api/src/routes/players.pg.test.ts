@@ -457,6 +457,52 @@ describeWithPostgres('players and roster (Postgres)', (serverUrl) => {
       }
     });
 
+    it('keeps an archived position on whoever has it, but never assigns it again', async () => {
+      const wing = positions['rugby:wing'];
+      const flanker = positions['rugby:flanker'];
+      if (wing === undefined || flanker === undefined) throw new Error('no rugby positions');
+      const withWing = await inject(adminA, 'PATCH', `/v1/players/${juan.id}`, {
+        version: juan.version,
+        positionIds: [flanker, wing],
+      });
+      expect(withWing.statusCode, withWing.body).toBe(200);
+      juan = withWing.json<PlayerBody>();
+      const archived = await inject(adminA, 'POST', `/v1/positions/${wing}/archive`);
+      expect(archived.statusCode, archived.body).toBe(200);
+      try {
+        // Juan keeps it, also reordered.
+        expect((await read(adminA, juan.id)).positionIds).toEqual([flanker, wing]);
+        const reordered = await inject(adminA, 'PATCH', `/v1/players/${juan.id}`, {
+          version: juan.version,
+          positionIds: [wing, flanker],
+        });
+        expect(reordered.statusCode, reordered.body).toBe(200);
+        juan = reordered.json<PlayerBody>();
+        // Nobody else gets it: neither a new player nor one who did not have it.
+        const created = await inject(adminA, 'POST', '/v1/players', {
+          ...juanPayload(),
+          firstName: 'Nuevo',
+          positionIds: [wing],
+        });
+        expect(created.statusCode, created.body).toBe(400);
+        expect(errorOf(created).details?.[0]?.path).toEqual(['body', 'positionIds']);
+        const dropped = await inject(adminA, 'PATCH', `/v1/players/${juan.id}`, {
+          version: juan.version,
+          positionIds: [flanker],
+        });
+        expect(dropped.statusCode, dropped.body).toBe(200);
+        juan = dropped.json<PlayerBody>();
+        const again = await inject(adminA, 'PATCH', `/v1/players/${juan.id}`, {
+          version: juan.version,
+          positionIds: [flanker, wing],
+        });
+        expect(again.statusCode, again.body).toBe(400);
+      } finally {
+        const restored = await inject(adminA, 'POST', `/v1/positions/${wing}/restore`);
+        expect(restored.statusCode, restored.body).toBe(200);
+      }
+    });
+
     it('denies the player, the parent, other clubs and staff outside their scope', async () => {
       for (const [caller, playerId, status] of [
         [playerUser, juan.id, 403],

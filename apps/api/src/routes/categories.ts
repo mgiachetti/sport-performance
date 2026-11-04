@@ -1,17 +1,24 @@
 import {
   archiveCategory,
+  archivePosition,
   createCategory,
+  createPosition,
   getCategory,
   listCategories,
   listPositions,
   restoreCategory,
+  restorePosition,
   updateCategory,
+  updatePosition,
   type Category,
   type Position,
 } from '@sport-performance/contracts';
 import { category, clubBranch, position } from '@sport-performance/db/schema';
 import {
   DEFAULT_AGE_BANDS,
+  DEFAULT_POSITION_LINES,
+  defaultCategoryName,
+  isPositionLineOf,
   type CategoryId,
   type ClubId,
   type Sex,
@@ -35,8 +42,10 @@ import {
 
 /**
  * Categories (B-313): branch (sport + sex) and age band of the domain, named
- * by the club, independent of the season. Positions: the seeded catalog of
- * each sport (B-306).
+ * by the club (default names per sport, B-801), independent of the season.
+ * Positions: the seeded catalog of each sport (B-306), which the club
+ * renames, reorders, extends inside the lines of the sport and archives
+ * (B-801, ADR 0087).
  */
 
 const categoryColumns = {
@@ -99,6 +108,10 @@ const positionColumns = {
   label: position.label,
   lineCode: position.lineCode,
   sortOrder: position.sortOrder,
+  archivedAt: position.archivedAt,
+  createdAt: position.createdAt,
+  updatedAt: position.updatedAt,
+  version: rowVersion(position.updatedAt),
 };
 
 interface PositionRow {
@@ -108,7 +121,14 @@ interface PositionRow {
   label: string | null;
   lineCode: string | null;
   sortOrder: number;
+  archivedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  version: string;
 }
+
+/** Largest `sort_order` (a `smallint`). */
+const SORT_ORDER_LIMIT = 32_767;
 
 const POSITION_KEYS: KeysetSpec<PositionRow, 'sortOrder' | 'code'> = {
   fields: {
@@ -119,7 +139,65 @@ const POSITION_KEYS: KeysetSpec<PositionRow, 'sortOrder' | 'code'> = {
 };
 
 function positionDto(row: PositionRow): Position {
-  return { ...row, id: row.id as Position['id'] };
+  return {
+    id: row.id as Position['id'],
+    sport: row.sport,
+    code: row.code,
+    label: row.label,
+    lineCode: row.lineCode,
+    sortOrder: row.sortOrder,
+    archivedAt: row.archivedAt?.toISOString() ?? null,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+    version: row.version,
+  };
+}
+
+/** Whether the code is a default position of the sport (it has a catalog name in i18n). */
+function isDefaultPosition(sport: Sport, code: string): boolean {
+  return DEFAULT_POSITION_LINES.some((p) => p.sport === sport && p.positionCode === code);
+}
+
+function invalidField(field: string, message: string): HttpError {
+  return new HttpError('validation_failed', message, {
+    details: [{ path: ['body', field], code: 'custom', message }],
+  });
+}
+
+/** The line must be one of the sport's (references and percentiles by line stay comparable). */
+function checkLine(sport: Sport, lineCode: string): void {
+  if (!isPositionLineOf(sport, lineCode)) {
+    throw invalidField('lineCode', `Not a line of ${sport}`);
+  }
+}
+
+async function readPosition(
+  db: TenantDatabase,
+  clubId: ClubId,
+  positionId: string,
+): Promise<PositionRow> {
+  const [row] = await db
+    .select(positionColumns)
+    .from(position)
+    .where(and(eq(position.clubId, clubId), eq(position.id, positionId)));
+  if (row === undefined) throw new HttpError('not_found', 'Position not found');
+  return row;
+}
+
+/** Whether some active branch of the club is of the sport. */
+async function sportIsActive(db: TenantDatabase, clubId: ClubId, sport: Sport): Promise<boolean> {
+  const [row] = await db
+    .select({ id: clubBranch.id })
+    .from(clubBranch)
+    .where(
+      and(
+        eq(clubBranch.clubId, clubId),
+        eq(clubBranch.sport, sport),
+        isNull(clubBranch.archivedAt),
+      ),
+    )
+    .limit(1);
+  return row !== undefined;
 }
 
 async function readCategory(
@@ -263,7 +341,7 @@ export function registerCategoryRoutes(app: FastifyInstance): void {
                 sport: body.sport,
                 sex: body.sex,
                 ageBandCode: band.code,
-                name: body.name ?? band.label,
+                name: body.name ?? defaultCategoryName(body.sport, band.code),
                 defaultStage: band.defaultStage,
                 sortOrder: body.sortOrder ?? bandIndex,
                 createdBy: caller.userId,
@@ -365,7 +443,7 @@ export function registerCategoryRoutes(app: FastifyInstance): void {
     handler: async ({ query }, { db, permissions, auth: caller }) => {
       // Positions are part of the club's seeded catalog, readable by every member.
       await permissions.authorize('metric_catalog', 'read');
-      const plan = keysetPage(POSITION_KEYS, query, { sport: query.sport });
+      const plan = keysetPage(POSITION_KEYS, query, { sport: query.sport, status: query.status });
       const rows = await db
         .select(positionColumns)
         .from(position)
@@ -373,12 +451,138 @@ export function registerCategoryRoutes(app: FastifyInstance): void {
           and(
             eq(position.clubId, caller.membership.clubId),
             query.sport === undefined ? undefined : eq(position.sport, query.sport),
+            archiveStatusFilter(position.archivedAt, query.status),
             plan.where,
           ),
         )
         .orderBy(...plan.orderBy)
         .limit(plan.limit);
       return plan.page(rows, positionDto);
+    },
+  });
+
+  registerEndpoint(app, createPosition, {
+    transaction: true,
+    handler: async ({ body }, { db, permissions, auth: caller, reply }) => {
+      // Club structure, like the categories: the administration only.
+      await permissions.authorize('category', 'manage');
+      const { clubId } = caller.membership;
+      checkLine(body.sport, body.lineCode);
+      if (!(await sportIsActive(db, clubId, body.sport))) {
+        throw invalidField('sport', 'The club has no active branch of this sport');
+      }
+      let sortOrder = body.sortOrder;
+      if (sortOrder === undefined) {
+        const [last] = await db
+          .select({ max: sql<number | null>`max(${position.sortOrder})` })
+          .from(position)
+          .where(and(eq(position.clubId, clubId), eq(position.sport, body.sport)));
+        sortOrder = Math.min((last?.max ?? -1) + 1, SORT_ORDER_LIMIT);
+      }
+      const { row } = await insertIdempotent({
+        clientUuid: body.clientUuid,
+        reply,
+        insert: async () =>
+          (
+            await db
+              .insert(position)
+              .values({
+                clubId,
+                ...(body.clientUuid !== undefined && { clientUuid: body.clientUuid }),
+                sport: body.sport,
+                code: body.code,
+                label: body.label,
+                lineCode: body.lineCode,
+                sortOrder,
+                createdBy: caller.userId,
+                updatedBy: caller.userId,
+              })
+              .onConflictDoNothing({ target: [position.clubId, position.clientUuid] })
+              .returning(positionColumns)
+          )[0],
+        findByClientUuid: async (clientUuid) =>
+          (
+            await db
+              .select(positionColumns)
+              .from(position)
+              .where(and(eq(position.clubId, clubId), eq(position.clientUuid, clientUuid)))
+          )[0],
+      });
+      return positionDto(row);
+    },
+  });
+
+  registerEndpoint(app, updatePosition, {
+    transaction: true,
+    handler: async ({ params, body }, { db, permissions, auth: caller }) => {
+      await permissions.authorize('category', 'manage');
+      const { clubId } = caller.membership;
+      const current = await readPosition(db, clubId, params.positionId);
+      // Archived is read-only until restored, as a category.
+      if (current.archivedAt !== null) {
+        throw new HttpError('conflict', 'The position is archived: restore it first');
+      }
+      if (body.lineCode !== undefined) checkLine(current.sport, body.lineCode);
+      // A position of the club has no catalog name: without its label it would show its code.
+      if (body.label === null && !isDefaultPosition(current.sport, current.code)) {
+        throw invalidField('label', 'A position of the club needs its own label');
+      }
+      const where = and(eq(position.clubId, clubId), eq(position.id, params.positionId));
+      const row = await updateAtVersion({
+        resource: 'Position',
+        update: async () =>
+          (
+            await db
+              .update(position)
+              .set({
+                ...(body.label !== undefined && { label: body.label }),
+                ...(body.lineCode !== undefined && { lineCode: body.lineCode }),
+                ...(body.sortOrder !== undefined && { sortOrder: body.sortOrder }),
+                updatedBy: caller.userId,
+              })
+              .where(
+                and(
+                  where,
+                  isNull(position.archivedAt),
+                  versionMatches(position.updatedAt, body.version),
+                ),
+              )
+              .returning(positionColumns)
+          )[0],
+        exists: async () =>
+          (await db.select({ id: position.id }).from(position).where(where)).length > 0,
+      });
+      return positionDto(row);
+    },
+  });
+
+  registerEndpoint(app, archivePosition, {
+    transaction: true,
+    handler: async ({ params }, { db, permissions, auth: caller }) => {
+      await permissions.authorize('category', 'manage');
+      const { clubId } = caller.membership;
+      const row = await readPosition(db, clubId, params.positionId);
+      if (row.archivedAt !== null) return positionDto(row);
+      await db
+        .update(position)
+        .set({ archivedAt: sql`now()`, updatedBy: caller.userId })
+        .where(and(eq(position.clubId, clubId), eq(position.id, params.positionId)));
+      return positionDto(await readPosition(db, clubId, params.positionId));
+    },
+  });
+
+  registerEndpoint(app, restorePosition, {
+    transaction: true,
+    handler: async ({ params }, { db, permissions, auth: caller }) => {
+      await permissions.authorize('category', 'manage');
+      const { clubId } = caller.membership;
+      const row = await readPosition(db, clubId, params.positionId);
+      if (row.archivedAt === null) return positionDto(row);
+      await db
+        .update(position)
+        .set({ archivedAt: null, updatedBy: caller.userId })
+        .where(and(eq(position.clubId, clubId), eq(position.id, params.positionId)));
+      return positionDto(await readPosition(db, clubId, params.positionId));
     },
   });
 }

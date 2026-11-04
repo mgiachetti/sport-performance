@@ -1,4 +1,5 @@
 import { DomainValidationError, describeValue } from './errors.js';
+import type { Sport } from './sport.js';
 import type { Stage } from './stage.js';
 
 /**
@@ -102,6 +103,33 @@ export const DEFAULT_AGE_BANDS = [
 ] as const satisfies readonly AgeBand[];
 
 export type DefaultAgeBandCode = (typeof DEFAULT_AGE_BANDS)[number]['code'];
+
+/**
+ * Default name of a club category per sport and band (B-801, ADR 0087): what
+ * the bootstrap seeds and what `POST /v1/categories` uses without a name.
+ * Data, not UI text: the club renames its categories freely ("Séptima",
+ * "Menores de 15"); the band is what defines ages, stage and privacy, never
+ * the name. Rugby uses the band label (`M15`, Argentine youth rugby); field
+ * hockey the "Sub" wording of Argentine youth hockey with the same number as
+ * the band (`Sub 15` = band `m15`, age 15 reached in the season year). Verify
+ * the wording with each club before production (B-005).
+ */
+export const DEFAULT_CATEGORY_NAMES = {
+  rugby: { m13: 'M13', m14: 'M14', m15: 'M15', m16: 'M16', m17: 'M17', m19: 'M19' },
+  hockey: {
+    m13: 'Sub 13',
+    m14: 'Sub 14',
+    m15: 'Sub 15',
+    m16: 'Sub 16',
+    m17: 'Sub 17',
+    m19: 'Sub 19',
+  },
+} as const satisfies Record<Sport, Record<DefaultAgeBandCode, string>>;
+
+/** Default name of the category of `sport` for a default band (`Sub 15` for hockey `m15`). */
+export function defaultCategoryName(sport: Sport, bandCode: DefaultAgeBandCode): string {
+  return DEFAULT_CATEGORY_NAMES[sport][bandCode];
+}
 
 /** Age reached during the season year: `seasonYear − birthYear`. */
 export function ageInSeasonYear(birthYear: number, seasonYear: number): number {

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_POSITION_LINES,
-  HOCKEY_LINE_CODES,
+  POSITION_LINE_CODES,
   DomainValidationError,
-  RUGBY_LINE_CODES,
+  isPositionLineOf,
   canonicalMetricCode,
   compareToFirstTeamReference,
   isWellFormedCode,
@@ -204,6 +204,19 @@ describe('lineForPosition', () => {
     expect(lineForPosition('rugby', 'midfielder')).toBeUndefined();
   });
 
+  it('knows the lines of each sport', () => {
+    expect(POSITION_LINE_CODES.hockey).toEqual([
+      'goalkeepers',
+      'defenders',
+      'midfielders',
+      'forwards',
+    ]);
+    expect(isPositionLineOf('hockey', 'defenders')).toBe(true);
+    expect(isPositionLineOf('rugby', 'defenders')).toBe(false);
+    expect(isPositionLineOf('rugby', 'backs')).toBe(true);
+    expect(isPositionLineOf('hockey', 'backs')).toBe(false);
+  });
+
   it('accepts a club mapping', () => {
     const club = [
       { sport: 'hockey', positionCode: 'goalkeeper', lineCode: 'goalkeepers' },
@@ -215,8 +228,7 @@ describe('lineForPosition', () => {
     const positions = new Set<string>();
     for (const p of DEFAULT_POSITION_LINES) {
       expect(isWellFormedCode(p.positionCode)).toBe(true);
-      const lines: readonly string[] = p.sport === 'rugby' ? RUGBY_LINE_CODES : HOCKEY_LINE_CODES;
-      expect(lines).toContain(p.lineCode);
+      expect(isPositionLineOf(p.sport, p.lineCode)).toBe(true);
       const key = `${p.sport}:${p.positionCode}`;
       expect(positions.has(key)).toBe(false);
       positions.add(key);
