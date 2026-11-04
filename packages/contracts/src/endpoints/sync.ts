@@ -36,6 +36,7 @@ import {
   trainingSessionSchema,
 } from './training.js';
 import { submitWellness, wellnessSchema, wellnessScoresInputSchema } from './wellness.js';
+import { correctGymSet, gymProgramSchema, gymSetSchema, logGymSets, voidGymSet } from './gym.js';
 
 /**
  * Offline sync (B-323, ADR 0015, ADR 0050): the device pushes its queue of
@@ -46,7 +47,7 @@ import { submitWellness, wellnessSchema, wellnessScoresInputSchema } from './wel
 export const syncCollectionSchema = z.enum(SYNC_COLLECTIONS).meta({
   id: 'SyncCollection',
   description:
-    'Colección sincronizable: `wellness`, `participation`, `training_session`, `test_session` o `test_result` (con sus intentos).',
+    'Colección sincronizable: `wellness`, `participation`, `training_session`, `test_session`, `test_result` (con sus intentos), `gym_program` (solo lectura) o `gym_set`.',
 });
 
 export const syncOperationSchema = z.enum(SYNC_OPERATIONS).meta({
@@ -132,6 +133,12 @@ export const SYNC_OPERATION_INPUTS = {
     target: syncTargetSchema,
     body: voidTestResultEntries.body,
   }),
+  'gym_set.log': z.strictObject({ body: logGymSets.body }),
+  'gym_set.correct': z.strictObject({
+    target: syncTargetSchema,
+    body: correctGymSet.body.omit({ version: true }),
+  }),
+  'gym_set.void': z.strictObject({ target: syncTargetSchema, body: voidGymSet.body }),
 } as const satisfies Record<SyncOperation, z.ZodType>;
 
 export type SyncOperationInput<Op extends SyncOperation> = z.output<
@@ -275,6 +282,18 @@ const upsertChange = z
       op: z.literal('upsert'),
       ...changeBase,
       data: testResultSchema,
+    }),
+    z.object({
+      collection: z.literal('gym_program'),
+      op: z.literal('upsert'),
+      ...changeBase,
+      data: gymProgramSchema,
+    }),
+    z.object({
+      collection: z.literal('gym_set'),
+      op: z.literal('upsert'),
+      ...changeBase,
+      data: gymSetSchema,
     }),
   ])
   .meta({ id: 'SyncUpsert' });

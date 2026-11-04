@@ -1,4 +1,7 @@
+import { gymMessagesEsAR } from './gym.js';
+import { mobileGymMessagesEsAR } from './mobile-gym.js';
 import { mobileMessagesEsAR } from './mobile.js';
+import { webGymMessagesEsAR } from './web-gym.js';
 import { mobileReactionMessagesEsAR } from './mobile-reaction.js';
 import { reportMessagesEsAR } from './report.js';
 import { categoryReportMessagesEsAR } from './category-report.js';
@@ -438,6 +441,9 @@ export const sourceMessageFiles = {
   'web-test-day.ts': webTestDayMessagesEsAR,
   'mobile.ts': mobileMessagesEsAR,
   'mobile-player.ts': mobilePlayerMessagesEsAR,
+  'gym.ts': gymMessagesEsAR,
+  'web-gym.ts': webGymMessagesEsAR,
+  'mobile-gym.ts': mobileGymMessagesEsAR,
   'mobile-reaction.ts': mobileReactionMessagesEsAR,
   'protocols.ts': protocolMessagesEsAR,
   'web-help.ts': webHelpMessagesEsAR,
@@ -463,6 +469,10 @@ export const esAR = {
   ...mobileMessagesEsAR,
   // Player app (B-503)
   ...mobilePlayerMessagesEsAR,
+  // Gym (B-607): shared vocabulary, web screens and the mobile screen
+  ...gymMessagesEsAR,
+  ...webGymMessagesEsAR,
+  ...mobileGymMessagesEsAR,
   // The reaction test in the app (B-606)
   ...mobileReactionMessagesEsAR,
   ...protocolMessagesEsAR,

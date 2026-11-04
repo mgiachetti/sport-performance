@@ -73,6 +73,13 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: 'stopwatch',
     permission: { kind: 'test_session', action: 'read' },
   }),
+  // Gym programs and sets (B-607): staff who read the programs of a category.
+  navItem({
+    to: '/gym',
+    labelKey: 'nav.gym',
+    icon: 'dumbbell',
+    permission: { kind: 'gym_program', action: 'read' },
+  }),
   navItem({
     to: '/anthropometry',
     labelKey: 'anthropometry.nav',

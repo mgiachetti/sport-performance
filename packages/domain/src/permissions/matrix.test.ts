@@ -78,6 +78,9 @@ anthropometry.read       self                  -               assigned        a
 anthropometry.record     -                     -               -               assigned+data   -                club+data   club+data
 gym_program.read         self                  -               assigned        assigned        -                club        club
 gym_program.manage       -                     -               -               assigned        -                club        club
+gym_set.read             self                  -               assigned        assigned        -                club        club
+gym_set.log              self+data             -               -               assigned+data   -                club+data   club+data
+gym_set.correct          self+data             -               -               assigned+data   -                club+data   club+data
 load_metrics.read        self                  -               assigned        assigned        assigned         club        club
 alert.read               -                     -               assigned        assigned        assigned         club        club
 alert.acknowledge        -                     -               assigned        assigned        assigned         club        club

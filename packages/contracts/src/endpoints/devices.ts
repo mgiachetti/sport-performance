@@ -13,7 +13,7 @@ import { DEVICE_KINDS } from './test-day-sheet.js';
 import { deviceIdSchema } from './tests.js';
 
 /**
- * Measuring devices of the club (B-606, ADR 0075): the phones and tablets a
+ * Measuring devices of the club (B-606, ADR 0076): the phones and tablets a
  * test is timed on and, in Phase 2, the shared hardware. A result names the
  * device it was measured with; tests compared only on the same device (the
  * reaction test) require it. A device is retired, never deleted: its results

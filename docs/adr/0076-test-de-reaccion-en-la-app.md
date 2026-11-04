@@ -1,4 +1,4 @@
-# 0075. Test de reacción en la app: equipo registrado por instalación, series puras en el dominio, tiempo desde el primer cuadro y comparación solo con el mismo jugador en el mismo equipo
+# 0076. Test de reacción en la app: equipo registrado por instalación, series puras en el dominio, tiempo desde el primer cuadro y comparación solo con el mismo jugador en el mismo equipo
 
 - Estado: Aceptado
 - Fecha: 2026-11-03

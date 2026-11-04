@@ -33,7 +33,8 @@ export type IconName =
   | 'settings'
   | 'ruler'
   | 'family'
-  | 'help';
+  | 'help'
+  | 'dumbbell';
 
 const PATHS: Record<IconName, readonly string[]> = {
   ok: ['M20 6 9 17l-5-5'],
@@ -76,6 +77,7 @@ const PATHS: Record<IconName, readonly string[]> = {
     'M22 21v-2a4 4 0 0 0-3-3.87',
     'M16 3.13a4 4 0 0 1 0 7.75',
   ],
+  dumbbell: ['M6 6v12', 'M18 6v12', 'M3 9v6', 'M21 9v6', 'M6 12h12'],
   help: ['M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4Z', 'M20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6Z'],
 };
 

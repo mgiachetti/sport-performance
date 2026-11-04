@@ -46,6 +46,7 @@ import { registerSessionRosterRoutes } from './session-roster.js';
 import { registerTrainingSessionRoutes } from './training-sessions.js';
 import { registerFieldSessionRoutes } from './field-sessions.js';
 import { registerWellnessRoutes } from './wellness.js';
+import { registerGymRoutes } from './gym/index.js';
 import { registerAlertRoutes } from './alerts.js';
 import { registerPanelRoutes } from './panel.js';
 import { registerAnthropometryRoutes } from './anthropometry.js';
@@ -288,6 +289,19 @@ export const IMPLEMENTED_ENDPOINTS = [
   'listClubDataExports',
   'getClubDataExport',
   'getClubDataExportDownload',
+  'listGymPrograms',
+  'getGymProgram',
+  'createGymProgram',
+  'updateGymProgram',
+  'archiveGymProgram',
+  'restoreGymProgram',
+  'getPlayerGymPrograms',
+  'logGymSets',
+  'correctGymSet',
+  'voidGymSet',
+  'listGymSets',
+  'getGymSet',
+  'getPlayerGymSummary',
   'listDevices',
   'getDevice',
   'registerDevice',
@@ -335,6 +349,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerSessionRosterRoutes(app);
   registerFieldSessionRoutes(app);
   registerWellnessRoutes(app);
+  registerGymRoutes(app);
   registerAlertRoutes(app);
   registerPanelRoutes(app);
   registerTestSessionResultRoutes(app);

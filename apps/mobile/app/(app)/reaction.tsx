@@ -56,7 +56,7 @@ async function readThrough<T>(
 const now = () => performance.now();
 
 /**
- * Reaction test (B-606, ADR 0075): this phone as a registered device of the
+ * Reaction test (B-606, ADR 0076): this phone as a registered device of the
  * club, the staff picks the category and the player, the player runs a
  * simple and a go/no-go series on the phone, and the result goes through
  * the offline queue. The setup and the rosters are cached reads, so the test

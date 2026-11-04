@@ -30,7 +30,7 @@ import {
 } from './model.ts';
 
 /**
- * What the reaction test keeps on the phone (B-606, ADR 0075): the club's
+ * What the reaction test keeps on the phone (B-606, ADR 0076): the club's
  * time zone, its categories, the protocol version in force and this phone
  * as a device of the club are a cached read; the roster of each category
  * another. Both live under the membership in the local database (deleted

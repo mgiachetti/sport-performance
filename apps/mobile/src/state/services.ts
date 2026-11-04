@@ -67,7 +67,7 @@ export interface AppServices {
    * changing club does.
    */
   readonly iftRunner: IftRunner;
-  /** This installation as a measuring device of the club (B-606, ADR 0075). */
+  /** This installation as a measuring device of the club (B-606, ADR 0076). */
   readonly measuringInstallation: MeasuringInstallation;
   readonly hardware: HardwareInfo;
   /** Last answers of the API reads the sync does not move (ADR 0074), in the same database. */

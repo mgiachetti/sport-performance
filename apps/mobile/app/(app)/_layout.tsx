@@ -36,6 +36,7 @@ export default function AppLayout() {
         name="tests"
         options={{ title: t('nav.myTests'), ...(isPlayer ? {} : { href: null }) }}
       />
+      <Tabs.Screen name="gym" options={{ title: t('nav.gym') }} />
       <Tabs.Screen name="protocols" options={{ title: t('nav.protocols') }} />
       <Tabs.Screen name="account" options={{ title: t('nav.account') }} />
       {/* Opened from Inicio by the staff who records tests; not a tab of its own. */}
