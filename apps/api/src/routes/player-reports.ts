@@ -26,7 +26,7 @@ import { requirePlayer } from './player-profile.js';
 import { clubToday } from './training-shared.js';
 
 /**
- * The PDF report of a player for a test window (B-602, ADR 0069). The staff
+ * The PDF report of a player for a test window (B-602, ADR 0071). The staff
  * asks for it (`player_report.generate`): the handler freezes what it shows
  * with the rules of the player profile and leaves it `pending`; the worker
  * renders it into a `pdf_report` file. The player, the guardian, the

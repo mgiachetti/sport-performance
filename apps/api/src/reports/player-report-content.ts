@@ -47,7 +47,7 @@ import {
 import { firstTeamReferencesOf, referenceSportOf } from '../routes/reference-values.js';
 
 /**
- * The snapshot of a player report (B-602, ADR 0069), read in the transaction
+ * The snapshot of a player report (B-602, ADR 0071), read in the transaction
  * of the request with the context of the staff member who asks for it and
  * the same rules as the player profile (ADR 0060): the player's own values,
  * their category's average only once the window is over and with the

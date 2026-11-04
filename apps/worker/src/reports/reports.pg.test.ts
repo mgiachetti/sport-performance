@@ -1,6 +1,6 @@
 /**
  * The report job against Postgres 16 and an S3-compatible bucket (MinIO,
- * `STORAGE_TEST_URL`), through the worker's own login (B-602, ADR 0069): a
+ * `STORAGE_TEST_URL`), through the worker's own login (B-602, ADR 0071): a
  * pending report becomes a `pdf_report` file in the bucket with its row
  * ready and its retention; an unreadable snapshot fails at once; a bucket
  * that refuses the upload retries with backoff, never leaves an object

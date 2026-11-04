@@ -1,5 +1,5 @@
 /**
- * Player reports end to end (B-602, ADR 0069) against Postgres 16, through
+ * Player reports end to end (B-602, ADR 0071) against Postgres 16, through
  * the real connection roles: who asks and who reads (permission matrix and
  * RLS), the window rules, idempotency, and the snapshot — the player's own
  * values, the category's average only with the window over and at least

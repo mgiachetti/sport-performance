@@ -39,7 +39,7 @@ import {
  * accepting it makes the account the player's own (`player.user_id`); with
  * role `parent` it also opens the `guardian` link (`guardian_relationship`).
  *
- * RLS (ADR 0026, migrations 0006 and 0020): `admin` and `superadmin` of the
+ * RLS (ADR 0026, migrations 0006 and 0018): `admin` and `superadmin` of the
  * club read and write it; a `parent` reads and writes only the `player`
  * invitations of the players they are guardian of. The invitee is not a
  * member yet: the link is looked up and accepted through

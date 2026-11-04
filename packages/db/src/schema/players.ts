@@ -222,7 +222,7 @@ export const guardian = pgTable(
  *
  * Short-lived (the API issues them for 15 minutes; the database caps them at
  * one hour), single use, one open per player. Rows stay as the record of who
- * gave access to whom and when it was used. RLS (migration 0020): the
+ * gave access to whom and when it was used. RLS (migration 0018): the
  * administration and the player's guardians; redeeming goes through
  * `app.redeem_player_access()` (`SECURITY DEFINER`).
  */

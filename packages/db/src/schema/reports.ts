@@ -21,7 +21,7 @@ export const playerReportStatusEnum = pgEnum('player_report_status', PLAYER_REPO
 const failureCodes = sql.raw(PLAYER_REPORT_FAILURE_CODES.map((code) => `'${code}'`).join(', '));
 
 /**
- * The PDF report of a player for a test window (B-602, ADR 0069).
+ * The PDF report of a player for a test window (B-602, ADR 0071).
  *
  * - The API inserts it (`created_by` is who asked for it) with `content`: the
  *   snapshot of what the report shows, read when it was asked for with the

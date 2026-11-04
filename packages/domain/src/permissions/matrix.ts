@@ -359,7 +359,7 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
       admin: allow('club', 'data'),
     },
   },
-  // The report of a window is for the player and their family (B-602, ADR 0069): its
+  // The report of a window is for the player and their family (B-602, ADR 0071): its
   // content is decided when the staff asks for it (the player's own values, anonymous
   // averages of a minimum size, the first team's references), never names of other players,
   // percentiles or health data. The test staff and the administration ask for it.

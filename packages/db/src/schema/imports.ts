@@ -13,7 +13,7 @@ import { tenantColumns, tenantConstraints } from './tenant.js';
  * `client_uuid` is the batch's: re-sending the same import returns this
  * record (`request_sha256` tells a retry from another import with the same
  * `clientUuid`). A record, not data to edit: the application has no `UPDATE`
- * (migration 0021) and nothing deletes it. Only the administration reads it.
+ * (migration 0022) and nothing deletes it. Only the administration reads it.
  */
 export const rosterImport = pgTable(
   'roster_import',

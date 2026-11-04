@@ -2,7 +2,7 @@ import type { MetricDirection } from './codes.js';
 import { memberGuard, memberParser } from './enum.js';
 
 /**
- * The PDF report of a player for a test window (B-602, ADR 0069), for the
+ * The PDF report of a player for a test window (B-602, ADR 0071), for the
  * player and their family. The staff asks for it; the API freezes what it
  * shows (a versioned snapshot, read with the same rules as the player
  * profile) and the worker renders it into a `pdf_report` file.

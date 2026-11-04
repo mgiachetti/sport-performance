@@ -159,7 +159,7 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
       }
     });
 
-    // PDF reports of players (B-602, ADR 0069): rendered and uploaded to the bucket.
+    // PDF reports of players (B-602, ADR 0071): rendered and uploaded to the bucket.
     await boss.work(
       QUEUES.playerReportsClub,
       { localConcurrency: options.clubConcurrency, pollingIntervalSeconds },

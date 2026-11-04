@@ -5,7 +5,7 @@ import { nonStrictObjectPaths } from './strict-input.js';
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 /**
- * Who may call an endpoint (ADR 0007, ADR 0025):
+ * Who may call an endpoint (ADR 0007, ADR 0028):
  * - `public`: anyone, no session needed.
  * - `session`: a signed-in user (cookie on web, bearer token on mobile), with
  *   or without a selected club (profile, club selector, accept invitation).

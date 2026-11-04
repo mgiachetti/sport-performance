@@ -87,7 +87,7 @@ export interface IdentityStore {
   /**
    * Redeems a player access code by the hash of the code or of the token of
    * its link (exactly one): `app.redeem_player_access()` (`SECURITY
-   * DEFINER`, migration 0020) spends it and returns the player's account,
+   * DEFINER`, migration 0018) spends it and returns the player's account,
    * created without email on first use, with its `player` membership.
    */
   redeemPlayerAccess(
