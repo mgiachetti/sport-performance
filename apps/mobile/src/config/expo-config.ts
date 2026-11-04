@@ -23,6 +23,9 @@ export interface AppExtra {
   readonly eas?: { readonly projectId: string };
 }
 
+/** Android channel the pushes of the worker arrive on (created by the app at launch). */
+export const PUSH_ANDROID_CHANNEL_ID = 'default';
+
 /**
  * The whole Expo config of the app, from the build environment (ADR 0058).
  * `app.config.ts` only calls this; keeping it a pure function lets the tests
@@ -103,6 +106,18 @@ export function buildExpoConfig(env: BuildEnv): ExpoConfig {
       // The local database is encrypted with SQLCipher; its key lives in the secure storage (ADR 0069).
       ['expo-sqlite', { useSQLCipher: true }],
       'expo-background-task',
+      [
+        // Push of the worker (ADR 0054) and the staff on the phone (B-510): remote
+        // notifications only, with the APNs environment of the build. The
+        // credentials (APNs key, FCM) live in EAS, never in the repo. The small
+        // icon keeps the default tint: one white-label app for every club (ADR 0014).
+        'expo-notifications',
+        {
+          mode: identity.updateChannel === 'development' ? 'development' : 'production',
+          defaultChannel: PUSH_ANDROID_CHANNEL_ID,
+          enableBackgroundRemoteNotifications: false,
+        },
+      ],
       [
         // 30-15 IFT signals (B-507, ADR 0070): playback in the background
         // (`UIBackgroundModes: audio`, the media playback service on Android)

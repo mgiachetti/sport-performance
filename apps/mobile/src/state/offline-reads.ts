@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 import { keptAnswer, readCacheKey } from '../offline/read-cache.ts';
 import { useServices, useSession, useSyncStatus } from './app-context.tsx';
+import { useKeyedState } from './keyed-state.ts';
 
 /** A read the screen shows: the API's answer, or the last one the phone kept. */
 export interface OfflineRead<T> {
@@ -122,9 +123,14 @@ export function useLocalRead<T>(
   const { reportError } = useServices();
   const scope = useScope();
   const status = useSyncStatus();
-  const [value, setValue] = useState<T | undefined>(undefined);
   const [tick, setTick] = useState(0);
   const membershipId = scope?.membershipId ?? null;
+  // The value belongs to the membership and the read it was loaded for:
+  // another club or another key shows nothing until its own load finishes.
+  const [value, setValue] = useKeyedState<T | undefined>(
+    `${membershipId ?? ''}\u0000${key}`,
+    undefined,
+  );
   useEffect(() => {
     if (membershipId === null) return;
     let active = true;
@@ -146,6 +152,7 @@ export function useLocalRead<T>(
     tick,
     reportError,
     key,
+    setValue,
   ]);
   return {
     value,

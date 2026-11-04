@@ -89,10 +89,6 @@ export const webPanelMessagesEsAR = {
 
   // Status and availability (always icon + text; never the cause)
   'panel.status.inRange': 'En rango',
-  'panel.availability.available': 'Disponible',
-  'panel.availability.limited': 'Limitado',
-  'panel.availability.unavailable': 'No disponible',
-  'panel.availability.unknown': 'Sin dato',
   'panel.availability.detail': 'Entrenar: {training} · Partido: {match}',
 
   // Empty states

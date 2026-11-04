@@ -106,6 +106,7 @@ export function AccountScreen({
   confirmSignOut = false,
   onChangeClub,
   onSignOut,
+  onOpenNotifications = null,
 }: {
   readonly email: string | null;
   readonly membership: MembershipSummary;
@@ -125,6 +126,8 @@ export function AccountScreen({
   readonly confirmSignOut?: boolean;
   readonly onChangeClub: () => void;
   readonly onSignOut: () => void;
+  /** The notifications of the phone and the preferences (B-510); `null` hides the entry. */
+  readonly onOpenNotifications?: (() => void) | null;
 }) {
   const { t } = useTranslator();
   const theme = useTheme();
@@ -173,6 +176,21 @@ export function AccountScreen({
         </View>
       </Card>
       {extra}
+      {onOpenNotifications !== null ? (
+        <Card>
+          <AppText role="overline" tone="secondary" accessibilityRole="header">
+            {t('staff.notifications.title')}
+          </AppText>
+          <AppText role="bodySmall" tone="secondary">
+            {t('staff.notifications.privacy')}
+          </AppText>
+          <Button
+            variant="secondary"
+            label={t('staff.notifications.open')}
+            onPress={onOpenNotifications}
+          />
+        </Card>
+      ) : null}
       {sync !== undefined ? (
         <Card>
           <AppText role="overline" tone="secondary" accessibilityRole="header">

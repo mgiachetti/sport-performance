@@ -52,6 +52,7 @@ export {
   unitLabelEsAr,
   unitMessageKey,
 } from './format/unit.js';
+export { alertMessage, formatAlertValue } from './format/alert.js';
 export { formatDuration } from './format/duration.js';
 export { retryWaitValues } from './format/wait.js';
 export {

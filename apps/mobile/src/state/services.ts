@@ -18,6 +18,11 @@ import { reopeningLocalDatabase, type LocalDatabase } from '../offline/db/databa
 import { createSyncEngine, type SyncEngine } from '../offline/engine.ts';
 import { createReadCache, type ReadCache } from '../offline/read-cache.ts';
 import { bindSyncToSession, syncScopeOf } from '../offline/session-binding.ts';
+import {
+  createPushRegistrar,
+  type PushDevice,
+  type PushRegistrar,
+} from '../notifications/registration.ts';
 import type { PreferenceStorage, SecureStorage } from '../platform/storage.ts';
 import { createAppTranslator } from '../ui/i18n.tsx';
 import { createCompatibilityChecker, type AppBuildInfo } from '../version/index.ts';
@@ -45,6 +50,12 @@ export interface Platform {
   readonly fetch?: FetchLike;
   /** The local database (ADR 0069): encrypted SQLite on the phone, `node:sqlite` in tests. */
   readonly openLocalDatabase: () => Promise<LocalDatabase>;
+  /** The phone's notifications (B-510): `expo-notifications` on the phone, a fake in tests. */
+  readonly createPushDevice: (options: {
+    /** Name of the Android channel of the pushes, in the user's language. */
+    readonly channelName: string;
+    readonly reportError: (error: unknown) => void;
+  }) => PushDevice;
 }
 
 export interface AppServices {
@@ -72,6 +83,10 @@ export interface AppServices {
   readonly hardware: HardwareInfo;
   /** Last answers of the API reads the sync does not move (ADR 0074), in the same database. */
   readonly readCache: ReadCache;
+  /** The push token of this phone on the server and the person's choice (B-510). */
+  readonly push: PushRegistrar;
+  /** The phone's notifications module (taps on pushes, the settings page). */
+  readonly pushDevice: PushDevice;
   /** Ids generated on the device (`clientUuid` of the writes it queues). */
   readonly randomUUID: () => string;
   readonly reportError: (error: unknown) => void;
@@ -139,6 +154,18 @@ export function createAppServices(platform: Platform): AppServices {
     reportError,
   });
 
+  const pushDevice = platform.createPushDevice({
+    channelName: translator.t('staff.push.channel'),
+    reportError,
+  });
+  const push = createPushRegistrar({
+    device: pushDevice,
+    api: api.client,
+    preferences: platform.preferences,
+    session,
+    reportError,
+  });
+
   const unsubscribe = api.onFailure((event) => {
     if (event.kind === 'update_required') {
       versionGate.handleApiError(event.error).catch(reportError);
@@ -187,9 +214,12 @@ export function createAppServices(platform: Platform): AppServices {
     readCache: createReadCache(localDatabase, {
       activeScope: () => syncScopeOf(session.getState()),
     }),
+    push,
+    pushDevice,
     randomUUID: platform.randomUUID,
     reportError,
     dispose() {
+      push.dispose();
       unsubscribe();
       unsubscribeSession();
       unbindSync();

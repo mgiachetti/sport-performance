@@ -4,9 +4,11 @@ import { useFonts } from 'expo-font';
 import { Stack, router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppState, Linking, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { withTap, type AppRoute } from '../src/notifications/routing.ts';
+import { createPushTapHandler } from '../src/notifications/taps.ts';
 import { runBackgroundSync } from '../src/offline/background.ts';
 import { startSyncTriggers } from '../src/offline/triggers.ts';
 import { sentryOptions } from '../src/observability/sentry-options.ts';
@@ -45,9 +47,11 @@ void services.versionGate.check();
 startSyncTriggers(services.sync, nativeSyncTriggerSources);
 setBackgroundSyncRunner(() => runBackgroundSync(services));
 registerBackgroundSync().catch(services.reportError);
+// The push token of this phone (B-510): registered for the session once it is read.
+services.push.refresh().catch(services.reportError);
 
 function useForegroundRefresh(): void {
-  const { session, versionGate, reportError } = useServices();
+  const { session, versionGate, push, reportError } = useServices();
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (status) => {
       const active = status === 'active';
@@ -55,11 +59,58 @@ function useForegroundRefresh(): void {
       if (!active) return;
       versionGate.check().catch(reportError);
       if (session.getState().status !== 'signedOut') void session.refresh();
+      // The permission may have changed in the phone's settings meanwhile.
+      push.refresh().catch(reportError);
     });
     return () => {
       subscription.remove();
     };
-  }, [session, versionGate, reportError]);
+  }, [session, versionGate, push, reportError]);
+}
+
+/**
+ * A tap on a push opens what it points at (B-510, ADR 0081), also the tap
+ * that launched the app from closed; it waits for the session if it has to.
+ */
+function usePushTaps(): void {
+  const { session, pushDevice, reportError } = useServices();
+  const state = useSession();
+  // The route of the last tap, until the session acts in its membership.
+  const opening = useRef<{ readonly route: AppRoute; readonly membershipId: string } | null>(null);
+  const [taps, setTaps] = useState(0);
+  useEffect(() => {
+    const handler = createPushTapHandler({
+      session,
+      navigate: (route, membershipId) => {
+        opening.current = { route, membershipId };
+        setTaps((count) => count + 1);
+      },
+      reportError,
+    });
+    const stop = pushDevice.onResponse((data) => {
+      handler.handle(data);
+    });
+    pushDevice
+      .takeLaunchResponse()
+      .then((data) => {
+        if (data !== null) handler.handle(data);
+      })
+      .catch(reportError);
+    return () => {
+      stop();
+      handler.dispose();
+    };
+  }, [session, pushDevice, reportError]);
+  // Navigate only once the rendered session acts in the push's membership:
+  // this effect runs after the commit where the stack's guards let the
+  // club's screens in, so the route exists when it is opened.
+  const activeId = state.status === 'signedIn' ? (state.activeMembership?.id ?? null) : null;
+  useEffect(() => {
+    const next = opening.current;
+    if (next === null || activeId === null || next.membershipId !== activeId) return;
+    opening.current = null;
+    router.navigate(withTap(next.route, taps));
+  }, [taps, activeId]);
 }
 
 /** Back to an invitation opened while signed out, once the sign-in finishes. */
@@ -87,6 +138,7 @@ function RootNavigator({ fontsReady }: { readonly fontsReady: boolean }) {
   const splashHidden = useRef(false);
   useForegroundRefresh();
   usePendingInvitation();
+  usePushTaps();
 
   const ready = fontsReady && state.status !== 'starting';
   useEffect(() => {

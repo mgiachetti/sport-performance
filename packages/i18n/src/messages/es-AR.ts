@@ -7,6 +7,7 @@ import { mobileReactionMessagesEsAR } from './mobile-reaction.js';
 import { mobilePainMessagesEsAR } from './mobile-pain.js';
 import { mobileWeeklyCmjMessagesEsAR } from './mobile-weekly-cmj.js';
 import { mobileCoachSessionMessagesEsAR } from './mobile-coach-session.js';
+import { mobileStaffMessagesEsAR } from './mobile-staff.js';
 import { reportMessagesEsAR } from './report.js';
 import { categoryReportMessagesEsAR } from './category-report.js';
 import { mobilePlayerMessagesEsAR } from './mobile-player.js';
@@ -361,6 +362,16 @@ export const commonMessagesEsAR = {
   'method.mismatchWarning':
     'Ojo: estos resultados se midieron con métodos distintos ({methods}) y pueden no ser comparables.',
 
+  // Derived availability and the staff's review of an alert, shown by the staff web and the
+  // staff on the phone (B-510). Availability is the status, never the cause.
+  'panel.availability.available': 'Disponible',
+  'panel.availability.limited': 'Limitado',
+  'panel.availability.unavailable': 'No disponible',
+  'panel.availability.unknown': 'Sin dato',
+  'player.alerts.review.open': 'Sin revisar',
+  'player.alerts.review.acknowledged': 'Vista',
+  'player.alerts.review.dismissed': 'Descartada',
+
   // Alerts (B-207): `alert.<kind>.message|suggestion` from the domain rules engine. Arguments are
   // the keys of `Alert.values`, formatted before being passed. Load heuristics, never a diagnosis;
   // the severity is shown apart with `status.*`.
@@ -479,6 +490,7 @@ export const sourceMessageFiles = {
   'mobile-pain.ts': mobilePainMessagesEsAR,
   'mobile-weekly-cmj.ts': mobileWeeklyCmjMessagesEsAR,
   'mobile-coach-session.ts': mobileCoachSessionMessagesEsAR,
+  'mobile-staff.ts': mobileStaffMessagesEsAR,
   'protocols.ts': protocolMessagesEsAR,
   'web-help.ts': webHelpMessagesEsAR,
   'report.ts': reportMessagesEsAR,
@@ -515,6 +527,8 @@ export const esAR = {
   // The weekly CMJ of M17/M19 in the app (B-506)
   ...mobileWeeklyCmjMessagesEsAR,
   ...mobileCoachSessionMessagesEsAR,
+  // The staff on the phone (B-510)
+  ...mobileStaffMessagesEsAR,
   ...protocolMessagesEsAR,
   ...webHelpMessagesEsAR,
   // The PDF report of a player (B-602), rendered by the worker

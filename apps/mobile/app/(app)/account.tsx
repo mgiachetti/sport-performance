@@ -70,6 +70,9 @@ export default function Account() {
           />
         </>
       }
+      onOpenNotifications={() => {
+        router.push('/notifications');
+      }}
       onChangeClub={() => {
         services.session.chooseAnotherClub().catch(services.reportError);
       }}
