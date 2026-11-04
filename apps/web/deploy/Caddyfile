@@ -1,0 +1,59 @@
+# Static server of the staff web (B-701, ADR 0087; headers from ADR 0057 and ADR 0063).
+# API_ORIGIN and FILES_ORIGIN come from entrypoint.sh; PORT from Railway (8080 by default).
+{
+	admin off
+	persist_config off
+	auto_https off
+}
+
+:{$PORT:8080} {
+	root * /srv
+	encode zstd gzip
+
+	# The web loads nothing from third parties: only itself, the API and the bucket's signed
+	# URLs (the crest and the files the staff uploads or opens). Inline scripts and styles are
+	# not allowed; React sets styles through the CSSOM, which the CSP does not restrict.
+	header {
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: {$FILES_ORIGIN}; media-src 'self' blob: {$FILES_ORIGIN}; font-src 'self' data:; connect-src 'self' {$API_ORIGIN} {$FILES_ORIGIN}; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+		Strict-Transport-Security "max-age=63072000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
+		-Server
+	}
+
+	# Railway's healthcheck.
+	handle /healthz {
+		header Cache-Control "no-store"
+		respond "ok" 200
+	}
+
+	# Hashed bundles: cached for good. A missing one is never cached, so a browser that asked an
+	# old replica during a deploy gets it on the next try. Source maps are not served.
+	handle /assets/* {
+		@sourcemap path *.map
+		@exists file
+		handle @sourcemap {
+			header Cache-Control "no-store"
+			respond 404
+		}
+		handle @exists {
+			header Cache-Control "public, max-age=31536000, immutable"
+			file_server
+		}
+		handle {
+			header Cache-Control "no-store"
+			respond 404
+		}
+	}
+
+	# Everything else is the SPA: the file if it exists, index.html otherwise, always revalidated.
+	handle {
+		header Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}

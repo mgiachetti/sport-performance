@@ -218,6 +218,21 @@ describe('auth and email configuration', () => {
     ).not.toThrow();
   });
 
+  it('refuses the owner and worker logins of the release step in the API process', () => {
+    const owner = 'postgres://postgres:owner-password-0123456789@db.internal:5432/railway';
+    const error = configError({
+      ...production,
+      MIGRATIONS_DATABASE_URL: owner,
+      WORKER_DATABASE_URL: strongDatabaseUrl('worker'),
+    });
+    expect(error.variables).toEqual(['MIGRATIONS_DATABASE_URL', 'WORKER_DATABASE_URL']);
+    expect(error.message).not.toContain('owner-password');
+    // Outside production (local development, CI) a single .env may hold them.
+    expect(() =>
+      loadConfig({ DATABASE_URL, AUTH_DATABASE_URL, AUTH_SECRET, MIGRATIONS_DATABASE_URL: owner }),
+    ).not.toThrow();
+  });
+
   it('refuses database logins without a strong password in production', () => {
     const weak = 'postgres://sp_api:change-me-local-only@db.internal:5432/sport_performance';
     const error = configError({ ...production, DATABASE_URL: weak });

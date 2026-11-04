@@ -123,6 +123,30 @@ jobs:
           save-pnpm-cache: 'true'
       - run: pnpm build
 
+  # The Docker images Railway builds (B-701, ADR 0087): every PR builds and smoke-tests them, so
+  # a broken Dockerfile never reaches a deploy. Nothing is pushed anywhere.
+  images:
+    name: images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [api, worker, web]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # VITE_API_URL only matters for the web image (it goes into the bundle).
+      - name: Build apps/${{ matrix.app }}/Dockerfile
+        env:
+          APP: ${{ matrix.app }}
+        run: docker build --file "apps/${APP}/Dockerfile" --build-arg VITE_API_URL=https://api.example.org --tag "sport-performance-${APP}:ci" .
+      - name: Smoke test
+        env:
+          APP: ${{ matrix.app }}
+        run: sh .github/scripts/smoke-image.sh "$APP" "sport-performance-${APP}:ci"
+
   workflows:
     name: workflows
     runs-on: ubuntu-latest
@@ -138,7 +162,11 @@ jobs:
         with:
           args: -color
       - name: shellcheck
-        run: shellcheck .github/scripts/*.sh
+        run: shellcheck .github/scripts/*.sh apps/web/deploy/*.sh
+      - name: Test the promotion to production
+        run: sh .github/scripts/promote.test.sh
+      - name: Test the entrypoint of the web image
+        run: sh apps/web/deploy/entrypoint.test.sh
       - name: Test the aggregate check
         run: sh .github/scripts/check-ci-aggregate.test.sh
       - name: Check that `ci` aggregates every job
@@ -149,7 +177,7 @@ jobs:
   ci:
     name: ci
     if: always()
-    needs: [format, lint, typecheck, test, build, workflows]
+    needs: [format, lint, typecheck, test, build, images, workflows]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

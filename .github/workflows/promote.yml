@@ -1,0 +1,42 @@
+# Promotes a commit of main to production (B-701, docs/adr/0087-proyecto-de-railway-como-codigo-y-deploy.md).
+# Railway's `production` environment deploys the `production` branch once its checks pass; this
+# workflow is the only way that branch moves: fast-forward, to a commit of main whose `ci` passed.
+# Runbook: docs/infra/railway.md. No Railway token lives in GitHub.
+name: Promote to production
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Full SHA of the commit of main to deploy (empty = the latest commit of main)
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+# One promotion at a time; a second one waits instead of racing the first.
+concurrency:
+  group: promote-production
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: promote
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # GitHub environment: where required reviewers can be added when the plan allows it.
+    environment: production
+    permissions:
+      contents: write
+      checks: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Move the production branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ inputs.sha }}
+        run: sh .github/scripts/promote.sh "$SHA"
