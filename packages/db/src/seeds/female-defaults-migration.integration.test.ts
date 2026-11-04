@@ -92,6 +92,7 @@ describe.skipIf(!hasDatabase)('female_defaults migration (Postgres 16)', () => {
   let edited: ClubId;
   let menOnly: ClubId;
   let current: ClubId;
+  let ownBands: ClubId;
 
   beforeAll(async () => {
     t = await createMigratedDatabase();
@@ -102,7 +103,25 @@ describe.skipIf(!hasDatabase)('female_defaults migration (Postgres 16)', () => {
     edited = await newClub('edited', [{ sport: 'hockey', sex: 'female' }]);
     menOnly = await newClub('men-only', [{ sport: 'rugby', sex: 'male' }]);
     current = await newClub('current', [{ sport: 'hockey', sex: 'female' }]);
-    for (const clubId of [both, edited, menOnly]) await asBeforeTheMigration(clubId);
+    ownBands = await newClub('own-bands', [
+      { sport: 'rugby', sex: 'male' },
+      { sport: 'hockey', sex: 'female' },
+    ]);
+    for (const clubId of [both, edited, menOnly, ownBands]) await asBeforeTheMigration(clubId);
+    // This club replaced the seeded club-wide absolute zones with its first team's bands.
+    await t.pool.query(
+      `update speed_zone_config set valid_to = '2025-12-31'
+        where club_id = $1 and kind = 'absolute' and sex is null`,
+      [ownBands],
+    );
+    await t.pool.query(
+      `insert into speed_zone_config (club_id, kind, zone_set, valid_from)
+       select club_id, kind,
+              jsonb_set(zone_set, '{zones,3,minSpeedMs}', '5.8'), '2026-01-01'
+         from speed_zone_config
+        where club_id = $1 and kind = 'absolute' and sex is null`,
+      [ownBands],
+    );
     // This club had tuned its growth rule for everyone.
     await t.pool.query(
       `update alert_rule set params = jsonb_set(params, '{warningAtOrAboveCmYear}', '8')
@@ -149,6 +168,8 @@ describe.skipIf(!hasDatabase)('female_defaults migration (Postgres 16)', () => {
     expect(zones[0]?.zoneSet).toEqual(DEFAULT_FEMALE_ABSOLUTE_SPEED_ZONES);
     expect(await womenZones(edited)).toHaveLength(1);
     expect(await womenZones(menOnly)).toHaveLength(0);
+    // A club with its own club-wide bands keeps them for its women too.
+    expect(await womenZones(ownBands)).toHaveLength(0);
     // A men-only club still gets the (scoped) women rule, ready for a women branch.
     expect((await growthRules(menOnly)).map((r) => [r.code, r.enabled])).toEqual([
       ['growth_peak', true],

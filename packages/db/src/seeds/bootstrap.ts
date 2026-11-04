@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util';
 import {
   DEFAULT_AGE_BANDS,
   DEFAULT_ALERT_RULES,
@@ -386,20 +387,31 @@ export async function bootstrapClub(
       .returning({ id: alertRule.id });
 
     // Speed zones: one club-wide row per kind, unless the club has any.
-    const existingZoneKinds = new Set(
-      (
-        await tx
-          .select({ kind: speedZoneConfig.kind })
-          .from(speedZoneConfig)
-          .where(
-            and(
-              eq(speedZoneConfig.clubId, clubId),
-              isNull(speedZoneConfig.sport),
-              isNull(speedZoneConfig.sex),
-              isNull(speedZoneConfig.playerId),
-            ),
-          )
-      ).map((z) => z.kind),
+    const clubWideZones = await tx
+      .select({
+        kind: speedZoneConfig.kind,
+        zoneSet: speedZoneConfig.zoneSet,
+        archivedAt: speedZoneConfig.archivedAt,
+      })
+      .from(speedZoneConfig)
+      .where(
+        and(
+          eq(speedZoneConfig.clubId, clubId),
+          isNull(speedZoneConfig.sport),
+          isNull(speedZoneConfig.sex),
+          isNull(speedZoneConfig.playerId),
+        ),
+      );
+    const existingZoneKinds = new Set(clubWideZones.map((z) => z.kind));
+    // Kinds whose club-wide zones the club replaced with its own bands (any row that is
+    // not archived and is not the seeded set).
+    const customisedZoneKinds = new Set(
+      clubWideZones
+        .filter(
+          (z) =>
+            z.archivedAt === null && !isDeepStrictEqual(z.zoneSet, DEFAULT_SPEED_ZONE_SETS[z.kind]),
+        )
+        .map((z) => z.kind),
     );
     const zoneRows: (typeof speedZoneConfig.$inferInsert)[] = SPEED_ZONE_KINDS.filter(
       (kind) => !existingZoneKinds.has(kind),
@@ -414,7 +426,9 @@ export async function bootstrapClub(
     }));
     // Sex-specific defaults (B-804): one row scoped to the sex (any sport, no player) per
     // kind with a default of its own, for each sex the club has a branch of, unless the
-    // club has any such row (current, closed or archived).
+    // club has any such row (current, closed or archived) or replaced the club-wide zones
+    // of that kind with its own bands: a sex-scoped row outranks a club-wide one, so a
+    // seeded default must never override the club's bands (ADR 0087).
     const existingSexZones = new Set(
       (
         await tx
@@ -432,7 +446,11 @@ export async function bootstrapClub(
     );
     const sexZoneRows = sexes.flatMap((sex) =>
       sexSpecificZoneSets(sex)
-        .filter((zoneSet) => !existingSexZones.has(`${sex}:${zoneSet.kind}`))
+        .filter(
+          (zoneSet) =>
+            !existingSexZones.has(`${sex}:${zoneSet.kind}`) &&
+            !customisedZoneKinds.has(zoneSet.kind),
+        )
         .map((zoneSet) => ({
           clubId,
           sport: null,

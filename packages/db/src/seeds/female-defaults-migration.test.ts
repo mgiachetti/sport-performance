@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import {
   DEFAULT_ALERT_RULES,
   DEFAULT_FEMALE_ABSOLUTE_SPEED_ZONES,
+  DEFAULT_SPEED_ZONE_SETS,
   type AlertRule,
 } from '@sport-performance/domain';
 import { describe, expect, it } from 'vitest';
@@ -38,20 +39,22 @@ describe('0045_female_defaults', () => {
   const sql = readFileSync(femaleDefaultsMigration(), 'utf8');
 
   it('narrows the growth rule seeded with the parameters the domain still has', () => {
-    const [seededGrowth, femaleGrowth, femaleZones] = jsonbLiterals(sql);
+    const [seededGrowth, femaleGrowth, femaleZones, seededZones] = jsonbLiterals(sql);
     // The men's rule kept its parameters; only its scope changed.
     expect(seededGrowth).toEqual(rule('growth_peak').params);
     expect(rule('growth_peak').appliesTo).toEqual({ sexes: ['male'] });
     expect(femaleGrowth).toEqual(rule('growth_peak_female').params);
     expect(rule('growth_peak_female').appliesTo).toEqual({ sexes: ['female'] });
     expect(femaleZones).toEqual(DEFAULT_FEMALE_ABSOLUTE_SPEED_ZONES);
+    // The women's zones are only added where the club-wide ones are still the seeded ones.
+    expect(seededZones).toEqual(DEFAULT_SPEED_ZONE_SETS.absolute);
   });
 
   it('starts the women zones on the first day of the seeded ones', () => {
     expect(sql).toContain(`DATE '${DEFAULT_SEED_VALID_FROM}'`);
   });
 
-  it('writes exactly the three literals it documents', () => {
-    expect(jsonbLiterals(sql)).toHaveLength(3);
+  it('writes exactly the four literals it documents', () => {
+    expect(jsonbLiterals(sql)).toHaveLength(4);
   });
 });

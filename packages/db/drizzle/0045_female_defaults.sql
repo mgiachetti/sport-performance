@@ -2,7 +2,8 @@
 -- changed for clubs bootstrapped before (ADR 0027: changing a default for existing clubs
 -- is a reviewed migration, never a re-seed). New clubs get the same rows from
 -- `bootstrapClub`. The literals below are the domain constants (`DEFAULT_ALERT_RULES`,
--- `DEFAULT_FEMALE_ABSOLUTE_SPEED_ZONES`, `DEFAULT_SEED_VALID_FROM`); a unit test keeps them
+-- `DEFAULT_FEMALE_ABSOLUTE_SPEED_ZONES`, `DEFAULT_ABSOLUTE_SPEED_ZONES`,
+-- `DEFAULT_SEED_VALID_FROM`); a unit test keeps them
 -- in step. Thresholds are unverified: verify against the papers before production.
 --
 -- 1. The growth rule applies to boys only, where the club still has it as seeded (no
@@ -33,7 +34,10 @@ ON CONFLICT ("club_id", "code") DO NOTHING;
 --> statement-breakpoint
 -- 3. Absolute speed zones for women (any sport, no player) in every club with a women's
 --    branch and no such row yet (current, closed or archived), from the same first day as
---    the seeded club-wide zones.
+--    the seeded club-wide zones. Only where the club still has the seeded club-wide
+--    absolute zones: a sex-scoped row outranks a club-wide one, so a club that replaced
+--    them with its own bands keeps those bands for its women too (the staff can add the
+--    women's zones by hand).
 INSERT INTO "public"."speed_zone_config" ("club_id", "sport", "sex", "player_id", "kind", "zone_set", "valid_from")
 SELECT DISTINCT b."club_id",
        NULL::"public"."sport",
@@ -53,4 +57,15 @@ SELECT DISTINCT b."club_id",
         AND z."sex" = 'female'
         AND z."player_id" IS NULL
         AND z."kind" = 'absolute'
+   )
+   AND NOT EXISTS (
+     SELECT 1
+       FROM "public"."speed_zone_config" c
+      WHERE c."club_id" = b."club_id"
+        AND c."sport" IS NULL
+        AND c."sex" IS NULL
+        AND c."player_id" IS NULL
+        AND c."kind" = 'absolute'
+        AND c."archived_at" IS NULL
+        AND c."zone_set" <> '{"kind":"absolute","zones":[{"code":"walking","minSpeedMs":0},{"code":"jogging","minSpeedMs":2},{"code":"running","minSpeedMs":4},{"code":"high_speed_running","minSpeedMs":5.5},{"code":"sprinting","minSpeedMs":7}],"highSpeedZoneCode":"high_speed_running"}'::jsonb
    );

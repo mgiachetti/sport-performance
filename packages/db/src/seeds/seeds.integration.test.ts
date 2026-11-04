@@ -283,6 +283,46 @@ describe.skipIf(!hasDatabase)('seeds (Postgres 16)', () => {
     expect(again.speedZoneConfigs).toBe(0);
   });
 
+  it('adds no women zones over club-wide zones the club replaced with its own bands', async () => {
+    const [row] = await t.db
+      .insert(club)
+      .values({ slug: 'own-bands', name: 'Club con bandas propias', shortName: 'OB' })
+      .returning({ id: club.id });
+    const clubId = must(row).id;
+    await bootstrapClub(t.db, { clubId, branches: [{ sport: 'rugby', sex: 'male' }] });
+    // The club closes the seeded absolute zones and opens its first team's bands.
+    await t.pool.query(
+      `update speed_zone_config set valid_to = '2025-12-31'
+        where club_id = $1 and kind = 'absolute' and sex is null`,
+      [clubId],
+    );
+    const ownBands = {
+      ...DEFAULT_SPEED_ZONE_SETS.absolute,
+      zones: DEFAULT_SPEED_ZONE_SETS.absolute.zones.map((z) =>
+        z.code === 'high_speed_running' ? { ...z, minSpeedMs: 5.8 } : z,
+      ),
+    };
+    await t.pool.query(
+      `insert into speed_zone_config (club_id, kind, zone_set, valid_from)
+       values ($1, 'absolute', $2::jsonb, '2026-01-01')`,
+      [clubId, JSON.stringify(ownBands)],
+    );
+    // A women branch added later keeps the club's bands for its women too.
+    const later = await bootstrapClub(t.db, {
+      clubId,
+      branches: [
+        { sport: 'rugby', sex: 'male' },
+        { sport: 'hockey', sex: 'female' },
+      ],
+    });
+    expect(later.speedZoneConfigs).toBe(0);
+    const women = await t.db
+      .select()
+      .from(speedZoneConfig)
+      .where(and(eq(speedZoneConfig.clubId, clubId), eq(speedZoneConfig.sex, 'female')));
+    expect(women).toHaveLength(0);
+  });
+
   it('stores Khamis-Roche as data and predicts the same as the domain table', async () => {
     const table = must(await loadKhamisRocheTable(t.db, orc));
     expect(table.code).toBe(KHAMIS_ROCHE_1994_TABLE.code);
