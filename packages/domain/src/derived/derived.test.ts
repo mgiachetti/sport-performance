@@ -36,6 +36,25 @@ describe('resolveDerivedParameters', () => {
       growthVelocity: { minIntervalDays: 84, maxIntervalDays: 400 },
       khamisRocheTableCode: 'khamis_roche_1994',
       khamisRocheAgeMode: 'linear',
+      menarche: {
+        phvToMenarcheMeanYears: 1.3,
+        phvToMenarcheMinYears: 0,
+        phvToMenarcheMaxYears: 3,
+        marginYears: 0.5,
+        plausibleAgeMinYears: 8,
+        plausibleAgeMaxYears: 18,
+      },
+    });
+  });
+
+  it('takes a club menarche reference on top of the defaults (B-805)', () => {
+    const parameters = resolveDerivedParameters({
+      maturation: { menarche: { phvToMenarcheMeanYears: 1.1, marginYears: 0.6 } },
+    });
+    expect(parameters.maturation.menarche).toMatchObject({
+      phvToMenarcheMeanYears: 1.1,
+      phvToMenarcheMaxYears: 3,
+      marginYears: 0.6,
     });
   });
 
@@ -68,6 +87,12 @@ describe('resolveDerivedParameters', () => {
     { maturation: { khamisRocheTableCode: 'Bad Code' } },
     { maturation: { growthVelocity: { minIntervalDays: 100, maxIntervalDays: 50 } } },
     { maturation: { equation: 'moore_2015' } },
+    { maturation: { menarche: [] } },
+    { maturation: { menarche: { meanYears: 1.3 } } },
+    { maturation: { menarche: { phvToMenarcheMeanYears: 4 } } },
+    { maturation: { menarche: { marginYears: -1 } } },
+    { maturation: { menarche: { plausibleAgeMinYears: 18, plausibleAgeMaxYears: 8 } } },
+    { maturation: { menarche: { phvToMenarcheMeanYears: '1.3' } } },
   ])('rejects %o', (settings) => {
     expectInvalid(() => resolveDerivedParameters(settings));
   });

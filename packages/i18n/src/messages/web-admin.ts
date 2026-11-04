@@ -181,7 +181,7 @@ export const webAdminMessagesEsAR = {
   'admin.branches.enable': 'Habilitar otra rama',
   'admin.branches.enableAction': 'Habilitar',
   'admin.branches.enableHelp':
-    'Al habilitarla se crean sus categorías M13 a M19, las posiciones del deporte y la batería por defecto.',
+    'Al habilitarla se crean sus categorías de M13 a M19 (en hockey, Sub 13 a Sub 19), las posiciones del deporte y la batería por defecto.',
   'admin.branches.conflict': 'Esa rama ya existe. Si está archivada, restaurala desde la tabla.',
   'admin.branches.archiveQuestion':
     'Se archivan {branch} y sus categorías activas: dejan de ofrecerse, pero la historia se conserva.',
@@ -192,7 +192,8 @@ export const webAdminMessagesEsAR = {
   'admin.categories.ageBand': 'Franja de edad',
   'admin.categories.pickBand': 'Elegí la franja',
   'admin.categories.name': 'Nombre',
-  'admin.categories.nameHelp': 'Opcional: por defecto, el de la franja (M15).',
+  'admin.categories.nameHelp':
+    'Opcional: por defecto, el de la franja en el deporte (M15 en rugby, Sub 15 en hockey). Podés usar el nombre del club (por ejemplo, Quinta).',
   'admin.categories.order': 'Orden',
   'admin.categories.orderHelp': 'Opcional: posición en las listas (de menor a mayor).',
   'admin.categories.create': 'Crear categoría',
@@ -206,6 +207,30 @@ export const webAdminMessagesEsAR = {
     '{name} deja de ofrecerse para asignaciones y pases nuevos; su historia se conserva.',
   'admin.categories.conflict':
     'Alguien la cambió mientras la editabas, el nombre ya existe en la rama, o la rama está archivada. Ya cargamos los datos de nuevo.',
+
+  // Positions of the club (B-801)
+  'admin.positions.title': 'Posiciones de {sport}',
+  'admin.positions.intro':
+    'Las líneas de cada deporte son fijas (así las referencias y los percentiles por línea siguen siendo comparables). Dentro de cada línea podés cambiarle el nombre a una posición, ordenarlas, sumar las del club y archivar las que no usan.',
+  'admin.positions.name': 'Nombre',
+  'admin.positions.nameHelp': 'Vacío: el nombre del catálogo ({name}).',
+  'admin.positions.line': 'Línea',
+  'admin.positions.pickLine': 'Elegí la línea',
+  'admin.positions.order': 'Orden',
+  'admin.positions.status': 'Estado',
+  'admin.positions.code': 'Código',
+  'admin.positions.codeHelp':
+    'En inglés, minúsculas y guiones bajos (por ejemplo, sweeper). No cambia después.',
+  'admin.positions.new': 'Sumar una posición',
+  'admin.positions.create': 'Sumar posición',
+  'admin.positions.empty': 'El deporte no tiene posiciones.',
+  'admin.positions.labelTooLong': 'Usá hasta {max} caracteres.',
+  'admin.positions.codeInvalid': 'Usá minúsculas sin acentos, números y guiones bajos.',
+  'admin.positions.codeConflict': 'Ya hay una posición con ese código en el deporte.',
+  'admin.positions.archiveQuestion':
+    '{name} deja de ofrecerse para jugadores nuevos; quien ya la tiene la conserva.',
+  'admin.positions.conflict':
+    'Alguien la cambió mientras la editabas o está archivada. Ya cargamos los datos de nuevo.',
 
   // Seasons and season change
   'admin.seasons.title': 'Temporadas',

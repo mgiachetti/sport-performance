@@ -16,6 +16,7 @@ import {
 import { GymScreen, type GymLoadState } from '../../src/screens/gym.tsx';
 import { SyncIndicator } from '../../src/screens/sync.tsx';
 import { useNow, useServices, useSession, useSyncStatus } from '../../src/state/app-context.tsx';
+import { useClubModules } from '../../src/state/club-modules.ts';
 
 /** The day of the device: the server dates each set by the club day it was recorded. */
 function deviceToday(nowMs: number): LocalDate {
@@ -35,6 +36,7 @@ export default function Gym() {
   const now = useNow(60_000);
   const membership = session.status === 'signedIn' ? session.activeMembership : null;
   const membershipId = membership?.id ?? null;
+  const moduleOn = useClubModules().gym;
   const allowed = membership !== null && canLogGym(membership.role);
   const today = deviceToday(now);
   const [state, setState] = useState<GymLoadState>({ status: 'loading' });
@@ -44,7 +46,8 @@ export default function Gym() {
 
   const { store } = services.sync;
   useEffect(() => {
-    if (membershipId === null || !allowed) return;
+    // With the module off the sync no longer pulls the gym: nothing to read (issue #215).
+    if (membershipId === null || !allowed || !moduleOn) return;
     let active = true;
     Promise.all([
       store.list(membershipId, 'gym_program'),
@@ -74,6 +77,7 @@ export default function Gym() {
     services,
     membershipId,
     allowed,
+    moduleOn,
     today,
     version,
     syncStatus.lastSyncedAt,
@@ -107,6 +111,7 @@ export default function Gym() {
   if (session.status !== 'signedIn' || membership === null) return null;
   return (
     <GymScreen
+      moduleOn={moduleOn}
       allowed={allowed}
       state={state}
       offline={session.offline && syncStatus.phase !== 'offline'}

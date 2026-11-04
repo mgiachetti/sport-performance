@@ -2,17 +2,28 @@ import { localDateInTimeZone, parseTimeZone, parseUuid } from '@sport-performanc
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as admin from '../test/admin-fixtures';
+import { position } from '../test/configuration-fixtures';
 import { apiError, type FakeHandlers } from '../test/fake-api';
 import * as fixtures from '../test/fixtures';
 import { renderApp, signedIn } from '../test/render-app';
 
 const ADMIN = fixtures.membership('admin');
+const HOOKER = position('hooker', 'forwards', 1);
+const WING = position('wing', 'backs', 8);
+const GOALKEEPER = { ...position('goalkeeper', 'goalkeepers', 0), sport: 'hockey' as const };
+const SWEEPER = {
+  ...position('sweeper', 'defenders', 4),
+  sport: 'hockey' as const,
+  label: 'Líbero',
+  archivedAt: '2026-11-02T12:00:00.000Z',
+};
 
 function asAdmin(handlers: FakeHandlers = {}): FakeHandlers {
   return {
     ...signedIn({ memberships: [ADMIN] }),
     listClubBranches: () => fixtures.page([admin.RUGBY_MALE]),
     listCategories: () => fixtures.page([fixtures.M15_RUGBY, fixtures.M17_RUGBY]),
+    listPositions: () => fixtures.page([HOOKER, WING]),
     ...handlers,
   };
 }
@@ -493,6 +504,106 @@ describe('administration: branches and categories', () => {
       expect(api.callsTo('archiveCategory')[0]?.params).toEqual({
         categoryId: fixtures.M17_RUGBY.id,
       });
+    });
+  });
+});
+
+describe('administration: positions (B-801)', () => {
+  it('lists the positions of each sport of the club with their lines and names', async () => {
+    renderApp({
+      path: '/admin/categories',
+      handlers: asAdmin({
+        listClubBranches: () => fixtures.page([admin.RUGBY_MALE, admin.HOCKEY_FEMALE]),
+        listPositions: () => fixtures.page([HOOKER, WING, GOALKEEPER, SWEEPER]),
+      }),
+    });
+    const hockey = (await screen.findByRole('heading', { name: 'Posiciones de Hockey' })).closest(
+      'section',
+    );
+    if (hockey === null) throw new Error('no hockey section');
+    const keeper = within(hockey).getByRole('rowheader', { name: 'Arquera' }).closest('tr');
+    if (keeper === null) throw new Error('no row');
+    expect(within(keeper).getByText('Arqueras')).toBeVisible();
+    expect(within(keeper).getByText('Activa')).toBeVisible();
+    // The club's own label, archived (icon and text), restorable.
+    const sweeper = within(hockey).getByRole('rowheader', { name: 'Líbero' }).closest('tr');
+    if (sweeper === null) throw new Error('no row');
+    expect(within(sweeper).getByText('Defensoras')).toBeVisible();
+    expect(within(sweeper).getByText('Archivada')).toBeVisible();
+    expect(within(sweeper).getByRole('button', { name: 'Restaurar' })).toBeVisible();
+    const rugby = screen.getByRole('heading', { name: 'Posiciones de Rugby' }).closest('section');
+    if (rugby === null) throw new Error('no rugby section');
+    expect(within(rugby).getByRole('rowheader', { name: 'Hooker' })).toBeVisible();
+    expect(within(rugby).queryByRole('rowheader', { name: 'Arquera' })).not.toBeInTheDocument();
+  });
+
+  it('renames a position and moves it to another line of its sport, with its version', async () => {
+    const { user, api } = renderApp({
+      path: '/admin/categories',
+      handlers: asAdmin({
+        updatePosition: () => ({ ...WING, label: 'Wing derecho' }),
+      }),
+    });
+    const wing = (await screen.findByRole('rowheader', { name: 'Wing' })).closest('tr');
+    if (wing === null) throw new Error('no row');
+    await user.click(within(wing).getByRole('button', { name: 'Editar' }));
+    // Only the lines of rugby.
+    const line = within(wing).getByLabelText('Línea');
+    expect(
+      within(line)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['Forwards', 'Backs']);
+    await user.type(within(wing).getByLabelText('Nombre'), 'Wing derecho');
+    await user.selectOptions(line, 'forwards');
+    await user.click(within(wing).getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => {
+      expect(api.callsTo('updatePosition')[0]).toMatchObject({
+        params: { positionId: WING.id },
+        body: { version: WING.version, label: 'Wing derecho', lineCode: 'forwards' },
+      });
+    });
+  });
+
+  it('adds a position of the club inside a line, and archives one after confirming', async () => {
+    const { user, api } = renderApp({
+      path: '/admin/categories',
+      handlers: asAdmin({
+        createPosition: () => ({ ...position('utility_back', 'backs', 9), label: 'Utility' }),
+        archivePosition: () => ({ ...HOOKER, archivedAt: '2026-11-02T12:00:00.000Z' }),
+      }),
+    });
+    const form = await screen.findByRole('form', { name: 'Sumar una posición (Rugby)' });
+    await user.click(within(form).getByRole('button', { name: 'Sumar posición' }));
+    expect(within(form).getAllByText('Este dato es obligatorio.')).toHaveLength(3);
+    await user.type(within(form).getByLabelText('Nombre'), 'Utility');
+    await user.type(within(form).getByLabelText(/^Código/), 'Utility Back');
+    await user.selectOptions(within(form).getByLabelText('Línea'), 'backs');
+    await user.click(within(form).getByRole('button', { name: 'Sumar posición' }));
+    expect(
+      within(form).getByText('Usá minúsculas sin acentos, números y guiones bajos.'),
+    ).toBeVisible();
+    expect(api.callsTo('createPosition')).toHaveLength(0);
+    await user.clear(within(form).getByLabelText(/^Código/));
+    await user.type(within(form).getByLabelText(/^Código/), 'utility_back');
+    await user.click(within(form).getByRole('button', { name: 'Sumar posición' }));
+    await waitFor(() => {
+      expect(api.callsTo('createPosition')[0]?.body).toEqual({
+        clientUuid: expect.any(String) as string,
+        sport: 'rugby',
+        code: 'utility_back',
+        label: 'Utility',
+        lineCode: 'backs',
+      });
+    });
+
+    const hooker = screen.getByRole('rowheader', { name: 'Hooker' }).closest('tr');
+    if (hooker === null) throw new Error('no row');
+    await user.click(within(hooker).getByRole('button', { name: 'Archivar' }));
+    expect(within(hooker).getByText(/quien ya la tiene la conserva/)).toBeVisible();
+    await user.click(within(hooker).getByRole('button', { name: 'Archivar' }));
+    await waitFor(() => {
+      expect(api.callsTo('archivePosition')[0]?.params).toEqual({ positionId: HOOKER.id });
     });
   });
 });

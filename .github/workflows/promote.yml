@@ -1,4 +1,4 @@
-# Promotes a commit of main to production (B-701, docs/adr/0087-proyecto-de-railway-como-codigo-y-deploy.md).
+# Promotes a commit of main to production (B-701, docs/adr/0090-proyecto-de-railway-como-codigo-y-deploy.md).
 # Railway's `production` environment deploys the `production` branch once its checks pass; this
 # workflow is the only way that branch moves: fast-forward, to a commit of main whose `ci` passed.
 # GitHub enforces it: the ruleset .github/rulesets/production.json lets nobody create or update

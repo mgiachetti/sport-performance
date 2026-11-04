@@ -4,7 +4,7 @@ import { DATABASE_ROLES, provisionLoginRole, type DatabaseRoleKind } from './rol
 import { DATABASE_ENVIRONMENT_SETTING } from './seeds/demo/guard.js';
 
 /**
- * The database step of a deploy (B-701, ADR 0087): the API's pre-deploy
+ * The database step of a deploy (B-701, ADR 0090): the API's pre-deploy
  * command on Railway runs it before the new version takes traffic, so
  * staging and production are migrated in the deploy, in order (ADR 0004).
  *

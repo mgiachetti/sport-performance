@@ -38,7 +38,9 @@ export {
 } from './stage.js';
 export {
   DEFAULT_AGE_BANDS,
+  DEFAULT_CATEGORY_NAMES,
   ageBandForBirthYear,
+  defaultCategoryName,
   ageInSeasonYear,
   type AgeBand,
   type DefaultAgeBandCode,
@@ -304,7 +306,9 @@ export {
 export {
   DEFAULT_POSITION_LINES,
   HOCKEY_LINE_CODES,
+  POSITION_LINE_CODES,
   RUGBY_LINE_CODES,
+  isPositionLineOf,
   lineForPosition,
   type HockeyLineCode,
   type PositionLine,

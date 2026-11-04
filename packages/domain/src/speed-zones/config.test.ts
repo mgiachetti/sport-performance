@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_ABSOLUTE_SPEED_ZONES,
+  DEFAULT_FEMALE_ABSOLUTE_SPEED_ZONES,
   DEFAULT_RELATIVE_SPEED_ZONES,
   DomainValidationError,
   findSpeedZoneConfigConflicts,
@@ -244,6 +245,25 @@ describe('resolveSpeedZoneSet', () => {
     expect(resolveSpeedZoneSet([], { ...query(), kind: 'relative' })).toBe(
       DEFAULT_RELATIVE_SPEED_ZONES,
     );
+  });
+
+  it('falls back to the default of the player sex (B-804)', () => {
+    expect(resolveSpeedZoneSet([], query({ sex: 'female' }))).toBe(
+      DEFAULT_FEMALE_ABSOLUTE_SPEED_ZONES,
+    );
+    // Relative zones have no sex-specific default: a share of the own Vmax already scales.
+    expect(resolveSpeedZoneSet([], { ...query({ sex: 'female' }), kind: 'relative' })).toBe(
+      DEFAULT_RELATIVE_SPEED_ZONES,
+    );
+  });
+
+  it('prefers the female row over the club-wide one, and the club-wide one for men', () => {
+    const configs = [
+      row('club', { zoneSet: hsrAt(5.5) }),
+      row('female', { sex: 'female', zoneSet: DEFAULT_FEMALE_ABSOLUTE_SPEED_ZONES }),
+    ];
+    expect(highSpeedThresholdMs(resolveSpeedZoneSet(configs, query({ sex: 'female' })))).toBe(5.28);
+    expect(highSpeedThresholdMs(resolveSpeedZoneSet(configs, query()))).toBe(5.5);
   });
 
   it('accepts a custom fallback', () => {

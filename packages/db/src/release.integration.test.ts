@@ -8,7 +8,7 @@ import { createEmptyDatabase, hasDatabase, type TestDatabase } from './testing/d
 import { FULL_MIGRATION_TIMEOUT_MS } from './testing/temporary-database.js';
 
 /**
- * The deploy step (B-701, ADR 0087) on a real Postgres 16: from an empty
+ * The deploy step (B-701, ADR 0090) on a real Postgres 16: from an empty
  * database to migrated, with the three logins and the declared environment;
  * and again, as every later deploy does.
  */

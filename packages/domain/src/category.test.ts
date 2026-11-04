@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_AGE_BANDS,
+  DEFAULT_CATEGORY_NAMES,
   DomainValidationError,
+  SPORTS,
+  defaultCategoryName,
   ageBandForBirthYear,
   ageInSeasonYear,
   isStage,
@@ -95,5 +98,26 @@ describe('ageBandForBirthYear', () => {
       },
     ];
     expect(ageBandForBirthYear(2012, 2026, bands)?.clubName).toBe('Quinta');
+  });
+});
+
+describe('defaultCategoryName', () => {
+  it('names rugby categories by the band and hockey ones with "Sub"', () => {
+    expect(defaultCategoryName('rugby', 'm15')).toBe('M15');
+    expect(defaultCategoryName('hockey', 'm15')).toBe('Sub 15');
+    expect(defaultCategoryName('hockey', 'm19')).toBe('Sub 19');
+  });
+
+  it('has a name for every sport and default band, unique within the sport', () => {
+    expect(Object.keys(DEFAULT_CATEGORY_NAMES).sort()).toEqual([...SPORTS].sort());
+    for (const sport of SPORTS) {
+      const names = DEFAULT_AGE_BANDS.map((band) => defaultCategoryName(sport, band.code));
+      expect(new Set(names).size).toBe(DEFAULT_AGE_BANDS.length);
+      for (const name of names) {
+        expect(name).toBe(name.trim());
+        expect(name.length).toBeGreaterThan(0);
+        expect(name.length).toBeLessThanOrEqual(60);
+      }
+    }
   });
 });

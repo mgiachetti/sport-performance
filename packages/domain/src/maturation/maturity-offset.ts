@@ -98,6 +98,23 @@ const MOORE_2015: Omit<CoefficientProvenance, 'verificationNotes'> = {
   verification: 'cross_checked_secondary_sources',
 };
 
+/**
+ * Validation in independent female samples (B-805): Malina RM, Kozieł SM.
+ * Validation of maturity offset in a longitudinal sample of Polish girls.
+ * J Sports Sci. 2014;32(14):1374-1382 (doi 10.1080/02640414.2014.889846),
+ * and Kozieł SM, Malina RM. Modified maturity offset prediction equations:
+ * validation in independent longitudinal samples of boys and girls. Sports
+ * Med. 2018;48(1):221-236 (doi 10.1007/s40279-017-0750-y). Both report that
+ * the predicted age at PHV of girls depends on the chronological age at
+ * prediction and has a narrower spread than the observed one: early
+ * maturers get a later predicted PHV (offset too low), late maturers an
+ * earlier one (offset too high), and the error grows away from PHV. Hence
+ * the warning outside the development sample, the uncertainty margin of the
+ * stage assignment and the menarche check (`checkOffsetAgainstMenarche`).
+ */
+const FEMALE_VALIDITY_NOTE =
+  'Female validity (Malina & Kozieł 2014; Kozieł & Malina 2018): predicted age at PHV depends on the age at prediction and is pulled toward the mean (early maturers under-, late maturers over-estimated); cross-check with the menarche record when there is one. ';
+
 /** Development sample of Mirwald 2002: 8-16 yr (PubMed abstract, PMID 11932580). */
 const MIRWALD_AGE_RANGE = { minYears: 8, maxYears: 16 } as const;
 /** Development sample of Moore 2015 (PBMAS): 7.5-17.5 yr (PubMed abstract, PMID 25423445). */
@@ -149,6 +166,7 @@ export const MATURITY_OFFSET_MODELS: readonly MaturityOffsetModel[] = [
       ...MIRWALD_2002,
       verificationNotes:
         'Coefficients agree across CRAN matuR (maturation_cm.R), the sportkid explainer and CLAUDE.md. ' +
+        FEMALE_VALIDITY_NOTE +
         'Pending: compare with the original article.',
     },
   },
@@ -178,6 +196,7 @@ export const MATURITY_OFFSET_MODELS: readonly MaturityOffsetModel[] = [
       ...MOORE_2015,
       verificationNotes:
         'Coefficients agree across the AthleteMonitoring docs, the sportkid explainer and CLAUDE.md. ' +
+        FEMALE_VALIDITY_NOTE +
         'Pending: compare with the original article.',
     },
   },

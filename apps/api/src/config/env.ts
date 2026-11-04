@@ -143,7 +143,7 @@ export const envSchema = z
 
     /**
      * Owner and worker logins of the release step (`db:release`, the pre-deploy command,
-     * ADR 0087). Read only to refuse them: the API process must never hold them in
+     * ADR 0090). Read only to refuse them: the API process must never hold them in
      * production (the image's command removes them, `apps/api/Dockerfile`).
      */
     MIGRATIONS_DATABASE_URL: z.string().optional(),

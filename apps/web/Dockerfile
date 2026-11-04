@@ -1,4 +1,4 @@
-# Image of the staff web (B-701, ADR 0087): the Vite build served by Caddy with the security
+# Image of the staff web (B-701, ADR 0090): the Vite build served by Caddy with the security
 # headers of apps/web/deploy/Caddyfile. Built from the repository root:
 #   docker build -f apps/web/Dockerfile --build-arg VITE_API_URL=https://app.example.org .
 # VITE_API_URL (the web's own origin: Caddy proxies /v1/* to the API) is part of the bundle, so

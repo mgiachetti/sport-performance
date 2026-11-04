@@ -48,13 +48,16 @@ export function playerQuery(api: ApiClient, selection: ClubSelection | null, pla
   });
 }
 
-/** Positions of the club (a small seeded catalog). */
+/** Positions of the club (a small catalog), archived too: a player keeps an archived one. */
 export function positionsQuery(api: ApiClient, selection: ClubSelection | null) {
   return queryOptions({
     queryKey: clubQueryKey(selection, 'positions'),
     queryFn: ({ signal }) =>
       fetchAllPages((cursor) =>
-        api.listPositions({ query: { limit: MAX_PAGE_LIMIT, ...withCursor(cursor) } }, { signal }),
+        api.listPositions(
+          { query: { status: 'all', limit: MAX_PAGE_LIMIT, ...withCursor(cursor) } },
+          { signal },
+        ),
       ),
     staleTime: 10 * 60_000,
   });

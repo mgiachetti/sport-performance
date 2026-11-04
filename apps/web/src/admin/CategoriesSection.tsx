@@ -14,6 +14,7 @@ import { useT } from '../i18n/i18n';
 import { Button, ErrorNotice, Loading, Notice, TextField } from '../ui/components';
 import { SelectField, StatusLabel } from '../ui/fields';
 import { ActionError, AdminSection, ConfirmAction } from './parts';
+import { PositionsSection } from './PositionsSection';
 import { adminKey, allCategoriesQuery, branchesQuery } from './queries';
 
 type AgeBandCode = (typeof DEFAULT_AGE_BANDS)[number]['code'];
@@ -49,8 +50,9 @@ function useRefreshCategories() {
 }
 
 /**
- * Branches and categories (B-411 over B-313): which sports and sexes the
- * club runs, and its categories per branch and age band. The branch and
+ * Branches, categories and positions (B-411 over B-313, B-801): which
+ * sports and sexes the club runs, its categories per branch and age band,
+ * and the positions of its sports. The branch and
  * band of a category never change (history stays comparable): another
  * category is created. Archived, never deleted.
  */
@@ -84,6 +86,7 @@ export function CategoriesSection() {
           )}
         />
       ))}
+      <PositionsSection branches={branches.data} />
     </>
   );
 }

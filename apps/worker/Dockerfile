@@ -1,4 +1,4 @@
-# Image of the worker (B-701, ADR 0087). Built from the repository root:
+# Image of the worker (B-701, ADR 0090). Built from the repository root:
 #   docker build -f apps/worker/Dockerfile .
 # Railway builds it per environment (.railway/railway.ts). No port: the worker only talks to
 # Postgres (pg-boss), the bucket, Resend and Expo. Base images are pinned by digest; Dependabot

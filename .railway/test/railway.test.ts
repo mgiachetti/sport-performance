@@ -1,5 +1,5 @@
 /**
- * Checks of the Railway project as code (B-701, ADR 0087) that need no
+ * Checks of the Railway project as code (B-701, ADR 0090) that need no
  * Railway account: the graph `railway config plan` would diff, evaluated for
  * each environment, against the repository it deploys.
  */

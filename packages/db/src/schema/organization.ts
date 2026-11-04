@@ -145,7 +145,12 @@ export const category = pgTable(
   ],
 );
 
-/** Playing position per sport (rugby positions are seeded in B-306; hockey in M8). */
+/**
+ * Playing position per sport. The defaults of each sport are seeded (B-306);
+ * the club renames them, reorders them, adds its own inside the lines of the
+ * sport and archives what it does not use (B-801, ADR 0087). Archived, never
+ * deleted: a player keeps an archived position, it is just not offered again.
+ */
 export const position = pgTable(
   'position',
   {
@@ -155,9 +160,13 @@ export const position = pgTable(
     code: text('code').notNull(),
     /** Optional club wording, overriding the i18n text. */
     label: text('label'),
-    /** Line used to group references and percentiles (`forwards`, `backs`). */
+    /**
+     * Line used to group references and percentiles (`forwards`, `backs`):
+     * one of the lines of the sport (`POSITION_LINE_CODES`, checked by the API).
+     */
     lineCode: text('line_code'),
     sortOrder: smallint('sort_order').notNull().default(0),
+    archivedAt: timestamptz('archived_at'),
   },
   (t) => [
     ...tenantConstraints('position', t),
@@ -166,6 +175,10 @@ export const position = pgTable(
     check(
       'position_line_code_format',
       sql`${t.lineCode} is null or ${t.lineCode} ~ '^[a-z][a-z0-9_]*$'`,
+    ),
+    check(
+      'position_label_format',
+      sql`${t.label} is null or (${t.label} = btrim(${t.label}) and ${t.label} <> '' and char_length(${t.label}) <= 40)`,
     ),
   ],
 );

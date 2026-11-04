@@ -1,6 +1,6 @@
 # Runbook: Railway
 
-Cómo crear, desplegar y operar los ambientes `staging` y `production` (B-701). Las decisiones están en ADR [0003](../adr/0003-infra-railway.md) y ADR [0087](../adr/0087-proyecto-de-railway-como-codigo-y-deploy.md); las variables, en el [catálogo](variables.md).
+Cómo crear, desplegar y operar los ambientes `staging` y `production` (B-701). Las decisiones están en ADR [0003](../adr/0003-infra-railway.md) y ADR [0090](../adr/0090-proyecto-de-railway-como-codigo-y-deploy.md); las variables, en el [catálogo](variables.md).
 
 **Qué es código y qué no.** El repo tiene todo lo que se puede versionar: el proyecto (`.railway/railway.ts`), las imágenes (`apps/{api,worker,web}/Dockerfile`), la web (`apps/web/deploy/`), el CORS del bucket (`.railway/bucket-cors.ts`), el paso de la base de cada deploy (`db:release`) y la promoción a producción (`.github/workflows/promote.yml`, con la rama protegida por `.github/rulesets/production.json`). Lo que este runbook pide hacer a mano es lo que Railway no expone como código o lo que no puede estar en el repo: la cuenta, los secretos, HA/PITR/backups de Postgres, el CORS aplicado, los dominios y el DNS.
 

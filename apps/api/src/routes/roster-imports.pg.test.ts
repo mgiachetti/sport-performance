@@ -296,6 +296,40 @@ describeWithPostgres('roster import (Postgres)', (serverUrl) => {
       expect(await count('from player where club_id = $1', [clubA])).toBe(before);
     });
 
+    it('resolves the catalog names of hockey positions, never an archived one (B-801)', async () => {
+      const hockey = await database.admin.query<{ id: string; code: string }>(
+        `select id, code from position where club_id = $1 and sport = 'hockey'`,
+        [clubA],
+      );
+      const idOf = (code: string) => hockey.rows.find((p) => p.code === code)?.id;
+      const ana = (positions: string[], firstName = 'Ana') =>
+        row({ firstName, lastName: 'Luna', sex: 'female', sport: 'hockey', positions });
+      const named = await preview({
+        rows: [ana(['Arquera']), ana(['volante', 'DELANTERA'], 'Sol')],
+      });
+      expect(named.rows.map((r) => r.positionIds)).toEqual([
+        [idOf('goalkeeper')],
+        [idOf('midfielder'), idOf('forward')],
+      ]);
+      // A rugby player is never matched to a hockey name.
+      const rugby = await preview({ sport: 'rugby', rows: [row({ positions: ['Arquera'] })] });
+      expect(rugby.rows[0]?.issues.map((i) => i.code)).toEqual(['position_not_found']);
+
+      await database.admin.query(
+        `update position set archived_at = now() where club_id = $1 and sport = 'hockey' and code = 'forward'`,
+        [clubA],
+      );
+      try {
+        const archived = await preview({ rows: [ana(['Delantera'])] });
+        expect(archived.rows[0]?.issues.map((i) => i.code)).toEqual(['position_not_found']);
+      } finally {
+        await database.admin.query(
+          `update position set archived_at = null where club_id = $1 and sport = 'hockey'`,
+          [clubA],
+        );
+      }
+    });
+
     it('reports every problem of a row with its path', async () => {
       const result = await preview({
         sport: 'rugby',

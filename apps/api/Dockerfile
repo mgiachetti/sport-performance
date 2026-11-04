@@ -1,4 +1,4 @@
-# Image of the API (B-701, ADR 0087). Built from the repository root:
+# Image of the API (B-701, ADR 0090). Built from the repository root:
 #   docker build -f apps/api/Dockerfile .
 # Railway builds it per environment (.railway/railway.ts) and runs `db:release` in it as the
 # pre-deploy command. Base images are pinned by digest; Dependabot updates them.

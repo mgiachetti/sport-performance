@@ -1,6 +1,6 @@
 #!/bin/sh
 # Moves the `production` branch, which Railway's production environment deploys, to a commit of
-# `main` (B-701, docs/adr/0087-proyecto-de-railway-como-codigo-y-deploy.md). Refuses unless the
+# `main` (B-701, docs/adr/0090-proyecto-de-railway-como-codigo-y-deploy.md). Refuses unless the
 # commit is in `main`, its `ci` check passed and the move is a fast-forward: production only
 # ever runs code that already went through staging. Rolling back is Railway's rollback, never a
 # forced branch.

@@ -49,6 +49,7 @@ import { registerFieldSessionRoutes } from './field-sessions.js';
 import { registerWellnessRoutes } from './wellness.js';
 import { registerGymRoutes } from './gym/index.js';
 import { registerPainReportRoutes } from './pain-reports.js';
+import { registerMenarcheRoutes } from './menarche.js';
 import { registerExternalLoadRoutes } from './external-loads.js';
 import { registerAlertRoutes } from './alerts.js';
 import { registerPanelRoutes } from './panel.js';
@@ -106,6 +107,10 @@ export const IMPLEMENTED_ENDPOINTS = [
   'archiveCategory',
   'restoreCategory',
   'listPositions',
+  'createPosition',
+  'updatePosition',
+  'archivePosition',
+  'restorePosition',
   'listMembers',
   'getMember',
   'changeMemberRole',
@@ -184,6 +189,8 @@ export const IMPLEMENTED_ENDPOINTS = [
   'submitPainReport',
   'listPainReports',
   'reviewPainReport',
+  'getMenarche',
+  'reportMenarche',
   'reportExternalLoad',
   'correctExternalLoad',
   'archiveExternalLoad',
@@ -365,6 +372,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerWellnessRoutes(app);
   registerGymRoutes(app);
   registerPainReportRoutes(app);
+  registerMenarcheRoutes(app);
   registerExternalLoadRoutes(app);
   registerAlertRoutes(app);
   registerPanelRoutes(app);

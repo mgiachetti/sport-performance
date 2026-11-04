@@ -75,7 +75,7 @@ export const webFieldSessionMessagesEsAR = {
   // Table
   'fieldSession.table.title': 'Métricas por jugador',
   'fieldSession.table.subtitle':
-    'Mismas definiciones que la primera en Catapult: HSR absoluta a más de 5,5 m/s (o el umbral de la primera) y relativa a más del 60 % de la Vmax del jugador.',
+    'Mismas definiciones que la primera en Catapult: HSR absoluta por encima del umbral de la primera (por defecto 5,5 m/s en varones y 5,28 m/s en mujeres) y relativa a más del 60 % de la Vmax.',
   'fieldSession.table.player': 'Jugador',
   'fieldSession.table.position': 'Posición',
   'fieldSession.table.status': 'Participación',

@@ -57,9 +57,16 @@ export const DEFAULT_MALE_STAGE_ASSIGNMENT_PARAMS = {
 } as const satisfies StageAssignmentParams;
 
 /**
- * Default parameters for girls: the male thresholds shifted by the ≈ 2-year
- * difference in mean age at PHV (≈ 11.8 years). Pending validation with the
- * staff and the female maturation work (B-805).
+ * Default parameters for girls: the male thresholds shifted by the 2-year
+ * difference in mean age at PHV of the Mirwald 2002 development sample
+ * (Saskatchewan: boys 13.8, girls 11.8 years), so the average-maturing girl
+ * keeps the stage of her category on every day of every band, as the boy
+ * does (test). Reviewed in B-805: the female equations pull predictions
+ * toward the mean age at PHV (Malina & Kozieł 2014; Kozieł & Malina 2018),
+ * which the 0.5-year margin and the one-step limit absorb; a girl with a
+ * menarche record gets the check against it (`checkOffsetAgainstMenarche`)
+ * where the medical staff reads it. Data per club: still to be confirmed
+ * with each club's staff before production.
  */
 export const DEFAULT_FEMALE_STAGE_ASSIGNMENT_PARAMS = {
   developmentFromPhvOffsetYears: 2.7,

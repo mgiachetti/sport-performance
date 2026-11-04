@@ -1,6 +1,6 @@
 # Catálogo de variables de Railway
 
-Qué variable tiene cada servicio en `staging` y `production`, de dónde sale y si es secreta. La fuente de verdad es [`.railway/railway.ts`](../../.railway/railway.ts) (ADR [0087](../adr/0087-proyecto-de-railway-como-codigo-y-deploy.md)); el significado y la validación de cada una están en el `.env.example` de su app ([api](../../apps/api/.env.example), [worker](../../apps/worker/.env.example), [web](../../apps/web/.env.example)). Los tests de `.railway` fallan si una variable que pone la IaC no está acá o en el `.env.example` de su app.
+Qué variable tiene cada servicio en `staging` y `production`, de dónde sale y si es secreta. La fuente de verdad es [`.railway/railway.ts`](../../.railway/railway.ts) (ADR [0090](../adr/0090-proyecto-de-railway-como-codigo-y-deploy.md)); el significado y la validación de cada una están en el `.env.example` de su app ([api](../../apps/api/.env.example), [worker](../../apps/worker/.env.example), [web](../../apps/web/.env.example)). Los tests de `.railway` fallan si una variable que pone la IaC no está acá o en el `.env.example` de su app.
 
 **Cómo leer la columna "Origen":**
 
@@ -69,7 +69,7 @@ Qué variable tiene cada servicio en `staging` y `production`, de dónde sale y 
 | Variable | Origen | Valor en staging / production | Notas |
 |---|---|---|---|
 | `PORT` | Literal | `8080` | Puerto de Caddy. |
-| `VITE_API_URL` | Literal con referencias | `<web>` | Argumento de build (entra en el bundle). Es el origen de la **web**: el navegador llama a la API bajo el mismo sitio, porque la cookie de sesión es `SameSite=Lax` y `up.railway.app` está en la Public Suffix List (ADR 0087). |
+| `VITE_API_URL` | Literal con referencias | `<web>` | Argumento de build (entra en el bundle). Es el origen de la **web**: el navegador llama a la API bajo el mismo sitio, porque la cookie de sesión es `SameSite=Lax` y `up.railway.app` está en la Public Suffix List (ADR 0090). |
 | `API_UPSTREAM` | Literal con referencias | `http://${{api.RAILWAY_PRIVATE_DOMAIN}}:8080` | Adonde Caddy reenvía `/v1/*`, por la red privada del ambiente (http: no sale del proyecto). |
 | `STORAGE_ENDPOINT` | Referencia | `${{files.ENDPOINT}}` | Solo para la CSP: origen de las URLs firmadas. Sin claves. |
 | `STORAGE_BUCKET` | Referencia | `${{files.BUCKET}}` | Ídem. |

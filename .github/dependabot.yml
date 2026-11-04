@@ -61,7 +61,7 @@ updates:
         patterns:
           - '*'
 
-  # Base images of the Dockerfiles Railway builds (B-701, ADR 0087), pinned by digest.
+  # Base images of the Dockerfiles Railway builds (B-701, ADR 0090), pinned by digest.
   - package-ecosystem: docker
     directories:
       - /apps/api

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Entrypoint of the web image (B-701, ADR 0087). Derives what the Caddyfile needs from the same
+# Entrypoint of the web image (B-701, ADR 0090). Derives what the Caddyfile needs from the same
 # variables as the rest of the deploy, then runs Caddy:
 #
 #   API_UPSTREAM  where Caddy proxies /v1/*: the API over Railway's private network

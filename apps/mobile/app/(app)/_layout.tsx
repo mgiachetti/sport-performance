@@ -1,9 +1,8 @@
-import type { Role } from '@sport-performance/domain';
+import type { MembershipRole } from '@sport-performance/domain';
 import Tabs from 'expo-router/js-tabs';
-import { canRecordParticipation } from '../../src/coach-session/model.ts';
+import { tabVisibility } from '../../src/navigation/tabs.ts';
 import { useSession } from '../../src/state/app-context.tsx';
-import { canSeeStaffBoard } from '../../src/staff/board.ts';
-import { canSeeTestDays } from '../../src/test-day/data.ts';
+import { useClubModules } from '../../src/state/club-modules.ts';
 import { useTranslator } from '../../src/ui/i18n.tsx';
 import { useTheme } from '../../src/ui/theme.tsx';
 
@@ -13,20 +12,18 @@ import { useTheme } from '../../src/ui/theme.tsx';
  * field test day is B-505 (the staff who read test days); the protocols of
  * the tests are B-415; the coach's field sessions are B-509 (who records
  * participation); the staff's quick look before training is B-510; the
- * player's consents open from Cuenta.
+ * player's consents open from Cuenta. A tab of a module the club turned
+ * off (the gym) does not show.
  */
 export default function AppLayout() {
   const theme = useTheme();
   const { t } = useTranslator();
   const session = useSession();
-  const role: Role | null =
+  const role: MembershipRole | null =
     session.status === 'signedIn' ? (session.activeMembership?.role ?? null) : null;
   const isPlayer = role === 'player';
-  const showTestDays = role !== null && canSeeTestDays(role);
-  // Only who records participation (B-509: the coach, the administration) sees the tab.
-  const showSessions = role !== null && canRecordParticipation(role);
-  // The quick look before training is a tab for the staff who reads the panel (B-510).
-  const staff = role !== null && canSeeStaffBoard(role);
+  // Which tabs the role sees, and the gym only while the club has the module on (issue #215).
+  const tabs = tabVisibility(role, useClubModules());
   return (
     <Tabs
       screenOptions={{
@@ -48,21 +45,24 @@ export default function AppLayout() {
       <Tabs.Screen name="home" options={{ title: isPlayer ? t('nav.today') : t('nav.home') }} />
       <Tabs.Screen
         name="tests"
-        options={{ title: t('nav.myTests'), ...(isPlayer ? {} : { href: null }) }}
+        options={{ title: t('nav.myTests'), ...(tabs.tests ? {} : { href: null }) }}
       />
-      <Tabs.Screen name="gym" options={{ title: t('nav.gym') }} />
+      <Tabs.Screen
+        name="gym"
+        options={{ title: t('nav.gym'), ...(tabs.gym ? {} : { href: null }) }}
+      />
       <Tabs.Screen
         name="test-days"
         // Only the roles that read test days (`test_session:read`) see the tab.
-        options={{ title: t('fieldTest.nav'), ...(showTestDays ? {} : { href: null }) }}
+        options={{ title: t('fieldTest.nav'), ...(tabs.testDays ? {} : { href: null }) }}
       />
       <Tabs.Screen
         name="sessions"
-        options={{ title: t('coachSession.nav'), ...(showSessions ? {} : { href: null }) }}
+        options={{ title: t('coachSession.nav'), ...(tabs.sessions ? {} : { href: null }) }}
       />
       <Tabs.Screen
         name="staff"
-        options={{ title: t('nav.staff'), ...(staff ? {} : { href: null }) }}
+        options={{ title: t('nav.staff'), ...(tabs.staff ? {} : { href: null }) }}
       />
       <Tabs.Screen name="protocols" options={{ title: t('nav.protocols') }} />
       <Tabs.Screen name="account" options={{ title: t('nav.account') }} />

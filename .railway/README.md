@@ -1,6 +1,6 @@
 # .railway
 
-El proyecto de Railway como código (B-701, [ADR 0087](../docs/adr/0087-proyecto-de-railway-como-codigo-y-deploy.md)).
+El proyecto de Railway como código (B-701, [ADR 0090](../docs/adr/0090-proyecto-de-railway-como-codigo-y-deploy.md)).
 
 | Archivo | Qué es |
 |---|---|

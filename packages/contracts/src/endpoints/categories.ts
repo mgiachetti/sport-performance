@@ -1,4 +1,4 @@
-import { DEFAULT_AGE_BANDS } from '@sport-performance/domain';
+import { DEFAULT_AGE_BANDS, POSITION_LINE_CODES, SPORTS } from '@sport-performance/domain';
 import { z } from 'zod';
 import { defineEndpoint } from '../endpoint.js';
 import {
@@ -15,15 +15,19 @@ import {
 import { dateTimeSchema } from '../primitives/dates.js';
 import { categoryIdSchema, idOf } from '../primitives/ids.js';
 import { pageOf, pageQuerySchema } from '../primitives/pagination.js';
+import { configurationCodeSchema } from './configuration-common.js';
 
 /**
  * Categories of the club (B-313): a branch (sport + sex) and an age band of
  * the domain (M13 to M19), named freely by the club. They do not depend on
  * the season: players move between them (B-316), the category stays.
- * Positions are the seeded catalog of each sport.
+ * Positions: the seeded catalog of each sport, which the club renames,
+ * reorders, extends inside the lines of the sport and archives (B-801, ADR
+ * 0087).
  */
 
 export const CATEGORY_NAME_MAX_LENGTH = 60;
+export const POSITION_LABEL_MAX_LENGTH = 40;
 /** Largest `sort_order` (a `smallint`). */
 export const SORT_ORDER_MAX = 32_767;
 
@@ -70,6 +74,25 @@ export const categorySchema = z
 
 export const positionIdSchema = idOf('posición');
 
+/** Every line of every sport, for the documentation; the API checks the line against the sport. */
+const ALL_LINE_CODES = [...new Set(SPORTS.flatMap((sport) => POSITION_LINE_CODES[sport]))] as [
+  string,
+  ...string[],
+];
+
+export const positionLineCodeSchema = z.enum(ALL_LINE_CODES).meta({
+  id: 'PositionLineCode',
+  description:
+    'Línea de la posición, una de las del deporte (rugby: `forwards`, `backs`; hockey: `goalkeepers`, `defenders`, `midfielders`, `forwards`). Agrupa referencias y percentiles.',
+});
+
+export const positionLabelSchema = z
+  .string()
+  .min(1)
+  .max(POSITION_LABEL_MAX_LENGTH)
+  .refine((value) => value === value.trim(), { message: 'No leading or trailing whitespace' })
+  .meta({ description: 'Texto propio del club.', examples: ['Líbero', 'Volante central'] });
+
 export const positionSchema = z
   .object({
     id: positionIdSchema,
@@ -81,11 +104,9 @@ export const positionSchema = z
         description: 'Código estable; el texto sale de i18n o de `label`.',
         examples: ['hooker'],
       }),
-    label: z
-      .string()
-      .min(1)
+    label: positionLabelSchema
       .nullable()
-      .meta({ description: 'Texto propio del club, si lo tiene.' }),
+      .meta({ description: 'Texto propio del club, si lo tiene; si no, el del catálogo.' }),
     lineCode: z
       .string()
       .min(1)
@@ -95,6 +116,10 @@ export const positionSchema = z
         examples: ['forwards'],
       }),
     sortOrder: sortOrderSchema,
+    archivedAt: archivedAtSchema,
+    createdAt: dateTimeSchema,
+    updatedAt: dateTimeSchema,
+    version: resourceVersionSchema,
   })
   .meta({ id: 'Position' });
 
@@ -102,6 +127,7 @@ export type Category = z.output<typeof categorySchema>;
 export type Position = z.output<typeof positionSchema>;
 
 const categoryParams = z.strictObject({ categoryId: categoryIdSchema });
+const positionParams = z.strictObject({ positionId: positionIdSchema });
 
 export const listCategories = defineEndpoint({
   method: 'GET',
@@ -153,7 +179,8 @@ export const createCategory = defineEndpoint({
     sex: sexSchema,
     ageBandCode: ageBandCodeSchema,
     name: categoryNameSchema.optional().meta({
-      description: 'Por defecto, la etiqueta de la franja (`M15`).',
+      description:
+        'Por defecto, el nombre de la franja en el deporte (`M15` en rugby, `Sub 15` en hockey).',
     }),
     sortOrder: sortOrderSchema.optional().meta({
       description: 'Por defecto, el orden de la franja.',
@@ -211,11 +238,13 @@ export const listPositions = defineEndpoint({
   method: 'GET',
   path: '/v1/positions',
   summary: 'Posiciones por deporte',
-  description: 'Todo miembro del club activo. Catálogo sembrado por deporte (B-306).',
+  description:
+    'Todo miembro del club activo. Catálogo sembrado por deporte (B-306) con lo que el club cambió (B-801). Por defecto solo las activas; para mostrar la posición de una jugadora que ya la tiene archivada, `status=all`.',
   tags: ['categories'],
   auth: 'club',
   query: pageQuerySchema.extend({
     sport: sportSchema.optional(),
+    status: archiveStatusQuerySchema,
     sort: sortQuerySchema(['sortOrder', 'code'], 'sortOrder'),
   }),
   response: {
@@ -224,4 +253,73 @@ export const listPositions = defineEndpoint({
     schema: pageOf(positionSchema).meta({ id: 'PositionPage' }),
   },
   errors: ['bad_request'],
+});
+
+export const createPosition = defineEndpoint({
+  method: 'POST',
+  path: '/v1/positions',
+  summary: 'Sumar una posición del club',
+  description:
+    'Solo la administración. Una posición propia dentro de una de las líneas del deporte (por ejemplo "Líbero" en `defenders` de hockey), con su texto. El deporte tiene que ser el de una rama habilitada. Idempotente por `clientUuid`; código repetido en el deporte: `conflict`.',
+  tags: ['categories'],
+  auth: 'club',
+  body: z.strictObject({
+    clientUuid: clientUuidSchema.optional(),
+    sport: sportSchema,
+    code: configurationCodeSchema.meta({
+      description: 'Código estable en inglés `snake_case`, único en el deporte.',
+      examples: ['sweeper'],
+    }),
+    label: positionLabelSchema,
+    lineCode: positionLineCodeSchema,
+    sortOrder: sortOrderSchema.optional().meta({
+      description: 'Por defecto, después de las posiciones del deporte.',
+    }),
+  }),
+  response: { status: 201, description: 'Posición creada.', schema: positionSchema },
+  errors: ['conflict'],
+});
+
+export const updatePosition = defineEndpoint({
+  method: 'PATCH',
+  path: '/v1/positions/{positionId}',
+  summary: 'Editar una posición',
+  description:
+    'Solo la administración. Se cambian el texto del club (`null` vuelve al del catálogo; una posición propia del club no tiene texto de catálogo y siempre lleva el suyo), la línea (una del deporte) y el orden; el deporte y el código no. Una posición archivada no se edita: se restaura primero (`conflict`). `version` desactualizada: `conflict`.',
+  tags: ['categories'],
+  auth: 'club',
+  params: positionParams,
+  body: z.strictObject({
+    version: expectedVersionSchema,
+    label: positionLabelSchema.nullable().optional(),
+    lineCode: positionLineCodeSchema.optional(),
+    sortOrder: sortOrderSchema.optional(),
+  }),
+  response: { status: 200, description: 'La posición actualizada.', schema: positionSchema },
+  errors: ['not_found', 'conflict'],
+});
+
+export const archivePosition = defineEndpoint({
+  method: 'POST',
+  path: '/v1/positions/{positionId}/archive',
+  summary: 'Archivar una posición',
+  description:
+    'Solo la administración. Deja de ofrecerse y de aceptarse para asignaciones nuevas; quien ya la tiene la conserva. Idempotente.',
+  tags: ['categories'],
+  auth: 'club',
+  params: positionParams,
+  response: { status: 200, description: 'Posición archivada.', schema: positionSchema },
+  errors: ['not_found'],
+});
+
+export const restorePosition = defineEndpoint({
+  method: 'POST',
+  path: '/v1/positions/{positionId}/restore',
+  summary: 'Restaurar una posición',
+  description: 'Solo la administración. Idempotente.',
+  tags: ['categories'],
+  auth: 'club',
+  params: positionParams,
+  response: { status: 200, description: 'Posición restaurada.', schema: positionSchema },
+  errors: ['not_found'],
 });

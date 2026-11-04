@@ -316,7 +316,7 @@ describe('main ruleset', () => {
   });
 });
 
-describe('production ruleset (B-701, ADR 0087)', () => {
+describe('production ruleset (B-701, ADR 0090)', () => {
   const ruleset = asObject(
     JSON.parse(readText('.github/rulesets/production.json')) as unknown,
     'ruleset',

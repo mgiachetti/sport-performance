@@ -40,6 +40,7 @@ import {
   type Sex,
   type Sport,
 } from '@sport-performance/domain';
+import { catalogs, isMessageKey } from '@sport-performance/i18n';
 import { and, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { TenantDatabase } from '../db/database.js';
@@ -96,6 +97,7 @@ interface ClubPosition {
   sport: Sport;
   code: string;
   label: string | null;
+  archived: boolean;
 }
 
 interface ParentMember {
@@ -151,7 +153,13 @@ async function loadSnapshot(db: TenantDatabase, clubId: ClubId, body: Body): Pro
       ),
     );
   const positions = await db
-    .select({ id: position.id, sport: position.sport, code: position.code, label: position.label })
+    .select({
+      id: position.id,
+      sport: position.sport,
+      code: position.code,
+      label: position.label,
+      archived: sql<boolean>`${position.archivedAt} is not null`,
+    })
     .from(position)
     .where(and(eq(position.clubId, clubId), inArray(position.sport, sports)));
 
@@ -321,14 +329,35 @@ function resolveCategory(
   };
 }
 
-/** A position of the sport by code, or by the club's label. */
-function resolvePosition(snapshot: ClubSnapshot, text: string, sport: Sport): string | undefined {
+/** The catalog names of a position code of the sport, in every bundled locale ("Arquera"). */
+function catalogNames(sport: Sport, code: string): string[] {
+  const key = `configuration.position.${sport}.${code}`;
+  if (!isMessageKey(key)) return [];
+  return Object.values(catalogs).flatMap((catalog) => catalog[key] ?? []);
+}
+
+/**
+ * A position of the sport by code, by the club's label or by the catalog
+ * name of the position ("Arquera", B-801). An archived position only for a
+ * player who already has it (`kept`): it is never assigned again.
+ */
+function resolvePosition(
+  snapshot: ClubSnapshot,
+  text: string,
+  sport: Sport,
+  kept: readonly string[],
+): string | undefined {
   const wanted = normalizeHeader(text);
-  const ofSport = snapshot.positions.filter((p) => p.sport === sport);
+  const ofSport = snapshot.positions.filter(
+    (p) => p.sport === sport && (!p.archived || kept.includes(p.id)),
+  );
   const found =
     ofSport.find((p) => p.code === text) ??
     ofSport.find((p) => normalizeHeader(p.code) === wanted) ??
-    ofSport.find((p) => p.label !== null && normalizeHeader(p.label) === wanted);
+    ofSport.find((p) => p.label !== null && normalizeHeader(p.label) === wanted) ??
+    ofSport.find((p) =>
+      catalogNames(p.sport, p.code).some((name) => normalizeHeader(name) === wanted),
+    );
   return found?.id;
 }
 
@@ -499,7 +528,7 @@ function planRow(
   if (row.positions !== undefined && action !== 'skip') {
     const ids: string[] = [];
     row.positions.forEach((text, at) => {
-      const id = resolvePosition(snapshot, text, sport);
+      const id = resolvePosition(snapshot, text, sport, target?.positionIds ?? []);
       if (id === undefined) {
         issues.push(
           issue(index, ['positions', at], 'position_not_found', 'Not a position of the sport'),

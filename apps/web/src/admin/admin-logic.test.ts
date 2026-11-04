@@ -6,6 +6,7 @@ import { assignmentBody, assignmentDraftErrors } from './AssignmentsSection';
 import { missingBranches, parseSortOrder } from './CategoriesSection';
 import { clubDraftErrors, clubDraftOf, clubPatch } from './ClubSection';
 import { invitationFormErrors } from './InvitationsSection';
+import { clubSports, isDefaultPosition, parsePositionLabel } from './PositionsSection';
 import { cellText, decodeCsv, matrixToTable, readRosterFile, rosterFileKind } from './roster-file';
 import {
   canImport,
@@ -224,5 +225,34 @@ describe('forms of the administration', () => {
     expect(await sha256Base64(new Blob([new Uint8Array([1, 2, 3, 4])]))).toBe(
       'n2SnR+G5fxMfq7a0Rylsm28CAeefs8U1bmx36JtqgGo=',
     );
+  });
+});
+
+describe('positions of the club (B-801)', () => {
+  it('shows the sports of the active branches, in the domain order', () => {
+    expect(
+      clubSports([
+        { sport: 'hockey', archivedAt: null },
+        { sport: 'rugby', archivedAt: '2026-01-01T00:00:00.000Z' },
+      ]),
+    ).toEqual(['hockey']);
+    expect(
+      clubSports([
+        { sport: 'hockey', archivedAt: null },
+        { sport: 'rugby', archivedAt: null },
+      ]),
+    ).toEqual(['rugby', 'hockey']);
+  });
+
+  it('tells the seeded positions apart from the club ones', () => {
+    expect(isDefaultPosition({ sport: 'hockey', code: 'goalkeeper' })).toBe(true);
+    expect(isDefaultPosition({ sport: 'rugby', code: 'goalkeeper' })).toBe(false);
+    expect(isDefaultPosition({ sport: 'hockey', code: 'sweeper' })).toBe(false);
+  });
+
+  it('trims the label, empty is the catalog name, too long is not valid', () => {
+    expect(parsePositionLabel('  Líbero ')).toEqual({ ok: true, value: 'Líbero' });
+    expect(parsePositionLabel('   ')).toEqual({ ok: true, value: null });
+    expect(parsePositionLabel('x'.repeat(41))).toEqual({ ok: false });
   });
 });

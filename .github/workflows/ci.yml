@@ -123,7 +123,7 @@ jobs:
           save-pnpm-cache: 'true'
       - run: pnpm build
 
-  # The Docker images Railway builds (B-701, ADR 0087): every PR builds and smoke-tests them, so
+  # The Docker images Railway builds (B-701, ADR 0090): every PR builds and smoke-tests them, so
   # a broken Dockerfile never reaches a deploy. Nothing is pushed anywhere.
   images:
     name: images

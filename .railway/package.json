@@ -2,7 +2,7 @@
   "name": "@sport-performance/railway-config",
   "version": "0.0.0",
   "private": true,
-  "description": "Railway project as code (IaC: railway.ts) and its checks (B-701, ADR 0087).",
+  "description": "Railway project as code (IaC: railway.ts) and its checks (B-701, ADR 0090).",
   "type": "module",
   "scripts": {
     "lint": "eslint . --max-warnings 0",

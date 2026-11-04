@@ -157,6 +157,20 @@ export function allCategoriesQuery(api: ApiClient, selection: ClubSelection | nu
   });
 }
 
+/** Every position of the club, active and archived, in the club's order (B-801). */
+export function allPositionsQuery(api: ApiClient, selection: ClubSelection | null) {
+  return queryOptions({
+    queryKey: adminKey(selection, 'positions'),
+    queryFn: ({ signal }) =>
+      fetchAllPages((cursor) =>
+        api.listPositions(
+          { query: { status: 'all', limit: MAX_PAGE_LIMIT, ...withCursor(cursor) } },
+          { signal },
+        ),
+      ),
+  });
+}
+
 /** Active seasons of the club (newest first), with their windows. */
 export function seasonsQuery(api: ApiClient, selection: ClubSelection | null, sport: Sport | null) {
   return queryOptions({

@@ -39,10 +39,13 @@ DATABASE_URL=postgres://sp_worker:...@host/db pnpm --filter @sport-performance/w
   "wellnessBaseline": { "windowDays": 28, "minSamples": 10 },
   "maturation": {
     "maturityOffsetEquation": "moore_2015",
-    "khamisRocheTableCode": "khamis_roche_1994"
+    "khamisRocheTableCode": "khamis_roche_1994",
+    "menarche": { "phvToMenarcheMeanYears": 1.3, "phvToMenarcheMinYears": 0, "phvToMenarcheMaxYears": 3, "marginYears": 0.5 }
   }
 }
 ```
+
+`maturation.menarche` (B-805) no lo usa el worker: es la referencia PHV → menarca con la que la API contrasta el offset para quien lee la menarca (ADR 0089).
 
 Un valor inválido hace fallar el job (no cae en silencio a los valores por defecto). Cambiar `derived` marca a todos los jugadores del club.
 

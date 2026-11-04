@@ -1,4 +1,4 @@
-# Server of the staff web (B-701, ADR 0087; headers from ADR 0057 and ADR 0063): the static SPA
+# Server of the staff web (B-701, ADR 0090; headers from ADR 0057 and ADR 0063): the static SPA
 # and, under the same origin, the API (/v1/*) over Railway's private network. Same origin on
 # purpose: the session cookie is SameSite=Lax, so a browser neither sends it on a cross-site
 # fetch nor stores it from one, and the domains Railway generates (*.up.railway.app, on the

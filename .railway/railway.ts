@@ -1,5 +1,5 @@
 /**
- * The Railway project of Sport Performance as code (B-701, ADR 0003, ADR 0087).
+ * The Railway project of Sport Performance as code (B-701, ADR 0003, ADR 0090).
  *
  * `railway config plan` diffs this file against the linked environment and
  * `railway config apply` applies it (docs/infra/railway.md). One project, two
@@ -250,7 +250,7 @@ export default defineRailway((ctx) => {
       DB_APP_PASSWORD: preserve(),
       DB_AUTH_PASSWORD: preserve(),
       // Only for `db:release` (pre-deploy): the image's command removes both from the API
-      // process, which refuses to start with them (ADR 0087).
+      // process, which refuses to start with them (ADR 0090).
       MIGRATIONS_DATABASE_URL: postgres.env.DATABASE_URL,
       WORKER_DATABASE_URL: worker.env.DATABASE_URL,
       AUTH_SECRET: preserve(),
@@ -283,7 +283,7 @@ export default defineRailway((ctx) => {
     env: {
       PORT: String(HTTP_PORT),
       // The staff web reaches the API under its own origin (same site for the Lax session
-      // cookie, ADR 0087): the bundle calls the web, and Caddy proxies /v1/* to the API over the
+      // cookie, ADR 0090): the bundle calls the web, and Caddy proxies /v1/* to the API over the
       // private network.
       VITE_API_URL: webOrigin,
       API_UPSTREAM: privateOrigin('api'),

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Smoke test of an image built from apps/<app>/Dockerfile (B-701, ADR 0087), without a database:
+# Smoke test of an image built from apps/<app>/Dockerfile (B-701, ADR 0090), without a database:
 # what Railway needs from it is there, it runs as a non-root user and it starts far enough to
 # validate its configuration. The web image is served and its headers checked.
 #

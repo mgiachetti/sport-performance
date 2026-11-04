@@ -21,10 +21,25 @@ export const HOCKEY_LINE_CODES = ['goalkeepers', 'defenders', 'midfielders', 'fo
 export type HockeyLineCode = (typeof HOCKEY_LINE_CODES)[number];
 
 /**
+ * Lines of each sport (B-801, ADR 0087). Fixed per sport: references and
+ * percentiles by line stay comparable across clubs, so a club adds or
+ * renames positions but always inside these lines.
+ */
+export const POSITION_LINE_CODES = {
+  rugby: RUGBY_LINE_CODES,
+  hockey: HOCKEY_LINE_CODES,
+} as const satisfies Record<Sport, readonly string[]>;
+
+/** Whether `lineCode` is one of the lines of `sport`. */
+export function isPositionLineOf(sport: Sport, lineCode: string): boolean {
+  return (POSITION_LINE_CODES[sport] as readonly string[]).includes(lineCode);
+}
+
+/**
  * Default position → line mapping per sport, seeded into every club
  * (`position`, B-306) and edited per club. Rugby union by position; field
- * hockey by the four lines of B-801 (arquera, defensora, volante, delantera),
- * refined in M8.
+ * hockey by the four lines of B-801 (arquera, defensora, volante, delantera).
+ * A club refines them with its own positions inside the same lines (B-801).
  */
 export const DEFAULT_POSITION_LINES = [
   { sport: 'rugby', positionCode: 'prop', lineCode: 'forwards' },

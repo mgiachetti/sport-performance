@@ -15,6 +15,7 @@ export {
   DEFAULT_BOOTSTRAP_SUPPORT_REASON,
   DEFAULT_SEED_VALID_FROM,
   bootstrapClub,
+  sexSpecificZoneSets,
   totalInserted,
   type BootstrapClubOptions,
   type BootstrapClubReport,

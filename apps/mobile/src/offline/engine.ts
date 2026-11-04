@@ -11,6 +11,7 @@ import {
   type ValidationIssue,
 } from '@sport-performance/contracts';
 import {
+  isSyncCollection,
   SYNC_PULL_LIMIT_MAX,
   SYNC_PUSH_MAX,
   type SyncCollection,
@@ -150,8 +151,14 @@ export interface SyncEngineOptions {
   readonly pushBatchSize?: number;
   /** Changes per pull page (at most `SYNC_PULL_LIMIT_MAX`). */
   readonly pullLimit?: number;
-  /** Collections to pull; by default, every one the role can read. */
-  readonly collections?: readonly SyncCollection[];
+  /**
+   * Collections to pull, fixed or asked for each cycle (the club's modules
+   * leave some out, `clubs/modules.ts`); by default, every one the role can
+   * read. The server answers only the ones the role reads.
+   */
+  readonly collections?:
+    | readonly SyncCollection[]
+    | ((scope: SyncScopeRef) => Promise<readonly SyncCollection[] | undefined>);
   /** Pull pages per cycle before giving up on a server that never ends (`MAX_PULL_PAGES`). */
   readonly maxPullPages?: number;
 }
@@ -168,6 +175,19 @@ export const ENQUEUE_SYNC_DELAY_MS = 1_000;
 export const OWNER_KEY = 'owner.userId';
 /** Pull pages per cycle, a guard against a server that never says `hasMore: false`. */
 export const MAX_PULL_PAGES = 1_000;
+
+/** The collections a stored cursor covers (`sync_scope.collections`); none if unreadable. */
+function coveredCollections(stored: string | null): SyncCollection[] {
+  if (stored === null) return [];
+  try {
+    const parsed: unknown = JSON.parse(stored);
+    return Array.isArray(parsed)
+      ? parsed.filter((c): c is SyncCollection => isSyncCollection(c))
+      : [];
+  } catch {
+    return [];
+  }
+}
 
 class CycleAbort extends Error {
   readonly phase: 'offline' | 'failing' | 'paused';
@@ -606,11 +626,17 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
         .where(eq(syncScope.membershipId, ref.membershipId)),
     );
     let cursor = stored?.cursor ?? null;
-    const wanted = options.collections === undefined ? null : [...options.collections].sort();
-    // A different set of collections than the cursor covers starts over (the server resets).
-    if (cursor !== null && wanted !== null && stored?.collections !== JSON.stringify(wanted)) {
-      cursor = null;
-    }
+    const requested =
+      typeof options.collections === 'function'
+        ? await options.collections(ref)
+        : options.collections;
+    const wanted = requested === undefined ? null : [...new Set(requested)].sort();
+    // Another set of collections than the cursor covers is another view: the
+    // server's fingerprint of the cursor includes the collections, so it
+    // answers `reset` and starts over. The device does not compare the sets
+    // itself: the server leaves out the ones the role does not read, so the
+    // set it covers is not the set asked for.
+    let covered = coveredCollections(stored?.collections ?? null);
     let retriedCursor = false;
     let complete = false;
     for (let pageNumber = 0; pageNumber < maxPullPages; pageNumber += 1) {
@@ -644,9 +670,13 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
       await database.write(async (db) => {
         await clock.receive(db, current.serverHlc);
         // Cursor `null`: the device may hold rows from before (wiped cursor, other set of collections).
+        // The rows of a collection no longer pulled (a module the club turned off) go too.
         if (current.reset || cursor === null) {
-          await deleteCollections(db, ref.membershipId, current.collections);
+          await deleteCollections(db, ref.membershipId, [
+            ...new Set([...current.collections, ...covered]),
+          ]);
         }
+        covered = current.collections;
         const rows: TargetableRow[] = [];
         for (const change of current.items) {
           rows.push(await applyChange(db, ref.membershipId, change, now()));
