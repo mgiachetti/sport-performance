@@ -2,6 +2,7 @@ import type { Role } from '@sport-performance/domain';
 import Tabs from 'expo-router/js-tabs';
 import { canRecordParticipation } from '../../src/coach-session/model.ts';
 import { useSession } from '../../src/state/app-context.tsx';
+import { canSeeStaffBoard } from '../../src/staff/board.ts';
 import { canSeeTestDays } from '../../src/test-day/data.ts';
 import { useTranslator } from '../../src/ui/i18n.tsx';
 import { useTheme } from '../../src/ui/theme.tsx';
@@ -11,7 +12,8 @@ import { useTheme } from '../../src/ui/theme.tsx';
  * tests are B-503 ("Hoy" and "Mis tests", only for the `player` role); the
  * field test day is B-505 (the staff who read test days); the protocols of
  * the tests are B-415; the coach's field sessions are B-509 (who records
- * participation); the player's consents open from Cuenta.
+ * participation); the staff's quick look before training is B-510; the
+ * player's consents open from Cuenta.
  */
 export default function AppLayout() {
   const theme = useTheme();
@@ -23,6 +25,8 @@ export default function AppLayout() {
   const showTestDays = role !== null && canSeeTestDays(role);
   // Only who records participation (B-509: the coach, the administration) sees the tab.
   const showSessions = role !== null && canRecordParticipation(role);
+  // The quick look before training is a tab for the staff who reads the panel (B-510).
+  const staff = role !== null && canSeeStaffBoard(role);
   return (
     <Tabs
       screenOptions={{
@@ -56,6 +60,10 @@ export default function AppLayout() {
         name="sessions"
         options={{ title: t('coachSession.nav'), ...(showSessions ? {} : { href: null }) }}
       />
+      <Tabs.Screen
+        name="staff"
+        options={{ title: t('nav.staff'), ...(staff ? {} : { href: null }) }}
+      />
       <Tabs.Screen name="protocols" options={{ title: t('nav.protocols') }} />
       <Tabs.Screen name="account" options={{ title: t('nav.account') }} />
       {/* Opened from Inicio by the staff who records tests; not a tab of its own. */}
@@ -68,6 +76,16 @@ export default function AppLayout() {
       <Tabs.Screen name="weekly-cmj" options={{ title: t('weeklyCmj.title'), href: null }} />
       {/* The sheet of one session, opened from Sesiones. */}
       <Tabs.Screen name="session" options={{ title: t('coachSession.nav'), href: null }} />
+      {/* Opened from the board and from a critical push (B-510). */}
+      <Tabs.Screen
+        name="alerts/[alertId]"
+        options={{ title: t('staff.alert.title'), href: null }}
+      />
+      {/* Opened from Cuenta. */}
+      <Tabs.Screen
+        name="notifications"
+        options={{ title: t('staff.notifications.title'), href: null }}
+      />
     </Tabs>
   );
 }

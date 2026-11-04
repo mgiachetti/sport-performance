@@ -13,6 +13,7 @@ import type { HardwareInfo } from '../reaction/installation.ts';
 import type { Platform } from '../state/services.ts';
 import { createNativeSignalPlayer } from './signal-audio.ts';
 import { NATIVE_APP_VERSION, parseAppBuildInfo, type AppBuildInfo } from '../version/index.ts';
+import { createNativePushDevice } from './push.ts';
 import { openNativeLocalDatabase } from './sqlite.ts';
 import type { PreferenceStorage, SecureStorage } from './storage.ts';
 
@@ -121,5 +122,6 @@ export function nativePlatform(config: RuntimeConfig, build: AppBuildInfo): Plat
     openLocalDatabase: () => openNativeLocalDatabase(reportError),
     createSignalPlayer: createNativeSignalPlayer,
     hardware: hardwareInfo(),
+    createPushDevice: createNativePushDevice,
   };
 }

@@ -191,6 +191,21 @@ describe('buildExpoConfig', () => {
     ]);
   });
 
+  it('receives remote pushes with the APNs environment of the variant (B-510)', () => {
+    expect(buildExpoConfig(productionEnv).plugins).toContainEqual([
+      'expo-notifications',
+      { mode: 'production', defaultChannel: 'default', enableBackgroundRemoteNotifications: false },
+    ]);
+    expect(buildExpoConfig({}).plugins).toContainEqual([
+      'expo-notifications',
+      {
+        mode: 'development',
+        defaultChannel: 'default',
+        enableBackgroundRemoteNotifications: false,
+      },
+    ]);
+  });
+
   it('encrypts the local database and registers the background sync (ADR 0069)', () => {
     const config = buildExpoConfig(productionEnv);
     expect(config.plugins).toContainEqual(['expo-sqlite', { useSQLCipher: true }]);

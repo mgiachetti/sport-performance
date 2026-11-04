@@ -135,8 +135,5 @@ export const webPlayerMessagesEsAR = {
   'player.alerts.raisedOn': 'Desde el {date}',
   'player.alerts.resolvedOn': 'Resuelta el {date}',
   'player.alerts.active': 'Activa',
-  'player.alerts.review.open': 'Sin revisar',
-  'player.alerts.review.acknowledged': 'Vista',
-  'player.alerts.review.dismissed': 'Descartada',
   'player.alerts.more': 'Ver más alertas',
 } as const;

@@ -10,6 +10,7 @@ import { runtimeConfigFromEnv } from '../config/runtime-config.ts';
 import { memoryPreferenceStorage, memorySecureStorage } from '../platform/storage.ts';
 import { openLocalDatabase } from '../offline/db/database.ts';
 import { recordingSignalPlayer } from '../ift/signal-player.ts';
+import { unsupportedPushDevice, type PushDevice } from '../notifications/registration.ts';
 import { createAppServices, type Platform } from '../state/services.ts';
 import { createFakeApi, type FakeApi } from './fake-api.ts';
 import { nodeSqliteDriver } from './node-sqlite.ts';
@@ -76,7 +77,7 @@ export function signedInRoutes(api: FakeApi, memberships: readonly MembershipSum
 }
 
 /** The app services against a fake API and in-memory device storage. */
-export function testServices(options: { secure?: Record<string, string> } = {}) {
+export function testServices(options: { secure?: Record<string, string>; push?: PushDevice } = {}) {
   const api = createFakeApi();
   const secure = memorySecureStorage(options.secure);
   const preferences = memoryPreferenceStorage();
@@ -94,6 +95,7 @@ export function testServices(options: { secure?: Record<string, string> } = {}) 
     hardware: { kind: 'phone', model: 'Pixel 9', osVersion: 'Android 16' },
     fetch: api.fetch,
     openLocalDatabase: () => openLocalDatabase(nodeSqliteDriver()),
+    createPushDevice: () => options.push ?? unsupportedPushDevice(),
   };
   const services = createAppServices(platform);
   return { api, secure, preferences, errors, audio, services };
