@@ -286,6 +286,7 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
       'public.club_data_export_forget_player',
       'public.derived_refresh_mark',
       'public.derived_refresh_trigger',
+      'public.file_test_entry_check',
       'public.gym_set_program_guard',
       'public.player_sport_matches',
       'public.sync_change_record',

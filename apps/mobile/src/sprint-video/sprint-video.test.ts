@@ -130,6 +130,7 @@ function videoEntry(attemptNumber: number, voided = false): TestResult['entries'
     values: [],
     issues: [],
     voided: voided ? { at: '2026-11-03T12:05:00.000Z', by: USER.id, reason: 'Mal marcado' } : null,
+    videoFileId: null,
   } as unknown as TestResult['entries'][number];
 }
 

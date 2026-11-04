@@ -93,6 +93,7 @@ export default function AppLayout() {
       />
       {/* Opened from Inicio by the player (B-511); not a tab of its own. */}
       <Tabs.Screen name="external-load" options={{ title: t('externalLoad.title'), href: null }} />
+      <Tabs.Screen name="cmj-video" options={{ title: t('cmjVideo.title'), href: null }} />
     </Tabs>
   );
 }

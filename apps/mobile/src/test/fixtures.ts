@@ -12,6 +12,7 @@ import { openLocalDatabase } from '../offline/db/database.ts';
 import { recordingSignalPlayer } from '../ift/signal-player.ts';
 import { unsupportedPushDevice, type PushDevice } from '../notifications/registration.ts';
 import { createAppServices, type Platform } from '../state/services.ts';
+import { memoryVideoPlatform } from './memory-video-files.ts';
 import { createFakeApi, type FakeApi } from './fake-api.ts';
 import { memorySprintVideoFiles } from './memory-sprint-videos.ts';
 import { nodeSqliteDriver } from './node-sqlite.ts';
@@ -93,6 +94,7 @@ export function testServices(
   const audio = recordingSignalPlayer();
   const sprintVideos = memorySprintVideoFiles();
   for (const path of options.sprintVideos ?? []) sprintVideos.record(path);
+  const videos = memoryVideoPlatform();
   const platform: Platform = {
     config: runtimeConfigFromEnv({ API_BASE_URL: api.baseUrl }, 'sportperformance-dev'),
     build: { platform: 'ios', nativeVersion: '1.0.0', runtimeVersion: null },
@@ -107,7 +109,8 @@ export function testServices(
     openLocalDatabase: () => openLocalDatabase(nodeSqliteDriver()),
     createPushDevice: () => options.push ?? unsupportedPushDevice(),
     sprintVideoFiles: sprintVideos.directory,
+    cmjVideo: videos,
   };
   const services = createAppServices(platform);
-  return { api, secure, preferences, errors, audio, sprintVideos, services };
+  return { api, secure, preferences, errors, audio, sprintVideos, videos, services };
 }

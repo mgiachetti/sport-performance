@@ -11,6 +11,7 @@ import { parseRuntimeConfig, type RuntimeConfig } from '../config/runtime-config
 import type { SentryBuild } from '../observability/sentry-options.ts';
 import type { HardwareInfo } from '../reaction/installation.ts';
 import type { Platform } from '../state/services.ts';
+import { nativeCmjVideoPlatform } from './cmj-video.tsx';
 import { createNativeSignalPlayer } from './signal-audio.ts';
 import { NATIVE_APP_VERSION, parseAppBuildInfo, type AppBuildInfo } from '../version/index.ts';
 import { createNativePushDevice } from './push.ts';
@@ -125,5 +126,6 @@ export function nativePlatform(config: RuntimeConfig, build: AppBuildInfo): Plat
     hardware: hardwareInfo(),
     createPushDevice: createNativePushDevice,
     sprintVideoFiles: nativeSprintVideoFiles,
+    cmjVideo: nativeCmjVideoPlatform,
   };
 }

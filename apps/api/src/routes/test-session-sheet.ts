@@ -457,7 +457,8 @@ export function registerTestSessionSheetRoutes(app: FastifyInstance): void {
         if (decision.allowed) return 'allowed';
         return decision.reason === 'missing_consent' ? 'missing_consent' : 'forbidden';
       };
-      // Filming a player (the sprint by video, B-605): who may, with their image consent.
+      // Filming a player (the sprint by video, B-605; the CMJ video, B-604): who may, with their
+      // image consent (ADR 0044).
       const videoOf = (id: PlayerId): TestDaySheetPlayer['video'] => {
         const context = facts.get(id);
         if (context === undefined) return 'forbidden';

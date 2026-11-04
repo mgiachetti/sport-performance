@@ -276,6 +276,7 @@ export function sprintResult(playerId: string, overrides: Partial<TestResult> = 
         ],
         issues: [],
         voided: null,
+        videoFileId: null,
       },
     ],
     scores: [

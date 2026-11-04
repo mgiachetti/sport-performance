@@ -156,6 +156,8 @@ const testResultAddEntries: Overlay<'test_result.add_entries', TestResult> = (
       values,
       issues: [],
       voided: null,
+      // A video goes up after its attempt is on the server (ADR 0085): it comes with the pull.
+      videoFileId: null,
     });
   }
   return added.length === 0 ? row : { ...row, entries: [...row.entries, ...added] };

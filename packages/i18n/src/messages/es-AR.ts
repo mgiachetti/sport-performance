@@ -1,5 +1,6 @@
 import { gymMessagesEsAR } from './gym.js';
 import { mobileGymMessagesEsAR } from './mobile-gym.js';
+import { mobileCmjVideoMessagesEsAR } from './mobile-cmj-video.js';
 import { mobileMessagesEsAR } from './mobile.js';
 import { webGymMessagesEsAR } from './web-gym.js';
 import { mobileTestDayMessagesEsAR } from './mobile-test-day.js';
@@ -497,6 +498,7 @@ export const sourceMessageFiles = {
   'mobile-sprint-video.ts': mobileSprintVideoMessagesEsAR,
   'mobile-anthropometry.ts': mobileAnthropometryMessagesEsAR,
   'mobile-external-load.ts': mobileExternalLoadMessagesEsAR,
+  'mobile-cmj-video.ts': mobileCmjVideoMessagesEsAR,
   'protocols.ts': protocolMessagesEsAR,
   'web-help.ts': webHelpMessagesEsAR,
   'report.ts': reportMessagesEsAR,
@@ -541,6 +543,8 @@ export const esAR = {
   ...mobileAnthropometryMessagesEsAR,
   // External load reported by the player in the app (B-511)
   ...mobileExternalLoadMessagesEsAR,
+  // CMJ by video in the app (B-604)
+  ...mobileCmjVideoMessagesEsAR,
   ...protocolMessagesEsAR,
   ...webHelpMessagesEsAR,
   // The PDF report of a player (B-602), rendered by the worker

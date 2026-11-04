@@ -6,6 +6,11 @@ import { createQueryClient } from '../api/query-client.ts';
 import { createSessionStore, type SessionStore } from '../auth/session-store.ts';
 import { createBrandingStore, type BrandingStore } from '../branding/club-branding.ts';
 import { createClubTimeZoneStore, type ClubTimeZoneStore } from '../external-load/club-day.ts';
+import {
+  createCmjVideoService,
+  type CmjVideoPlatform,
+  type CmjVideoService,
+} from '../cmj-video/service.ts';
 import { createSecureIftRunStore, type IftRunStore } from '../ift/run-store.ts';
 import { createIftRunner, type IftRunner } from '../ift/runner.ts';
 import type { SignalPlayer } from '../ift/signal-player.ts';
@@ -64,6 +69,8 @@ export interface Platform {
   }) => PushDevice;
   /** The directory of the temporary sprint videos (B-605): the app's cache on the phone. */
   readonly sprintVideoFiles: SprintVideoFiles;
+  /** Files and uploads of the CMJ videos (ADR 0085): `expo-file-system` on the phone. */
+  readonly cmjVideo: CmjVideoPlatform;
 }
 
 export interface AppServices {
@@ -104,6 +111,8 @@ export interface AppServices {
    * at launch and whenever the user or the club changes.
    */
   readonly sprintRecordings: SprintRecordings;
+  /** The CMJ videos filmed on the phone and their uploads (B-604, ADR 0085). */
+  readonly cmjVideos: CmjVideoService;
   readonly reportError: (error: unknown) => void;
   /** Stops listening to the API client (tests; the app lives as long as the process). */
   dispose(): void;
@@ -183,6 +192,14 @@ export function createAppServices(platform: Platform): AppServices {
   const sprintRecordings = createSprintRecordings(platform.sprintVideoFiles);
   // A video left by a crash or a kill mid-marking never outlives the launch.
   sprintRecordings.sweep().catch(reportError);
+  const cmjVideos = createCmjVideoService({
+    platform: platform.cmjVideo,
+    sync,
+    session,
+    api: api.client,
+    randomUUID: platform.randomUUID,
+    reportError,
+  });
 
   const unsubscribe = api.onFailure((event) => {
     if (event.kind === 'update_required') {
@@ -242,6 +259,7 @@ export function createAppServices(platform: Platform): AppServices {
     pushDevice,
     randomUUID: platform.randomUUID,
     sprintRecordings,
+    cmjVideos,
     reportError,
     dispose() {
       push.dispose();
@@ -250,6 +268,7 @@ export function createAppServices(platform: Platform): AppServices {
       unbindSync();
       sync.dispose();
       iftRunner.dispose();
+      cmjVideos.dispose();
     },
   };
 }

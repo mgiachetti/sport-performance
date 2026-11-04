@@ -177,6 +177,7 @@ export function reactionResultDto(input: {
       ],
       issues: [],
       voided: null,
+      videoFileId: null,
     })),
     scores: scores.map((score) => ({
       metricCode: score.metricCode,
