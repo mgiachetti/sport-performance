@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { sortQuerySchema } from '../primitives/conventions.js';
 import {
+  archivePosition,
   createCategory,
   createClub,
+  createPosition,
   endpointErrorCodes,
   listCategories,
+  listPositions,
   updateCategory,
   updateClub,
+  updatePosition,
 } from '../index.js';
 
 describe('club endpoints', () => {
@@ -79,6 +83,53 @@ describe('category endpoints', () => {
     });
     expect(listCategories.query.safeParse({ sort: '-name' }).success).toBe(true);
     expect(listCategories.query.safeParse({ sort: 'id' }).success).toBe(false);
+  });
+});
+
+describe('position endpoints', () => {
+  const create = { sport: 'hockey', code: 'sweeper', label: 'Líbero', lineCode: 'defenders' };
+
+  it('takes a code, a label and a line to add a position', () => {
+    expect(createPosition.body.parse(create)).toEqual(create);
+    for (const body of [
+      { ...create, code: 'Líbero' },
+      { ...create, code: 'sweeper_playerload' },
+      { ...create, label: ' Líbero' },
+      { ...create, label: '' },
+      { ...create, label: 'x'.repeat(41) },
+      { ...create, lineCode: 'keepers' },
+      { sport: 'hockey', code: 'sweeper', lineCode: 'defenders' },
+      { ...create, archivedAt: null },
+    ]) {
+      expect(createPosition.body.safeParse(body).success, JSON.stringify(body)).toBe(false);
+    }
+    expect(endpointErrorCodes(createPosition)).toContain('conflict');
+  });
+
+  it('edits the label (null goes back to the catalog), the line and the order, never the code', () => {
+    expect(updatePosition.body.safeParse({ version: '1', label: null }).success).toBe(true);
+    expect(updatePosition.body.safeParse({ version: '1', lineCode: 'midfielders' }).success).toBe(
+      true,
+    );
+    expect(updatePosition.body.safeParse({ version: '1', code: 'other' }).success).toBe(false);
+    expect(updatePosition.body.safeParse({ version: '1', sport: 'rugby' }).success).toBe(false);
+    expect(updatePosition.body.safeParse({ label: 'Líbero' }).success).toBe(false);
+    expect(endpointErrorCodes(updatePosition)).toEqual(
+      expect.arrayContaining(['not_found', 'conflict']),
+    );
+    expect(endpointErrorCodes(archivePosition)).toContain('not_found');
+  });
+
+  it('lists active positions by default', () => {
+    expect(listPositions.query.parse({})).toEqual({
+      limit: 50,
+      status: 'active',
+      sort: 'sortOrder',
+    });
+    expect(listPositions.query.parse({ status: 'all', sport: 'hockey' })).toMatchObject({
+      status: 'all',
+      sport: 'hockey',
+    });
   });
 });
 

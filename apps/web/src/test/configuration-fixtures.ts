@@ -226,5 +226,9 @@ export function position(code: string, lineCode: string, sortOrder = 0): Positio
     label: null,
     lineCode,
     sortOrder,
+    archivedAt: null,
+    createdAt: AT,
+    updatedAt: AT,
+    version: VERSION,
   };
 }

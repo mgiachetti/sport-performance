@@ -2144,7 +2144,7 @@
                     "$ref": "#/components/schemas/AgeBandCode"
                   },
                   "name": {
-                    "description": "Por defecto, la etiqueta de la franja (`M15`).",
+                    "description": "Por defecto, el nombre de la franja en el deporte (`M15` en rugby, `Sub 15` en hockey).",
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 60,
@@ -18465,7 +18465,7 @@
       "get": {
         "operationId": "listPositions",
         "summary": "Posiciones por deporte",
-        "description": "Todo miembro del club activo. Catálogo sembrado por deporte (B-306).",
+        "description": "Todo miembro del club activo. Catálogo sembrado por deporte (B-306) con lo que el club cambió (B-801). Por defecto solo las activas; para mostrar la posición de una jugadora que ya la tiene archivada, `status=all`.",
         "tags": [
           "categories"
         ],
@@ -18507,6 +18507,21 @@
             "required": false,
             "schema": {
               "$ref": "#/components/schemas/Sport"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "`active` (por defecto), `archived` o `all`.",
+            "schema": {
+              "default": "active",
+              "type": "string",
+              "enum": [
+                "active",
+                "archived",
+                "all"
+              ]
             }
           },
           {
@@ -18555,6 +18570,397 @@
           },
           "403": {
             "$ref": "#/components/responses/Error.forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createPosition",
+        "summary": "Sumar una posición del club",
+        "description": "Solo la administración. Una posición propia dentro de una de las líneas del deporte (por ejemplo \"Líbero\" en `defenders` de hockey), con su texto. El deporte tiene que ser el de una rama habilitada. Idempotente por `clientUuid`; código repetido en el deporte: `conflict`.",
+        "tags": [
+          "categories"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientUuid": {
+                    "$ref": "#/components/schemas/ClientUuid"
+                  },
+                  "sport": {
+                    "$ref": "#/components/schemas/Sport"
+                  },
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "description": "Código estable en inglés `snake_case`, único en el deporte.",
+                    "examples": [
+                      "sweeper"
+                    ]
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40,
+                    "description": "Texto propio del club.",
+                    "examples": [
+                      "Líbero",
+                      "Volante central"
+                    ]
+                  },
+                  "lineCode": {
+                    "$ref": "#/components/schemas/PositionLineCode"
+                  },
+                  "sortOrder": {
+                    "description": "Por defecto, después de las posiciones del deporte.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 32767
+                  }
+                },
+                "required": [
+                  "sport",
+                  "code",
+                  "label",
+                  "lineCode"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Posición creada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Position"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error.conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/positions/{positionId}": {
+      "patch": {
+        "operationId": "updatePosition",
+        "summary": "Editar una posición",
+        "description": "Solo la administración. Se cambian el texto del club (`null` vuelve al del catálogo; una posición propia del club no tiene texto de catálogo y siempre lleva el suyo), la línea (una del deporte) y el orden; el deporte y el código no. Una posición archivada no se edita: se restaura primero (`conflict`). `version` desactualizada: `conflict`.",
+        "tags": [
+          "categories"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "positionId",
+            "in": "path",
+            "required": true,
+            "description": "Id de posición (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "description": "Versión que el cliente leyó (`version` de la respuesta). Si no es la actual: `409 conflict`.",
+                    "$ref": "#/components/schemas/ResourceVersion"
+                  },
+                  "label": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 40,
+                        "description": "Texto propio del club.",
+                        "examples": [
+                          "Líbero",
+                          "Volante central"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "lineCode": {
+                    "$ref": "#/components/schemas/PositionLineCode"
+                  },
+                  "sortOrder": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 32767,
+                    "description": "Posición en las listas (ascendente)."
+                  }
+                },
+                "required": [
+                  "version"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "La posición actualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Position"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error.conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/positions/{positionId}/archive": {
+      "post": {
+        "operationId": "archivePosition",
+        "summary": "Archivar una posición",
+        "description": "Solo la administración. Deja de ofrecerse y de aceptarse para asignaciones nuevas; quien ya la tiene la conserva. Idempotente.",
+        "tags": [
+          "categories"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "positionId",
+            "in": "path",
+            "required": true,
+            "description": "Id de posición (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Posición archivada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Position"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/positions/{positionId}/restore": {
+      "post": {
+        "operationId": "restorePosition",
+        "summary": "Restaurar una posición",
+        "description": "Solo la administración. Idempotente.",
+        "tags": [
+          "categories"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "positionId",
+            "in": "path",
+            "required": true,
+            "description": "Id de posición (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Posición restaurada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Position"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
           },
           "426": {
             "$ref": "#/components/responses/Error.app_update_required"
@@ -39051,13 +39457,19 @@
             "anyOf": [
               {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "maxLength": 40,
+                "description": "Texto propio del club.",
+                "examples": [
+                  "Líbero",
+                  "Volante central"
+                ]
               },
               {
                 "type": "null"
               }
             ],
-            "description": "Texto propio del club, si lo tiene."
+            "description": "Texto propio del club, si lo tiene; si no, el del catálogo."
           },
           "lineCode": {
             "anyOf": [
@@ -39079,6 +39491,40 @@
             "minimum": 0,
             "maximum": 32767,
             "description": "Posición en las listas (ascendente)."
+          },
+          "archivedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cuándo se archivó; `null` si está activo."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "version": {
+            "$ref": "#/components/schemas/ResourceVersion"
           }
         },
         "required": [
@@ -39087,8 +39533,23 @@
           "code",
           "label",
           "lineCode",
-          "sortOrder"
+          "sortOrder",
+          "archivedAt",
+          "createdAt",
+          "updatedAt",
+          "version"
         ]
+      },
+      "PositionLineCode": {
+        "type": "string",
+        "enum": [
+          "forwards",
+          "backs",
+          "goalkeepers",
+          "defenders",
+          "midfielders"
+        ],
+        "description": "Línea de la posición, una de las del deporte (rugby: `forwards`, `backs`; hockey: `goalkeepers`, `defenders`, `midfielders`, `forwards`). Agrupa referencias y percentiles."
       },
       "PositionPage": {
         "type": "object",

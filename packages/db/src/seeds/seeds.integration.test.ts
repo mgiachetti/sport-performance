@@ -167,6 +167,7 @@ describe.skipIf(!hasDatabase)('seeds (Postgres 16)', () => {
       'goalkeepers',
     );
     expect(rows.filter((r) => r.sport === 'hockey')).toHaveLength(4);
+    expect(rows.every((r) => r.archivedAt === null && r.label === null)).toBe(true);
   });
 
   it('seeds M13–M19 for men’s rugby and women’s hockey', async () => {
@@ -181,6 +182,14 @@ describe.skipIf(!hasDatabase)('seeds (Postgres 16)', () => {
       );
       expect(branch.find((r) => r.ageBandCode === 'm15')?.defaultStage).toBe('development');
     }
+    // Names per sport (B-801): the band label for rugby, "Sub" for hockey.
+    const names = (sport: string) =>
+      rows
+        .filter((r) => r.sport === sport)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((r) => r.name);
+    expect(names('rugby')).toEqual(['M13', 'M14', 'M15', 'M16', 'M17', 'M19']);
+    expect(names('hockey')).toEqual(['Sub 13', 'Sub 14', 'Sub 15', 'Sub 16', 'Sub 17', 'Sub 19']);
     expect(rows.some((r) => r.sport === 'rugby' && r.sex === 'female')).toBe(false);
   });
 
@@ -324,7 +333,7 @@ describe.skipIf(!hasDatabase)('seeds (Postgres 16)', () => {
       .where(and(eq(alertRule.clubId, clubId), eq(alertRule.code, 'acwr_low')));
     await t.db
       .update(category)
-      .set({ name: 'Sub 15' })
+      .set({ name: 'Quinta' })
       .where(and(eq(category.clubId, clubId), eq(category.ageBandCode, 'm15')));
     const day = (value: string) => value as LocalDate;
     await t.db
@@ -377,7 +386,7 @@ describe.skipIf(!hasDatabase)('seeds (Postgres 16)', () => {
       .select()
       .from(category)
       .where(and(eq(category.clubId, clubId), eq(category.ageBandCode, 'm15')));
-    expect(m15.map((c) => c.name)).toEqual(['Sub 15']);
+    expect(m15.map((c) => c.name)).toEqual(['Quinta']);
     const [mobility] = await t.db
       .select()
       .from(batteryConfig)

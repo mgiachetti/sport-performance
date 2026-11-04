@@ -10,7 +10,6 @@ import {
   formatLocalDate,
   formatNumber,
   formatUnit,
-  isMessageKey,
   unitLabelEsAr,
   type Translator,
 } from '@sport-performance/i18n';
@@ -18,7 +17,8 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState, type SubmitEvent } from 'react';
 import { useServices } from '../app/services';
 import { useActiveClub } from '../club/active-club';
-import { translate, useT } from '../i18n/i18n';
+import { lineName, positionName } from '../lib/positions';
+import { useT } from '../i18n/i18n';
 import { Button, ErrorNotice, Loading, Notice, TextField } from '../ui/components';
 import { SelectField } from '../ui/fields';
 import {
@@ -31,21 +31,6 @@ import { metricLabel, newClientUuid, parseDateInput, parseDecimal, useClubToday 
 
 type T = Translator['t'];
 type Scope = 'squad' | 'line' | 'position';
-
-/** The catalog's text for a code of the sport, or the code itself when there is none. */
-function codeLabel(t: T, key: string, code: string): string {
-  return isMessageKey(key) ? translate(t, key) : code;
-}
-
-/** The club's label of the position, else the catalog's name of the default one, else its code. */
-function positionName(t: T, position: Pick<Position, 'sport' | 'code' | 'label'>): string {
-  if (position.label !== null) return position.label;
-  return codeLabel(t, `configuration.position.${position.sport}.${position.code}`, position.code);
-}
-
-function lineName(t: T, sport: Sport, line: string): string {
-  return codeLabel(t, `configuration.line.${sport}.${line}`, line);
-}
 
 function scopeText(t: T, reference: ReferenceValue, positions: readonly Position[]): string {
   if (reference.scope === 'position') {
@@ -471,10 +456,12 @@ function ReferenceCreator(props: {
               disabled={busy}
               options={[
                 { value: '', label: '' },
-                ...props.positions.map((position) => ({
-                  value: position.code,
-                  label: positionName(t, position),
-                })),
+                ...props.positions
+                  .filter((position) => position.archivedAt === null)
+                  .map((position) => ({
+                    value: position.code,
+                    label: positionName(t, position),
+                  })),
               ]}
               onChange={(event) => {
                 setPositionCode(event.currentTarget.value);

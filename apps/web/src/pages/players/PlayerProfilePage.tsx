@@ -17,7 +17,7 @@ import { useT } from '../../i18n/i18n';
 import { useCan } from '../../permissions/permissions';
 import { ErrorNotice, Loading, Notice, Page } from '../../ui/components';
 import { GymSection } from '../../gym/GymSection';
-import { humanizeCode } from './format';
+import { positionName } from '../../lib/positions';
 import {
   availabilityQuery,
   maturationQuery,
@@ -177,9 +177,7 @@ function ProfileBody(props: { player: Player }) {
             </li>
           )}
           <li>{categoryName === '' ? t('player.noCategory') : categoryName}</li>
-          {mainPosition === undefined ? null : (
-            <li>{mainPosition.label ?? humanizeCode(mainPosition.code)}</li>
-          )}
+          {mainPosition === undefined ? null : <li>{positionName(t, mainPosition)}</li>}
           <li>
             {t('player.age', {
               age: formatNumber(decimalAgeYears(player.birthDate, today), { decimals: 1 }),
