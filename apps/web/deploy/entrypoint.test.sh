@@ -8,6 +8,8 @@ failures=0
 
 # run <env assignments...>: prints "API_ORIGIN|FILES_ORIGIN" or "error: <message>".
 run() {
+  # The inner shell expands the variables the entrypoint exported.
+  # shellcheck disable=SC2016
   if out="$(env -i PATH="$PATH" "$@" sh "$entrypoint" sh -c 'printf "%s|%s" "$API_ORIGIN" "$FILES_ORIGIN"' 2>&1)"; then
     printf '%s' "$out"
   else
