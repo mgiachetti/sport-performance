@@ -10720,6 +10720,67 @@
         }
       }
     },
+    "/v1/me/player": {
+      "get": {
+        "operationId": "getMyPlayer",
+        "summary": "Mi ficha para la app del jugador",
+        "description": "Solo el rol `player`, sobre su propia ficha (`player_profile.read`). La app la guarda en el teléfono para cargar bienestar y RPE sin conexión: etapa e ítems de bienestar de hoy, zona horaria del club y lo que la matriz le deja hacer. Otro rol o un jugador sin ficha: `forbidden`.",
+        "tags": [
+          "me",
+          "players"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mi ficha.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyPlayer"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
     "/v1/me/push-token": {
       "put": {
         "operationId": "registerMyPushToken",
@@ -11112,6 +11173,67 @@
           },
           "400": {
             "$ref": "#/components/responses/Error.bad_request.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/me/test-days": {
+      "get": {
+        "operationId": "listMyTestDays",
+        "summary": "Mis próximos días de test",
+        "description": "Solo el rol `player`, sobre sí mismo (`player_profile.read`). Los días de test programados o en curso de las categorías en las que está ese día, desde hoy (zona del club) y hasta 120 días, como mucho 20, por fecha. Cada uno con su ventana, el lugar y los tests que la batería le programa según su etapa. Nada de otros jugadores. Otro rol: `forbidden`.",
+        "tags": [
+          "me",
+          "calendar"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mis próximos días de test.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyTestDays"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
           },
           "401": {
             "$ref": "#/components/responses/Error.unauthenticated"
@@ -30637,6 +30759,262 @@
           "zero_variance"
         ],
         "description": "`ok`, `insufficient_history` (la ventana empieza antes de la historia) o `zero_variance` (todos los días con la misma carga)."
+      },
+      "MyPlayer": {
+        "type": "object",
+        "properties": {
+          "player": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de jugador/a (UUID, RFC 9562)."
+              },
+              "firstName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "lastName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "sport": {
+                "description": "Deporte de su categoría vigente.",
+                "$ref": "#/components/schemas/Sport"
+              },
+              "sex": {
+                "$ref": "#/components/schemas/Sex"
+              }
+            },
+            "required": [
+              "id",
+              "firstName",
+              "lastName",
+              "sport",
+              "sex"
+            ]
+          },
+          "today": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Hoy en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "timeZone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Zona horaria del club: la app calcula \"hoy\" con ella también sin conexión.",
+            "examples": [
+              "America/Argentina/Buenos_Aires"
+            ]
+          },
+          "ofAge": {
+            "type": "boolean",
+            "description": "Mayor de edad hoy (firma sus consentimientos)."
+          },
+          "categoryId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de categoría (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Categoría vigente hoy; `null` si no tiene ninguna."
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Etapa de hoy con la que el servidor valida el bienestar (la fijada por el staff o la de su categoría); `null` sin categoría ni etapa."
+          },
+          "wellness": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "itemCount": {
+                    "$ref": "#/components/schemas/WellnessItemCount"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/WellnessItem"
+                    },
+                    "description": "Ítems a preguntar, en orden."
+                  }
+                },
+                "required": [
+                  "itemCount",
+                  "items"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Conjunto de ítems de hoy; `null` sin etapa."
+          },
+          "permissions": {
+            "type": "object",
+            "properties": {
+              "submitWellness": {
+                "type": "boolean",
+                "description": "Puede cargar su bienestar (necesita el consentimiento de datos vigente)."
+              },
+              "submitRpe": {
+                "type": "boolean",
+                "description": "Puede cargar su RPE (ídem)."
+              },
+              "readPercentiles": {
+                "type": "boolean",
+                "description": "Puede ver sus percentiles (desde M15, según su etapa y la franja de su categoría)."
+              }
+            },
+            "required": [
+              "submitWellness",
+              "submitRpe",
+              "readPercentiles"
+            ],
+            "description": "Lo que la matriz de permisos le deja hacer hoy."
+          }
+        },
+        "required": [
+          "player",
+          "today",
+          "timeZone",
+          "ofAge",
+          "categoryId",
+          "stage",
+          "wellness",
+          "permissions"
+        ]
+      },
+      "MyTestDay": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de día de test (UUID, RFC 9562)."
+          },
+          "scheduledOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "status": {
+            "description": "Solo `scheduled` (programado) o `in_progress` (en curso).",
+            "$ref": "#/components/schemas/TestSessionStatus"
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "testWindow": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Id de ventana de tests (UUID, RFC 9562)."
+                  },
+                  "number": {
+                    "$ref": "#/components/schemas/TestWindowNumber"
+                  },
+                  "label": {
+                    "type": "string",
+                    "enum": [
+                      "V1",
+                      "V2",
+                      "V3",
+                      "V4"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "number",
+                  "label"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ventana del día de test; `null` fuera de ventana."
+          },
+          "testCodes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Código del test (`sprint_40`).",
+              "examples": [
+                "sprint_40"
+              ]
+            },
+            "description": "Tests que la batería le programa ese día según su etapa, en el orden de la batería. Vacía si la batería no programa ninguno para él/ella."
+          }
+        },
+        "required": [
+          "id",
+          "scheduledOn",
+          "status",
+          "location",
+          "testWindow",
+          "testCodes"
+        ]
+      },
+      "MyTestDays": {
+        "type": "object",
+        "properties": {
+          "today": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MyTestDay"
+            }
+          }
+        },
+        "required": [
+          "today",
+          "items"
+        ]
       },
       "MyTrainingSession": {
         "type": "object",

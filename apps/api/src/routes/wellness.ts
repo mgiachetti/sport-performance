@@ -218,7 +218,7 @@ async function loadPlayerFacts(
  * day (a staff pin first), else the youngest default stage of the
  * categories the player is in that day (domain `wellnessStageOn`).
  */
-async function stageOn(
+export async function wellnessStageOf(
   db: TenantDatabase,
   clubId: ClubId,
   playerId: PlayerId,
@@ -359,7 +359,7 @@ export function registerWellnessRoutes(app: FastifyInstance): void {
       const { clubId } = caller.membership;
       const today = await clubToday(db);
       const facts = await submittingPlayer(db, permissions, clubId, today);
-      const stage = await stageOn(db, clubId, facts.id, today);
+      const stage = await wellnessStageOf(db, clubId, facts.id, today);
       if (stage === null) {
         throw new HttpError('conflict', 'The player has no stage nor category today');
       }
@@ -420,7 +420,7 @@ export function registerWellnessRoutes(app: FastifyInstance): void {
           ],
         });
       }
-      const stage = await stageOn(db, clubId, facts.id, day);
+      const stage = await wellnessStageOf(db, clubId, facts.id, day);
       if (stage === null) {
         throw new HttpError('conflict', 'The player has no stage nor category on that day');
       }

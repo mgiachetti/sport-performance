@@ -154,7 +154,8 @@ export interface SyncEngineOptions {
 export const ACKED_OVERLAY_MAX_MS = 2 * 60_000;
 /** Coalesces the writes of one screen into one push. */
 export const ENQUEUE_SYNC_DELAY_MS = 1_000;
-const OWNER_KEY = 'owner.userId';
+/** `device_meta` key of the user whose data the device holds (wiped on sign-out). */
+export const OWNER_KEY = 'owner.userId';
 /** Pull pages per cycle, a guard against a server that never says `hasMore: false`. */
 export const MAX_PULL_PAGES = 1_000;
 

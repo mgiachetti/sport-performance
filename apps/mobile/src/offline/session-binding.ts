@@ -1,7 +1,8 @@
 import type { SessionController, SessionState } from '../state/session-controller.ts';
 import type { SyncEngine, SyncScopeRef } from './engine.ts';
 
-function scopeOf(state: SessionState): SyncScopeRef | null {
+/** The membership a session acts in (`null` signed out, choosing a club or unavailable). */
+export function syncScopeOf(state: SessionState): SyncScopeRef | null {
   if (state.status !== 'signedIn' || state.activeMembership === null) return null;
   return { membershipId: state.activeMembership.id, userId: state.user.id };
 }
@@ -38,7 +39,7 @@ export function bindSyncToSession(
       state.notice === null &&
       (previous.status === 'signedIn' || previous.status === 'unavailable');
     previous = state;
-    const scope = scopeOf(state);
+    const scope = syncScopeOf(state);
     run(async () => {
       await engine.setScope(scope);
       if (signedOutOnPurpose) await engine.wipe();

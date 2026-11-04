@@ -138,6 +138,7 @@ import {
   revokeInvitation,
 } from './invitations.js';
 import { getMe, listMyMemberships } from './me.js';
+import { getMyPlayer, listMyTestDays } from './me-player.js';
 import {
   getPlayerAvailability,
   getPlayerDailyMonitoring,
@@ -281,6 +282,7 @@ export * from './club-data-exports.js';
 export * from './health.js';
 export * from './invitations.js';
 export * from './me.js';
+export * from './me-player.js';
 export * from './notifications.js';
 export * from './reference-values.js';
 export * from './roster-imports.js';
@@ -316,6 +318,8 @@ export const apiEndpoints = {
   signOut,
   getMe,
   listMyMemberships,
+  getMyPlayer,
+  listMyTestDays,
   listMySessions,
   revokeMySession,
   revokeMyOtherSessions,

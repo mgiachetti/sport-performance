@@ -166,4 +166,30 @@ export const syncIssue = sqliteTable(
   ],
 );
 
-export const localSchema = { deviceMeta, syncScope, syncedRow, mutation, syncIssue };
+/**
+ * Answers of the API reads that do not travel by the sync (B-503, ADR 0074):
+ * the player's profile, upcoming test days, sessions with their RPE window,
+ * percentiles and consents. The last answer of each read, by membership, so
+ * the screens open without signal; deleted with the membership.
+ */
+export const cachedRead = sqliteTable(
+  'cached_read',
+  {
+    membershipId: text('membership_id').notNull(),
+    /** Which read (`me.player`, `me.testDays`…), with its parameters. */
+    key: text('key').notNull(),
+    /** The DTO of the endpoint (JSON). */
+    data: text('data').notNull(),
+    fetchedAt: integer('fetched_at').notNull(),
+  },
+  (table) => [
+    primaryKey({ name: 'cached_read_pk', columns: [table.membershipId, table.key] }),
+    foreignKey({
+      name: 'cached_read_scope_fk',
+      columns: [table.membershipId],
+      foreignColumns: [syncScope.membershipId],
+    }).onDelete('cascade'),
+  ],
+);
+
+export const localSchema = { deviceMeta, syncScope, syncedRow, mutation, syncIssue, cachedRead };

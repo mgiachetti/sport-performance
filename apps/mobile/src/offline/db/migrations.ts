@@ -79,4 +79,16 @@ export const LOCAL_MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX sync_issue_scope_idx ON sync_issue (membership_id, id);
   `,
+  // 2. Cached API reads of the player app (B-503).
+  `
+  CREATE TABLE cached_read (
+    membership_id TEXT NOT NULL,
+    key TEXT NOT NULL,
+    data TEXT NOT NULL,
+    fetched_at INTEGER NOT NULL,
+    CONSTRAINT cached_read_pk PRIMARY KEY (membership_id, key),
+    CONSTRAINT cached_read_scope_fk FOREIGN KEY (membership_id)
+      REFERENCES sync_scope (membership_id) ON DELETE CASCADE
+  );
+  `,
 ];

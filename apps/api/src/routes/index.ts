@@ -27,6 +27,7 @@ import {
 import { registerHealthRoutes, type HealthOptions } from './health.js';
 import { registerInvitationRoutes } from './invitations.js';
 import { registerMeRoutes } from './me.js';
+import { registerMePlayerRoutes } from './me-player.js';
 import { registerNotificationRoutes } from './notifications.js';
 import { registerMemberRoutes } from './members.js';
 import { registerOpenApiRoute } from './openapi.js';
@@ -68,6 +69,8 @@ export const IMPLEMENTED_ENDPOINTS = [
   'signOut',
   'getMe',
   'listMyMemberships',
+  'getMyPlayer',
+  'listMyTestDays',
   'listMySessions',
   'revokeMySession',
   'revokeMyOtherSessions',
@@ -317,6 +320,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerPlayerProfileRoutes(app);
   registerPlayerReportRoutes(app);
   registerCategoryReportRoutes(app);
+  registerMePlayerRoutes(app);
   registerSeasonRolloverRoutes(app);
   registerCalendarRoutes(app);
   registerTrainingSessionRoutes(app);
