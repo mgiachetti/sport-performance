@@ -33,7 +33,7 @@ import {
 import type { LocalRow, QueuedMutation } from '../offline/local-store.ts';
 
 /**
- * The field test day (B-505, ADR 0075) as pure functions: what each station
+ * The field test day (B-505, ADR 0076) as pure functions: what each station
  * shows for each player — the attempts already saved on the server and the
  * ones still in this phone's queue, the best one, the previous result — and
  * the writes each action queues. Attempts are append-only (ADR 0015): a new
@@ -307,7 +307,9 @@ export function fieldResults(input: {
         const local = byId.get(entry.id);
         if (local === undefined) return entry;
         laid.add(entry.id);
-        return local;
+        // The row's state of the attempt stays: one voided on the server (by
+        // another evaluator) is never shown as valid nor counted as best.
+        return { ...local, voided: entry.voided };
       });
       result.entries.push(...added.filter((e) => !laid.has(e.id)));
       touch(result, queued);
@@ -496,7 +498,7 @@ const isNonEmptyString = (value: unknown): value is string =>
   typeof value === 'string' && value !== '';
 
 /**
- * The settings of a station as stored on this phone (ADR 0075), each one
+ * The settings of a station as stored on this phone (ADR 0076), each one
  * optional; `null` when the stored document no longer fits (another build).
  * Whether each value still fits the station is checked by
  * {@link stationSettingsFor} when it is read back.
@@ -771,7 +773,9 @@ export function planNotDone(
   if (!row.applicable && reason !== 'not_applicable_to_stage') {
     return problem({ kind: 'notApplicable' });
   }
-  const text = note.trim();
+  // The note goes only with «other» (as on the web): one typed for another
+  // reason and left behind when the reason changed is not sent.
+  const text = reason === 'other' ? note.trim() : '';
   if (reason === 'other' && text === '') return problem({ kind: 'note' });
   if (row.validAttemptCount > 0) return problem({ kind: 'hasAttempts' });
   if (row.primary !== null) {

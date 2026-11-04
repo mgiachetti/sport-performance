@@ -20,7 +20,7 @@ export interface ReadSchema<T> {
  * the encrypted local database by membership: the screen shows the last one
  * without signal, and signing out (or another user) deletes them with the
  * membership, like every synced row. The field test day keeps its sheets,
- * the club context and the settings of each station here too (ADR 0075).
+ * the club context and the settings of each station here too (ADR 0076).
  */
 export interface ReadCache {
   /**
@@ -48,7 +48,6 @@ export interface ReadCache {
   ): Promise<Map<string, CachedValue<T>>>;
   /** Keeps `value` under `key` (`fetchedAt` defaults to now). */
   put(scope: SyncScopeRef, key: string, value: unknown, fetchedAt?: number): Promise<void>;
-  remove(membershipId: string, key: string): Promise<void>;
 }
 
 /** Between the name of a read and its parameters in a cache key. */
@@ -215,13 +214,6 @@ export function createReadCache(database: LocalDatabase, options: ReadCacheOptio
             target: [cachedRead.membershipId, cachedRead.key],
             set: { data: JSON.stringify(value), fetchedAt },
           });
-      });
-    },
-    async remove(membershipId, key) {
-      await database.write(async (db) => {
-        await db
-          .delete(cachedRead)
-          .where(and(eq(cachedRead.membershipId, membershipId), eq(cachedRead.key, key)));
       });
     },
   };

@@ -1043,11 +1043,13 @@ function PlayerCard({
                     value={reason}
                     onChange={setReason}
                   />
-                  <TextField
-                    label={t('testDay.note.label', { player: name })}
-                    value={note}
-                    onChangeText={setNote}
-                  />
+                  {reason === 'other' ? (
+                    <TextField
+                      label={t('testDay.note.label', { player: name })}
+                      value={note}
+                      onChangeText={setNote}
+                    />
+                  ) : null}
                   {row.primary !== null ? (
                     <TextField
                       label={t('fieldTest.changeReason.label')}

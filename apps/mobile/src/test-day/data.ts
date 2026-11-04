@@ -28,7 +28,7 @@ import {
 
 /**
  * Reading and writing the field test day through the local database
- * (ADR 0069, ADR 0075): the days come from the synced `test_session` rows,
+ * (ADR 0069, ADR 0076): the days come from the synced `test_session` rows,
  * the sheet of each day and the club's context are cached reads, and every
  * write goes through the sync queue. Nothing here talks to the API but the
  * refreshes of the cached reads.

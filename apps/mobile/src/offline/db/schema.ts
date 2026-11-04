@@ -170,7 +170,7 @@ export const syncIssue = sqliteTable(
  * Answers of the API reads that do not travel by the sync (B-503, ADR 0074):
  * the player's profile, upcoming test days, sessions with their RPE window,
  * percentiles and consents; the sheet of a test day, the club's categories and
- * time zone and the settings of a station on this phone (B-505, ADR 0075). The
+ * time zone and the settings of a station on this phone (B-505, ADR 0076). The
  * last answer of each read, by membership, so the screens open without signal;
  * deleted with the membership.
  */

@@ -259,6 +259,39 @@ describe('results served by the server', () => {
     expect(vmax?.value).toBeCloseTo(20 / 2.4, 6);
   });
 
+  it('laid by the local store keep the row voiding: one voided on the server is not valid nor best', () => {
+    const sheet = sheetFixture();
+    const served = sprintResult(ANA_ID);
+    const [ana] = rowsOf(sheet, SPRINT, [], [row(served)]);
+    const added = writesOf(
+      planAttempt(context(sheet), must(ana), { split20S: '3,0', split40S: '4,9' }),
+    );
+    const write = must(added[0]);
+    if (write.op !== 'test_result.add_entries') throw new Error('add_entries expected');
+    const queue = fromWrites(added);
+    const laid = applyOverlay(write.op, served, must(queue[0]).input, {
+      enqueuedAt: Date.parse(NOW),
+    }) as TestResult;
+    // Another evaluator voided the queued attempt; the row came back with it voided.
+    const voidedRow: TestResult = {
+      ...laid,
+      entries: laid.entries.map((entry, i) =>
+        i === laid.entries.length - 1
+          ? {
+              ...entry,
+              voided: { at: NOW, by: null, reason: 'Salida en falso' },
+            }
+          : entry,
+      ),
+    };
+    const [after] = rowsOf(sheet, SPRINT, queue, [{ ...row(voidedRow), pending: true }]);
+    expect(after?.attempts).toHaveLength(2);
+    expect(after?.attempts[1]?.voided).toBe(true);
+    expect(after?.attempts[1]?.voidReason).toBe('Salida en falso');
+    expect(after?.attempts[1]?.bestOf).toEqual([]);
+    expect(after?.validAttemptCount).toBe(1);
+  });
+
   it('of several evaluators show together; new attempts go to the served one and never reuse a number', () => {
     const sheet = sheetFixture();
     const served = sprintResult(ANA_ID, { createdAt: '2026-04-14T12:30:00.000Z' });
@@ -405,6 +438,17 @@ describe('not done', () => {
       viewer: 'medical',
     });
     expect(medical[0]?.notDoneReason).toBe('injured');
+  });
+
+  it('sends the note only with «other»', () => {
+    const sheet = sheetFixture();
+    const [ana] = rowsOf(sheet);
+    const [injured] = writesOf(planNotDone(context(sheet), must(ana), 'injured', 'quedó escrita'));
+    if (injured?.op !== 'test_session.record_results') throw new Error('record_results expected');
+    expect(injured.input.body.results[0]).not.toHaveProperty('notDoneNote');
+    const [other] = writesOf(planNotDone(context(sheet), must(ana), 'other', ' viajó '));
+    if (other?.op !== 'test_session.record_results') throw new Error('record_results expected');
+    expect(other.input.body.results[0]).toMatchObject({ notDoneNote: 'viajó' });
   });
 
   it('turns into done with a reason before the first attempt, and back only without valid attempts', () => {

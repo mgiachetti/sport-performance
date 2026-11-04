@@ -57,7 +57,7 @@ export interface StationView {
 }
 
 /**
- * What the field test day screens do, outside React (ADR 0075): every read
+ * What the field test day screens do, outside React (ADR 0076): every read
  * from the local database, the cached reads refreshed when there is a
  * signal, and every write through the sync queue.
  */

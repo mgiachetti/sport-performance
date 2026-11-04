@@ -235,7 +235,7 @@ describe('RPE the morning after, without signal', () => {
   });
 });
 
-// ─── Documents read with their contract (the field test day, ADR 0075) ──────────────
+// ─── Documents read with their contract (the field test day, ADR 0076) ──────────────
 
 const numberBox: ReadSchema<{ n: number }> = {
   safeParse: (value) =>
@@ -261,7 +261,7 @@ async function documents() {
   };
 }
 
-describe('documents kept with their contract (ADR 0075)', () => {
+describe('documents kept with their contract (ADR 0076)', () => {
   it('replace the document whole, per membership, with when it was read', async () => {
     const { cache, advance, actAs } = await documents();
     await cache.put(SCOPE, 'k', { n: 1 });
@@ -274,8 +274,6 @@ describe('documents kept with their contract (ADR 0075)', () => {
       fetchedAt: 1_500,
     });
     expect((await cache.get(OTHER_CLUB.membershipId, 'k', numberBox))?.value).toEqual({ n: 3 });
-    await cache.remove(SCOPE.membershipId, 'k');
-    expect(await cache.get(SCOPE.membershipId, 'k', numberBox)).toBeNull();
   });
 
   it('are a miss when they no longer match their contract', async () => {
