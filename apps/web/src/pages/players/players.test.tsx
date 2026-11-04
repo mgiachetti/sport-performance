@@ -7,15 +7,12 @@ import {
   parseUuid,
   type LocalDate,
 } from '@sport-performance/domain';
-import { configure, screen, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { apiError, type FakeHandlers } from '../../test/fake-api';
 import * as fixtures from '../../test/fixtures';
 import { renderApp, signedIn } from '../../test/render-app';
 import { alertMessageValues, formatAlertValue } from './format';
-
-// The profile mounts the whole app and six blocks: room for a busy CI runner.
-configure({ asyncUtilTimeout: 5000 });
 
 const AT = '2026-11-01T12:00:00.000Z';
 const VERSION = '1793586338688123';
