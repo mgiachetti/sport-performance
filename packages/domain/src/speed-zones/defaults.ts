@@ -109,15 +109,15 @@ export const DEFAULT_SPEED_ZONE_SOURCES: Readonly<
         "Bradley PS, Vescovi JD. Velocity thresholds for women's soccer matches: sex specificity " +
         'dictates high-speed-running and sprinting thresholds - Female Athletes in Motion (FAiM). ' +
         'Int J Sports Physiol Perform. 2015;10(1):112-116.',
-      // Recorded when the article is checked (see the notes).
-      doi: null,
+      doi: '10.1123/ijspp.2014-0212',
       errata: [],
       verification: 'unverified',
       verificationNotes:
         'Bounds of 12.5, 19.0 and 22.5 km/h taken from secondary reproductions of FAiM. ' +
         "Park LAF, Scott D, Lovell R. Velocity zone classification in elite women's football: " +
-        'where do we draw the lines? Sci Med Footb. 2019;3(1):21-28 derives thresholds of the ' +
-        'same order. Pending: record the DOIs, compare with both original articles, and with the ' +
+        'where do we draw the lines? Sci Med Footb. 2019;3(1):21-28 ' +
+        '(doi:10.1080/24733938.2018.1517947) derives thresholds of the ' +
+        'same order. Pending: confirm the DOIs, compare with both original articles, and with the ' +
         "velocity bands of the club's women's first team, before production.",
     },
   },

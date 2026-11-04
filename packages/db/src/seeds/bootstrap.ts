@@ -161,6 +161,7 @@ export async function bootstrapClub(
   const validFrom = validateOptions(options);
   const { clubId, branches } = options;
   const sports = [...new Set(branches.map((b) => b.sport))];
+  const sexes = [...new Set(branches.map((b) => b.sex))];
 
   // Validate the domain defaults before writing anything.
   const alertRules = parseAlertRuleSet(DEFAULT_ALERT_RULES);
@@ -175,12 +176,12 @@ export async function bootstrapClub(
       zoneSet: DEFAULT_SPEED_ZONE_SETS[kind],
     });
   }
-  for (const branch of branches) {
-    for (const zoneSet of sexSpecificZoneSets(branch.sex)) {
+  for (const sex of sexes) {
+    for (const zoneSet of sexSpecificZoneSets(sex)) {
       validateSpeedZoneConfig({
         clubId,
         sport: null,
-        sex: branch.sex,
+        sex,
         playerId: null,
         validFrom,
         validTo: null,
@@ -429,7 +430,7 @@ export async function bootstrapClub(
           )
       ).map((z) => `${String(z.sex)}:${z.kind}`),
     );
-    const sexZoneRows = [...new Set(branches.map((b) => b.sex))].flatMap((sex) =>
+    const sexZoneRows = sexes.flatMap((sex) =>
       sexSpecificZoneSets(sex)
         .filter((zoneSet) => !existingSexZones.has(`${sex}:${zoneSet.kind}`))
         .map((zoneSet) => ({

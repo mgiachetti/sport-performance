@@ -66,6 +66,7 @@ describe('sex-specific default zones (B-804)', () => {
         expect(source !== undefined, `${sex} ${kind}`).toBe(hasSet);
         if (source === undefined) continue;
         expect(source.citation).toMatch(/Bradley PS, Vescovi JD/);
+        expect(source.doi).toMatch(/^10\.\d{4,}\//);
         expect(source.verification).toBe('unverified');
         expect(source.verificationNotes).toMatch(/before production/);
       }

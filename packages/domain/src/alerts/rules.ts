@@ -177,7 +177,7 @@ export function alertSuggestionKey(kind: AlertRuleKind): AlertSuggestionKey {
  * load, scale or baseline, so one rule serves both sexes. The source of each
  * sex-specific threshold is in {@link DEFAULT_ALERT_RULE_SOURCES}.
  */
-export const DEFAULT_ALERT_RULES: readonly AlertRule[] = [
+const DEFAULT_RULES = [
   {
     code: 'acwr_high',
     kind: 'acwr_high',
@@ -223,6 +223,9 @@ export const DEFAULT_ALERT_RULES: readonly AlertRule[] = [
     code: 'growth_peak',
     kind: 'growth_peak',
     enabled: true,
+    // Scoped by sex, like `growth_peak_female`: a player without a sex would match
+    // neither and get no growth alert. Unreachable today (`player.sex` is NOT NULL);
+    // revisit both rules if the sex ever becomes optional.
     appliesTo: { sexes: ['male'] },
     params: {
       warningAtOrAboveCmYear: 7.2,
@@ -241,7 +244,12 @@ export const DEFAULT_ALERT_RULES: readonly AlertRule[] = [
       maxMeasurementAgeDays: 120,
     },
   },
-];
+] as const satisfies readonly AlertRule[];
+
+export const DEFAULT_ALERT_RULES: readonly AlertRule[] = DEFAULT_RULES;
+
+/** Code of a rule of {@link DEFAULT_ALERT_RULES}. */
+export type DefaultAlertRuleCode = (typeof DEFAULT_RULES)[number]['code'];
 
 /**
  * Where the threshold of each sex-specific default rule comes from and how
@@ -249,19 +257,20 @@ export const DEFAULT_ALERT_RULES: readonly AlertRule[] = [
  * rule of {@link DEFAULT_ALERT_RULES} scoped by sex has an entry; a test keeps
  * them in step. **Verify against the papers before production.**
  */
-export const DEFAULT_ALERT_RULE_SOURCES: Readonly<Record<string, CoefficientProvenance>> = {
+export const DEFAULT_ALERT_RULE_SOURCES: Readonly<
+  Partial<Record<DefaultAlertRuleCode, CoefficientProvenance>>
+> = {
   growth_peak: {
     citation:
       'Kemper GLJ, van der Sluis A, Brink MS, Visscher C, Frencken WGP, Elferink-Gemser MT. ' +
       'Anthropometric injury risk factors in elite-standard youth soccer. ' +
       'Int J Sports Med. 2015;36(13):1112-1117.',
-    // Recorded when the article is checked (see the notes).
-    doi: null,
+    doi: '10.1055/s-0035-1555778',
     errata: [],
     verification: 'unverified',
     verificationNotes:
       'Rapid growth from 0.6 cm/month (7.2 cm/year) in male academy players, as quoted by ' +
-      'academy growth-monitoring guidance (ADR 0022). Pending: record the DOI, compare with the ' +
+      'academy growth-monitoring guidance (ADR 0022). Pending: confirm the DOI, compare with the ' +
       'original article and agree the threshold with the staff before production.',
   },
   growth_peak_female: {
@@ -269,7 +278,8 @@ export const DEFAULT_ALERT_RULE_SOURCES: Readonly<Record<string, CoefficientProv
       'Malina RM, Bouchard C, Bar-Or O. Growth, Maturation, and Physical Activity. 2nd ed. ' +
       'Champaign (IL): Human Kinetics; 2004. Peak height velocity of girls about 8.0 cm/year ' +
       'against about 9.5 cm/year in boys (also Tanner JM, Whitehouse RH, Takaishi M. ' +
-      'Arch Dis Child. 1966;41(219):454-471).',
+      'Arch Dis Child. 1966;41(219):454-471, doi:10.1136/adc.41.219.454).',
+    // The main source is a book without a DOI; the DOI of the supporting article is in the citation.
     doi: null,
     errata: [],
     verification: 'unverified',
@@ -277,6 +287,6 @@ export const DEFAULT_ALERT_RULE_SOURCES: Readonly<Record<string, CoefficientProv
       'No published injury threshold for girls: 6.0 cm/year is the boys threshold (7.2 cm/year, ' +
       'Kemper et al. 2015) scaled by the ratio of peak height velocities, 7.2 x 8.0 / 9.5 = 6.06, ' +
       'rounded down. Pending: compare the peak velocities with the originals and agree the ' +
-      'threshold with the medical and S&C staff before production.',
+      'threshold with the medical and S&C staff, and confirm the DOI of Tanner et al., before production.',
   },
 };

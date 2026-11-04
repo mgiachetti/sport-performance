@@ -393,6 +393,8 @@ describe('growth peak by sex (B-804)', () => {
     );
     for (const source of Object.values(DEFAULT_ALERT_RULE_SOURCES)) {
       expect(source.citation.length).toBeGreaterThan(20);
+      // The DOI of the main source, or of the supporting article when the main one is a book.
+      expect(source.doi ?? source.citation).toMatch(/10\.\d{4,}\//);
       expect(source.verification).toBe('unverified');
       expect(source.verificationNotes).toMatch(/before production/);
     }
