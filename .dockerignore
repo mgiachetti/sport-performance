@@ -1,0 +1,28 @@
+# Build context of apps/{api,worker,web}/Dockerfile (B-701, ADR 0090): the repository root.
+# Every workspace package.json stays (the frozen install reads the whole lockfile); what no
+# image builds from, local state and anything secret stays out.
+.git
+.github
+.claude
+**/node_modules
+**/dist
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pem
+**/*.key
+**/*.p12
+**/*.p8
+**/*.keystore
+**/*.jks
+docs
+mockups
+assets
+firmware
+apps/mobile/*
+!apps/mobile/package.json
+.railway/*
+!.railway/package.json

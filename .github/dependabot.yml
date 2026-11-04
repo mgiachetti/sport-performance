@@ -60,3 +60,31 @@ updates:
       github-actions:
         patterns:
           - '*'
+
+  # Base images of the Dockerfiles Railway builds (B-701, ADR 0090), pinned by digest.
+  - package-ecosystem: docker
+    directories:
+      - /apps/api
+      - /apps/worker
+      - /apps/web
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: America/Argentina/Buenos_Aires
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore(docker)
+    labels:
+      - area:infra
+      - security
+    groups:
+      base-images:
+        patterns:
+          - '*'
+    ignore:
+      # Node's major follows .nvmrc and the engines field, in its own PR.
+      - dependency-name: node
+        update-types:
+          - version-update:semver-major

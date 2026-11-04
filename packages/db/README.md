@@ -39,6 +39,7 @@ client.release();
 | `pnpm --filter @sport-performance/db db:seed:demo` | Crea o pone al día el club demo con datos ficticios (B-307, [ADR 0055](../../docs/adr/0055-club-demo-y-datos-de-prueba.md)). Solo en `local`, `development`, `test`, `ci` o `staging`, con `DEMO_SEED_CONFIRM=<entorno>`; ver [Club demo](#club-demo). Bin `sport-performance-db-seed-demo`. |
 | `pnpm --filter @sport-performance/db db:migrate` | Aplica las migraciones pendientes con `MIGRATIONS_DATABASE_URL` (o `DATABASE_URL` si la primera falta o está vacía) y después instala o actualiza la cola de jobs (pg-boss en el esquema `pgboss`, con grants solo para el worker; ADR 0046). Requiere `pnpm build`. También está como bin `sport-performance-db-migrate`. |
 | `pnpm --filter @sport-performance/db db:provision-login` | Crea o actualiza un login (`DB_LOGIN_NAME`, `DB_LOGIN_PASSWORD`) como miembro de un rol de conexión (`DB_LOGIN_ROLE=app\|worker\|auth`), conectado como dueño. Idempotente; rota la contraseña. Bin `sport-performance-db-provision-login`. |
+| `pnpm --filter @sport-performance/db db:release` | El paso de la base de cada deploy (B-701, [ADR 0090](../../docs/adr/0090-proyecto-de-railway-como-codigo-y-deploy.md)): el pre-deploy de la API en Railway. Migra como dueño (`MIGRATIONS_DATABASE_URL`, obligatoria: no cae en `DATABASE_URL`), crea o actualiza los logins de `DATABASE_URL` (`app`), `AUTH_DATABASE_URL` (`auth`) y `WORKER_DATABASE_URL` (`worker`) —mismo servidor y base que el dueño, un login por rol— y declara la base con `RAILWAY_ENVIRONMENT_NAME` en `app.deployment_environment`. Idempotente; no imprime contraseñas ni URLs. Bin `sport-performance-db-release`. |
 
 Nunca `drizzle-kit push` ni `drizzle-kit migrate` contra una base compartida. Una migración aplicada no se edita: el runner se niega a correr si un archivo aplicado cambió o si una migración pendiente es más vieja que la última aplicada (dos ramas que se mergearon fuera de orden). En ese caso se regenera la migración más nueva.
 
@@ -177,7 +178,7 @@ DEMO_SEED_CONFIRM=development pnpm --filter @sport-performance/db db:seed:demo -
 | `demo.familia@…` | Tutora de dos hermanos (rugby M14 y hockey M16 en 2026) |
 | `demo.jugador@…`, `demo.jugadora@…` | Un jugador M17 de rugby y una jugadora adulta M19 de hockey (2026) |
 
-Producción se protege también desde la base: `ALTER DATABASE <db> SET app.deployment_environment = 'production'` hace que el seed se niegue aunque alguien lo corra con otra configuración.
+Producción se protege también desde la base: `ALTER DATABASE <db> SET app.deployment_environment = 'production'` hace que el seed se niegue aunque alguien lo corra con otra configuración. En Railway lo hace `db:release` en cada deploy, con el nombre del ambiente.
 
 ## Fuera de este paquete por ahora
 

@@ -1,0 +1,67 @@
+# Promotes a commit of main to production (B-701, docs/adr/0090-proyecto-de-railway-como-codigo-y-deploy.md).
+# Railway's `production` environment deploys the `production` branch once its checks pass; this
+# workflow is the only way that branch moves: fast-forward, to a commit of main whose `ci` passed.
+# GitHub enforces it: the ruleset .github/rulesets/production.json lets nobody create or update
+# the branch except the deploy key, and the key is a secret of the `production` environment,
+# which only jobs of main reach. Runbook: docs/infra/railway.md. No Railway token lives in GitHub.
+name: Promote to production
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Full SHA of the commit of main to deploy (empty = the latest commit of main)
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+# One promotion at a time; a second one waits instead of racing the first.
+concurrency:
+  group: promote-production
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: promote
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Only the workflow (and script) of main may move production. A run dispatched from another
+    # branch is skipped here, and the `production` environment only accepts deployments from
+    # main (deployment branch policy, docs/infra/railway.md section 7), so a modified copy of
+    # this file on a branch never gets the deploy key either.
+    if: github.ref == 'refs/heads/main'
+    # GitHub environment: limited to main, holds PRODUCTION_DEPLOY_KEY; required reviewers can
+    # be added when the plan allows.
+    environment: production
+    permissions:
+      contents: read
+      checks: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The whole history of main: the push only updates the ref.
+          fetch-depth: 0
+      - name: Load the deploy key
+        env:
+          DEPLOY_KEY: ${{ secrets.PRODUCTION_DEPLOY_KEY }}
+        run: |
+          [ -n "$DEPLOY_KEY" ] || { echo "::error::PRODUCTION_DEPLOY_KEY is not set (runbook, section 7)."; exit 1; }
+          umask 077
+          printf '%s\n' "$DEPLOY_KEY" >"$RUNNER_TEMP/deploy_key"
+          # GitHub's published host key (gh api meta --jq .ssh_keys): no trust on first use.
+          echo 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' >"$RUNNER_TEMP/known_hosts"
+      - name: Move the production branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ inputs.sha }}
+          PUSH_REMOTE: git@github.com:${{ github.repository }}.git
+        run: |
+          export GIT_SSH_COMMAND="ssh -i $RUNNER_TEMP/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts"
+          sh .github/scripts/promote.sh "$SHA"
+      - name: Remove the deploy key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/deploy_key"

@@ -141,6 +141,14 @@ export const envSchema = z
       .regex(/^[^<>@\s]+@[^<>@\s]+$|^[^<>]*<[^<>@\s]+@[^<>@\s]+>$/)
       .optional(),
 
+    /**
+     * Owner and worker logins of the release step (`db:release`, the pre-deploy command,
+     * ADR 0090). Read only to refuse them: the API process must never hold them in
+     * production (the image's command removes them, `apps/api/Dockerfile`).
+     */
+    MIGRATIONS_DATABASE_URL: z.string().optional(),
+    WORKER_DATABASE_URL: z.string().optional(),
+
     // Files (B-325, ADR 0044): the S3-compatible bucket and the life of the signed URLs.
     ...storageEnvShape,
     /** Life of a signed upload URL; a new one is asked with the same `clientUuid`. */
@@ -196,6 +204,17 @@ export const envSchema = z
     for (const variable of ['DATABASE_URL', 'AUTH_DATABASE_URL'] as const) {
       for (const message of databaseUrlProblems(env[variable])) {
         ctx.addIssue({ code: 'custom', path: [variable], message });
+      }
+    }
+    // The release step's logins stay in the pre-deploy container: with the owner's URL a
+    // flaw in the API would bypass RLS, with the worker's it would act as the worker.
+    for (const variable of ['MIGRATIONS_DATABASE_URL', 'WORKER_DATABASE_URL'] as const) {
+      if (env[variable] !== undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [variable],
+          message: 'must not reach the API process in production (only db:release uses it)',
+        });
       }
     }
     if (env.DATABASE_URL === env.AUTH_DATABASE_URL) {

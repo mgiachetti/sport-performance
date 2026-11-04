@@ -33,6 +33,17 @@ export {
   type DatabaseRoleKind,
   type ProvisionLoginRoleOptions,
 } from './roles.js';
+export {
+  RELEASE_LOGIN_VARIABLES,
+  ReleaseConfigError,
+  describeRelease,
+  releaseDatabase,
+  releasePlanFromEnv,
+  type ReleaseEnvironment,
+  type ReleaseLogin,
+  type ReleasePlan,
+  type ReleaseReport,
+} from './release.js';
 export type * from './types.js';
 export {
   CHANGE_HISTORY_PAGE_LIMIT_DEFAULT,

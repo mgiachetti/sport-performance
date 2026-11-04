@@ -1,6 +1,8 @@
 packages:
   - apps/*
   - packages/*
+  # Railway project as code (B-701, ADR 0090): `.railway/railway.ts` and its checks.
+  - .railway
 
 # esbuild (via drizzle-kit) works from its platform optionalDependency; its postinstall
 # only re-verifies the binary, so it is not allowed to run.

@@ -1,0 +1,23 @@
+{
+  "name": "@sport-performance/railway-config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Railway project as code (IaC: railway.ts) and its checks (B-701, ADR 0090).",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "bucket-cors": "node bucket-cors.ts"
+  },
+  "dependencies": {
+    "railway": "3.16.0"
+  },
+  "devDependencies": {
+    "@sport-performance/config": "workspace:*",
+    "@types/node": "26.6.6",
+    "eslint": "10.14.0",
+    "typescript": "6.0.3",
+    "vitest": "5.0.5"
+  }
+}

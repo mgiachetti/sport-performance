@@ -2,7 +2,7 @@
  * Repository security policy (B-107, docs/security.md).
  *
  * These tests guard the GitHub configuration that lives in the repo:
- * workflow hardening, Dependabot, gitleaks and the `main` ruleset.
+ * workflow hardening, Dependabot, gitleaks and the `main` and `production` rulesets.
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -313,5 +313,58 @@ describe('main ruleset', () => {
     ).map((c) => asObject(c, 'check').context);
     expect(contexts).toEqual(['ci']);
     expect(workflowFiles).toContain('ci.yml');
+  });
+});
+
+describe('production ruleset (B-701, ADR 0090)', () => {
+  const ruleset = asObject(
+    JSON.parse(readText('.github/rulesets/production.json')) as unknown,
+    'ruleset',
+  );
+  const rules = asArray(ruleset.rules, 'rules').map((r) => asObject(r, 'rule'));
+  const rule = (type: string): JsonObject | undefined => rules.find((r) => r.type === type);
+
+  it('targets only the production branch, enforced, bypassed only by the deploy key', () => {
+    expect(ruleset).toMatchObject({
+      target: 'branch',
+      enforcement: 'active',
+      conditions: { ref_name: { include: ['refs/heads/production'], exclude: [] } },
+      bypass_actors: [{ actor_id: null, actor_type: 'DeployKey', bypass_mode: 'always' }],
+    });
+  });
+
+  it('lets nobody else create or update the branch (write access is not enough)', () => {
+    expect(rule('creation')).toBeDefined();
+    expect(rule('update')?.parameters).toEqual({ update_allows_fetch_and_merge: false });
+  });
+
+  it('only lets production move forward, never be deleted', () => {
+    expect(rule('non_fast_forward')).toBeDefined();
+    expect(rule('deletion')).toBeDefined();
+  });
+
+  it('requires ci on the commit, also when the branch is created', () => {
+    expect(rule('required_status_checks')?.parameters).toEqual({
+      strict_required_status_checks_policy: false,
+      do_not_enforce_on_create: false,
+      required_status_checks: [{ context: 'ci' }],
+    });
+    expect(workflowFiles).toContain('ci.yml');
+  });
+
+  it('is moved only by the promote workflow of main', () => {
+    const workflow = asObject(readYaml('.github/workflows/promote.yml'), 'workflow');
+    const job = asObject(asObject(workflow.jobs, 'jobs').promote, 'promote job');
+    expect(job.if).toBe("github.ref == 'refs/heads/main'");
+    expect(job.environment).toBe('production');
+    // The GITHUB_TOKEN only reads; the push uses the deploy key, a secret of that environment.
+    expect(job.permissions).toEqual({ contents: 'read', checks: 'read' });
+    const steps = asArray(job.steps, 'promote steps').map((s) => asObject(s, 'step'));
+    const key = steps.find((s) => s.name === 'Load the deploy key');
+    expect(key?.env).toEqual({ DEPLOY_KEY: '${{ secrets.PRODUCTION_DEPLOY_KEY }}' });
+    // GitHub's host key is pinned, not trusted on first use.
+    expect(key?.run).toContain('github.com ssh-ed25519 ');
+    const move = steps.find((s) => s.name === 'Move the production branch');
+    expect(move?.run).toContain('StrictHostKeyChecking=yes');
   });
 });
