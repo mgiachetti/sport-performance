@@ -474,6 +474,13 @@ const participations: DatasetDefinition = {
       description: 'Participación (`full`, `partial`, `absent`, `unavailable`…). Nunca el motivo.',
     },
     { key: 'minutes', header: 'minutos', type: 'integer', unit: 'min', description: 'Minutos.' },
+    {
+      key: 'period_minutes',
+      header: 'minutos_por_tramo',
+      type: 'list',
+      unit: 'min',
+      description: 'Minutos de cada tramo del partido (hockey), en orden; vacío si va el total.',
+    },
     { key: 'rpe', header: 'rpe', type: 'integer', unit: 'score', description: 'RPE CR-10.' },
     {
       key: 'srpe_au',
@@ -499,7 +506,8 @@ const participations: DatasetDefinition = {
   query: `select s.id as session_id, s.local_date::text as local_date, s.starts_at,
        s.kind::text as session_kind, c.name as category, s.title, s.opponent,
        s.archived_at is not null as session_archived, x.player_id, p.last_name, p.first_name,
-       x.status::text as status, x.minutes, x.rpe, x.srpe_au, x.contacts_n, x.rpe_reported_at
+       x.status::text as status, x.minutes, x.period_minutes, x.rpe, x.srpe_au, x.contacts_n,
+       x.rpe_reported_at
   from participation x
   cross join args a
   ${PLAYER_JOIN}

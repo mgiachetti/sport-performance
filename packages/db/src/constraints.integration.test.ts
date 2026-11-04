@@ -463,6 +463,54 @@ describe.skipIf(!hasDatabase)('schema constraints (Postgres 16)', () => {
     expect(error.constraint).toBe('participation_absent_has_no_load');
   });
 
+  it('keeps the minutes of a participation the sum of its periods (B-803)', async () => {
+    const [session] = await t.db
+      .insert(trainingSession)
+      .values({
+        clubId: clubA,
+        sport: 'hockey',
+        kind: 'match',
+        startsAt: new Date('2026-03-07T13:00:00Z'),
+        localDate: day('2026-03-07'),
+        plannedDurationMin: 60,
+      })
+      .returning({ id: trainingSession.id });
+    const sessionId = must(session).id;
+    const [row] = await t.db
+      .insert(participation)
+      .values({
+        clubId: clubA,
+        trainingSessionId: sessionId,
+        playerId: playerA,
+        status: 'partial',
+        minutes: 38,
+        periodMinutes: [12, 0, 15, 11],
+      })
+      .returning({ id: participation.id, periodMinutes: participation.periodMinutes });
+    expect(row?.periodMinutes).toEqual([12, 0, 15, 11]);
+    const where = eq(participation.id, must(row).id);
+
+    for (const periods of [[12, 0, 15], [-1, 39], [601], [], [1, 1, 1, 1, 1, 1, 1, 1, 30]]) {
+      const error = await pgErrorOf(
+        t.db.update(participation).set({ minutes: 38, periodMinutes: periods }).where(where),
+      );
+      expect(error.constraint).toBe('participation_period_minutes');
+    }
+    const gap = await pgErrorOf(
+      t.pool.query(
+        `update participation set period_minutes = '{12,NULL,15,11}', minutes = 38 where id = $1`,
+        [must(row).id],
+      ),
+    );
+    expect(gap.constraint).toBe('participation_period_minutes');
+    const absent = await pgErrorOf(
+      t.db.update(participation).set({ status: 'absent', minutes: null }).where(where),
+    );
+    expect(absent.constraint).toBe('participation_absent_has_no_load');
+    // A total without periods stays valid.
+    await t.db.update(participation).set({ minutes: 40, periodMinutes: null }).where(where);
+  });
+
   it('bumps updated_at on every update through the trigger', async () => {
     const [before] = await t.db
       .select({ updatedAt: player.updatedAt })

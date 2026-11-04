@@ -44,3 +44,26 @@ export {
   type ExternalLoadActivity,
   type ExternalLoadProblem,
 } from './external-load.js';
+export {
+  MATCH_PERIODS_MAX,
+  SPORT_FIELD_RULES,
+  SUBSTITUTION_MODES,
+  periodMinutesIssues,
+  periodMinutesTotal,
+  recordsPeriodMinutes,
+  sportFieldRules,
+  sportRecordsContacts,
+  type PeriodMinutesIssue,
+  type PeriodMinutesProblem,
+  type PitchDimensions,
+  type SportFieldRules,
+  type SubstitutionMode,
+} from './field-rules.js';
+export {
+  catapultAliasIndex,
+  catapultMetricOf,
+  metricAppliesToSport,
+  normalizeCatapultAlias,
+  type CatapultAliasIndex,
+  type CatapultAliasedMetric,
+} from './catapult-aliases.js';

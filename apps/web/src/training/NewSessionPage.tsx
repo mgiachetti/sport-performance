@@ -2,6 +2,7 @@ import {
   CONTACT_LEVELS,
   MAX_SESSION_DURATION_MIN,
   localDateInTimeZone,
+  sportRecordsContacts,
   type ContactLevel,
 } from '@sport-performance/domain';
 import { TRAINING_TEXT_MAX_LENGTH } from '@sport-performance/contracts';
@@ -86,10 +87,14 @@ export function NewSessionPage() {
     );
   }
 
+  const selectedSport = categories.find((category) => category.id === values.categoryId)?.sport;
+  // The contact level of a drill only exists in sports with contacts (B-803).
+  const contacts = selectedSport === undefined || sportRecordsContacts(selectedSport);
+
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     const session = parseSessionForm(values, timeZone);
-    const parsedDrills = parseDrills(drills);
+    const parsedDrills = parseDrills(drills, contacts);
     setErrors(session.ok ? {} : session.errors);
     setDrillErrors(parsedDrills.ok ? new Map() : parsedDrills.errors);
     if (!session.ok || !parsedDrills.ok) return;
@@ -148,17 +153,19 @@ export function NewSessionPage() {
                       setDrill(drill.key, { durationMin: event.target.value });
                     }}
                   />
-                  <SelectField
-                    label={t('training.drill.contactLevel')}
-                    value={drill.contactLevel}
-                    options={CONTACT_LEVELS.map((level) => ({
-                      value: level,
-                      label: t(`training.contact.${level}`),
-                    }))}
-                    onChange={(event) => {
-                      setDrill(drill.key, { contactLevel: event.target.value as ContactLevel });
-                    }}
-                  />
+                  {contacts ? (
+                    <SelectField
+                      label={t('training.drill.contactLevel')}
+                      value={drill.contactLevel}
+                      options={CONTACT_LEVELS.map((level) => ({
+                        value: level,
+                        label: t(`training.contact.${level}`),
+                      }))}
+                      onChange={(event) => {
+                        setDrill(drill.key, { contactLevel: event.target.value as ContactLevel });
+                      }}
+                    />
+                  ) : null}
                 </div>
                 <div>
                   <Button

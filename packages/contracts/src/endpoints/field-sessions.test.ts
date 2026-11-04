@@ -74,6 +74,12 @@ describe('getTrainingSessionFieldMetrics', () => {
   it('keeps each value with its source', () => {
     const view = {
       session,
+      fieldRules: {
+        substitutions: 'limited',
+        recordsContacts: true,
+        matchPeriodCount: 2,
+        pitch: { lengthM: 100, widthM: 70 },
+      },
       columns: [
         { metricCode: 'dist_m', source: 'catapult', unit: 'm', direction: 'higher_is_better' },
         { metricCode: 'dist_m', source: 'pod', unit: 'm', direction: 'higher_is_better' },
@@ -84,7 +90,14 @@ describe('getTrainingSessionFieldMetrics', () => {
           firstName: 'Tomás',
           lastName: 'Pérez',
           position: { code: 'hooker', label: null, lineCode: 'forwards' },
-          participation: { status: 'full', minutes: 78, contactsN: 12, rpe: 8, srpeAu: 624 },
+          participation: {
+            status: 'full',
+            minutes: 78,
+            periodMinutes: null,
+            contactsN: 12,
+            rpe: 8,
+            srpeAu: 624,
+          },
           values: [
             { metricCode: 'dist_m', source: 'catapult', value: 5321 },
             { metricCode: 'dist_m', source: 'pod', value: 5288.5 },
@@ -121,6 +134,7 @@ describe('getTrainingSessionFieldMetrics', () => {
       participation: {
         status: 'unavailable',
         minutes: null,
+        periodMinutes: null,
         contactsN: null,
         rpe: null,
         srpeAu: null,
@@ -129,6 +143,12 @@ describe('getTrainingSessionFieldMetrics', () => {
     };
     const parsed = fieldSessionSchema.parse({
       session,
+      fieldRules: {
+        substitutions: 'limited',
+        recordsContacts: true,
+        matchPeriodCount: 2,
+        pitch: { lengthM: 100, widthM: 70 },
+      },
       columns: [],
       players: [player],
       references: [],

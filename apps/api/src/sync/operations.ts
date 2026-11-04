@@ -294,10 +294,75 @@ const wellnessCorrect: Resolver<'wellness.correct'> = async ({ target, body }, c
 
 // ─── Training: RPE and participation ─────────────────────────────────────────────────
 
+/**
+ * The fields of a participation the sync resolves. `minutes` is the pair of
+ * the total and its periods (B-803, ADR 0091): a write of either decides
+ * both (periods set the total; a total clears the periods), so they win or
+ * lose together, against the later of their two clocks, and are stamped
+ * together. Resolved apart, a total from one phone and periods from another
+ * could both win and leave a total that is not their sum.
+ */
 const PARTICIPATION_FIELDS = ['status', 'minutes', 'contactsN'] as const;
 type ParticipationField = (typeof PARTICIPATION_FIELDS)[number];
 const participationColumn = (field: ParticipationField): SyncFieldColumn<'participation'> =>
   field === 'contactsN' ? 'contacts_n' : field;
+
+/** The clocks of a participation with `minutes` at the later of the total's and the periods'. */
+function participationClocks(
+  clocks: Readonly<Record<string, string>> | undefined,
+): Readonly<Record<string, string>> | undefined {
+  const periods = clocks?.period_minutes;
+  if (clocks === undefined || periods === undefined) return clocks;
+  const total = clocks.minutes;
+  return {
+    ...clocks,
+    minutes: total === undefined || compareHlc(periods, total) > 0 ? periods : total,
+  };
+}
+
+/** The columns a winning field stamps: `minutes` stamps the periods too. */
+function participationStampColumns(
+  winners: readonly ParticipationField[],
+): SyncFieldColumn<'participation'>[] {
+  return winners.flatMap((field): SyncFieldColumn<'participation'>[] =>
+    field === 'minutes' ? ['minutes', 'period_minutes'] : [participationColumn(field)],
+  );
+}
+
+/** The fields a participation edit sets; the periods are the `minutes` field. */
+function editedParticipationFields(body: {
+  status?: unknown;
+  minutes?: unknown;
+  periodMinutes?: unknown;
+  contactsN?: unknown;
+}): ParticipationField[] {
+  return PARTICIPATION_FIELDS.filter((field) =>
+    field === 'minutes'
+      ? body.minutes !== undefined || body.periodMinutes !== undefined
+      : body[field] !== undefined,
+  );
+}
+
+/** The body keys of the winning fields: `minutes` carries the periods. */
+function participationFieldValues<
+  Body extends {
+    status?: unknown;
+    minutes?: unknown;
+    periodMinutes?: unknown;
+    contactsN?: unknown;
+  },
+>(body: Body, sent: readonly ParticipationField[]): Partial<Body> {
+  const out: Partial<Body> = {};
+  for (const field of sent) {
+    if (field === 'minutes') {
+      if (body.minutes !== undefined) out.minutes = body.minutes;
+      if (body.periodMinutes !== undefined) out.periodMinutes = body.periodMinutes;
+    } else if (body[field] !== undefined) {
+      out[field] = body[field];
+    }
+  }
+  return out;
+}
 
 /** Fields of a participation that only a status with load carries (ADR 0037). */
 const LOAD_FIELDS: readonly ParticipationField[] = ['minutes', 'contactsN'];
@@ -385,15 +450,17 @@ const participationUpdate: Resolver<'participation.update'> = async ({ target, b
     .from(participation)
     .where(and(eq(participation.clubId, ctx.clubId), eq(participation.id, id)));
   if (current === undefined) throw new HttpError('not_found', 'Participation not found');
-  const clocks = (await fieldClocks(ctx.db, ctx.clubId, 'participation', [id])).get(id);
-  const edited = editedKeys(body, PARTICIPATION_FIELDS);
+  const clocks = participationClocks(
+    (await fieldClocks(ctx.db, ctx.clubId, 'participation', [id])).get(id),
+  );
+  const edited = editedParticipationFields(body);
   const { winners, losers } = loadFollowsStatus(
     splitFields<'participation', ParticipationField>(clocks, ctx.hlc, edited, participationColumn),
     current.status,
   );
   const checkOnly = winners.length === 0;
   const sent = checkOnly ? edited : winners;
-  const fields = Object.fromEntries(sent.map((field) => [field, body[field]]));
+  const fields = participationFieldValues(body, sent);
   return {
     checkOnly,
     call: {
@@ -407,7 +474,7 @@ const participationUpdate: Resolver<'participation.update'> = async ({ target, b
     },
     stamps: checkOnly
       ? []
-      : [{ collection: 'participation', rowId: id, columns: winners.map(participationColumn) }],
+      : [{ collection: 'participation', rowId: id, columns: participationStampColumns(winners) }],
     appliedFields: winners,
     supersededFields: losers,
   };
@@ -458,6 +525,7 @@ const participationRecord: Resolver<'participation.record'> = async ({ params, b
       playerId: row.playerId,
       status: row.status,
       ...(row.minutes !== undefined && { minutes: row.minutes }),
+      ...(row.periodMinutes !== undefined && { periodMinutes: row.periodMinutes }),
       ...(row.contactsN !== undefined && { contactsN: row.contactsN }),
     };
     const current = byPlayer.get(row.playerId);
@@ -466,10 +534,10 @@ const participationRecord: Resolver<'participation.record'> = async ({ params, b
       appliedFields.push({ index, field: `rows.${String(index)}` });
       return { fields, current, edited: PARTICIPATION_FIELDS, winners: PARTICIPATION_FIELDS };
     }
-    const edited = editedKeys(fields, PARTICIPATION_FIELDS);
+    const edited = editedParticipationFields(fields);
     const { winners, losers } = loadFollowsStatus(
       splitFields<'participation', ParticipationField>(
-        clocks.get(current.id),
+        participationClocks(clocks.get(current.id)),
         ctx.hlc,
         edited,
         participationColumn,
@@ -486,7 +554,7 @@ const participationRecord: Resolver<'participation.record'> = async ({ params, b
         stamp: {
           collection: 'participation',
           rowId: current.id,
-          columns: winners.map(participationColumn),
+          columns: participationStampColumns(winners),
         },
       });
     }
@@ -505,8 +573,10 @@ const participationRecord: Resolver<'participation.record'> = async ({ params, b
       clientUuid: fields.clientUuid === current.clientUuid ? randomUUID() : fields.clientUuid,
       playerId: fields.playerId,
       status: sent.includes('status') ? fields.status : current.status,
-      ...(sent.includes('minutes') && { minutes: fields.minutes }),
-      ...(sent.includes('contactsN') && { contactsN: fields.contactsN }),
+      ...participationFieldValues(
+        fields,
+        sent.filter((field) => field !== 'status'),
+      ),
     };
   });
   return {

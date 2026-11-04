@@ -13,6 +13,7 @@ import {
   isCorrection,
   isDirty,
   mergeDraftRow,
+  parsePeriods,
   pauseClock,
   planSave,
   playedMsOf,
@@ -22,6 +23,7 @@ import {
   stepContacts,
   toggleOnField,
   touchRow,
+  withMinutes,
   withStatus,
   type DraftRow,
   type KnownParticipation,
@@ -56,6 +58,7 @@ function known(overrides: Partial<KnownParticipation> = {}): KnownParticipation 
     target: { id: 'p-1' },
     status: 'full',
     minutes: 60,
+    periodMinutes: null,
     contactsN: null,
     rpe: null,
     srpeAu: null,
@@ -147,10 +150,21 @@ describe('draft rows', () => {
     expect(isDirty({ status: 'full', minutes: '61', contacts: '' }, known())).toBe(true);
     expect(isDirty({ status: 'full', minutes: '9999', contacts: '' }, known())).toBe(true);
     // Filling contacts that were empty is not a correction; changing the minutes is.
-    expect(isCorrection({ status: 'full', minutes: 60, contactsN: 3 }, known())).toBe(false);
-    expect(isCorrection({ status: 'full', minutes: 50, contactsN: null }, known())).toBe(true);
-    expect(isCorrection({ status: 'partial', minutes: 60, contactsN: null }, known())).toBe(true);
-    expect(isCorrection({ status: 'full', minutes: 60, contactsN: null }, null)).toBe(false);
+    expect(
+      isCorrection({ status: 'full', minutes: 60, periodMinutes: null, contactsN: 3 }, known()),
+    ).toBe(false);
+    expect(
+      isCorrection({ status: 'full', minutes: 50, periodMinutes: null, contactsN: null }, known()),
+    ).toBe(true);
+    expect(
+      isCorrection(
+        { status: 'partial', minutes: 60, periodMinutes: null, contactsN: null },
+        known(),
+      ),
+    ).toBe(true);
+    expect(
+      isCorrection({ status: 'full', minutes: 60, periodMinutes: null, contactsN: null }, null),
+    ).toBe(false);
   });
 });
 
@@ -318,5 +332,74 @@ describe('sheetSummary', () => {
         empty,
       ]),
     ).toEqual({ present: 2, absent: 1, unavailable: 1, pending: 1, minutes: 90, contacts: 4 });
+  });
+});
+
+describe('a hockey match by period (B-803)', () => {
+  it('closes a period at every pause and passes the minutes of each one', () => {
+    let clock = toggleOnField(EMPTY_CLOCK, 'a', 0);
+    clock = toggleOnField(clock, 'b', 0);
+    clock = startClock(clock, 0);
+    // First quarter: A plays it all, B comes off at 10'.
+    clock = toggleOnField(clock, 'b', 10 * MIN);
+    clock = pauseClock(clock, 15 * MIN);
+    // Second quarter: B back in for A at 5'.
+    clock = startClock(clock, 17 * MIN);
+    clock = toggleOnField(clock, 'a', 22 * MIN);
+    clock = toggleOnField(clock, 'b', 22 * MIN);
+    const rows = new Map<string, DraftRow>([
+      ['a', empty],
+      ['b', empty],
+    ]);
+    const next = finishClock(clock, rows, new Set(['a', 'b']), 32 * MIN, true);
+    expect(next.get('a')).toEqual({
+      status: 'partial',
+      minutes: '20',
+      contacts: '',
+      periods: '15,5',
+    });
+    expect(next.get('b')).toEqual({
+      status: 'partial',
+      minutes: '20',
+      contacts: '',
+      periods: '10,10',
+    });
+    // The same clock without periods: one total.
+    expect(finishClock(clock, rows, new Set(['a']), 32 * MIN).get('a')?.periods).toBeUndefined();
+  });
+
+  it('keeps the periods with the minutes: a total typed by hand clears them', () => {
+    const base: DraftRow = { status: 'partial', minutes: '20', contacts: '', periods: '15,5' };
+    const typed = withMinutes(base, '25');
+    expect(typed).toEqual({ status: 'partial', minutes: '25', contacts: '' });
+    const entry = touchRow(undefined, base, typed);
+    expect(entry.touched).toEqual(['minutes']);
+    expect(mergeDraftRow(base, entry)).toEqual(typed);
+    expect(withStatus(base, 'absent')).toEqual({ status: 'absent', minutes: '', contacts: '' });
+    expect(parsePeriods('15,5')).toEqual([15, 5]);
+    expect(parsePeriods('1,2,3,4,5,6,7,8,9')).toBe('invalid');
+    expect(parsePeriods('')).toBeNull();
+  });
+
+  it('sends the periods instead of the minutes, and no contacts', () => {
+    const entries = [entry('a'), entry('b')];
+    const knownB = known({ target: { id: 'p-b' }, minutes: 20, periodMinutes: [10, 10] });
+    const rows = new Map<string, DraftRow>([
+      ['a', { status: 'partial', minutes: '20', contacts: '', periods: '15,5' }],
+      ['b', { status: 'full', minutes: '20', contacts: '', periods: '12,8' }],
+    ]);
+    const plan = planSave(entries, new Map([['b', knownB]]), rows, false);
+    expect(plan.creates).toEqual([{ playerId: 'a', status: 'partial', periodMinutes: [15, 5] }]);
+    expect(plan.edits).toEqual([
+      {
+        playerId: 'b',
+        target: { id: 'p-b' },
+        correction: true,
+        fields: { periodMinutes: [12, 8] },
+      },
+    ]);
+    expect(isDirty({ status: 'full', minutes: '20', contacts: '', periods: '10,10' }, knownB)).toBe(
+      false,
+    );
   });
 });

@@ -38,7 +38,14 @@ import {
   saveDraft,
   type SheetDraft,
 } from './data.ts';
-import { EMPTY_CLOCK, planSave, startClock, toggleOnField, type DraftRow } from './model.ts';
+import {
+  EMPTY_CLOCK,
+  pauseClock,
+  planSave,
+  startClock,
+  toggleOnField,
+  type DraftRow,
+} from './model.ts';
 
 const SCOPE = { membershipId: 'a1111111-1111-4111-8111-111111111111', userId: 'u1' };
 const OTHER_PLAYER = 'b2222222-2222-4222-8222-222222222222';
@@ -252,6 +259,29 @@ describe('save', () => {
 });
 
 describe('kept on the phone', () => {
+  it('keeps the periods of a hockey match and the ends of the periods of its clock (B-803)', async () => {
+    const { cache } = await setup();
+    const clock = pauseClock(
+      startClock(toggleOnField(EMPTY_CLOCK, PLAYER_ID, T0), T0),
+      T0 + 900_000,
+    );
+    const draft: SheetDraft = {
+      rows: {
+        [PLAYER_ID]: {
+          status: 'partial',
+          minutes: '20',
+          contacts: '',
+          periods: '15,5',
+          touched: ['status', 'minutes'],
+        },
+      },
+      clock,
+    };
+    expect(clock.periodEndsMs).toEqual([{ [PLAYER_ID]: 900_000 }]);
+    await saveDraft(cache, SCOPE, SESSION_ID, draft);
+    expect(await loadDraft(cache, SCOPE.membershipId, SESSION_ID)).toEqual(draft);
+  });
+
   it('keeps the draft with its clock by membership, and lists the sessions with one', async () => {
     const { engine, cache } = await setup();
     const draft: SheetDraft = {

@@ -244,7 +244,7 @@ describe('the demo dataset', () => {
     }
   });
 
-  it('gives the M17 and M19 rugby sessions their Catapult totals, only for who took part', () => {
+  it('gives the M17 and M19 sessions their Catapult totals, only for who took part', () => {
     expect(data.externalMetrics.length).toBeGreaterThan(0);
     const sessions = new Map(data.trainingSessions.map((s) => [s.id, s]));
     const played = new Map(
@@ -252,8 +252,9 @@ describe('the demo dataset', () => {
     );
     for (const m of data.externalMetrics) {
       const session = sessions.get(m.trainingSessionId);
-      expect(session?.sport).toBe('rugby');
       expect(['m17', 'm19']).toContain(session?.category.ageBandCode);
+      // No contacts in hockey (B-803).
+      if (session?.sport === 'hockey') expect(m.metricCode).not.toBe('contacts_n');
       expect(FIELD_METRIC_CODES).toContain(m.metricCode);
       expect(m.localDate).toBe(session?.localDate);
       expect(Number.isFinite(m.value) && m.value >= 0).toBe(true);
@@ -261,6 +262,28 @@ describe('the demo dataset', () => {
       expect(participation?.minutes ?? 0).toBeGreaterThan(0);
       if (m.metricCode === 'vmax_pct') expect(m.value).toBeLessThanOrEqual(100);
     }
+    const sports = new Set(
+      data.externalMetrics.map((m) => sessions.get(m.trainingSessionId)?.sport),
+    );
+    expect(sports).toEqual(new Set(['rugby', 'hockey']));
+  });
+
+  it('loads hockey matches by quarter and never a hockey contact (B-803)', () => {
+    const sessions = new Map(data.trainingSessions.map((s) => [s.id, s]));
+    let byQuarter = 0;
+    for (const p of data.participations) {
+      const session = sessions.get(p.trainingSessionId);
+      if (session?.sport === 'hockey') expect(p.contactsN).toBeNull();
+      if (p.periodMinutes === null) continue;
+      byQuarter += 1;
+      expect(session).toMatchObject({ sport: 'hockey', kind: 'match' });
+      expect(p.periodMinutes).toHaveLength(4);
+      expect(p.minutes).toBe(p.periodMinutes.reduce((sum, minutes) => sum + minutes, 0));
+      for (const minutes of p.periodMinutes) {
+        expect(minutes).toBeLessThanOrEqual(Math.ceil((session?.plannedDurationMin ?? 0) / 4));
+      }
+    }
+    expect(byQuarter).toBeGreaterThan(0);
   });
 
   it('only describes the past, with today’s wellness and sessions but no RPE yet', () => {

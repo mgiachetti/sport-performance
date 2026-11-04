@@ -36,6 +36,8 @@ import {
   versionMatches,
 } from '../http/writes.js';
 import {
+  assertDrillsFitSport,
+  assertFieldDataFitsSession,
   assertSessionActive,
   authorizeSession,
   clubTimeZone,
@@ -275,6 +277,7 @@ export function registerTrainingSessionRoutes(app: FastifyInstance): void {
       const { clubId } = caller.membership;
       const target = await activeCategory(db, clubId, body.categoryId);
       await permissions.authorize('training_session', 'manage', { category: target });
+      assertDrillsFitSport(target.sport, body.drills ?? [], (index) => ['body', 'drills', index]);
       const timeZone = await clubTimeZone(db, clubId);
       const startsAt = new Date(body.startsAt);
       const { row, replayed } = await insertIdempotent({
@@ -346,6 +349,11 @@ export function registerTrainingSessionRoutes(app: FastifyInstance): void {
         await permissions.authorize('training_session', 'manage', { category: target });
       }
       const kind = body.kind ?? current.kind;
+      const sport = target?.sport ?? current.sport;
+      if (sport !== current.sport || kind !== current.kind) {
+        // The field data already loaded must fit the sport and kind it moves to (B-803).
+        await assertFieldDataFitsSession(db, clubId, current.id, { sport, kind });
+      }
       const opponent = body.opponent === undefined ? current.opponent : body.opponent;
       if (kind === 'training' && opponent !== null) {
         throw new HttpError('validation_failed', 'Only matches have an opponent', {
@@ -445,6 +453,7 @@ export function registerTrainingSessionRoutes(app: FastifyInstance): void {
         }
       }
       assertSessionActive(session);
+      assertDrillsFitSport(session.sport, [body], () => ['body']);
       const sortOrder = body.sortOrder ?? (await nextDrillOrder(db, clubId, session.id));
       const { row } = await insertIdempotent({
         clientUuid: body.clientUuid,
@@ -484,6 +493,7 @@ export function registerTrainingSessionRoutes(app: FastifyInstance): void {
       const { clubId } = caller.membership;
       const { session } = await manageableDrill(db, permissions, clubId, params.drillId);
       assertSessionActive(session);
+      assertDrillsFitSport(session.sport, [body], () => ['body']);
       const where = and(eq(drill.clubId, clubId), eq(drill.id, params.drillId));
       const row = await updateAtVersion({
         resource: 'Drill',

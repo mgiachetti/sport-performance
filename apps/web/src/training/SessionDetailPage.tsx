@@ -3,7 +3,7 @@ import {
   type TrainingSession,
   type TrainingSessionDetail,
 } from '@sport-performance/contracts';
-import { CHANGE_REASON_MAX_LENGTH } from '@sport-performance/domain';
+import { CHANGE_REASON_MAX_LENGTH, sportRecordsContacts } from '@sport-performance/domain';
 import { formatDateTime } from '@sport-performance/i18n';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, getRouteApi } from '@tanstack/react-router';
@@ -327,6 +327,7 @@ export function SessionDetailPage() {
         trainingSessionId={session.id}
         drills={session.drills}
         editable={manage && !archived}
+        contacts={sportRecordsContacts(session.sport)}
       />
       <ParticipationSection session={session} editable={!archived} />
     </Page>

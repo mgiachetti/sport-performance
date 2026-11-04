@@ -23,7 +23,10 @@ import {
   initialDraft,
   isDirty,
   planSave,
+  rowValues,
   sessionTotals,
+  sheetRules,
+  withPeriod,
   withStatus,
   type DraftRow,
   type DraftStatus,
@@ -57,12 +60,22 @@ function isReasonError(error: unknown): boolean {
   );
 }
 
+/** The total a row shows in a sheet by period: the sum of what is typed, or the saved total. */
+function periodTotalText(draft: DraftRow): string {
+  const values = rowValues(draft);
+  if (values === null || 'errors' in values) return formatNumber(null);
+  return formatNumber(values.minutes);
+}
+
 /**
  * The participation sheet of a session (B-407): every player of the roster
  * with their derived availability (never the cause), status, minutes and
  * contacts, and the player's RPE and sRPE (read only: the player reports
  * the RPE, the database computes the load). One batch saves what changed;
  * correcting values already submitted asks for the reason (ADR 0030).
+ * The sport decides the columns (B-803, ADR 0091): no contacts in hockey,
+ * and in a hockey match the minutes of each period, with their sum as the
+ * total.
  */
 export function ParticipationSection(props: { session: TrainingSessionDetail; editable: boolean }) {
   const t = useT();
@@ -99,11 +112,14 @@ export function ParticipationSection(props: { session: TrainingSessionDetail; ed
   if (roster.isError) return <ErrorNotice error={roster.error} />;
 
   const entries = roster.data;
+  const rules = sheetRules(session, entries);
+  const periodIndexes = Array.from({ length: rules.periods ?? 0 }, (_, index) => index);
   const anyRecordable = entries.some((entry) => entry.canRecord);
   const editableRow = (entry: SessionRosterEntry) => props.editable && entry.canRecord;
-  const draftOf = (entry: SessionRosterEntry) => edits.get(entry.player.id) ?? initialDraft(entry);
+  const draftOf = (entry: SessionRosterEntry) =>
+    edits.get(entry.player.id) ?? initialDraft(entry, rules);
   const drafts = new Map(entries.map((entry) => [entry.player.id, draftOf(entry)]));
-  const plan = planSave(entries, drafts, () => crypto.randomUUID());
+  const plan = planSave(entries, drafts, () => crypto.randomUUID(), rules);
   const pending = entries.filter(
     (entry) => editableRow(entry) && isDirty(draftOf(entry), entry.participation),
   ).length;
@@ -204,12 +220,21 @@ export function ParticipationSection(props: { session: TrainingSessionDetail; ed
                 <th scope="col">{t('training.participation.player')}</th>
                 <th scope="col">{t('training.participation.availability')}</th>
                 <th scope="col">{t('training.participation.status')}</th>
+                {periodIndexes.map((index) => (
+                  <th key={index} scope="col" className="sp-table__number">
+                    {t('training.participation.period', { number: index + 1 })}
+                  </th>
+                ))}
                 <th scope="col" className="sp-table__number">
-                  {t('training.participation.minutes')}
+                  {rules.periods === null
+                    ? t('training.participation.minutes')
+                    : t('training.participation.totalMinutes')}
                 </th>
-                <th scope="col" className="sp-table__number">
-                  {t('training.participation.contacts')}
-                </th>
+                {rules.contacts ? (
+                  <th scope="col" className="sp-table__number">
+                    {t('training.participation.contacts')}
+                  </th>
+                ) : null}
                 <th scope="col" className="sp-table__number">
                   {t('training.participation.rpe')}
                 </th>
@@ -286,8 +311,42 @@ export function ParticipationSection(props: { session: TrainingSessionDetail; ed
                         t(`training.status.${draft.status}`)
                       )}
                     </td>
+                    {periodIndexes.map((index) => (
+                      <td key={index} className="sp-table__number">
+                        {editable ? (
+                          <input
+                            className="sp-field__input sp-sheet__count"
+                            inputMode="numeric"
+                            aria-label={t('training.participation.periodOf', {
+                              name,
+                              number: index + 1,
+                            })}
+                            aria-invalid={errors.includes('periods') ? true : undefined}
+                            title={
+                              errors.includes('periods')
+                                ? t('training.participation.error.periods', {
+                                    max: PARTICIPATION_MINUTES_MAX,
+                                  })
+                                : undefined
+                            }
+                            value={draft.periods?.[index] ?? ''}
+                            disabled={!carriesLoad || save.isPending}
+                            onChange={(event) => {
+                              setDraft(
+                                entry.player.id,
+                                withPeriod(draft, index, event.target.value),
+                              );
+                            }}
+                          />
+                        ) : (
+                          formatNumber(entry.participation?.periodMinutes?.[index])
+                        )}
+                      </td>
+                    ))}
                     <td className="sp-table__number">
-                      {editable ? (
+                      {rules.periods !== null ? (
+                        periodTotalText(draft)
+                      ) : editable ? (
                         <input
                           className="sp-field__input sp-sheet__count"
                           inputMode="numeric"
@@ -310,30 +369,32 @@ export function ParticipationSection(props: { session: TrainingSessionDetail; ed
                         formatNumber(entry.participation?.minutes)
                       )}
                     </td>
-                    <td className="sp-table__number">
-                      {editable ? (
-                        <input
-                          className="sp-field__input sp-sheet__count"
-                          inputMode="numeric"
-                          aria-label={t('training.participation.contactsOf', { name })}
-                          aria-invalid={errors.includes('contacts') ? true : undefined}
-                          title={
-                            errors.includes('contacts')
-                              ? t('training.participation.error.contacts', {
-                                  max: PARTICIPATION_CONTACTS_MAX,
-                                })
-                              : undefined
-                          }
-                          value={draft.contacts}
-                          disabled={!carriesLoad || save.isPending}
-                          onChange={(event) => {
-                            setDraft(entry.player.id, { ...draft, contacts: event.target.value });
-                          }}
-                        />
-                      ) : (
-                        formatNumber(entry.participation?.contactsN)
-                      )}
-                    </td>
+                    {!rules.contacts ? null : (
+                      <td className="sp-table__number">
+                        {editable ? (
+                          <input
+                            className="sp-field__input sp-sheet__count"
+                            inputMode="numeric"
+                            aria-label={t('training.participation.contactsOf', { name })}
+                            aria-invalid={errors.includes('contacts') ? true : undefined}
+                            title={
+                              errors.includes('contacts')
+                                ? t('training.participation.error.contacts', {
+                                    max: PARTICIPATION_CONTACTS_MAX,
+                                  })
+                                : undefined
+                            }
+                            value={draft.contacts}
+                            disabled={!carriesLoad || save.isPending}
+                            onChange={(event) => {
+                              setDraft(entry.player.id, { ...draft, contacts: event.target.value });
+                            }}
+                          />
+                        ) : (
+                          formatNumber(entry.participation?.contactsN)
+                        )}
+                      </td>
+                    )}
                     <td className="sp-table__number">{rpeText(entry)}</td>
                     <td className="sp-table__number">
                       {formatNumber(entry.participation?.srpeAu)}

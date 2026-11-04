@@ -252,6 +252,74 @@ describe('session detail', () => {
     expect(api.unhandled).toEqual([]);
   });
 
+  it('loads a hockey match by period, without contacts (B-803)', async () => {
+    const hockeyMatch = {
+      sport: 'hockey',
+      kind: 'match',
+      categoryId: fixtures.F15_HOCKEY.id,
+      opponent: 'San Fernando',
+      plannedDurationMin: 60,
+    } as const;
+    const { api, user } = renderApp({
+      path: `/sessions/${SESSION_ID}`,
+      handlers: {
+        ...signedIn(),
+        getTrainingSession: () =>
+          sessionDetail(hockeyMatch, [
+            drill('0192e7a0-7777-7000-8000-000000000001', 'Salida de bola', { durationMin: 15 }),
+          ]),
+        listTrainingSessionRoster: () =>
+          fixtures.page([
+            rosterEntry(
+              P1,
+              { first: 'Ana', last: 'Álvarez' },
+              {
+                participation: participation(P1, {
+                  status: 'partial',
+                  minutes: 42,
+                  periodMinutes: [12, 9, 15, 6],
+                }),
+              },
+            ),
+            rosterEntry(P2, { first: 'Bea', last: 'Benítez' }),
+          ]),
+        recordParticipations: (request) => {
+          const rows = (request.body as { rows: { playerId: string }[] }).rows;
+          return {
+            items: rows.map((row) => ({
+              outcome: 'created' as const,
+              participation: participation(row.playerId),
+            })),
+          };
+        },
+      },
+    });
+    const table = await screen.findByRole('table', { name: /Participación de la sesión/ });
+    expect(within(table).getByRole('columnheader', { name: 'Tramo 4' })).toBeVisible();
+    expect(within(table).queryByRole('columnheader', { name: 'Contactos' })).toBeNull();
+    expect(screen.queryByLabelText('Contacto')).toBeNull();
+    const ana = within(table).getByRole('row', { name: /Álvarez, Ana/ });
+    expect(within(ana).getByText('42')).toBeVisible();
+    expect(screen.getByLabelText('Minutos de Álvarez, Ana en el tramo 3')).toHaveValue('15');
+
+    await user.selectOptions(screen.getByLabelText('Estado de Benítez, Bea'), 'partial');
+    await user.type(screen.getByLabelText('Minutos de Benítez, Bea en el tramo 1'), '10');
+    await user.type(screen.getByLabelText('Minutos de Benítez, Bea en el tramo 3'), '8');
+    const bea = within(table).getByRole('row', { name: /Benítez, Bea/ });
+    expect(within(bea).getByText('18')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Guardar participación' }));
+
+    expect(await screen.findByText('Guardamos la participación de 1 jugador.')).toBeVisible();
+    const body = api.callsTo('recordParticipations')[0]?.body as {
+      rows: Record<string, unknown>[];
+    };
+    expect(body.rows).toEqual([
+      expect.objectContaining({ playerId: P2, status: 'partial', periodMinutes: [10, 0, 8, 0] }),
+    ]);
+    expect(body.rows[0]).not.toHaveProperty('contactsN');
+    expect(body.rows[0]).not.toHaveProperty('minutes');
+  });
+
   it('asks for the reason to correct minutes already recorded, with the version', async () => {
     const { api, user } = renderApp({
       path: `/sessions/${SESSION_ID}`,

@@ -473,6 +473,7 @@ async function writeDataset(
       playerId: p.playerId as PlayerId,
       status: p.status,
       minutes: p.minutes,
+      periodMinutes: p.periodMinutes === null ? null : [...p.periodMinutes],
       contactsN: p.contactsN,
       rpe: p.rpe,
       rpeReportedAt: p.rpeReportedAt,

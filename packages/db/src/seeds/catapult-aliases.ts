@@ -1,4 +1,4 @@
-import type { CanonicalMetricCode } from '@sport-performance/domain';
+import { normalizeCatapultAlias, type CanonicalMetricCode } from '@sport-performance/domain';
 
 /**
  * Default `metric_definition.catapult_aliases` (CLAUDE.md, "Equivalencia con
@@ -16,6 +16,13 @@ import type { CanonicalMetricCode } from '@sport-performance/domain';
  * The trademark appears as an alias ("Total Player Load", the name of the
  * column in the export) but never as a code: the canonical code is
  * `accel_load_au`.
+ *
+ * One list serves every sport: OpenField names a column the same in rugby
+ * and hockey. Which metrics an export of a sport may fill comes from the
+ * metric's `sports` (`catapultAliasIndex` in the domain, B-803): in hockey,
+ * "Contacts", "Scrum Count", "Kick Count" and "Time to Feet" map to nothing.
+ * The names of the hockey first team's own export (custom parameters) are
+ * added as data when the club sends it (B-002).
  */
 export const DEFAULT_CATAPULT_ALIASES = {
   dist_m: ['Total Distance', 'Distance'],
@@ -36,7 +43,5 @@ export const DEFAULT_CATAPULT_ALIASES = {
   session_duration_min: ['Total Duration', 'Duration'],
 } as const satisfies Partial<Readonly<Record<CanonicalMetricCode, readonly string[]>>>;
 
-/** Normal form used to compare aliases: trimmed, single spaces, lower case. */
-export function normalizeCatapultAlias(alias: string): string {
-  return alias.trim().replace(/\s+/g, ' ').toLowerCase();
-}
+/** The normal form of an alias lives in the domain, next to the alias index by sport. */
+export { normalizeCatapultAlias };

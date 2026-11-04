@@ -14634,7 +14634,7 @@
       "patch": {
         "operationId": "updateParticipation",
         "summary": "Editar la participación de un jugador",
-        "description": "Mismo permiso que la carga masiva. Corregir un valor ya cargado pide `changeReason`. `version` desactualizada o sesión archivada: `conflict`.",
+        "description": "Mismo permiso que la carga masiva y mismas reglas del deporte (contactos y minutos por tramo, B-803). Corregir un valor ya cargado pide `changeReason`. `version` desactualizada o sesión archivada: `conflict`.",
         "tags": [
           "training"
         ],
@@ -14699,13 +14699,23 @@
                       }
                     ]
                   },
+                  "periodMinutes": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/PeriodMinutes"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "contactsN": {
                     "anyOf": [
                       {
                         "type": "integer",
                         "minimum": 0,
                         "maximum": 32767,
-                        "description": "Contactos (tackles, rucks, scrums) registrados."
+                        "description": "Contactos (tackles, rucks, scrums) registrados. Solo en los deportes con contacto (rugby); en hockey siempre `null` (B-803)."
                       },
                       {
                         "type": "null"
@@ -26634,7 +26644,7 @@
       "post": {
         "operationId": "recordParticipations",
         "summary": "Cargar la participación de la sesión",
-        "description": "Carga masiva del staff (`coach` de los jugadores asignados, administración), con consentimiento `data` vigente de cada jugador. Crea o actualiza por jugador; todo o nada. Ausente o no disponible borra los minutos, los contactos y el RPE. Corregir un valor ya cargado pide `changeReason`. Cada fila es idempotente por `clientUuid` (apta para la cola offline). Jugador desconocido: `validation_failed` en `body.rows[i].playerId`; sesión archivada o `version` desactualizada: `conflict`.",
+        "description": "Carga masiva del staff (`coach` de los jugadores asignados, administración), con consentimiento `data` vigente de cada jugador. Crea o actualiza por jugador; todo o nada. Ausente o no disponible borra los minutos, los contactos y el RPE. Corregir un valor ya cargado pide `changeReason`. Cada fila es idempotente por `clientUuid` (apta para la cola offline). En los deportes sin contacto (hockey) `contactsN` va vacío, y en los partidos con cambios ilimitados los minutos pueden ir por tramo (`periodMinutes`); si no corresponde, `validation_failed` en el campo (B-803). Jugador desconocido: `validation_failed` en `body.rows[i].playerId`; sesión archivada o `version` desactualizada: `conflict`.",
         "tags": [
           "training"
         ],
@@ -32698,7 +32708,7 @@
             "maximum": 1440
           },
           "contactLevel": {
-            "description": "Por defecto `none`.",
+            "description": "Por defecto `none`. En deportes sin contacto (hockey), solo `none` (B-803).",
             "$ref": "#/components/schemas/ContactLevel"
           },
           "notes": {
@@ -33192,6 +33202,9 @@
           "session": {
             "$ref": "#/components/schemas/TrainingSession"
           },
+          "fieldRules": {
+            "$ref": "#/components/schemas/SportFieldRules"
+          },
           "columns": {
             "type": "array",
             "items": {
@@ -33216,6 +33229,7 @@
         },
         "required": [
           "session",
+          "fieldRules",
           "columns",
           "players",
           "references"
@@ -33377,13 +33391,24 @@
                       }
                     ]
                   },
+                  "periodMinutes": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/PeriodMinutes"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Minutos por tramo (partidos de hockey); `null` si va el total."
+                  },
                   "contactsN": {
                     "anyOf": [
                       {
                         "type": "integer",
                         "minimum": 0,
                         "maximum": 32767,
-                        "description": "Contactos (tackles, rucks, scrums) registrados."
+                        "description": "Contactos (tackles, rucks, scrums) registrados. Solo en los deportes con contacto (rugby); en hockey siempre `null` (B-803)."
                       },
                       {
                         "type": "null"
@@ -33417,6 +33442,7 @@
                 "required": [
                   "status",
                   "minutes",
+                  "periodMinutes",
                   "contactsN",
                   "rpe",
                   "srpeAu"
@@ -37394,13 +37420,25 @@
               }
             ]
           },
+          "periodMinutes": {
+            "default": null,
+            "description": "Minutos por tramo; `null` si se cargó el total.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PeriodMinutes"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "contactsN": {
             "anyOf": [
               {
                 "type": "integer",
                 "minimum": 0,
                 "maximum": 32767,
-                "description": "Contactos (tackles, rucks, scrums) registrados."
+                "description": "Contactos (tackles, rucks, scrums) registrados. Solo en los deportes con contacto (rugby); en hockey siempre `null` (B-803)."
               },
               {
                 "type": "null"
@@ -37486,6 +37524,7 @@
           "playerId",
           "status",
           "minutes",
+          "periodMinutes",
           "contactsN",
           "rpe",
           "rpeReportedAt",
@@ -37566,13 +37605,25 @@
               }
             ]
           },
+          "periodMinutes": {
+            "default": null,
+            "description": "Minutos por tramo; `null` si se cargó el total.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PeriodMinutes"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "contactsN": {
             "anyOf": [
               {
                 "type": "integer",
                 "minimum": 0,
                 "maximum": 32767,
-                "description": "Contactos (tackles, rucks, scrums) registrados."
+                "description": "Contactos (tackles, rucks, scrums) registrados. Solo en los deportes con contacto (rugby); en hockey siempre `null` (B-803)."
               },
               {
                 "type": "null"
@@ -37661,6 +37712,7 @@
           "playerId",
           "status",
           "minutes",
+          "periodMinutes",
           "contactsN",
           "rpe",
           "rpeReportedAt",
@@ -37716,7 +37768,7 @@
             "$ref": "#/components/schemas/ParticipationStatus"
           },
           "minutes": {
-            "description": "Omitido: se mantiene; `null`: se vacía. Ausente o no disponible: sin minutos.",
+            "description": "Omitido: se mantiene; `null`: se vacía. Ausente o no disponible: sin minutos. Mandar solo los minutos borra los tramos.",
             "anyOf": [
               {
                 "type": "integer",
@@ -37729,13 +37781,24 @@
               }
             ]
           },
+          "periodMinutes": {
+            "description": "Minutos por tramo (partidos de hockey): fijan `minutes` como su suma. Omitido: se mantienen; `null`: se borran.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PeriodMinutes"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "contactsN": {
             "anyOf": [
               {
                 "type": "integer",
                 "minimum": 0,
                 "maximum": 32767,
-                "description": "Contactos (tackles, rucks, scrums) registrados."
+                "description": "Contactos (tackles, rucks, scrums) registrados. Solo en los deportes con contacto (rugby); en hockey siempre `null` (B-803)."
               },
               {
                 "type": "null"
@@ -37790,6 +37853,18 @@
           "dimensions",
           "seasonsAccumulated"
         ]
+      },
+      "PeriodMinutes": {
+        "minItems": 1,
+        "maxItems": 8,
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 600,
+          "description": "Minutos que participó."
+        },
+        "description": "Minutos jugados en cada tramo del partido (cuartos, tiempos), en orden. Solo en partidos de deportes con cambios ilimitados (hockey, B-803); `minutes` es su suma, que no puede superar 600. Ningún tramo puede superar la duración planificada del partido."
       },
       "Player": {
         "type": "object",
@@ -42459,6 +42534,60 @@
           "hockey"
         ],
         "description": "Deporte (ADR 0017)."
+      },
+      "SportFieldRules": {
+        "type": "object",
+        "properties": {
+          "substitutions": {
+            "type": "string",
+            "enum": [
+              "limited",
+              "rolling"
+            ],
+            "description": "`limited` (pocos cambios: minutos totales, rugby) o `rolling` (cambios ilimitados: minutos por tramo en los partidos, hockey)."
+          },
+          "recordsContacts": {
+            "type": "boolean",
+            "description": "Si el deporte registra contactos; en hockey no hay columna ni tarjeta de contactos."
+          },
+          "matchPeriodCount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Tramos de un partido reglamentario (2 tiempos, 4 cuartos)."
+          },
+          "pitch": {
+            "type": "object",
+            "properties": {
+              "lengthM": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "examples": [
+                  91.4
+                ]
+              },
+              "widthM": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "examples": [
+                  55
+                ]
+              }
+            },
+            "required": [
+              "lengthM",
+              "widthM"
+            ],
+            "description": "Cancha reglamentaria del deporte en metros (rugby sin el in-goal): el lienzo del mapa de calor cuando haya posiciones (pod, Fase 3)."
+          }
+        },
+        "required": [
+          "substitutions",
+          "recordsContacts",
+          "matchPeriodCount",
+          "pitch"
+        ],
+        "description": "Reglas de cancha del deporte de la sesión (B-803): datos del dominio con su fuente (reglamentos de World Rugby y de la FIH)."
       },
       "StaffAssignment": {
         "type": "object",

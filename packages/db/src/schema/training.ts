@@ -108,6 +108,10 @@ export const drill = pgTable(
 /**
  * A player in a session: status, minutes, contacts and session RPE (CR-10).
  * `srpe_au` = RPE × minutes is a generated column, so it can never drift.
+ * In a match of a sport with rolling substitutions (hockey, B-803, ADR 0091)
+ * the minutes are loaded by period: `period_minutes` keeps them in order and
+ * `minutes` is always their sum (checked here, so it never drifts either).
+ * Contacts only exist in sports that record them (`SPORT_FIELD_RULES`).
  */
 export const participation = pgTable(
   'participation',
@@ -117,6 +121,8 @@ export const participation = pgTable(
     playerId: uuid('player_id').notNull().$type<PlayerId>(),
     status: participationStatusEnum('status').notNull(),
     minutes: smallint('minutes'),
+    /** Minutes in each period of the match, in order; `NULL` when loaded as a total. */
+    periodMinutes: smallint('period_minutes').array(),
     contactsN: smallint('contacts_n'),
     /** CR-10, reported by the player 15–30 min after the session or the next morning. */
     rpe: smallint('rpe'),
@@ -144,9 +150,26 @@ export const participation = pgTable(
     rangeCheck('participation_rpe', t.rpe, 0, 10),
     rangeCheck('participation_minutes', t.minutes, 0, 600),
     check('participation_contacts', sql`${t.contactsN} is null or ${t.contactsN} >= 0`),
+    // One-dimensional, 1 to MATCH_PERIODS_MAX (8) periods from index 1, each 0–600, no
+    // gaps, and `minutes` their sum (spelled out: a CHECK cannot unnest the array).
+    check(
+      'participation_period_minutes',
+      sql`${t.periodMinutes} is null or (
+        array_ndims(${t.periodMinutes}) = 1
+        and array_lower(${t.periodMinutes}, 1) = 1
+        and cardinality(${t.periodMinutes}) between 1 and 8
+        and array_position(${t.periodMinutes}, null) is null
+        and 0 <= all(${t.periodMinutes})
+        and 600 >= all(${t.periodMinutes})
+        and ${t.minutes} = coalesce(${t.periodMinutes}[1], 0) + coalesce(${t.periodMinutes}[2], 0)
+          + coalesce(${t.periodMinutes}[3], 0) + coalesce(${t.periodMinutes}[4], 0)
+          + coalesce(${t.periodMinutes}[5], 0) + coalesce(${t.periodMinutes}[6], 0)
+          + coalesce(${t.periodMinutes}[7], 0) + coalesce(${t.periodMinutes}[8], 0)
+      )`,
+    ),
     check(
       'participation_absent_has_no_load',
-      sql`${t.status} not in ('absent', 'unavailable') or (coalesce(${t.minutes}, 0) = 0 and ${t.rpe} is null)`,
+      sql`${t.status} not in ('absent', 'unavailable') or (coalesce(${t.minutes}, 0) = 0 and ${t.rpe} is null and ${t.periodMinutes} is null)`,
     ),
     check('participation_rpe_reported', sql`(${t.rpe} is null) = (${t.rpeReportedAt} is null)`),
     check('participation_rpe_via_kiosk', sql`${t.rpe} is not null or not ${t.rpeViaKiosk}`),

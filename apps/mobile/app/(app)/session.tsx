@@ -2,6 +2,7 @@ import {
   PARTICIPATION_CONTACTS_MAX,
   PARTICIPATION_MINUTES_MAX,
 } from '@sport-performance/contracts';
+import { recordsPeriodMinutes, sportRecordsContacts } from '@sport-performance/domain';
 import { formatDate, formatTime } from '@sport-performance/i18n';
 import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -34,6 +35,7 @@ import {
   stepContacts,
   toggleOnField,
   touchRow,
+  withMinutes,
   withStatus,
   type DraftRow,
   type KnownParticipation,
@@ -162,10 +164,19 @@ export default function CoachSession() {
         : sheetPlayers(entries, knownMap, current, rowErrors(rowsNow, editable), now),
     [entries, known.value, knownMap, current, rowsNow, editable, now],
   );
+  // The sport decides what the sheet loads (B-803): contacts, and minutes by period.
+  const sessionSport = trainingSession.value?.sport;
+  const contacts = sessionSport === undefined || sportRecordsContacts(sessionSport);
+  const byPeriod =
+    trainingSession.value !== null &&
+    trainingSession.value !== undefined &&
+    recordsPeriodMinutes(trainingSession.value);
   const plan = useMemo(
     () =>
-      entries === null || known.value === undefined ? null : planSave(entries, knownMap, rowsNow),
-    [entries, known.value, knownMap, rowsNow],
+      entries === null || known.value === undefined
+        ? null
+        : planSave(entries, knownMap, rowsNow, contacts),
+    [entries, known.value, knownMap, rowsNow, contacts],
   );
 
   if (scope === null) return null;
@@ -256,6 +267,7 @@ export default function CoachSession() {
       title={sessionTitle(sessionDto, categoryName(club, sessionDto.categoryId), translator)}
       when={sessionWhen(sessionDto, timeZone, translator)}
       plannedMinutes={sessionDto.plannedDurationMin}
+      fieldRules={{ contacts, byPeriod }}
       roster={rosterState}
       clock={clockView(current.clock, now)}
       summary={summaryOf(shown ?? [])}
@@ -283,10 +295,8 @@ export default function CoachSession() {
         updateRow(playerId, (row) => withStatus(row, status));
       }}
       onMinutes={(playerId, text) => {
-        updateRow(playerId, (row) => ({
-          ...row,
-          minutes: digitsOnly(text, PARTICIPATION_MINUTES_MAX),
-        }));
+        // A total typed by hand replaces the periods the clock measured.
+        updateRow(playerId, (row) => withMinutes(row, digitsOnly(text, PARTICIPATION_MINUTES_MAX)));
       }}
       onContacts={(playerId, delta) => {
         updateRow(playerId, (row) => stepContacts(row, delta));
@@ -315,7 +325,7 @@ export default function CoachSession() {
       onFinishClock={() => {
         update((base) => {
           if (base.clock === null) return base;
-          const next = finishClock(base.clock, rowsOf(base), editable, Date.now());
+          const next = finishClock(base.clock, rowsOf(base), editable, Date.now(), byPeriod);
           return { rows: mergeRows(base, next), clock: null };
         });
       }}

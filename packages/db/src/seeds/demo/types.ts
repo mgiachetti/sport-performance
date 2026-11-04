@@ -220,6 +220,8 @@ export interface DemoParticipation {
   readonly playerId: string;
   readonly status: ParticipationStatus;
   readonly minutes: number | null;
+  /** Minutes by quarter of a hockey match (B-803); `null` for a total. */
+  readonly periodMinutes: readonly number[] | null;
   readonly contactsN: number | null;
   readonly rpe: number | null;
   readonly rpeReportedAt: Date | null;
@@ -377,7 +379,7 @@ export interface DemoDataset {
   readonly fixtures: readonly DemoFixture[];
   readonly trainingSessions: readonly DemoTrainingSession[];
   readonly participations: readonly DemoParticipation[];
-  /** Catapult totals of the M17 and M19 rugby sessions (field session view, B-408). */
+  /** Catapult totals of the M17 and M19 sessions, rugby and hockey (field session view, B-408, B-803). */
   readonly externalMetrics: readonly DemoExternalMetric[];
   readonly wellness: readonly DemoWellness[];
   readonly testSessions: readonly DemoTestSession[];

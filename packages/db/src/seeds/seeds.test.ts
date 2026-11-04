@@ -1,4 +1,6 @@
 import {
+  catapultAliasIndex,
+  catapultMetricOf,
   CANONICAL_METRICS,
   CANONICAL_METRIC_CODES,
   CANONICAL_TEST_CODES,
@@ -56,6 +58,25 @@ describe('metric dictionary seed', () => {
 
   it('normalizes aliases for matching', () => {
     expect(normalizeCatapultAlias('  Total   distance ')).toBe('total distance');
+  });
+
+  it('never maps a rugby column in a hockey export (B-803)', () => {
+    const aliased = metrics.map((m) => ({
+      code: m.code,
+      sports: m.sports ?? null,
+      catapultAliases: m.catapultAliases ?? [],
+    }));
+    const hockey = catapultAliasIndex(aliased, 'hockey');
+    const rugby = catapultAliasIndex(aliased, 'rugby');
+    expect(hockey.conflicts).toEqual([]);
+    expect(rugby.conflicts).toEqual([]);
+    for (const column of ['Total Distance', 'Max Vel', 'Total Player Load', 'HSR Distance']) {
+      expect(catapultMetricOf(hockey, column), column).toBe(catapultMetricOf(rugby, column));
+    }
+    for (const column of ['Contact Involvements', 'Scrum Count', 'Kick Count', 'Time to Feet']) {
+      expect(catapultMetricOf(rugby, column), column).toBeDefined();
+      expect(catapultMetricOf(hockey, column), column).toBeUndefined();
+    }
   });
 });
 

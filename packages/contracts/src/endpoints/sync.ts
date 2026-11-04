@@ -40,6 +40,7 @@ import {
   minutesSchema,
   participationSchema,
   participationStatusSchema,
+  periodMinutesSchema,
   recordParticipations,
   submitSessionRpe,
   trainingSessionIdSchema,
@@ -90,6 +91,7 @@ const testSessionParams = z.strictObject({ testSessionId: testSessionIdSchema })
 const participationFields = {
   status: participationStatusSchema.optional(),
   minutes: minutesSchema.nullable().optional(),
+  periodMinutes: periodMinutesSchema.nullable().optional(),
   contactsN: contactsSchema.nullable().optional(),
 };
 

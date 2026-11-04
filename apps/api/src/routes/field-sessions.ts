@@ -25,6 +25,7 @@ import {
   can,
   parseMetricCode,
   selectFirstTeamReference,
+  sportFieldRules,
   type ClubId,
   type FieldMetricSource,
   type FirstTeamReference,
@@ -157,6 +158,7 @@ interface ParticipationView {
   playerId: PlayerId;
   status: ParticipationStatus;
   minutes: number | null;
+  periodMinutes: number[] | null;
   contactsN: number | null;
   rpe: number | null;
   srpeAu: number | null;
@@ -172,6 +174,7 @@ async function sessionParticipation(
       playerId: participation.playerId,
       status: participation.status,
       minutes: participation.minutes,
+      periodMinutes: participation.periodMinutes,
       contactsN: participation.contactsN,
       rpe: participation.rpe,
       srpeAu: participation.srpeAu,
@@ -464,6 +467,7 @@ export function registerFieldSessionRoutes(app: FastifyInstance): void {
                 : {
                     status: own.status,
                     minutes: own.minutes,
+                    periodMinutes: own.periodMinutes,
                     contactsN: own.contactsN,
                     rpe: own.rpe,
                     srpeAu: own.srpeAu,
@@ -477,8 +481,15 @@ export function registerFieldSessionRoutes(app: FastifyInstance): void {
         });
 
       const metricCodes = [...new Set(orderedColumns.map((c) => c.metricCode))];
+      const rules = sportFieldRules(session.sport);
       return {
         session: sessionDto(session),
+        fieldRules: {
+          substitutions: rules.substitutions,
+          recordsContacts: rules.recordsContacts,
+          matchPeriodCount: rules.matchPeriodCount,
+          pitch: { lengthM: rules.pitch.lengthM, widthM: rules.pitch.widthM },
+        },
         columns: orderedColumns,
         players,
         references: await squadReferences(db, clubId, session, metricCodes),

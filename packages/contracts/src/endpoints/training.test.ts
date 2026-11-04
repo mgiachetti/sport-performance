@@ -61,6 +61,28 @@ describe('updateTrainingSession', () => {
 describe('recordParticipations', () => {
   const row = { clientUuid: randomUUID(), playerId, status: 'full', minutes: 60 };
 
+  it('takes minutes by period whose sum is the minutes, never without load (B-803)', () => {
+    const periods = { ...row, minutes: undefined, periodMinutes: [15, 15, 15, 15] };
+    expect(recordParticipations.body.safeParse({ rows: [periods] }).success).toBe(true);
+    expect(
+      recordParticipations.body.safeParse({ rows: [{ ...periods, minutes: 60 }] }).success,
+    ).toBe(true);
+    expect(
+      recordParticipations.body.safeParse({ rows: [{ ...periods, minutes: 50 }] }).success,
+    ).toBe(false);
+    expect(
+      recordParticipations.body.safeParse({ rows: [{ ...periods, status: 'absent' }] }).success,
+    ).toBe(false);
+    expect(
+      recordParticipations.body.safeParse({ rows: [{ ...periods, periodMinutes: [] }] }).success,
+    ).toBe(false);
+    expect(
+      recordParticipations.body.safeParse({
+        rows: [{ ...periods, periodMinutes: [200, 200, 200, 200] }],
+      }).success,
+    ).toBe(false);
+  });
+
   it('accepts up to 100 rows, one per player and clientUuid', () => {
     expect(recordParticipations.body.safeParse({ rows: [row] }).success).toBe(true);
     expect(recordParticipations.body.safeParse({ rows: [] }).success).toBe(false);
