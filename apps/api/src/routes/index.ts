@@ -43,6 +43,7 @@ import { registerCategoryReportRoutes } from './category-reports.js';
 import { registerSeasonRolloverRoutes } from './season-rollovers.js';
 import { registerParticipationRoutes } from './participations.js';
 import { registerSessionRosterRoutes } from './session-roster.js';
+import { registerKioskRoutes } from './kiosk.js';
 import { registerTrainingSessionRoutes } from './training-sessions.js';
 import { registerFieldSessionRoutes } from './field-sessions.js';
 import { registerWellnessRoutes } from './wellness.js';
@@ -169,6 +170,7 @@ export const IMPLEMENTED_ENDPOINTS = [
   'updateParticipation',
   'listParticipations',
   'listTrainingSessionRoster',
+  'getKioskRoster',
   'submitSessionRpe',
   'listMyTrainingSessions',
   'listFieldSessions',
@@ -358,6 +360,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerTrainingSessionRoutes(app);
   registerParticipationRoutes(app);
   registerSessionRosterRoutes(app);
+  registerKioskRoutes(app);
   registerFieldSessionRoutes(app);
   registerWellnessRoutes(app);
   registerGymRoutes(app);

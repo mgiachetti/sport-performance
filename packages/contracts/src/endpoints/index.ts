@@ -238,6 +238,7 @@ import {
   updateTrainingSession,
 } from './training.js';
 import { listTrainingSessionRoster } from './session-roster.js';
+import { getKioskRoster } from './kiosk.js';
 import {
   archiveExternalLoad,
   correctExternalLoad,
@@ -336,6 +337,7 @@ export * from './session-roster.js';
 export * from './wellness.js';
 export * from './pain-reports.js';
 export * from './external-loads.js';
+export * from './kiosk.js';
 export * from './tests.js';
 export * from './sync.js';
 export * from './support-access.js';
@@ -472,6 +474,7 @@ export const apiEndpoints = {
   archiveExternalLoad,
   listExternalLoads,
   getExternalLoad,
+  getKioskRoster,
   listAlerts,
   getAlert,
   reviewAlert,

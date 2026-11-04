@@ -22,6 +22,7 @@ import { dateTimeSchema, localDateSchema } from '../primitives/dates.js';
 import { categoryIdSchema, idOf, playerIdSchema } from '../primitives/ids.js';
 import { pageOf, pageQuerySchema } from '../primitives/pagination.js';
 import { changeReasonSchema } from './change-history.js';
+import { reportChannelSchema } from './wellness.js';
 
 /**
  * Training sessions and matches (B-318): the session with its drills (and
@@ -181,6 +182,9 @@ export const participationSchema = z
       .nullable()
       .meta({ description: 'RPE que cargó el jugador; `null` si todavía no.' }),
     rpeReportedAt: dateTimeSchema.nullable(),
+    rpeChannel: reportChannelSchema
+      .nullable()
+      .meta({ description: 'Por dónde llegó el RPE; `null` sin RPE.' }),
     srpeAu: z.int().min(0).nullable().meta({
       description:
         'Carga sRPE = RPE × minutos (UA), columna generada de la base; `null` sin RPE o sin minutos.',
@@ -581,16 +585,23 @@ export const submitSessionRpe = defineEndpoint({
   path: '/v1/training-sessions/{trainingSessionId}/rpe',
   summary: 'Cargar mi RPE de la sesión',
   description:
-    'Solo el jugador, para sí mismo y con consentimiento `data` vigente. Dentro de la ventana: desde el inicio de la sesión hasta el fin del día del club siguiente. Si el staff todavía no cargó su participación (y la sesión es de una de sus categorías) se crea como `full` con los minutos planificados. Corregir un RPE ya enviado pide `changeReason`. Fuera de la ventana, sesión archivada o figura ausente o no disponible: `conflict`. Idempotente por `clientUuid`.',
+    'El jugador, para sí mismo y con consentimiento `data` vigente; con `playerId`, el staff en el modo kiosco por el jugador que se eligió ahí (`rpe.kiosk_submit`, con el consentimiento `data` del jugador; canal `kiosk`). El kiosco no corrige: un RPE ya cargado es `conflict`. Dentro de la ventana: desde el inicio de la sesión hasta el fin del día del club siguiente. Si el staff todavía no cargó su participación (y la sesión es de una de sus categorías) se crea como `full` con los minutos planificados. Corregir un RPE ya enviado pide `changeReason`. Fuera de la ventana, sesión archivada o figura ausente o no disponible: `conflict`. Idempotente por `clientUuid`.',
   tags: ['training'],
   auth: 'club',
   params: sessionParams,
   body: z.strictObject({
     clientUuid: clientUuidSchema.optional(),
+    playerId: playerIdSchema.optional().meta({
+      description: 'Solo en el modo kiosco: el jugador por el que se carga. Sin él, quien llama.',
+    }),
     rpe: rpeSchema,
     changeReason: changeReasonSchema.optional(),
   }),
-  response: { status: 200, description: 'Mi participación.', schema: participationSchema },
+  response: {
+    status: 200,
+    description: 'La participación del jugador.',
+    schema: participationSchema,
+  },
   errors: ['not_found', 'conflict'],
 });
 

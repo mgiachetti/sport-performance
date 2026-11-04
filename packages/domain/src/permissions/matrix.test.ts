@@ -63,8 +63,10 @@ parent_height.read       -                     guardian        -               a
 parent_height.report     -                     guardian+data+minor -               assigned+data   -                club+data   club+data
 wellness.read            self                  -               assigned        assigned        assigned         club        club
 wellness.submit          self+data             -               -               -               -                -           -
+wellness.kiosk_submit    -                     -               assigned+data   assigned+data   -                club+data   -
 rpe.read                 self                  -               assigned        assigned        assigned         club        club
 rpe.submit               self+data             -               -               -               -                -           -
+rpe.kiosk_submit         -                     -               assigned+data   assigned+data   -                club+data   -
 external_load.read       self                  -               assigned        assigned        assigned         club        club
 external_load.report     self+data             -               -               -               -                -           -
 training_session.read    -                     -               assigned        assigned        assigned         club        club
@@ -705,7 +707,9 @@ describe('privacy invariants (independent of the specification)', () => {
   it('every collection of player data requires a current consent', () => {
     const collecting = [
       'wellness.submit',
+      'wellness.kiosk_submit',
       'rpe.submit',
+      'rpe.kiosk_submit',
       'external_load.report',
       'participation.record',
       'test_result.record',

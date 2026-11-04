@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from 'react';
 import { nativeThemeFor } from '../branding/club-branding.ts';
+import type { KioskState } from '../kiosk/controller.ts';
 import type { SyncIssue, SyncStatus } from '../offline/engine.ts';
 import { TranslatorProvider } from '../ui/i18n.tsx';
 import { ThemeProvider } from '../ui/theme.tsx';
@@ -35,6 +36,12 @@ export function useApi(): ApiClient {
 export function useSession(): SessionState {
   const { session } = useServices();
   return useSyncExternalStore(session.subscribe, session.getState, session.getState);
+}
+
+/** Whether the device is the club's kiosk (B-504), and for what. */
+export function useKiosk(): KioskState {
+  const { kiosk } = useServices();
+  return useSyncExternalStore(kiosk.subscribe, kiosk.getState, kiosk.getState);
 }
 
 /** The sync indicator's state (B-502): pending, signal, last sync, issues. */

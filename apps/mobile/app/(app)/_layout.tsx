@@ -68,6 +68,8 @@ export default function AppLayout() {
       <Tabs.Screen name="account" options={{ title: t('nav.account') }} />
       {/* Opened from Inicio by the staff who records tests; not a tab of its own. */}
       <Tabs.Screen name="ift-3015" options={{ title: t('ift.title'), href: null }} />
+      {/* The staff opens the kiosk mode from Inicio (B-504). */}
+      <Tabs.Screen name="kiosk-setup" options={{ title: t('kiosk.setup.title'), href: null }} />
       {/* The player's consents, opened from Cuenta. */}
       <Tabs.Screen name="consents" options={{ title: t('playerApp.consents.title'), href: null }} />
       <Tabs.Screen name="reaction" options={{ title: t('reaction.title'), href: null }} />

@@ -22,6 +22,7 @@ import {
   AppProviders,
   useServices,
   useSession,
+  useKiosk,
   useVersionGate,
 } from '../src/state/app-context.tsx';
 import { createAppServices } from '../src/state/services.ts';
@@ -151,6 +152,9 @@ function RootNavigator({ fontsReady }: { readonly fontsReady: boolean }) {
   const prompt = updatePrompt(gate, build.nativeVersion, translator);
   const signedIn = state.status === 'signedIn';
   const hasClub = signedIn && state.activeMembership !== null;
+  // The club's kiosk (B-504): while it is on, it is the only route of the app.
+  const kiosk = useKiosk();
+  const kioskOn = hasClub && kiosk.status === 'on';
 
   return (
     <SafeAreaView
@@ -185,12 +189,17 @@ function RootNavigator({ fontsReady }: { readonly fontsReady: boolean }) {
             <Stack.Protected guard={signedIn && !hasClub}>
               <Stack.Screen name="select-club" />
             </Stack.Protected>
-            <Stack.Protected guard={hasClub}>
+            <Stack.Protected guard={hasClub && kiosk.status === 'off'}>
               <Stack.Screen name="(app)" />
             </Stack.Protected>
-            {/* Links work in any state: each screen handles signed in and out. */}
-            <Stack.Screen name="invite/[token]" />
-            <Stack.Screen name="player-access/[token]" />
+            <Stack.Protected guard={kioskOn}>
+              <Stack.Screen name="kiosk" options={{ gestureEnabled: false }} />
+            </Stack.Protected>
+            {/* Links work in any state but the kiosk: each screen handles signed in and out. */}
+            <Stack.Protected guard={!kioskOn}>
+              <Stack.Screen name="invite/[token]" />
+              <Stack.Screen name="player-access/[token]" />
+            </Stack.Protected>
             <Stack.Screen name="+not-found" />
           </Stack>
         </View>

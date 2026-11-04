@@ -74,10 +74,14 @@ export const PERMISSION_RESOURCES = {
   consent: { target: 'player', medical: false, actions: ['read', 'sign', 'revoke'] },
   /** Height of the parents, measured or reported (Khamis-Roche, B-315). */
   parent_height: { target: 'player', medical: false, actions: ['read', 'report'] },
-  /** Pre-training wellness. */
-  wellness: { target: 'player', medical: false, actions: ['read', 'submit'] },
-  /** Session RPE. */
-  rpe: { target: 'player', medical: false, actions: ['read', 'submit'] },
+  /**
+   * Pre-training wellness. `submit`: the player, from their own account;
+   * `kiosk_submit`: the staff member signed in on a shared club device (kiosk
+   * mode, B-504), for a player who picks themselves there.
+   */
+  wellness: { target: 'player', medical: false, actions: ['read', 'submit', 'kiosk_submit'] },
+  /** Session RPE; `kiosk_submit` as for wellness. */
+  rpe: { target: 'player', medical: false, actions: ['read', 'submit', 'kiosk_submit'] },
   /**
    * Load outside the club (another sport, physical education), reported by
    * the player (B-511): `report` covers reporting, correcting and archiving.

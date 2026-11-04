@@ -43,6 +43,7 @@ export function HomeScreen({
   onOpenSprintVideo = null,
   onOpenAnthropometry = null,
   onOpenCmjVideo = null,
+  onOpenKiosk = null,
 }: {
   readonly userName: string;
   readonly membership: MembershipSummary;
@@ -62,6 +63,8 @@ export function HomeScreen({
   readonly onOpenAnthropometry?: (() => void) | null;
   /** CMJ by video (B-604) for who films it; `null` hides it. */
   readonly onOpenCmjVideo?: (() => void) | null;
+  /** The club's kiosk mode (B-504), for whoever loads on it; `null` hides it. */
+  readonly onOpenKiosk?: (() => void) | null;
 }) {
   const { t } = useTranslator();
   const name = userName.trim();
@@ -114,6 +117,12 @@ export function HomeScreen({
         <Card>
           <AppText tone="secondary">{t('cmjVideo.open.hint')}</AppText>
           <Button variant="secondary" label={t('cmjVideo.open')} onPress={onOpenCmjVideo} />
+        </Card>
+      )}
+      {onOpenKiosk === null ? null : (
+        <Card>
+          <AppText tone="secondary">{t('kiosk.open.hint')}</AppText>
+          <Button variant="secondary" label={t('kiosk.open')} onPress={onOpenKiosk} />
         </Card>
       )}
       <AppText role="caption" tone="muted">

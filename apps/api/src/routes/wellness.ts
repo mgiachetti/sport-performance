@@ -23,6 +23,7 @@ import {
   isWellnessItemCount,
   isWithinWellnessWindow,
   parseLocalDate,
+  reportChannelOf,
   wellnessItemSetForStage,
   wellnessMeanScore,
   wellnessScoreIssues,
@@ -83,6 +84,7 @@ export const wellnessColumns = {
   stress: wellness.stress,
   mood: wellness.mood,
   submittedAt: wellness.submittedAt,
+  viaKiosk: wellness.viaKiosk,
   createdAt: wellness.createdAt,
   updatedAt: wellness.updatedAt,
   version: rowVersion(wellness.updatedAt),
@@ -94,6 +96,7 @@ export type WellnessRow = Record<WellnessItem, number | null> & {
   localDate: LocalDate;
   itemCount: number;
   submittedAt: Date;
+  viaKiosk: boolean;
   createdAt: Date;
   updatedAt: Date;
   version: string;
@@ -123,6 +126,7 @@ export function wellnessDto(row: WellnessRow): Wellness {
     scores,
     meanScore: wellnessMeanScore(scores),
     submittedAt: row.submittedAt.toISOString(),
+    channel: reportChannelOf(row.viaKiosk),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     version: row.version,
@@ -256,13 +260,26 @@ export async function wellnessStageOf(
   });
 }
 
-/** The caller's own player, authorized to submit wellness (self + data consent). */
-async function submittingPlayer(
+/**
+ * The player a check-in is for: the caller's own player (`wellness.submit`:
+ * self + data consent), or, with `kioskPlayerId`, the player who picked
+ * themselves on the club's kiosk (`wellness.kiosk_submit`, B-504).
+ */
+export async function submittingPlayer(
   db: TenantDatabase,
   permissions: RequestPermissions,
   clubId: ClubId,
   today: LocalDate,
+  kioskPlayerId?: PlayerId,
 ): Promise<PlayerFacts> {
+  if (kioskPlayerId !== undefined) {
+    // Who may not load on the kiosk is told so before learning whether the player exists.
+    const scope = await permissions.listScope('wellness', 'kiosk_submit');
+    if (scope.kind === 'none') throw new HttpError('forbidden', 'You are not allowed to do this');
+    const facts = await loadPlayerFacts(db, clubId, kioskPlayerId, today);
+    await permissions.authorize('wellness', 'kiosk_submit', { player: facts });
+    return facts;
+  }
   const subject = await permissions.subject();
   const playerId = subject.playerId ?? null;
   if (playerId === null) {
@@ -390,7 +407,7 @@ export function registerWellnessRoutes(app: FastifyInstance): void {
     handler: async ({ body }, { db, permissions, auth: caller, reply }) => {
       const { clubId } = caller.membership;
       const today = await clubToday(db);
-      const facts = await submittingPlayer(db, permissions, clubId, today);
+      const facts = await submittingPlayer(db, permissions, clubId, today, body.playerId);
       if (body.clientUuid !== undefined) {
         // A replay of the offline queue answers what it created, even after the window closed.
         const [replay] = await db
@@ -440,6 +457,7 @@ export function registerWellnessRoutes(app: FastifyInstance): void {
                 localDate: day,
                 itemCount,
                 ...scoreColumns(body.scores),
+                viaKiosk: body.playerId !== undefined,
                 createdBy: caller.userId,
                 updatedBy: caller.userId,
               })

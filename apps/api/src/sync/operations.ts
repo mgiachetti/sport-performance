@@ -328,10 +328,10 @@ function loadFollowsStatus(
 }
 
 const rpeSubmit: Resolver<'rpe.submit'> = async ({ params, body }, ctx) => {
-  const subject = await ctx.permissions.subject();
-  const playerId = subject.playerId ?? null;
+  // The kiosk's RPE (B-504) is for the player it names; otherwise, the caller's own player.
+  const playerId = body.playerId ?? (await ctx.permissions.subject()).playerId ?? null;
   const call: EndpointCall = { endpoint: submitSessionRpe, params, body };
-  // Not a player: the handler answers what the matrix says.
+  // Not a player nor a kiosk: the handler answers what the matrix says.
   if (playerId === null) return create(call);
   // Also when it does not exist yet: a concurrent push of the same RPE waits.
   await lockKeys(ctx.db, [participationKey(params.trainingSessionId, playerId)]);

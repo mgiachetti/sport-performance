@@ -396,6 +396,8 @@ export {
 export * from './training/index.js';
 // Wellness check-in (B-319).
 export * from './wellness/index.js';
+// Kiosk mode: report channels and the kiosk's RPE states (B-504).
+export * from './kiosk.js';
 
 export {
   CLIENT_UPLOAD_FILE_KINDS,

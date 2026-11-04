@@ -16,6 +16,7 @@ import {
   SPORTS,
   isConsentType,
   parseTimeZone,
+  reportChannelOf,
   type CategoryId,
   type ClubId,
   type ConsentType,
@@ -132,6 +133,7 @@ export const participationColumns = {
   contactsN: participation.contactsN,
   rpe: participation.rpe,
   rpeReportedAt: participation.rpeReportedAt,
+  rpeViaKiosk: participation.rpeViaKiosk,
   srpeAu: participation.srpeAu,
   clientUuid: participation.clientUuid,
   createdAt: participation.createdAt,
@@ -148,6 +150,7 @@ export interface ParticipationRow {
   contactsN: number | null;
   rpe: number | null;
   rpeReportedAt: Date | null;
+  rpeViaKiosk: boolean;
   srpeAu: number | null;
   clientUuid: string;
   createdAt: Date;
@@ -165,6 +168,7 @@ export function participationDto(row: ParticipationRow): Participation {
     contactsN: row.contactsN,
     rpe: row.rpe,
     rpeReportedAt: row.rpeReportedAt?.toISOString() ?? null,
+    rpeChannel: row.rpe === null ? null : reportChannelOf(row.rpeViaKiosk),
     srpeAu: row.srpeAu,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

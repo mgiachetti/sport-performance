@@ -77,6 +77,10 @@ Una operación que no vuelve en un pull (el reporte de dolor, datos de salud: AD
 
 El worker manda los avisos (ADR 0054); la app registra el token de Expo de la sesión (`services.push`) cuando el sistema lo permite y nunca pide el permiso al abrir: lo pide cuando la persona activa las notificaciones (vista del staff o Cuenta → Notificaciones). Recibir push necesita `EAS_PROJECT_ID` y, para un build real, las credenciales de APNs y FCM cargadas en EAS; sin proyecto, la app dice que el build no recibe push. Un toque abre la ruta de `data.path` (`src/notifications/routing.ts`).
 
+## Modo kiosco (B-504)
+
+Un `coach`, `sc` o `admin` abre el kiosco desde Inicio ([ADR 0086](../../docs/adr/0086-modo-kiosco.md)): elige categorías y un PIN, la app trae los planteles (`GET /v1/categories/{id}/kiosk-roster`, guardados en la caché local) y desde ahí la raíz solo muestra `app/kiosk.tsx`, también después de matar la app. Cada jugador toca su nombre, confirma y carga bienestar y RPE por la cola (`wellness.submit` y `rpe.submit` con `playerId`); el turno se descarta al terminar, con "No soy yo" o tras un minuto sin tocar. Para salir hace falta el PIN (`src/kiosk/controller.ts`: hash con sal en el almacenamiento seguro, espera creciente después de 5 intentos). Lógica pura en `src/kiosk`, pantallas en `src/screens/kiosk.tsx`, contenedores en `src/state/kiosk-screens.tsx`. En el equipo del club conviene fijar la app con Acceso guiado (iOS) o Fijar pantalla (Android).
+
 ## Tests
 
 `pnpm --filter @sport-performance/mobile test`. Vitest en Node para la lógica (con el cliente tipado real contra un `fetch` falso, `src/test/fake-api.ts`; la base local sobre `node:sqlite` real, `src/test/node-sqlite.ts`, y el protocolo de sincronización en memoria, `src/test/fake-sync-server.ts`) y Testing Library sobre `react-native-web` en jsdom para las pantallas (`// @vitest-environment jsdom`). Para verificar que el bundle arma: `pnpm --filter @sport-performance/mobile exec expo export --platform ios --output-dir /tmp/sp-export`.

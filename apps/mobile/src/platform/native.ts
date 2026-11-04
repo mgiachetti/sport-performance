@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Sentry from '@sentry/react-native';
 import * as Application from 'expo-application';
 import Constants from 'expo-constants';
-import { randomUUID } from 'expo-crypto';
+import { CryptoDigestAlgorithm, digestStringAsync, randomUUID } from 'expo-crypto';
 import { getLocales } from 'expo-localization';
 import * as SecureStore from 'expo-secure-store';
 import * as Updates from 'expo-updates';
@@ -119,6 +119,7 @@ export function nativePlatform(config: RuntimeConfig, build: AppBuildInfo): Plat
     secureStorage,
     preferences,
     randomUUID,
+    sha256Hex: (text) => digestStringAsync(CryptoDigestAlgorithm.SHA256, text),
     languageTags: getLocales().map((locale) => locale.languageTag),
     reportError,
     openLocalDatabase: () => openNativeLocalDatabase(reportError),
