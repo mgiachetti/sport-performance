@@ -1,7 +1,7 @@
 import { Redirect } from 'expo-router';
 import { useState } from 'react';
 import { UnavailableScreen } from '../src/screens/clubs.tsx';
-import { useServices, useSession } from '../src/state/app-context.tsx';
+import { useKiosk, useServices, useSession } from '../src/state/app-context.tsx';
 import { useTranslator } from '../src/ui/i18n.tsx';
 import { LoadingView } from '../src/ui/primitives.tsx';
 
@@ -13,6 +13,7 @@ import { LoadingView } from '../src/ui/primitives.tsx';
 export default function Index() {
   const { session } = useServices();
   const state = useSession();
+  const kiosk = useKiosk();
   const { t } = useTranslator();
   const [retrying, setRetrying] = useState(false);
 
@@ -37,10 +38,9 @@ export default function Index() {
     case 'signedOut':
       return <Redirect href="/sign-in" />;
     case 'signedIn':
-      return state.activeMembership === null ? (
-        <Redirect href="/select-club" />
-      ) : (
-        <Redirect href="/home" />
-      );
+      if (state.activeMembership === null) return <Redirect href="/select-club" />;
+      // Until the kiosk is read the staff's app never shows: it may be the club's kiosk.
+      if (kiosk.status === 'loading') return <LoadingView label={t('common.loading')} />;
+      return kiosk.status === 'on' ? <Redirect href="/kiosk" /> : <Redirect href="/home" />;
   }
 }

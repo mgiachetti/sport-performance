@@ -44,7 +44,7 @@ const wellnessCorrect: Overlay<'wellness.correct', Wellness> = (row, { body }) =
 function withLoad(row: Participation): Participation {
   if (!participationCarriesLoad(row.status)) {
     // The online rule (ADR 0037, ADR 0050): no load without taking part.
-    return { ...row, minutes: null, contactsN: null, rpe: null, srpeAu: null };
+    return { ...row, minutes: null, contactsN: null, rpe: null, rpeChannel: null, srpeAu: null };
   }
   return {
     ...row,
@@ -62,7 +62,14 @@ const participationUpdate: Overlay<'participation.update', Participation> = (row
 
 const rpeSubmit: Overlay<'rpe.submit', Participation> = (row, { body }) =>
   // Against a status without load the server answers `conflict`: nothing to show.
-  participationCarriesLoad(row.status) ? withLoad({ ...row, rpe: body.rpe }) : row;
+  participationCarriesLoad(row.status)
+    ? withLoad({
+        ...row,
+        rpe: body.rpe,
+        // The kiosk names the player (B-504); otherwise the player's own account.
+        rpeChannel: body.playerId === undefined ? 'player_account' : 'kiosk',
+      })
+    : row;
 
 const participationRecord: Overlay<'participation.record', Participation> = (row, { body }) => {
   const edit = body.rows.find((candidate) => candidate.playerId === row.playerId);

@@ -64,6 +64,7 @@ interface ParticipationValues {
   contactsN: number | null;
   rpe: number | null;
   rpeReportedAt: Date | null;
+  rpeViaKiosk: boolean;
 }
 
 /**
@@ -81,7 +82,14 @@ function nextValues(
 ): ParticipationValues {
   const status = input.status ?? current?.status ?? 'full';
   if (!participationCarriesLoad(status)) {
-    return { status, minutes: null, contactsN: null, rpe: null, rpeReportedAt: null };
+    return {
+      status,
+      minutes: null,
+      contactsN: null,
+      rpe: null,
+      rpeReportedAt: null,
+      rpeViaKiosk: false,
+    };
   }
   return {
     status,
@@ -89,6 +97,7 @@ function nextValues(
     contactsN: input.contactsN === undefined ? (current?.contactsN ?? null) : input.contactsN,
     rpe: current?.rpe ?? null,
     rpeReportedAt: current?.rpeReportedAt ?? null,
+    rpeViaKiosk: current?.rpeViaKiosk ?? false,
   };
 }
 
@@ -174,6 +183,27 @@ const MY_SESSION_KEYS: KeysetSpec<SummaryRow, 'startsAt'> = {
   },
   id: { column: trainingSession.id, value: (row) => row.id },
 };
+
+/**
+ * The player who picked themselves on the club's kiosk (B-504) and its
+ * facts, authorized for `rpe.kiosk_submit` (staff in their assignments, the
+ * administration, with the player's data consent).
+ */
+async function kioskPlayer(
+  db: TenantDatabase,
+  permissions: RequestPermissions,
+  clubId: ClubId,
+  playerId: PlayerId,
+  session: SessionRow,
+): Promise<PlayerFacts> {
+  // Who may not load on the kiosk is told so before learning whether the player exists.
+  const scope = await permissions.listScope('rpe', 'kiosk_submit');
+  if (scope.kind === 'none') throw new HttpError('forbidden', 'You are not allowed to do this');
+  const facts = (await loadPlayerFacts(db, clubId, [playerId], session.sport)).get(playerId);
+  if (facts === undefined) throw new HttpError('not_found', 'Player not found');
+  await permissions.authorize('rpe', 'kiosk_submit', { player: facts });
+  return facts;
+}
 
 /** The caller's own player and its facts; `403` for anyone who is not a player of the club. */
 async function ownPlayer(
@@ -438,7 +468,11 @@ export function registerParticipationRoutes(app: FastifyInstance): void {
     handler: async ({ params, body }, { db, permissions, auth: caller, reply, recordedAt }) => {
       const { clubId } = caller.membership;
       const session = await readSession(db, clubId, params.trainingSessionId);
-      const me = await ownPlayer(db, permissions, clubId, 'rpe', 'submit', session);
+      const viaKiosk = body.playerId !== undefined;
+      const me =
+        body.playerId === undefined
+          ? await ownPlayer(db, permissions, clubId, 'rpe', 'submit', session)
+          : await kioskPlayer(db, permissions, clubId, body.playerId, session);
       // As the offline push (ADR 0050): an RPE that creates the participation waits for a
       // batch or another RPE that creates it at the same time, instead of hitting the unique key.
       await lockKeys(db, [participationKey(session.id, me.id)]);
@@ -513,6 +547,7 @@ export function registerParticipationRoutes(app: FastifyInstance): void {
                 minutes: session.plannedDurationMin,
                 rpe: body.rpe,
                 rpeReportedAt: sql`now()`,
+                rpeViaKiosk: viaKiosk,
                 createdBy: caller.userId,
                 updatedBy: caller.userId,
               })
@@ -527,10 +562,19 @@ export function registerParticipationRoutes(app: FastifyInstance): void {
           'The staff recorded that the player did not take part in this session',
         );
       }
+      if (viaKiosk && current.rpe !== null) {
+        // The kiosk never corrects: the player does, from their own account, with a reason.
+        throw new HttpError('conflict', 'The RPE of this session was already reported');
+      }
       if (current.rpe === body.rpe) return participationDto(current);
       const [updated] = await db
         .update(participation)
-        .set({ rpe: body.rpe, rpeReportedAt: sql`now()`, updatedBy: caller.userId })
+        .set({
+          rpe: body.rpe,
+          rpeReportedAt: sql`now()`,
+          rpeViaKiosk: viaKiosk,
+          updatedBy: caller.userId,
+        })
         .where(and(eq(participation.clubId, clubId), eq(participation.id, current.id)))
         .returning(participationColumns);
       if (updated === undefined) throw new Error('submitSessionRpe: update returned no row');

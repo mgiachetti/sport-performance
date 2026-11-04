@@ -114,6 +114,7 @@ describe('submitSessionRpe', () => {
       contactsN: null,
       rpe: 7,
       rpeReportedAt: '2026-11-02T23:30:00.000Z',
+      rpeChannel: 'kiosk',
       srpeAu: 420,
       createdAt: '2026-11-02T23:30:00.000Z',
       updatedAt: '2026-11-02T23:30:00.000Z',

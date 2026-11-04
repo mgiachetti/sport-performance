@@ -1,6 +1,7 @@
 import type { CategoryId, PlayerId } from '@sport-performance/domain';
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   doublePrecision,
   index,
@@ -120,6 +121,12 @@ export const participation = pgTable(
     /** CR-10, reported by the player 15–30 min after the session or the next morning. */
     rpe: smallint('rpe'),
     rpeReportedAt: timestamptz('rpe_reported_at'),
+    /**
+     * The RPE came from the club's kiosk (B-504, ADR 0086): loaded on a
+     * shared device under a staff member's session, for a player who picked
+     * themselves there; `false`, from the player's own account.
+     */
+    rpeViaKiosk: boolean('rpe_via_kiosk').notNull().default(false),
     srpeAu: integer('srpe_au').generatedAlwaysAs(sql`"rpe"::integer * "minutes"`),
   },
   (t) => [
@@ -142,6 +149,7 @@ export const participation = pgTable(
       sql`${t.status} not in ('absent', 'unavailable') or (coalesce(${t.minutes}, 0) = 0 and ${t.rpe} is null)`,
     ),
     check('participation_rpe_reported', sql`(${t.rpe} is null) = (${t.rpeReportedAt} is null)`),
+    check('participation_rpe_via_kiosk', sql`${t.rpe} is not null or not ${t.rpeViaKiosk}`),
   ],
 );
 
@@ -163,6 +171,8 @@ export const wellness = pgTable(
     stress: smallint('stress'),
     mood: smallint('mood'),
     submittedAt: timestamptz('submitted_at').notNull().defaultNow(),
+    /** Loaded on the club's kiosk (B-504, ADR 0086) instead of the player's own account. */
+    viaKiosk: boolean('via_kiosk').notNull().default(false),
   },
   (t) => [
     ...tenantConstraints('wellness', t),

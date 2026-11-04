@@ -129,6 +129,7 @@ describe('@sport-performance/contracts entry point', () => {
       'archiveExternalLoad',
       'listExternalLoads',
       'getExternalLoad',
+      'getKioskRoster',
       'listAlerts',
       'getAlert',
       'reviewAlert',

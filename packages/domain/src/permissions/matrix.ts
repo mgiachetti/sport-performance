@@ -42,6 +42,21 @@ const staffRead: RoleRules = {
 const ownAndStaffRead: RoleRules = { ...staffRead, player: self };
 
 /**
+ * Kiosk mode (B-504, ADR 0086): the staff member signed in on a shared club
+ * device loads, for a player who picks themselves there, what the player
+ * would load from their own account. The staff who run the training (coach,
+ * S&C) in their assignments and the administration in the club; never the
+ * medical staff (not their tool) nor the superadmin (support does not load
+ * players' data). Always with the player's current `data` consent.
+ */
+const kioskSubmit: RoleRules = {
+  ...nobody,
+  coach: allow('assigned', 'data'),
+  sc: allow('assigned', 'data'),
+  admin: allow('club', 'data'),
+};
+
+/**
  * The permission matrix (B-303, ADR 0025): the single source of truth of who
  * sees and does what. The API (before each handler), the web and mobile (to
  * show or hide actions) evaluate it with `can`; the database keeps its own
@@ -59,7 +74,8 @@ const ownAndStaffRead: RoleRules = { ...staffRead, player: self };
  *   the account of a player without email. Once the player is of age, only
  *   what does not need a minor, and only if the adult kept the link (B-311). Never rankings; of health, only
  *   the record of a minor with a health consent (read only, ADR 0029).
- * - **coach**: assigned categories: panel, roster, sessions, participation.
+ * - **coach**: assigned categories: panel, roster, sessions, participation;
+ *   wellness and RPE for a player on the club's kiosk (B-504), as S&C and admin.
  * - **sc**: assigned categories: test days, results, anthropometry, gym, CMJ
  *   videos (with an image consent), imports, CSV exports; club configuration.
  * - **medical**: health data of assigned players, always audited; the rest
@@ -187,10 +203,12 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
   wellness: {
     read: ownAndStaffRead,
     submit: { ...nobody, player: allow('self', 'data') },
+    kiosk_submit: kioskSubmit,
   },
   rpe: {
     read: ownAndStaffRead,
     submit: { ...nobody, player: allow('self', 'data') },
+    kiosk_submit: kioskSubmit,
   },
   // Only the player knows it; the staff reads it next to the club's load (B-511).
   external_load: {

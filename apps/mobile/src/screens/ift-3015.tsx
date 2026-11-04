@@ -94,7 +94,7 @@ function ProtocolSummary({ protocol }: { readonly protocol: Ift3015SignalProtoco
   );
 }
 
-function CheckRow({
+export function CheckRow({
   label,
   checked,
   onPress,

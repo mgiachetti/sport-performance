@@ -153,6 +153,11 @@ async function lockPushKeys(ctx: PushContext, mutations: readonly SyncMutation[]
     }
     const rpe = inputOf(mutation, 'rpe.submit');
     if (rpe !== undefined) {
+      if (rpe.body.playerId !== undefined) {
+        // The kiosk (B-504): the player it names.
+        keys.push(participationKey(rpe.params.trainingSessionId, rpe.body.playerId));
+        continue;
+      }
       ownPlayerId ??= (await ctx.permissions.subject()).playerId ?? null;
       if (ownPlayerId !== null)
         keys.push(participationKey(rpe.params.trainingSessionId, ownPlayerId));

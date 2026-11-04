@@ -1,4 +1,5 @@
 import {
+  REPORT_CHANNELS,
   WELLNESS_ITEMS,
   WELLNESS_SCORE_MAX,
   WELLNESS_SCORE_MIN,
@@ -25,6 +26,13 @@ import { changeReasonSchema } from './change-history.js';
  */
 
 export const wellnessIdSchema = idOf('carga de bienestar');
+
+/** How a self-reported value reached the club (B-504, ADR 0086). */
+export const reportChannelSchema = z.enum(REPORT_CHANNELS).meta({
+  id: 'ReportChannel',
+  description:
+    'Por dónde llegó lo que reporta el jugador: `player_account` (desde su propia cuenta) o `kiosk` (en el kiosco del club, con la sesión de un miembro del staff, que queda como autor).',
+});
 
 export const wellnessItemSchema = z.enum(WELLNESS_ITEMS).meta({
   id: 'WellnessItem',
@@ -72,6 +80,7 @@ export const wellnessSchema = z
       .max(WELLNESS_SCORE_MAX)
       .meta({ description: 'Media de los ítems respondidos (lo que evalúan las alertas).' }),
     submittedAt: dateTimeSchema,
+    channel: reportChannelSchema,
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     version: resourceVersionSchema,
@@ -111,11 +120,14 @@ export const submitWellness = defineEndpoint({
   path: '/v1/wellness',
   summary: 'Cargar el bienestar del día',
   description:
-    'Solo el jugador, sobre sí mismo y con consentimiento de datos vigente. Una carga por día del club: otra carga del mismo día es `conflict` (corregir con `PATCH`). `localDate` es hoy o ayer (cola offline). La versión de ítems sale de la etapa del jugador ese día. Idempotente por `clientUuid`.',
+    'El jugador, sobre sí mismo y con consentimiento de datos vigente. Con `playerId`, la carga del modo kiosco (B-504): el staff con la sesión abierta en el dispositivo compartido del club carga por el jugador que se eligió ahí (`wellness.kiosk_submit`: `coach` y `sc` en sus asignaciones, la administración en el club, siempre con el consentimiento de datos del jugador), y la carga queda con canal `kiosk`. Una carga por día del club: otra carga del mismo día es `conflict` (corregir con `PATCH`, solo el jugador). `localDate` es hoy o ayer (cola offline). La versión de ítems sale de la etapa del jugador ese día. Idempotente por `clientUuid`.',
   tags: ['wellness'],
   auth: 'club',
   body: z.strictObject({
     clientUuid: clientUuidSchema.optional(),
+    playerId: playerIdSchema.optional().meta({
+      description: 'Solo en el modo kiosco: el jugador por el que se carga. Sin él, quien llama.',
+    }),
     localDate: localDateSchema.optional().meta({
       description: 'Día del club de la carga: hoy (por defecto) o ayer.',
     }),

@@ -12,6 +12,8 @@ import {
   type CmjVideoService,
 } from '../cmj-video/service.ts';
 import { createSecureIftRunStore, type IftRunStore } from '../ift/run-store.ts';
+import { createKioskController, type KioskController } from '../kiosk/controller.ts';
+import type { Sha256Hex } from '../kiosk/pin.ts';
 import { createIftRunner, type IftRunner } from '../ift/runner.ts';
 import type { SignalPlayer } from '../ift/signal-player.ts';
 import type { RuntimeConfig } from '../config/runtime-config.ts';
@@ -47,6 +49,8 @@ export interface Platform {
   readonly secureStorage: SecureStorage;
   readonly preferences: PreferenceStorage;
   readonly randomUUID: () => string;
+  /** SHA-256 as hex (`expo-crypto` on the phone): the kiosk PIN and session fingerprint. */
+  readonly sha256Hex: Sha256Hex;
   /** BCP 47 tags of the device languages, in order of preference. */
   readonly languageTags: readonly string[];
   readonly reportError: (error: unknown) => void;
@@ -113,6 +117,11 @@ export interface AppServices {
   readonly sprintRecordings: SprintRecordings;
   /** The CMJ videos filmed on the phone and their uploads (B-604, ADR 0085). */
   readonly cmjVideos: CmjVideoService;
+  /**
+   * Kiosk mode (B-504, ADR 0086): whether this device is the club's kiosk,
+   * kept across launches and tied to the session it was opened with.
+   */
+  readonly kiosk: KioskController;
   readonly reportError: (error: unknown) => void;
   /** Stops listening to the API client (tests; the app lives as long as the process). */
   dispose(): void;
@@ -209,6 +218,14 @@ export function createAppServices(platform: Platform): AppServices {
     if (event.kind === 'session_expired') queryClient.clear();
     session.handleApiFailure(event);
   });
+  const kiosk = createKioskController({
+    storage: platform.secureStorage,
+    sessionToken: () => sessionStore.getToken(),
+    sha256Hex: platform.sha256Hex,
+    randomUUID: platform.randomUUID,
+    now: () => Date.now(),
+    reportError,
+  });
   // Another user or another club never sees the cached answers of the
   // previous one, nor its 30-15 IFT run: the signals stop and the marks of
   // its players leave the device, whether or not the screen is open; nor the
@@ -217,6 +234,8 @@ export function createAppServices(platform: Platform): AppServices {
   const unsubscribeSession = session.subscribe(() => {
     const state = session.getState();
     if (state.status === 'starting' || state.status === 'unavailable') return;
+    // The kiosk belongs to the session and membership it was opened in: any other is out of it.
+    kiosk.sync(syncScopeOf(state)).catch(reportError);
     const membershipId = state.status === 'signedIn' ? (state.activeMembership?.id ?? null) : null;
     const scope =
       state.status === 'signedIn' ? `${state.user.id}:${membershipId ?? ''}` : 'signedOut';
@@ -260,6 +279,7 @@ export function createAppServices(platform: Platform): AppServices {
     randomUUID: platform.randomUUID,
     sprintRecordings,
     cmjVideos,
+    kiosk,
     reportError,
     dispose() {
       push.dispose();

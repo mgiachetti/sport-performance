@@ -113,11 +113,13 @@ export const OPERATION_SPECS: { readonly [Op in SyncOperation]: OperationSpec<Op
   },
   'rpe.submit': {
     kind: 'create',
-    // A player's device holds only their own participations: the session names the row.
+    // A player's device holds only their own participations: the session names the row. The
+    // kiosk (B-504) holds the staff's, so its RPE names the player too.
     targets: ({ params, body }) => [
       {
         collection: 'participation',
         parentId: params.trainingSessionId,
+        ...(body.playerId !== undefined && { playerId: body.playerId }),
         ...(body.clientUuid !== undefined && { clientUuid: body.clientUuid }),
       },
     ],

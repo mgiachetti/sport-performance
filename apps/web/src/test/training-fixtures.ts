@@ -76,6 +76,7 @@ export function participation(
     contactsN: null,
     rpe: null,
     rpeReportedAt: null,
+    rpeChannel: null,
     srpeAu: null,
     createdAt: AT,
     updatedAt: AT,

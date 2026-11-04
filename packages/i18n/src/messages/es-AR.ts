@@ -12,6 +12,7 @@ import { mobileStaffMessagesEsAR } from './mobile-staff.js';
 import { mobileSprintVideoMessagesEsAR } from './mobile-sprint-video.js';
 import { mobileAnthropometryMessagesEsAR } from './mobile-anthropometry.js';
 import { mobileExternalLoadMessagesEsAR } from './mobile-external-load.js';
+import { mobileKioskMessagesEsAR } from './mobile-kiosk.js';
 import { reportMessagesEsAR } from './report.js';
 import { categoryReportMessagesEsAR } from './category-report.js';
 import { mobilePlayerMessagesEsAR } from './mobile-player.js';
@@ -486,6 +487,7 @@ export const sourceMessageFiles = {
   'web-test-day.ts': webTestDayMessagesEsAR,
   'mobile.ts': mobileMessagesEsAR,
   'mobile-test-day.ts': mobileTestDayMessagesEsAR,
+  'mobile-kiosk.ts': mobileKioskMessagesEsAR,
   'mobile-player.ts': mobilePlayerMessagesEsAR,
   'gym.ts': gymMessagesEsAR,
   'web-gym.ts': webGymMessagesEsAR,
@@ -523,6 +525,8 @@ export const esAR = {
   ...webTestDayMessagesEsAR,
   ...mobileMessagesEsAR,
   ...mobileTestDayMessagesEsAR,
+  // Kiosk mode (B-504)
+  ...mobileKioskMessagesEsAR,
   // Player app (B-503)
   ...mobilePlayerMessagesEsAR,
   // Gym (B-607): shared vocabulary, web screens and the mobile screen

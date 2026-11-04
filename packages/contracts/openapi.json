@@ -2470,6 +2470,117 @@
         }
       }
     },
+    "/v1/categories/{categoryId}/kiosk-roster": {
+      "get": {
+        "operationId": "getKioskRoster",
+        "summary": "Plantel del kiosco de una categoría",
+        "description": "Para el modo kiosco (B-504): los jugadores de la categoría hoy (día del club) que quien pide ve, con lo que les falta cargar hoy. Solo quien puede cargar en el kiosco (`wellness.kiosk_submit`: `coach` y `sc` de la categoría, la administración); los demás: `forbidden`. Nunca puntajes, valores, disponibilidad ni la causa de nada. Ordenado por apellido y nombre. De otro club: `not_found`.",
+        "tags": [
+          "wellness"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "categoryId",
+            "in": "path",
+            "required": true,
+            "description": "Id de categoría (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Cursor opaco devuelto como `nextCursor` por la página anterior.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Tamaño de página (1 a 100).",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden: `name`; con `-` adelante, descendente. Desempata por id.",
+            "schema": {
+              "default": "name",
+              "type": "string",
+              "enum": [
+                "name",
+                "-name"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página del plantel.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KioskRosterPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.bad_request.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
     "/v1/categories/{categoryId}/reports": {
       "get": {
         "operationId": "listCategoryReports",
@@ -26206,7 +26317,7 @@
       "post": {
         "operationId": "submitSessionRpe",
         "summary": "Cargar mi RPE de la sesión",
-        "description": "Solo el jugador, para sí mismo y con consentimiento `data` vigente. Dentro de la ventana: desde el inicio de la sesión hasta el fin del día del club siguiente. Si el staff todavía no cargó su participación (y la sesión es de una de sus categorías) se crea como `full` con los minutos planificados. Corregir un RPE ya enviado pide `changeReason`. Fuera de la ventana, sesión archivada o figura ausente o no disponible: `conflict`. Idempotente por `clientUuid`.",
+        "description": "El jugador, para sí mismo y con consentimiento `data` vigente; con `playerId`, el staff en el modo kiosco por el jugador que se eligió ahí (`rpe.kiosk_submit`, con el consentimiento `data` del jugador; canal `kiosk`). El kiosco no corrige: un RPE ya cargado es `conflict`. Dentro de la ventana: desde el inicio de la sesión hasta el fin del día del club siguiente. Si el staff todavía no cargó su participación (y la sesión es de una de sus categorías) se crea como `full` con los minutos planificados. Corregir un RPE ya enviado pide `changeReason`. Fuera de la ventana, sesión archivada o figura ausente o no disponible: `conflict`. Idempotente por `clientUuid`.",
         "tags": [
           "training"
         ],
@@ -26251,6 +26362,12 @@
                   "clientUuid": {
                     "$ref": "#/components/schemas/ClientUuid"
                   },
+                  "playerId": {
+                    "description": "Solo en el modo kiosco: el jugador por el que se carga. Sin él, quien llama.",
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
                   "rpe": {
                     "$ref": "#/components/schemas/SessionRpe"
                   },
@@ -26268,7 +26385,7 @@
         },
         "responses": {
           "200": {
-            "description": "Mi participación.",
+            "description": "La participación del jugador.",
             "content": {
               "application/json": {
                 "schema": {
@@ -26458,7 +26575,7 @@
       "post": {
         "operationId": "submitWellness",
         "summary": "Cargar el bienestar del día",
-        "description": "Solo el jugador, sobre sí mismo y con consentimiento de datos vigente. Una carga por día del club: otra carga del mismo día es `conflict` (corregir con `PATCH`). `localDate` es hoy o ayer (cola offline). La versión de ítems sale de la etapa del jugador ese día. Idempotente por `clientUuid`.",
+        "description": "El jugador, sobre sí mismo y con consentimiento de datos vigente. Con `playerId`, la carga del modo kiosco (B-504): el staff con la sesión abierta en el dispositivo compartido del club carga por el jugador que se eligió ahí (`wellness.kiosk_submit`: `coach` y `sc` en sus asignaciones, la administración en el club, siempre con el consentimiento de datos del jugador), y la carga queda con canal `kiosk`. Una carga por día del club: otra carga del mismo día es `conflict` (corregir con `PATCH`, solo el jugador). `localDate` es hoy o ayer (cola offline). La versión de ítems sale de la etapa del jugador ese día. Idempotente por `clientUuid`.",
         "tags": [
           "wellness"
         ],
@@ -26491,6 +26608,12 @@
                 "properties": {
                   "clientUuid": {
                     "$ref": "#/components/schemas/ClientUuid"
+                  },
+                  "playerId": {
+                    "description": "Solo en el modo kiosco: el jugador por el que se carga. Sin él, quien llama.",
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                   },
                   "localDate": {
                     "description": "Día del club de la carga: hoy (por defecto) o ayer.",
@@ -34672,6 +34795,181 @@
         ],
         "description": "El código y los links se devuelven solo acá: el servidor guarda sus hashes. Se usan una sola vez y vencen a los 15 minutos."
       },
+      "KioskRosterEntry": {
+        "type": "object",
+        "properties": {
+          "player": {
+            "$ref": "#/components/schemas/KioskRosterPlayer"
+          },
+          "canReport": {
+            "type": "boolean",
+            "description": "Si quien pide puede cargarle bienestar y RPE en el kiosco (matriz `wellness.kiosk_submit` y `rpe.kiosk_submit`, con el consentimiento `data` vigente). El kiosco no dice por qué no."
+          },
+          "wellness": {
+            "$ref": "#/components/schemas/KioskRosterWellness"
+          },
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KioskRosterSession"
+            },
+            "description": "Sesiones activas de ayer y de hoy cuya ventana de RPE no cerró (también las que todavía no empezaron), de sus categorías ese día o con su participación, por hora de inicio."
+          }
+        },
+        "required": [
+          "player",
+          "canReport",
+          "wellness",
+          "sessions"
+        ]
+      },
+      "KioskRosterPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KioskRosterEntry"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cursor de la página siguiente; `null` si no hay más."
+          },
+          "today": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Hoy en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "timeZone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Zona horaria del club: el dispositivo calcula \"hoy\" sin conexión.",
+            "examples": [
+              "America/Argentina/Buenos_Aires"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "today",
+          "timeZone"
+        ]
+      },
+      "KioskRosterPlayer": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "firstName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "lastName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          }
+        },
+        "required": [
+          "id",
+          "firstName",
+          "lastName"
+        ]
+      },
+      "KioskRosterSession": {
+        "type": "object",
+        "properties": {
+          "session": {
+            "$ref": "#/components/schemas/TrainingSessionSummary"
+          },
+          "rpeWindow": {
+            "$ref": "#/components/schemas/RpeWindow"
+          },
+          "state": {
+            "$ref": "#/components/schemas/KioskRpeState"
+          }
+        },
+        "required": [
+          "session",
+          "rpeWindow",
+          "state"
+        ]
+      },
+      "KioskRosterWellness": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "localDate": {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "description": "Hoy, día del club.",
+                "examples": [
+                  "2026-11-01"
+                ]
+              },
+              "stage": {
+                "$ref": "#/components/schemas/Stage"
+              },
+              "itemCount": {
+                "$ref": "#/components/schemas/WellnessItemCount"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WellnessItem"
+                },
+                "description": "Ítems a preguntar, en orden."
+              },
+              "submitted": {
+                "type": "boolean",
+                "description": "Si ya cargó el bienestar de hoy (por cualquier canal). Nunca los puntajes."
+              }
+            },
+            "required": [
+              "localDate",
+              "stage",
+              "itemCount",
+              "items",
+              "submitted"
+            ]
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "`null` si hoy no tiene etapa ni categoría: no se le pregunta."
+      },
+      "KioskRpeState": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "reported",
+          "not_taking_part"
+        ],
+        "description": "`pending` (sin RPE todavía), `reported` (ya cargado, por cualquier canal: el kiosco no corrige) o `not_taking_part` (el staff lo cargó ausente o no disponible: no hay carga)."
+      },
       "Locale": {
         "type": "string",
         "enum": [
@@ -36270,6 +36568,17 @@
               }
             ]
           },
+          "rpeChannel": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportChannel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Por dónde llegó el RPE; `null` sin RPE."
+          },
           "srpeAu": {
             "anyOf": [
               {
@@ -36314,6 +36623,7 @@
           "contactsN",
           "rpe",
           "rpeReportedAt",
+          "rpeChannel",
           "srpeAu",
           "createdAt",
           "updatedAt",
@@ -36430,6 +36740,17 @@
               }
             ]
           },
+          "rpeChannel": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportChannel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Por dónde llegó el RPE; `null` sin RPE."
+          },
           "srpeAu": {
             "anyOf": [
               {
@@ -36477,6 +36798,7 @@
           "contactsN",
           "rpe",
           "rpeReportedAt",
+          "rpeChannel",
           "srpeAu",
           "createdAt",
           "updatedAt",
@@ -39340,6 +39662,14 @@
           "highSpeedZoneCode"
         ],
         "additionalProperties": false
+      },
+      "ReportChannel": {
+        "type": "string",
+        "enum": [
+          "player_account",
+          "kiosk"
+        ],
+        "description": "Por dónde llegó lo que reporta el jugador: `player_account` (desde su propia cuenta) o `kiosk` (en el kiosco del club, con la sesión de un miembro del staff, que queda como autor)."
       },
       "ResourceVersion": {
         "type": "string",
@@ -46750,6 +47080,9 @@
               "2026-11-01T12:00:00.000Z"
             ]
           },
+          "channel": {
+            "$ref": "#/components/schemas/ReportChannel"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -46781,6 +47114,7 @@
           "scores",
           "meanScore",
           "submittedAt",
+          "channel",
           "createdAt",
           "updatedAt",
           "version"

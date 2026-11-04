@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   clubThemeSchema,
   membershipSchema,
@@ -101,6 +102,7 @@ export function testServices(
     secureStorage: secure,
     preferences,
     randomUUID: () => DEVICE_ID,
+    sha256Hex: (text) => Promise.resolve(createHash('sha256').update(text).digest('hex')),
     languageTags: ['es-AR'],
     reportError: (error) => errors.push(error),
     createSignalPlayer: () => audio,

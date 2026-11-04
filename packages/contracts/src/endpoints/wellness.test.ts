@@ -17,6 +17,7 @@ const entry = {
   scores: { sleep: 4, fatigue: 3, soreness: 2 },
   meanScore: 3,
   submittedAt: '2026-11-02T10:00:00.000Z',
+  channel: 'player_account',
   createdAt: '2026-11-02T10:00:00.000Z',
   updatedAt: '2026-11-02T10:00:00.000Z',
   version: '1793586338688123',
