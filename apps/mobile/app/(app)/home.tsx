@@ -3,6 +3,7 @@ import { canRunIft3015 } from '../../src/ift/roster.ts';
 import { canRecordWeeklyCmj } from '../../src/weekly-cmj/model.ts';
 import { HomeScreen } from '../../src/screens/app.tsx';
 import { SyncIndicator } from '../../src/screens/sync.tsx';
+import { canFilmSprint } from '../../src/sprint-video/attempt.ts';
 import {
   useClubTheme,
   useNow,
@@ -65,6 +66,13 @@ export default function Home() {
         canRecordWeeklyCmj(state.activeMembership.role)
           ? () => {
               router.push('/weekly-cmj');
+            }
+          : null
+      }
+      onOpenSprintVideo={
+        canFilmSprint(state.activeMembership.role)
+          ? () => {
+              router.push('/sprint-video');
             }
           : null
       }

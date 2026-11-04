@@ -103,6 +103,8 @@ export const testNotDoneReasonViewSchema = z.enum([...TEST_NOT_DONE_REASONS, 'un
 // ─── Entries ─────────────────────────────────────────────────────────────────────────
 
 const positive = z.number().positive().max(1_000_000);
+/** A frame of a video (0 = the first one). */
+const videoFrame = z.int().min(0).max(10_000_000);
 
 const entryClientUuid = {
   clientUuid: clientUuidSchema.optional().meta({
@@ -123,7 +125,7 @@ export const testEntryAttemptFields = {
 };
 
 export const TEST_ENTRY_INPUT_DESCRIPTION =
-  'Un intento como lo carga el evaluador. `value`: el valor de una métrica en su unidad; el resto son entradas crudas que el servidor convierte con las fórmulas del dominio (sprint: t10/t20/t40 y Vmax 20–40; CMJ: tiempo de vuelo o cuadros de video, `h = g·t²/8`; 30-15 IFT: última etapa → VIFT; fuerza: serie peso/reps/RIR → e1RM de Epley con RIR). Las métricas derivadas no se cargan a mano.';
+  'Un intento como lo carga el evaluador. `value`: el valor de una métrica en su unidad; el resto son entradas crudas que el servidor convierte con las fórmulas del dominio (sprint: t10/t20/t40 tipeados o los cuadros de un video de costado donde el tronco cruza cada línea, y Vmax 20–40; CMJ: tiempo de vuelo o cuadros de video, `h = g·t²/8`; 30-15 IFT: última etapa → VIFT; fuerza: serie peso/reps/RIR → e1RM de Epley con RIR). Las métricas derivadas no se cargan a mano.';
 
 /**
  * The kinds of entry, with `common` fields in each: the entries of a result
@@ -145,12 +147,21 @@ export function testEntryInputVariants<const Common extends z.ZodRawShape>(commo
       split20S: positive,
       split40S: positive,
     }),
+    z.strictObject({
+      kind: z.literal('sprint_video_frames'),
+      ...common,
+      startFrame: videoFrame,
+      frame10: videoFrame.optional(),
+      frame20: videoFrame,
+      frame40: videoFrame,
+      frameRateFps: positive,
+    }),
     z.strictObject({ kind: z.literal('cmj_flight_time'), ...common, flightTimeS: positive }),
     z.strictObject({
       kind: z.literal('cmj_video_frames'),
       ...common,
-      takeoffFrame: z.int().min(0).max(10_000_000),
-      landingFrame: z.int().min(0).max(10_000_000),
+      takeoffFrame: videoFrame,
+      landingFrame: videoFrame,
       frameRateFps: positive,
     }),
     z.strictObject({

@@ -13,6 +13,7 @@ import { cmjHeightCmFromFlightTimeS, flightTimeSFromFrames } from './cmj.js';
 import { cod505AsymmetryPct } from './cod505.js';
 import { DEFAULT_IFT_3015_PROTOCOL, vift3015Kmh, type Ift3015Protocol } from './ift3015.js';
 import { assertSprint40Splits, sprintVmaxMs } from './sprint.js';
+import { sprintSplitsFromVideoFrames } from './sprint-video.js';
 import {
   DEFAULT_E1RM_PROTOCOL,
   e1rmSetIssues,
@@ -40,6 +41,7 @@ import { assertFinite, invalidArgument } from './validate.js';
 export const TEST_ENTRY_KINDS = [
   'value',
   'sprint_splits',
+  'sprint_video_frames',
   'cmj_flight_time',
   'cmj_video_frames',
   'ift_stage',
@@ -56,6 +58,14 @@ export type TestEntryInput =
       readonly split10S?: number | undefined;
       readonly split20S: number;
       readonly split40S: number;
+    }
+  | {
+      readonly kind: 'sprint_video_frames';
+      readonly startFrame: number;
+      readonly frame10?: number | undefined;
+      readonly frame20: number;
+      readonly frame40: number;
+      readonly frameRateFps: number;
     }
   | { readonly kind: 'cmj_flight_time'; readonly flightTimeS: number }
   | {
@@ -81,7 +91,7 @@ export const TEST_ENTRY_KINDS_BY_TEST: Readonly<
   Record<CanonicalTestCode, readonly TestEntryKind[]>
 > = {
   anthro: [],
-  sprint_40: ['sprint_splits', 'value'],
+  sprint_40: ['sprint_splits', 'sprint_video_frames', 'value'],
   cmj: ['cmj_flight_time', 'cmj_video_frames', 'value'],
   cod_505: ['value'],
   ift_3015: ['ift_stage', 'value'],
@@ -200,6 +210,20 @@ export function scoreTestEntry(
       values.push(
         { metricCode: 'sprint_20_s', value: entry.split20S, computed: false },
         { metricCode: 'sprint_40_s', value: entry.split40S, computed: false },
+        { metricCode: 'sprint_vmax_ms', value: sprintVmaxMs(splits), computed: true },
+      );
+      return { values, issues: [] };
+    }
+    case 'sprint_video_frames': {
+      // Every split is computed from the frames (ADR 0082): none was typed in.
+      const splits = sprintSplitsFromVideoFrames(entry);
+      const values: EntryMetricValue[] = [];
+      if (splits.split10S !== undefined) {
+        values.push({ metricCode: 'sprint_10_s', value: splits.split10S, computed: true });
+      }
+      values.push(
+        { metricCode: 'sprint_20_s', value: splits.split20S, computed: true },
+        { metricCode: 'sprint_40_s', value: splits.split40S, computed: true },
         { metricCode: 'sprint_vmax_ms', value: sprintVmaxMs(splits), computed: true },
       );
       return { values, issues: [] };

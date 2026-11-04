@@ -36,6 +36,24 @@ export {
 } from './sprint.js';
 
 export {
+  SPRINT_VIDEO_LINES_M,
+  SPRINT_VIDEO_MAX_SIGHT_ANGLE_DEG,
+  SPRINT_VIDEO_MIN_FPS,
+  SPRINT_VIDEO_PREFERRED_FPS,
+  chooseSprintVideoFrameRate,
+  isSprintVideoFrameRate,
+  sprintSplitsFromVideoFrames,
+  sprintVideoLayout,
+  sprintVideoMeasurement,
+  sprintVideoMinCameraDistanceM,
+  type SprintVideoFrames,
+  type SprintVideoLayout,
+  type SprintVideoLayoutInput,
+  type SprintVideoMeasurement,
+  type SprintVideoPole,
+} from './sprint-video.js';
+
+export {
   cod505Asymmetry,
   cod505AsymmetryPct,
   scoreCod505,

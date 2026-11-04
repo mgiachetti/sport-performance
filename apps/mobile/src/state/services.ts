@@ -24,6 +24,11 @@ import {
   type PushRegistrar,
 } from '../notifications/registration.ts';
 import type { PreferenceStorage, SecureStorage } from '../platform/storage.ts';
+import {
+  createSprintRecordings,
+  type SprintRecordings,
+  type SprintVideoFiles,
+} from '../sprint-video/recordings.ts';
 import { createAppTranslator } from '../ui/i18n.tsx';
 import { createCompatibilityChecker, type AppBuildInfo } from '../version/index.ts';
 import { createSessionController, type SessionController } from './session-controller.ts';
@@ -56,6 +61,8 @@ export interface Platform {
     readonly channelName: string;
     readonly reportError: (error: unknown) => void;
   }) => PushDevice;
+  /** The directory of the temporary sprint videos (B-605): the app's cache on the phone. */
+  readonly sprintVideoFiles: SprintVideoFiles;
 }
 
 export interface AppServices {
@@ -89,6 +96,11 @@ export interface AppServices {
   readonly pushDevice: PushDevice;
   /** Ids generated on the device (`clientUuid` of the writes it queues). */
   readonly randomUUID: () => string;
+  /**
+   * The temporary videos of the sprint by video (B-605, ADR 0082): deleted
+   * at launch and whenever the user or the club changes.
+   */
+  readonly sprintRecordings: SprintRecordings;
   readonly reportError: (error: unknown) => void;
   /** Stops listening to the API client (tests; the app lives as long as the process). */
   dispose(): void;
@@ -165,6 +177,9 @@ export function createAppServices(platform: Platform): AppServices {
     session,
     reportError,
   });
+  const sprintRecordings = createSprintRecordings(platform.sprintVideoFiles);
+  // A video left by a crash or a kill mid-marking never outlives the launch.
+  sprintRecordings.sweep().catch(reportError);
 
   const unsubscribe = api.onFailure((event) => {
     if (event.kind === 'update_required') {
@@ -176,7 +191,8 @@ export function createAppServices(platform: Platform): AppServices {
   });
   // Another user or another club never sees the cached answers of the
   // previous one, nor its 30-15 IFT run: the signals stop and the marks of
-  // its players leave the device, whether or not the screen is open.
+  // its players leave the device, whether or not the screen is open; nor the
+  // sprint videos being marked.
   let lastScope: string | null = null;
   const unsubscribeSession = session.subscribe(() => {
     const state = session.getState();
@@ -185,7 +201,11 @@ export function createAppServices(platform: Platform): AppServices {
     const scope =
       state.status === 'signedIn' ? `${state.user.id}:${membershipId ?? ''}` : 'signedOut';
     if (scope === lastScope) return;
-    if (lastScope !== null) queryClient.clear();
+    if (lastScope !== null) {
+      queryClient.clear();
+      // The first scope of the launch needs none: the sweep above already ran.
+      sprintRecordings.sweep().catch(reportError);
+    }
     lastScope = scope;
     iftRunner
       .leaveScope(
@@ -217,6 +237,7 @@ export function createAppServices(platform: Platform): AppServices {
     push,
     pushDevice,
     randomUUID: platform.randomUUID,
+    sprintRecordings,
     reportError,
     dispose() {
       push.dispose();

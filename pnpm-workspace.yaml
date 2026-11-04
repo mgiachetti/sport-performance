@@ -9,3 +9,6 @@ allowBuilds:
   # @sentry/cli (via @sentry/react-native) takes its binary from a platform optionalDependency;
   # its postinstall only re-checks or downloads it again, so it is not allowed to run.
   '@sentry/cli': false
+
+patchedDependencies:
+  expo-video-thumbnails@58.0.2: patches/expo-video-thumbnails@58.0.2.patch

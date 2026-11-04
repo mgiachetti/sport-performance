@@ -86,6 +86,7 @@ export default function AppLayout() {
         name="notifications"
         options={{ title: t('staff.notifications.title'), href: null }}
       />
+      <Tabs.Screen name="sprint-video" options={{ title: t('sprintVideo.title'), href: null }} />
     </Tabs>
   );
 }

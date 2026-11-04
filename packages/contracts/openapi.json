@@ -41719,6 +41719,7 @@
               "enum": [
                 "value",
                 "sprint_splits",
+                "sprint_video_frames",
                 "cmj_flight_time",
                 "cmj_video_frames",
                 "ift_stage",
@@ -41899,6 +41900,15 @@
             ],
             "description": "Si quien pide puede cargarle resultados (`test_result:record`): `missing_consent` sin consentimiento de datos vigente, `forbidden` por rol o alcance."
           },
+          "video": {
+            "type": "string",
+            "enum": [
+              "allowed",
+              "missing_consent",
+              "forbidden"
+            ],
+            "description": "Si quien pide puede grabarle video (`media:upload`; sprint por video, B-605): `missing_consent` sin consentimiento de imagen vigente (sin él no se graba), `forbidden` por rol o alcance."
+          },
           "stage": {
             "anyOf": [
               {
@@ -41981,6 +41991,7 @@
           "birthDate",
           "inCategory",
           "recording",
+          "video",
           "stage",
           "strengthAssessment",
           "tests",
@@ -42228,6 +42239,7 @@
             "enum": [
               "value",
               "sprint_splits",
+              "sprint_video_frames",
               "cmj_flight_time",
               "cmj_video_frames",
               "ift_stage",
@@ -42479,6 +42491,67 @@
             "properties": {
               "kind": {
                 "type": "string",
+                "const": "sprint_video_frames"
+              },
+              "clientUuid": {
+                "description": "UUID de la entrada generado por el cliente (cola offline): reenviarla no la duplica. Es el `id` de la entrada.",
+                "$ref": "#/components/schemas/ClientUuid"
+              },
+              "attemptNumber": {
+                "description": "Número de intento (etiqueta del evaluador). Sin número, la entrada es el valor único del resultado.",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "recordedAt": {
+                "description": "Cuándo se registró en la cancha (ordena intentos de varios dispositivos).",
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "startFrame": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "frame10": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "frame20": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "frame40": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "frameRateFps": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000
+              }
+            },
+            "required": [
+              "kind",
+              "startFrame",
+              "frame20",
+              "frame40",
+              "frameRateFps"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
                 "const": "cmj_flight_time"
               },
               "clientUuid": {
@@ -42651,7 +42724,7 @@
             "additionalProperties": false
           }
         ],
-        "description": "Un intento como lo carga el evaluador. `value`: el valor de una métrica en su unidad; el resto son entradas crudas que el servidor convierte con las fórmulas del dominio (sprint: t10/t20/t40 y Vmax 20–40; CMJ: tiempo de vuelo o cuadros de video, `h = g·t²/8`; 30-15 IFT: última etapa → VIFT; fuerza: serie peso/reps/RIR → e1RM de Epley con RIR). Las métricas derivadas no se cargan a mano."
+        "description": "Un intento como lo carga el evaluador. `value`: el valor de una métrica en su unidad; el resto son entradas crudas que el servidor convierte con las fórmulas del dominio (sprint: t10/t20/t40 tipeados o los cuadros de un video de costado donde el tronco cruza cada línea, y Vmax 20–40; CMJ: tiempo de vuelo o cuadros de video, `h = g·t²/8`; 30-15 IFT: última etapa → VIFT; fuerza: serie peso/reps/RIR → e1RM de Epley con RIR). Las métricas derivadas no se cargan a mano."
       },
       "TestEvolutionColumn": {
         "type": "object",
@@ -43063,6 +43136,63 @@
             "properties": {
               "kind": {
                 "type": "string",
+                "const": "sprint_video_frames"
+              },
+              "attemptNumber": {
+                "description": "Número de intento (etiqueta del evaluador). Sin número, la entrada es el valor único del resultado.",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "recordedAt": {
+                "description": "Cuándo se registró en la cancha (ordena intentos de varios dispositivos).",
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              "startFrame": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "frame10": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "frame20": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "frame40": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "frameRateFps": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 1000000
+              }
+            },
+            "required": [
+              "kind",
+              "startFrame",
+              "frame20",
+              "frame40",
+              "frameRateFps"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
                 "const": "cmj_flight_time"
               },
               "attemptNumber": {
@@ -43219,7 +43349,7 @@
             "additionalProperties": false
           }
         ],
-        "description": "Un intento como lo carga el evaluador. `value`: el valor de una métrica en su unidad; el resto son entradas crudas que el servidor convierte con las fórmulas del dominio (sprint: t10/t20/t40 y Vmax 20–40; CMJ: tiempo de vuelo o cuadros de video, `h = g·t²/8`; 30-15 IFT: última etapa → VIFT; fuerza: serie peso/reps/RIR → e1RM de Epley con RIR). Las métricas derivadas no se cargan a mano. Sin `clientUuid`: el servidor lo deriva del lote."
+        "description": "Un intento como lo carga el evaluador. `value`: el valor de una métrica en su unidad; el resto son entradas crudas que el servidor convierte con las fórmulas del dominio (sprint: t10/t20/t40 tipeados o los cuadros de un video de costado donde el tronco cruza cada línea, y Vmax 20–40; CMJ: tiempo de vuelo o cuadros de video, `h = g·t²/8`; 30-15 IFT: última etapa → VIFT; fuerza: serie peso/reps/RIR → e1RM de Epley con RIR). Las métricas derivadas no se cargan a mano. Sin `clientUuid`: el servidor lo deriva del lote."
       },
       "TestImportInput": {
         "type": "object",

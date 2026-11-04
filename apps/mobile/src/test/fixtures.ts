@@ -13,6 +13,7 @@ import { recordingSignalPlayer } from '../ift/signal-player.ts';
 import { unsupportedPushDevice, type PushDevice } from '../notifications/registration.ts';
 import { createAppServices, type Platform } from '../state/services.ts';
 import { createFakeApi, type FakeApi } from './fake-api.ts';
+import { memorySprintVideoFiles } from './memory-sprint-videos.ts';
 import { nodeSqliteDriver } from './node-sqlite.ts';
 
 export const USER: SessionUser = sessionUserSchema.parse({
@@ -77,12 +78,21 @@ export function signedInRoutes(api: FakeApi, memberships: readonly MembershipSum
 }
 
 /** The app services against a fake API and in-memory device storage. */
-export function testServices(options: { secure?: Record<string, string>; push?: PushDevice } = {}) {
+export function testServices(
+  options: {
+    secure?: Record<string, string>;
+    push?: PushDevice;
+    /** Sprint videos already on the phone at launch (left by a crash). */
+    sprintVideos?: readonly string[];
+  } = {},
+) {
   const api = createFakeApi();
   const secure = memorySecureStorage(options.secure);
   const preferences = memoryPreferenceStorage();
   const errors: unknown[] = [];
   const audio = recordingSignalPlayer();
+  const sprintVideos = memorySprintVideoFiles();
+  for (const path of options.sprintVideos ?? []) sprintVideos.record(path);
   const platform: Platform = {
     config: runtimeConfigFromEnv({ API_BASE_URL: api.baseUrl }, 'sportperformance-dev'),
     build: { platform: 'ios', nativeVersion: '1.0.0', runtimeVersion: null },
@@ -96,7 +106,8 @@ export function testServices(options: { secure?: Record<string, string>; push?: 
     fetch: api.fetch,
     openLocalDatabase: () => openLocalDatabase(nodeSqliteDriver()),
     createPushDevice: () => options.push ?? unsupportedPushDevice(),
+    sprintVideoFiles: sprintVideos.directory,
   };
   const services = createAppServices(platform);
-  return { api, secure, preferences, errors, audio, services };
+  return { api, secure, preferences, errors, audio, sprintVideos, services };
 }

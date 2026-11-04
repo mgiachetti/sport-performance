@@ -178,6 +178,7 @@ export function sheetPlayer(
     birthDate: '2011-05-01' as TestDaySheetPlayer['birthDate'],
     inCategory: true,
     recording: 'allowed',
+    video: 'allowed',
     stage: 'development',
     strengthAssessment: 'estimated_rm',
     tests: stations.map((s) => ({ testCode: s.testCode, applicable: true, reason: null })),

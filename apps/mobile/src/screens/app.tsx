@@ -40,6 +40,7 @@ export function HomeScreen({
   onOpenIft3015 = null,
   onOpenReaction = null,
   onOpenWeeklyCmj = null,
+  onOpenSprintVideo = null,
 }: {
   readonly userName: string;
   readonly membership: MembershipSummary;
@@ -53,6 +54,8 @@ export function HomeScreen({
   readonly onOpenReaction?: (() => void) | null;
   /** The weekly CMJ of M17/M19 (B-506); `null` hides it. */
   readonly onOpenWeeklyCmj?: (() => void) | null;
+  /** The sprint by video (B-605); `null` hides it. */
+  readonly onOpenSprintVideo?: (() => void) | null;
 }) {
   const { t } = useTranslator();
   const name = userName.trim();
@@ -83,6 +86,12 @@ export function HomeScreen({
         <Card>
           <AppText tone="secondary">{t('weeklyCmj.open.hint')}</AppText>
           <Button variant="secondary" label={t('weeklyCmj.open')} onPress={onOpenWeeklyCmj} />
+        </Card>
+      )}
+      {onOpenSprintVideo === null ? null : (
+        <Card>
+          <AppText tone="secondary">{t('sprintVideo.open.hint')}</AppText>
+          <Button variant="secondary" label={t('sprintVideo.open')} onPress={onOpenSprintVideo} />
         </Card>
       )}
       <AppText role="caption" tone="muted">

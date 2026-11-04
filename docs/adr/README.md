@@ -85,6 +85,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0079](0079-cmj-semanal-en-la-app.md) | CMJ semanal en la app: resultados fuera del día de test por la cola, base de la regla `cmj_drop` calculada con la función del motor y lecturas guardadas en la base local | Aceptado |
 | [0080](0080-sesion-del-entrenador-en-cancha.md) | Sesión del entrenador en cancha: plantel guardado en el teléfono, borrador local antes de la cola, reloj de quién está en cancha y ediciones por campo | Aceptado |
 | [0081](0081-staff-en-el-celular.md) | Staff en el celular: vista rápida antes de entrenar guardada en el teléfono, push registrado por sesión con permiso diferido y revisión de alertas solo en línea | Aceptado |
+| [0082](0082-sprint-por-video-foto-finish.md) | Sprint por video (foto-finish): un celular de costado, cruce marcado cuadro a cuadro con conos corregidos por paralaje, cuadros como entrada cruda y video que no sale del teléfono | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 
