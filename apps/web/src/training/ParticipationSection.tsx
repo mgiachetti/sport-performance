@@ -73,7 +73,7 @@ function periodTotalText(draft: DraftRow): string {
  * contacts, and the player's RPE and sRPE (read only: the player reports
  * the RPE, the database computes the load). One batch saves what changed;
  * correcting values already submitted asks for the reason (ADR 0030).
- * The sport decides the columns (B-803, ADR 0087): no contacts in hockey,
+ * The sport decides the columns (B-803, ADR 0090): no contacts in hockey,
  * and in a hockey match the minutes of each period, with their sum as the
  * total.
  */

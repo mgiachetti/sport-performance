@@ -296,7 +296,7 @@ const wellnessCorrect: Resolver<'wellness.correct'> = async ({ target, body }, c
 
 /**
  * The fields of a participation the sync resolves. `minutes` is the pair of
- * the total and its periods (B-803, ADR 0087): a write of either decides
+ * the total and its periods (B-803, ADR 0090): a write of either decides
  * both (periods set the total; a total clears the periods), so they win or
  * lose together, against the later of their two clocks, and are stamped
  * together. Resolved apart, a total from one phone and periods from another

@@ -2,7 +2,7 @@ import type { Sport } from '../sport.js';
 
 /**
  * Which canonical (or club) metric each column of a Catapult OpenField
- * export is, for one sport (B-601, B-803, ADR 0087). The aliases are data of
+ * export is, for one sport (B-601, B-803, ADR 0090). The aliases are data of
  * the club's metric dictionary (`metric_definition.catapult_aliases`); the
  * sport decides which metrics take part: OpenField names its columns the
  * same in every sport, so a hockey export with a "Contacts" or "Scrum Count"

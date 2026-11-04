@@ -1,5 +1,5 @@
 /**
- * Hockey field data (B-803, ADR 0087) end to end against Postgres 16: the
+ * Hockey field data (B-803, ADR 0090) end to end against Postgres 16: the
  * field rules of the session's sport in the participation and drill
  * endpoints (no contacts in hockey; minutes by period in matches with
  * rolling substitutions, their sum kept by the database), the change
