@@ -101,6 +101,43 @@ describe('queue', () => {
     expect(engine.getStatus().pendingCount).toBe(2);
   });
 
+  it('queues several writes in one transaction, in order, or none of them', async () => {
+    let allowed = Number.POSITIVE_INFINITY;
+    const { engine } = await setup({
+      engine: {
+        randomUUID: () => {
+          if (allowed <= 0) throw new Error('disk full');
+          allowed -= 1;
+          return uuid();
+        },
+      },
+    });
+    const queued = await engine.enqueueAll([
+      { op: 'wellness.submit', input: submitWellness() },
+      { op: 'wellness.submit', input: submitWellness() },
+    ]);
+    expect(queued.map((m) => m.seq)).toEqual([...queued.map((m) => m.seq)].sort((x, y) => x - y));
+    expect(new Set(queued.map((m) => m.seq)).size).toBe(2);
+    expect(engine.getStatus().pendingCount).toBe(2);
+    // An invalid write: nothing enters.
+    await expect(
+      engine.enqueueAll([
+        { op: 'wellness.submit', input: submitWellness() },
+        { op: 'wellness.submit', input: { body: { scores: { sleep: 3 } } } },
+      ]),
+    ).rejects.toThrow();
+    // The phone's database fails at the second write: the first one is rolled back.
+    allowed = 1;
+    await expect(
+      engine.enqueueAll([
+        { op: 'wellness.submit', input: submitWellness() },
+        { op: 'wellness.submit', input: submitWellness() },
+      ]),
+    ).rejects.toThrow('disk full');
+    expect(engine.getStatus().pendingCount).toBe(2);
+    expect(await engine.store.pending(SCOPE.membershipId, ['wellness.submit'])).toHaveLength(2);
+  });
+
   it('keeps the queue and the clock across an app kill', async () => {
     const file = temporaryDatabaseFile();
     cleanups.push(file.remove);

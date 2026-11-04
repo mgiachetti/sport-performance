@@ -48,6 +48,8 @@ export interface ReadCache {
   ): Promise<Map<string, CachedValue<T>>>;
   /** Keeps `value` under `key` (`fetchedAt` defaults to now). */
   put(scope: SyncScopeRef, key: string, value: unknown, fetchedAt?: number): Promise<void>;
+  /** Drops the kept answer under `key` (the roster of a session that left the list, ADR 0080). */
+  remove(membershipId: string, key: string): Promise<void>;
 }
 
 /** Between the name of a read and its parameters in a cache key. */
@@ -214,6 +216,13 @@ export function createReadCache(database: LocalDatabase, options: ReadCacheOptio
             target: [cachedRead.membershipId, cachedRead.key],
             set: { data: JSON.stringify(value), fetchedAt },
           });
+      });
+    },
+    async remove(membershipId, key) {
+      await database.write(async (db) => {
+        await db
+          .delete(cachedRead)
+          .where(and(eq(cachedRead.membershipId, membershipId), eq(cachedRead.key, key)));
       });
     },
   };

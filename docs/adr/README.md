@@ -83,6 +83,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0077](0077-test-de-reaccion-en-la-app.md) | Test de reacción en la app: equipo registrado por instalación, series puras en el dominio, tiempo desde el primer cuadro y comparación solo con el mismo jugador en el mismo equipo | Aceptado |
 | [0078](0078-reporte-de-dolor-en-el-bienestar.md) | Reporte de dolor en el bienestar: lo escribe el jugador en el esquema `medical`, append-only, lectura auditada y sin copia en el teléfono | Aceptado |
 | [0079](0079-cmj-semanal-en-la-app.md) | CMJ semanal en la app: resultados fuera del día de test por la cola, base de la regla `cmj_drop` calculada con la función del motor y lecturas guardadas en la base local | Aceptado |
+| [0080](0080-sesion-del-entrenador-en-cancha.md) | Sesión del entrenador en cancha: plantel guardado en el teléfono, borrador local antes de la cola, reloj de quién está en cancha y ediciones por campo | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 

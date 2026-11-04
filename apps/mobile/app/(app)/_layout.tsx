@@ -1,4 +1,6 @@
+import type { Role } from '@sport-performance/domain';
 import Tabs from 'expo-router/js-tabs';
+import { canRecordParticipation } from '../../src/coach-session/model.ts';
 import { useSession } from '../../src/state/app-context.tsx';
 import { canSeeTestDays } from '../../src/test-day/data.ts';
 import { useTranslator } from '../../src/ui/i18n.tsx';
@@ -8,15 +10,19 @@ import { useTheme } from '../../src/ui/theme.tsx';
  * The signed-in app with a club: one tab per area. The player's day and
  * tests are B-503 ("Hoy" and "Mis tests", only for the `player` role); the
  * field test day is B-505 (the staff who read test days); the protocols of
- * the tests are B-415; the player's consents open from Cuenta.
+ * the tests are B-415; the coach's field sessions are B-509 (who records
+ * participation); the player's consents open from Cuenta.
  */
 export default function AppLayout() {
   const theme = useTheme();
   const { t } = useTranslator();
   const session = useSession();
-  const role = session.status === 'signedIn' ? (session.activeMembership?.role ?? null) : null;
+  const role: Role | null =
+    session.status === 'signedIn' ? (session.activeMembership?.role ?? null) : null;
   const isPlayer = role === 'player';
   const showTestDays = role !== null && canSeeTestDays(role);
+  // Only who records participation (B-509: the coach, the administration) sees the tab.
+  const showSessions = role !== null && canRecordParticipation(role);
   return (
     <Tabs
       screenOptions={{
@@ -46,6 +52,10 @@ export default function AppLayout() {
         // Only the roles that read test days (`test_session:read`) see the tab.
         options={{ title: t('fieldTest.nav'), ...(showTestDays ? {} : { href: null }) }}
       />
+      <Tabs.Screen
+        name="sessions"
+        options={{ title: t('coachSession.nav'), ...(showSessions ? {} : { href: null }) }}
+      />
       <Tabs.Screen name="protocols" options={{ title: t('nav.protocols') }} />
       <Tabs.Screen name="account" options={{ title: t('nav.account') }} />
       {/* Opened from Inicio by the staff who records tests; not a tab of its own. */}
@@ -56,6 +66,8 @@ export default function AppLayout() {
       {/* A step of the player's wellness (B-609), opened from Inicio and after the check-in. */}
       <Tabs.Screen name="pain-report" options={{ title: t('pain.title'), href: null }} />
       <Tabs.Screen name="weekly-cmj" options={{ title: t('weeklyCmj.title'), href: null }} />
+      {/* The sheet of one session, opened from Sesiones. */}
+      <Tabs.Screen name="session" options={{ title: t('coachSession.nav'), href: null }} />
     </Tabs>
   );
 }

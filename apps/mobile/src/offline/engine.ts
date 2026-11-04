@@ -98,6 +98,11 @@ export interface RequestSyncOptions {
   readonly force?: boolean;
 }
 
+/** A write for {@link SyncEngine.enqueueAll}. */
+export type QueuedWrite = {
+  [Op in SyncOperation]: { readonly op: Op; readonly input: SyncOperationRequest<Op> };
+}[SyncOperation];
+
 export interface SyncEngine {
   readonly store: LocalStore;
   readonly getStatus: () => SyncStatus;
@@ -115,6 +120,11 @@ export interface SyncEngine {
     op: Op,
     input: SyncOperationRequest<Op>,
   ): Promise<QueuedMutation<Op>>;
+  /**
+   * Validates every write, then queues them all in one transaction, in
+   * order: either all of them enter the queue or none does.
+   */
+  enqueueAll(writes: readonly QueuedWrite[]): Promise<QueuedMutation[]>;
   /** Schedules a cycle (single-flight: never two at once). */
   requestSync(options?: RequestSyncOptions): void;
   /** Runs a cycle now, or joins the running one and runs once more after it. */
@@ -755,6 +765,44 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     return current;
   }
 
+  async function enqueueWrites(writes: readonly QueuedWrite[]): Promise<QueuedMutation[]> {
+    const ref = scope;
+    if (ref === null) throw new Error('No active membership to queue a write for');
+    // Every write is validated before the transaction opens.
+    const prepared = writes.map((write) => ({
+      ...prepareMutation<SyncOperation>(write.op, write.input),
+      op: write.op,
+    }));
+    if (prepared.length === 0) return [];
+    const queued = await database.write(async (db) => {
+      await ensureScope(db, ref);
+      const stored: QueuedMutation[] = [];
+      for (const write of prepared) {
+        const hlc = await clock.tick(db);
+        const [row] = await db
+          .insert(mutation)
+          .values({
+            membershipId: ref.membershipId,
+            mutationId: options.randomUUID(),
+            op: write.op,
+            hlc,
+            input: JSON.stringify(write.input),
+            targets: JSON.stringify(write.targets),
+            state: 'pending',
+            attempts: 0,
+            createdAt: now(),
+          })
+          .returning();
+        if (row === undefined) throw new Error('The mutation was not stored');
+        stored.push(toQueuedMutation(row));
+      }
+      return stored;
+    });
+    await refreshCounts();
+    requestSync({ delayMs: ENQUEUE_SYNC_DELAY_MS });
+    return queued;
+  }
+
   function requestSync(request: RequestSyncOptions = {}): void {
     if (disposed || scope === null) return;
     if (request.force === true) {
@@ -811,33 +859,11 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
       if (next !== null) schedule(0);
     },
     async enqueue(op, input) {
-      const ref = scope;
-      if (ref === null) throw new Error('No active membership to queue a write for');
-      const prepared = prepareMutation(op, input);
-      const queued = await database.write(async (db) => {
-        await ensureScope(db, ref);
-        const hlc = await clock.tick(db);
-        const [row] = await db
-          .insert(mutation)
-          .values({
-            membershipId: ref.membershipId,
-            mutationId: options.randomUUID(),
-            op,
-            hlc,
-            input: JSON.stringify(prepared.input),
-            targets: JSON.stringify(prepared.targets),
-            state: 'pending',
-            attempts: 0,
-            createdAt: now(),
-          })
-          .returning();
-        if (row === undefined) throw new Error('The mutation was not stored');
-        return toQueuedMutation(row) as QueuedMutation<typeof op>;
-      });
-      await refreshCounts();
-      requestSync({ delayMs: ENQUEUE_SYNC_DELAY_MS });
-      return queued;
+      const [queued] = await enqueueWrites([{ op, input } as QueuedWrite]);
+      if (queued === undefined) throw new Error('The mutation was not stored');
+      return queued as QueuedMutation<typeof op>;
     },
+    enqueueAll: enqueueWrites,
     requestSync,
     syncNow,
     async issues() {

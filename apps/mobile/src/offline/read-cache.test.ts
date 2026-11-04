@@ -292,6 +292,20 @@ describe('documents kept with their contract (ADR 0076)', () => {
     ]);
   });
 
+  it('are removed one by one, only in their membership', async () => {
+    const { cache, actAs } = await documents();
+    await cache.put(SCOPE, 'roster:1', { n: 1 });
+    await cache.put(SCOPE, 'roster:2', { n: 2 });
+    actAs(OTHER_CLUB);
+    await cache.put(OTHER_CLUB, 'roster:1', { n: 3 });
+    await cache.remove(SCOPE.membershipId, 'roster:1');
+    expect(await cache.get(SCOPE.membershipId, 'roster:1', numberBox)).toBeNull();
+    expect((await cache.get(SCOPE.membershipId, 'roster:2', numberBox))?.value).toEqual({ n: 2 });
+    expect((await cache.get(OTHER_CLUB.membershipId, 'roster:1', numberBox))?.value).toEqual({
+      n: 3,
+    });
+  });
+
   it('go with their membership', async () => {
     const { cache, database } = await documents();
     await cache.put(SCOPE, 'k', { n: 1 });

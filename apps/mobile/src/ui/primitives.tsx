@@ -270,7 +270,8 @@ export function TextField({
       <Text style={[theme.text.bodyStrong, { color: theme.colors.text.primary }]}>{label}</Text>
       <TextInput
         {...inputProps}
-        accessibilityLabel={label}
+        // A list of similar fields names each one ("Minutos de Pérez, Juan"); the visible label stays short.
+        accessibilityLabel={inputProps?.accessibilityLabel ?? label}
         accessibilityHint={hint}
         value={value}
         onChangeText={onChangeText}
