@@ -29,7 +29,7 @@ import { clubTimeZone } from './training-shared.js';
 import { wellnessStageOf } from './wellness.js';
 
 /**
- * The player app's own reads (B-503, ADR 0071): the caller's player profile
+ * The player app's own reads (B-503, ADR 0074): the caller's player profile
  * with today's stage, wellness item set and permissions, and their upcoming
  * test days. Only the `player` role, about themselves: the player id comes
  * from the membership, never from the request.

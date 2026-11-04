@@ -53,7 +53,7 @@ La app lee de la base local y la red solo sincroniza (ADR 0015, 0050 y 0069). Un
 - **escribe** con `services.sync.enqueue(op, input)`: `op` es una de `SYNC_OPERATIONS` y `input` lo que pide `SYNC_OPERATION_INPUTS` (el mismo contrato del servidor), con `clientUuid` en cada alta, fila de lote e intento. Se valida, se guarda con su HLC en una transacción y se pide una sincronización;
 - **lee** con `services.sync.store.list(membershipId, collection, filtro)` / `get`: la fila del servidor con las ediciones pendientes superpuestas (`pending: true`), y las altas que todavía no volvieron con `store.pending(membershipId, [op])`;
 - **muestra el estado** con `useSyncStatus()` y `SyncIndicator`.
-- lee de la base local con `useLocalRead` (se repite al cambiar la cola o terminar un ciclo) y las lecturas de la API que no viajan por la sincronización con `useOfflineRead` (`src/state/offline-reads.ts`): la última respuesta queda en `cached_read` por membresía y se muestra sin señal ([ADR 0071](../../docs/adr/0071-app-del-jugador-lecturas-propias-y-cache-local.md)).
+- lee de la base local con `useLocalRead` (se repite al cambiar la cola o terminar un ciclo) y las lecturas de la API que no viajan por la sincronización con `useOfflineRead` (`src/state/offline-reads.ts`): la última respuesta queda en `cached_read` por membresía y se muestra sin señal ([ADR 0074](../../docs/adr/0074-app-del-jugador-lecturas-propias-y-cache-local.md)).
 
 La app del jugador (B-503) está en `src/player` (racha, récords, sesiones a puntuar: funciones puras), `src/screens/player-*.tsx` y `src/state/player-screens.tsx`; sus pestañas ("Hoy", "Mis tests") y Consentimientos solo aparecen con el rol `player`.
 

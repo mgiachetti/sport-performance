@@ -53,7 +53,7 @@ async function setup(options: { readonly bindScope?: boolean } = {}) {
   return { api, server, engine, cache, database, actAs };
 }
 
-describe('read cache (ADR 0071)', () => {
+describe('read cache (ADR 0074)', () => {
   it('keeps the last answer of each read by membership', async () => {
     const { cache, actAs } = await setup();
     expect(await cache.get(SCOPE.membershipId, 'me.player')).toBeNull();

@@ -1,4 +1,4 @@
-# 0071. App del jugador: lecturas propias del rol `player`, caché local de lecturas por membresía y escrituras solo por la cola
+# 0074. App del jugador: lecturas propias del rol `player`, caché local de lecturas por membresía y escrituras solo por la cola
 
 - Estado: Aceptado
 - Fecha: 2026-11-03

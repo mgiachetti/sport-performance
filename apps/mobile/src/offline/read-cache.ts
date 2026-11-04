@@ -11,7 +11,7 @@ export interface CachedValue<T> {
 }
 
 /**
- * Answers of the API reads that the sync does not move (ADR 0071), kept in
+ * Answers of the API reads that the sync does not move (ADR 0074), kept in
  * the encrypted local database by membership: the screen shows the last one
  * without signal, and signing out (or another user) deletes them with the
  * membership, like every synced row.

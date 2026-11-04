@@ -29,7 +29,7 @@ function useScope(): Scope | null {
 }
 
 /**
- * An API read that must also work without signal (ADR 0071): the last
+ * An API read that must also work without signal (ADR 0074): the last
  * answer kept in the local database is shown at once, the API is asked in
  * the background and its answer replaces it and is kept for next time. Both
  * queries, and the kept answer, are keyed by the read and its parameters

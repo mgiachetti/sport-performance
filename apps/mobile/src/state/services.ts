@@ -60,7 +60,7 @@ export interface AppServices {
    * changing club does.
    */
   readonly iftRunner: IftRunner;
-  /** Last answers of the API reads the sync does not move (ADR 0071), in the same database. */
+  /** Last answers of the API reads the sync does not move (ADR 0074), in the same database. */
   readonly readCache: ReadCache;
   /** Ids generated on the device (`clientUuid` of the writes it queues). */
   readonly randomUUID: () => string;

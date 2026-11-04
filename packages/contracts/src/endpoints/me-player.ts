@@ -14,7 +14,7 @@ import { testCodeSchema } from './tests.js';
 import { wellnessItemCountSchema, wellnessItemSchema } from './wellness.js';
 
 /**
- * The player app (B-503, ADR 0071): what the phone of a player needs to work
+ * The player app (B-503, ADR 0074): what the phone of a player needs to work
  * offline and that no other read gives a player — their own profile with the
  * stage and wellness item set of today, what the permission matrix lets them
  * do, and their own upcoming test days (the player cannot read the test days

@@ -1,5 +1,5 @@
 /**
- * The player app's own reads (B-503, ADR 0071) against Postgres 16, through
+ * The player app's own reads (B-503, ADR 0074) against Postgres 16, through
  * the real connection roles: only the `player` role about themselves, the
  * wellness item set and the permissions of today's stage, and the upcoming
  * test days of their categories with the tests the seeded battery schedules

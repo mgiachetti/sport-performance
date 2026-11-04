@@ -1,5 +1,5 @@
 /**
- * Messages of the player app (B-503, ADR 0071): today's wellness and RPE, the streak, own
+ * Messages of the player app (B-503, ADR 0074): today's wellness and RPE, the streak, own
  * records, percentiles, test history, upcoming test days and consents. Merged into the `es-AR`
  * source catalog; same rules as `es-AR.ts` (vos, no key in more than one file). The wellness
  * items, the RPE scale, the tests and the consent types and states reuse the shared keys.

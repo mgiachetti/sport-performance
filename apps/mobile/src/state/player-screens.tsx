@@ -33,7 +33,7 @@ import { useApi, useNow, useServices, useSession, useSyncStatus } from './app-co
 import { useLocalRead, useOfflineRead, type OfflineRead } from './offline-reads.ts';
 
 /**
- * The player app (B-503, ADR 0071): containers that read the local
+ * The player app (B-503, ADR 0074): containers that read the local
  * database and the kept API reads, and write through the offline queue.
  * The screens of `src/screens/player-*.tsx` only render what they get.
  */
