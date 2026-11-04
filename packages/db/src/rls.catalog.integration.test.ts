@@ -253,6 +253,7 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
       'app.accept_invitation',
       'app.assigned_category_ids',
       'app.begin_support_access',
+      'app.category_report_coverage',
       'app.club_theme',
       'app.club_today',
       'app.current_consent_types',

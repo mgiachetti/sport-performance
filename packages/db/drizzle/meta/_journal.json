@@ -267,6 +267,13 @@
       "when": 1793721882248,
       "tag": "0037_club_data_export",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1793736067284,
+      "tag": "0038_category_reports",
+      "breakpoints": true
     }
   ]
 }

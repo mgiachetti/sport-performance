@@ -5,7 +5,10 @@
  * ready and its retention; an unreadable snapshot fails at once; a bucket
  * that refuses the upload retries with backoff, never leaves an object
  * without a row, and gives up after the attempts; and a report asked for
- * through the API's login reaches the worker by its notification.
+ * through the API's login reaches the worker by its notification. A pending
+ * category report (B-603, ADR 0073) goes through the same job into a
+ * `category_report` file of its category, taking turns with the player
+ * reports.
  */
 import { createHash, randomUUID } from 'node:crypto';
 import { createDatabase, schema, type Database } from '@sport-performance/db';
@@ -28,8 +31,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { disabledErrorReporter } from '../observability.js';
 import { startWorker } from '../worker.js';
 import { pdfText } from '../testing/pdf-text.js';
-import { sampleReportContent } from '../testing/report-fixture.js';
-import { runClubReports } from './job.js';
+import { sampleCategoryReportContent, sampleReportContent } from '../testing/report-fixture.js';
+import { REPORTS_PER_JOB, runClubReports } from './job.js';
 
 const { club, membership, player, season, testWindow, user } = schema;
 
@@ -79,6 +82,7 @@ describe.skipIf(!hasDatabase || !hasBucket)('player report job (Postgres 16 + Mi
   let playerId: string;
   let windowId: string;
   let scId: string;
+  let categoryId: string;
 
   async function insertReport(content: unknown = sampleReportContent()): Promise<string> {
     const { rows } = await owner.query<{ id: string }>(
@@ -169,6 +173,13 @@ describe.skipIf(!hasDatabase || !hasBucket)('player report job (Postgres 16 + Mi
       })
       .returning({ id: testWindow.id });
     windowId = w?.id ?? '';
+    const { rows: categoryRows } = await owner.query<{ id: string }>(
+      `with b as (insert into club_branch (club_id, sport, sex) values ($1, 'rugby', 'male'))
+       insert into category (club_id, sport, sex, age_band_code, name, default_stage)
+       values ($1, 'rugby', 'male', 'm15', 'M15', 'development') returning id`,
+      [clubId],
+    );
+    categoryId = categoryRows[0]?.id ?? '';
 
     // The crest: a PNG in the bucket, set as the club's logo.
     const { rows: logo } = await owner.query<{ id: string }>(
@@ -240,6 +251,84 @@ describe.skipIf(!hasDatabase || !hasBucket)('player report job (Postgres 16 + Mi
     const text = (await pdfText(bytes ?? new Uint8Array())).join(' ');
     expect(text).toContain('Martín Núñez');
     expect(text).toContain('Temporada 2026 · Ventana V2');
+  });
+
+  it('renders a pending category report into a PDF file of the category', async () => {
+    const content = sampleCategoryReportContent();
+    const { rows: inserted } = await owner.query<{ id: string }>(
+      `insert into category_report (club_id, category_id, test_window_id, format_version, content, created_by)
+       values ($1, $2, $3, 1, $4, $5) returning id`,
+      [
+        clubId,
+        categoryId,
+        windowId,
+        JSON.stringify({ ...content, category: { ...content.category, id: categoryId } }),
+        scId,
+      ],
+    );
+    const reportId = inserted[0]?.id ?? '';
+    const report = await runClubReports({ pool: worker, storage, logger }, clubId);
+    expect(report).toMatchObject({ ready: 1, failed: 0, more: false });
+    const { rows: states } = await owner.query<{ status: string; file_id: string | null }>(
+      'select status::text, file_id from category_report where id = $1',
+      [reportId],
+    );
+    expect(states[0]?.status).toBe('ready');
+    const fileId = states[0]?.file_id ?? '';
+    const { rows } = await owner.query<{
+      kind: string;
+      category_id: string;
+      player_id: string | null;
+      file_name: string;
+      size_bytes: number;
+      days: number;
+    }>(
+      `select kind, category_id, player_id, file_name, size_bytes,
+              round(extract(epoch from expires_at - uploaded_at) / 86400)::int as days
+         from file where id = $1`,
+      [fileId],
+    );
+    expect(rows[0]).toMatchObject({
+      kind: 'category_report',
+      category_id: categoryId,
+      player_id: null,
+      file_name: 'Informe M15 Temporada 2026 V2.pdf',
+      days: 365,
+    });
+    const bytes = await storage.get(
+      fileObjectKey({ clubId, kind: 'category_report', id: fileId }),
+      20 * 1024 * 1024,
+    );
+    expect(bytes?.byteLength).toBe(Number(rows[0]?.size_bytes));
+    const text = (await pdfText(bytes ?? new Uint8Array())).join(' ');
+    expect(text).toContain('Informe de categoría');
+    expect(text).toContain('CUMPLIMIENTO DE LA BATERÍA');
+  });
+
+  it('takes both kinds in turn, so a backlog of player reports never starves a category one', async () => {
+    const content = sampleCategoryReportContent();
+    for (let i = 0; i <= REPORTS_PER_JOB; i += 1) await insertReport();
+    const { rows: inserted } = await owner.query<{ id: string }>(
+      `insert into category_report (club_id, category_id, test_window_id, format_version, content, created_by)
+       values ($1, $2, $3, 1, $4, $5) returning id`,
+      [
+        clubId,
+        categoryId,
+        windowId,
+        JSON.stringify({ ...content, category: { ...content.category, id: categoryId } }),
+        scId,
+      ],
+    );
+    const first = await runClubReports({ pool: worker, storage, logger }, clubId);
+    expect(first).toMatchObject({ ready: REPORTS_PER_JOB, failed: 0, more: true });
+    const { rows: states } = await owner.query<{ status: string }>(
+      'select status::text from category_report where id = $1',
+      [inserted[0]?.id],
+    );
+    expect(states[0]?.status).toBe('ready');
+    // The rest of the player reports go in the next job.
+    const second = await runClubReports({ pool: worker, storage, logger }, clubId);
+    expect(second).toMatchObject({ ready: 2, failed: 0, more: false });
   });
 
   it('fails at once a snapshot it cannot read', async () => {

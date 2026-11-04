@@ -42,6 +42,8 @@ const CLUB_TABLES = (Object.values(schema) as unknown[])
  */
 const APPEND_ONLY_TABLES = [
   'alert_event',
+  // Like the player reports: the API inserts, the worker completes (ADR 0073).
+  'category_report',
   'club_data_export',
   'change_history',
   'consent_document',

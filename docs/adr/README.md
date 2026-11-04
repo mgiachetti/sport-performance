@@ -76,6 +76,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0070](0070-senales-del-30-15-ift-en-la-app.md) | Señales del 30-15 IFT en la app: cronograma puro en el dominio, tonos sintetizados, planificador sin deriva y corrida que sobrevive al cierre | Aceptado |
 | [0071](0071-informe-pdf-del-jugador-por-ventana.md) | Informe PDF del jugador por ventana: instantánea en la API, render en el worker y archivo `pdf_report` | Aceptado |
 | [0072](0072-exportacion-csv-de-los-datos-del-club.md) | Exportación CSV de los datos del club: pedido con alcance fijado en la API, ZIP generado por el worker y guardado en el bucket | Aceptado |
+| [0073](0073-informe-de-categoria-por-ventana.md) | Informe de categoría por ventana: agregados del grupo con mínimo, instantánea en la API y archivo `category_report` | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 

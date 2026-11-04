@@ -39,6 +39,7 @@ import {
   player,
   playerAccessCode,
   playerReport,
+  categoryReport,
   playerCategory,
   playerLoadDaily,
   playerParentHeight,
@@ -567,6 +568,18 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         content: {},
       })
       .returning({ id: playerReport.id }),
+  );
+  rows.category_report = await id(
+    db
+      .insert(categoryReport)
+      .values({
+        ...base,
+        categoryId: m15,
+        testWindowId: rows.test_window,
+        formatVersion: 1,
+        content: {},
+      })
+      .returning({ id: categoryReport.id }),
   );
   rows.anthro_measurement = await id(
     db

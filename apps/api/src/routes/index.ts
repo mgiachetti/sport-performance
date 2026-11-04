@@ -37,6 +37,7 @@ import { registerStaffAssignmentRoutes } from './staff-assignments.js';
 import { registerPlayerRoutes } from './players.js';
 import { registerPlayerProfileRoutes } from './player-profile.js';
 import { registerPlayerReportRoutes } from './player-reports.js';
+import { registerCategoryReportRoutes } from './category-reports.js';
 import { registerSeasonRolloverRoutes } from './season-rollovers.js';
 import { registerParticipationRoutes } from './participations.js';
 import { registerSessionRosterRoutes } from './session-roster.js';
@@ -276,6 +277,9 @@ export const IMPLEMENTED_ENDPOINTS = [
   'requestPlayerReport',
   'listPlayerReports',
   'getPlayerReport',
+  'requestCategoryReport',
+  'listCategoryReports',
+  'getCategoryReport',
   'createClubDataExport',
   'listClubDataExports',
   'getClubDataExport',
@@ -312,6 +316,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerPlayerRoutes(app);
   registerPlayerProfileRoutes(app);
   registerPlayerReportRoutes(app);
+  registerCategoryReportRoutes(app);
   registerSeasonRolloverRoutes(app);
   registerCalendarRoutes(app);
   registerTrainingSessionRoutes(app);

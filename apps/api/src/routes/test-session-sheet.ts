@@ -76,7 +76,8 @@ import {
 
 const TEST_ORDER: readonly string[] = CANONICAL_TEST_CODES;
 
-function byBatteryOrder(a: string, b: string): number {
+/** Tests in the order of the battery of CLAUDE.md, then by code. */
+export function byBatteryOrder(a: string, b: string): number {
   const ia = TEST_ORDER.indexOf(a);
   const ib = TEST_ORDER.indexOf(b);
   if (ia !== ib) return (ia === -1 ? Infinity : ia) - (ib === -1 ? Infinity : ib);
@@ -84,7 +85,7 @@ function byBatteryOrder(a: string, b: string): number {
 }
 
 /** Battery entries of the sport (with windows and cadence), never the withdrawn ones. */
-async function batteryEntries(
+export async function batteryEntries(
   db: TenantDatabase,
   clubId: ClubId,
   sport: Sport,
@@ -132,7 +133,7 @@ async function batteryEntries(
  * entry of each test that applies, in the day's window (any window without
  * one). Anthropometry is a measurement, never a station.
  */
-function scheduledTests(
+export function scheduledTests(
   entries: readonly (BatteryEntry & BatteryRow)[],
   clubId: ClubId,
   sex: 'male' | 'female',

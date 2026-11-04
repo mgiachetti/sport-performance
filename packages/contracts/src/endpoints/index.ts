@@ -147,6 +147,11 @@ import {
 } from './player-profile.js';
 import { getPlayerReport, listPlayerReports, requestPlayerReport } from './player-reports.js';
 import {
+  getCategoryReport,
+  listCategoryReports,
+  requestCategoryReport,
+} from './category-reports.js';
+import {
   archiveReferenceValue,
   createReferenceValue,
   getPlayerFirstTeamReferences,
@@ -285,6 +290,7 @@ export * from './staff-assignments.js';
 export * from './players.js';
 export * from './player-profile.js';
 export * from './player-reports.js';
+export * from './category-reports.js';
 export * from './season-rollovers.js';
 export * from './training.js';
 export * from './session-roster.js';
@@ -519,6 +525,9 @@ export const apiEndpoints = {
   requestPlayerReport,
   listPlayerReports,
   getPlayerReport,
+  requestCategoryReport,
+  listCategoryReports,
+  getCategoryReport,
   createClubDataExport,
   listClubDataExports,
   getClubDataExport,

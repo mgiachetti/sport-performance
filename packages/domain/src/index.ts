@@ -437,6 +437,8 @@ export * from './club-data-export.js';
 
 // The PDF report of a player for a test window (B-602).
 export * from './player-report.js';
+// The PDF report of a category for a test window (B-603).
+export * from './category-report.js';
 
 // Notifications: kinds, preferences, club parameters and allowed hours (B-328).
 export * from './notifications/index.js';
