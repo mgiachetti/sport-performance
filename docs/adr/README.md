@@ -94,7 +94,6 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0088](0088-umbrales-y-referencias-femeninas.md) | Umbrales y referencias femeninas: valores por defecto por sexo como datos, con fuente y sin bifurcar código | Aceptado |
 | [0089](0089-menarca-y-validacion-de-la-maduracion-femenina.md) | Menarca como dato de salud opcional y validación de las ecuaciones de maduración femeninas | Aceptado |
 | [0090](0090-proyecto-de-railway-como-codigo-y-deploy.md) | Proyecto de Railway como código, imágenes Docker, migraciones en el pre-deploy y promoción por rama | Aceptado |
-| [0087](0087-datos-de-cancha-de-hockey.md) | Datos de cancha de hockey: reglas de cancha por deporte en el dominio, minutos por tramo con su suma en la base, sin contactos y alias de Catapult por deporte | Aceptado |
 | [0091](0091-datos-de-cancha-de-hockey.md) | Datos de cancha de hockey: reglas de cancha por deporte en el dominio, minutos por tramo con su suma en la base, sin contactos y alias de Catapult por deporte | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla, que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR y que cada enlace de markdown a un ADR en el repo vaya a un archivo que existe, con el mismo número en el texto del enlace.
