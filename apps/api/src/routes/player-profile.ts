@@ -368,8 +368,8 @@ export async function testMetrics(
         select 1
           from test_definition_metric tdm
           join test_definition td on td.club_id = tdm.club_id and td.id = tdm.test_definition_id
-         where tdm.club_id = ${metricDefinition.clubId}
-           and tdm.metric_definition_id = ${metricDefinition.id}
+         where tdm.club_id = "metric_definition"."club_id"
+           and tdm.metric_definition_id = "metric_definition"."id"
            and coalesce((td.protocol -> 'parameters' ->> 'sameDeviceOnly')::boolean, false))`,
     })
     .from(metricDefinition)
