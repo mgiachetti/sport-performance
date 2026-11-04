@@ -423,6 +423,7 @@ describeWithPostgres('field sessions (Postgres)', (serverUrl) => {
       expect(bianchi?.participation).toEqual({
         status: 'unavailable',
         minutes: null,
+        periodMinutes: null,
         contactsN: null,
         rpe: null,
         srpeAu: null,
