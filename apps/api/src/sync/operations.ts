@@ -789,7 +789,7 @@ const painReportSubmit: Resolver<'pain_report.submit'> = async ({ body }, ctx) =
   return Promise.resolve(create({ endpoint: submitPainReport, body }));
 };
 
-// ─── Menstrual cycle (B-806, ADR 0087) ───────────────────────────────────────────────
+// ─── Menstrual cycle (B-806, ADR 0092) ───────────────────────────────────────────────
 
 const menstrualCycleLog: Resolver<'menstrual_cycle.log'> = async ({ body }, ctx) => {
   requireClientUuid(body, [...ctx.path, 'body']);

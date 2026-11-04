@@ -51,8 +51,8 @@ import { markReplay } from '../http/writes.js';
 import { lockKeys } from '../sync/locks.js';
 
 /**
- * Menstrual cycle tracking (B-806, ADR 0087). Health data in the `medical`
- * schema (migration `0045_menstrual_cycle`): only the player writes (plain
+ * Menstrual cycle tracking (B-806, ADR 0092). Health data in the `medical`
+ * schema (migration `0049_menstrual_cycle`): only the player writes (plain
  * INSERTs and UPDATEs by id under the RLS, without `RETURNING`, which would
  * read the row); every read goes through a `medical.*` function that checks
  * the three keys (module, consents, opt-in) and the player's authorization of

@@ -259,6 +259,16 @@ describeWithPostgres('rights of the data subject (Postgres)', (serverUrl) => {
        values ($1, $2, 'occurred', '2025-02-01', 'month', '2026-03-12', 'parent')`,
       [clubA, minor],
     );
+    // Her menstrual cycle (B-806): only her own, never her guardian's, but erased with her.
+    await database.admin.query(
+      `insert into medical.menstrual_cycle_enrollment (club_id, player_id) values ($1, $2)`,
+      [clubA, minor],
+    );
+    await database.admin.query(
+      `insert into medical.menstrual_cycle_log (club_id, player_id, local_date, flow, symptoms)
+       values ($1, $2, '2026-03-12', 'light', '{cramps}')`,
+      [clubA, minor],
+    );
   }, 60_000);
 
   afterAll(async () => {
@@ -321,6 +331,10 @@ describeWithPostgres('rights of the data subject (Postgres)', (serverUrl) => {
           reported_by: 'parent',
         }),
       ]);
+      // Her menstrual cycle is hers: the guardian consents for a minor but does not read it.
+      expect(
+        Object.keys(body.medical.tables).filter((key) => key.startsWith('medical.menstrual_cycle')),
+      ).toEqual([]);
       // The reads are audited, and the export is recorded as a completed access request.
       const log = await database.admin.query(
         `select resource from medical.access_log where player_id = $1 and actor_user_id = $2`,
@@ -354,7 +368,7 @@ describeWithPostgres('rights of the data subject (Postgres)', (serverUrl) => {
         id: adultPlayer.userId,
         email: 'mayor@rights-a.example.com',
       });
-      // No health consent: the section says why, and keeps only her own menstrual cycle (ADR 0087).
+      // No health consent: the section says why, and keeps only her own menstrual cycle (ADR 0092).
       expect(body.medical).toEqual({
         included: false,
         reason: 'no_health_consent',
@@ -520,6 +534,8 @@ describeWithPostgres('rights of the data subject (Postgres)', (serverUrl) => {
         'medical.pain_report': 1,
         'medical.pain_report_area': 1,
         'medical.menarche_report': 1,
+        'medical.menstrual_cycle_enrollment': 1,
+        'medical.menstrual_cycle_log': 1,
       });
       for (const [table, column] of [
         ['player', 'id'],
@@ -530,6 +546,8 @@ describeWithPostgres('rights of the data subject (Postgres)', (serverUrl) => {
         ['medical.pain_report', 'player_id'],
         ['medical.pain_report_area', 'player_id'],
         ['medical.menarche_report', 'player_id'],
+        ['medical.menstrual_cycle_enrollment', 'player_id'],
+        ['medical.menstrual_cycle_log', 'player_id'],
       ] as const) {
         const { rowCount } = await database.admin.query(
           `select 1 from ${table} where ${column} = $1`,

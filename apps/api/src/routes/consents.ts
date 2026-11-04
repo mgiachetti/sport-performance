@@ -235,7 +235,7 @@ async function typeStatuses(
 
 /**
  * The types the player is asked for: the menstrual cycle consent only where the
- * module is offered to her (B-806, ADR 0087), or once one was signed.
+ * module is offered to her (B-806, ADR 0092), or once one was signed.
  */
 async function askedTypes(
   db: TenantDatabase,
@@ -364,7 +364,7 @@ export function registerConsentRoutes(app: FastifyInstance): void {
           clubId,
           await permissions.subject(),
           loaded,
-          // The cycle consent only for the player and her guardian (ADR 0087).
+          // The cycle consent only for the player and her guardian (ADR 0092).
           consentTypesVisibleTo(caller.membership.role, await askedTypes(db, clubId, facts.id)),
         ),
       };
@@ -385,7 +385,7 @@ export function registerConsentRoutes(app: FastifyInstance): void {
           and(
             ofPlayer(clubId, facts.id),
             query.type === undefined ? undefined : eq(consent.type, query.type),
-            // The cycle consent only for the player and her guardian (ADR 0087).
+            // The cycle consent only for the player and her guardian (ADR 0092).
             seesMenstrualCycleConsent(caller.membership.role)
               ? undefined
               : ne(consent.type, 'menstrual_cycle'),
@@ -438,7 +438,7 @@ export function registerConsentRoutes(app: FastifyInstance): void {
         );
       }
       // Only a type asked of her today: never the cycle consent of a male player or with the
-      // module off (ADR 0087).
+      // module off (ADR 0092).
       const sex = await playerSex(db, clubId, facts.id);
       if (
         sex === undefined ||

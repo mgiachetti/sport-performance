@@ -77,7 +77,7 @@ CREATE INDEX "menstrual_cycle_share_viewer_idx" ON "medical"."menstrual_cycle_sh
 --> statement-breakpoint
 
 -- ════════════════════════════════════════════════════════════════════════════════════
--- Hand-written part (B-806, ADR 0087): menstrual cycle tracking, health data in the
+-- Hand-written part (B-806, ADR 0092): menstrual cycle tracking, health data in the
 -- `medical` schema with the rules of ADR 0029 and three keys at once:
 --
 --   * the club's module `menstrual_cycle` (club.settings.modules, off by default);

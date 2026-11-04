@@ -33,11 +33,16 @@ const STAFF_TABLES = ['concussion', 'concussion_stage', 'hold', 'injury', 'note'
 const PAIN_TABLES = ['pain_report', 'pain_report_area'];
 /** Told by the girl, her guardian or the medical staff (B-805, ADR 0089; `menarche.integration.test.ts`). */
 const MENARCHE_TABLES = ['menarche_report'];
-/** Written by the player (B-806, ADR 0087; `menstrual-cycle.integration.test.ts`). */
+/** Written by the player (B-806, ADR 0092; `menstrual-cycle.integration.test.ts`). */
 const CYCLE_TABLES = ['menstrual_cycle_enrollment', 'menstrual_cycle_log', 'menstrual_cycle_share'];
 /** Append-only for everyone: never found by id nor updated. */
 const INSERT_ONLY = ['menarche_report', 'menstrual_cycle_log', 'note', 'pain_report_area'];
-const CLINICAL_TABLES = [...STAFF_TABLES, ...PAIN_TABLES, ...MENARCHE_TABLES, ...CYCLE_TABLES].sort();
+const CLINICAL_TABLES = [
+  ...STAFF_TABLES,
+  ...PAIN_TABLES,
+  ...MENARCHE_TABLES,
+  ...CYCLE_TABLES,
+].sort();
 const MEDICAL_TABLES = [...CLINICAL_TABLES, 'access_log'].sort();
 const ENTRY_POINTS = [
   'availability',

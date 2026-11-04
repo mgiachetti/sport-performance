@@ -12,7 +12,7 @@ import { useT } from '../i18n/i18n';
 import { Button, ErrorNotice, Loading, Notice, Page } from '../ui/components';
 
 /**
- * "Ciclo menstrual compartido con vos" (B-806, ADR 0087): the medical or S&C
+ * "Ciclo menstrual compartido con vos" (B-806, ADR 0092): the medical or S&C
  * member a player authorized reads her days, as a table (never a chart of
  * color alone). Nothing is kept: the queries are dropped as soon as the page
  * is left (`gcTime: 0`), and every read is in the medical log. Never shown to
@@ -134,7 +134,7 @@ function PlayerDays({
       ) : days.error !== null ? (
         <ErrorNotice error={days.error} />
       ) : (
-        // An empty answer is the same whether she logged nothing or the read was cut (ADR 0087).
+        // An empty answer is the same whether she logged nothing or the read was cut (ADR 0092).
         <DaysTable days={days.data} />
       )}
     </section>

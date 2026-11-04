@@ -1,5 +1,5 @@
 /**
- * Menstrual cycle tracking end to end (B-806, ADR 0087) against Postgres 16
+ * Menstrual cycle tracking end to end (B-806, ADR 0092) against Postgres 16
  * through the real connection roles: three keys (the club's module, the
  * consents and the player's own opt-in), only the player writes, she reads all
  * of hers and authorizes, one by one, the assigned medical or S&C members that

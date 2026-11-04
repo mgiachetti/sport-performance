@@ -1,5 +1,5 @@
 /**
- * Messages of menstrual cycle tracking (B-806, ADR 0087): the player's screen in the app and the
+ * Messages of menstrual cycle tracking (B-806, ADR 0092): the player's screen in the app and the
  * page of the authorized staff in the web. Merged into the `es-AR` source catalog; same rules as
  * `es-AR.ts`. Health data: the texts say who sees it, never more than the player chose.
  */

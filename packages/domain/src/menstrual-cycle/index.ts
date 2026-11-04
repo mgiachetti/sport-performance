@@ -6,7 +6,7 @@ import type { Sex } from '../sex.js';
 import { addDays, compareLocalDates, daysBetween, type LocalDate } from '../time.js';
 
 /**
- * Menstrual cycle tracking (B-806, ADR 0087): an optional module, health data
+ * Menstrual cycle tracking (B-806, ADR 0092): an optional module, health data
  * with the strictest access of the product. It needs three keys at once: the
  * club's module (`menstrual_cycle`, off by default), the specific consent
  * (`menstrual_cycle`, signed by a guardian while the player is a minor, by the

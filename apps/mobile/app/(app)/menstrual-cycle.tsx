@@ -19,7 +19,7 @@ import { clubDay, useMyPlayer } from '../../src/state/player-screens.tsx';
 import { useTranslator } from '../../src/ui/i18n.tsx';
 
 /**
- * "Mi ciclo" (B-806, ADR 0087). The status, the days and who sees them come
+ * "Mi ciclo" (B-806, ADR 0092). The status, the days and who sees them come
  * from the server and are never kept on the phone (health data: no local
  * collection, no read cache). The day goes to the offline queue
  * (`menstrual_cycle.log`, with its `clientUuid` and the club day from the

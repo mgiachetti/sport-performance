@@ -15,7 +15,7 @@ import { idOf, playerIdSchema } from '../primitives/ids.js';
 import { membershipIdSchema } from './auth.js';
 
 /**
- * Menstrual cycle tracking (B-806, ADR 0087): an optional module of health
+ * Menstrual cycle tracking (B-806, ADR 0092): an optional module of health
  * data with three keys (the club's `menstrual_cycle` module, the `data`,
  * `health` and `menstrual_cycle` consents, and the player's own opt-in). Only
  * the player writes; she reads all of hers and authorizes, one by one, the

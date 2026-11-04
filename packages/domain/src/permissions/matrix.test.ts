@@ -644,7 +644,7 @@ describe('privacy invariants (independent of the specification)', () => {
         );
         continue;
       }
-      // B-806, ADR 0087: only the player writes her cycle, with the three consents, and
+      // B-806, ADR 0092: only the player writes her cycle, with the three consents, and
       // turns it off or takes an authorization back at any time; the assigned medical and
       // S&C staff read it only with every consent (and the database asks for her
       // authorization of that member).

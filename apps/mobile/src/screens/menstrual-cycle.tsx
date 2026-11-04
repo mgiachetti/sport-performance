@@ -30,7 +30,7 @@ import {
 import { useTheme } from '../ui/theme.tsx';
 
 /**
- * "Mi ciclo" (B-806, ADR 0087): the player turns tracking on, logs a day in
+ * "Mi ciclo" (B-806, ADR 0092): the player turns tracking on, logs a day in
  * two taps (bleeding and "Guardar"), sees what she logged and decides who
  * else sees it. Presentation only: the route reads the server (nothing of it
  * is kept on the phone) and queues the day.

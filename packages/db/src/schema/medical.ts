@@ -442,7 +442,7 @@ export const medicalMenarcheReport = medicalSchema.table(
 );
 
 /**
- * The player's own opt-in to menstrual cycle tracking (B-806, ADR 0087): one
+ * The player's own opt-in to menstrual cycle tracking (B-806, ADR 0092): one
  * row per period she had it on. Only she turns it on (with the module of the
  * club and the `data`, `health` and `menstrual_cycle` consents) and off
  * (`ended_*`, once, at the time she does it). Turning it off revokes every

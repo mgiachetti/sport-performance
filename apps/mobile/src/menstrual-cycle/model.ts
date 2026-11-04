@@ -9,7 +9,7 @@ import {
 } from '@sport-performance/domain';
 
 /**
- * The day the player is logging (B-806, ADR 0087), before it goes to the
+ * The day the player is logging (B-806, ADR 0092), before it goes to the
  * offline queue. Pure: the screen holds it in its state and never on disk, so
  * a day left half-way does not stay on the phone. A day goes in two taps
  * (the bleeding and "Guardar"), principle 5; symptoms and note are optional.

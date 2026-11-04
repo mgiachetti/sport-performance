@@ -146,7 +146,7 @@ export const PERMISSION_RESOURCES = {
    */
   menarche: { target: 'player', medical: true, actions: ['read', 'report'] },
   /**
-   * Menstrual cycle tracking (B-806, ADR 0087), an optional module of health
+   * Menstrual cycle tracking (B-806, ADR 0092), an optional module of health
    * data. `enroll`: the player turns it on for herself; `log`: she logs a day;
    * `share`: she authorizes a member to read it; `withdraw`: she turns it off
    * or takes an authorization back (always possible, even without consents).

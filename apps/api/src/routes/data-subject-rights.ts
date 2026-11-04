@@ -252,7 +252,7 @@ function projectNotDoneReasons(tables: ExportedTables, viewer: Role): ExportedTa
  * The rows of one clinical table. `once` shares a read between the tables it
  * feeds (the pain reports and their areas): one audited call, one log row.
  * `null`: the table is not exported to this requester (the menstrual cycle,
- * to anyone but the player herself: B-806, ADR 0087).
+ * to anyone but the player herself: B-806, ADR 0092).
  */
 type MedicalReader = (
   db: TenantDatabase,
@@ -334,7 +334,7 @@ const menarcheReports: MedicalReader = async (db, playerId) => {
 };
 
 /**
- * The menstrual cycle (B-806, ADR 0087) is exported only to the player
+ * The menstrual cycle (B-806, ADR 0092) is exported only to the player
  * herself: the guardian of a minor consents for her but does not read it, and
  * the audited functions answer only the player.
  */
@@ -369,7 +369,7 @@ export const MEDICAL_READS: Readonly<Record<string, MedicalReader>> = {
 
 /**
  * The menstrual cycle tables: the player's own record, exported to her always,
- * also without a current health consent (ADR 0087).
+ * also without a current health consent (ADR 0092).
  */
 const MENSTRUAL_CYCLE_TABLES: ReadonlySet<string> = new Set([
   'medical.menstrual_cycle_enrollment',

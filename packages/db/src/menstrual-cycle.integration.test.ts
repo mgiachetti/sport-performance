@@ -16,7 +16,7 @@ import {
 import { seedClubFixture, type ClubFixture, type FixtureUser } from './testing/tenant-fixture.js';
 
 /**
- * Menstrual cycle tracking (B-806, ADR 0087) through a real login of the API
+ * Menstrual cycle tracking (B-806, ADR 0092) through a real login of the API
  * role: three keys (the club's module, the `data` + `health` +
  * `menstrual_cycle` consents and the player's own opt-in), only the player
  * writes, she reads all of hers, and beyond her only the assigned `medical` or
