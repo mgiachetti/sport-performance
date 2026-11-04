@@ -4,6 +4,7 @@ import type { SyncOperation } from '@sport-performance/domain';
 import { describe, expect, it } from 'vitest';
 import type { LocalRow, QueuedMutation } from '../offline/local-store.ts';
 import { prepareMutation } from '../offline/operations.ts';
+import { applyOverlay } from '../offline/overlay.ts';
 import {
   ANA_ID,
   BRUNO_ID,
@@ -232,6 +233,30 @@ describe('results served by the server', () => {
       kind: 'problem',
       problem: { kind: 'changeReason' },
     });
+  });
+
+  it('take a queued attempt the local store already laid over the row once, scored and pending', () => {
+    const sheet = sheetFixture();
+    const served = sprintResult(ANA_ID);
+    const [ana] = rowsOf(sheet, SPRINT, [], [row(served)]);
+    const added = writesOf(
+      planAttempt(context(sheet), must(ana), { split20S: '3,2', split40S: '5,6' }),
+    );
+    const write = must(added[0]);
+    if (write.op !== 'test_result.add_entries') throw new Error('add_entries expected');
+    const queue = fromWrites(added);
+    // What `LocalStore.list` reads: the row with the attempt laid on, unscored.
+    const laid = applyOverlay(write.op, served, must(queue[0]).input, {
+      enqueuedAt: Date.parse(NOW),
+    }) as TestResult;
+    expect(laid.entries).toHaveLength(served.entries.length + 1);
+    const [after] = rowsOf(sheet, SPRINT, queue, [{ ...row(laid), pending: true }]);
+    expect(after?.attempts).toHaveLength(2);
+    expect(after?.attempts[1]?.pending).toBe(true);
+    const vmax = after?.attempts[1]?.entries[0]?.values.find(
+      (v) => v.metricCode === 'sprint_vmax_ms',
+    );
+    expect(vmax?.value).toBeCloseTo(20 / 2.4, 6);
   });
 
   it('of several evaluators show together; new attempts go to the served one and never reuse a number', () => {

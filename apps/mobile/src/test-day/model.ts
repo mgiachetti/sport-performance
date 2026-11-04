@@ -291,14 +291,25 @@ export function fieldResults(input: {
       const { target, body } = (queued as QueuedMutation<'test_result.add_entries'>).input;
       const result = results.find((r) => matches(r, target));
       if (result === undefined) continue;
-      const known = new Set(result.entries.map((e) => e.id));
+      // The local store already lays these attempts over the synced row (the
+      // `add_entries` overlay), without the scores it cannot compute: while
+      // the mutation is queued, each one is the attempt scored here, pending,
+      // in its place (one the overlay did not lay goes at the end).
       const added = queuedEntries(
         stationByCode.get(result.testCode),
         result.testCode,
-        body.entries.filter((e) => e.clientUuid === undefined || !known.has(e.clientUuid)),
+        body.entries,
         new Date(queued.createdAt).toISOString(),
       );
-      result.entries.push(...added);
+      const byId = new Map(added.filter((e) => e.id !== '').map((e) => [e.id, e]));
+      const laid = new Set<string>();
+      result.entries = result.entries.map((entry) => {
+        const local = byId.get(entry.id);
+        if (local === undefined) return entry;
+        laid.add(entry.id);
+        return local;
+      });
+      result.entries.push(...added.filter((e) => !laid.has(e.id)));
       touch(result, queued);
     } else if (op === 'test_result.void_entries') {
       const { target, body } = (queued as QueuedMutation<'test_result.void_entries'>).input;
