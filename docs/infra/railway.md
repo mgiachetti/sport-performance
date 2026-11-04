@@ -2,7 +2,7 @@
 
 Cómo crear, desplegar y operar los ambientes `staging` y `production` (B-701). Las decisiones están en ADR [0003](../adr/0003-infra-railway.md) y ADR [0087](../adr/0087-proyecto-de-railway-como-codigo-y-deploy.md); las variables, en el [catálogo](variables.md).
 
-**Qué es código y qué no.** El repo tiene todo lo que se puede versionar: el proyecto (`.railway/railway.ts`), las imágenes (`apps/{api,worker,web}/Dockerfile`), la web (`apps/web/deploy/`), el CORS del bucket (`.railway/bucket-cors.ts`), el paso de la base de cada deploy (`db:release`) y la promoción a producción (`.github/workflows/promote.yml`). Lo que este runbook pide hacer a mano es lo que Railway no expone como código o lo que no puede estar en el repo: la cuenta, los secretos, HA/PITR/backups de Postgres, el CORS aplicado, los dominios y el DNS.
+**Qué es código y qué no.** El repo tiene todo lo que se puede versionar: el proyecto (`.railway/railway.ts`), las imágenes (`apps/{api,worker,web}/Dockerfile`), la web (`apps/web/deploy/`), el CORS del bucket (`.railway/bucket-cors.ts`), el paso de la base de cada deploy (`db:release`) y la promoción a producción (`.github/workflows/promote.yml`, con la rama protegida por `.github/rulesets/production.json`). Lo que este runbook pide hacer a mano es lo que Railway no expone como código o lo que no puede estar en el repo: la cuenta, los secretos, HA/PITR/backups de Postgres, el CORS aplicado, los dominios y el DNS.
 
 Nada de esto se hizo todavía: no hay proyecto, cuenta ni secretos creados. Este documento es lo que tiene que seguir la persona dueña de la cuenta.
 
@@ -105,7 +105,7 @@ Repetirlo cada vez que cambie el dominio de la web. Si el proveedor del bucket r
 Con los secretos cargados, en cada ambiente: dashboard → servicio `api` → **Deploy** (o un push a la rama del ambiente). El orden se resuelve solo:
 
 1. **`api`**: el pre-deploy corre `db:release`. En el log del deploy tiene que verse `Migrations: N applied…`, `Login sp_api provisioned as sport_performance_app.` (y `sp_auth`, `sp_worker`) y `Database declared as "<ambiente>".` Después, el healthcheck `/health/ready` tiene que pasar.
-2. **`worker`**: si arrancó antes de que existiera su login, falla y Railway lo reinicia; una vez que la API terminó su pre-deploy queda andando. Si agotó los reintentos, redeployarlo.
+2. **`worker`**: si arrancó antes de que existiera su login (`sp_worker` lo crea el pre-deploy de la API), falla y Railway lo reinicia, pero puede agotar sus 10 reintentos antes de que la API termine su primer deploy. **Después del primer deploy de la API, redeployar el worker** (dashboard → `worker` → Deployments → **Redeploy**) y verificar que queda andando sin reinicios.
 3. **`web`**: `/healthz` en verde y la web abre en `<web>`.
 
 Datos iniciales, una vez, desde una sesión en el contenedor de la API (tiene las variables del servicio, incluida la del dueño):
@@ -129,7 +129,26 @@ En producción el seed demo se niega solo: la base está declarada `production`.
 
 - **Staging:** cada commit de `main` se despliega cuando sus checks de GitHub pasan ("Wait for CI" de Railway). Nada que hacer.
 - **Production:** GitHub → Actions → **Promote to production** → *Run workflow* (o `gh workflow run promote.yml -R mgiachetti/sport-performance -f sha=<sha>`). Sin `sha` promueve la punta de `main`. El workflow se niega si el commit no está en `main`, si su `ci` no pasó o si mover `production` no es un fast-forward. Railway despliega la rama `production` cuando sus checks pasan.
-- El ambiente `production` de GitHub (Settings → Environments) se crea solo con la primera corrida; si el plan lo permite, agregarle revisores obligatorios.
+- **Proteger la rama `production` antes de la primera promoción** (una vez; requiere que el repo sea público o un plan con rulesets, igual que el de `main`, ver `docs/security.md`). Sin esto, cualquiera con permiso de escritura (o un token con `contents: write`) podría empujar a `production` un commit sin `ci` y Railway lo desplegaría. El ruleset versionado `.github/rulesets/production.json` prohíbe borrarla y el force push, y exige el check `ci` en verde en el commit, también al crearla (`do_not_enforce_on_create: false`):
+
+  ```sh
+  gh api -X POST repos/mgiachetti/sport-performance/rulesets --input .github/rulesets/production.json
+  # Después de cambiar el archivo:
+  id=$(gh api repos/mgiachetti/sport-performance/rulesets --jq '.[] | select(.name == "production") | .id')
+  gh api -X PUT "repos/mgiachetti/sport-performance/rulesets/$id" --input .github/rulesets/production.json
+  ```
+
+- **Ambiente `production` de GitHub limitado a `main`** (una vez, antes de la primera corrida): así el workflow solo corre con el código de `main`, y una copia modificada de `promote.yml` o de `promote.sh` en otra rama no llega al paso que mueve la rama (el job además se saltea si no corre desde `main`).
+
+  ```sh
+  gh api -X PUT repos/mgiachetti/sport-performance/environments/production \
+    --input - <<<'{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}'
+  gh api -X POST repos/mgiachetti/sport-performance/environments/production/deployment-branch-policies \
+    -f name=main -f type=branch
+  gh api repos/mgiachetti/sport-performance/environments/production/deployment-branch-policies --jq '.branch_policies[].name'   # main
+  ```
+
+  Si el plan lo permite, agregarle revisores obligatorios (Settings → Environments → `production`).
 - **Migraciones:** van hacia adelante y corren antes de la versión nueva, mientras la vieja todavía atiende. Tienen que ser compatibles con la versión anterior (expandir primero, contraer en un deploy posterior).
 
 ## 8. Volver atrás
@@ -155,6 +174,7 @@ Todo cambio es un PR sobre `.railway/railway.ts` (los tests de `.railway` corren
 
 - [ ] Revisión legal de residencia de datos y acuerdos de tratamiento (Railway, Resend, Sentry).
 - [ ] `railway config plan` de `production` sin cambios pendientes.
+- [ ] Ruleset `production` aplicado (`gh api repos/mgiachetti/sport-performance/rulesets` lo lista) y ambiente `production` de GitHub limitado a `main` (paso 7).
 - [ ] Secretos de `production` cargados, sellados y distintos de los de staging.
 - [ ] Postgres de production en HA con PITR activo y backups programados; restauración de prueba hecha (B-702).
 - [ ] CORS del bucket aplicado y una subida de escudo probada desde la web.

@@ -25,7 +25,12 @@ jobs:
     name: promote
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # GitHub environment: where required reviewers can be added when the plan allows it.
+    # Only the workflow (and script) of main may move production. A run dispatched from another
+    # branch is skipped here, and the `production` environment only accepts deployments from
+    # main (deployment branch policy, docs/infra/railway.md section 7), so a modified copy of
+    # this file on a branch cannot get past it either.
+    if: github.ref == 'refs/heads/main'
+    # GitHub environment: limited to main; required reviewers can be added when the plan allows.
     environment: production
     permissions:
       contents: write

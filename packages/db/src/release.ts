@@ -47,6 +47,8 @@ export interface ReleasePlan {
   /** Owner connection: migrations, logins and the environment setting. Never logged. */
   readonly ownerConnectionString: string;
   readonly logins: readonly ReleaseLogin[];
+  /** Variables of the roles left as they are because their URL is unset (a forgotten variable shows in the log). */
+  readonly skippedVariables: readonly string[];
   /** Environment the database declares, or `null` to leave the setting as it is. */
   readonly deploymentEnvironment: string | null;
 }
@@ -110,12 +112,16 @@ export function releasePlanFromEnv(env: ReleaseEnvironment): ReleasePlan {
   const ownerUrl = parsePostgresUrl(owner, 'MIGRATIONS_DATABASE_URL');
 
   const logins: ReleaseLogin[] = [];
+  const skippedVariables: string[] = [];
   for (const [role, variable] of Object.entries(RELEASE_LOGIN_VARIABLES) as [
     DatabaseRoleKind,
     string,
   ][]) {
     const value = nonBlank(env[variable as keyof ReleaseEnvironment]);
-    if (value === undefined) continue;
+    if (value === undefined) {
+      skippedVariables.push(variable);
+      continue;
+    }
     const url = parsePostgresUrl(value, variable);
     if (url.host !== ownerUrl.host || url.port !== ownerUrl.port) {
       throw new ReleaseConfigError(`${variable} must use the server of MIGRATIONS_DATABASE_URL.`);
@@ -144,13 +150,20 @@ export function releasePlanFromEnv(env: ReleaseEnvironment): ReleasePlan {
       'RAILWAY_ENVIRONMENT_NAME must be letters, digits, "-" or "_" to be declared.',
     );
   }
-  return { ownerConnectionString: owner, logins, deploymentEnvironment: environment };
+  return {
+    ownerConnectionString: owner,
+    logins,
+    skippedVariables,
+    deploymentEnvironment: environment,
+  };
 }
 
 export interface ReleaseReport {
   readonly migrations: MigrationReport;
   /** `login → role group`, in the order provisioned. */
   readonly logins: readonly { readonly login: string; readonly group: string }[];
+  /** Login variables that were unset, so their role was not provisioned. */
+  readonly skippedVariables: readonly string[];
   readonly deploymentEnvironment: string | null;
 }
 
@@ -194,6 +207,7 @@ export async function releaseDatabase(plan: ReleasePlan): Promise<ReleaseReport>
   return {
     migrations,
     logins: provisioned,
+    skippedVariables: plan.skippedVariables,
     deploymentEnvironment: plan.deploymentEnvironment,
   };
 }
@@ -204,6 +218,9 @@ export function describeRelease(report: ReleaseReport): string {
     `Migrations: ${String(report.migrations.applied)} applied, ${String(report.migrations.total)} in the database; ` +
       `job queue at version ${String(report.migrations.jobQueueVersion)}.`,
     ...report.logins.map(({ login, group }) => `Login ${login} provisioned as ${group}.`),
+    ...report.skippedVariables.map(
+      (variable) => `Warning: ${variable} is not set; its login was not provisioned.`,
+    ),
     report.deploymentEnvironment === null
       ? 'Deployment environment of the database left as it was.'
       : `Database declared as "${report.deploymentEnvironment}".`,

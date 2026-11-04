@@ -33,6 +33,7 @@ describe('releasePlanFromEnv', () => {
     expect(plan.logins).toEqual([
       { role: 'app', variable: 'DATABASE_URL', login: 'sp_api', password: 'p@ss/word-0123456789' },
     ]);
+    expect(plan.skippedVariables).toEqual(['AUTH_DATABASE_URL', 'WORKER_DATABASE_URL']);
     expect(plan.deploymentEnvironment).toBeNull();
   });
 
@@ -123,11 +124,13 @@ describe('describeRelease', () => {
     const text = describeRelease({
       migrations: { applied: 2, total: 45, unknown: 0, jobQueueVersion: 27 },
       logins: [{ login: 'sp_api', group: 'sport_performance_app' }],
+      skippedVariables: ['WORKER_DATABASE_URL'],
       deploymentEnvironment: 'staging',
     });
     expect(text).toBe(
       'Migrations: 2 applied, 45 in the database; job queue at version 27.\n' +
         'Login sp_api provisioned as sport_performance_app.\n' +
+        'Warning: WORKER_DATABASE_URL is not set; its login was not provisioned.\n' +
         'Database declared as "staging".\n',
     );
   });

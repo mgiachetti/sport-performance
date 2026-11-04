@@ -20,7 +20,7 @@ RUN pnpm --filter @sport-performance/api deploy --prod /out
 FROM node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c
 ENV NODE_ENV=production
 WORKDIR /app
-# Owned by root and only readable by the process.
+# Owned by root: `node` can read the files but not change them (they stay world-readable).
 COPY --from=build /out /app
 USER node
 EXPOSE 8080

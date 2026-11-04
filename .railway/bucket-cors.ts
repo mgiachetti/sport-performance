@@ -12,7 +12,11 @@
  * Self-contained (no relative imports): Node runs it with type stripping.
  */
 
-/** Headers of a signed upload (packages/storage/src/s3.ts, `UPLOAD_SIGNED_HEADERS`). */
+/**
+ * Headers of a signed upload (packages/storage/src/s3.ts, `UPLOAD_SIGNED_HEADERS`) that the
+ * preflight asks for. `content-length` is signed too but left out on purpose: it is a forbidden
+ * header the browser sets itself and never lists in `Access-Control-Request-Headers`.
+ */
 export const UPLOAD_HEADERS = ['content-type', 'x-amz-checksum-sha256'] as const;
 
 export interface CorsRule {
