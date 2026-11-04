@@ -24,6 +24,18 @@ export {
 } from './cmj.js';
 
 export {
+  CMJ_VIDEO_MIN_FPS,
+  CMJ_VIDEO_PREFERRED_FPS,
+  chooseCmjVideoFrameRate,
+  cmjVideoMeasurement,
+  isCmjVideoFrameRate,
+  stepVideoFrame,
+  videoFrameCount,
+  videoFrameTimeMs,
+  type CmjVideoMeasurement,
+} from './cmj-video.js';
+
+export {
   SPRINT_VMAX_SEGMENT,
   assertSprint40Splits,
   scoreSprint40,

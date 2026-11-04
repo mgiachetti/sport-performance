@@ -253,6 +253,9 @@ function fileDto(row: FileRow): UploadedFile {
     sizeBytes: row.sizeBytes,
     checksumSha256: row.checksumSha256,
     fileName: row.fileName,
+    // Material of a protocol is never the video of an attempt.
+    testResultId: null,
+    testEntryId: null,
     uploadedAt: row.uploadedAt?.toISOString() ?? null,
     expiresAt: row.expiresAt?.toISOString() ?? null,
     deletedAt: row.deletedAt?.toISOString() ?? null,

@@ -6,6 +6,7 @@ import {
   category,
   consent,
   device,
+  file,
   membership,
   metricDefinition,
   player,
@@ -1206,7 +1207,35 @@ function entryIssues(
   }
 }
 
-function resultDto(row: TestResultRow, values: readonly ValueRow[]): TestResult {
+/**
+ * The ready video of each CMJ attempt (B-604, ADR 0085), by `result:entry`:
+ * only the files the caller sees (RLS) that can still be downloaded.
+ */
+async function videosOf(
+  db: TenantDatabase,
+  clubId: ClubId,
+  resultIds: readonly string[],
+): Promise<Map<string, string>> {
+  if (resultIds.length === 0) return new Map();
+  const rows = await db
+    .select({ id: file.id, testResultId: file.testResultId, testEntryId: file.testEntryId })
+    .from(file)
+    .where(
+      and(
+        eq(file.clubId, clubId),
+        inArray(file.testResultId, [...resultIds]),
+        eq(file.status, 'ready'),
+        or(isNull(file.expiresAt), gt(file.expiresAt, sql`now()`)),
+      ),
+    );
+  return new Map(rows.map((r) => [`${r.testResultId ?? ''}:${r.testEntryId ?? ''}`, r.id]));
+}
+
+function resultDto(
+  row: TestResultRow,
+  values: readonly ValueRow[],
+  videos: ReadonlyMap<string, string>,
+): TestResult {
   const entries = new Map<string, ValueRow[]>();
   for (const value of values) {
     const list = entries.get(value.entryId);
@@ -1263,6 +1292,8 @@ function resultDto(row: TestResultRow, values: readonly ValueRow[]): TestResult 
                 by: first.voidedBy as UserId | null,
                 reason: first.voidReason ?? '',
               },
+        videoFileId: (videos.get(`${row.id}:${entryId}`) ??
+          null) as TestResult['entries'][number]['videoFileId'],
       };
     }),
     scores: scores.map((score) => {
@@ -1288,18 +1319,16 @@ export async function testResultDtos(
   clubId: ClubId,
   rows: readonly TestResultRow[],
 ): Promise<TestResult[]> {
-  const values = await valuesOf(
-    db,
-    clubId,
-    rows.map((r) => r.id),
-  );
+  const ids = rows.map((r) => r.id);
+  const values = await valuesOf(db, clubId, ids);
+  const videos = await videosOf(db, clubId, ids);
   const byResult = new Map<string, ValueRow[]>();
   for (const value of values) {
     const list = byResult.get(value.testResultId);
     if (list === undefined) byResult.set(value.testResultId, [value]);
     else list.push(value);
   }
-  return rows.map((row) => resultDto(row, byResult.get(row.id) ?? []));
+  return rows.map((row) => resultDto(row, byResult.get(row.id) ?? [], videos));
 }
 
 export async function testResultDto(

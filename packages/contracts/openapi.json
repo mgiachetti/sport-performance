@@ -9558,7 +9558,7 @@
       "post": {
         "operationId": "createFileUpload",
         "summary": "Pedir una subida",
-        "description": "Crea el archivo `pending` y devuelve la URL firmada para subir el contenido directo al bucket con `PUT`; después, `POST /v1/files/{fileId}/confirm`. El tipo, el tamaño y el SHA-256 quedan firmados. El escudo lo sube la administración y lo ve todo miembro; el video del CMJ lo sube `sc` (asignado) o la administración y lo ven el jugador, `coach`, `sc` y la administración, siempre con **consentimiento de imagen vigente**; el informe lo ven quienes ven la ficha resumida; la planilla, quien puede importar; la imagen o el video de un protocolo los suben `sc` y la administración y los ve el staff. Idempotente por `clientUuid`: reenviar devuelve el mismo archivo con una URL nueva mientras siga pendiente; el mismo `clientUuid` con otro archivo (tipo, jugador, categoría, tipo MIME, tamaño, SHA-256 o nombre distintos) es `conflict`.",
+        "description": "Crea el archivo `pending` y devuelve la URL firmada para subir el contenido directo al bucket con `PUT`; después, `POST /v1/files/{fileId}/confirm`. El tipo, el tamaño y el SHA-256 quedan firmados. El escudo lo sube la administración y lo ve todo miembro; el video del CMJ lo sube `sc` (asignado) o la administración y lo ven el jugador, `coach`, `sc` y la administración, siempre con **consentimiento de imagen vigente**; el informe lo ven quienes ven la ficha resumida; la planilla, quien puede importar; la imagen o el video de un protocolo los suben `sc` y la administración y los ve el staff. El video de un intento del CMJ (`testResultId` + `testEntryId`) exige que el intento sea `cmj_video_frames`, no esté anulado y sea del mismo jugador (si no, `validation_failed`); si el intento ya tiene un video vivo, `conflict`. Idempotente por `clientUuid`: reenviar devuelve el mismo archivo con una URL nueva mientras siga pendiente; el mismo `clientUuid` con otro archivo (tipo, jugador, intento, categoría, tipo MIME, tamaño, SHA-256 o nombre distintos) es `conflict`.",
         "tags": [
           "files"
         ],
@@ -31333,6 +31333,18 @@
                 "format": "uuid",
                 "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                 "description": "Id de jugador/a (UUID, RFC 9562)."
+              },
+              "testResultId": {
+                "description": "Resultado del CMJ del intento que muestra el video (con `testEntryId`): un intento `cmj_video_frames` no anulado del mismo jugador. Un solo video vivo por intento.",
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "testEntryId": {
+                "description": "El `id` del intento (el `clientUuid` con el que se cargó), con `testResultId`.",
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
               }
             },
             "required": [
@@ -32873,6 +32885,34 @@
               }
             ]
           },
+          "testResultId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de resultado de test (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Resultado del CMJ del intento que muestra el video; `null` si no es de un intento (o el resultado se borró)."
+          },
+          "testEntryId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de entrada de un resultado de test (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Intento (`cmj_video_frames`) del resultado que muestra el video."
+          },
           "uploadedAt": {
             "anyOf": [
               {
@@ -32966,6 +33006,8 @@
           "sizeBytes",
           "checksumSha256",
           "fileName",
+          "testResultId",
+          "testEntryId",
           "uploadedAt",
           "expiresAt",
           "deletedAt",
@@ -42729,7 +42771,7 @@
               "missing_consent",
               "forbidden"
             ],
-            "description": "Si quien pide puede grabarle video (`media:upload`; sprint por video, B-605): `missing_consent` sin consentimiento de imagen vigente (sin él no se graba), `forbidden` por rol o alcance."
+            "description": "Si quien pide puede grabarle video (`media:upload`; sprint por video, B-605, y video del CMJ, B-604): `missing_consent` sin consentimiento de imagen vigente (sin él no se graba), `forbidden` por rol o alcance."
           },
           "stage": {
             "anyOf": [
@@ -43198,6 +43240,20 @@
                 "type": "null"
               }
             ]
+          },
+          "videoFileId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de archivo (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Video del intento del CMJ (`cmj_video_frames`) subido y listo; `null` si no tiene, todavía no se confirmó, se borró o venció. Un intento anulado conserva el video que ya tenía (es la evidencia de por qué se anuló) y no recibe uno nuevo. Verlo pide `GET /v1/files/{fileId}/download` (consentimiento de imagen vigente)."
           }
         },
         "required": [
@@ -43208,7 +43264,8 @@
           "inputs",
           "values",
           "issues",
-          "voided"
+          "voided",
+          "videoFileId"
         ]
       },
       "TestEntryInput": {

@@ -153,7 +153,7 @@ export const testDaySheetPlayerSchema = z
     }),
     video: z.enum(['allowed', 'missing_consent', 'forbidden']).meta({
       description:
-        'Si quien pide puede grabarle video (`media:upload`; sprint por video, B-605): `missing_consent` sin consentimiento de imagen vigente (sin él no se graba), `forbidden` por rol o alcance.',
+        'Si quien pide puede grabarle video (`media:upload`; sprint por video, B-605, y video del CMJ, B-604): `missing_consent` sin consentimiento de imagen vigente (sin él no se graba), `forbidden` por rol o alcance.',
     }),
     stage: stageSchema.nullable().meta({
       description: 'Etapa el día del test (por maduración, fijada o de la categoría).',

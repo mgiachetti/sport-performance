@@ -88,6 +88,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0082](0082-sprint-por-video-foto-finish.md) | Sprint por video (foto-finish): un celular de costado, cruce marcado cuadro a cuadro con conos corregidos por paralaje, cuadros como entrada cruda y video que no sale del teléfono | Aceptado |
 | [0083](0083-antropometria-en-cancha.md) | Antropometría en cancha: colección sincronizable `anthro_measurement`, operaciones `anthro.record` y `anthro.update`, y planilla sin conexión | Aceptado |
 | [0084](0084-carga-externa-informada-por-el-jugador.md) | Carga externa informada por el jugador: tabla propia, suma a la carga diaria marcada aparte y se carga sin conexión | Aceptado |
+| [0085](0085-cmj-por-video.md) | CMJ por video: intento por la cola, video atado al intento y subida aparte cuando el intento está en el servidor | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 

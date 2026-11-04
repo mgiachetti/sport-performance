@@ -381,6 +381,9 @@ describeWithPostgres('test day sheet (Postgres)', (serverUrl) => {
     expect(new Set(coach.json<SheetBody>().players.map((p) => p.recording))).toEqual(
       new Set(['forbidden']),
     );
+    expect(new Set(coach.json<SheetBody>().players.map((p) => p.video))).toEqual(
+      new Set(['forbidden']),
+    );
     expect((await sheetOf(adminA, v2Session)).statusCode).toBe(200);
     expect((await sheetOf(scM17, v2Session)).statusCode).toBe(403);
     expect((await sheetOf(playerUser, v2Session)).statusCode).toBe(403);

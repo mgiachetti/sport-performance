@@ -341,6 +341,8 @@ describe('administration: brand of the club', () => {
       sizeBytes: 4,
       checksumSha256: 'n2SnR+G5fxMfq7a0Rylsm28CAeefs8U1bmx36JtqgGo=',
       fileName: 'escudo.png',
+      testResultId: null,
+      testEntryId: null,
       uploadedAt: null,
       expiresAt: '2026-11-01T13:00:00.000Z',
       deletedAt: null,

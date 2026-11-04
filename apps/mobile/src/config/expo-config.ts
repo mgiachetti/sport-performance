@@ -65,16 +65,18 @@ export function buildExpoConfig(env: BuildEnv): ExpoConfig {
         // (`expo-background-task`, for the offline sync) and `audio` (`expo-audio`:
         // the 30-15 IFT signals go on with the app in the background).
         ITSAppUsesNonExemptEncryption: false,
-        // Tests filmed in slow motion (sprint by video, B-605, ADR 0082); never audio.
+        // Tests filmed in slow motion (sprint by video, B-605, ADR 0082; CMJ by video, B-604,
+        // ADR 0085); never audio.
         NSCameraUsageDescription:
-          'La app usa la cámara para filmar tests en cámara lenta (por ejemplo, el sprint) y medirlos cuadro a cuadro.',
+          'La app usa la cámara para filmar tests en cámara lenta (por ejemplo, el sprint o el salto) y medirlos cuadro a cuadro.',
       },
     },
     android: {
       package: identity.appId,
       // Health data of minors: never in Google Drive backups (ADR 0008).
       allowBackup: false,
-      // Tests filmed in slow motion (B-605, ADR 0082); no microphone: the videos have no audio.
+      // Tests filmed in slow motion (B-605, ADR 0082; B-604, ADR 0085); no microphone: the
+      // videos have no audio.
       permissions: ['android.permission.CAMERA'],
       blockedPermissions: ['android.permission.RECORD_AUDIO'],
       softwareKeyboardLayoutMode: 'resize',

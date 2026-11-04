@@ -302,6 +302,13 @@
       "when": 1793766106193,
       "tag": "0042_external_load",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1793766520762,
+      "tag": "0043_cmj_video_attempt",
+      "breakpoints": true
     }
   ]
 }

@@ -13,6 +13,7 @@ import { dateTimeSchema } from '../primitives/dates.js';
 import { categoryIdSchema, playerIdSchema, userIdSchema } from '../primitives/ids.js';
 import { pageOf, pageQuerySchema } from '../primitives/pagination.js';
 import { fileIdSchema } from './clubs.js';
+import { testEntryIdSchema, testResultIdSchema } from './tests.js';
 
 /**
  * Uploaded files (B-325, ADR 0044): CMJ videos, the crest of the club,
@@ -68,6 +69,13 @@ export const fileSchema = z
     sizeBytes: z.int().min(1),
     checksumSha256: checksumSha256Schema,
     fileName: fileNameSchema.nullable(),
+    testResultId: testResultIdSchema.nullable().meta({
+      description:
+        'Resultado del CMJ del intento que muestra el video; `null` si no es de un intento (o el resultado se borró).',
+    }),
+    testEntryId: testEntryIdSchema.nullable().meta({
+      description: 'Intento (`cmj_video_frames`) del resultado que muestra el video.',
+    }),
     uploadedAt: dateTimeSchema
       .nullable()
       .meta({ description: 'Cuándo se confirmó la subida; `null` mientras está pendiente.' }),
@@ -145,7 +153,22 @@ export const createFileUploadBodySchema = z
   .discriminatedUnion('kind', [
     z.strictObject(uploadFields('club_logo')).meta({ title: 'Escudo del club' }),
     z
-      .strictObject({ ...uploadFields('cmj_video'), playerId: playerIdSchema })
+      .strictObject({
+        ...uploadFields('cmj_video'),
+        playerId: playerIdSchema,
+        testResultId: testResultIdSchema.optional().meta({
+          description:
+            'Resultado del CMJ del intento que muestra el video (con `testEntryId`): un intento `cmj_video_frames` no anulado del mismo jugador. Un solo video vivo por intento.',
+        }),
+        testEntryId: testEntryIdSchema.optional().meta({
+          description:
+            'El `id` del intento (el `clientUuid` con el que se cargó), con `testResultId`.',
+        }),
+      })
+      .refine((body) => (body.testResultId === undefined) === (body.testEntryId === undefined), {
+        message: 'testResultId and testEntryId go together',
+        path: ['testEntryId'],
+      })
       .meta({ title: 'Video del CMJ' }),
     z
       .strictObject({
@@ -171,7 +194,7 @@ export const createFileUpload = defineEndpoint({
   method: 'POST',
   path: '/v1/files',
   summary: 'Pedir una subida',
-  description: `Crea el archivo \`pending\` y devuelve la URL firmada para subir el contenido directo al bucket con \`PUT\`; después, \`POST /v1/files/{fileId}/confirm\`. El tipo, el tamaño y el SHA-256 quedan firmados. ${ACCESS} Idempotente por \`clientUuid\`: reenviar devuelve el mismo archivo con una URL nueva mientras siga pendiente; el mismo \`clientUuid\` con otro archivo (tipo, jugador, categoría, tipo MIME, tamaño, SHA-256 o nombre distintos) es \`conflict\`.`,
+  description: `Crea el archivo \`pending\` y devuelve la URL firmada para subir el contenido directo al bucket con \`PUT\`; después, \`POST /v1/files/{fileId}/confirm\`. El tipo, el tamaño y el SHA-256 quedan firmados. ${ACCESS} El video de un intento del CMJ (\`testResultId\` + \`testEntryId\`) exige que el intento sea \`cmj_video_frames\`, no esté anulado y sea del mismo jugador (si no, \`validation_failed\`); si el intento ya tiene un video vivo, \`conflict\`. Idempotente por \`clientUuid\`: reenviar devuelve el mismo archivo con una URL nueva mientras siga pendiente; el mismo \`clientUuid\` con otro archivo (tipo, jugador, intento, categoría, tipo MIME, tamaño, SHA-256 o nombre distintos) es \`conflict\`.`,
   tags: ['files'],
   auth: 'club',
   body: createFileUploadBodySchema,

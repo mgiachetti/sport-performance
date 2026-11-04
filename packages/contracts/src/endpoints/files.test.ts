@@ -37,6 +37,22 @@ describe('createFileUpload', () => {
     ]) {
       expect(createFileUploadBodySchema.safeParse(invalid).success).toBe(false);
     }
+    // The video of an attempt (B-604): its result and its entry, both or neither.
+    const attempt = {
+      testResultId: '0192e7a0-5c1a-7b7e-9f3a-2d4c6b8a1e01',
+      testEntryId: '0192e7a0-5c1a-7b7e-9f3a-2d4c6b8a1e02',
+    };
+    expect(createFileUploadBodySchema.parse({ ...video, ...attempt })).toEqual({
+      ...video,
+      ...attempt,
+    });
+    expect(
+      createFileUploadBodySchema.safeParse({ ...video, testResultId: attempt.testResultId })
+        .success,
+    ).toBe(false);
+    expect(
+      createFileUploadBodySchema.safeParse({ ...video, testEntryId: attempt.testEntryId }).success,
+    ).toBe(false);
     const logo = {
       kind: 'club_logo',
       contentType: 'image/webp',
@@ -83,6 +99,8 @@ describe('fileSchema', () => {
       sizeBytes: 1,
       checksumSha256: CHECKSUM,
       fileName: null,
+      testResultId: null,
+      testEntryId: null,
       uploadedAt: null,
       expiresAt: '2026-11-03T12:00:00.000Z',
       deletedAt: null,

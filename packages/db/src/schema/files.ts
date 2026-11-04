@@ -7,7 +7,7 @@ import {
   type PlayerId,
 } from '@sport-performance/domain';
 import { sql } from 'drizzle-orm';
-import { bigint, check, index, pgTable, text, uuid } from 'drizzle-orm/pg-core';
+import { bigint, check, index, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { timestamptz } from './columns.js';
 import { fileKindEnum, fileStatusEnum } from './enums.js';
 import { category } from './organization.js';
@@ -73,6 +73,17 @@ export const file = pgTable(
     expiresAt: timestamptz('expires_at'),
     deletedAt: timestamptz('deleted_at'),
     purgedAt: timestamptz('purged_at'),
+    /**
+     * The CMJ attempt a video is the evidence of (B-604, ADR 0085): its result and its
+     * entry (`test_result_value.entry_id`, the `clientUuid` the evaluator's phone gave the
+     * attempt). Set together on insert (the API and `file_test_entry_check`), only for
+     * `cmj_video`, never changed. The key to the result is declared in migration `0043` and
+     * not here: `ON DELETE SET NULL (test_result_id)` (erasing a player deletes their results
+     * while the detached file waits for the retention job; the entry id stays as a record)
+     * cannot be expressed in Drizzle.
+     */
+    testResultId: uuid('test_result_id'),
+    testEntryId: uuid('test_entry_id'),
   },
   (t) => [
     ...tenantConstraints('file', t),
@@ -101,6 +112,18 @@ export const file = pgTable(
       'file_subject',
       sql`((${t.kind}::text in (${kindList(PLAYER_KINDS)})) = (${t.playerId} is not null) or (${t.status} = 'deleted' and ${t.playerId} is null)) and (${t.categoryId} is null or ${t.kind}::text in (${kindList(CATEGORY_KINDS)})) and (${t.kind}::text not in (${kindList(REQUIRED_CATEGORY_KINDS)}) or ${t.categoryId} is not null)`,
     ),
+    check(
+      'file_test_entry',
+      sql`(${t.testResultId} is null or ${t.testEntryId} is not null) and (${t.testEntryId} is null or ${t.kind} = 'cmj_video')`,
+    ),
+    // One live video per attempt; a deleted one leaves room for another. Also covers the key
+    // to the result (club, result).
+    uniqueIndex('file_test_entry_key')
+      .on(t.clubId, t.testResultId, t.testEntryId)
+      .where(sql`${t.testEntryId} is not null and ${t.status} <> 'deleted'`),
+    index('file_test_result_id_idx')
+      .on(t.clubId, t.testResultId)
+      .where(sql`${t.testResultId} is not null`),
     check(
       'file_lifecycle',
       sql`(${t.status} <> 'ready' or ${t.uploadedAt} is not null) and (${t.status} = 'deleted') = (${t.deletedAt} is not null) and (${t.purgedAt} is null or ${t.status} = 'deleted')`,

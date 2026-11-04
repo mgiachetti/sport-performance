@@ -65,6 +65,8 @@ function uploadedFile(status: 'pending' | 'ready' = 'ready') {
     sizeBytes: 4,
     checksumSha256: SHA,
     fileName: 'salida.png',
+    testResultId: null,
+    testEntryId: null,
     uploadedAt: status === 'ready' ? AT : null,
     expiresAt: status === 'ready' ? null : '2026-03-02T12:00:00.000Z',
     deletedAt: null,

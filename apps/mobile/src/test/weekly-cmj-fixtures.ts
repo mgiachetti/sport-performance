@@ -187,6 +187,7 @@ export function cmjResultDto(input: {
       ],
       issues: [],
       voided: null,
+      videoFileId: null,
     };
   });
   return {

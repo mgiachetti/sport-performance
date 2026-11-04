@@ -38,6 +38,7 @@ function testResult(): TestResult {
         values: [],
         issues: [],
         voided: null,
+        videoFileId: null,
       },
     ],
     scores: [],
@@ -147,6 +148,7 @@ describe('overlays', () => {
         { id: value, metricCode: 'cmj_height_cm', unit: 'cm', value: 33.5, computed: false },
       ],
       voided: null,
+      videoFileId: null,
     });
     // The server computes the height of a flight time: only what was typed until the pull.
     expect(next.entries[2]).toMatchObject({

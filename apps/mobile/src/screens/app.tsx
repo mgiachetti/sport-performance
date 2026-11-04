@@ -42,6 +42,7 @@ export function HomeScreen({
   onOpenWeeklyCmj = null,
   onOpenSprintVideo = null,
   onOpenAnthropometry = null,
+  onOpenCmjVideo = null,
 }: {
   readonly userName: string;
   readonly membership: MembershipSummary;
@@ -59,6 +60,8 @@ export function HomeScreen({
   readonly onOpenSprintVideo?: (() => void) | null;
   /** The field anthropometry sheet (B-508), for whoever records measurements; `null` hides it. */
   readonly onOpenAnthropometry?: (() => void) | null;
+  /** CMJ by video (B-604) for who films it; `null` hides it. */
+  readonly onOpenCmjVideo?: (() => void) | null;
 }) {
   const { t } = useTranslator();
   const name = userName.trim();
@@ -105,6 +108,12 @@ export function HomeScreen({
             label={t('anthropometry.field.open')}
             onPress={onOpenAnthropometry}
           />
+        </Card>
+      )}
+      {onOpenCmjVideo === null ? null : (
+        <Card>
+          <AppText tone="secondary">{t('cmjVideo.open.hint')}</AppText>
+          <Button variant="secondary" label={t('cmjVideo.open')} onPress={onOpenCmjVideo} />
         </Card>
       )}
       <AppText role="caption" tone="muted">

@@ -44,6 +44,9 @@ pnpm --filter @sport-performance/mobile start   # después, solo el bundler
 - `src/sprint-video`: sprint por video (B-605, [ADR 0082](../../docs/adr/0082-sprint-por-video-foto-finish.md)): permisos y destino del intento, armado de la cancha, marcado cuadro a cuadro, guardado por la cola y videos temporales que se borran.
 - `src/anthropometry`: la planilla de antropometría en cancha (B-508, [ADR 0083](../../docs/adr/0083-antropometria-en-cancha.md)): modelo puro (parseo es-AR, reglas, plausibilidad del dominio, entradas de la cola) y lecturas de la base local, de la cola y del contexto en caché.
 - `src/external-load`: carga externa del jugador (B-511, [ADR 0084](../../docs/adr/0084-carga-externa-informada-por-el-jugador.md)): formulario, lista de la semana con lo pendiente de la cola y día del club con la zona horaria guardada en el teléfono.
+- `src/cmj-video`: CMJ por video (B-604, [ADR 0085](../../docs/adr/0085-cmj-por-video.md)): marcado cuadro a cuadro (`marking.ts`), el intento por la cola (`attempt.ts`), los videos que esperan en el teléfono (`captures.ts`) y su subida cuando el intento está en el servidor (`uploader.ts`, `service.ts`).
+- `src/platform`: lo nativo (`expo-secure-store`, AsyncStorage, `expo-application`, `expo-updates`, `expo-localization`, `expo-sqlite` con SQLCipher, `expo-network`, `expo-background-task`, la cámara de `react-native-vision-camera` y los cuadros exactos del módulo propio `modules/cmj-frames`) detrás de interfaces.
+- `modules/`: módulos nativos propios de la app (Expo Modules, autolinkeados): `cmj-frames` da el cuadro exacto de un tiempo y la duración de un video (ADR 0085).
 - `src/screens`: pantallas de presentación (datos y callbacks por props); `src/ui`: tema, traductor, primitivas accesibles y fuentes.
 
 Los imports llevan la extensión `.ts` / `.tsx` (ADR 0058).

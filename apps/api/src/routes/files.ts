@@ -9,7 +9,14 @@ import {
   type FileUpload,
   type UploadedFile,
 } from '@sport-performance/contracts';
-import { category, club, file, playerCategory } from '@sport-performance/db/schema';
+import {
+  category,
+  club,
+  file,
+  playerCategory,
+  testResult,
+  testResultValue,
+} from '@sport-performance/db/schema';
 import {
   FILE_KIND_POLICIES,
   can,
@@ -128,6 +135,8 @@ const fileColumns = {
   sizeBytes: file.sizeBytes,
   checksumSha256: file.checksumSha256,
   fileName: file.fileName,
+  testResultId: file.testResultId,
+  testEntryId: file.testEntryId,
   uploadedAt: file.uploadedAt,
   expiresAt: file.expiresAt,
   deletedAt: file.deletedAt,
@@ -147,6 +156,8 @@ interface FileRow {
   sizeBytes: number;
   checksumSha256: string;
   fileName: string | null;
+  testResultId: string | null;
+  testEntryId: string | null;
   uploadedAt: Date | null;
   expiresAt: Date | null;
   deletedAt: Date | null;
@@ -166,6 +177,8 @@ function fileDto(row: FileRow): UploadedFile {
     sizeBytes: row.sizeBytes,
     checksumSha256: row.checksumSha256,
     fileName: row.fileName,
+    testResultId: row.testResultId as UploadedFile['testResultId'],
+    testEntryId: row.testEntryId as UploadedFile['testEntryId'],
     uploadedAt: row.uploadedAt?.toISOString() ?? null,
     expiresAt: row.expiresAt?.toISOString() ?? null,
     deletedAt: row.deletedAt?.toISOString() ?? null,
@@ -332,6 +345,51 @@ function scopeFilter(kind: FileKind, scope: Exclude<ListScope, { kind: 'none' }>
   }
 }
 
+/** A validation error of one field of the body (`validation_failed`). */
+function invalidField(field: string, message: string): HttpError {
+  return new HttpError('validation_failed', message, {
+    details: [{ path: ['body', field], code: 'custom', message }],
+  });
+}
+
+/**
+ * Checks the CMJ attempt a video is uploaded for (B-604, ADR 0085): a
+ * result the caller sees (`404` otherwise), of the video's player, with a
+ * valid `cmj_video_frames` entry of that id. The database checks the same
+ * but the voided state (`file_test_entry_check`).
+ */
+async function checkVideoAttempt(
+  db: TenantDatabase,
+  clubId: ClubId,
+  attempt: { playerId: PlayerId; testResultId: string; testEntryId: string },
+): Promise<void> {
+  const [result] = await db
+    .select({ playerId: testResult.playerId })
+    .from(testResult)
+    .where(and(eq(testResult.clubId, clubId), eq(testResult.id, attempt.testResultId)));
+  if (result === undefined) throw new HttpError('not_found', 'Test result not found');
+  if (result.playerId !== attempt.playerId) {
+    throw invalidField('testResultId', 'The result is of another player');
+  }
+  const values = await db
+    .select({ inputs: testResultValue.inputs, voidedAt: testResultValue.voidedAt })
+    .from(testResultValue)
+    .where(
+      and(
+        eq(testResultValue.clubId, clubId),
+        eq(testResultValue.testResultId, attempt.testResultId),
+        eq(testResultValue.entryId, attempt.testEntryId),
+      ),
+    );
+  if (values.length === 0) throw invalidField('testEntryId', 'The result has no such attempt');
+  if (values.some((value) => value.inputs?.kind !== 'cmj_video_frames')) {
+    throw invalidField('testEntryId', 'The attempt was not marked on a video (cmj_video_frames)');
+  }
+  if (values.some((value) => value.voidedAt !== null)) {
+    throw invalidField('testEntryId', 'The attempt was voided');
+  }
+}
+
 export function registerFileRoutes(app: FastifyInstance, files: FilesModule | undefined): void {
   registerEndpoint(app, createFileUpload, {
     transaction: true,
@@ -360,6 +418,31 @@ export function registerFileRoutes(app: FastifyInstance, files: FilesModule | un
           });
         }
       }
+      const attempt =
+        body.kind === 'cmj_video' &&
+        body.testResultId !== undefined &&
+        body.testEntryId !== undefined
+          ? { testResultId: body.testResultId, testEntryId: body.testEntryId }
+          : null;
+      if (attempt !== null && playerId !== null) {
+        // A resend of an upload already recorded is checked against that row below (the
+        // attempt may have been voided since): only a new upload checks the attempt.
+        const [known] =
+          body.clientUuid === undefined
+            ? []
+            : await db
+                .select({ testResultId: file.testResultId, testEntryId: file.testEntryId })
+                .from(file)
+                .where(and(eq(file.clubId, clubId), eq(file.clientUuid, body.clientUuid)));
+        // The same clientUuid for another attempt is another upload (never re-checked as new).
+        if (
+          known !== undefined &&
+          (known.testResultId !== attempt.testResultId || known.testEntryId !== attempt.testEntryId)
+        ) {
+          throw new HttpError('conflict', 'This clientUuid was already used for another file');
+        }
+        if (known === undefined) await checkVideoAttempt(db, clubId, { playerId, ...attempt });
+      }
       const { row, replayed } = await insertIdempotent({
         clientUuid: body.clientUuid,
         reply,
@@ -374,6 +457,8 @@ export function registerFileRoutes(app: FastifyInstance, files: FilesModule | un
                 kind: body.kind,
                 playerId,
                 categoryId,
+                testResultId: attempt?.testResultId ?? null,
+                testEntryId: attempt?.testEntryId ?? null,
                 contentType: body.contentType,
                 sizeBytes: body.sizeBytes,
                 checksumSha256: body.checksumSha256,
@@ -402,6 +487,8 @@ export function registerFileRoutes(app: FastifyInstance, files: FilesModule | un
           row.kind !== body.kind ||
           row.playerId !== playerId ||
           row.categoryId !== categoryId ||
+          row.testResultId !== (attempt?.testResultId ?? null) ||
+          row.testEntryId !== (attempt?.testEntryId ?? null) ||
           row.contentType !== body.contentType ||
           row.sizeBytes !== body.sizeBytes ||
           row.checksumSha256 !== body.checksumSha256 ||

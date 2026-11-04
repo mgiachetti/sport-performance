@@ -24,6 +24,7 @@ import {
   testSessionIdSchema,
 } from './calendar.js';
 import { changeReasonSchema } from './change-history.js';
+import { fileIdSchema } from './clubs.js';
 
 /**
  * Test results (B-320). A test day (`TestSession`, scheduled and run with
@@ -215,6 +216,10 @@ export const testEntrySchema = z
     voided: z
       .object({ at: dateTimeSchema, by: userIdSchema.nullable(), reason: z.string() })
       .nullable(),
+    videoFileId: fileIdSchema.nullable().meta({
+      description:
+        'Video del intento del CMJ (`cmj_video_frames`) subido y listo; `null` si no tiene, todavía no se confirmó, se borró o venció. Un intento anulado conserva el video que ya tenía (es la evidencia de por qué se anuló) y no recibe uno nuevo. Verlo pide `GET /v1/files/{fileId}/download` (consentimiento de imagen vigente).',
+    }),
   })
   .meta({ id: 'TestEntry' });
 
