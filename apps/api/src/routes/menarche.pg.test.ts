@@ -100,8 +100,8 @@ describeWithPostgres('menarche (Postgres)', (serverUrl) => {
     );
     const { rows } = await database.admin.query<{ id: string }>(
       `insert into category (club_id, sport, sex, age_band_code, name, default_stage)
-       values ($1, $2, $3, $4, upper($4) || ' ' || $2, 'development') returning id`,
-      [clubId, sport, sex, band],
+       values ($1, $2, $3, $4, $5, 'development') returning id`,
+      [clubId, sport, sex, band, `${band.toUpperCase()} ${sport}`],
     );
     return rows[0]?.id ?? '';
   }
