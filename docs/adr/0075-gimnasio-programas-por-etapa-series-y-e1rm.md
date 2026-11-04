@@ -53,7 +53,7 @@ Faltaba decidir: a quién apunta un programa, qué forma tiene el plan, qué se 
 ### Pantallas
 
 - **Web**: sección Gimnasio con la lista por alcance (aviso si el módulo está apagado), alta y edición del programa con sus días y ejercicios, archivar y restaurar; en la ficha del jugador, el mejor e1RM por ejercicio con su evolución (gráfico con tabla) y las últimas series con sus avisos, donde el `sc` carga una serie con nota técnica y anula otra con motivo.
-- **Mobile**: pestaña Gimnasio del jugador que lee programas y series de la base local y carga cada serie por la cola (prellenada con lo indicado), con el aviso de "nunca al fallo" antes de cargar RIR 0 y lo pendiente marcado. El staff carga desde la web.
+- **Mobile**: pestaña Gimnasio del jugador que lee programas y series de la base local y carga cada serie por la cola (prellenada con lo indicado), con el aviso de "nunca al fallo" antes de cargar RIR 0 y lo pendiente marcado. El staff carga desde la web. Con el módulo `gym` apagado (issue #215) la pestaña no se muestra (la pantalla, abierta por un enlace, avisa que el club lo apagó) y el teléfono deja de pedir `gym_program` y `gym_set` en el pull: la app lee los módulos de `GET /v1/configuration/modules` (todo miembro), los guarda en la caché de lecturas (ADR 0074) y, sin leerlos nunca, usa los valores por defecto del dominio; el mapa módulo → colecciones vive en `apps/mobile/src/clubs/modules.ts`. Otro conjunto de colecciones cambia la huella del cursor: el servidor reinicia y el teléfono borra también las filas de las colecciones que dejó de pedir.
 
 ## Consecuencias
 

@@ -216,6 +216,7 @@ function ExerciseCard({
 }
 
 export function GymScreen({
+  moduleOn,
   allowed,
   state,
   offline,
@@ -226,6 +227,8 @@ export function GymScreen({
   onPickDay,
   onLog,
 }: {
+  /** Whether the club has the `gym` module on (issue #215): off, nothing is read or logged. */
+  readonly moduleOn: boolean;
   readonly allowed: boolean;
   readonly state: GymLoadState;
   readonly offline: boolean;
@@ -254,6 +257,16 @@ export function GymScreen({
       {sync}
     </>
   );
+  if (!moduleOn) {
+    return (
+      <ScreenBody>
+        <AppText role="title" accessibilityRole="header">
+          {t('gym.mobile.title')}
+        </AppText>
+        <StatusMessage level="warning">{t('gym.mobile.moduleOff')}</StatusMessage>
+      </ScreenBody>
+    );
+  }
   if (!allowed) {
     return (
       <ScreenBody>
