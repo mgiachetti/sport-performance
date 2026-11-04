@@ -24,6 +24,7 @@ export const CHANGE_TRACKED_TABLES = [
   'wellness',
   'external_metric',
   'gym_set',
+  'external_load',
 ] as const;
 export type ChangeTrackedTable = (typeof CHANGE_TRACKED_TABLES)[number];
 

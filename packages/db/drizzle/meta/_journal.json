@@ -295,6 +295,13 @@
       "when": 1793765503709,
       "tag": "0041_anthro_measurement_sync",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1793766106193,
+      "tag": "0042_external_load",
+      "breakpoints": true
     }
   ]
 }

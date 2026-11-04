@@ -63,6 +63,8 @@ function dailyMonitoring(): Output<'getPlayerDailyMonitoring'> {
       loadAu: index % 2 === 0 ? 420 : 0,
       hasData: index % 2 === 0,
       sessions: index % 2 === 0 ? 1 : 0,
+      externalLoadAu: index === 26 ? 120 : 0,
+      externalActivities: index === 26 ? 1 : 0,
       pendingRpe: index === 27 ? 1 : 0,
       historyDays: 40 + index,
       acuteEwmaAu: 300,
@@ -434,6 +436,9 @@ describe('player profile (B-404)', () => {
     expect(within(loadCard).getByText('Crítico')).toBeVisible();
     expect(within(loadCard).getByText('3,2 de 5')).toBeVisible();
     expect(within(loadCard).getByText('1 sesión sin RPE en el período.')).toBeVisible();
+    expect(
+      within(loadCard).getByText(/informadas por el jugador fuera del club \(1 actividad:/),
+    ).toBeVisible();
     expect(within(loadCard).getByRole('figure', { name: /sRPE del día/ })).toBeVisible();
 
     // Alerts: text interpolated in es-AR, severity and review status.

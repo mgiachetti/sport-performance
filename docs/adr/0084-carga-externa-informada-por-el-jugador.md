@@ -1,0 +1,34 @@
+# 0084. Carga externa informada por el jugador: tabla propia, suma a la carga diaria marcada aparte y se carga sin conexión
+
+- Estado: Aceptado
+- Fecha: 2026-11-03
+- Issue: #89 (B-511)
+
+## Contexto
+
+B-511 pide que el jugador informe lo que entrena fuera del club (otro deporte, educación física, entrenamiento por su cuenta) con tipo, minutos y RPE, y que sume a la carga total "con marca de informada por el jugador" para que el ACWR refleje la carga real. La carga diaria la calcula el worker (`player_load_daily`, ADR 0046) solo desde la participación en las sesiones del club. La app carga todo por la cola sin conexión (ADR 0015, 0050, 0069). Faltaba decidir dónde vive el dato, cómo suma sin mezclarse con las sesiones del club, quién lo escribe, en qué ventana de días y cómo viaja sin señal.
+
+## Decisión
+
+- **Tabla propia `external_load`**, no una sesión ni una participación: jugador, día del club, tipo (`physical_education`, `other_sport`, `own_training`, `other`; enum `external_load_activity`), detalle opcional corto (hasta 60 caracteres, "Fútbol"), minutos (1–600), RPE CR-10 entero (0–10) y `srpe_au = RPE × minutos` como columna generada, igual que la participación. Una sesión externa en `training_session` aparecería en el plantel, el panel y las listas del staff como si fuera del club, y su `kind` (entrenamiento o partido) cuenta horas de exposición del club (B-210); acá solo cuenta la carga. Se archiva (`archived_at`) en vez de borrar (ADR 0032); archivar es definitivo (un trigger rechaza cualquier cambio de una fila archivada) y lo archivado no suma.
+- **Suma a la carga diaria, contada aparte.** El worker suma el `srpe_au` de cada actividad no archivada a la carga del día del jugador (EWMA, ACWR, monotonía y strain la incluyen) y guarda en la misma fila `external_load_au` y `external_n`. La marca "informada por el jugador" es eso: la parte externa de cada día siempre se lee por separado (la ficha del jugador la muestra como aviso, la exportación CSV como columna y como `carga_externa.csv`), y el DTO lleva `reportedBy: 'player'`. Un día con solo carga externa también es un día con datos y empieza la historia del ACWR. El outbox (trigger `derived_refresh_trigger`, reemplazado con el mismo cuerpo más el caso nuevo) marca el recálculo desde el día de la actividad, y desde el anterior si una corrección la mueve.
+- **Solo el jugador la escribe, sobre sí mismo.** Recurso `external_load` en la matriz: `read` como bienestar y RPE (el jugador lo suyo, el staff sus asignaciones, la administración el club), `report` solo `player` con consentimiento de datos vigente (`self+data`). `report` cubre informar, corregir y archivar: es siempre el mismo sujeto sobre su propio dato. La RLS da escritura solo al rol `player` en su alcance, sin `UPDATE` de `player_id`. El modo kiosco y la carga por el staff quedan fuera: si hicieran falta, son una regla nueva de la matriz, no otra tabla.
+- **Ventana de 7 días del club** (`EXTERNAL_LOAD_REPORT_WINDOW_DAYS`, hoy y los 6 anteriores): un partido del fin de semana se informa el lunes; más atrás no, porque cambia una semana que el staff ya leyó. Corregir y archivar piden que la actividad (y el día nuevo, si se mueve) siga en la ventana. Desde la cola se mide en el día del club del momento en que se registró la mutación (`recordedAt`, ADR 0050), no en el de la sincronización.
+- **Corregir pide motivo** (`changeReason`, también sin conexión): el historial de cambios (ADR 0030, `change_tracked_table` suma `external_load`) lo exige para día, tipo, detalle, minutos y RPE; archivar llena una columna vacía y no lo pide.
+- **Sin conexión** (ADR 0050): colección `external_load` del log de cambios, con el DTO de la lista, leída con `external_load.read`, incluidas las archivadas (el teléfono se entera de que ya no cuentan). Operaciones de la cola: `external_load.report` (alta con `clientUuid` obligatorio), `external_load.correct` (body del `PATCH` sin `version`, por campo con HLC: `local_date`, `activity`, `detail`, `minutes`, `rpe`) y `external_load.archive` (sin reloj, final e idempotente, como la anulación de un intento). Los valores nuevos de los enums de colecciones, operaciones y tablas del historial solo se usan en ejecución y la tabla es nueva (no hay filas que cargar al log), así que alcanza con `ALTER TYPE … ADD VALUE`; `sync_lock_rows` se reemplaza con el mismo cuerpo más la tabla nueva.
+- **Pantalla "Otra actividad" en la app** (`app/(app)/external-load.tsx`, `src/external-load/`): la ve quien tiene `external_load.report` según la matriz (el jugador), desde "Hoy", su inicio. Tipo, día (hoy, ayer o los días de la ventana), minutos (30/45/60/90 de un toque u otro valor) y RPE 0–10 con las palabras de la escala, en pocos toques; muestra la carga que va a sumar. Escribe por la cola y lee la semana de la base local más lo que sigue en la cola (las altas que no volvieron, con sus correcciones y archivos aplicados con la misma superposición de `overlay.ts`), cada actividad con su estado (en el teléfono, con un cambio sin enviar, enviada) con ícono y texto. El día del club sale de la zona horaria del club (`GET /v1/club`), guardada en las preferencias del teléfono para usarla sin señal; antes de conocerla usa la del teléfono y lo dice, y el servidor valida la ventana igual.
+
+## Alternativas descartadas
+
+- **Guardar la carga externa como una sesión del club con un `kind` nuevo.** Mezcla lo del club con lo que no lo es en el plantel, el panel, la exposición y la vista de sesión; y una "sesión" de un solo jugador creada por él rompe que las sesiones son del staff.
+- **Sumarla sin marca a `load_au`.** El staff no sabría qué parte de la carga controla y cuál le informaron; la marca aparte lo deja leer las dos.
+- **Una segunda serie de EWMA/ACWR solo del club.** Duplicaría la tabla derivada y las alertas; el pedido es que el ACWR refleje la carga real. La parte externa por día alcanza para leerla aparte.
+- **Dejar al staff corregirla.** Es un dato que solo conoce el jugador; si el staff duda, lo habla con él. El staff la lee.
+- **Ventana igual a la del bienestar (hoy y ayer).** Un partido del sábado quedaría sin informar el lunes, que es cuando el jugador vuelve al club.
+
+## Consecuencias
+
+- La web del staff muestra la parte externa en la carga de la ficha del jugador (aviso con el total del período); una vista dedicada de las actividades informadas queda para cuando se pida (la lista `GET /v1/external-loads` ya está).
+- Un build viejo de la app que pide el pull sin `collections` recibe la colección nueva fuera de su contrato (como en cualquier colección nueva): hasta que el motor pida explícitamente las colecciones que conoce, sale con una versión nativa nueva (ADR 0045).
+- El club demo (ADR 0055) no genera carga externa todavía.
+- La carga externa del jugador no se valida contra nada: es una heurística más (CLAUDE.md, principio 7), con su origen siempre visible.

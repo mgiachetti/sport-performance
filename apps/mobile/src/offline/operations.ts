@@ -234,6 +234,27 @@ export const OPERATION_SPECS: { readonly [Op in SyncOperation]: OperationSpec<Op
     targets: ({ target }) => [toTarget('anthro_measurement', target)],
     clientUuidPaths: none,
   },
+  'external_load.report': {
+    kind: 'create',
+    targets: ({ body }) => [
+      {
+        collection: 'external_load',
+        ...(body.clientUuid !== undefined && { clientUuid: body.clientUuid }),
+      },
+    ],
+    clientUuidPaths: ({ body }) => [{ path: ['body', 'clientUuid'], value: body.clientUuid }],
+  },
+  'external_load.correct': {
+    kind: 'edit',
+    targets: ({ target }) => [toTarget('external_load', target)],
+    clientUuidPaths: none,
+  },
+  // Archiving is final and idempotent: never in conflict, like a void of an attempt.
+  'external_load.archive': {
+    kind: 'append',
+    targets: ({ target }) => [toTarget('external_load', target)],
+    clientUuidPaths: none,
+  },
 };
 
 /** Whether a mutation of `op` leaves the queue as soon as the server applied it. */

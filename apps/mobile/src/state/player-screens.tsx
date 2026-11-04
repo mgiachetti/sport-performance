@@ -127,10 +127,13 @@ function wellnessSection(
 export function PlayerToday({
   sync,
   onOpenPainReport,
+  onOpenExternalLoad,
 }: {
   readonly sync?: ReactNode;
   /** Opens "¿Te duele algo?" (B-609); offered after the check-in when the club asks it. */
   readonly onOpenPainReport?: () => void;
+  /** Opens "Otra actividad" (B-511): the load of an activity outside the club. */
+  readonly onOpenExternalLoad?: (() => void) | null;
 }) {
   const services = useServices();
   const api = useApi();
@@ -271,6 +274,7 @@ export function PlayerToday({
       services.sync.requestSync({ force: true });
     },
     onOpenPainReport: me.value?.permissions.reportPain === true ? (onOpenPainReport ?? null) : null,
+    onOpenExternalLoad: onOpenExternalLoad ?? null,
   };
 
   return (

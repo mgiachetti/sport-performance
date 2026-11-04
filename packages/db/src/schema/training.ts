@@ -19,6 +19,7 @@ import { user } from './auth.js';
 import {
   contactLevelEnum,
   gymLoadKindEnum,
+  externalLoadActivityEnum,
   externalMetricSourceEnum,
   participationStatusEnum,
   sessionKindEnum,
@@ -177,6 +178,45 @@ export const wellness = pgTable(
     rangeCheck('wellness_soreness', t.soreness, 1, 5),
     rangeCheck('wellness_stress', t.stress, 1, 5),
     rangeCheck('wellness_mood', t.mood, 1, 5),
+  ],
+);
+
+/**
+ * Load outside the club reported by the player (B-511, ADR 0084): another
+ * sport, physical education, training on their own. `srpe_au` = RPE ×
+ * minutes is generated, like a participation's, and the worker adds it to
+ * the player's daily load apart from the club's sessions
+ * (`player_load_daily.external_load_au`). Archived instead of deleted
+ * (ADR 0032): an archived activity counts no more.
+ */
+export const externalLoad = pgTable(
+  'external_load',
+  {
+    ...tenantColumns(),
+    playerId: uuid('player_id').notNull().$type<PlayerId>(),
+    /** The club day of the activity. */
+    localDate: localDate('local_date').notNull(),
+    activity: externalLoadActivityEnum('activity').notNull(),
+    /** What it was, in the player's words ("Fútbol", "Natación"). */
+    detail: text('detail'),
+    minutes: smallint('minutes').notNull(),
+    /** CR-10 of the whole activity, as the session RPE. */
+    rpe: smallint('rpe').notNull(),
+    srpeAu: integer('srpe_au')
+      .notNull()
+      .generatedAlwaysAs(sql`"rpe"::integer * "minutes"`),
+    archivedAt: timestamptz('archived_at'),
+  },
+  (t) => [
+    ...tenantConstraints('external_load', t),
+    tenantReference('external_load', t.clubId, t.playerId, player),
+    index('external_load_player_idx').on(t.clubId, t.playerId, t.localDate),
+    check('external_load_minutes', sql`${t.minutes} between 1 and 600`),
+    check('external_load_rpe', sql`${t.rpe} between 0 and 10`),
+    check(
+      'external_load_detail',
+      sql`${t.detail} is null or (char_length(${t.detail}) between 1 and 60 and ${t.detail} = btrim(${t.detail}))`,
+    ),
   ],
 );
 

@@ -20,6 +20,7 @@ import {
   dataSubjectRequest,
   device,
   drill,
+  externalLoad,
   externalMetric,
   fixture,
   file,
@@ -712,6 +713,20 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         source: 'manual',
       })
       .returning({ id: externalMetric.id }),
+  );
+  // Physical education reported by the player (B-511).
+  rows.external_load = await id(
+    db
+      .insert(externalLoad)
+      .values({
+        ...base,
+        playerId: assigned,
+        localDate: day('2026-03-11'),
+        activity: 'physical_education',
+        minutes: 40,
+        rpe: 4,
+      })
+      .returning({ id: externalLoad.id }),
   );
   rows.gym_program = await id(
     db

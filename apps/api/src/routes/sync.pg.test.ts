@@ -934,6 +934,7 @@ describeWithPostgres('offline sync (Postgres)', (serverUrl) => {
         'gym_program',
         'gym_set',
         'anthro_measurement',
+        'external_load',
       ]);
 
       const coach = await pullAll(coachM15);
@@ -1857,6 +1858,153 @@ describeWithPostgres('offline sync (Postgres)', (serverUrl) => {
       expect(derived.maturation.phvOffsetYears).toBe(-0.8);
       expect(derived.maturation.derivedAt).not.toBeNull();
       expect(await clocksOf('anthro_measurement', row?.id ?? '')).toEqual(clocks);
+    });
+  });
+
+  describe('push and pull: external load reported by the player (B-511)', () => {
+    const reportUuid = randomUUID();
+    let externalId: string;
+
+    async function externalRow(id: string) {
+      const { rows } = await database.admin.query<{
+        minutes: number;
+        rpe: number;
+        detail: string | null;
+        archived: boolean;
+      }>(
+        `select minutes, rpe, detail, archived_at is not null as archived
+           from external_load where id = $1`,
+        [id],
+      );
+      return rows[0];
+    }
+
+    it('reports an activity offline through the online handler, idempotent by clientUuid', async () => {
+      const mutation = {
+        hlc: hlc(400),
+        op: 'external_load.report',
+        body: {
+          clientUuid: reportUuid,
+          activity: 'other_sport',
+          detail: 'Fútbol',
+          minutes: 60,
+          rpe: 6,
+        },
+      };
+      const [applied] = await pushOk(player15, [mutation]);
+      expect(applied).toMatchObject({ status: 'applied' });
+      const { rows } = await database.admin.query<{ id: string }>(
+        'select id from external_load where client_uuid = $1',
+        [reportUuid],
+      );
+      externalId = rows[0]?.id ?? '';
+      expect(await externalRow(externalId)).toEqual({
+        minutes: 60,
+        rpe: 6,
+        detail: 'Fútbol',
+        archived: false,
+      });
+      // Another mutation with the same create: the handler answers the row it created.
+      const [again] = await pushOk(player15, [{ ...mutation, hlc: hlc(401) }]);
+      expect(again).toMatchObject({ status: 'replayed' });
+      // A create without its clientUuid cannot be reconciled: rejected, the queue goes on.
+      const [missing] = await pushOk(player15, [
+        {
+          hlc: hlc(402),
+          op: 'external_load.report',
+          body: { activity: 'other', minutes: 30, rpe: 3 },
+        },
+      ]);
+      expect(missing).toMatchObject({ status: 'rejected', error: { code: 'validation_failed' } });
+      // The staff never reports it.
+      const [staff] = await pushOk(adminA, [
+        { ...mutation, hlc: hlc(403), body: { ...mutation.body, clientUuid: randomUUID() } },
+      ]);
+      expect(staff).toMatchObject({ status: 'rejected', error: { code: 'forbidden' } });
+    });
+
+    it('resolves corrections per field by HLC, with a reason', async () => {
+      const [later] = await pushOk(player15, [
+        {
+          hlc: hlc(420),
+          op: 'external_load.correct',
+          target: { clientUuid: reportUuid },
+          body: { changeReason: 'Fueron 70', minutes: 70 },
+        },
+      ]);
+      expect(later).toMatchObject({ status: 'applied', appliedFields: ['minutes'] });
+      // An older edit of minutes loses; its RPE (never edited) wins.
+      const [older] = await pushOk(player15, [
+        {
+          hlc: hlc(410),
+          op: 'external_load.correct',
+          target: { id: externalId },
+          body: { changeReason: 'Corrijo', minutes: 65, rpe: 7 },
+        },
+      ]);
+      expect(older).toMatchObject({
+        status: 'applied',
+        appliedFields: ['rpe'],
+        supersededFields: ['minutes'],
+      });
+      expect(await externalRow(externalId)).toMatchObject({ minutes: 70, rpe: 7 });
+      expect(Object.keys(await clocksOf('external_load', externalId)).sort()).toEqual([
+        'activity',
+        'detail',
+        'local_date',
+        'minutes',
+        'rpe',
+      ]);
+      // Without a reason the contract refuses it, offline too (ADR 0030).
+      const [noReason] = await pushOk(player15, [
+        {
+          hlc: hlc(430),
+          op: 'external_load.correct',
+          target: { id: externalId },
+          body: { rpe: 2 },
+        },
+      ]);
+      expect(noReason).toMatchObject({ status: 'rejected', error: { code: 'validation_failed' } });
+    });
+
+    it('pulls the activity to the player and the staff of their category, and the archive after it', async () => {
+      const before = await pullAll(player15, { collections: 'external_load' });
+      expect(before.items).toHaveLength(1);
+      expect(before.items[0]).toMatchObject({
+        collection: 'external_load',
+        id: externalId,
+        clientUuid: reportUuid,
+        data: { minutes: 70, rpe: 7, srpeAu: 490, reportedBy: 'player' },
+      });
+      const coach = await pullAll(coachM15, { collections: 'external_load' });
+      expect(coach.items.map((i) => i.id)).toEqual([externalId]);
+      // Another club never sees it (coachM13 was assigned m15 above, so it does).
+      expect((await pullAll(adminB, { collections: 'external_load' })).items).toEqual([]);
+      expect((await pullOk(parent15, '?collections=external_load')).items).toEqual([]);
+
+      const [archived] = await pushOk(player15, [
+        { hlc: hlc(440), op: 'external_load.archive', target: { clientUuid: reportUuid } },
+      ]);
+      expect(archived).toMatchObject({ status: 'applied' });
+      const [twice] = await pushOk(player15, [
+        { hlc: hlc(441), op: 'external_load.archive', target: { id: externalId } },
+      ]);
+      expect(twice).toMatchObject({ status: 'applied' });
+      expect(await externalRow(externalId)).toMatchObject({ archived: true });
+      // A correction of an archived activity is the online conflict.
+      const [late] = await pushOk(player15, [
+        {
+          hlc: hlc(450),
+          op: 'external_load.correct',
+          target: { id: externalId },
+          body: { changeReason: 'Tarde', minutes: 10 },
+        },
+      ]);
+      expect(late).toMatchObject({ status: 'rejected', error: { code: 'conflict' } });
+
+      const after = await pullOk(player15, `?cursor=${before.cursor}&collections=external_load`);
+      expect(after.items.map((i) => i.id)).toEqual([externalId]);
+      expect(typeof after.items[0]?.data?.archivedAt).toBe('string');
     });
   });
 });

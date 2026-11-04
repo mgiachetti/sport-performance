@@ -1,6 +1,7 @@
 import type {
   GymSet,
   AnthroMeasurement,
+  ExternalLoad,
   Participation,
   SyncOperationInput,
   TestResult,
@@ -212,6 +213,24 @@ const anthroUpdate: Overlay<'anthro.update', AnthroMeasurement> = (row, { body }
   return next;
 };
 
+/** A correction of an external load (B-511): the fields it sets, the load recomputed. */
+const externalLoadCorrect: Overlay<'external_load.correct', ExternalLoad> = (row, { body }) => {
+  const next: ExternalLoad = { ...row };
+  if (body.localDate !== undefined) next.localDate = body.localDate;
+  if (body.activity !== undefined) next.activity = body.activity;
+  if (body.detail !== undefined) next.detail = body.detail;
+  if (body.minutes !== undefined) next.minutes = body.minutes;
+  if (body.rpe !== undefined) next.rpe = body.rpe;
+  return { ...next, srpeAu: next.rpe * next.minutes };
+};
+
+/** Archived until the pull brings the server's time of it. */
+const externalLoadArchive: Overlay<'external_load.archive', ExternalLoad> = (
+  row,
+  _input,
+  { enqueuedAt },
+) => (row.archivedAt === null ? { ...row, archivedAt: new Date(enqueuedAt).toISOString() } : row);
+
 type AnyOverlay = (row: unknown, input: unknown, context: OverlayContext) => unknown;
 
 /** The overlay of each edit; operations without one show the row as served. */
@@ -226,6 +245,8 @@ export const OVERLAYS: Partial<Record<SyncOperation, AnyOverlay>> = {
   'gym_set.correct': gymSetCorrect as AnyOverlay,
   'gym_set.void': gymSetVoid as AnyOverlay,
   'anthro.update': anthroUpdate as AnyOverlay,
+  'external_load.correct': externalLoadCorrect as AnyOverlay,
+  'external_load.archive': externalLoadArchive as AnyOverlay,
 };
 
 export function applyOverlay(

@@ -1,10 +1,13 @@
 import {
   addTestResultEntries,
+  archiveExternalLoad,
+  correctExternalLoad,
   correctGymSet,
   correctWellness,
   createTestResult,
   recordParticipations,
   recordTestSessionResults,
+  reportExternalLoad,
   submitPainReport,
   submitSessionRpe,
   submitWellness,
@@ -21,6 +24,7 @@ import {
 } from '@sport-performance/contracts';
 import {
   anthroMeasurement,
+  externalLoad,
   gymSet,
   participation,
   syncChange,
@@ -146,7 +150,8 @@ type EditedTable =
   | typeof participation
   | typeof testResult
   | typeof gymSet
-  | typeof anthroMeasurement;
+  | typeof anthroMeasurement
+  | typeof externalLoad;
 
 /**
  * The id of the row a mutation edits, visible to the caller (RLS): by `id`
@@ -800,6 +805,73 @@ const anthroUpdate: Resolver<'anthro.update'> = async ({ target, body }, ctx) =>
   };
 };
 
+// ─── External load (B-511) ───────────────────────────────────────────────────────────
+
+const externalLoadReport: Resolver<'external_load.report'> = async ({ body }, ctx) => {
+  requireClientUuid(body, [...ctx.path, 'body']);
+  return Promise.resolve(create({ endpoint: reportExternalLoad, body }));
+};
+
+const EXTERNAL_LOAD_FIELDS = ['localDate', 'activity', 'detail', 'minutes', 'rpe'] as const;
+type ExternalLoadField = (typeof EXTERNAL_LOAD_FIELDS)[number];
+const EXTERNAL_LOAD_COLUMNS: Record<ExternalLoadField, SyncFieldColumn<'external_load'>> = {
+  localDate: 'local_date',
+  activity: 'activity',
+  detail: 'detail',
+  minutes: 'minutes',
+  rpe: 'rpe',
+};
+
+const externalLoadTarget = (ctx: ResolveContext, target: { id: string } | { clientUuid: string }) =>
+  targetId(ctx.db, externalLoad, ctx.clubId, target, 'External load');
+
+const externalLoadCorrect: Resolver<'external_load.correct'> = async ({ target, body }, ctx) => {
+  const id = await externalLoadTarget(ctx, target);
+  await lockRows(ctx.db, 'external_load', [id]);
+  const [current] = await ctx.db
+    .select({ version: rowVersion(externalLoad.updatedAt) })
+    .from(externalLoad)
+    .where(and(eq(externalLoad.clubId, ctx.clubId), eq(externalLoad.id, id)));
+  if (current === undefined) throw new HttpError('not_found', 'External load not found');
+  const clocks = (await fieldClocks(ctx.db, ctx.clubId, 'external_load', [id])).get(id);
+  const edited = editedKeys(body, EXTERNAL_LOAD_FIELDS);
+  const { winners, losers } = splitFields<'external_load', ExternalLoadField>(
+    clocks,
+    ctx.hlc,
+    edited,
+    (field) => EXTERNAL_LOAD_COLUMNS[field],
+  );
+  const checkOnly = winners.length === 0;
+  const sent = checkOnly ? edited : winners;
+  const fields = Object.fromEntries(sent.map((field) => [field, body[field]]));
+  return {
+    checkOnly,
+    call: {
+      endpoint: correctExternalLoad,
+      params: { externalLoadId: id },
+      // The reason is required online and offline: a correction of a reported value (ADR 0030).
+      body: { version: current.version, changeReason: body.changeReason, ...fields },
+    },
+    stamps: checkOnly
+      ? []
+      : [
+          {
+            collection: 'external_load',
+            rowId: id,
+            columns: winners.map((field) => EXTERNAL_LOAD_COLUMNS[field]),
+          },
+        ],
+    appliedFields: winners,
+    supersededFields: losers,
+  };
+};
+
+const externalLoadArchive: Resolver<'external_load.archive'> = async ({ target }, ctx) => {
+  const id = await externalLoadTarget(ctx, target);
+  // Archiving is final and idempotent: never in conflict, no clock.
+  return create({ endpoint: archiveExternalLoad, params: { externalLoadId: id } });
+};
+
 /** The resolver of each operation. */
 export const SYNC_RESOLVERS: { readonly [Op in SyncOperation]: Resolver<Op> } = {
   'wellness.submit': wellnessSubmit,
@@ -818,6 +890,9 @@ export const SYNC_RESOLVERS: { readonly [Op in SyncOperation]: Resolver<Op> } = 
   'pain_report.submit': painReportSubmit,
   'anthro.record': anthroRecord,
   'anthro.update': anthroUpdate,
+  'external_load.report': externalLoadReport,
+  'external_load.correct': externalLoadCorrect,
+  'external_load.archive': externalLoadArchive,
 };
 
 /** Every endpoint a sync operation may call (all must be registered transactional routes). */
@@ -838,4 +913,7 @@ export const SYNC_ENDPOINTS: readonly EndpointDefinition[] = [
   submitPainReport,
   recordAnthroMeasurements,
   updateAnthroMeasurement,
+  reportExternalLoad,
+  correctExternalLoad,
+  archiveExternalLoad,
 ];

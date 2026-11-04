@@ -14,6 +14,7 @@ export const SYNC_COLLECTIONS = [
   'gym_program',
   'gym_set',
   'anthro_measurement',
+  'external_load',
 ] as const;
 export type SyncCollection = (typeof SYNC_COLLECTIONS)[number];
 
@@ -58,6 +59,8 @@ export const SYNC_FIELD_COLUMNS = {
     'conditions',
     'notes',
   ],
+  // What the player reports of an activity outside the club; archiving is one-way, no clock.
+  external_load: ['local_date', 'activity', 'detail', 'minutes', 'rpe'],
 } as const satisfies Partial<Record<SyncCollection, readonly string[]>>;
 
 export type SyncFieldTable = keyof typeof SYNC_FIELD_COLUMNS;
@@ -87,6 +90,9 @@ export const SYNC_OPERATIONS = [
   'pain_report.submit',
   'anthro.record',
   'anthro.update',
+  'external_load.report',
+  'external_load.correct',
+  'external_load.archive',
 ] as const;
 export type SyncOperation = (typeof SYNC_OPERATIONS)[number];
 

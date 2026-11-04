@@ -80,6 +80,7 @@ describe('pull scopes', () => {
       'training_session',
       'test_session',
       'test_result',
+      'external_load',
     ] as const;
     const player = pullScopes({ ...base, role: 'player', playerId: null }, all);
     expect([...player.keys()]).toEqual([]);
@@ -87,7 +88,7 @@ describe('pull scopes', () => {
       { ...base, role: 'player', playerId: '0192e7a0-5c1a-7b7e-9f3a-2d4c6b8a1e11' as never },
       all,
     );
-    expect([...own.keys()]).toEqual(['wellness', 'participation', 'test_result']);
+    expect([...own.keys()]).toEqual(['wellness', 'participation', 'test_result', 'external_load']);
     expect([...pullScopes({ ...base, role: 'parent', guardianships: [] }, all).keys()]).toEqual([]);
     expect([...pullScopes({ ...base, role: 'admin' }, all).keys()]).toEqual([...all]);
     expect([...pullScopes({ ...base, role: 'admin' }, ['test_result']).keys()]).toEqual([

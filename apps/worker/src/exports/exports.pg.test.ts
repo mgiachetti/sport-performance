@@ -316,6 +316,11 @@ describe.skipIf(!hasServices)('CSV export job (Postgres 16 + MinIO)', () => {
        values ($1, $2, '2026-03-14', 'goblet_squat', 'external', 1, 5, 20.5, 2)`,
       [clubId, included],
     );
+    await owner.query(
+      `insert into external_load (club_id, player_id, local_date, activity, detail, minutes, rpe)
+       values ($1, $2, '2026-03-15', 'other_sport', 'Fútbol', 50, 6)`,
+      [clubId, included],
+    );
   });
 
   afterAll(async () => {
@@ -353,6 +358,7 @@ describe.skipIf(!hasServices)('CSV export job (Postgres 16 + MinIO)', () => {
       load_daily: 0,
       field_metrics: 1,
       gym_sets: 1,
+      external_loads: 1,
     });
     const fileId = row.file_id ?? '';
     const file = await one<{
@@ -389,6 +395,7 @@ describe.skipIf(!hasServices)('CSV export job (Postgres 16 + MinIO)', () => {
         'tests.csv',
         'bienestar.csv',
         'participaciones.csv',
+        'carga_externa.csv',
         'carga_diaria.csv',
         'metricas_cancha.csv',
         'gimnasio.csv',
@@ -448,6 +455,15 @@ describe.skipIf(!hasServices)('CSV export job (Postgres 16 + MinIO)', () => {
       tipo_de_carga: 'external',
       carga_kg: '20,5',
       rir: '2',
+    });
+    expect(records(files, 'carga_externa.csv')[0]).toMatchObject({
+      fecha: '15/03/2026',
+      actividad: 'other_sport',
+      detalle: 'Fútbol',
+      minutos: '50',
+      rpe: '6',
+      srpe_ua: '300',
+      archivada: 'no',
     });
     expect(records(files, 'metricas.csv').some((m) => m.codigo === 'dist_m')).toBe(true);
     expect(allText).not.toContain('PlayerLoad;');

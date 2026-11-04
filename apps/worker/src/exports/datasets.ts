@@ -510,6 +510,56 @@ const participations: DatasetDefinition = {
  order by s.local_date, s.starts_at, s.id, p.last_name, p.first_name, x.player_id`,
 };
 
+const externalLoads: DatasetDefinition = {
+  columns: [
+    ...PLAYER_COLUMNS,
+    {
+      key: 'local_date',
+      header: 'fecha',
+      type: 'date',
+      description: 'Día del club de la actividad.',
+    },
+    {
+      key: 'activity',
+      header: 'actividad',
+      type: 'code',
+      description:
+        'Tipo (`physical_education`, `other_sport`, `own_training`, `other`). Informada por el jugador.',
+    },
+    { key: 'detail', header: 'detalle', type: 'text', description: 'Qué fue, según el jugador.' },
+    { key: 'minutes', header: 'minutos', type: 'integer', unit: 'min', description: 'Minutos.' },
+    { key: 'rpe', header: 'rpe', type: 'integer', unit: 'score', description: 'RPE CR-10.' },
+    {
+      key: 'srpe_au',
+      header: 'srpe_ua',
+      type: 'integer',
+      unit: 'au',
+      description: 'Carga de la actividad: RPE × minutos.',
+    },
+    {
+      key: 'archived',
+      header: 'archivada',
+      type: 'boolean',
+      description: 'Si el jugador la archivó (cargada por error): no suma a la carga.',
+    },
+    {
+      key: 'created_at',
+      header: 'informada',
+      type: 'datetime',
+      description: 'Cuándo la informó el jugador.',
+    },
+  ],
+  query: `select x.player_id, p.last_name, p.first_name, x.local_date::text as local_date,
+       x.activity::text as activity, x.detail, x.minutes, x.rpe, x.srpe_au,
+       x.archived_at is not null as archived, x.created_at
+  from external_load x
+  cross join args a
+  ${PLAYER_JOIN}
+ where x.club_id = app.current_club_id() and x.player_id = any (a.players)
+   and ${inRange('x.local_date')}
+ order by x.local_date, p.last_name, p.first_name, x.player_id, x.created_at, x.id`,
+};
+
 const loadDaily: DatasetDefinition = {
   columns: [
     ...PLAYER_COLUMNS,
@@ -520,7 +570,23 @@ const loadDaily: DatasetDefinition = {
       type: 'decimal',
       decimals: 2,
       unit: 'au',
-      description: 'sRPE del día (suma de RPE × minutos).',
+      description:
+        'sRPE del día (suma de RPE × minutos): sesiones del club más la carga externa informada por el jugador.',
+    },
+    {
+      key: 'external_load_au',
+      header: 'carga_externa_ua',
+      type: 'decimal',
+      decimals: 2,
+      unit: 'au',
+      description: 'Parte de `carga_ua` informada por el jugador fuera del club.',
+    },
+    {
+      key: 'external_n',
+      header: 'actividades_externas',
+      type: 'integer',
+      unit: 'n',
+      description: 'Actividades fuera del club informadas ese día.',
     },
     {
       key: 'has_data',
@@ -608,7 +674,7 @@ const loadDaily: DatasetDefinition = {
     },
   ],
   query: `select x.player_id, p.last_name, p.first_name, x.local_date::text as local_date,
-       x.load_au, x.has_data, x.sessions_n, x.pending_rpe_n, x.history_days, x.acute_ewma_au,
+       x.load_au, x.external_load_au, x.external_n, x.has_data, x.sessions_n, x.pending_rpe_n, x.history_days, x.acute_ewma_au,
        x.chronic_ewma_au, x.acwr, x.acwr_status::text as acwr_status, x.window_load_au,
        x.monotony, x.strain_au, x.monotony_status::text as monotony_status
   from player_load_daily x
@@ -792,6 +858,7 @@ export const DATASETS: Readonly<Record<ClubDataExportDataset, DatasetDefinition>
   test_results: testResults,
   wellness,
   participations,
+  external_loads: externalLoads,
   load_daily: loadDaily,
   field_metrics: fieldMetrics,
   gym_sets: gymSets,

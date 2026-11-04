@@ -5,6 +5,7 @@ import { createMobileApi, type MobileApi } from '../api/client.ts';
 import { createQueryClient } from '../api/query-client.ts';
 import { createSessionStore, type SessionStore } from '../auth/session-store.ts';
 import { createBrandingStore, type BrandingStore } from '../branding/club-branding.ts';
+import { createClubTimeZoneStore, type ClubTimeZoneStore } from '../external-load/club-day.ts';
 import { createSecureIftRunStore, type IftRunStore } from '../ift/run-store.ts';
 import { createIftRunner, type IftRunner } from '../ift/runner.ts';
 import type { SignalPlayer } from '../ift/signal-player.ts';
@@ -74,6 +75,8 @@ export interface AppServices {
   readonly session: SessionController;
   readonly versionGate: VersionGate;
   readonly branding: BrandingStore;
+  /** The time zone of each club, kept for the club day without signal. */
+  readonly clubTimeZones: ClubTimeZoneStore;
   readonly queryClient: QueryClient;
   /** The local database and the offline queue (B-502): screens read and write through it. */
   readonly sync: SyncEngine;
@@ -225,6 +228,7 @@ export function createAppServices(platform: Platform): AppServices {
     session,
     versionGate,
     branding: createBrandingStore(platform.preferences),
+    clubTimeZones: createClubTimeZoneStore(platform.preferences),
     queryClient,
     sync,
     iftRunStore,

@@ -20,10 +20,22 @@ export interface ParticipationLoad {
   readonly srpeAu: number | null;
 }
 
+/**
+ * An activity outside the club reported by the player (B-511), not archived:
+ * `srpeAu` = RPE × minutes (generated column, always set).
+ */
+export interface ExternalLoadEntry {
+  readonly date: LocalDate;
+  readonly srpeAu: number;
+}
+
 /** A row of `player_load_daily`, before ids and audit columns. */
 export interface LoadDailyRow extends DailyLoadMetrics {
   readonly sessionsN: number;
   readonly pendingRpeN: number;
+  /** Part of `loadAu` reported by the player outside the club. */
+  readonly externalLoadAu: number;
+  readonly externalN: number;
 }
 
 export interface LoadDailyPlan {
@@ -47,20 +59,29 @@ export interface LoadDailyPlan {
  * always computed from the first day of history, so recalculating a suffix
  * gives the same values as a full rebuild. Only participations that carry
  * load and have an RPE count; one with minutes but no RPE yet is reported in
- * `pendingRpeN`, never counted as 0.
+ * `pendingRpeN`, never counted as 0. External load the player reported
+ * (B-511) adds to the day's load like a session, and is also counted apart
+ * (`externalLoadAu`, `externalN`) so it always reads as "reported by the
+ * player".
  */
 export function planLoadDaily(input: {
   readonly participations: readonly ParticipationLoad[];
+  readonly externalLoads?: readonly ExternalLoadEntry[];
   readonly requestedFrom: LocalDate;
   readonly end: LocalDate;
   readonly parameters: LoadParameters;
 }): LoadDailyPlan {
   const { end } = input;
-  const counts = new Map<LocalDate, { sessionsN: number; pendingRpeN: number }>();
+  const counts = new Map<
+    LocalDate,
+    { sessionsN: number; pendingRpeN: number; externalLoadAu: number; externalN: number }
+  >();
+  const countOf = (date: LocalDate) =>
+    counts.get(date) ?? { sessionsN: 0, pendingRpeN: 0, externalLoadAu: 0, externalN: 0 };
   const loads: DatedLoad[] = [];
   for (const p of input.participations) {
     if (compareLocalDates(p.date, end) > 0 || !participationCarriesLoad(p.status)) continue;
-    const count = counts.get(p.date) ?? { sessionsN: 0, pendingRpeN: 0 };
+    const count = countOf(p.date);
     if (p.srpeAu !== null) {
       loads.push({ date: p.date, loadAu: p.srpeAu });
       count.sessionsN += 1;
@@ -68,6 +89,14 @@ export function planLoadDaily(input: {
       count.pendingRpeN += 1;
     }
     counts.set(p.date, count);
+  }
+  for (const e of input.externalLoads ?? []) {
+    if (compareLocalDates(e.date, end) > 0) continue;
+    const count = countOf(e.date);
+    loads.push({ date: e.date, loadAu: e.srpeAu });
+    count.externalLoadAu += e.srpeAu;
+    count.externalN += 1;
+    counts.set(e.date, count);
   }
   if (loads.length === 0) return { historyStart: null, end, rows: [], replaceFrom: null };
 
@@ -79,7 +108,13 @@ export function planLoadDaily(input: {
     .filter((day) => compareLocalDates(day.date, replaceFrom) >= 0)
     .map((day) => {
       const count = counts.get(day.date);
-      return { ...day, sessionsN: count?.sessionsN ?? 0, pendingRpeN: count?.pendingRpeN ?? 0 };
+      return {
+        ...day,
+        sessionsN: count?.sessionsN ?? 0,
+        pendingRpeN: count?.pendingRpeN ?? 0,
+        externalLoadAu: count?.externalLoadAu ?? 0,
+        externalN: count?.externalN ?? 0,
+      };
     });
   return { historyStart, end, rows, replaceFrom };
 }

@@ -60,6 +60,7 @@ describe('schema conventions', () => {
         'data_subject_request',
         'device',
         'drill',
+        'external_load',
         'external_metric',
         'fixture',
         'file',

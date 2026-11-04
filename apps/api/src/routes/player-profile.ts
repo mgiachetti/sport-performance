@@ -810,6 +810,8 @@ export function registerPlayerProfileRoutes(app: FastifyInstance): void {
           loadAu: row.loadAu,
           hasData: row.hasData,
           sessions: row.sessionsN,
+          externalLoadAu: row.externalLoadAu,
+          externalActivities: row.externalN,
           pendingRpe: row.pendingRpeN,
           historyDays: row.historyDays,
           acuteEwmaAu: row.acuteEwmaAu,

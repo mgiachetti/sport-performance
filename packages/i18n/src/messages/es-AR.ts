@@ -10,6 +10,7 @@ import { mobileCoachSessionMessagesEsAR } from './mobile-coach-session.js';
 import { mobileStaffMessagesEsAR } from './mobile-staff.js';
 import { mobileSprintVideoMessagesEsAR } from './mobile-sprint-video.js';
 import { mobileAnthropometryMessagesEsAR } from './mobile-anthropometry.js';
+import { mobileExternalLoadMessagesEsAR } from './mobile-external-load.js';
 import { reportMessagesEsAR } from './report.js';
 import { categoryReportMessagesEsAR } from './category-report.js';
 import { mobilePlayerMessagesEsAR } from './mobile-player.js';
@@ -495,6 +496,7 @@ export const sourceMessageFiles = {
   'mobile-staff.ts': mobileStaffMessagesEsAR,
   'mobile-sprint-video.ts': mobileSprintVideoMessagesEsAR,
   'mobile-anthropometry.ts': mobileAnthropometryMessagesEsAR,
+  'mobile-external-load.ts': mobileExternalLoadMessagesEsAR,
   'protocols.ts': protocolMessagesEsAR,
   'web-help.ts': webHelpMessagesEsAR,
   'report.ts': reportMessagesEsAR,
@@ -537,6 +539,8 @@ export const esAR = {
   // The sprint by video in the app (B-605)
   ...mobileSprintVideoMessagesEsAR,
   ...mobileAnthropometryMessagesEsAR,
+  // External load reported by the player in the app (B-511)
+  ...mobileExternalLoadMessagesEsAR,
   ...protocolMessagesEsAR,
   ...webHelpMessagesEsAR,
   // The PDF report of a player (B-602), rendered by the worker

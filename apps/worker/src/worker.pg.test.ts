@@ -391,6 +391,63 @@ describe.skipIf(!hasDatabase)('worker and derived values (Postgres 16)', () => {
     await refreshClub(deps(), clubId);
   });
 
+  it('adds the external load the player reported, apart, and drops it when archived (B-511)', async () => {
+    const playerId = await newPlayer();
+    await participate(playerId, d('2026-03-14'), 5, 60);
+    const { rows: inserted } = await owner.query<{ id: string }>(
+      `insert into external_load (club_id, player_id, local_date, activity, minutes, rpe)
+       values ($1, $2, '2026-03-14', 'other_sport', 50, 6), ($1, $2, '2026-03-15', 'physical_education', 40, 4)
+       returning id`,
+      [clubId, playerId],
+    );
+    await refreshClub(deps(), clubId);
+    const external = async () =>
+      (
+        await owner.query<{
+          local_date: string;
+          load_au: number;
+          external_load_au: number;
+          external_n: number;
+          sessions_n: number;
+        }>(
+          `select local_date::text, load_au, external_load_au, external_n, sessions_n
+             from player_load_daily where player_id = $1 and local_date <= '2026-03-16'
+            order by local_date`,
+          [playerId],
+        )
+      ).rows;
+    expect(await external()).toEqual([
+      {
+        local_date: '2026-03-14',
+        load_au: 600,
+        external_load_au: 300,
+        external_n: 1,
+        sessions_n: 1,
+      },
+      {
+        local_date: '2026-03-15',
+        load_au: 160,
+        external_load_au: 160,
+        external_n: 1,
+        sessions_n: 0,
+      },
+      { local_date: '2026-03-16', load_au: 0, external_load_au: 0, external_n: 0, sessions_n: 0 },
+    ]);
+    // Archiving marks the player from its day; the activity no longer counts.
+    await owner.query('update external_load set archived_at = now() where id = $1', [
+      inserted[1]?.id,
+    ]);
+    expect(await pending(playerId)).toMatchObject({ load_from: '2026-03-15' });
+    await refreshClub(deps(), clubId);
+    expect((await external())[1]).toEqual({
+      local_date: '2026-03-15',
+      load_au: 0,
+      external_load_au: 0,
+      external_n: 0,
+      sessions_n: 0,
+    });
+  });
+
   it('extends every series to the club’s new day without new load', async () => {
     const playerId = await newPlayer();
     await participate(playerId, d('2026-03-19'), 8, 90);

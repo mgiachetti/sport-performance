@@ -18,7 +18,12 @@ export {
   type PlayerRefresh,
   type RefreshDependencies,
 } from './derived/refresh.js';
-export { planLoadDaily, type LoadDailyPlan, type ParticipationLoad } from './derived/load-rows.js';
+export {
+  planLoadDaily,
+  type ExternalLoadEntry,
+  type LoadDailyPlan,
+  type ParticipationLoad,
+} from './derived/load-rows.js';
 export { purgeClubFiles, type PurgeDependencies } from './files.js';
 export { DERIVED_REFRESH_CHANNEL, startRefreshListener } from './listener.js';
 export {
