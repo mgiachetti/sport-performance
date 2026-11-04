@@ -3,6 +3,7 @@ import { addDays, type LocalDate } from '@sport-performance/domain';
 import { afterEach, describe, expect, it } from 'vitest';
 import { openLocalDatabase } from '../offline/db/database.ts';
 import { createSyncEngine } from '../offline/engine.ts';
+import { createReadCache } from '../offline/read-cache.ts';
 import { createFakeApi } from '../test/fake-api.ts';
 import { T0, createFakeSyncServer, uuid } from '../test/fake-sync-server.ts';
 import { must } from '../test/must.ts';
@@ -52,6 +53,8 @@ async function setup() {
   });
   const controller = createTestDayController({
     sync: engine,
+    // The session acts in the scope the engine syncs (`services.ts`).
+    cache: createReadCache(database, { activeScope: () => SCOPE, now: () => time }),
     api: client,
     scope: SCOPE,
     role: 'sc',
@@ -106,7 +109,7 @@ describe('the sheet of a day on the phone', () => {
     api.setOffline(true);
     await expect(controller.refreshSheet(SESSION_ID)).rejects.toThrow();
     const saved = await controller.sheet(SESSION_ID);
-    expect(saved?.data.stations.map((s) => s.testCode)).toEqual(['sprint_40', 'cmj', 'cod_505']);
+    expect(saved?.value.stations.map((s) => s.testCode)).toEqual(['sprint_40', 'cmj', 'cod_505']);
     expect(saved?.fetchedAt).toBe(T0);
     expect([...(await controller.savedSheets()).keys()]).toEqual([SESSION_ID]);
     await engine.wipe();
@@ -120,7 +123,7 @@ describe('the sheet of a day on the phone', () => {
       sessionChange(testSession({ status: 'cancelled', version: '1793586338688999' })),
     );
     await engine.syncNow();
-    expect((await controller.sheet(SESSION_ID))?.data.testSession.status).toBe('cancelled');
+    expect((await controller.sheet(SESSION_ID))?.value.testSession.status).toBe('cancelled');
   });
 
   it('downloads the sheets of the coming week on its own, once while they are fresh', async () => {
@@ -215,7 +218,7 @@ describe('loading a day without signal', () => {
     const { api, server, engine, controller, sheet } = await setup();
     await controller.refreshSheet(SESSION_ID);
     api.setOffline(true);
-    const read = must(await controller.sheet(SESSION_ID)).data;
+    const read = must(await controller.sheet(SESSION_ID)).value;
     let view = await controller.station(read, SPRINT, await controller.results(read));
     const ana = must(view.rows.find((r) => r.player.id === ANA_ID));
     const first = planAttempt(controller.writeContext(read, SPRINT, view.settings), ana, {

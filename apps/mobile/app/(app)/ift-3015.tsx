@@ -66,9 +66,9 @@ export default function Ift3015() {
   useEffect(() => {
     if (testSessionId === null || membershipId === null) return;
     let active = true;
-    cachedSheet(services.sync.cache, membershipId, testSessionId)
+    cachedSheet(services.readCache, membershipId, testSessionId)
       .then((read) => {
-        if (active) setDaySheet(read?.data ?? null);
+        if (active) setDaySheet(read?.value ?? null);
       })
       .catch(services.reportError);
     return () => {

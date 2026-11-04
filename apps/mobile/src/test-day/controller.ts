@@ -5,8 +5,8 @@ import type {
   TestSession,
 } from '@sport-performance/contracts';
 import type { LocalDate, MembershipRole } from '@sport-performance/domain';
-import type { SyncEngine } from '../offline/engine.ts';
-import type { CachedRead, ReadCacheScope } from '../offline/read-cache.ts';
+import type { SyncEngine, SyncScopeRef } from '../offline/engine.ts';
+import type { CachedValue, ReadCache } from '../offline/read-cache.ts';
 import {
   CLUB_CONTEXT_KEY,
   cachedSheet,
@@ -38,12 +38,14 @@ import {
 const EVALUATOR_ROLES: readonly MembershipRole[] = ['coach', 'sc', 'medical', 'admin'];
 
 export interface TestDayControllerOptions {
-  readonly sync: Pick<SyncEngine, 'store' | 'cache' | 'enqueue'>;
+  readonly sync: Pick<SyncEngine, 'store' | 'enqueue'>;
+  /** The reads kept on the phone (`services.readCache`, ADR 0074). */
+  readonly cache: ReadCache;
   readonly api: Pick<
     ApiClient,
     'getClub' | 'listCategories' | 'listSeasons' | 'getTestSessionSheet'
   >;
-  readonly scope: ReadCacheScope;
+  readonly scope: SyncScopeRef;
   readonly role: MembershipRole;
   readonly randomUUID: () => string;
   readonly now?: () => number;
@@ -55,52 +57,52 @@ export interface StationView {
 }
 
 /**
- * What the field test day screens do, outside React (ADR 0074): every read
+ * What the field test day screens do, outside React (ADR 0075): every read
  * from the local database, the cached reads refreshed when there is a
  * signal, and every write through the sync queue.
  */
 export function createTestDayController(options: TestDayControllerOptions) {
-  const { sync, api, scope, role } = options;
+  const { sync, cache, api, scope, role } = options;
   const now = options.now ?? Date.now;
   const membershipId = scope.membershipId;
 
   return {
     async clubContext(): Promise<ClubContext | null> {
-      const read = await sync.cache.get(membershipId, CLUB_CONTEXT_KEY, clubContextSchema);
-      return read?.data ?? null;
+      const read = await cache.get(membershipId, CLUB_CONTEXT_KEY, clubContextSchema);
+      return read?.value ?? null;
     },
     refreshClubContext(signal?: AbortSignal): Promise<ClubContext> {
-      return refreshClubContext(api, sync.cache, scope, signal);
+      return refreshClubContext(api, cache, scope, signal);
     },
     days(today: LocalDate): Promise<TestSession[]> {
       return loadTestDays(sync, membershipId, today);
     },
     savedSheets(): Promise<Map<string, number>> {
-      return cachedSheetTimes(sync.cache, membershipId);
+      return cachedSheetTimes(cache, membershipId);
     },
     /**
      * Downloads the sheets of the coming days that are not on the phone or
      * are old, one at a time; a failure stops it (no signal: the next try).
      */
     async prefetch(sessions: readonly TestSession[], today: LocalDate, signal?: AbortSignal) {
-      const saved = await cachedSheetTimes(sync.cache, membershipId);
+      const saved = await cachedSheetTimes(cache, membershipId);
       const ids = sheetsToPrefetch(sessions, today, saved, now());
       let downloaded = 0;
       for (const id of ids) {
-        await refreshSheet(api, sync.cache, scope, id, signal);
+        await refreshSheet(api, cache, scope, id, signal);
         downloaded += 1;
       }
       return downloaded;
     },
     /** The sheet saved on the phone, with the synced day when it is newer. */
-    async sheet(testSessionId: string): Promise<CachedRead<TestDaySheet> | null> {
-      const read = await cachedSheet(sync.cache, membershipId, testSessionId);
+    async sheet(testSessionId: string): Promise<CachedValue<TestDaySheet> | null> {
+      const read = await cachedSheet(cache, membershipId, testSessionId);
       if (read === null) return null;
       const day = await sync.store.get(membershipId, 'test_session', { id: testSessionId });
-      return { ...read, data: withSyncedDay(read.data, day?.data ?? null) };
+      return { ...read, value: withSyncedDay(read.value, day?.data ?? null) };
     },
     refreshSheet(testSessionId: string, signal?: AbortSignal): Promise<TestDaySheet> {
-      return refreshSheet(api, sync.cache, scope, testSessionId, signal);
+      return refreshSheet(api, cache, scope, testSessionId, signal);
     },
     results(sheet: TestDaySheet): Promise<FieldResult[]> {
       return loadFieldResults(sync, membershipId, sheet, role);
@@ -118,7 +120,7 @@ export function createTestDayController(options: TestDayControllerOptions) {
       station: TestDaySheetStation,
       results: readonly FieldResult[],
     ): Promise<StationView> {
-      const saved = await sync.cache.get(
+      const saved = await cache.get(
         membershipId,
         stationSettingsKey(sheet.testSession.id, station.testCode),
         stationSettingsSchema,
@@ -126,14 +128,10 @@ export function createTestDayController(options: TestDayControllerOptions) {
       const rows = sheet.players
         .filter((p) => p.inCategory || results.some((r) => r.playerId === p.id))
         .map((player) => playerStation(station, player, results));
-      return { rows, settings: stationSettingsFor(station, saved?.data ?? null, sheet.devices) };
+      return { rows, settings: stationSettingsFor(station, saved?.value ?? null, sheet.devices) };
     },
     saveSettings(sheet: TestDaySheet, station: TestDaySheetStation, settings: StationSettings) {
-      return sync.cache.put(
-        scope,
-        stationSettingsKey(sheet.testSession.id, station.testCode),
-        settings,
-      );
+      return cache.put(scope, stationSettingsKey(sheet.testSession.id, station.testCode), settings);
     },
     writeContext(
       sheet: TestDaySheet,

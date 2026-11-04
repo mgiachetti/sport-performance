@@ -75,12 +75,21 @@ function TestDaysOf({
     () =>
       createTestDayController({
         sync: services.sync,
+        cache: services.readCache,
         api,
         scope: { membershipId: membership.id, userId: user.id },
         role: membership.role,
         randomUUID: services.randomUUID,
       }),
-    [services.sync, services.randomUUID, api, membership.id, membership.role, user.id],
+    [
+      services.sync,
+      services.readCache,
+      services.randomUUID,
+      api,
+      membership.id,
+      membership.role,
+      user.id,
+    ],
   );
   const report = useCallback(
     (error: unknown) => {
@@ -170,7 +179,7 @@ function TestDaysOf({
 
   const [dayId, setDayId] = useState<string | null>(null);
   const [stationCode, setStationCode] = useState<string | null>(null);
-  const [sheet, setSheet] = useState<{ data: TestDaySheet; fetchedAt: number } | null>(null);
+  const [sheet, setSheet] = useState<{ value: TestDaySheet; fetchedAt: number } | null>(null);
   const [sheetState, setSheetState] = useState<
     'loading' | 'ready' | 'unavailable' | 'refreshing' | 'refreshFailed'
   >('loading');
@@ -225,7 +234,7 @@ function TestDaysOf({
       if (
         active &&
         read !== null &&
-        read.data.testSession.version !== sheet.data.testSession.version
+        read.value.testSession.version !== sheet.value.testSession.version
       ) {
         setSheet(read);
       }
@@ -241,7 +250,7 @@ function TestDaysOf({
     if (sheet === null) return;
     let active = true;
     controller
-      .results(sheet.data)
+      .results(sheet.value)
       .then((next) => {
         if (active) setResults(next);
       })
@@ -251,7 +260,7 @@ function TestDaysOf({
     };
   }, [controller, sheet, reloadKey, reportError]);
 
-  const station = sheet?.data.stations.find((s) => s.testCode === stationCode) ?? null;
+  const station = sheet?.value.stations.find((s) => s.testCode === stationCode) ?? null;
   // Tagged with its station: the view of the previous one never shows under another.
   const [loadedView, setLoadedView] = useState<{ code: string; view: StationView } | null>(null);
   const stationView = loadedView?.code === stationCode ? loadedView.view : null;
@@ -259,7 +268,7 @@ function TestDaysOf({
     if (sheet === null || station === null) return;
     let active = true;
     controller
-      .station(sheet.data, station, results)
+      .station(sheet.value, station, results)
       .then((view) => {
         if (active) setLoadedView({ code: station.testCode, view });
       })
@@ -306,20 +315,20 @@ function TestDaysOf({
   if (sheet !== null && station !== null && stationView !== null) {
     return (
       <StationScreen
-        sheet={sheet.data}
+        sheet={sheet.value}
         station={station}
         rows={stationView.rows}
         settings={stationView.settings}
         viewer={membership.role}
         sync={sync}
-        writeContext={() => controller.writeContext(sheet.data, station, stationView.settings)}
+        writeContext={() => controller.writeContext(sheet.value, station, stationView.settings)}
         onSubmit={async (writes) => {
           await controller.submit(writes);
           // Rows read again before the form is free: a quick second attempt
           // goes onto the result just queued, never into a second result.
           const code = station.testCode;
-          const fresh = await controller.results(sheet.data);
-          const view = await controller.station(sheet.data, station, fresh);
+          const fresh = await controller.results(sheet.value);
+          const view = await controller.station(sheet.value, station, fresh);
           setResults(fresh);
           setLoadedView((current) => ({
             code,
@@ -332,7 +341,7 @@ function TestDaysOf({
         }}
         onChangeSettings={(next: StationSettings) => {
           setLoadedView({ code: station.testCode, view: { ...stationView, settings: next } });
-          void controller.saveSettings(sheet.data, station, next).catch(reportError);
+          void controller.saveSettings(sheet.value, station, next).catch(reportError);
         }}
         onBack={() => {
           setStationCode(null);
@@ -343,12 +352,12 @@ function TestDaysOf({
                 run: iftRunForDay(
                   iftState,
                   { membershipId: membership.id, userId: user.id },
-                  sheet.data,
+                  sheet.value,
                 ),
                 onOpenRunner: () => {
                   router.push({
                     pathname: '/ift-3015',
-                    params: { testSessionId: sheet.data.testSession.id },
+                    params: { testSessionId: sheet.value.testSession.id },
                   });
                 },
                 onMarkSaved: services.iftRunner.markSaved,
@@ -369,11 +378,11 @@ function TestDaysOf({
   } else {
     dayState = {
       status: 'ready',
-      sheet: sheet.data,
+      sheet: sheet.value,
       savedAt: sheet.fetchedAt,
       refreshing: sheetState === 'refreshing',
       refreshFailed: sheetState === 'refreshFailed',
-      progress: controller.progress(sheet.data, results),
+      progress: controller.progress(sheet.value, results),
     };
   }
   return (

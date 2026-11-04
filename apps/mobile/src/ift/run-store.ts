@@ -24,7 +24,7 @@ export interface IftRunSnapshot {
   readonly runId: string;
   readonly categoryId: string | null;
   /**
-   * The field test day it was started from (B-505, ADR 0074), or `null` when
+   * The field test day it was started from (B-505, ADR 0075), or `null` when
    * started from Inicio: only that day's 30-15 station can record its stages.
    */
   readonly testSessionId: string | null;

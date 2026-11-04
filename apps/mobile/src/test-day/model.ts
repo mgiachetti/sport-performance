@@ -33,7 +33,7 @@ import {
 import type { LocalRow, QueuedMutation } from '../offline/local-store.ts';
 
 /**
- * The field test day (B-505, ADR 0074) as pure functions: what each station
+ * The field test day (B-505, ADR 0075) as pure functions: what each station
  * shows for each player — the attempts already saved on the server and the
  * ones still in this phone's queue, the best one, the previous result — and
  * the writes each action queues. Attempts are append-only (ADR 0015): a new
@@ -496,7 +496,7 @@ const isNonEmptyString = (value: unknown): value is string =>
   typeof value === 'string' && value !== '';
 
 /**
- * The settings of a station as stored on this phone (ADR 0074), each one
+ * The settings of a station as stored on this phone (ADR 0075), each one
  * optional; `null` when the stored document no longer fits (another build).
  * Whether each value still fits the station is checked by
  * {@link stationSettingsFor} when it is read back.

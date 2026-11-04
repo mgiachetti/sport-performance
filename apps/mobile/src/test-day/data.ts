@@ -15,8 +15,8 @@ import {
   type MembershipRole,
   type TimeZone,
 } from '@sport-performance/domain';
-import type { SyncEngine } from '../offline/engine.ts';
-import type { CachedRead, ReadCache, ReadCacheScope, ReadSchema } from '../offline/read-cache.ts';
+import type { SyncEngine, SyncScopeRef } from '../offline/engine.ts';
+import type { CachedValue, ReadCache, ReadSchema } from '../offline/read-cache.ts';
 import {
   TEST_DAY_OPERATIONS,
   fieldResults,
@@ -28,7 +28,7 @@ import {
 
 /**
  * Reading and writing the field test day through the local database
- * (ADR 0069, ADR 0074): the days come from the synced `test_session` rows,
+ * (ADR 0069, ADR 0075): the days come from the synced `test_session` rows,
  * the sheet of each day and the club's context are cached reads, and every
  * write goes through the sync queue. Nothing here talks to the API but the
  * refreshes of the cached reads.
@@ -108,7 +108,7 @@ const MAX_PAGES = 20;
 export async function refreshClubContext(
   api: Pick<ApiClient, 'getClub' | 'listCategories' | 'listSeasons'>,
   cache: ReadCache,
-  scope: ReadCacheScope,
+  scope: SyncScopeRef,
   signal?: AbortSignal,
 ): Promise<ClubContext> {
   const options = signal === undefined ? {} : { signal };
@@ -209,7 +209,7 @@ export function today(context: ClubContext | null, nowMs: number): LocalDate {
 export async function refreshSheet(
   api: Pick<ApiClient, 'getTestSessionSheet'>,
   cache: ReadCache,
-  scope: ReadCacheScope,
+  scope: SyncScopeRef,
   testSessionId: string,
   signal?: AbortSignal,
 ): Promise<TestDaySheet> {
@@ -225,7 +225,7 @@ export function cachedSheet(
   cache: ReadCache,
   membershipId: string,
   testSessionId: string,
-): Promise<CachedRead<TestDaySheet> | null> {
+): Promise<CachedValue<TestDaySheet> | null> {
   return cache.get(membershipId, sheetKey(testSessionId), testDaySheetSchema);
 }
 

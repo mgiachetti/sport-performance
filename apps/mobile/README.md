@@ -35,7 +35,7 @@ pnpm --filter @sport-performance/mobile start   # después, solo el bundler
 - `src/auth`, `src/clubs`, `src/branding`, `src/linking`, `src/observability`, `src/version`: lógica sin React Native.
 - `src/state`: servicios de la app, controlador de sesión, compuerta de versión y contextos de React (`useServices`, `useApi`, `useSession`, `useClubTheme`).
 - `src/offline`: base local y sincronización (B-502, [ADR 0069](../../docs/adr/0069-base-local-y-motor-de-sincronizacion-mobile.md)): driver, esquema Drizzle y migraciones (`db/`), cola y validación (`operations.ts`), lectura con lo pendiente superpuesto (`local-store.ts`, `overlay.ts`), motor (`engine.ts`), disparadores, tarea en segundo plano y textos del indicador.
-- `src/test-day`: el día de test en cancha (B-505, [ADR 0074](../../docs/adr/0074-dia-de-test-en-cancha.md)): lo sincronizado y la cola compuestos por jugador y estación, y lo que encola cada acción (`model.ts`, puro), la planilla guardada en el teléfono y la descarga de la semana (`data.ts`), lo que hacen las pantallas fuera de React (`controller.ts`) y el puente con las señales del 30-15 (`ift.ts`). Las reglas de carga (campos, parseo, mejor intento, rango plausible) son las de la web, de `@sport-performance/contracts`.
+- `src/test-day`: el día de test en cancha (B-505, [ADR 0075](../../docs/adr/0075-dia-de-test-en-cancha.md)): lo sincronizado y la cola compuestos por jugador y estación, y lo que encola cada acción (`model.ts`, puro), la planilla guardada en el teléfono y la descarga de la semana (`data.ts`), lo que hacen las pantallas fuera de React (`controller.ts`) y el puente con las señales del 30-15 (`ift.ts`). Las reglas de carga (campos, parseo, mejor intento, rango plausible) son las de la web, de `@sport-performance/contracts`.
 - `src/platform`: lo nativo (`expo-secure-store`, AsyncStorage, `expo-application`, `expo-updates`, `expo-localization`, `expo-sqlite` con SQLCipher, `expo-network`, `expo-background-task`) detrás de interfaces.
 - `src/screens`: pantallas de presentación (datos y callbacks por props); `src/ui`: tema, traductor, primitivas accesibles y fuentes.
 
@@ -58,7 +58,7 @@ La app lee de la base local y la red solo sincroniza (ADR 0015, 0050 y 0069). Un
 
 La app del jugador (B-503) está en `src/player` (racha, récords, sesiones a puntuar: funciones puras), `src/screens/player-*.tsx` y `src/state/player-screens.tsx`; sus pestañas ("Hoy", "Mis tests") y Consentimientos solo aparecen con el rol `player`.
 
-Lo que una pantalla necesita sin señal y no es una colección (la planilla de un día de test, el contexto del club) va a `services.sync.cache` (`put` con la membresía, `get` con su contrato), que se borra con la membresía al cerrar sesión (ADR 0074).
+Lo que una pantalla necesita sin señal y no es una colección va a `services.readCache` (la misma `cached_read`): las lecturas del jugador por `useOfflineRead` y, en el día de test, la planilla de cada día y el contexto del club (`put` con la membresía, `get` y `list` con su contrato, ADR 0075); se borra con la membresía al cerrar sesión.
 
 Una operación de edición nueva suma su superposición en `src/offline/overlay.ts` y sus filas en `OPERATION_SPECS`; un cambio del esquema local es una migración nueva al final de `src/offline/db/migrations.ts` (el test la compara con `schema.ts`). Cerrar sesión borra todo lo del club en el teléfono.
 
