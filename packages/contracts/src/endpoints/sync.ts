@@ -46,6 +46,7 @@ import {
   trainingSessionIdSchema,
   trainingSessionSchema,
 } from './training.js';
+import { logMenstrualCycleDay } from './menstrual-cycle.js';
 import { submitPainReport } from './pain-reports.js';
 import { submitWellness, wellnessSchema, wellnessScoresInputSchema } from './wellness.js';
 import { correctGymSet, gymProgramSchema, gymSetSchema, logGymSets, voidGymSet } from './gym.js';
@@ -167,6 +168,7 @@ export const SYNC_OPERATION_INPUTS = {
     body: externalLoadCorrectionSchema,
   }),
   'external_load.archive': z.strictObject({ target: syncTargetSchema }),
+  'menstrual_cycle.log': z.strictObject({ body: logMenstrualCycleDay.body }),
 } as const satisfies Record<SyncOperation, z.ZodType>;
 
 export type SyncOperationInput<Op extends SyncOperation> = z.output<

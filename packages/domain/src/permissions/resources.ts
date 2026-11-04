@@ -146,6 +146,19 @@ export const PERMISSION_RESOURCES = {
    */
   menarche: { target: 'player', medical: true, actions: ['read', 'report'] },
   /**
+   * Menstrual cycle tracking (B-806, ADR 0092), an optional module of health
+   * data. `enroll`: the player turns it on for herself; `log`: she logs a day;
+   * `share`: she authorizes a member to read it; `withdraw`: she turns it off
+   * or takes an authorization back (always possible, even without consents).
+   * `read` for the staff is the ceiling: the database also asks for the
+   * player's authorization of that member (`medical.menstrual_cycle_share`).
+   */
+  menstrual_cycle: {
+    target: 'player',
+    medical: true,
+    actions: ['read', 'enroll', 'log', 'share', 'withdraw'],
+  },
+  /**
    * Export of a player's data outside the club: the holder's right of access
    * (Ley 25.326, art. 14) or sharing with a third party.
    */

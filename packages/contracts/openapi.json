@@ -51,6 +51,10 @@
       "description": "Bienestar antes de entrenar: una carga por jugador y día del club."
     },
     {
+      "name": "menstrual_cycle",
+      "description": "Seguimiento opcional del ciclo menstrual (B-806): dato de salud que carga la jugadora y ve solo quien ella autoriza."
+    },
+    {
       "name": "alerts",
       "description": "Alertas de carga (heurísticas, nunca un diagnóstico): episodios, historial y acuse del staff (B-327)."
     },
@@ -13961,6 +13965,673 @@
           },
           "400": {
             "$ref": "#/components/responses/Error.bad_request.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/menstrual-cycle/days": {
+      "post": {
+        "operationId": "logMenstrualCycleDay",
+        "summary": "Registrar un día del ciclo",
+        "description": "Solo la jugadora, con el seguimiento activo, el módulo y los tres consentimientos (si no, `forbidden`). `localDate` es hoy o ayer en el día del club (los últimos 2 días; por defecto hoy). Nunca se edita: volver a cargar el día es otro registro y vale el último. Idempotente por `clientUuid` (cola sin conexión).",
+        "tags": [
+          "menstrual_cycle"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientUuid": {
+                    "$ref": "#/components/schemas/ClientUuid"
+                  },
+                  "localDate": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                    "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                    "examples": [
+                      "2026-11-01"
+                    ]
+                  },
+                  "flow": {
+                    "$ref": "#/components/schemas/MenstrualFlow"
+                  },
+                  "symptoms": {
+                    "default": [],
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/MenstrualSymptom"
+                    }
+                  },
+                  "note": {
+                    "description": "Nota opcional: hasta 280 caracteres, no vacía.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 560
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "flow"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Día registrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenstrualCycleDay"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/menstrual-cycle/me": {
+      "get": {
+        "operationId": "getMenstrualCycleStatus",
+        "summary": "Mi seguimiento del ciclo menstrual",
+        "description": "Solo la jugadora, sobre sí misma. Dice si se le ofrece (módulo del club, jugadora y consentimientos de datos, salud y ciclo menstrual), si lo tiene activo, a quiénes autorizó y a quiénes puede autorizar. La lectura queda en el registro de accesos a datos de salud.",
+        "tags": [
+          "menstrual_cycle"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estado del seguimiento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenstrualCycleStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/menstrual-cycle/me/enrollment": {
+      "post": {
+        "operationId": "startMenstrualCycleTracking",
+        "summary": "Activar mi seguimiento del ciclo",
+        "description": "Solo la jugadora, con el módulo del club y los tres consentimientos vigentes (si no, `forbidden`). El consentimiento lo permite pero no lo activa: lo decide ella. Empieza sin nadie autorizado. Si ya estaba activo, responde el estado sin cambios.",
+        "tags": [
+          "menstrual_cycle"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientUuid": {
+                    "$ref": "#/components/schemas/ClientUuid"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado del seguimiento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenstrualCycleStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/menstrual-cycle/me/enrollment/end": {
+      "post": {
+        "operationId": "endMenstrualCycleTracking",
+        "summary": "Desactivar mi seguimiento del ciclo",
+        "description": "Solo la jugadora, siempre (aunque falte un consentimiento). Corta la carga y saca el acceso a todas las personas que había autorizado; lo cargado sigue siendo suyo. Si no estaba activo, responde el estado sin cambios.",
+        "tags": [
+          "menstrual_cycle"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado del seguimiento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenstrualCycleStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/menstrual-cycle/me/viewers": {
+      "post": {
+        "operationId": "authorizeMenstrualCycleViewer",
+        "summary": "Autorizar a alguien a ver mi ciclo",
+        "description": "Solo la jugadora, con el seguimiento activo. A una persona del staff médico o de preparación física asignada a ella (si no, `validation_failed`); hasta 10 a la vez. Ya autorizada: responde la autorización vigente.",
+        "tags": [
+          "menstrual_cycle"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientUuid": {
+                    "$ref": "#/components/schemas/ClientUuid"
+                  },
+                  "membershipId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Id de membresía (UUID, RFC 9562)."
+                  }
+                },
+                "required": [
+                  "membershipId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Autorización vigente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenstrualCycleViewer"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/menstrual-cycle/me/viewers/{shareId}/revoke": {
+      "post": {
+        "operationId": "revokeMenstrualCycleViewer",
+        "summary": "Sacarle a alguien el acceso a mi ciclo",
+        "description": "Solo la jugadora, siempre. Desde ese momento esa persona no ve nada. Ya revocada: `not_found`.",
+        "tags": [
+          "menstrual_cycle"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "shareId",
+            "in": "path",
+            "required": true,
+            "description": "Id de autorización del ciclo (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado del seguimiento.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenstrualCycleStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/menstrual-cycle/players/{playerId}/days": {
+      "get": {
+        "operationId": "getMenstrualCycleDays",
+        "summary": "Días del ciclo de una jugadora",
+        "description": "La jugadora, los suyos, siempre. El staff médico o de preparación física asignado, con los tres consentimientos vigentes (si no, `forbidden` con `consent_required`), y solo si ella autorizó a esa persona y mientras el módulo y el seguimiento sigan vigentes; si no, la respuesta está vacía. Nadie más (`forbidden`). Rango de hasta 400 días (por defecto los últimos 90). Cada lectura queda en el registro de accesos a datos de salud.",
+        "tags": [
+          "menstrual_cycle"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Días y resumen.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenstrualCycleDays"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.bad_request.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/menstrual-cycle/shared-with-me": {
+      "get": {
+        "operationId": "listMenstrualCycleSharedWithMe",
+        "summary": "Jugadoras que me autorizaron a ver su ciclo",
+        "description": "Solo el staff médico o de preparación física: las jugadoras asignadas que autorizaron a esta persona y que hoy se pueden leer (módulo, seguimiento y consentimientos vigentes). La lectura queda en el registro de accesos a datos de salud.",
+        "tags": [
+          "menstrual_cycle"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Jugadoras.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenstrualCycleSharedWithMe"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
           },
           "401": {
             "$ref": "#/components/responses/Error.unauthenticated"
@@ -31855,7 +32526,8 @@
         "enum": [
           "data",
           "image",
-          "health"
+          "health",
+          "menstrual_cycle"
         ],
         "description": "Tipo de consentimiento: `data` (datos personales), `image` (videos del CMJ, fotos) o `health` (datos de salud)."
       },
@@ -36167,6 +36839,418 @@
         ],
         "description": "`not_yet`: todavía no, al día del reporte; `occurred`: ya ocurrió, en `occurredOn` con su precisión."
       },
+      "MenstrualCycleCandidate": {
+        "type": "object",
+        "properties": {
+          "membershipId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de membresía (UUID, RFC 9562)."
+          },
+          "role": {
+            "$ref": "#/components/schemas/MenstrualCycleViewerRole"
+          },
+          "name": {
+            "type": "string"
+          },
+          "authorized": {
+            "type": "boolean",
+            "description": "Ya la autorizaste."
+          }
+        },
+        "required": [
+          "membershipId",
+          "role",
+          "name",
+          "authorized"
+        ]
+      },
+      "MenstrualCycleDay": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de día del ciclo (UUID, RFC 9562)."
+          },
+          "clientUuid": {
+            "$ref": "#/components/schemas/ClientUuid"
+          },
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "localDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Día del club del registro.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "flow": {
+            "$ref": "#/components/schemas/MenstrualFlow"
+          },
+          "symptoms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MenstrualSymptom"
+            },
+            "description": "Síntomas marcados, en el orden del vocabulario."
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "loggedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Cuándo se cargó. Si el día se cargó varias veces, vale la última.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "clientUuid",
+          "playerId",
+          "localDate",
+          "flow",
+          "symptoms",
+          "note",
+          "loggedAt"
+        ]
+      },
+      "MenstrualCycleDays": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "from": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MenstrualCycleDay"
+            },
+            "description": "El registro que vale de cada día cargado (el último), por fecha."
+          },
+          "summary": {
+            "$ref": "#/components/schemas/MenstrualCycleSummary"
+          }
+        },
+        "required": [
+          "playerId",
+          "from",
+          "to",
+          "days",
+          "summary"
+        ]
+      },
+      "MenstrualCycleSharedPlayer": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "authorizedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          }
+        },
+        "required": [
+          "playerId",
+          "firstName",
+          "lastName",
+          "authorizedAt"
+        ]
+      },
+      "MenstrualCycleSharedWithMe": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MenstrualCycleSharedPlayer"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "MenstrualCycleStatus": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "localDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Hoy en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "available": {
+            "type": "boolean",
+            "description": "Si se le ofrece el seguimiento (módulo, jugadora y consentimientos)."
+          },
+          "unavailableReason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MenstrualCycleUnavailableReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tracking": {
+            "type": "boolean",
+            "description": "Lo activó y no lo desactivó."
+          },
+          "trackingSince": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "viewers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MenstrualCycleViewer"
+            },
+            "description": "A quiénes autorizó ahora (vacío si no lo tiene activo)."
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MenstrualCycleCandidate"
+            },
+            "description": "Staff médico y de preparación física asignado que puede autorizar (vacío si no se le ofrece o no lo tiene activo)."
+          }
+        },
+        "required": [
+          "playerId",
+          "localDate",
+          "available",
+          "unavailableReason",
+          "tracking",
+          "trackingSince",
+          "viewers",
+          "candidates"
+        ]
+      },
+      "MenstrualCycleSummary": {
+        "type": "object",
+        "properties": {
+          "periodStarts": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+              "examples": [
+                "2026-11-01"
+              ]
+            },
+            "description": "Primer día de cada período que empieza en el rango (un día de sangrado cuyo día anterior no lo es; un período que viene de antes de `from` no empieza en el rango), del más viejo al más nuevo."
+          },
+          "lastPeriodStart": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                "examples": [
+                  "2026-11-01"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cycleDay": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Día del ciclo en el último día del rango (`to`, o hoy si `to` es futuro; el primer día del último período es el 1); `null` sin inicios de período en el rango. No es una estimación de fase."
+          },
+          "cycleLengthsDays": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "description": "Días entre inicios consecutivos (solo ciclos completos dentro del rango)."
+          },
+          "daysLogged": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "periodStarts",
+          "lastPeriodStart",
+          "cycleDay",
+          "cycleLengthsDays",
+          "daysLogged"
+        ]
+      },
+      "MenstrualCycleUnavailableReason": {
+        "type": "string",
+        "enum": [
+          "module_off",
+          "not_female",
+          "missing_consent"
+        ],
+        "description": "`module_off`: el club no tiene el módulo `menstrual_cycle`; `not_female`: el módulo es para jugadoras; `missing_consent`: falta alguno de los consentimientos de datos, de salud o del ciclo menstrual vigente."
+      },
+      "MenstrualCycleViewer": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de autorización del ciclo (UUID, RFC 9562)."
+          },
+          "membershipId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de membresía (UUID, RFC 9562)."
+          },
+          "role": {
+            "$ref": "#/components/schemas/MenstrualCycleViewerRole"
+          },
+          "name": {
+            "type": "string"
+          },
+          "authorizedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "membershipId",
+          "role",
+          "name",
+          "authorizedAt"
+        ]
+      },
+      "MenstrualCycleViewerRole": {
+        "type": "string",
+        "enum": [
+          "medical",
+          "sc"
+        ],
+        "description": "Rol de quien puede autorizar: el staff médico o de preparación física asignado."
+      },
+      "MenstrualFlow": {
+        "type": "string",
+        "enum": [
+          "none",
+          "spotting",
+          "light",
+          "moderate",
+          "heavy"
+        ],
+        "description": "Sangrado del día: `none` (nada), `spotting` (manchado, no cuenta como día del período), `light`, `moderate` o `heavy`."
+      },
+      "MenstrualSymptom": {
+        "type": "string",
+        "enum": [
+          "cramps",
+          "lower_back_pain",
+          "headache",
+          "bloating",
+          "breast_tenderness",
+          "fatigue",
+          "mood_changes",
+          "sleep_disturbance",
+          "nausea",
+          "gastrointestinal"
+        ],
+        "description": "Síntoma de un vocabulario cerrado (a definir con el staff médico): `cramps`, `lower_back_pain`, `headache`, `bloating`, `breast_tenderness`, `fatigue`, `mood_changes`, `sleep_disturbance`, `nausea`, `gastrointestinal`. Lo demás va en la nota."
+      },
       "MetricDirection": {
         "type": "string",
         "enum": [
@@ -36324,13 +37408,18 @@
               "reportPain": {
                 "type": "boolean",
                 "description": "Se le pregunta \"¿te duele algo?\" en el bienestar (B-609): el club tiene los módulos `wellness` y `pain_report` y tiene los consentimientos de datos y de salud vigentes."
+              },
+              "menstrualCycle": {
+                "type": "boolean",
+                "description": "Se le ofrece el seguimiento del ciclo menstrual (B-806): el club tiene el módulo `menstrual_cycle` y es jugadora. No dice si lo usa ni si tiene los consentimientos: eso lo responde `GET /v1/menstrual-cycle/me`."
               }
             },
             "required": [
               "submitWellness",
               "submitRpe",
               "readPercentiles",
-              "reportPain"
+              "reportPain",
+              "menstrualCycle"
             ],
             "description": "Lo que la matriz de permisos le deja hacer hoy."
           }
@@ -38809,7 +39898,7 @@
                     "additionalProperties": {}
                   }
                 },
-                "description": "Lesiones, conmociones, etapas del retorno, notas compartidas y reportes de dolor del bienestar con sus zonas, leídos por las funciones auditadas del esquema `medical`. Vacío si no se incluyó."
+                "description": "Lesiones, conmociones, etapas del retorno, notas compartidas y reportes de dolor del bienestar con sus zonas, leídos por las funciones auditadas del esquema `medical`. Vacío si no se incluyó, salvo el registro del ciclo menstrual (`medical.menstrual_cycle_*`), que la jugadora recibe siempre en su propia exportación; nunca la del tutor ni la de la administración."
               }
             },
             "required": [
@@ -43054,7 +44143,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 64,
-            "description": "Operación: `wellness.submit`, `wellness.correct`, `rpe.submit`, `participation.record`, `participation.update`, `test_result.create`, `test_session.record_results`, `test_result.update`, `test_result.add_entries`, `test_result.void_entries`, `gym_set.log`, `gym_set.correct`, `gym_set.void`, `pain_report.submit`, `anthro.record`, `anthro.update`, `external_load.report`, `external_load.correct`, `external_load.archive`. Una desconocida se rechaza sola."
+            "description": "Operación: `wellness.submit`, `wellness.correct`, `rpe.submit`, `participation.record`, `participation.update`, `test_result.create`, `test_session.record_results`, `test_result.update`, `test_result.add_entries`, `test_result.void_entries`, `gym_set.log`, `gym_set.correct`, `gym_set.void`, `pain_report.submit`, `anthro.record`, `anthro.update`, `external_load.report`, `external_load.correct`, `external_load.archive`, `menstrual_cycle.log`. Una desconocida se rechaza sola."
           },
           "params": {
             "description": "Parámetros de ruta del endpoint en línea (`trainingSessionId`, `testSessionId`)."

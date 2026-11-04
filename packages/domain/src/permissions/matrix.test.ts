@@ -18,7 +18,7 @@ import type { PermissionResource, PermissionSubject, PlayerFacts } from './subje
  * One line per `kind.action`, one token per role in the order of the header
  * (which must be `ROLES`). A token is `-` (denied) or `scope[+requirement…]`, with scopes `platform`,
  * `club`, `assigned`, `self`, `guardian` and requirements `data`, `image`,
- * `health` (consents) and `own_percentiles`, `named_rankings`, `minor`,
+ * `health`, `menstrual_cycle` (consents) and `own_percentiles`, `named_rankings`, `minor`,
  * `adult` (player conditions).
  */
 const SPEC_GRID = `
@@ -106,6 +106,11 @@ pain_report.submit       self+data+health      -               -               -
 pain_report.review       -                     -               -               -               assigned         -           -
 menarche.read            self+health           guardian+health+minor -               -               assigned+health  -           -
 menarche.report          self+data+health      guardian+data+health+minor -               -               assigned+health  -           -
+menstrual_cycle.read     self                  -               -               assigned+data+health+menstrual_cycle assigned+data+health+menstrual_cycle -           -
+menstrual_cycle.enroll   self+data+health+menstrual_cycle -     -               -               -                -           -
+menstrual_cycle.log      self+data+health+menstrual_cycle -     -               -               -                -           -
+menstrual_cycle.share    self+data+health+menstrual_cycle -     -               -               -                -           -
+menstrual_cycle.withdraw self                  -               -               -               -                -           -
 data_export.export       self+adult            guardian+minor  -               -               -                club+data   -
 player_report.read       self                  guardian        assigned        assigned        assigned         club        club
 player_report.generate   -                     -               -               assigned        -                club        club
@@ -639,6 +644,23 @@ describe('privacy invariants (independent of the specification)', () => {
         );
         continue;
       }
+      // B-806, ADR 0092: only the player writes her cycle, with the three consents, and
+      // turns it off or takes an authorization back at any time; the assigned medical and
+      // S&C staff read it only with every consent (and the database asks for her
+      // authorization of that member).
+      if (cell.kind === 'menstrual_cycle') {
+        if (cell.action === 'read' && cell.role === 'sc') {
+          expect(cell.rule).toEqual(allow('assigned', 'data', 'health', 'menstrual_cycle'));
+          continue;
+        }
+        expect(cell.role, key).toBe('player');
+        expect(cell.rule, key).toEqual(
+          cell.action === 'read' || cell.action === 'withdraw'
+            ? allow('self')
+            : allow('self', 'data', 'health', 'menstrual_cycle'),
+        );
+        continue;
+      }
       // ADR 0029: the right of access of the holder (Ley 25.326, art. 14).
       expect(['medical_record.read', 'pain_report.read', 'menarche.read'], cell.role).toContain(
         key,
@@ -650,7 +672,17 @@ describe('privacy invariants (independent of the specification)', () => {
       );
     }
     for (const role of ['coach', 'sc', 'admin', 'superadmin'] as const) {
-      expect(medical.filter((c) => c.role === role)).toEqual([]);
+      expect(
+        medical.filter((c) => c.role === role && !(c.kind === 'menstrual_cycle' && role === 'sc')),
+      ).toEqual([]);
+    }
+  });
+
+  it('the menstrual cycle is never read by the coach, the administration or the guardian', () => {
+    for (const cell of cells.filter((c) => c.kind === 'menstrual_cycle')) {
+      if (['coach', 'admin', 'superadmin', 'parent'].includes(cell.role)) {
+        expect(cell.rule.effect, `${cell.action} × ${cell.role}`).toBe('deny');
+      }
     }
   });
 
@@ -745,6 +777,8 @@ describe('privacy invariants (independent of the specification)', () => {
       'medical_record.update',
       'pain_report.submit',
       'menarche.report',
+      'menstrual_cycle.enroll',
+      'menstrual_cycle.log',
     ];
     const required: Readonly<Record<string, ConsentType>> = {
       'media.upload': 'image',
@@ -752,6 +786,8 @@ describe('privacy invariants (independent of the specification)', () => {
       'medical_record.update': 'health',
       'pain_report.submit': 'health',
       'menarche.report': 'health',
+      'menstrual_cycle.enroll': 'menstrual_cycle',
+      'menstrual_cycle.log': 'menstrual_cycle',
     };
     for (const cell of allowedCells) {
       const key = `${cell.kind}.${cell.action}`;

@@ -12,26 +12,32 @@ import {
   type ConsentDocumentSummary,
   type ConsentTypeStatus,
 } from '@sport-performance/contracts';
-import { consent, consentDocument } from '@sport-performance/db/schema';
+import { consent, consentDocument, player } from '@sport-performance/db/schema';
 import {
   CONSENT_TYPES,
   consentSignerOfRole,
+  consentTypeSignable,
+  consentTypesAskedFor,
+  consentTypesVisibleTo,
   consentStates,
   guardianConsentsLapseOn,
   guardianConsentsLapsed,
   permittedActions,
   requiredConsentSigner,
+  seesMenstrualCycleConsent,
   type ClubId,
   type ConsentSigner,
   type ConsentType,
   type CurrentConsentDocument,
   type PermissionSubject,
   type PlayerId,
+  type Sex,
   type UserId,
 } from '@sport-performance/domain';
-import { and, eq, isNull, sql, type SQL } from 'drizzle-orm';
+import { and, eq, isNull, ne, sql, type SQL } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { TenantDatabase } from '../db/database.js';
+import { clubModules } from '../http/club-modules.js';
 import { requirePlayerFacts, type LoadedPlayer } from '../http/consents.js';
 import { registerEndpoint } from '../http/endpoint.js';
 import { HttpError } from '../http/errors.js';
@@ -227,6 +233,41 @@ async function typeStatuses(
     });
 }
 
+/**
+ * The types the player is asked for: the menstrual cycle consent only where the
+ * module is offered to her (B-806, ADR 0092), or once one was signed.
+ */
+async function askedTypes(
+  db: TenantDatabase,
+  clubId: ClubId,
+  playerId: PlayerId,
+): Promise<ConsentType[]> {
+  const row = await playerSex(db, clubId, playerId);
+  const signed = await db
+    .selectDistinct({ type: consent.type })
+    .from(consent)
+    .where(ofPlayer(clubId, playerId));
+  return row === undefined
+    ? [...CONSENT_TYPES]
+    : consentTypesAskedFor(
+        await clubModules(db, clubId),
+        row.sex,
+        signed.map((s) => s.type),
+      );
+}
+
+async function playerSex(
+  db: TenantDatabase,
+  clubId: ClubId,
+  playerId: PlayerId,
+): Promise<{ sex: Sex } | undefined> {
+  const [row] = await db
+    .select({ sex: player.sex })
+    .from(player)
+    .where(and(eq(player.clubId, clubId), eq(player.id, playerId)));
+  return row;
+}
+
 export function registerConsentRoutes(app: FastifyInstance): void {
   registerEndpoint(app, listConsentDocuments, {
     transaction: true,
@@ -318,7 +359,14 @@ export function registerConsentRoutes(app: FastifyInstance): void {
         playerOfAge: ofAge,
         requiredSigner: requiredConsentSigner(ofAge),
         guardianSignaturesLapseOn: guardianConsentsLapseOn(loaded.birthDate),
-        types: await typeStatuses(db, clubId, await permissions.subject(), loaded),
+        types: await typeStatuses(
+          db,
+          clubId,
+          await permissions.subject(),
+          loaded,
+          // The cycle consent only for the player and her guardian (ADR 0092).
+          consentTypesVisibleTo(caller.membership.role, await askedTypes(db, clubId, facts.id)),
+        ),
       };
     },
   });
@@ -337,6 +385,10 @@ export function registerConsentRoutes(app: FastifyInstance): void {
           and(
             ofPlayer(clubId, facts.id),
             query.type === undefined ? undefined : eq(consent.type, query.type),
+            // The cycle consent only for the player and her guardian (ADR 0092).
+            seesMenstrualCycleConsent(caller.membership.role)
+              ? undefined
+              : ne(consent.type, 'menstrual_cycle'),
             plan.where,
           ),
         )
@@ -384,6 +436,15 @@ export function registerConsentRoutes(app: FastifyInstance): void {
           'conflict',
           'This is not the current version of the consent text: sign the current one',
         );
+      }
+      // Only a type asked of her today: never the cycle consent of a male player or with the
+      // module off (ADR 0092).
+      const sex = await playerSex(db, clubId, facts.id);
+      if (
+        sex === undefined ||
+        !consentTypeSignable(await clubModules(db, clubId), sex.sex, document.type)
+      ) {
+        throw new HttpError('conflict', 'This consent is not asked for this player');
       }
       // Once per text and signer: the adult signs the text their guardian signed (B-311).
       const [already] = await db

@@ -69,6 +69,10 @@ export const myPlayerSchema = z
           description:
             'Se le pregunta "¿te duele algo?" en el bienestar (B-609): el club tiene los módulos `wellness` y `pain_report` y tiene los consentimientos de datos y de salud vigentes.',
         }),
+        menstrualCycle: z.boolean().meta({
+          description:
+            'Se le ofrece el seguimiento del ciclo menstrual (B-806): el club tiene el módulo `menstrual_cycle` y es jugadora. No dice si lo usa ni si tiene los consentimientos: eso lo responde `GET /v1/menstrual-cycle/me`.',
+        }),
       })
       .meta({ description: 'Lo que la matriz de permisos le deja hacer hoy.' }),
   })

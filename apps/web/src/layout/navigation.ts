@@ -80,6 +80,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: 'dumbbell',
     permission: { kind: 'gym_program', action: 'read' },
   }),
+  // Menstrual cycle shared with the member (B-806): only the medical and S&C staff; each
+  // player decides who of them sees hers (the page lists only those).
+  navItem({
+    to: '/menstrual-cycle',
+    labelKey: 'nav.cycle',
+    icon: 'cycle',
+    permission: { kind: 'menstrual_cycle', action: 'read' },
+  }),
   navItem({
     to: '/anthropometry',
     labelKey: 'anthropometry.nav',

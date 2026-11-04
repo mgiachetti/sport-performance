@@ -16,6 +16,9 @@ import {
   PAIN_INTENSITY_MAX,
   PAIN_INTENSITY_MIN,
   PAIN_SIDES,
+  MENSTRUAL_FLOWS,
+  MENSTRUAL_NOTE_MAX_LENGTH,
+  MENSTRUAL_SYMPTOMS,
   type ClubId,
   type PlayerId,
 } from '@sport-performance/domain';
@@ -37,6 +40,7 @@ import {
 import { user } from './auth.js';
 import { validityCheck } from './checks.js';
 import { localDate, timestamptz } from './columns.js';
+import { membership } from './organization.js';
 import { player } from './players.js';
 import {
   club,
@@ -85,6 +89,8 @@ export const menarcheDatePrecisionEnum = medicalSchema.enum(
   MENARCHE_DATE_PRECISIONS,
 );
 export const menarcheReporterEnum = medicalSchema.enum('menarche_reporter', MENARCHE_REPORTERS);
+export const menstrualFlowEnum = medicalSchema.enum('menstrual_flow', MENSTRUAL_FLOWS);
+export const menstrualSymptomEnum = medicalSchema.enum('menstrual_symptom', MENSTRUAL_SYMPTOMS);
 
 /** `(club_id, column, player_id) → target (club_id, id, player_id)`: same club and same player. */
 function samePlayerReference(
@@ -431,6 +437,105 @@ export const medicalMenarcheReport = medicalSchema.table(
     check(
       'menarche_report_date_not_after_report',
       sql`${t.occurredOn} is null or ${t.occurredOn} <= ${t.reportedOn}`,
+    ),
+  ],
+);
+
+/**
+ * The player's own opt-in to menstrual cycle tracking (B-806, ADR 0092): one
+ * row per period she had it on. Only she turns it on (with the module of the
+ * club and the `data`, `health` and `menstrual_cycle` consents) and off
+ * (`ended_*`, once, at the time she does it). Turning it off revokes every
+ * authorization of that period (trigger): turning it on again starts with
+ * nobody authorized.
+ */
+export const medicalMenstrualCycleEnrollment = medicalSchema.table(
+  'menstrual_cycle_enrollment',
+  {
+    ...tenantColumns(),
+    playerId: uuid('player_id').notNull().$type<PlayerId>(),
+    endedAt: timestamptz('ended_at'),
+    endedBy: text('ended_by').references(() => user.id, { onDelete: 'set null' }),
+  },
+  (t) => [
+    ...tenantConstraints('menstrual_cycle_enrollment', t),
+    tenantReference('menstrual_cycle_enrollment', t.clubId, t.playerId, player),
+    uniqueIndex('menstrual_cycle_enrollment_active_key')
+      .on(t.clubId, t.playerId)
+      .where(sql`${t.endedAt} is null`),
+    index('menstrual_cycle_enrollment_player_idx').on(t.clubId, t.playerId, t.createdAt),
+    check(
+      'menstrual_cycle_enrollment_ended',
+      sql`${t.endedBy} is null or ${t.endedAt} is not null`,
+    ),
+  ],
+);
+
+/**
+ * A day of the cycle as the player logs it: bleeding, symptoms of a closed
+ * vocabulary and an optional note. Append-only: a correction is a new row of
+ * the same day, the latest one counts. Only the player writes it, while she
+ * has the tracking on; nobody updates or deletes it.
+ */
+export const medicalMenstrualCycleLog = medicalSchema.table(
+  'menstrual_cycle_log',
+  {
+    ...tenantColumns(),
+    playerId: uuid('player_id').notNull().$type<PlayerId>(),
+    /** Club day the entry is about (the last 14 days, `MENSTRUAL_LOG_WINDOW_DAYS`). */
+    localDate: localDate('local_date').notNull(),
+    flow: menstrualFlowEnum('flow').notNull(),
+    symptoms: menstrualSymptomEnum('symptoms')
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
+    note: text('note'),
+  },
+  (t) => [
+    ...tenantConstraints('menstrual_cycle_log', t),
+    tenantReference('menstrual_cycle_log', t.clubId, t.playerId, player),
+    index('menstrual_cycle_log_player_idx').on(t.clubId, t.playerId, t.localDate, t.createdAt),
+    check(
+      'menstrual_cycle_log_note',
+      sql`${t.note} is null or (btrim(${t.note}) <> '' and char_length(${t.note}) <= ${sql.raw(String(MENSTRUAL_NOTE_MAX_LENGTH))})`,
+    ),
+    check(
+      'menstrual_cycle_log_symptoms',
+      sql`cardinality(${t.symptoms}) <= ${sql.raw(String(MENSTRUAL_SYMPTOMS.length))} and array_position(${t.symptoms}, null) is null`,
+    ),
+  ],
+);
+
+/**
+ * A member the player authorizes to read her cycle (B-806): an assigned
+ * `medical` or `sc` membership, checked when she adds it and again on every
+ * read. Revoked once (`revoked_*`), by her; ending the tracking revokes all of
+ * them. The membership going away (account deleted) takes the row with it.
+ */
+export const medicalMenstrualCycleShare = medicalSchema.table(
+  'menstrual_cycle_share',
+  {
+    ...tenantColumns(),
+    playerId: uuid('player_id').notNull().$type<PlayerId>(),
+    viewerMembershipId: uuid('viewer_membership_id').notNull(),
+    revokedAt: timestamptz('revoked_at'),
+    revokedBy: text('revoked_by').references(() => user.id, { onDelete: 'set null' }),
+  },
+  (t) => [
+    ...tenantConstraints('menstrual_cycle_share', t),
+    tenantReference('menstrual_cycle_share', t.clubId, t.playerId, player),
+    foreignKey({
+      name: 'menstrual_cycle_share_viewer_membership_id_fkey',
+      columns: [t.clubId, t.viewerMembershipId],
+      foreignColumns: [membership.clubId, membership.id],
+    }).onDelete('cascade'),
+    uniqueIndex('menstrual_cycle_share_active_key')
+      .on(t.clubId, t.playerId, t.viewerMembershipId)
+      .where(sql`${t.revokedAt} is null`),
+    index('menstrual_cycle_share_viewer_idx').on(t.clubId, t.viewerMembershipId),
+    check(
+      'menstrual_cycle_share_revoked',
+      sql`${t.revokedBy} is null or ${t.revokedAt} is not null`,
     ),
   ],
 );

@@ -34,7 +34,8 @@ export type IconName =
   | 'ruler'
   | 'family'
   | 'help'
-  | 'dumbbell';
+  | 'dumbbell'
+  | 'cycle';
 
 const PATHS: Record<IconName, readonly string[]> = {
   ok: ['M20 6 9 17l-5-5'],
@@ -78,6 +79,8 @@ const PATHS: Record<IconName, readonly string[]> = {
     'M16 3.13a4 4 0 0 1 0 7.75',
   ],
   dumbbell: ['M6 6v12', 'M18 6v12', 'M3 9v6', 'M21 9v6', 'M6 12h12'],
+  // A circle closing on itself: the cycle (B-806).
+  cycle: ['M20 12a8 8 0 1 1-2.3-5.7', 'M20 4v4h-4'],
   help: ['M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4Z', 'M20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6Z'],
 };
 

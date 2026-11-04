@@ -218,6 +218,13 @@ export const OPERATION_SPECS: { readonly [Op in SyncOperation]: OperationSpec<Op
     clientUuidPaths: ({ body }) => [{ path: ['body', 'clientUuid'], value: body.clientUuid }],
     forgetOnAck: true,
   },
+  'menstrual_cycle.log': {
+    kind: 'create',
+    // A day of the cycle (B-806): `medical` schema, no synced collection, never kept after it.
+    targets: none,
+    clientUuidPaths: ({ body }) => [{ path: ['body', 'clientUuid'], value: body.clientUuid }],
+    forgetOnAck: true,
+  },
   'anthro.record': {
     kind: 'create',
     targets: ({ body }) =>

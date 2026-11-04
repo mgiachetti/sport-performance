@@ -50,6 +50,7 @@ import { registerWellnessRoutes } from './wellness.js';
 import { registerGymRoutes } from './gym/index.js';
 import { registerPainReportRoutes } from './pain-reports.js';
 import { registerMenarcheRoutes } from './menarche.js';
+import { registerMenstrualCycleRoutes } from './menstrual-cycle.js';
 import { registerExternalLoadRoutes } from './external-loads.js';
 import { registerAlertRoutes } from './alerts.js';
 import { registerPanelRoutes } from './panel.js';
@@ -191,6 +192,14 @@ export const IMPLEMENTED_ENDPOINTS = [
   'reviewPainReport',
   'getMenarche',
   'reportMenarche',
+  'getMenstrualCycleStatus',
+  'startMenstrualCycleTracking',
+  'endMenstrualCycleTracking',
+  'logMenstrualCycleDay',
+  'getMenstrualCycleDays',
+  'authorizeMenstrualCycleViewer',
+  'revokeMenstrualCycleViewer',
+  'listMenstrualCycleSharedWithMe',
   'reportExternalLoad',
   'correctExternalLoad',
   'archiveExternalLoad',
@@ -373,6 +382,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerGymRoutes(app);
   registerPainReportRoutes(app);
   registerMenarcheRoutes(app);
+  registerMenstrualCycleRoutes(app);
   registerExternalLoadRoutes(app);
   registerAlertRoutes(app);
   registerPanelRoutes(app);

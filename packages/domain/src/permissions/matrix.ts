@@ -368,6 +368,22 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
       medical: allow('assigned', 'health'),
     },
   },
+  // Menstrual cycle tracking (B-806, ADR 0092): only the player writes it, with the three
+  // consents; she reads all of it; the staff reads it only when she authorized that member
+  // (the database checks the authorization). The coach, the administration, the superadmin
+  // and the guardian never read it: the guardian consents for a minor and may revoke.
+  menstrual_cycle: {
+    read: {
+      ...nobody,
+      player: self,
+      sc: allow('assigned', 'data', 'health', 'menstrual_cycle'),
+      medical: allow('assigned', 'data', 'health', 'menstrual_cycle'),
+    },
+    enroll: { ...nobody, player: allow('self', 'data', 'health', 'menstrual_cycle') },
+    log: { ...nobody, player: allow('self', 'data', 'health', 'menstrual_cycle') },
+    share: { ...nobody, player: allow('self', 'data', 'health', 'menstrual_cycle') },
+    withdraw: { ...nobody, player: self },
+  },
   data_export: {
     export: {
       ...nobody,

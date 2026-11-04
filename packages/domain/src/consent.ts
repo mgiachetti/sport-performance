@@ -3,12 +3,13 @@ import { addDays, compareLocalDates, localDate, localDateParts, type LocalDate }
 
 /**
  * Kinds of consent (Ley 25.326, B-312): personal data, image (CMJ videos,
- * photos) and health. Without a current consent of a type, data of that type
+ * photos), health and, on its own, menstrual cycle tracking (B-806, ADR 0092:
+ * a specific consent for an optional module, never implied by `health`). Without a current consent of a type, data of that type
  * is not collected, and images are neither shown nor uploaded (permission
  * matrix, B-303, ADR 0025). `packages/db` builds the `consent_type` enum from
  * this constant, so a value is never renamed.
  */
-export const CONSENT_TYPES = ['data', 'image', 'health'] as const;
+export const CONSENT_TYPES = ['data', 'image', 'health', 'menstrual_cycle'] as const;
 export type ConsentType = (typeof CONSENT_TYPES)[number];
 
 export const isConsentType = memberGuard(CONSENT_TYPES);

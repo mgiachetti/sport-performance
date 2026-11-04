@@ -25,6 +25,7 @@ import type { AppServices } from './app/services';
 import { FieldSessionPage } from './field-sessions/FieldSessionPage';
 import { GymProgramPage, NewGymProgramPage } from './gym/GymProgramPage';
 import { GymProgramsPage } from './gym/GymProgramsPage';
+import { MenstrualCyclePage } from './menstrual-cycle/MenstrualCyclePage';
 import { FieldSessionsPage } from './field-sessions/FieldSessionsPage';
 import { parseFieldSessionsSearch } from './field-sessions/search';
 import { ConfigurationPage } from './configuration/ConfigurationPage';
@@ -92,6 +93,7 @@ export interface RouterContext {
  *         ├── /players/$id    profile of a player (B-404)
  *         ├── /sessions       training sessions and matches (B-407): list, new, one
  *         ├── /field-sessions sessions with field data (?kind) and /$trainingSessionId (B-408)
+ *         ├── /menstrual-cycle cycles players shared with the medical or S&C member (B-806)
  *         ├── /calendar       season calendar (B-406): windows, test days, fixture
  *         ├── /test-days      test days of what the user sees (B-405)
  *         ├── /test-days/$id  the sheet of a test day, ?station=
@@ -334,6 +336,12 @@ export const gymProgramRoute = createRoute({
   component: GymProgramPage,
 });
 
+export const menstrualCycleRoute = createRoute({
+  getParentRoute: () => clubRoute,
+  path: '/menstrual-cycle',
+  component: MenstrualCyclePage,
+});
+
 export const calendarRoute = createRoute({
   getParentRoute: () => clubRoute,
   path: '/calendar',
@@ -532,6 +540,7 @@ export const routeTree = rootRoute.addChildren([
       sessionsRoute.addChildren([sessionsIndexRoute, newSessionRoute, sessionDetailRoute]),
       fieldSessionsRoute.addChildren([fieldSessionsIndexRoute, fieldSessionRoute]),
       gymRoute.addChildren([gymIndexRoute, newGymProgramRoute, gymProgramRoute]),
+      menstrualCycleRoute,
       calendarRoute,
       testDaysRoute,
       testDayRoute,

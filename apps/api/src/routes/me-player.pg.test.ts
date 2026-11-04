@@ -31,6 +31,7 @@ interface MyPlayerBody {
     submitRpe: boolean;
     readPercentiles: boolean;
     reportPain: boolean;
+    menstrualCycle: boolean;
   };
 }
 
@@ -266,6 +267,8 @@ describeWithPostgres('player app reads (Postgres)', (serverUrl) => {
       readPercentiles: false,
       // The club does not have the pain report module on (the default).
       reportPain: false,
+      // Nor the menstrual cycle tracking (B-806, off by default).
+      menstrualCycle: false,
     });
   });
 

@@ -402,6 +402,8 @@ export * from './training/index.js';
 export * from './wellness/index.js';
 // Kiosk mode: report channels and the kiosk's RPE states (B-504).
 export * from './kiosk.js';
+// Menstrual cycle tracking: opt-in, health data, read only by whom the player authorizes (B-806).
+export * from './menstrual-cycle/index.js';
 
 export {
   CLIENT_UPLOAD_FILE_KINDS,

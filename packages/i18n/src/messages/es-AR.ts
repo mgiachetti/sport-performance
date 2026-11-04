@@ -6,6 +6,7 @@ import { webGymMessagesEsAR } from './web-gym.js';
 import { mobileTestDayMessagesEsAR } from './mobile-test-day.js';
 import { mobileReactionMessagesEsAR } from './mobile-reaction.js';
 import { mobilePainMessagesEsAR } from './mobile-pain.js';
+import { menstrualCycleMessagesEsAR } from './menstrual-cycle.js';
 import { mobileWeeklyCmjMessagesEsAR } from './mobile-weekly-cmj.js';
 import { mobileCoachSessionMessagesEsAR } from './mobile-coach-session.js';
 import { mobileStaffMessagesEsAR } from './mobile-staff.js';
@@ -496,6 +497,7 @@ export const sourceMessageFiles = {
   'mobile-gym.ts': mobileGymMessagesEsAR,
   'mobile-reaction.ts': mobileReactionMessagesEsAR,
   'mobile-pain.ts': mobilePainMessagesEsAR,
+  'menstrual-cycle.ts': menstrualCycleMessagesEsAR,
   'mobile-weekly-cmj.ts': mobileWeeklyCmjMessagesEsAR,
   'mobile-coach-session.ts': mobileCoachSessionMessagesEsAR,
   'mobile-staff.ts': mobileStaffMessagesEsAR,
@@ -541,6 +543,8 @@ export const esAR = {
   ...mobileReactionMessagesEsAR,
   // The pain report of the wellness in the app (B-609)
   ...mobilePainMessagesEsAR,
+  // Menstrual cycle tracking (B-806): the player's screen and the authorized staff's page
+  ...menstrualCycleMessagesEsAR,
   // The weekly CMJ of M17/M19 in the app (B-506)
   ...mobileWeeklyCmjMessagesEsAR,
   ...mobileCoachSessionMessagesEsAR,
