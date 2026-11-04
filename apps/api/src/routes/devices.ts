@@ -25,7 +25,7 @@ import {
 } from '../http/writes.js';
 
 /**
- * Measuring devices of the club (B-606, ADR 0076): the phones and tablets a
+ * Measuring devices of the club (B-606, ADR 0077): the phones and tablets a
  * test is timed on and the shared hardware of Phase 2. Results name them
  * (`test_result.device_id`); the reaction test is compared only on the same
  * one. Retired, never deleted. The RLS of `device` (migration 0004) already

@@ -1,5 +1,5 @@
 /**
- * Measuring devices of the club (B-606, ADR 0076) against Postgres 16,
+ * Measuring devices of the club (B-606, ADR 0077) against Postgres 16,
  * through the real connection roles (ADR 0026): the matrix in the handlers
  * (`device.read` for the staff, `device.manage` for `sc` and the
  * administration), the RLS of `device` behind it, idempotent registration,

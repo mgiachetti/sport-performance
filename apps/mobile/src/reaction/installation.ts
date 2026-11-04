@@ -2,7 +2,7 @@ import type { SecureStorage } from '../platform/storage.ts';
 
 /**
  * The id this installation registers as a measuring device of the club
- * (B-606, ADR 0076): the `serialNumber` of its `device` row, so the phone
+ * (B-606, ADR 0077): the `serialNumber` of its `device` row, so the phone
  * finds itself in the club's list without creating another device. A random
  * UUID of its own, never the `deviceId` of the sign-in (ADR 0033): the
  * club's staff reads the device list, and the two stay unlinkable.

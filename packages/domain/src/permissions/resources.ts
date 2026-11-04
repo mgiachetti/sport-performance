@@ -45,7 +45,7 @@ export const PERMISSION_RESOURCES = {
   /** Club configuration (B-322): batteries, speed zones, alert rules, first-team references. */
   configuration: { target: 'club', medical: false, actions: ['read', 'update'] },
   /**
-   * Measuring devices of the club (B-606, ADR 0076): the phones and tablets a
+   * Measuring devices of the club (B-606, ADR 0077): the phones and tablets a
    * test is timed on (reaction is compared only on the same one), and the
    * shared hardware of Phase 2. No personal data: the staff reads them,
    * `sc` and the administration register, edit and retire them.

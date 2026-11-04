@@ -87,6 +87,8 @@ export interface StartIftRun {
   readonly protocol: Ift3015SignalProtocol;
   readonly playerIds: readonly string[];
   readonly categoryId: string | null;
+  /** The field test day it is started from (B-505); absent or `null` from Inicio. */
+  readonly testSessionId?: string | null;
 }
 
 /** Its functions do not use `this`: they can be passed around as callbacks. */
@@ -116,6 +118,11 @@ export interface IftRunner {
    * interrupted run, at the last moment it was known to be playing.
    */
   readonly finish: () => void;
+  /**
+   * The stages of these players were queued on the day's 30-15 station: the
+   * finished run keeps them out of what is left to save.
+   */
+  readonly markSaved: (playerIds: readonly string[]) => void;
   /** Forgets the run (its results were saved or discarded). */
   readonly discard: () => Promise<void>;
   /** Re-checks the clock now (the app came back to the foreground). */
@@ -367,7 +374,7 @@ export function createIftRunner(deps: IftRunnerDeps): IftRunner {
       await store.clearUnlessScope(scope);
     },
 
-    async start({ scope, protocol, playerIds, categoryId }) {
+    async start({ scope, protocol, playerIds, categoryId, testSessionId = null }) {
       if (state.status !== 'idle') return;
       const players = [...new Set(playerIds)].map(newIft3015PlayerMarks);
       if (players.length === 0) return;
@@ -392,6 +399,8 @@ export function createIftRunner(deps: IftRunnerDeps): IftRunner {
         scope,
         runId: deps.randomUUID(),
         categoryId,
+        testSessionId,
+        savedPlayerIds: [],
         protocol,
         stage1WallMs: wallClock() + leadInMs,
         status: 'running',
@@ -471,6 +480,16 @@ export function createIftRunner(deps: IftRunnerDeps): IftRunner {
         // running stops at the last moment the signals were playing.
         endRun(state.run, state.stoppedAtMs, false, 'interrupted');
       }
+    },
+
+    markSaved(playerIds) {
+      if (state.status !== 'finished') return;
+      const current = state.run;
+      const saved = new Set(current.savedPlayerIds);
+      const added = playerIds.filter((id) => !saved.has(id));
+      if (added.length === 0) return;
+      const next = persist({ ...current, savedPlayerIds: [...current.savedPlayerIds, ...added] });
+      emit({ status: 'finished', run: next });
     },
 
     async discard() {

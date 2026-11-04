@@ -15,7 +15,8 @@ import {
 import { nodeSqliteDriver } from '../test/node-sqlite.ts';
 import { openLocalDatabase } from './db/database.ts';
 import { createSyncEngine, type SyncScopeRef } from './engine.ts';
-import { createReadCache, keptAnswer, readCacheKey } from './read-cache.ts';
+import { syncScope } from './db/schema.ts';
+import { createReadCache, keptAnswer, readCacheKey, type ReadSchema } from './read-cache.ts';
 
 const SCOPE = { membershipId: 'a1111111-1111-4111-8111-111111111111', userId: 'u1' };
 const OTHER_CLUB = { membershipId: 'a2222222-2222-4222-8222-222222222222', userId: 'u1' };
@@ -231,5 +232,81 @@ describe('RPE the morning after, without signal', () => {
       value: [],
       fetchedAt: T0 + 1000,
     });
+  });
+});
+
+// ─── Documents read with their contract (the field test day, ADR 0076) ──────────────
+
+const numberBox: ReadSchema<{ n: number }> = {
+  safeParse: (value) =>
+    typeof value === 'object' && value !== null && typeof (value as { n?: unknown }).n === 'number'
+      ? { success: true, data: value as { n: number } }
+      : { success: false },
+};
+
+async function documents() {
+  const database = await openLocalDatabase(nodeSqliteDriver());
+  let time = 1_000;
+  let active: SyncScopeRef | null = SCOPE;
+  const cache = createReadCache(database, { now: () => time, activeScope: () => active });
+  return {
+    database,
+    cache,
+    actAs: (next: SyncScopeRef | null) => {
+      active = next;
+    },
+    advance: (ms: number) => {
+      time += ms;
+    },
+  };
+}
+
+describe('documents kept with their contract (ADR 0076)', () => {
+  it('replace the document whole, per membership, with when it was read', async () => {
+    const { cache, advance, actAs } = await documents();
+    await cache.put(SCOPE, 'k', { n: 1 });
+    advance(500);
+    await cache.put(SCOPE, 'k', { n: 2 });
+    actAs(OTHER_CLUB);
+    await cache.put(OTHER_CLUB, 'k', { n: 3 });
+    expect(await cache.get(SCOPE.membershipId, 'k', numberBox)).toEqual({
+      value: { n: 2 },
+      fetchedAt: 1_500,
+    });
+    expect((await cache.get(OTHER_CLUB.membershipId, 'k', numberBox))?.value).toEqual({ n: 3 });
+  });
+
+  it('are a miss when they no longer match their contract', async () => {
+    const { cache } = await documents();
+    await cache.put(SCOPE, 'old', { n: 'one' });
+    expect(await cache.get(SCOPE.membershipId, 'old', numberBox)).toBeNull();
+  });
+
+  it('list by prefix, where `_` is not a wildcard', async () => {
+    const { cache } = await documents();
+    await cache.put(SCOPE, 'test_day:1', { n: 1 });
+    await cache.put(SCOPE, 'testXday:2', { n: 2 });
+    await cache.put(SCOPE, 'test_day:bad', { n: 'x' });
+    expect([...(await cache.list(SCOPE.membershipId, 'test_day:', numberBox)).keys()]).toEqual([
+      'test_day:1',
+    ]);
+  });
+
+  it('go with their membership', async () => {
+    const { cache, database } = await documents();
+    await cache.put(SCOPE, 'k', { n: 1 });
+    await database.write((db) => db.delete(syncScope));
+    expect(await cache.get(SCOPE.membershipId, 'k', numberBox)).toBeNull();
+  });
+
+  it('write nothing once the session no longer acts in their membership', async () => {
+    const { cache, database, actAs } = await documents();
+    // A download still running when the user signs out (or changes club).
+    actAs(null);
+    await cache.put(SCOPE, 'k', { n: 1 });
+    actAs(OTHER_CLUB);
+    await cache.put(SCOPE, 'k', { n: 2 });
+    expect(await cache.get(SCOPE.membershipId, 'k', numberBox)).toBeNull();
+    expect(await database.read((db) => db.select().from(syncScope))).toEqual([]);
   });
 });

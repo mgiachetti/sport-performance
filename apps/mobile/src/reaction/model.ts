@@ -13,7 +13,7 @@ import {
 import type { LocalRow, QueuedMutation } from '../offline/local-store.ts';
 
 /**
- * The reaction result as the phone writes and reads it (B-606, ADR 0076):
+ * The reaction result as the phone writes and reads it (B-606, ADR 0077):
  * one `test_result` per player and run, with the valid stimuli of each
  * complete series as numbered `value` attempts (the server averages them:
  * `attemptAggregation: mean`), measured with the app on this device. The

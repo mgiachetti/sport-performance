@@ -234,6 +234,24 @@ describe('IFT runner', () => {
     expect(marksOf(state, 'b').outcome).toBe('stopped');
   });
 
+  it('keeps a finished run with the players already saved on the day (B-505)', async () => {
+    const { runner, time, start, store } = setup();
+    await start();
+    runner.markSaved(['a']);
+    expect(running(runner.getState()).run.savedPlayerIds).toEqual([]);
+    time.advance(P.leadInS * 1000 + ift3015StageStartMs(3, P));
+    runner.finish();
+    runner.markSaved(['a']);
+    runner.markSaved(['a']);
+    let state = runner.getState();
+    expect(state.status === 'finished' ? state.run.savedPlayerIds : null).toEqual(['a']);
+    await flush();
+    expect((await store.load())?.savedPlayerIds).toEqual(['a']);
+    runner.markSaved(['b']);
+    state = runner.getState();
+    expect(state.status === 'finished' ? state.run.savedPlayerIds : null).toEqual(['a', 'b']);
+  });
+
   it('saves a heartbeat while it runs', async () => {
     const { time, start, store } = setup();
     await start();
@@ -419,12 +437,24 @@ describe('IFT runner', () => {
         'players',
         'protocol',
         'runId',
+        'savedPlayerIds',
         'scope',
         'stage1WallMs',
         'status',
+        'testSessionId',
         'version',
       ].sort(),
     );
+    // Started from Inicio: no test day. A run stored before B-505 reads the same.
+    expect(parsed?.testSessionId).toBeNull();
+    const before = JSON.parse(text) as Record<string, unknown>;
+    delete before.testSessionId;
+    delete before.savedPlayerIds;
+    expect(parseIftRunSnapshot(JSON.stringify(before))).toMatchObject({
+      testSessionId: null,
+      savedPlayerIds: [],
+    });
+    expect(parseIftRunSnapshot(JSON.stringify({ ...before, savedPlayerIds: [3] }))).toBeNull();
     expect(parseIftRunSnapshot('{"version":2}')).toBeNull();
     expect(parseIftRunSnapshot('nope')).toBeNull();
     expect(parseIftRunSnapshot(text.replace('"running"', '"paused"'))).toBeNull();

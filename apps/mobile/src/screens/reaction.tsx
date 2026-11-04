@@ -23,7 +23,7 @@ import {
 import { useTheme } from '../ui/theme.tsx';
 
 /**
- * Screens of the reaction test (B-606, ADR 0076): presentational, fed by the
+ * Screens of the reaction test (B-606, ADR 0077): presentational, fed by the
  * route with the setup cached on the phone and the runner's state, so they
  * are tested without a device. While a player runs the test the screen
  * shows only the stimulus; the result shows only that player's own times

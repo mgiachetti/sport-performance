@@ -592,7 +592,7 @@ export async function buildCategoryReportContent(
       startsOn: w.startsOn,
       endsOn: w.endsOn,
     }));
-  // A test compared only on the same device (reaction) has no group average (ADR 0076).
+  // A test compared only on the same device (reaction) has no group average (ADR 0077).
   const metrics = rankableMetrics(await testMetrics(db, clubId, false));
   const oldest = columns[0];
   const columnOf = (row: { testWindowId: string | null; measuredOn: LocalDate }) =>
