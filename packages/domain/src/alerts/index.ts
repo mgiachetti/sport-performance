@@ -27,13 +27,17 @@ export {
 export { AlertRuleValidationError, parseAlertRule, parseAlertRuleSet } from './parse.js';
 export {
   ALERT_SKIP_REASONS,
+  alertRuleAppliesTo,
+  cmjRollingBaseline,
   evaluateAlertRules,
   highestAlertSeverity,
   meanWellnessScore,
   type AcwrInput,
   type Alert,
   type AlertEvaluation,
+  type AlertRuleSubject,
   type AlertSkipReason,
+  type CmjBaseline,
   type CmjInput,
   type CmjMeasurement,
   type GrowthInput,

@@ -5,6 +5,7 @@ import { webGymMessagesEsAR } from './web-gym.js';
 import { mobileTestDayMessagesEsAR } from './mobile-test-day.js';
 import { mobileReactionMessagesEsAR } from './mobile-reaction.js';
 import { mobilePainMessagesEsAR } from './mobile-pain.js';
+import { mobileWeeklyCmjMessagesEsAR } from './mobile-weekly-cmj.js';
 import { reportMessagesEsAR } from './report.js';
 import { categoryReportMessagesEsAR } from './category-report.js';
 import { mobilePlayerMessagesEsAR } from './mobile-player.js';
@@ -475,6 +476,7 @@ export const sourceMessageFiles = {
   'mobile-gym.ts': mobileGymMessagesEsAR,
   'mobile-reaction.ts': mobileReactionMessagesEsAR,
   'mobile-pain.ts': mobilePainMessagesEsAR,
+  'mobile-weekly-cmj.ts': mobileWeeklyCmjMessagesEsAR,
   'protocols.ts': protocolMessagesEsAR,
   'web-help.ts': webHelpMessagesEsAR,
   'report.ts': reportMessagesEsAR,
@@ -508,6 +510,8 @@ export const esAR = {
   ...mobileReactionMessagesEsAR,
   // The pain report of the wellness in the app (B-609)
   ...mobilePainMessagesEsAR,
+  // The weekly CMJ of M17/M19 in the app (B-506)
+  ...mobileWeeklyCmjMessagesEsAR,
   ...protocolMessagesEsAR,
   ...webHelpMessagesEsAR,
   // The PDF report of a player (B-602), rendered by the worker

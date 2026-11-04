@@ -38,6 +38,7 @@ pnpm --filter @sport-performance/mobile start   # después, solo el bundler
 - `src/test-day`: el día de test en cancha (B-505, [ADR 0076](../../docs/adr/0076-dia-de-test-en-cancha.md)): lo sincronizado y la cola compuestos por jugador y estación, y lo que encola cada acción (`model.ts`, puro), la planilla guardada en el teléfono y la descarga de la semana (`data.ts`), lo que hacen las pantallas fuera de React (`controller.ts`) y el puente con las señales del 30-15 (`ift.ts`). Las reglas de carga (campos, parseo, mejor intento, rango plausible) son las de la web, de `@sport-performance/contracts`.
 - `src/platform`: lo nativo (`expo-secure-store`, AsyncStorage, `expo-application`, `expo-updates`, `expo-localization`, `expo-sqlite` con SQLCipher, `expo-network`, `expo-background-task`) detrás de interfaces.
 - `src/reaction`: test de reacción (B-606, [ADR 0077](../../docs/adr/0077-test-de-reaccion-en-la-app.md)): este teléfono como equipo del club (id de instalación), corrida de las series con el reloj monotónico, resultado por la cola y comparación solo con el mismo jugador en el mismo equipo.
+- `src/weekly-cmj`: CMJ semanal de M17/M19 (B-506, [ADR 0079](../../docs/adr/0079-cmj-semanal-en-la-app.md)): reglas puras (`model.ts`: plantel por etapa, resultados de la base local y la cola, base y veredicto con las funciones del motor de alertas, mutaciones) y datos (`data.ts`: lecturas guardadas y escrituras por la cola).
 - `src/screens`: pantallas de presentación (datos y callbacks por props); `src/ui`: tema, traductor, primitivas accesibles y fuentes.
 
 Los imports llevan la extensión `.ts` / `.tsx` (ADR 0058).
@@ -59,7 +60,7 @@ La app lee de la base local y la red solo sincroniza (ADR 0015, 0050 y 0069). Un
 
 La app del jugador (B-503) está en `src/player` (racha, récords, sesiones a puntuar: funciones puras), `src/screens/player-*.tsx` y `src/state/player-screens.tsx`; sus pestañas ("Hoy", "Mis tests") y Consentimientos solo aparecen con el rol `player`.
 
-Lo que una pantalla necesita sin señal y no es una colección va a `services.readCache` (la misma `cached_read`): las lecturas del jugador por `useOfflineRead` y, en el día de test, la planilla de cada día y el contexto del club (`put` con la membresía, `get` y `list` con su contrato, ADR 0076); se borra con la membresía al cerrar sesión.
+Lo que una pantalla necesita sin señal y no es una colección va a `services.readCache` (la misma `cached_read`): las lecturas del jugador por `useOfflineRead` y, en el día de test, la planilla de cada día y el contexto del club (`put` con la membresía, `get` y `list` con su contrato, ADR 0076) y, en el CMJ semanal, el plantel, el protocolo y los ajustes (ADR 0079); se borra con la membresía al cerrar sesión.
 
 Una operación que no vuelve en un pull (el reporte de dolor, datos de salud: ADR 0078) se marca `forgetOnAck` en `OPERATION_SPECS` y sale de la cola apenas el servidor la aplica. Una operación de edición nueva suma su superposición en `src/offline/overlay.ts` y sus filas en `OPERATION_SPECS`; un cambio del esquema local es una migración nueva al final de `src/offline/db/migrations.ts` (el test la compara con `schema.ts`). Cerrar sesión borra todo lo del club en el teléfono.
 

@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { canRunIft3015 } from '../../src/ift/roster.ts';
+import { canRecordWeeklyCmj } from '../../src/weekly-cmj/model.ts';
 import { HomeScreen } from '../../src/screens/app.tsx';
 import { SyncIndicator } from '../../src/screens/sync.tsx';
 import {
@@ -57,6 +58,13 @@ export default function Home() {
         canRunIft3015(state.activeMembership.role)
           ? () => {
               router.push('/reaction');
+            }
+          : null
+      }
+      onOpenWeeklyCmj={
+        canRecordWeeklyCmj(state.activeMembership.role)
+          ? () => {
+              router.push('/weekly-cmj');
             }
           : null
       }

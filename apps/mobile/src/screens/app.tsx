@@ -39,6 +39,7 @@ export function HomeScreen({
   sync,
   onOpenIft3015 = null,
   onOpenReaction = null,
+  onOpenWeeklyCmj = null,
 }: {
   readonly userName: string;
   readonly membership: MembershipSummary;
@@ -50,6 +51,8 @@ export function HomeScreen({
   readonly onOpenIft3015?: (() => void) | null;
   /** The reaction test on this phone (B-606); `null` hides it. */
   readonly onOpenReaction?: (() => void) | null;
+  /** The weekly CMJ of M17/M19 (B-506); `null` hides it. */
+  readonly onOpenWeeklyCmj?: (() => void) | null;
 }) {
   const { t } = useTranslator();
   const name = userName.trim();
@@ -74,6 +77,12 @@ export function HomeScreen({
         <Card>
           <AppText tone="secondary">{t('reaction.open.hint')}</AppText>
           <Button variant="secondary" label={t('reaction.open')} onPress={onOpenReaction} />
+        </Card>
+      )}
+      {onOpenWeeklyCmj === null ? null : (
+        <Card>
+          <AppText tone="secondary">{t('weeklyCmj.open.hint')}</AppText>
+          <Button variant="secondary" label={t('weeklyCmj.open')} onPress={onOpenWeeklyCmj} />
         </Card>
       )}
       <AppText role="caption" tone="muted">
