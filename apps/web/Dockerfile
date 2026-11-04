@@ -1,9 +1,9 @@
 # Image of the staff web (B-701, ADR 0087): the Vite build served by Caddy with the security
 # headers of apps/web/deploy/Caddyfile. Built from the repository root:
-#   docker build -f apps/web/Dockerfile --build-arg VITE_API_URL=https://api.example.org .
-# VITE_API_URL is part of the bundle, so each environment builds its own image (Railway passes
-# the service's variables as build arguments). Base images are pinned by digest; Dependabot
-# updates them.
+#   docker build -f apps/web/Dockerfile --build-arg VITE_API_URL=https://app.example.org .
+# VITE_API_URL (the web's own origin: Caddy proxies /v1/* to the API) is part of the bundle, so
+# each environment builds its own image (Railway passes the service's variables as build
+# arguments). Base images are pinned by digest; Dependabot updates them.
 
 FROM node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c AS build
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 CI=true
@@ -23,7 +23,8 @@ ENV XDG_CONFIG_HOME=/tmp/caddy/config XDG_DATA_HOME=/tmp/caddy/data PORT=8080
 COPY apps/web/deploy/Caddyfile /etc/caddy/Caddyfile
 COPY apps/web/deploy/entrypoint.sh /usr/local/bin/web-entrypoint
 COPY --from=build /repo/apps/web/dist /srv
-RUN caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+# Validated with a stand-in upstream: the real one comes from entrypoint.sh at startup.
+RUN API_UPSTREAM=http://api.internal:8080 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 USER 65534:65534
 EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/web-entrypoint"]

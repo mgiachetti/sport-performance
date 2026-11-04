@@ -1,13 +1,15 @@
 #!/bin/sh
-# Entrypoint of the web image (B-701, ADR 0087). Derives the origins the Content-Security-Policy
-# of the Caddyfile allows from the same variables as the rest of the deploy, then runs Caddy:
+# Entrypoint of the web image (B-701, ADR 0087). Derives what the Caddyfile needs from the same
+# variables as the rest of the deploy, then runs Caddy:
 #
-#   API_ORIGIN    origin of VITE_API_URL (the API the bundle was built against; required)
+#   API_UPSTREAM  where Caddy proxies /v1/*: the API over Railway's private network
+#                 (http://<private domain of the api>:<port>; required). The browser only talks
+#                 to the web's own origin, so the API is not in the Content-Security-Policy.
 #   FILES_ORIGIN  origin of the bucket's signed URLs (ADR 0044), from STORAGE_ENDPOINT,
 #                 STORAGE_BUCKET and STORAGE_FORCE_PATH_STYLE; empty without a bucket
 #
-# Refuses to start on a missing or non-https origin (http only on loopback, for local runs):
-# a broken CSP would fail in every browser, a permissive one would fail silently.
+# Refuses to start on a missing or malformed value: a broken proxy or CSP would fail in every
+# browser, a permissive CSP would fail silently.
 set -eu
 
 fail() {
@@ -30,11 +32,16 @@ check_origin() {
   esac
 }
 
-api_url="${VITE_API_URL:-}"
-[ -n "$api_url" ] || fail "VITE_API_URL is required (the origin of the API)"
-API_ORIGIN="$(origin_of "$api_url")"
-[ -n "$API_ORIGIN" ] || fail "VITE_API_URL is not an absolute URL"
-check_origin VITE_API_URL "$API_ORIGIN"
+upstream="${API_UPSTREAM:-}"
+[ -n "$upstream" ] || fail "API_UPSTREAM is required (the private URL of the API)"
+API_UPSTREAM="$(origin_of "$upstream")"
+# Only an origin: reverse_proxy would ignore a path, and credentials do not belong in a URL.
+case "$API_UPSTREAM" in
+  http://* | https://*) ;;
+  *) fail "API_UPSTREAM must be an http(s) URL" ;;
+esac
+[ "$API_UPSTREAM" = "$(printf '%s' "${upstream%/}" | tr '[:upper:]' '[:lower:]')" ] ||
+  fail "API_UPSTREAM must be scheme://host[:port], without path or credentials"
 
 FILES_ORIGIN=""
 endpoint="${STORAGE_ENDPOINT:-}"
@@ -58,5 +65,5 @@ if [ -n "$endpoint" ]; then
   esac
 fi
 
-export API_ORIGIN FILES_ORIGIN
+export API_UPSTREAM FILES_ORIGIN
 exec "$@"

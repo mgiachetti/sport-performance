@@ -25,6 +25,7 @@ import program, {
   RELEASE_COMMAND,
   REPOSITORY,
   WATCH_PATTERNS,
+  privateOrigin,
   publicOrigin,
   railwayVariable,
   type EnvironmentName,
@@ -254,7 +255,9 @@ describe.each(ENVIRONMENTS)('the %s environment', (environment: EnvironmentName)
     const apiOrigin = publicOrigin('api', CUSTOM_DOMAINS[environment].api);
     const webOrigin = publicOrigin('web', CUSTOM_DOMAINS[environment].web);
     expect(literal(api.AUTH_BASE_URL)).toBe(apiOrigin);
-    expect(literal(web.VITE_API_URL)).toBe(apiOrigin);
+    // The staff web calls the API under its own origin; Caddy proxies it over the private network.
+    expect(literal(web.VITE_API_URL)).toBe(webOrigin);
+    expect(literal(web.API_UPSTREAM)).toBe(privateOrigin('api'));
     expect(literal(api.WEB_ORIGINS)).toBe(webOrigin);
     expect(literal(api.WEB_APP_URL)).toBe(webOrigin);
     expect(literal(worker.WEB_APP_URL)).toBe(webOrigin);
@@ -354,6 +357,10 @@ describe('helpers', () => {
     expect(publicOrigin('api', 'api.example.org')).toBe('https://api.example.org');
     expect(publicOrigin('api', null)).toBe('https://${{api.RAILWAY_PUBLIC_DOMAIN}}');
   });
+
+  it('reaches a service on the private network, on the HTTP port', () => {
+    expect(privateOrigin('api')).toBe('http://${{api.RAILWAY_PRIVATE_DOMAIN}}:8080');
+  });
 });
 
 describe('images', () => {
@@ -386,6 +393,12 @@ describe('images', () => {
       expect(caddyfile).toContain(header);
     }
     expect(caddyfile).toContain("frame-ancestors 'none'");
-    expect(caddyfile).toContain("connect-src 'self' {$API_ORIGIN} {$FILES_ORIGIN}");
+    // The API is under the same origin: only the bucket is another one.
+    expect(caddyfile).toContain("connect-src 'self' {$FILES_ORIGIN};");
+    expect(caddyfile).not.toContain('API_ORIGIN');
+    expect(caddyfile).toMatch(/handle \/v1\/\* \{[^}]*reverse_proxy \{\$API_UPSTREAM\}/);
+    // The web's headers are not stamped on the API's answers.
+    expect(caddyfile).toContain('@web not path /v1/*');
+    expect(caddyfile).toContain('header @web {');
   });
 });

@@ -15,7 +15,7 @@ Qué protege al repo, qué falta activar y cómo. La revisión de seguridad de l
 | CodeQL | `.github/workflows/codeql.yml` | Listo; se saltea mientras el repo sea privado sin Advanced Security |
 | Secret scanning nativo + push protection | Ajustes del repo | No disponible en el plan actual |
 | Protección de `main` (ruleset) | `.github/rulesets/main.json` | **No aplicado**: el plan actual no lo permite |
-| Protección de `production` (ruleset: sin borrado ni force push, `ci` requerido) | `.github/rulesets/production.json` | Se aplica antes de la primera promoción (`docs/infra/railway.md`, paso 7; ADR 0087) |
+| Protección de `production` (ruleset: solo la deploy key de `promote` la crea o mueve, sin borrado ni force push, `ci` requerido) | `.github/rulesets/production.json` | Se aplica antes de la primera promoción (`docs/infra/railway.md`, paso 7; ADR 0087) |
 
 ## Protección de `main`
 

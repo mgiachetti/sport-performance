@@ -22,8 +22,9 @@ get() { sed -n "s/^$1=//p" "$state"; }
 shift
 case "$1" in
   -X)
-    echo "$*" >>"$FAKE_DIR/calls"
-    exit 0
+    # The GITHUB_TOKEN cannot move production (ruleset): only the push with the deploy key does.
+    echo "unexpected write through the API: $*" >&2
+    exit 4
     ;;
 esac
 case "$1" in
@@ -44,6 +45,13 @@ esac
 EOF
 chmod +x "$tmp/bin/gh"
 
+# Fake git: records the fetch and the push (the only writes promote.sh makes).
+cat >"$tmp/bin/git" <<'EOF'
+#!/bin/sh
+echo "git $*" >>"$FAKE_DIR/calls"
+EOF
+chmod +x "$tmp/bin/git"
+
 # expect <pass|fail> <description> <expected call or message> [sha]
 expect() {
   outcome="$1"
@@ -51,7 +59,7 @@ expect() {
   needle="$3"
   shift 3
   : >"$tmp/calls"
-  if FAKE_DIR="$tmp" PATH="$tmp/bin:$PATH" REPO=o/r GITHUB_STEP_SUMMARY="" \
+  if FAKE_DIR="$tmp" PATH="$tmp/bin:$PATH" REPO=o/r PUSH_REMOTE=git@github.com:o/r.git GITHUB_STEP_SUMMARY="" \
     sh "$script" "$@" >"$tmp/out" 2>&1; then
     actual=pass
   else
@@ -76,16 +84,16 @@ compare() { echo "$1...$2 $3" >>"$tmp/compare"; }
 state "$C" success "$A"
 compare "$C" "$C" identical
 compare "$A" "$C" ahead
-expect pass "fast-forwards production to the head of main" "-X PATCH repos/o/r/git/refs/heads/production -f sha=$C -F force=false"
+expect pass "fast-forwards production to the head of main" "git push --quiet git@github.com:o/r.git $C:refs/heads/production"
 
 state "$C" success "$A"
 compare "$B" "$C" ahead
 compare "$A" "$B" ahead
-expect pass "promotes an older commit of main" "sha=$B" "$B"
+expect pass "promotes an older commit of main" "$B:refs/heads/production" "$B"
 
 state "$C" success ""
 compare "$C" "$C" identical
-expect pass "creates the branch the first time" "-X POST repos/o/r/git/refs -f ref=refs/heads/production -f sha=$C"
+expect pass "creates the branch the first time" "git push --quiet git@github.com:o/r.git $C:refs/heads/production"
 
 state "$C" success "$C"
 compare "$C" "$C" identical

@@ -1,16 +1,16 @@
 #!/bin/sh
-# Tests for entrypoint.sh: the origins it derives for the CSP and what it refuses.
+# Tests for entrypoint.sh: the upstream and origins it derives for Caddy and what it refuses.
 # Usage: apps/web/deploy/entrypoint.test.sh   (POSIX sh, from any directory)
 set -eu
 
 entrypoint="$(dirname "$0")/entrypoint.sh"
 failures=0
 
-# run <env assignments...>: prints "API_ORIGIN|FILES_ORIGIN" or "error: <message>".
+# run <env assignments...>: prints "API_UPSTREAM|FILES_ORIGIN" or "error: <message>".
 run() {
   # The inner shell expands the variables the entrypoint exported.
   # shellcheck disable=SC2016
-  if out="$(env -i PATH="$PATH" "$@" sh "$entrypoint" sh -c 'printf "%s|%s" "$API_ORIGIN" "$FILES_ORIGIN"' 2>&1)"; then
+  if out="$(env -i PATH="$PATH" "$@" sh "$entrypoint" sh -c 'printf "%s|%s" "$API_UPSTREAM" "$FILES_ORIGIN"' 2>&1)"; then
     printf '%s' "$out"
   else
     printf 'error: %s' "$out"
@@ -39,51 +39,63 @@ expect() {
 }
 
 expect "virtual-hosted bucket (Railway's default)" \
-  'https://api.example.org|https://files-abc.t3.storageapi.dev' \
-  VITE_API_URL=https://api.example.org/ STORAGE_ENDPOINT=https://t3.storageapi.dev \
+  'http://api.railway.internal:8080|https://files-abc.t3.storageapi.dev' \
+  API_UPSTREAM=http://api.railway.internal:8080 STORAGE_ENDPOINT=https://t3.storageapi.dev \
   STORAGE_BUCKET=files-abc STORAGE_FORCE_PATH_STYLE=false
 
 expect "path-style bucket keeps the endpoint's origin and port" \
-  'https://api.example.org|https://minio.example.org:9000' \
-  VITE_API_URL=https://api.example.org STORAGE_ENDPOINT=https://minio.example.org:9000/ \
+  'http://api.railway.internal:8080|https://minio.example.org:9000' \
+  API_UPSTREAM=http://api.railway.internal:8080 STORAGE_ENDPOINT=https://minio.example.org:9000/ \
   STORAGE_BUCKET=files STORAGE_FORCE_PATH_STYLE=true
 
 expect "path style defaults to false" \
-  'https://api.example.org|https://files.t3.storageapi.dev' \
-  VITE_API_URL=https://api.example.org STORAGE_ENDPOINT=https://t3.storageapi.dev \
+  'http://api.railway.internal:8080|https://files.t3.storageapi.dev' \
+  API_UPSTREAM=http://api.railway.internal:8080 STORAGE_ENDPOINT=https://t3.storageapi.dev \
   STORAGE_BUCKET=files
 
-expect "origins drop path, query and case" \
-  'https://api.example.org:8443|' \
-  VITE_API_URL='https://API.Example.org:8443/v1?x=1'
+expect "bucket origins drop path, query and case" \
+  'http://api.railway.internal:8080|https://files.minio.example.org:8443' \
+  API_UPSTREAM=http://api.railway.internal:8080 \
+  STORAGE_ENDPOINT='https://MinIO.Example.org:8443/x?y=1' STORAGE_BUCKET=files
 
-expect "no bucket: only the API" 'https://api.example.org|' VITE_API_URL=https://api.example.org
+expect "no bucket: only the API" 'http://api.railway.internal:8080|' API_UPSTREAM=http://api.railway.internal:8080
 
-expect "http on loopback for local runs" 'http://localhost:3000|' VITE_API_URL=http://localhost:3000
+expect "upstream keeps https, drops a trailing slash and case" 'https://api.example.org|' \
+  API_UPSTREAM=https://API.example.org/
 
-expect "refuses a missing API URL" 'error: web: VITE_API_URL is required*'
+expect "http on loopback for local runs" 'http://localhost:3000|' API_UPSTREAM=http://localhost:3000
 
-expect "refuses a relative API URL" 'error: web: VITE_API_URL is not an absolute URL' \
-  VITE_API_URL=/api
+expect "refuses a missing upstream" 'error: web: API_UPSTREAM is required*'
 
-expect "refuses plain http outside loopback" 'error: web: VITE_API_URL must be an https URL' \
-  VITE_API_URL=http://api.example.org
+expect "refuses an upstream without scheme" 'error: web: API_UPSTREAM must be an http(s) URL' \
+  API_UPSTREAM=api.railway.internal:8080
 
-expect "refuses credentials in the URL" 'error: web: VITE_API_URL is not an absolute URL' \
-  VITE_API_URL=https://user:secret@api.example.org
+expect "refuses another scheme" 'error: web: API_UPSTREAM must be an http(s) URL' \
+  API_UPSTREAM=ftp://api.railway.internal:21
+
+expect "refuses an upstream with a path" 'error: web: API_UPSTREAM must be scheme://host*' \
+  API_UPSTREAM=http://api.railway.internal:8080/v1
+
+expect "refuses credentials in the upstream" 'error: web: API_UPSTREAM must be an http(s) URL' \
+  API_UPSTREAM=http://user:secret@api.railway.internal:8080
+
+expect "refuses plain http to the bucket outside loopback" \
+  'error: web: STORAGE_ENDPOINT must be an https URL' \
+  API_UPSTREAM=http://api.railway.internal:8080 STORAGE_ENDPOINT=http://t3.storageapi.dev \
+  STORAGE_BUCKET=files
 
 expect "refuses an endpoint without bucket" \
   'error: web: STORAGE_BUCKET is required with STORAGE_ENDPOINT' \
-  VITE_API_URL=https://api.example.org STORAGE_ENDPOINT=https://t3.storageapi.dev
+  API_UPSTREAM=http://api.railway.internal:8080 STORAGE_ENDPOINT=https://t3.storageapi.dev
 
 expect "refuses a bucket name that could inject into the CSP" \
   'error: web: STORAGE_BUCKET is not a valid bucket name' \
-  VITE_API_URL=https://api.example.org STORAGE_ENDPOINT=https://t3.storageapi.dev \
+  API_UPSTREAM=http://api.railway.internal:8080 STORAGE_ENDPOINT=https://t3.storageapi.dev \
   "STORAGE_BUCKET=x; script-src *"
 
 expect "refuses an unknown path style" \
   'error: web: STORAGE_FORCE_PATH_STYLE must be true or false' \
-  VITE_API_URL=https://api.example.org STORAGE_ENDPOINT=https://t3.storageapi.dev \
+  API_UPSTREAM=http://api.railway.internal:8080 STORAGE_ENDPOINT=https://t3.storageapi.dev \
   STORAGE_BUCKET=files STORAGE_FORCE_PATH_STYLE=yes
 
 if [ "$failures" -gt 0 ]; then

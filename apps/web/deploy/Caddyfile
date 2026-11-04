@@ -1,5 +1,9 @@
-# Static server of the staff web (B-701, ADR 0087; headers from ADR 0057 and ADR 0063).
-# API_ORIGIN and FILES_ORIGIN come from entrypoint.sh; PORT from Railway (8080 by default).
+# Server of the staff web (B-701, ADR 0087; headers from ADR 0057 and ADR 0063): the static SPA
+# and, under the same origin, the API (/v1/*) over Railway's private network. Same origin on
+# purpose: the session cookie is SameSite=Lax, so a browser neither sends it on a cross-site
+# fetch nor stores it from one, and the domains Railway generates (*.up.railway.app, on the
+# Public Suffix List) make a web and an API on their own domains two different sites.
+# API_UPSTREAM and FILES_ORIGIN come from entrypoint.sh; PORT from Railway (8080 by default).
 {
 	admin off
 	persist_config off
@@ -8,13 +12,28 @@
 
 :{$PORT:8080} {
 	root * /srv
-	encode zstd gzip
 
-	# The web loads nothing from third parties: only itself, the API and the bucket's signed
-	# URLs (the crest and the files the staff uploads or opens). Inline scripts and styles are
-	# not allowed; React sets styles through the CSSOM, which the CSP does not restrict.
-	header {
-		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: {$FILES_ORIGIN}; media-src 'self' blob: {$FILES_ORIGIN}; font-src 'self' data:; connect-src 'self' {$API_ORIGIN} {$FILES_ORIGIN}; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+	# The API, proxied as is: its own headers (CSP, cache, errors) and limits apply, not the
+	# web's below. Railway's edge already set X-Forwarded-For and X-Forwarded-Proto; they are
+	# passed through untouched (Caddy would otherwise replace them with the edge's address), so
+	# the API, trusting one hop (TRUST_PROXY_HOPS=1), sees the client as on its own domain.
+	handle /v1/* {
+		header -Server
+		reverse_proxy {$API_UPSTREAM} {
+			header_up X-Forwarded-For {http.request.header.X-Forwarded-For}
+			header_up X-Forwarded-Proto {http.request.header.X-Forwarded-Proto}
+		}
+	}
+
+	@web not path /v1/*
+	encode @web zstd gzip
+
+	# The web loads nothing from third parties: only itself (the API included, under its origin)
+	# and the bucket's signed URLs (the crest and the files the staff uploads or opens). Inline
+	# scripts and styles are not allowed; React sets styles through the CSSOM, which the CSP
+	# does not restrict.
+	header @web {
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: {$FILES_ORIGIN}; media-src 'self' blob: {$FILES_ORIGIN}; font-src 'self' data:; connect-src 'self' {$FILES_ORIGIN}; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
 		Strict-Transport-Security "max-age=63072000; includeSubDomains"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"

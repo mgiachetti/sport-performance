@@ -1,4 +1,6 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { bucketCors, UPLOAD_HEADERS, webOrigin } from '../bucket-cors.js';
 
@@ -15,6 +17,21 @@ describe('bucketCors', () => {
         },
       ],
     });
+  });
+
+  it('prints the versioned configuration (test/fixtures/bucket-cors.json) for put-bucket-cors', () => {
+    // The fixture is the reviewed JSON the runbook applies, for an example origin: a change to
+    // the rules shows up as a diff of that file.
+    const fixture = JSON.parse(
+      readFileSync(new URL('./fixtures/bucket-cors.json', import.meta.url), 'utf8'),
+    ) as unknown;
+    const printed = execFileSync(
+      process.execPath,
+      [fileURLToPath(new URL('../bucket-cors.ts', import.meta.url)), 'https://app.example.org'],
+      { encoding: 'utf8' },
+    );
+    expect(JSON.parse(printed)).toEqual(fixture);
+    expect(bucketCors(['https://app.example.org'])).toEqual(fixture);
   });
 
   it('allows the headers the API signs, except the one browsers set themselves', () => {

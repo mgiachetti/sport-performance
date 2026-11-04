@@ -44,13 +44,26 @@ case "$app" in
     ;;
   web)
     check "runs as a non-root user" "[ \"\$(docker run --rm --entrypoint id '$image' -u)\" != 0 ]"
-    check "refuses to start without VITE_API_URL" "fails_with 'VITE_API_URL is required' '$image'"
-    docker run -d --name smoke-web -p 18080:8080 \
-      -e VITE_API_URL=https://api.example.org \
+    check "refuses to start without API_UPSTREAM" "fails_with 'API_UPSTREAM is required' '$image'"
+    # A stand-in for the API on a private network, with the image's own Caddy: it answers /v1/*
+    # with the forwarding headers it got, and a header of its own.
+    docker network create smoke-net >/dev/null
+    trap 'docker rm -f smoke-web smoke-api >/dev/null 2>&1 || true; docker network rm smoke-net >/dev/null 2>&1 || true' EXIT
+    upstream_config=':9000 {
+	header X-Smoke-Upstream api
+	respond "{path}|{header.X-Forwarded-For}|{header.X-Forwarded-Proto}" 200
+}'
+    # The inner shell expands the variable inside the container.
+    # shellcheck disable=SC2016
+    docker run -d --name smoke-api --network smoke-net -e UPSTREAM_CONFIG="$upstream_config" \
+      --entrypoint sh "$image" -c \
+      'printf "%s\n" "$UPSTREAM_CONFIG" >/tmp/Caddyfile && exec caddy run --config /tmp/Caddyfile --adapter caddyfile' \
+      >/dev/null
+    docker run -d --name smoke-web --network smoke-net -p 18080:8080 \
+      -e API_UPSTREAM=http://smoke-api:9000 \
       -e STORAGE_ENDPOINT=https://t3.storageapi.dev \
       -e STORAGE_BUCKET=files-smoke \
       "$image" >/dev/null
-    trap 'docker rm -f smoke-web >/dev/null 2>&1 || true' EXIT
     for _ in $(seq 1 30); do
       if curl -fsS http://localhost:18080/healthz >/dev/null 2>&1; then break; fi
       sleep 1
@@ -60,8 +73,18 @@ case "$app" in
     check "answers the healthcheck" "[ \"\$(status /healthz)\" = 200 ]"
     check "serves the SPA on any route" \
       "[ \"\$(status /players/123)\" = 200 ] && curl -fsS http://localhost:18080/players/123 | grep -q '<div id=\"root\">'"
-    check "allows only itself, the API and the bucket" \
-      "headers / | grep -qF \"connect-src 'self' https://api.example.org https://files-smoke.t3.storageapi.dev;\""
+    check "allows only itself (the API included) and the bucket" \
+      "headers / | grep -qF \"connect-src 'self' https://files-smoke.t3.storageapi.dev;\""
+    for _ in $(seq 1 30); do
+      if [ "$(status /v1/health)" = 200 ]; then break; fi
+      sleep 1
+    done
+    check "proxies /v1/* to the API with the edge's forwarding headers untouched" \
+      "[ \"\$(curl -fsS -H 'X-Forwarded-For: 203.0.113.7' -H 'X-Forwarded-Proto: https' http://localhost:18080/v1/me)\" = '/v1/me|203.0.113.7|https' ]"
+    check "answers the API with the API's headers, not the web's" \
+      "headers /v1/me | grep -qiF 'X-Smoke-Upstream: api' && ! headers /v1/me | grep -qiF 'frame-ancestors'"
+    check "serves the SPA, not the API, outside /v1/" \
+      "! headers /v1 | grep -qiF 'X-Smoke-Upstream' && ! headers /v10/x | grep -qiF 'X-Smoke-Upstream'"
     check "forbids framing" "headers / | grep -qF \"frame-ancestors 'none'\""
     for header in 'Strict-Transport-Security: max-age=' 'X-Content-Type-Options: nosniff' \
       'Referrer-Policy: strict-origin-when-cross-origin' 'Permissions-Policy: ' 'Cache-Control: no-cache'; do

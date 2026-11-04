@@ -144,6 +144,11 @@ export function publicOrigin(serviceName: string, customDomain: string | null): 
   return `https://${customDomain ?? railwayVariable('RAILWAY_PUBLIC_DOMAIN', serviceName)}`;
 }
 
+/** Origin of a service on the private network of the environment (plain http: it never leaves the project). */
+export function privateOrigin(serviceName: string): string {
+  return `http://${railwayVariable('RAILWAY_PRIVATE_DOMAIN', serviceName)}:${String(HTTP_PORT)}`;
+}
+
 /** URL of a login on the project's Postgres over the private network; its password is a secret variable of the same service. */
 function databaseUrl(login: string, passwordVariable: string): string {
   const host = railwayVariable('PGHOST', 'Postgres');
@@ -237,7 +242,8 @@ export default defineRailway((ctx) => {
       HOST: '::',
       PORT: String(HTTP_PORT),
       LOG_LEVEL: 'info',
-      // Railway's edge is the only proxy in front of the API (ADR 0031).
+      // One proxy in front of the API (ADR 0031): Railway's edge, on its own domain and under
+      // the web (whose Caddy passes the edge's X-Forwarded-For through untouched).
       TRUST_PROXY_HOPS: '1',
       DATABASE_URL: databaseUrl(DATABASE_LOGINS.app, 'DB_APP_PASSWORD'),
       AUTH_DATABASE_URL: databaseUrl(DATABASE_LOGINS.auth, 'DB_AUTH_PASSWORD'),
@@ -276,8 +282,11 @@ export default defineRailway((ctx) => {
     ...domainsOf(domains.web),
     env: {
       PORT: String(HTTP_PORT),
-      // Build argument of the bundle and, at runtime, the API origin of the CSP.
-      VITE_API_URL: apiOrigin,
+      // The staff web reaches the API under its own origin (same site for the Lax session
+      // cookie, ADR 0087): the bundle calls the web, and Caddy proxies /v1/* to the API over the
+      // private network.
+      VITE_API_URL: webOrigin,
+      API_UPSTREAM: privateOrigin('api'),
       // Not secret: the CSP needs the origin of the bucket's signed URLs (ADR 0063).
       STORAGE_ENDPOINT: ref(files, 'ENDPOINT'),
       STORAGE_BUCKET: ref(files, 'BUCKET'),

@@ -6,11 +6,14 @@
 # forced branch.
 #
 # Usage: promote.sh [sha]   (empty = the latest commit of main)
-# Env:   GH_TOKEN (contents: write, checks: read), REPO (owner/name)
+# Env:   GH_TOKEN (contents: read, checks: read), REPO (owner/name),
+#        PUSH_REMOTE (the repository over SSH, authenticated with the deploy key: the only actor
+#        the ruleset .github/rulesets/production.json lets create or update the branch),
 #        GITHUB_STEP_SUMMARY (optional)
 set -eu
 
 repo="${REPO:?Set REPO to owner/name}"
+remote="${PUSH_REMOTE:?Set PUSH_REMOTE to the SSH URL of the repository}"
 branch="production"
 target="${1:-}"
 
@@ -40,7 +43,14 @@ conclusion="$(gh api "repos/${repo}/commits/${target}/check-runs?check_name=ci&f
   --jq '[.check_runs[] | select(.app.slug == "github-actions")] | sort_by(.completed_at) | last | .conclusion // ""')"
 [ "$conclusion" = "success" ] || fail "The ci check of ${target} is '${conclusion:-missing}', not success."
 
-# 3. Fast-forward only (or create the branch the first time).
+# 3. Fast-forward only (or create the branch the first time). The push is never forced, so
+#    GitHub refuses a non-fast-forward as well. main is fetched first: the commit may be newer
+#    than the checkout.
+push() {
+  git fetch --quiet "$remote" "+refs/heads/main:refs/remotes/promote/main"
+  git push --quiet "$remote" "${target}:refs/heads/${branch}"
+}
+
 if current="$(gh api "repos/${repo}/git/ref/heads/${branch}" --jq .object.sha 2>/dev/null)"; then
   if [ "$current" = "$target" ]; then
     echo "${branch} is already at ${target}."
@@ -49,10 +59,10 @@ if current="$(gh api "repos/${repo}/git/ref/heads/${branch}" --jq .object.sha 2>
   forward="$(gh api "repos/${repo}/compare/${current}...${target}" --jq .status)"
   [ "$forward" = "ahead" ] ||
     fail "Moving ${branch} from ${current} to ${target} is not a fast-forward (compare: ${forward})."
-  gh api -X PATCH "repos/${repo}/git/refs/heads/${branch}" -f sha="$target" -F force=false >/dev/null
+  push
   message="${branch}: ${current} -> ${target}"
 else
-  gh api -X POST "repos/${repo}/git/refs" -f ref="refs/heads/${branch}" -f sha="$target" >/dev/null
+  push
   message="${branch} created at ${target}"
 fi
 

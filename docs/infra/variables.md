@@ -19,7 +19,7 @@ Qué variable tiene cada servicio en `staging` y `production`, de dónde sale y 
 | `HOST` | Literal | `::` | IPv4 e IPv6 (la red privada de Railway es IPv6). |
 | `PORT` | Literal | `8080` | El dominio apunta a este puerto. |
 | `LOG_LEVEL` | Literal | `info` | |
-| `TRUST_PROXY_HOPS` | Literal | `1` | El edge de Railway (ADR 0031). |
+| `TRUST_PROXY_HOPS` | Literal | `1` | El edge de Railway (ADR 0031). También bajo la web: Caddy pasa el `X-Forwarded-For` del edge sin tocarlo, así que la API ve un solo proxy. |
 | `DATABASE_URL` | Literal con referencias | `postgresql://sp_api:${{DB_APP_PASSWORD}}@${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}` | Login del rol `app` (ADR 0026), por la red privada. |
 | `AUTH_DATABASE_URL` | Literal con referencias | igual, con `sp_auth` y `${{DB_AUTH_PASSWORD}}` | Login del rol `auth` (Better Auth). |
 | `DB_APP_PASSWORD` | Secreto | 64 caracteres hexadecimales | Contraseña de `sp_api`. `db:release` crea o actualiza el login con ella. |
@@ -28,7 +28,7 @@ Qué variable tiene cada servicio en `staging` y `production`, de dónde sale y 
 | `WORKER_DATABASE_URL` | Referencia | `${{worker.DATABASE_URL}}` | Para que `db:release` provisione `sp_worker`. Igual que la anterior: nunca llega al proceso. |
 | `AUTH_SECRET` | Secreto | 48 bytes aleatorios en base64 | Firma las cookies de sesión. Distinto por ambiente; rotarlo cierra las sesiones web. |
 | `AUTH_BASE_URL` | Literal con referencias | `<api>` | https obligatorio en producción. |
-| `WEB_ORIGINS` | Literal con referencias | `<web>` | CORS y CSRF de la cookie de sesión. |
+| `WEB_ORIGINS` | Literal con referencias | `<web>` | CSRF de la cookie de sesión (el `Origin` de los pedidos de la web, que llegan por su propio origen) y CORS. |
 | `WEB_APP_URL` | Literal con referencias | `<web>` | Links de invitación (`<web>/invite/<token>`). |
 | `APP_DEEP_LINK_SCHEME` | Literal | `sportperformance-staging` / `sportperformance` | Igual al de la variante de la app (`apps/mobile/src/config/variants.ts`). |
 | `STORAGE_ENDPOINT` | Referencia | `${{files.ENDPOINT}}` | Bucket `files` (ADR 0044). |
@@ -69,7 +69,8 @@ Qué variable tiene cada servicio en `staging` y `production`, de dónde sale y 
 | Variable | Origen | Valor en staging / production | Notas |
 |---|---|---|---|
 | `PORT` | Literal | `8080` | Puerto de Caddy. |
-| `VITE_API_URL` | Literal con referencias | `<api>` | Argumento de build (entra en el bundle) y, en runtime, el origen de la API en la CSP. |
+| `VITE_API_URL` | Literal con referencias | `<web>` | Argumento de build (entra en el bundle). Es el origen de la **web**: el navegador llama a la API bajo el mismo sitio, porque la cookie de sesión es `SameSite=Lax` y `up.railway.app` está en la Public Suffix List (ADR 0087). |
+| `API_UPSTREAM` | Literal con referencias | `http://${{api.RAILWAY_PRIVATE_DOMAIN}}:8080` | Adonde Caddy reenvía `/v1/*`, por la red privada del ambiente (http: no sale del proyecto). |
 | `STORAGE_ENDPOINT` | Referencia | `${{files.ENDPOINT}}` | Solo para la CSP: origen de las URLs firmadas. Sin claves. |
 | `STORAGE_BUCKET` | Referencia | `${{files.BUCKET}}` | Ídem. |
 | `STORAGE_FORCE_PATH_STYLE` | Literal | `false` | Ídem. |

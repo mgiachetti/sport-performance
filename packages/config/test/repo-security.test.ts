@@ -324,13 +324,18 @@ describe('production ruleset (B-701, ADR 0087)', () => {
   const rules = asArray(ruleset.rules, 'rules').map((r) => asObject(r, 'rule'));
   const rule = (type: string): JsonObject | undefined => rules.find((r) => r.type === type);
 
-  it('targets only the production branch and is enforced with no bypass', () => {
+  it('targets only the production branch, enforced, bypassed only by the deploy key', () => {
     expect(ruleset).toMatchObject({
       target: 'branch',
       enforcement: 'active',
       conditions: { ref_name: { include: ['refs/heads/production'], exclude: [] } },
-      bypass_actors: [],
+      bypass_actors: [{ actor_id: null, actor_type: 'DeployKey', bypass_mode: 'always' }],
     });
+  });
+
+  it('lets nobody else create or update the branch (write access is not enough)', () => {
+    expect(rule('creation')).toBeDefined();
+    expect(rule('update')?.parameters).toEqual({ update_allows_fetch_and_merge: false });
   });
 
   it('only lets production move forward, never be deleted', () => {
@@ -352,5 +357,14 @@ describe('production ruleset (B-701, ADR 0087)', () => {
     const job = asObject(asObject(workflow.jobs, 'jobs').promote, 'promote job');
     expect(job.if).toBe("github.ref == 'refs/heads/main'");
     expect(job.environment).toBe('production');
+    // The GITHUB_TOKEN only reads; the push uses the deploy key, a secret of that environment.
+    expect(job.permissions).toEqual({ contents: 'read', checks: 'read' });
+    const steps = asArray(job.steps, 'promote steps').map((s) => asObject(s, 'step'));
+    const key = steps.find((s) => s.name === 'Load the deploy key');
+    expect(key?.env).toEqual({ DEPLOY_KEY: '${{ secrets.PRODUCTION_DEPLOY_KEY }}' });
+    // GitHub's host key is pinned, not trusted on first use.
+    expect(key?.run).toContain('github.com ssh-ed25519 ');
+    const move = steps.find((s) => s.name === 'Move the production branch');
+    expect(move?.run).toContain('StrictHostKeyChecking=yes');
   });
 });

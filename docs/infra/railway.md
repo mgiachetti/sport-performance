@@ -14,6 +14,15 @@ Nada de esto se hizo todavía: no hay proyecto, cuenta ni secretos creados. Este
 - `pnpm install` en la raíz del repo: instala el SDK `railway/iac` en `.railway/node_modules`, que el CLI necesita para evaluar `railway.ts`.
 - Cuentas de Resend (dominio verificado) y, si se usa, Sentry (un proyecto para la API y otro para el worker).
 - Para el CORS: AWS CLI v2 (`aws --version`).
+- Que exista la imagen de Postgres que fija `POSTGRES_IMAGE` en `.railway/railway.ts`, antes del primer `plan` y cada vez que se cambie (un tag inexistente deja el servicio sin arrancar). Tiene que dar `200`:
+
+  ```sh
+  tag=16.15   # el de POSTGRES_IMAGE
+  token=$(curl -fsS "https://ghcr.io/token?scope=repository:railwayapp-templates/postgres-ssl:pull" | node -pe 'JSON.parse(require("fs").readFileSync(0)).token')
+  curl -sS -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $token" \
+    -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json' \
+    "https://ghcr.io/v2/railwayapp-templates/postgres-ssl/manifests/$tag"
+  ```
 
 ## 1. Crear el proyecto y los ambientes
 
@@ -41,6 +50,8 @@ railway config apply
 Hasta tener un dominio propio, cada ambiente usa el dominio que genera Railway (las URLs de las variables lo referencian con `RAILWAY_PUBLIC_DOMAIN`, sin escribirlo en el repo).
 
 Por ambiente, en el dashboard: servicio `api` → Settings → Networking → **Generate Domain** con puerto **8080**; lo mismo para `web`. El `worker` no tiene dominio. Si se genera después del primer deploy, redeployar `api`, `worker` y `web` para que tomen las URLs.
+
+**La web y la API en sitios distintos no pueden compartir la sesión.** `up.railway.app` está en la [Public Suffix List](https://publicsuffix.org/list/), así que `web-….up.railway.app` y `api-….up.railway.app` son dos sitios, y la cookie de sesión es `SameSite=Lax`: el navegador no la manda en un `fetch` entre sitios ni la guarda de una respuesta así. Por eso la web nunca llama al dominio de la API: el bundle llama a su propio origen (`VITE_API_URL` = `<web>`) y el Caddy de la web reenvía `/v1/*` a la API por la red privada (`API_UPSTREAM` = `http://${{api.RAILWAY_PRIVATE_DOMAIN}}:8080`). Funciona igual con los dominios generados y con los propios. El dominio público de la API lo usan la app mobile (bearer, sin cookies) y los links de Better Auth. No cambiar `VITE_API_URL` al dominio de la API: el ingreso a la web dejaría de andar sin ningún error visible en el servidor.
 
 ## 3. Secretos
 
@@ -106,7 +117,7 @@ Con los secretos cargados, en cada ambiente: dashboard → servicio `api` → **
 
 1. **`api`**: el pre-deploy corre `db:release`. En el log del deploy tiene que verse `Migrations: N applied…`, `Login sp_api provisioned as sport_performance_app.` (y `sp_auth`, `sp_worker`) y `Database declared as "<ambiente>".` Después, el healthcheck `/health/ready` tiene que pasar.
 2. **`worker`**: si arrancó antes de que existiera su login (`sp_worker` lo crea el pre-deploy de la API), falla y Railway lo reinicia, pero puede agotar sus 10 reintentos antes de que la API termine su primer deploy. **Después del primer deploy de la API, redeployar el worker** (dashboard → `worker` → Deployments → **Redeploy**) y verificar que queda andando sin reinicios.
-3. **`web`**: `/healthz` en verde y la web abre en `<web>`.
+3. **`web`**: `/healthz` en verde, la web abre en `<web>` y `<web>/v1/app/compatibility` responde la API (el proxy por la red privada). Ingresar con un código de email y recargar la página: la sesión tiene que seguir abierta (la cookie se guardó en el origen de la web).
 
 Datos iniciales, una vez, desde una sesión en el contenedor de la API (tiene las variables del servicio, incluida la del dueño):
 
@@ -129,15 +140,6 @@ En producción el seed demo se niega solo: la base está declarada `production`.
 
 - **Staging:** cada commit de `main` se despliega cuando sus checks de GitHub pasan ("Wait for CI" de Railway). Nada que hacer.
 - **Production:** GitHub → Actions → **Promote to production** → *Run workflow* (o `gh workflow run promote.yml -R mgiachetti/sport-performance -f sha=<sha>`). Sin `sha` promueve la punta de `main`. El workflow se niega si el commit no está en `main`, si su `ci` no pasó o si mover `production` no es un fast-forward. Railway despliega la rama `production` cuando sus checks pasan.
-- **Proteger la rama `production` antes de la primera promoción** (una vez; requiere que el repo sea público o un plan con rulesets, igual que el de `main`, ver `docs/security.md`). Sin esto, cualquiera con permiso de escritura (o un token con `contents: write`) podría empujar a `production` un commit sin `ci` y Railway lo desplegaría. El ruleset versionado `.github/rulesets/production.json` prohíbe borrarla y el force push, y exige el check `ci` en verde en el commit, también al crearla (`do_not_enforce_on_create: false`):
-
-  ```sh
-  gh api -X POST repos/mgiachetti/sport-performance/rulesets --input .github/rulesets/production.json
-  # Después de cambiar el archivo:
-  id=$(gh api repos/mgiachetti/sport-performance/rulesets --jq '.[] | select(.name == "production") | .id')
-  gh api -X PUT "repos/mgiachetti/sport-performance/rulesets/$id" --input .github/rulesets/production.json
-  ```
-
 - **Ambiente `production` de GitHub limitado a `main`** (una vez, antes de la primera corrida): así el workflow solo corre con el código de `main`, y una copia modificada de `promote.yml` o de `promote.sh` en otra rama no llega al paso que mueve la rama (el job además se saltea si no corre desde `main`).
 
   ```sh
@@ -149,7 +151,27 @@ En producción el seed demo se niega solo: la base está declarada `production`.
   ```
 
   Si el plan lo permite, agregarle revisores obligatorios (Settings → Environments → `production`).
-- **Migraciones:** van hacia adelante y corren antes de la versión nueva, mientras la vieja todavía atiende. Tienen que ser compatibles con la versión anterior (expandir primero, contraer en un deploy posterior).
+- **Llave de deploy de la promoción** (una vez, antes del ruleset): el único actor que puede crear o mover `production` es una deploy key con escritura, cuya parte privada es un secreto del ambiente `production` de GitHub (solo lo reciben los jobs de `main`). Después del ambiente (punto anterior). El `GITHUB_TOKEN` del workflow solo lee.
+
+  ```sh
+  ssh-keygen -t ed25519 -N '' -C promote-production -f /tmp/promote_key
+  gh repo deploy-key add /tmp/promote_key.pub -R mgiachetti/sport-performance --allow-write --title promote-production
+  gh secret set PRODUCTION_DEPLOY_KEY -R mgiachetti/sport-performance --env production </tmp/promote_key
+  rm /tmp/promote_key /tmp/promote_key.pub
+  gh api repos/mgiachetti/sport-performance/keys --jq '.[] | select(.read_only == false) | .title'   # solo promote-production
+  ```
+
+  El ruleset deja pasar a **cualquier** deploy key con escritura: no crear otra. Rotarla es repetir los comandos y borrar la vieja (`gh repo deploy-key delete <id>`).
+- **Proteger la rama `production` antes de la primera promoción** (una vez; requiere que el repo sea público o un plan con rulesets, igual que el de `main`, ver `docs/security.md`). Sin esto, cualquiera con permiso de escritura (o un token con `contents: write`) podría empujar a `production` cualquier commit, incluso uno que no está en `main`, y Railway lo desplegaría. El ruleset versionado `.github/rulesets/production.json` no deja a nadie crear ni actualizar la rama (`creation`, `update`) salvo a la deploy key, prohíbe borrarla y el force push, y exige el check `ci` en verde en el commit, también al crearla (`do_not_enforce_on_create: false`). La deploy key saltea las reglas, así que lo que verifica `promote.sh` (commit de `main`, `ci` en verde, fast-forward) lo hace el código de `main`, el único que recibe la llave:
+
+  ```sh
+  gh api -X POST repos/mgiachetti/sport-performance/rulesets --input .github/rulesets/production.json
+  # Después de cambiar el archivo:
+  id=$(gh api repos/mgiachetti/sport-performance/rulesets --jq '.[] | select(.name == "production") | .id')
+  gh api -X PUT "repos/mgiachetti/sport-performance/rulesets/$id" --input .github/rulesets/production.json
+  ```
+
+- **Migraciones:** van hacia adelante y corren en el pre-deploy de la API, antes de que la API nueva tome tráfico y mientras la vieja todavía atiende. **El worker no espera ese pre-deploy:** Railway despliega `api` y `worker` en paralelo, así que el worker nuevo puede arrancar contra el esquema viejo, y el viejo seguir corriendo contra el nuevo. Por eso cada migración es compatible en los dos sentidos (*expand/contract*): un deploy **expande** (tablas, columnas nullables o con default, funciones nuevas) sin que el código la use todavía; el código que la usa va en un deploy posterior; lo que se deja de usar se **contrae** (se borra o restringe) en un tercero. Una migración y el primer código del worker que la necesita nunca van en la misma promoción a producción (en staging, si pasa, el worker falla y Railway lo reinicia hasta que la migración está).
 
 ## 8. Volver atrás
 
@@ -174,7 +196,9 @@ Todo cambio es un PR sobre `.railway/railway.ts` (los tests de `.railway` corren
 
 - [ ] Revisión legal de residencia de datos y acuerdos de tratamiento (Railway, Resend, Sentry).
 - [ ] `railway config plan` de `production` sin cambios pendientes.
-- [ ] Ruleset `production` aplicado (`gh api repos/mgiachetti/sport-performance/rulesets` lo lista) y ambiente `production` de GitHub limitado a `main` (paso 7).
+- [ ] Ruleset `production` aplicado (`gh api repos/mgiachetti/sport-performance/rulesets` lo lista), ambiente `production` de GitHub limitado a `main` con el secreto `PRODUCTION_DEPLOY_KEY`, y una sola deploy key con escritura (paso 7).
+- [ ] Imagen `POSTGRES_IMAGE` verificada en ghcr.io (paso 0).
+- [ ] Ingreso a la web con un código de email y la sesión sigue abierta al recargar (proxy `/v1/*` de la web, paso 6).
 - [ ] Secretos de `production` cargados, sellados y distintos de los de staging.
 - [ ] Postgres de production en HA con PITR activo y backups programados; restauración de prueba hecha (B-702).
 - [ ] CORS del bucket aplicado y una subida de escudo probada desde la web.
