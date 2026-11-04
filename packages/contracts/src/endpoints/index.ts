@@ -263,6 +263,7 @@ import {
   reviewPainReport,
   submitPainReport,
 } from './pain-reports.js';
+import { getMenarche, reportMenarche } from './menarche.js';
 import {
   addTestResultEntries,
   createTestResult,
@@ -340,6 +341,7 @@ export * from './training.js';
 export * from './session-roster.js';
 export * from './wellness.js';
 export * from './pain-reports.js';
+export * from './menarche.js';
 export * from './external-loads.js';
 export * from './kiosk.js';
 export * from './tests.js';
@@ -428,6 +430,8 @@ export const apiEndpoints = {
   cancelSeasonRollover,
   getPlayerParentHeights,
   setPlayerParentHeight,
+  getMenarche,
+  reportMenarche,
   listSeasons,
   getSeason,
   createSeason,

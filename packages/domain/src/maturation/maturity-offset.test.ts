@@ -180,3 +180,42 @@ describe('MATURITY_OFFSET_MODELS', () => {
     expect(() => parseMaturityOffsetEquation('mirwald')).toThrow(DomainValidationError);
   });
 });
+
+describe('female equations at hockey ages (B-805)', () => {
+  // An M15/M16 girl: E = 15, T = 160, TS = 84 (LP = 76), P = 52.
+  const m15 = { ageYears: 15, heightCm: 160, sittingHeightCm: 84, weightKg: 52 } as const;
+
+  it('Mirwald 2002, term by term: LP·TS 6384, E·LP 1140, E·TS 1260, E·P 780, P/T·100 32.5', () => {
+    const r = maturityOffset({ sex: 'female', equation: 'mirwald_2002', ...m15 });
+    expect(r.maturityOffsetYears).toBeCloseTo(
+      -9.376 + 0.0001882 * 6384 + 0.0022 * 1140 + 0.005841 * 1260 - 0.002658 * 780 + 0.07693 * 32.5,
+      12,
+    );
+    expect(r.maturityOffsetYears).toBeCloseTo(2.1201138, 7);
+    expect(r.warnings).toEqual([]);
+  });
+
+  it('Moore 2015: E·T 2400', () => {
+    const r = maturityOffset({ sex: 'female', equation: 'moore_2015', ...m15 });
+    expect(r.maturityOffsetYears).toBeCloseTo(2.426547, 7);
+    expect(r.ageAtPhvYears).toBeCloseTo(15 - 2.426547, 7);
+  });
+
+  it('M17/M19 girls are outside both development samples: the offset comes with a warning', () => {
+    const m19 = { ageYears: 18, heightCm: 163, sittingHeightCm: 86, weightKg: 58 } as const;
+    const moore = maturityOffset({ sex: 'female', equation: 'moore_2015', ...m19 });
+    expect(moore.maturityOffsetYears).toBeCloseTo(4.6817358, 7);
+    expect(moore.warnings).toEqual(['age_outside_development_sample']);
+    expect(
+      maturityOffset({ sex: 'female', equation: 'mirwald_2002', ...m19, ageYears: 16.1 }).warnings,
+    ).toEqual(['age_outside_development_sample']);
+  });
+
+  it('the female models record their validation in independent samples, still pending the paper', () => {
+    for (const model of MATURITY_OFFSET_MODELS.filter((m) => m.sex === 'female')) {
+      expect(model.provenance.verificationNotes).toContain('Malina & Kozieł 2014');
+      expect(model.provenance.verificationNotes).toContain('Pending');
+      expect(model.provenance.verification).not.toBe('verified_against_publication');
+    }
+  });
+});

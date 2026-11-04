@@ -17609,6 +17609,209 @@
         }
       }
     },
+    "/v1/players/{playerId}/menarche": {
+      "get": {
+        "operationId": "getMenarche",
+        "summary": "Menarca de una jugadora",
+        "description": "La jugadora, su tutor mientras es menor y el staff médico asignado, todos con consentimiento de salud vigente; nadie más (`forbidden`). Solo para jugadoras (`conflict` si no). Cada lectura queda en el registro de accesos a datos de salud.",
+        "tags": [
+          "players"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "El registro de menarca.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenarcheRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden.consent_required"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error.conflict"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "reportMenarche",
+        "summary": "Informar la menarca",
+        "description": "Opcional. La jugadora o su tutor mientras es menor (consentimientos de datos y de salud) o el staff médico asignado (salud), con el módulo `maturation` del club prendido. Solo para jugadoras (`conflict` si no). `occurred` lleva fecha y precisión (la fecha se trunca a la precisión), no posterior a hoy y con una edad plausible; `not_yet` no lleva fecha y vale al día de hoy. Nunca se edita: un reporte nuevo reemplaza al anterior. Idempotente por `clientUuid`.",
+        "tags": [
+          "players"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "path",
+            "required": true,
+            "description": "Id de jugador/a (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientUuid": {
+                    "$ref": "#/components/schemas/ClientUuid"
+                  },
+                  "status": {
+                    "$ref": "#/components/schemas/MenarcheStatus"
+                  },
+                  "occurredOn": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                        "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                        "examples": [
+                          "2026-11-01"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "precision": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/MenarcheDatePrecision"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Reporte registrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MenarcheReport"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden.consent_required"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error.conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
     "/v1/players/{playerId}/parent-heights": {
       "get": {
         "operationId": "getPlayerParentHeights",
@@ -35680,6 +35883,263 @@
           "ended"
         ],
         "description": "`active`: la membresía está vigente; `ended`: terminó (`endedAt`)."
+      },
+      "MenarcheDatePrecision": {
+        "type": "string",
+        "enum": [
+          "day",
+          "month",
+          "year"
+        ],
+        "description": "Qué tan precisa es la fecha: `day`, `month` (se guarda el primer día del mes) o `year` (el 1 de enero). Los cálculos usan el medio del período."
+      },
+      "MenarcheOffsetCheck": {
+        "type": "object",
+        "properties": {
+          "measuredOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Día de la última antropometría con offset de maduración.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "phvOffsetYears": {
+            "type": "number",
+            "description": "Offset somático de ese día (años desde el PHV)."
+          },
+          "maturityOffsetEquation": {
+            "type": "string",
+            "enum": [
+              "mirwald_2002",
+              "moore_2015",
+              "moore_2015_height"
+            ]
+          },
+          "impliedPhvOffsetYears": {
+            "description": "Offset que implica la menarca con el intervalo medio PHV → menarca (solo con `occurred`).",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "impliedMinPhvOffsetYears": {
+            "description": "Cota inferior del offset según la menarca; `null` sin cota.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "impliedMaxPhvOffsetYears": {
+            "description": "Cota superior del offset según la menarca.",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "consistent",
+              "offset_below_reference",
+              "offset_above_reference"
+            ],
+            "description": "`consistent`; `offset_below_reference`: la ecuación la da menos madura de lo que permite la menarca (típico de una maduradora temprana); `offset_above_reference`: más madura (típico de una tardía). Nunca un diagnóstico."
+          },
+          "referenceVerification": {
+            "type": "string",
+            "enum": [
+              "verified_against_publication",
+              "cross_checked_secondary_sources",
+              "unverified"
+            ],
+            "description": "Estado de verificación de la referencia PHV → menarca contra sus fuentes; todo lo que no sea `verified_against_publication` se muestra con aviso."
+          }
+        },
+        "required": [
+          "measuredOn",
+          "phvOffsetYears",
+          "maturityOffsetEquation",
+          "impliedPhvOffsetYears",
+          "impliedMinPhvOffsetYears",
+          "impliedMaxPhvOffsetYears",
+          "verdict",
+          "referenceVerification"
+        ]
+      },
+      "MenarcheRecord": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "canReport": {
+            "type": "boolean",
+            "description": "Si quien consulta puede informar la menarca ahora (rol, consentimientos de datos y salud y módulo `maturation` del club)."
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MenarcheReport"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "El último reporte: el que vale."
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MenarcheReport"
+            },
+            "description": "Los reportes, del más nuevo al más viejo (hasta 20)."
+          },
+          "offsetCheck": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MenarcheOffsetCheck"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "El último offset somático contra la menarca; `null` sin reporte, sin offset, con el módulo `maturation` apagado o si quien consulta no lee la antropometría (el tutor)."
+          }
+        },
+        "required": [
+          "playerId",
+          "canReport",
+          "latest",
+          "history",
+          "offsetCheck"
+        ]
+      },
+      "MenarcheReport": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de reporte de menarca (UUID, RFC 9562)."
+          },
+          "clientUuid": {
+            "$ref": "#/components/schemas/ClientUuid"
+          },
+          "playerId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de jugador/a (UUID, RFC 9562)."
+          },
+          "status": {
+            "$ref": "#/components/schemas/MenarcheStatus"
+          },
+          "occurredOn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+                "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+                "examples": [
+                  "2026-11-01"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fecha, truncada a su precisión; `null` con `not_yet`."
+          },
+          "precision": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MenarcheDatePrecision"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reportedOn": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Día del club del reporte: el \"al día de\" de `not_yet`.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "reportedBy": {
+            "$ref": "#/components/schemas/MenarcheReporter"
+          },
+          "reportedByUserId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de usuario (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Usuario que lo informó; `null` si borró su cuenta."
+          },
+          "reportedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "ageAtMenarcheYears": {
+            "description": "Edad decimal a la menarca (medio del período), con `occurred`.",
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "clientUuid",
+          "playerId",
+          "status",
+          "occurredOn",
+          "precision",
+          "reportedOn",
+          "reportedBy",
+          "reportedByUserId",
+          "reportedAt",
+          "ageAtMenarcheYears"
+        ]
+      },
+      "MenarcheReporter": {
+        "type": "string",
+        "enum": [
+          "player",
+          "parent",
+          "medical"
+        ],
+        "description": "Quién lo informó: la jugadora (`player`), su tutor (`parent`) o el staff médico."
+      },
+      "MenarcheStatus": {
+        "type": "string",
+        "enum": [
+          "not_yet",
+          "occurred"
+        ],
+        "description": "`not_yet`: todavía no, al día del reporte; `occurred`: ya ocurrió, en `occurredOn` con su precisión."
       },
       "MetricDirection": {
         "type": "string",

@@ -79,6 +79,8 @@ describe('@sport-performance/contracts entry point', () => {
       'cancelSeasonRollover',
       'getPlayerParentHeights',
       'setPlayerParentHeight',
+      'getMenarche',
+      'reportMenarche',
       'listSeasons',
       'getSeason',
       'createSeason',

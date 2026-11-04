@@ -330,6 +330,13 @@
       "when": 1793807104704,
       "tag": "0046_female_defaults",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1793810033471,
+      "tag": "0047_menarche",
+      "breakpoints": true
     }
   ]
 }
