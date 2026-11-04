@@ -233,6 +233,25 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
     read: { ...administration, player: self, coach: assigned, sc: assigned },
     manage: { ...administration, sc: assigned },
   },
+  // The player logs their own sets (principle 5) and the S&C staff theirs; the coach reads
+  // them. The technique score is the staff's: the endpoint refuses it from the player.
+  gym_set: {
+    read: { ...administration, player: self, coach: assigned, sc: assigned },
+    log: {
+      ...nobody,
+      player: allow('self', 'data'),
+      sc: allow('assigned', 'data'),
+      admin: allow('club', 'data'),
+      superadmin: allow('club', 'data'),
+    },
+    correct: {
+      ...nobody,
+      player: allow('self', 'data'),
+      sc: allow('assigned', 'data'),
+      admin: allow('club', 'data'),
+      superadmin: allow('club', 'data'),
+    },
+  },
   load_metrics: {
     read: ownAndStaffRead,
   },

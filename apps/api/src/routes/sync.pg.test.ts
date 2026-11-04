@@ -927,7 +927,13 @@ describeWithPostgres('offline sync (Postgres)', (serverUrl) => {
         new Set(['wellness', 'participation', 'test_result']),
       );
       const page = await pullOk(player15);
-      expect(page.collections).toEqual(['wellness', 'participation', 'test_result']);
+      expect(page.collections).toEqual([
+        'wellness',
+        'participation',
+        'test_result',
+        'gym_program',
+        'gym_set',
+      ]);
 
       const coach = await pullAll(coachM15);
       expect(new Set(coach.items.map((i) => i.collection))).toEqual(
@@ -947,7 +953,7 @@ describeWithPostgres('offline sync (Postgres)', (serverUrl) => {
     it('filters by the collections asked for', async () => {
       const only = await pullAll(adminA, { collections: 'training_session' });
       expect(only.items.map((i) => i.collection)).toEqual(['training_session']);
-      const bad = await pull(adminA, '?collections=gym_set');
+      const bad = await pull(adminA, '?collections=gym_sets');
       expect(bad.statusCode).toBe(400);
     });
 

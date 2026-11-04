@@ -1,6 +1,21 @@
 import type { EndpointCatalog } from '../endpoint.js';
 import { getAlert, listAlerts, reviewAlert } from './alerts.js';
 import { getWeeklyPanel } from './panel.js';
+import {
+  archiveGymProgram,
+  correctGymSet,
+  createGymProgram,
+  getGymProgram,
+  getGymSet,
+  getPlayerGymPrograms,
+  getPlayerGymSummary,
+  listGymPrograms,
+  listGymSets,
+  logGymSets,
+  restoreGymProgram,
+  updateGymProgram,
+  voidGymSet,
+} from './gym.js';
 import { getTrainingSessionFieldMetrics, listFieldSessions } from './field-sessions.js';
 import {
   getAnthroMeasurement,
@@ -274,6 +289,7 @@ export * from './configuration-common.js';
 export * from './configuration-modules.js';
 export * from './configuration-speed-zones.js';
 export * from './guardians.js';
+export * from './gym.js';
 export * from './consents.js';
 export * from './field-sessions.js';
 export * from './files.js';
@@ -536,6 +552,19 @@ export const apiEndpoints = {
   listClubDataExports,
   getClubDataExport,
   getClubDataExportDownload,
+  listGymPrograms,
+  getGymProgram,
+  createGymProgram,
+  updateGymProgram,
+  archiveGymProgram,
+  restoreGymProgram,
+  getPlayerGymPrograms,
+  logGymSets,
+  correctGymSet,
+  voidGymSet,
+  listGymSets,
+  getGymSet,
+  getPlayerGymSummary,
 } as const satisfies EndpointCatalog;
 
 export type ApiEndpoints = typeof apiEndpoints;

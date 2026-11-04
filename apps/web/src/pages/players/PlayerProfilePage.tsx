@@ -1,5 +1,6 @@
 import { ApiError, type AlertDto, type Player } from '@sport-performance/contracts';
 import {
+  CONSENT_TYPES,
   decimalAgeYears,
   isOfAge,
   localDateInTimeZone,
@@ -15,6 +16,7 @@ import { useActiveClub } from '../../club/active-club';
 import { useT } from '../../i18n/i18n';
 import { useCan } from '../../permissions/permissions';
 import { ErrorNotice, Loading, Notice, Page } from '../../ui/components';
+import { GymSection } from '../../gym/GymSection';
 import { humanizeCode } from './format';
 import {
   availabilityQuery,
@@ -129,6 +131,9 @@ function ProfileBody(props: { player: Player }) {
     percentiles: useCan('percentile', 'read', target),
     load: readsLoad && readsWellness,
     alerts: useCan('alert', 'read', target),
+    gym: useCan('gym_set', 'read', target),
+    // The consent of each player is the API's to check: here, whether the role logs sets at all.
+    logGym: useCan('gym_set', 'log', { player: { ...facts, consents: [...CONSENT_TYPES] } }),
   };
 
   const alertsQuery = useQuery({
@@ -213,6 +218,7 @@ function ProfileBody(props: { player: Player }) {
           allowed={can.load}
           acwrAlert={activeAlert(['acwr_high', 'acwr_low'])}
         />
+        <GymSection playerId={player.id} playerName={name} allowed={can.gym} canLog={can.logGym} />
         <AlertsSection
           allowed={can.alerts}
           alerts={{ data: alerts, error: alertsQuery.error, pending: alertsQuery.isPending }}

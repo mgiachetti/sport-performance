@@ -1,4 +1,6 @@
 import type {
+  GymProgram,
+  GymSet,
   Participation,
   SyncChange,
   SyncOperationInput,
@@ -21,6 +23,8 @@ export interface CollectionData {
   readonly training_session: TrainingSession;
   readonly test_session: TestSession;
   readonly test_result: TestResult;
+  readonly gym_program: GymProgram;
+  readonly gym_set: GymSet;
 }
 
 interface IndexColumns {
@@ -61,6 +65,18 @@ const INDEX_COLUMNS: { readonly [C in SyncCollection]: (data: CollectionData[C])
       parentId: row.testSessionId,
       categoryId: null,
       localDate: row.measuredOn,
+    }),
+    gym_program: (row) => ({
+      playerId: row.playerId,
+      parentId: null,
+      categoryId: row.categoryId,
+      localDate: row.validFrom,
+    }),
+    gym_set: (row) => ({
+      playerId: row.playerId,
+      parentId: row.gymProgramId,
+      categoryId: null,
+      localDate: row.performedOn,
     }),
   };
 

@@ -274,6 +274,13 @@
       "when": 1793736067284,
       "tag": "0038_category_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1793756685735,
+      "tag": "0039_gym",
+      "breakpoints": true
     }
   ]
 }

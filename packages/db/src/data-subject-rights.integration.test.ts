@@ -382,8 +382,8 @@ describe.skipIf(!hasDatabase)('rights of the data subject (Postgres 16)', () => 
       expect(
         await pgErrorOf(
           t.pool.query(
-            `insert into gym_set (club_id, player_id, gym_program_id, performed_on, exercise_code, set_number, reps)
-             values ($1, $2, $3, '2026-03-01', 'goblet_squat', 1, 5)`,
+            `insert into gym_set (club_id, player_id, gym_program_id, performed_on, exercise_code, load_kind, set_number, reps)
+             values ($1, $2, $3, '2026-03-01', 'push_up', 'bodyweight', 1, 5)`,
             [d.clubId, d.players.other, program],
           ),
         ),
@@ -392,8 +392,8 @@ describe.skipIf(!hasDatabase)('rights of the data subject (Postgres 16)', () => 
       // with a clear error and erases nothing, instead of deleting another player's set.
       await t.pool.query(`alter table gym_set disable trigger gym_set_program_guard`);
       await t.pool.query(
-        `insert into gym_set (club_id, player_id, gym_program_id, performed_on, exercise_code, set_number, reps)
-         values ($1, $2, $3, '2026-03-01', 'goblet_squat', 1, 5)`,
+        `insert into gym_set (club_id, player_id, gym_program_id, performed_on, exercise_code, load_kind, set_number, reps)
+         values ($1, $2, $3, '2026-03-01', 'push_up', 'bodyweight', 1, 5)`,
         [d.clubId, d.players.other, program],
       );
       await t.pool.query(`alter table gym_set enable trigger gym_set_program_guard`);

@@ -728,8 +728,11 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         gymProgramId: rows.gym_program,
         performedOn: day('2026-03-11'),
         exerciseCode: 'goblet_squat',
+        loadKind: 'external',
         setNumber: 1,
         reps: 8,
+        loadKg: 16,
+        rir: 3,
       })
       .returning({ id: gymSet.id }),
   );

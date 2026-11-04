@@ -673,6 +673,13 @@ const gymSets: DatasetDefinition = {
       type: 'code',
       description: 'Código del ejercicio (`goblet_squat`).',
     },
+    {
+      key: 'load_kind',
+      header: 'tipo_de_carga',
+      type: 'code',
+      description:
+        'Cómo se cuenta la carga: `external` (kg de la carga), `bodyweight` (peso corporal o palo) o `bodyweight_plus` (kg de lastre).',
+    },
     { key: 'set_number', header: 'serie', type: 'integer', description: 'Número de serie.' },
     {
       key: 'reps',
@@ -687,7 +694,7 @@ const gymSets: DatasetDefinition = {
       type: 'decimal',
       decimals: 2,
       unit: 'kg',
-      description: 'Carga.',
+      description: 'Carga (los kg de lastre en `bodyweight_plus`).',
     },
     {
       key: 'rir',
@@ -712,13 +719,15 @@ const gymSets: DatasetDefinition = {
     { key: 'notes', header: 'notas', type: 'text', description: 'Notas.' },
   ],
   query: `select x.player_id, p.last_name, p.first_name, x.performed_on::text as performed_on,
-       g.name as program, x.exercise_code, x.set_number, x.reps, x.load_kg, x.rir,
+       g.name as program, x.exercise_code, x.load_kind::text as load_kind, x.set_number, x.reps,
+       x.load_kg, x.rir,
        x.technique_score, x.duration_s, x.notes
   from gym_set x
   cross join args a
   ${PLAYER_JOIN}
   left join gym_program g on g.club_id = x.club_id and g.id = x.gym_program_id
  where x.club_id = app.current_club_id() and x.player_id = any (a.players)
+   and x.voided_at is null
    and ${inRange('x.performed_on')}
  order by x.performed_on, p.last_name, p.first_name, x.player_id, x.exercise_code, x.set_number,
           x.id`,

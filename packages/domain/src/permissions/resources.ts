@@ -81,8 +81,17 @@ export const PERMISSION_RESOURCES = {
   test_result: { target: 'player', medical: false, actions: ['read', 'record', 'correct'] },
   /** Anthropometry and the maturation derived from it. */
   anthropometry: { target: 'player', medical: false, actions: ['read', 'record'] },
-  /** Gym routines. */
+  /**
+   * Gym programs by stage (B-607, ADR 0075): for a category (and optionally a
+   * stage) or for one player. The request passes the player the program is
+   * for, or a player of its category.
+   */
   gym_program: { target: 'player', medical: false, actions: ['read', 'manage'] },
+  /**
+   * Gym sets a player performed (B-607): `log` loads new ones, `correct`
+   * edits or voids one already loaded (with a reason in the history).
+   */
+  gym_set: { target: 'player', medical: false, actions: ['read', 'log', 'correct'] },
   /** Derived load: sRPE, EWMA, ACWR, monotony, strain, field metrics. */
   load_metrics: { target: 'player', medical: false, actions: ['read'] },
   /** Load alerts of a player. */

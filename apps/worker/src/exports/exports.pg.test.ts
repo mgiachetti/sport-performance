@@ -312,8 +312,8 @@ describe.skipIf(!hasServices)('CSV export job (Postgres 16 + MinIO)', () => {
       [clubId, included, session.id, dist.id],
     );
     await owner.query(
-      `insert into gym_set (club_id, player_id, performed_on, exercise_code, set_number, reps, load_kg, rir)
-       values ($1, $2, '2026-03-14', 'goblet_squat', 1, 5, 20.5, 2)`,
+      `insert into gym_set (club_id, player_id, performed_on, exercise_code, load_kind, set_number, reps, load_kg, rir)
+       values ($1, $2, '2026-03-14', 'goblet_squat', 'external', 1, 5, 20.5, 2)`,
       [clubId, included],
     );
   });
@@ -444,7 +444,11 @@ describe.skipIf(!hasServices)('CSV export job (Postgres 16 + MinIO)', () => {
       metrica: 'dist_m',
       valor: '5234,5',
     });
-    expect(records(files, 'gimnasio.csv')[0]).toMatchObject({ carga_kg: '20,5', rir: '2' });
+    expect(records(files, 'gimnasio.csv')[0]).toMatchObject({
+      tipo_de_carga: 'external',
+      carga_kg: '20,5',
+      rir: '2',
+    });
     expect(records(files, 'metricas.csv').some((m) => m.codigo === 'dist_m')).toBe(true);
     expect(allText).not.toContain('PlayerLoad;');
 

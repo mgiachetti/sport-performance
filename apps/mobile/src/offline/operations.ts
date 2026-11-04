@@ -179,6 +179,29 @@ export const OPERATION_SPECS: { readonly [Op in SyncOperation]: OperationSpec<Op
     targets: ({ target }) => [toTarget('test_result', target)],
     clientUuidPaths: none,
   },
+  'gym_set.log': {
+    kind: 'create',
+    targets: ({ body }) =>
+      body.sets.map((set) => ({
+        collection: 'gym_set',
+        ...(set.clientUuid !== undefined && { clientUuid: set.clientUuid }),
+      })),
+    clientUuidPaths: ({ body }) =>
+      body.sets.map((set, index) => ({
+        path: ['body', 'sets', index, 'clientUuid'],
+        value: set.clientUuid,
+      })),
+  },
+  'gym_set.correct': {
+    kind: 'edit',
+    targets: ({ target }) => [toTarget('gym_set', target)],
+    clientUuidPaths: none,
+  },
+  'gym_set.void': {
+    kind: 'append',
+    targets: ({ target }) => [toTarget('gym_set', target)],
+    clientUuidPaths: none,
+  },
 };
 
 export interface PreparedMutation<Op extends SyncOperation = SyncOperation> {

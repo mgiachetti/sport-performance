@@ -11,6 +11,8 @@ export const SYNC_COLLECTIONS = [
   'training_session',
   'test_session',
   'test_result',
+  'gym_program',
+  'gym_set',
 ] as const;
 export type SyncCollection = (typeof SYNC_COLLECTIONS)[number];
 
@@ -42,6 +44,7 @@ export const SYNC_FIELD_COLUMNS = {
     'conditions',
     'notes',
   ],
+  gym_set: ['reps', 'load_kg', 'rir', 'technique_score', 'duration_s', 'notes'],
 } as const satisfies Partial<Record<SyncCollection, readonly string[]>>;
 
 export type SyncFieldTable = keyof typeof SYNC_FIELD_COLUMNS;
@@ -63,6 +66,9 @@ export const SYNC_OPERATIONS = [
   'test_result.update',
   'test_result.add_entries',
   'test_result.void_entries',
+  'gym_set.log',
+  'gym_set.correct',
+  'gym_set.void',
 ] as const;
 export type SyncOperation = (typeof SYNC_OPERATIONS)[number];
 

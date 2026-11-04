@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import type { SyncChange } from '@sport-performance/contracts';
 import {
   category,
+  gymProgram,
+  gymSet,
   participation,
   playerCategory,
   syncChange,
@@ -36,6 +38,17 @@ import {
   sessionDto,
 } from '../routes/training-shared.js';
 import { wellnessColumns, wellnessDto } from '../routes/wellness.js';
+import {
+  appliesTo,
+  assignedPrograms,
+  gymProgramColumns,
+  gymProgramDto,
+  gymSetColumns,
+  gymSetDtos,
+  playerDayOf,
+  type PlayerDay,
+} from '../routes/gym/model.js';
+import { loadStageSources } from '../routes/tests/model.js';
 
 /**
  * The pull of the offline sync (B-323, ADR 0050): the rows of the synced
@@ -51,6 +64,8 @@ const READ_KIND = {
   training_session: 'training_session',
   test_session: 'test_session',
   test_result: 'test_result',
+  gym_program: 'gym_program',
+  gym_set: 'gym_set',
 } as const satisfies Record<SyncCollection, ResourceKind>;
 
 type Scope = Exclude<ListScope, { kind: 'none' } | { kind: 'platform' }>;
@@ -154,15 +169,44 @@ export function decodePullCursor(
  * the view by a change of its own (a session moved to another category) is
  * not a reset: the log keeps an entry for the scope it left (ADR 0050).
  */
+export interface PullView {
+  readonly fingerprint: string;
+  /** The club day the pull is read on. */
+  readonly today: LocalDate;
+  /**
+   * With a players scope of `gym_program`, the day of each player (categories and stage),
+   * read once for the fingerprint and reused by the page to filter programs.
+   */
+  readonly programDays: readonly PlayerDay[] | null;
+}
+
 export async function pullFingerprint(
   db: TenantDatabase,
   subject: PermissionSubject,
   scopes: ReadonlyMap<SyncCollection, Scope>,
-): Promise<string> {
+): Promise<PullView> {
+  const today = await clubToday(db);
   const { rows } = await db.execute<{ ids: string[] | null; categories: string[] | null }>(
     sql`select coalesce((select array_agg(v order by v) from unnest(app.visible_player_ids()) v), '{}')::text[] as ids,
                coalesce((select array_agg(v order by v) from unnest(app.assigned_category_ids()) v), '{}')::text[] as categories`,
   );
+  // Which category programs reach a player follows their categories and stage today: a
+  // change of either can bring or take programs without a change in the log.
+  const programScope = scopes.get('gym_program');
+  let programDays: PlayerDay[] | null = null;
+  if (programScope?.kind === 'players') {
+    if (subject.clubId === null) throw new Error('pull: a players scope outside a club');
+    const sources = await loadStageSources(db, subject.clubId, programScope.playerIds);
+    programDays = programScope.playerIds.map((id) => playerDayOf(sources, id, today));
+  }
+  const playerDays =
+    programDays?.map((day) => [
+      day.playerId,
+      day.categories
+        .map((c) => [c.id, c.stage, c.stageLessApplies] as const)
+        .sort(([a], [b]) => (a < b ? -1 : 1)),
+      day.stage,
+    ]) ?? null;
   const scopeKeys = [...scopes.entries()]
     .sort(([a], [b]) => (a < b ? -1 : 1))
     .map(([collection, scope]) => [
@@ -171,7 +215,7 @@ export async function pullFingerprint(
       scope.kind === 'assigned' ? [[...scope.categoryIds].sort(), [...scope.sports].sort()] : null,
       scope.kind === 'players' ? [...scope.playerIds].sort() : null,
     ]);
-  return createHash('sha256')
+  const fingerprint = createHash('sha256')
     .update(
       JSON.stringify([
         subject.userId,
@@ -180,10 +224,12 @@ export async function pullFingerprint(
         scopeKeys,
         rows[0]?.ids ?? [],
         rows[0]?.categories ?? [],
+        ...(playerDays === null ? [] : [playerDays]),
       ]),
     )
     .digest('base64url')
     .slice(0, 22);
+  return { fingerprint, today, programDays };
 }
 
 // ─── Scope filters ───────────────────────────────────────────────────────────────────
@@ -286,6 +332,7 @@ interface LoadContext {
   readonly db: TenantDatabase;
   readonly clubId: ClubId;
   readonly today: LocalDate;
+  readonly programDays: readonly PlayerDay[] | null;
 }
 
 /** The visible rows of `ids`, as upserts, by id. */
@@ -295,7 +342,7 @@ async function loadRows(
   scope: Scope,
   ids: readonly string[],
 ): Promise<Map<string, Upsert>> {
-  const { db, clubId, today } = ctx;
+  const { db, clubId, today, programDays } = ctx;
   const out = new Map<string, Upsert>();
   switch (collection) {
     case 'wellness': {
@@ -410,6 +457,72 @@ async function loadRows(
       });
       return out;
     }
+    case 'gym_program': {
+      let filter: SQL | undefined;
+      switch (scope.kind) {
+        case 'club':
+          filter = undefined;
+          break;
+        case 'assigned':
+          filter = assignedPrograms(today, scope.categoryIds, scope.sports);
+          break;
+        case 'players': {
+          if (programDays === null) throw new Error('pull: the program days were not read');
+          const days = programDays.map((day) => appliesTo(day));
+          filter = days.length === 0 ? sql`false` : sql`(${sql.join(days, sql` or `)})`;
+          break;
+        }
+      }
+      // An archived or ended program (`valid_to` is exclusive) leaves the phone (a delete):
+      // it no longer applies. One that ends with no change in the log stays until its next
+      // change or a reset; the app shows only those in force that day. A future one is
+      // pulled: it comes into force with no change in the log.
+      const rows = await db
+        .select(gymProgramColumns)
+        .from(gymProgram)
+        .where(
+          and(
+            eq(gymProgram.clubId, clubId),
+            inArray(gymProgram.id, [...ids]),
+            sql`${gymProgram.archivedAt} is null`,
+            sql`(${gymProgram.validTo} is null or ${gymProgram.validTo} > ${today})`,
+            filter,
+          ),
+        );
+      for (const row of rows) {
+        out.set(row.id, {
+          collection,
+          op: 'upsert',
+          id: row.id,
+          clientUuid: row.clientUuid,
+          data: gymProgramDto(row),
+        } as Upsert);
+      }
+      return out;
+    }
+    case 'gym_set': {
+      const rows = await db
+        .select(gymSetColumns)
+        .from(gymSet)
+        .where(
+          and(
+            eq(gymSet.clubId, clubId),
+            inArray(gymSet.id, [...ids]),
+            playerScope(scope, gymSet.clubId, gymSet.playerId, today),
+          ),
+        );
+      const dtos = await gymSetDtos(db, clubId, rows);
+      rows.forEach((row, index) => {
+        out.set(row.id, {
+          collection,
+          op: 'upsert',
+          id: row.id,
+          clientUuid: row.clientUuid,
+          data: dtos[index],
+        } as Upsert);
+      });
+      return out;
+    }
   }
 }
 
@@ -429,6 +542,7 @@ export async function pullPage(
   db: TenantDatabase,
   clubId: ClubId,
   scopes: ReadonlyMap<SyncCollection, Scope>,
+  view: Pick<PullView, 'today' | 'programDays'>,
   at: PullPosition,
   limit: number,
 ): Promise<PullPage> {
@@ -470,7 +584,7 @@ export async function pullPage(
     const scope = scopes.get(entry.collection);
     return scope !== undefined && seesSessionEntry(scope, entry.categoryId, entry.sport);
   });
-  const ctx: LoadContext = { db, clubId, today: await clubToday(db) };
+  const ctx: LoadContext = { db, clubId, today: view.today, programDays: view.programDays };
   const loaded = new Map<SyncCollection, Map<string, Upsert>>();
   for (const collection of collections) {
     const ids = [
