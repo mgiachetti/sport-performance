@@ -139,7 +139,7 @@ export const PERMISSION_RESOURCES = {
    */
   pain_report: { target: 'player', medical: true, actions: ['read', 'submit', 'review'] },
   /**
-   * Menarche of a girl (B-805, ADR 0087): optional, told by the player, her
+   * Menarche of a girl (B-805, ADR 0089): optional, told by the player, her
    * guardian while she is a minor, or the medical staff (`report`). Read only
    * by them, all with a health consent; it validates the somatic maturity
    * offset and never reaches the rest of the staff.

@@ -31,7 +31,7 @@ import { seedClubFixture, type ClubFixture, type FixtureUser } from './testing/t
 const STAFF_TABLES = ['concussion', 'concussion_stage', 'hold', 'injury', 'note'];
 /** Written by the player (B-609, ADR 0078; `pain-reports.integration.test.ts`). */
 const PAIN_TABLES = ['pain_report', 'pain_report_area'];
-/** Told by the girl, her guardian or the medical staff (B-805, ADR 0087; `menarche.integration.test.ts`). */
+/** Told by the girl, her guardian or the medical staff (B-805, ADR 0089; `menarche.integration.test.ts`). */
 const MENARCHE_TABLES = ['menarche_report'];
 const CLINICAL_TABLES = [...STAFF_TABLES, ...PAIN_TABLES, ...MENARCHE_TABLES].sort();
 const MEDICAL_TABLES = [...CLINICAL_TABLES, 'access_log'].sort();

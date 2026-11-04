@@ -30,7 +30,7 @@ CREATE INDEX "menarche_report_player_idx" ON "medical"."menarche_report" USING b
 --> statement-breakpoint
 
 -- ════════════════════════════════════════════════════════════════════════════════════
--- Hand-written part (B-805, ADR 0087): the menarche of a girl, optional health data in the
+-- Hand-written part (B-805, ADR 0089): the menarche of a girl, optional health data in the
 -- `medical` schema with the rules of ADR 0029:
 --
 --   * The connection roles read nothing of it, not even the id. Reads go through

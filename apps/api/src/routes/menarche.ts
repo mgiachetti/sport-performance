@@ -39,7 +39,7 @@ import { markReplay } from '../http/writes.js';
 import { lockKeys } from '../sync/locks.js';
 
 /**
- * Menarche of a girl (B-805, ADR 0087). Health data in the `medical` schema:
+ * Menarche of a girl (B-805, ADR 0089). Health data in the `medical` schema:
  * plain INSERTs under the RLS of migration `0045_menarche` (column grants,
  * no `RETURNING`), every read through `medical.read_menarche_reports`, which
  * logs it. The record validates the girl's somatic maturity offset for the

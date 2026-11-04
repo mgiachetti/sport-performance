@@ -13,7 +13,7 @@ import {
 import type { CoefficientProvenance } from './provenance.js';
 
 /**
- * Menarche (B-805, ADR 0087): an optional record of a girl's first menstrual
+ * Menarche (B-805, ADR 0089): an optional record of a girl's first menstrual
  * period. It is health data: it lives in the `medical` schema, only the
  * player, the guardian of a minor and the assigned medical staff write or
  * read it, all of them with a current health consent, and the rest of the

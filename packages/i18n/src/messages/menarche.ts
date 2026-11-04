@@ -1,5 +1,5 @@
 /**
- * Vocabulary of the menarche record (B-805, ADR 0087), shared by the screens that show it:
+ * Vocabulary of the menarche record (B-805, ADR 0089), shared by the screens that show it:
  * the player's and her guardian's in the app and the medical staff's (B-410). Health data:
  * these texts never appear on a screen of the coach, the S&C staff or the administration.
  * Merged into the `es-AR` source catalog; same rules as `es-AR.ts`. Keys under `menarche.*`.

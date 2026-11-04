@@ -394,7 +394,7 @@ export const medicalPainReportArea = medicalSchema.table(
 );
 
 /**
- * The menarche of a girl (B-805, ADR 0087), optional: "not yet" as of the
+ * The menarche of a girl (B-805, ADR 0089), optional: "not yet" as of the
  * report day, or the date it happened with its precision (stored truncated
  * to the first day of the month or the year). Told by the player, her
  * guardian while she is a minor, or the assigned medical staff, all with a

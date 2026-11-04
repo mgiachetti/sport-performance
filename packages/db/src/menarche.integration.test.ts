@@ -16,7 +16,7 @@ import {
 import { seedClubFixture, type ClubFixture, type FixtureUser } from './testing/tenant-fixture.js';
 
 /**
- * Menarche of a girl (B-805, ADR 0087) through a real login of the API role:
+ * Menarche of a girl (B-805, ADR 0089) through a real login of the API role:
  * the player, her guardian while she is a minor and the assigned medical
  * staff write it, all with a health consent, append-only, only for girls,
  * on the club's day; every one of them, and nobody else, reads it through

@@ -630,7 +630,7 @@ describe('privacy invariants (independent of the specification)', () => {
         expect(cell.rule).toEqual(allow('self', 'data', 'health'));
         continue;
       }
-      // B-805, ADR 0087: the girl, or her guardian while she is a minor, tells her menarche.
+      // B-805, ADR 0089: the girl, or her guardian while she is a minor, tells her menarche.
       if (key === 'menarche.report') {
         expect(cell.rule).toEqual(
           cell.role === 'player'

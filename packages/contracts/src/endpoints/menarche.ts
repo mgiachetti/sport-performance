@@ -13,7 +13,7 @@ import { dateTimeSchema, localDateSchema } from '../primitives/dates.js';
 import { idOf, playerIdSchema, userIdSchema } from '../primitives/ids.js';
 
 /**
- * Menarche of a girl (B-805, ADR 0087): optional health data in the
+ * Menarche of a girl (B-805, ADR 0089): optional health data in the
  * `medical` schema. The player, her guardian while she is a minor and the
  * assigned medical staff tell it and read it, all of them with a current
  * health consent; the coach, the S&C staff and the administration never do,

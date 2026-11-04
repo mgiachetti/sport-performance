@@ -308,7 +308,7 @@ const painReportAreas: MedicalReader = async (db, playerId, once) =>
   );
 
 /**
- * The menarche reports of a girl (B-805, ADR 0087), all of them: the audited
+ * The menarche reports of a girl (B-805, ADR 0089), all of them: the audited
  * read answers pages of at most 101, newest first, by keyset.
  */
 const menarcheReports: MedicalReader = async (db, playerId) => {
