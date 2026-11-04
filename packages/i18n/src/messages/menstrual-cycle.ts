@@ -63,6 +63,7 @@ export const menstrualCycleMessagesEsAR = {
   'cycle.summary.cycleDay': 'Día {day} de tu ciclo',
   'cycle.summary.lastStart': 'Último período: {date}',
   'cycle.summary.noPeriod': 'Todavía no registraste un período en los últimos 90 días.',
+  'cycle.shared.noPeriod': 'No hay un período registrado en los últimos 90 días.',
   'cycle.summary.lengths':
     '{count, plural, one {Último ciclo: {lengths} días} other {Últimos ciclos: {lengths} días}}',
   'cycle.summary.daysLogged':
@@ -93,6 +94,8 @@ export const menstrualCycleMessagesEsAR = {
   'cycle.shared.column.flow': 'Sangrado',
   'cycle.shared.column.symptoms': 'Síntomas',
   'cycle.shared.column.note': 'Nota',
+  'cycle.shared.cycleDay': 'Día {day} del ciclo',
+  'cycle.shared.lengths': 'Ciclos registrados',
   'cycle.shared.noDays': 'No hay días cargados en este período.',
   'cycle.shared.unavailable':
     'No hay datos para mostrar: la jugadora no te autorizó, desactivó el seguimiento o falta un consentimiento.',
