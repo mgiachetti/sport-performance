@@ -138,6 +138,7 @@ import {
   revokeInvitation,
 } from './invitations.js';
 import { getMe, listMyMemberships } from './me.js';
+import { getMyPlayer, listMyTestDays } from './me-player.js';
 import {
   getPlayerAvailability,
   getPlayerDailyMonitoring,
@@ -146,6 +147,11 @@ import {
   getPlayerTestEvolution,
 } from './player-profile.js';
 import { getPlayerReport, listPlayerReports, requestPlayerReport } from './player-reports.js';
+import {
+  getCategoryReport,
+  listCategoryReports,
+  requestCategoryReport,
+} from './category-reports.js';
 import {
   archiveReferenceValue,
   createReferenceValue,
@@ -284,6 +290,7 @@ export * from './club-data-exports.js';
 export * from './health.js';
 export * from './invitations.js';
 export * from './me.js';
+export * from './me-player.js';
 export * from './notifications.js';
 export * from './reference-values.js';
 export * from './roster-imports.js';
@@ -293,6 +300,7 @@ export * from './staff-assignments.js';
 export * from './players.js';
 export * from './player-profile.js';
 export * from './player-reports.js';
+export * from './category-reports.js';
 export * from './season-rollovers.js';
 export * from './training.js';
 export * from './session-roster.js';
@@ -319,6 +327,8 @@ export const apiEndpoints = {
   signOut,
   getMe,
   listMyMemberships,
+  getMyPlayer,
+  listMyTestDays,
   listMySessions,
   revokeMySession,
   revokeMyOtherSessions,
@@ -534,6 +544,9 @@ export const apiEndpoints = {
   requestPlayerReport,
   listPlayerReports,
   getPlayerReport,
+  requestCategoryReport,
+  listCategoryReports,
+  getCategoryReport,
   createClubDataExport,
   listClubDataExports,
   getClubDataExport,

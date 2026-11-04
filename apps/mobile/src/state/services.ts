@@ -16,7 +16,8 @@ import {
 } from '../reaction/installation.ts';
 import { reopeningLocalDatabase, type LocalDatabase } from '../offline/db/database.ts';
 import { createSyncEngine, type SyncEngine } from '../offline/engine.ts';
-import { bindSyncToSession } from '../offline/session-binding.ts';
+import { createReadCache, type ReadCache } from '../offline/read-cache.ts';
+import { bindSyncToSession, syncScopeOf } from '../offline/session-binding.ts';
 import type { PreferenceStorage, SecureStorage } from '../platform/storage.ts';
 import { createAppTranslator } from '../ui/i18n.tsx';
 import { createCompatibilityChecker, type AppBuildInfo } from '../version/index.ts';
@@ -66,10 +67,12 @@ export interface AppServices {
    * changing club does.
    */
   readonly iftRunner: IftRunner;
-  /** This installation as a measuring device of the club (B-606, ADR 0073). */
+  /** This installation as a measuring device of the club (B-606, ADR 0075). */
   readonly measuringInstallation: MeasuringInstallation;
   readonly hardware: HardwareInfo;
-  /** UUIDs of what the app creates (`clientUuid` of a result and of each attempt). */
+  /** Last answers of the API reads the sync does not move (ADR 0074), in the same database. */
+  readonly readCache: ReadCache;
+  /** Ids generated on the device (`clientUuid` of the writes it queues). */
   readonly randomUUID: () => string;
   readonly reportError: (error: unknown) => void;
   /** Stops listening to the API client (tests; the app lives as long as the process). */
@@ -105,8 +108,11 @@ export function createAppServices(platform: Platform): AppServices {
     }),
   );
   const queryClient = createQueryClient();
+  // One database for the sync and the read cache: an open that failed is
+  // retried for both (ADR 0069).
+  const localDatabase = reopeningLocalDatabase(platform.openLocalDatabase);
   const sync = createSyncEngine({
-    database: reopeningLocalDatabase(platform.openLocalDatabase),
+    database: localDatabase,
     api: api.client,
     randomUUID: platform.randomUUID,
     reportError,
@@ -178,6 +184,9 @@ export function createAppServices(platform: Platform): AppServices {
     iftRunner,
     measuringInstallation: createMeasuringInstallation(platform.secureStorage, platform.randomUUID),
     hardware: platform.hardware,
+    readCache: createReadCache(localDatabase, {
+      activeScope: () => syncScopeOf(session.getState()),
+    }),
     randomUUID: platform.randomUUID,
     reportError,
     dispose() {

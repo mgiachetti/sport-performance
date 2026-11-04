@@ -1,5 +1,5 @@
 /**
- * Measuring devices of the club (B-606, ADR 0073) against Postgres 16,
+ * Measuring devices of the club (B-606, ADR 0075) against Postgres 16,
  * through the real connection roles (ADR 0026): the matrix in the handlers
  * (`device.read` for the staff, `device.manage` for `sc` and the
  * administration), the RLS of `device` behind it, idempotent registration,
@@ -8,7 +8,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import type { ClubId } from '@sport-performance/domain';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, expect, it } from 'vitest';
 import {
   createMembership,
   createTestDatabase,

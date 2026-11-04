@@ -167,19 +167,19 @@ export const syncIssue = sqliteTable(
 );
 
 /**
- * Reads that are not sync collections, kept for using the app offline
- * (ADR 0073): the sheet of a test day, the club's categories and time
- * zone, the settings of a station on this phone. One JSON document per
- * membership and key, replaced whole by the next successful read. Belongs
- * to its membership like every club row: signing out deletes it.
+ * Answers of the API reads that do not travel by the sync (B-503, ADR 0074):
+ * the player's profile, upcoming test days, sessions with their RPE window,
+ * percentiles and consents. The last answer of each read, by membership, so
+ * the screens open without signal; deleted with the membership.
  */
 export const cachedRead = sqliteTable(
   'cached_read',
   {
     membershipId: text('membership_id').notNull(),
+    /** Which read (`me.player`, `me.testDays`…), with its parameters. */
     key: text('key').notNull(),
+    /** The DTO of the endpoint (JSON). */
     data: text('data').notNull(),
-    /** When it was read from the server (or written on the phone). */
     fetchedAt: integer('fetched_at').notNull(),
   },
   (table) => [

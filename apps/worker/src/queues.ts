@@ -31,7 +31,7 @@ export const QUEUES = {
   notificationsClubDead: 'notifications-club-dead',
   /** Every minute: every club's notifications (due times are minutes apart). */
   notificationsSweep: 'notifications-sweep',
-  /** Render the pending PDF reports of one club (B-602, ADR 0069). */
+  /** Render the pending PDF reports of one club, of players and categories (B-602, B-603). */
   playerReportsClub: 'player-reports-club',
   playerReportsClubDead: 'player-reports-club-dead',
   /** Every minute: the clubs with due reports (a lost notification, a retry's backoff). */
@@ -252,7 +252,7 @@ interface WorkerClubRow {
   readonly has_pending_refresh: boolean;
 }
 
-/** The clubs with a pending report that is due (`app.worker_report_clubs()`, B-602). */
+/** The clubs with a pending report that is due (`app.worker_report_clubs()`, B-602, B-603). */
 export async function listReportClubs(pool: pg.Pool): Promise<ClubId[]> {
   const { rows } = await pool.query<{ club_id: ClubId }>(
     'select club_id from app.worker_report_clubs()',

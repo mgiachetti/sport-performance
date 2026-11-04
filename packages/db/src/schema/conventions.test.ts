@@ -49,6 +49,7 @@ describe('schema conventions', () => {
         'auth_rate_limit',
         'battery_config',
         'category',
+        'category_report',
         'change_history',
         'club',
         'club_branch',

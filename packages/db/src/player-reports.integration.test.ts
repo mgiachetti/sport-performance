@@ -200,9 +200,12 @@ describe.skipIf(!hasDatabase)('player reports (Postgres 16)', () => {
         )
       ).rows.map((r) => r.club_id);
     // Nothing due: every pending report waits for a retry.
-    await t.pool.query(
-      `update player_report set next_attempt_at = now() + interval '1 hour' where status = 'pending'`,
-    );
+    // (The category reports of the fixture too: the sweep lists both, ADR 0073.)
+    for (const table of ['player_report', 'category_report']) {
+      await t.pool.query(
+        `update ${table} set next_attempt_at = now() + interval '1 hour' where status = 'pending'`,
+      );
+    }
     expect(await clubs()).toEqual([]);
     await insertAs(as(a, 'admin', 'admin'));
     expect(await clubs()).toEqual([a.clubId]);

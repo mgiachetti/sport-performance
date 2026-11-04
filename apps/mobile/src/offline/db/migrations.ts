@@ -79,7 +79,7 @@ export const LOCAL_MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX sync_issue_scope_idx ON sync_issue (membership_id, id);
   `,
-  // 2. Reads kept for offline use: the sheet of a test day and its context (B-505, ADR 0073).
+  // 2. Cached API reads of the player app (B-503).
   `
   CREATE TABLE cached_read (
     membership_id TEXT NOT NULL,

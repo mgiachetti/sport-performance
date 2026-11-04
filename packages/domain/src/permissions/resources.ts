@@ -45,7 +45,7 @@ export const PERMISSION_RESOURCES = {
   /** Club configuration (B-322): batteries, speed zones, alert rules, first-team references. */
   configuration: { target: 'club', medical: false, actions: ['read', 'update'] },
   /**
-   * Measuring devices of the club (B-606, ADR 0073): the phones and tablets a
+   * Measuring devices of the club (B-606, ADR 0075): the phones and tablets a
    * test is timed on (reaction is compared only on the same one), and the
    * shared hardware of Phase 2. No personal data: the staff reads them,
    * `sc` and the administration register, edit and retire them.
@@ -125,6 +125,13 @@ export const PERMISSION_RESOURCES = {
    * it (`read`).
    */
   player_report: { target: 'player', medical: false, actions: ['read', 'generate'] },
+  /**
+   * The PDF report of a category for a test window (B-603, ADR 0073): the
+   * group's evolution, the battery done and the response rate, aggregates
+   * only. The test staff and the administration ask for it (`generate`); the
+   * staff of the category and the administration read and download it.
+   */
+  category_report: { target: 'category', medical: false, actions: ['read', 'generate'] },
   /**
    * CSV export of the club's data (B-608, ADR 0072): `run` asks for one (the
    * players it covers follow the scope and, row by row, the `data` consent),

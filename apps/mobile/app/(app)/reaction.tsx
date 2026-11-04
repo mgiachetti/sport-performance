@@ -56,7 +56,7 @@ async function readThrough<T>(
 const now = () => performance.now();
 
 /**
- * Reaction test (B-606, ADR 0073): this phone as a registered device of the
+ * Reaction test (B-606, ADR 0075): this phone as a registered device of the
  * club, the staff picks the category and the player, the player runs a
  * simple and a go/no-go series on the phone, and the result goes through
  * the offline queue. The setup and the rosters are cached reads, so the test
@@ -145,8 +145,8 @@ export default function Reaction() {
       if (scope === null || installationId === null) throw new Error('reaction: no scope');
       return readThrough(
         offline,
-        () => refreshReactionSetup(api, services.sync.cache, scope, installationId, signal),
-        () => loadReactionSetup(services.sync.cache, scope.membershipId, installationId),
+        () => refreshReactionSetup(api, services.readCache, scope, installationId, signal),
+        () => loadReactionSetup(services.readCache, scope.membershipId, installationId),
       );
     },
   });
@@ -160,8 +160,8 @@ export default function Reaction() {
       if (scope === null || categoryId === null) throw new Error('reaction: no category');
       return readThrough(
         offline,
-        () => refreshReactionRoster(api, services.sync.cache, scope, categoryId, signal),
-        () => loadReactionRoster(services.sync.cache, scope.membershipId, categoryId),
+        () => refreshReactionRoster(api, services.readCache, scope, categoryId, signal),
+        () => loadReactionRoster(services.readCache, scope.membershipId, categoryId),
       );
     },
   });
@@ -362,7 +362,7 @@ export default function Reaction() {
       onRegisterDevice={() => {
         setRegistering(true);
         setRegisterFailed(false);
-        registerThisDevice(api, services.sync.cache, scope, {
+        registerThisDevice(api, services.readCache, scope, {
           setup,
           installationId,
           label: deviceLabel.trim(),

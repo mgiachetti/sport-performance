@@ -11,7 +11,7 @@ import {
 } from '@sport-performance/domain';
 
 /**
- * The run of the reaction test on the phone (B-606, ADR 0073): a store
+ * The run of the reaction test on the phone (B-606, ADR 0075): a store
  * outside React that shows each stimulus after its random wait, times the
  * touch on a monotonic clock and records what the domain classifies. The
  * screen renders its state and calls `touch` from `onPressIn` (the earliest

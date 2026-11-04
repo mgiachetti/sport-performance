@@ -19,7 +19,8 @@ import {
 } from '@sport-performance/domain';
 import { ROSTER_PAGE_LIMIT, fetchAllPages } from '../ift/roster.ts';
 import type { LocalStore } from '../offline/local-store.ts';
-import type { CachedRead, ReadCache, ReadCacheScope } from '../offline/read-cache.ts';
+import type { SyncScopeRef } from '../offline/engine.ts';
+import type { ReadCache } from '../offline/read-cache.ts';
 import type { HardwareInfo } from './installation.ts';
 import {
   REACTION_OPS,
@@ -29,7 +30,7 @@ import {
 } from './model.ts';
 
 /**
- * What the reaction test keeps on the phone (B-606, ADR 0073): the club's
+ * What the reaction test keeps on the phone (B-606, ADR 0075): the club's
  * time zone, its categories, the protocol version in force and this phone
  * as a device of the club are a cached read; the roster of each category
  * another. Both live under the membership in the local database (deleted
@@ -39,8 +40,9 @@ import {
 
 /** Per installation: a database restored on another phone never takes this phone's device. */
 export const reactionSetupKey = (installationId: string): string =>
-  `reaction:setup:${installationId}`;
-export const reactionRosterKey = (categoryId: string): string => `reaction:roster:${categoryId}`;
+  `reaction.setup.${installationId}`;
+/** One key per category (no parameters: keeping one roster never drops another, ADR 0074). */
+export const reactionRosterKey = (categoryId: string): string => `reaction.roster.${categoryId}`;
 
 export const reactionSetupSchema = clubSchema.pick({ timeZone: true }).extend({
   categories: categorySchema.pick({ id: true, name: true, sortOrder: true }).array(),
@@ -58,6 +60,26 @@ export const reactionRosterSchema = playerSchema
   .pick({ id: true, firstName: true, lastName: true })
   .array();
 export type ReactionRoster = ReturnType<typeof reactionRosterSchema.parse>;
+
+type ReadCacheScope = SyncScopeRef;
+
+/** A kept answer, checked again with its contract: one an older build kept is a miss. */
+export interface CachedRead<T> {
+  readonly data: T;
+  readonly fetchedAt: number;
+}
+
+async function kept<T>(
+  cache: ReadCache,
+  membershipId: string,
+  key: string,
+  schema: { safeParse(value: unknown): { success: true; data: T } | { success: false } },
+): Promise<CachedRead<T> | null> {
+  const stored = await cache.get<unknown>(membershipId, key);
+  if (stored === null) return null;
+  const parsed = schema.safeParse(stored.value);
+  return parsed.success ? { data: parsed.data, fetchedAt: stored.fetchedAt } : null;
+}
 
 type SetupApi = Pick<
   ApiClient,
@@ -126,7 +148,7 @@ export async function refreshReactionSetup(
           },
     device,
   };
-  await cache.put(scope, reactionSetupKey(installationId), setup);
+  await cache.put(scope, reactionSetupKey(installationId), setup, Date.now());
   return setup;
 }
 
@@ -135,7 +157,7 @@ export function loadReactionSetup(
   membershipId: string,
   installationId: string,
 ): Promise<CachedRead<ReactionSetup> | null> {
-  return cache.get(membershipId, reactionSetupKey(installationId), reactionSetupSchema);
+  return kept(cache, membershipId, reactionSetupKey(installationId), reactionSetupSchema);
 }
 
 /** Reads the players of a category and keeps them. */
@@ -154,7 +176,7 @@ export async function refreshReactionRoster(
     firstName,
     lastName,
   }));
-  await cache.put(scope, reactionRosterKey(categoryId), roster);
+  await cache.put(scope, reactionRosterKey(categoryId), roster, Date.now());
   return roster;
 }
 
@@ -163,7 +185,7 @@ export function loadReactionRoster(
   membershipId: string,
   categoryId: string,
 ): Promise<CachedRead<ReactionRoster> | null> {
-  return cache.get(membershipId, reactionRosterKey(categoryId), reactionRosterSchema);
+  return kept(cache, membershipId, reactionRosterKey(categoryId), reactionRosterSchema);
 }
 
 /** Why registering this phone failed, as the screen tells it. */
@@ -211,7 +233,7 @@ export async function registerThisDevice(
     }
   }
   const setup: ReactionSetup = { ...input.setup, device };
-  await cache.put(scope, reactionSetupKey(input.installationId), setup);
+  await cache.put(scope, reactionSetupKey(input.installationId), setup, Date.now());
   return setup;
 }
 

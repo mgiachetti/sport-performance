@@ -92,6 +92,7 @@ export function AccountScreen({
   offline,
   signingOut,
   sync,
+  extra,
   pendingCount = 0,
   confirmSignOut = false,
   onChangeClub,
@@ -107,6 +108,8 @@ export function AccountScreen({
   readonly signingOut: boolean;
   /** The sync section: indicator and the changes that were not applied. */
   readonly sync?: ReactNode;
+  /** What only some roles have in their account (the player's consents). */
+  readonly extra?: ReactNode;
   /** Changes not sent yet: signing out loses them, so it asks to confirm. */
   readonly pendingCount?: number;
   /** The user pressed "sign out" with changes pending: the next press signs out anyway. */
@@ -160,6 +163,7 @@ export function AccountScreen({
           />
         </View>
       </Card>
+      {extra}
       {sync !== undefined ? (
         <Card>
           <AppText role="overline" tone="secondary" accessibilityRole="header">

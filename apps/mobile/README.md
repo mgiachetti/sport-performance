@@ -36,7 +36,7 @@ pnpm --filter @sport-performance/mobile start   # después, solo el bundler
 - `src/state`: servicios de la app, controlador de sesión, compuerta de versión y contextos de React (`useServices`, `useApi`, `useSession`, `useClubTheme`).
 - `src/offline`: base local y sincronización (B-502, [ADR 0069](../../docs/adr/0069-base-local-y-motor-de-sincronizacion-mobile.md)): driver, esquema Drizzle y migraciones (`db/`), cola y validación (`operations.ts`), lectura con lo pendiente superpuesto (`local-store.ts`, `overlay.ts`), motor (`engine.ts`), disparadores, tarea en segundo plano y textos del indicador.
 - `src/platform`: lo nativo (`expo-secure-store`, AsyncStorage, `expo-application`, `expo-updates`, `expo-localization`, `expo-sqlite` con SQLCipher, `expo-network`, `expo-background-task`) detrás de interfaces.
-- `src/reaction`: test de reacción (B-606, [ADR 0073](../../docs/adr/0073-test-de-reaccion-en-la-app.md)): este teléfono como equipo del club (id de instalación), corrida de las series con el reloj monotónico, resultado por la cola y comparación solo con el mismo jugador en el mismo equipo.
+- `src/reaction`: test de reacción (B-606, [ADR 0075](../../docs/adr/0075-test-de-reaccion-en-la-app.md)): este teléfono como equipo del club (id de instalación), corrida de las series con el reloj monotónico, resultado por la cola y comparación solo con el mismo jugador en el mismo equipo.
 - `src/screens`: pantallas de presentación (datos y callbacks por props); `src/ui`: tema, traductor, primitivas accesibles y fuentes.
 
 Los imports llevan la extensión `.ts` / `.tsx` (ADR 0058).
@@ -54,6 +54,9 @@ La app lee de la base local y la red solo sincroniza (ADR 0015, 0050 y 0069). Un
 - **escribe** con `services.sync.enqueue(op, input)`: `op` es una de `SYNC_OPERATIONS` y `input` lo que pide `SYNC_OPERATION_INPUTS` (el mismo contrato del servidor), con `clientUuid` en cada alta, fila de lote e intento. Se valida, se guarda con su HLC en una transacción y se pide una sincronización;
 - **lee** con `services.sync.store.list(membershipId, collection, filtro)` / `get`: la fila del servidor con las ediciones pendientes superpuestas (`pending: true`), y las altas que todavía no volvieron con `store.pending(membershipId, [op])`;
 - **muestra el estado** con `useSyncStatus()` y `SyncIndicator`.
+- lee de la base local con `useLocalRead` (se repite al cambiar la cola o terminar un ciclo) y las lecturas de la API que no viajan por la sincronización con `useOfflineRead` (`src/state/offline-reads.ts`): la última respuesta queda en `cached_read` por membresía y se muestra sin señal ([ADR 0074](../../docs/adr/0074-app-del-jugador-lecturas-propias-y-cache-local.md)).
+
+La app del jugador (B-503) está en `src/player` (racha, récords, sesiones a puntuar: funciones puras), `src/screens/player-*.tsx` y `src/state/player-screens.tsx`; sus pestañas ("Hoy", "Mis tests") y Consentimientos solo aparecen con el rol `player`.
 
 Una operación de edición nueva suma su superposición en `src/offline/overlay.ts` y sus filas en `OPERATION_SPECS`; un cambio del esquema local es una migración nueva al final de `src/offline/db/migrations.ts` (el test la compara con `schema.ts`). Cerrar sesión borra todo lo del club en el teléfono.
 

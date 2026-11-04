@@ -8,6 +8,7 @@ import {
 import { afterEach, describe, expect, it } from 'vitest';
 import { openLocalDatabase } from '../offline/db/database.ts';
 import { createSyncEngine } from '../offline/engine.ts';
+import { createReadCache } from '../offline/read-cache.ts';
 import { apiError, createFakeApi } from '../test/fake-api.ts';
 import { createFakeSyncServer, uuid } from '../test/fake-sync-server.ts';
 import { nodeSqliteDriver } from '../test/node-sqlite.ts';
@@ -63,10 +64,11 @@ async function setup() {
     clearTimer: () => undefined,
   });
   await engine.setScope(SCOPE);
+  const cache = createReadCache(database, { activeScope: () => SCOPE });
   cleanups.push(() => {
     engine.dispose();
   });
-  return { api, server, client, engine };
+  return { api, server, client, engine, cache };
 }
 
 function completeSeries(task: 'simple' | 'go_no_go', times: number[]): ReactionSeriesSummary {
@@ -83,9 +85,9 @@ function completeSeries(task: 'simple' | 'go_no_go', times: number[]): ReactionS
 
 describe('reaction test data', () => {
   it('keeps the setup and the roster on the phone and reads them without signal', async () => {
-    const { api, client, engine } = await setup();
+    const { api, client, cache } = await setup();
     reactionRoutes(api);
-    const fresh = await refreshReactionSetup(client, engine.cache, SCOPE, INSTALLATION_ID);
+    const fresh = await refreshReactionSetup(client, cache, SCOPE, INSTALLATION_ID);
     expect(fresh.device).toMatchObject({ id: THIS_DEVICE_ID, label: 'Celular de la PF' });
     expect(fresh.definition?.id).toBe(REACTION_DEFINITION_ID);
     expect(protocolOf(fresh)).toEqual(DEFAULT_REACTION_PROTOCOL);
@@ -94,35 +96,35 @@ describe('reaction test data', () => {
     expect(devices?.query.get('serialNumber')).toBe(INSTALLATION_ID);
     expect(devices?.query.get('status')).toBe('all');
     expect(api.last('GET /v1/test-definitions')?.query.get('code')).toBe('reaction');
-    await refreshReactionRoster(client, engine.cache, SCOPE, M15_ID);
+    await refreshReactionRoster(client, cache, SCOPE, M15_ID);
 
     api.setOffline(true);
-    const cached = await loadReactionSetup(engine.cache, SCOPE.membershipId, INSTALLATION_ID);
+    const cached = await loadReactionSetup(cache, SCOPE.membershipId, INSTALLATION_ID);
     expect(cached?.data).toEqual(fresh);
     expect(clubToday(cached?.data ?? null, NOW)).toBe('2026-11-03');
-    const roster = await loadReactionRoster(engine.cache, SCOPE.membershipId, M15_ID);
+    const roster = await loadReactionRoster(cache, SCOPE.membershipId, M15_ID);
     expect(roster?.data.map((p) => p.firstName)).toEqual(['Ana', 'Bruno']);
     // Another installation (a database restored on another phone) has no setup here.
-    expect(await loadReactionSetup(engine.cache, SCOPE.membershipId, uuid())).toBeNull();
+    expect(await loadReactionSetup(cache, SCOPE.membershipId, uuid())).toBeNull();
   });
 
   it('reads the protocol of the version in force', async () => {
-    const { api, client, engine } = await setup();
+    const { api, client, cache } = await setup();
     reactionRoutes(api, {
       definition: reactionDefinitionDto({ sameDeviceOnly: true, practiceTrials: 2 }),
     });
-    const fresh = await refreshReactionSetup(client, engine.cache, SCOPE, INSTALLATION_ID);
+    const fresh = await refreshReactionSetup(client, cache, SCOPE, INSTALLATION_ID);
     expect(protocolOf(fresh)).toMatchObject({ practiceTrials: 2, validTrials: 5 });
   });
 
   it('registers this phone with its installation id and keeps it', async () => {
-    const { api, client, engine } = await setup();
+    const { api, client, cache } = await setup();
     reactionRoutes(api, { device: null });
-    const before = await refreshReactionSetup(client, engine.cache, SCOPE, INSTALLATION_ID);
+    const before = await refreshReactionSetup(client, cache, SCOPE, INSTALLATION_ID);
     expect(before.device).toBeNull();
     api.on('POST /v1/devices', { status: 201, body: deviceDto({ label: 'Tablet 1' }) });
     const clientUuid = uuid();
-    const after = await registerThisDevice(client, engine.cache, SCOPE, {
+    const after = await registerThisDevice(client, cache, SCOPE, {
       setup: before,
       installationId: INSTALLATION_ID,
       label: 'Tablet 1',
@@ -139,20 +141,20 @@ describe('reaction test data', () => {
     });
     expect(after.device).toMatchObject({ id: THIS_DEVICE_ID, label: 'Tablet 1' });
     expect(
-      (await loadReactionSetup(engine.cache, SCOPE.membershipId, INSTALLATION_ID))?.data.device?.id,
+      (await loadReactionSetup(cache, SCOPE.membershipId, INSTALLATION_ID))?.data.device?.id,
     ).toBe(THIS_DEVICE_ID);
   });
 
   it('takes the device someone else registered for this phone, and restores a retired one', async () => {
-    const { api, client, engine } = await setup();
+    const { api, client, cache } = await setup();
     reactionRoutes(api, { device: null });
-    const before = await refreshReactionSetup(client, engine.cache, SCOPE, INSTALLATION_ID);
+    const before = await refreshReactionSetup(client, cache, SCOPE, INSTALLATION_ID);
     api.on('POST /v1/devices', apiError(409, 'conflict'));
     api.on('GET /v1/devices', {
       status: 200,
       body: { items: [deviceDto({ label: 'Ya registrado' })], nextCursor: null },
     });
-    const found = await registerThisDevice(client, engine.cache, SCOPE, {
+    const found = await registerThisDevice(client, cache, SCOPE, {
       setup: before,
       installationId: INSTALLATION_ID,
       label: 'Otro',
@@ -171,7 +173,7 @@ describe('reaction test data', () => {
       },
     };
     api.on(`POST /v1/devices/${THIS_DEVICE_ID}/restore`, { status: 200, body: deviceDto() });
-    const restored = await registerThisDevice(client, engine.cache, SCOPE, {
+    const restored = await registerThisDevice(client, cache, SCOPE, {
       setup: retired,
       installationId: INSTALLATION_ID,
       label: 'x',

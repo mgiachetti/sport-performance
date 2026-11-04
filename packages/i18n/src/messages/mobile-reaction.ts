@@ -1,5 +1,5 @@
 /**
- * Messages of the reaction test in the app (B-606, ADR 0073): this phone as
+ * Messages of the reaction test in the app (B-606, ADR 0075): this phone as
  * a device of the club, choosing the player, the stimuli and the result
  * against the player's own on this device. Merged into the `es-AR` source
  * catalog; same rules as `es-AR.ts`.

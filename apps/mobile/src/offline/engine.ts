@@ -31,7 +31,6 @@ import {
   type StoredTarget,
 } from './local-store.ts';
 import { matchesTarget, prepareMutation, type TargetableRow } from './operations.ts';
-import { createReadCache, type ReadCache } from './read-cache.ts';
 
 /** The membership the device syncs: what `X-Membership-Id` names. */
 export interface SyncScopeRef {
@@ -101,8 +100,6 @@ export interface RequestSyncOptions {
 
 export interface SyncEngine {
   readonly store: LocalStore;
-  /** Reads kept for offline use that are not sync collections (ADR 0073). */
-  readonly cache: ReadCache;
   readonly getStatus: () => SyncStatus;
   readonly subscribe: (listener: () => void) => () => void;
   /**
@@ -157,7 +154,8 @@ export interface SyncEngineOptions {
 export const ACKED_OVERLAY_MAX_MS = 2 * 60_000;
 /** Coalesces the writes of one screen into one push. */
 export const ENQUEUE_SYNC_DELAY_MS = 1_000;
-const OWNER_KEY = 'owner.userId';
+/** `device_meta` key of the user whose data the device holds (wiped on sign-out). */
+export const OWNER_KEY = 'owner.userId';
 /** Pull pages per cycle, a guard against a server that never says `hasMore: false`. */
 export const MAX_PULL_PAGES = 1_000;
 
@@ -251,8 +249,8 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   const maxPullPages = Math.max(1, options.maxPullPages ?? MAX_PULL_PAGES);
   const clock: DeviceClock = createDeviceClock({ now, randomUUID: options.randomUUID });
   const store = createLocalStore(database);
+
   let scope: SyncScopeRef | null = null;
-  const cache = createReadCache(database, { now, currentScope: () => scope });
   let status: SyncStatus = {
     membershipId: null,
     phase: 'idle',
@@ -768,7 +766,6 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
 
   return {
     store,
-    cache,
     getStatus: () => status,
     subscribe(listener) {
       listeners.add(listener);
