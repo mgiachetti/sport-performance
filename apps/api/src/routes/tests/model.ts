@@ -634,6 +634,15 @@ function domainEntry(entry: TestEntryInputBody): TestEntryInput {
         split20S: entry.split20S,
         split40S: entry.split40S,
       };
+    case 'sprint_video_frames':
+      return {
+        kind: 'sprint_video_frames',
+        startFrame: entry.startFrame,
+        frame10: entry.frame10,
+        frame20: entry.frame20,
+        frame40: entry.frame40,
+        frameRateFps: entry.frameRateFps,
+      };
     case 'cmj_flight_time':
       return { kind: 'cmj_flight_time', flightTimeS: entry.flightTimeS };
     case 'cmj_video_frames':

@@ -1,0 +1,17 @@
+diff --git a/android/src/main/java/expo/modules/videothumbnails/VideoThumbnailsModule.kt b/android/src/main/java/expo/modules/videothumbnails/VideoThumbnailsModule.kt
+index 8d6bdc5df3e0d0d717f1c71e9fdd9ee6c63aa308..0804cd729c3ae56e95343f70a567f4eda041ae17 100644
+--- a/android/src/main/java/expo/modules/videothumbnails/VideoThumbnailsModule.kt
++++ b/android/src/main/java/expo/modules/videothumbnails/VideoThumbnailsModule.kt
+@@ -95,9 +95,11 @@ class VideoThumbnailsModule : Module() {
+             retriever.setDataSource(sourceFilename, videoOptions.headers)
+           }
+ 
++          // sport-performance (ADR 0082): the frame at the requested time, not the
++          // nearest keyframe (OPTION_CLOSEST_SYNC), as iOS does with zero tolerance.
+           return retriever.getFrameAtTime(
+             videoOptions.time.toLong() * 1000,
+-            MediaMetadataRetriever.OPTION_CLOSEST_SYNC
++            MediaMetadataRetriever.OPTION_CLOSEST
+           )
+         } catch (e: Exception) {
+           Log.e(ERROR_TAG, "Unable to retrieve source file")

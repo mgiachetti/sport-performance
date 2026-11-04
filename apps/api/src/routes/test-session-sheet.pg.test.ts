@@ -43,6 +43,7 @@ interface SheetBody {
     lastName: string;
     inCategory: boolean;
     recording: string;
+    video: string;
     stage: string | null;
     strengthAssessment: string | null;
     tests: { testCode: string; applicable: boolean; reason: string | null }[];
@@ -325,7 +326,7 @@ describeWithPostgres('test day sheet (Postgres)', (serverUrl) => {
       version: 1,
       attemptCount: 3,
       sameDeviceOnly: false,
-      entryKinds: ['sprint_splits', 'value'],
+      entryKinds: ['sprint_splits', 'sprint_video_frames', 'value'],
       protocol: { restBetweenAttemptsS: 180 },
     });
     expect(sprint?.protocol.steps.length).toBeGreaterThan(0);
@@ -390,6 +391,29 @@ describeWithPostgres('test day sheet (Postgres)', (serverUrl) => {
       headers: { ...superadmin.headers, 'x-support-club-id': clubA, ...registry() },
     });
     expect(support.statusCode, support.body).toBe(200);
+  });
+
+  it('says who may be filmed: with an image consent, by who uploads media', async () => {
+    const before = (await sheetOf(scA, v1Session)).json<SheetBody>();
+    expect(before.players.map((p) => p.video)).toEqual([
+      'missing_consent',
+      'missing_consent',
+      'missing_consent',
+    ]);
+    await database.admin.query(
+      `insert into consent (club_id, player_id, type, document_version, signer_kind, signed_by)
+       values ($1, $2, 'image', 'v1', 'guardian', $3)`,
+      [clubA, ana, adminA.userId],
+    );
+    const after = (await sheetOf(scA, v1Session)).json<SheetBody>();
+    expect(after.players.map((p) => [p.id, p.video])).toEqual([
+      [ana, 'allowed'],
+      [bruno, 'missing_consent'],
+      [diego, 'missing_consent'],
+    ]);
+    // The coach reads the day but never films for a test.
+    const coach = (await sheetOf(coachA, v1Session)).json<SheetBody>();
+    expect(new Set(coach.players.map((p) => p.video))).toEqual(new Set(['forbidden']));
   });
 
   it('keeps players of other categories out of the roster', async () => {

@@ -8,6 +8,7 @@ import { mobilePainMessagesEsAR } from './mobile-pain.js';
 import { mobileWeeklyCmjMessagesEsAR } from './mobile-weekly-cmj.js';
 import { mobileCoachSessionMessagesEsAR } from './mobile-coach-session.js';
 import { mobileStaffMessagesEsAR } from './mobile-staff.js';
+import { mobileSprintVideoMessagesEsAR } from './mobile-sprint-video.js';
 import { reportMessagesEsAR } from './report.js';
 import { categoryReportMessagesEsAR } from './category-report.js';
 import { mobilePlayerMessagesEsAR } from './mobile-player.js';
@@ -491,6 +492,7 @@ export const sourceMessageFiles = {
   'mobile-weekly-cmj.ts': mobileWeeklyCmjMessagesEsAR,
   'mobile-coach-session.ts': mobileCoachSessionMessagesEsAR,
   'mobile-staff.ts': mobileStaffMessagesEsAR,
+  'mobile-sprint-video.ts': mobileSprintVideoMessagesEsAR,
   'protocols.ts': protocolMessagesEsAR,
   'web-help.ts': webHelpMessagesEsAR,
   'report.ts': reportMessagesEsAR,
@@ -529,6 +531,8 @@ export const esAR = {
   ...mobileCoachSessionMessagesEsAR,
   // The staff on the phone (B-510)
   ...mobileStaffMessagesEsAR,
+  // The sprint by video in the app (B-605)
+  ...mobileSprintVideoMessagesEsAR,
   ...protocolMessagesEsAR,
   ...webHelpMessagesEsAR,
   // The PDF report of a player (B-602), rendered by the worker

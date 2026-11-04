@@ -420,6 +420,76 @@ describeWithPostgres('test days and results (Postgres)', (serverUrl) => {
       expect(errorOf(typed).details?.[0]?.path).toEqual(['body', 'entries', 0, 'metricCode']);
     });
 
+    it('times a sprint from the frames of a video (B-605)', async () => {
+      const response = await post(scA, '/v1/test-results', {
+        clientUuid: randomUUID(),
+        status: 'done',
+        playerId: players.p15,
+        testDefinitionId: definitions.sprint_40,
+        method: 'video',
+        measuredOn: '2026-03-03',
+        entries: [
+          {
+            kind: 'sprint_video_frames',
+            clientUuid: randomUUID(),
+            attemptNumber: 1,
+            startFrame: 120,
+            frame10: 552,
+            frame20: 888,
+            frame40: 1488,
+            frameRateFps: 240,
+          },
+          {
+            kind: 'sprint_video_frames',
+            clientUuid: randomUUID(),
+            attemptNumber: 2,
+            startFrame: 0,
+            frame20: 744,
+            frame40: 1344,
+            frameRateFps: 240,
+          },
+        ],
+      });
+      expect(response.statusCode, response.body).toBe(201);
+      const sprint = response.json<ResultBody>();
+      expect(sprint.method).toBe('video');
+      // The frames are what the evaluator recorded; every split is computed from them.
+      expect(sprint.entries[0]?.inputs).toEqual({
+        kind: 'sprint_video_frames',
+        startFrame: 120,
+        frame10: 552,
+        frame20: 888,
+        frame40: 1488,
+        frameRateFps: 240,
+      });
+      expect(sprint.entries[1]?.inputs).not.toHaveProperty('frame10');
+      expect(sprint.entries[0]?.values.every((v) => v.computed)).toBe(true);
+      expect(scoreOf(sprint, 'sprint_10_s')).toBeCloseTo(1.8, 10);
+      expect(scoreOf(sprint, 'sprint_20_s')).toBeCloseTo(3.1, 10);
+      expect(scoreOf(sprint, 'sprint_40_s')).toBeCloseTo(5.6, 10);
+      expect(scoreOf(sprint, 'sprint_vmax_ms')).toBeCloseTo(8, 10);
+
+      const backwards = await post(scA, '/v1/test-results', {
+        clientUuid: randomUUID(),
+        status: 'done',
+        playerId: players.p15,
+        testDefinitionId: definitions.sprint_40,
+        method: 'video',
+        measuredOn: '2026-03-03',
+        entries: [
+          {
+            kind: 'sprint_video_frames',
+            startFrame: 500,
+            frame20: 400,
+            frame40: 900,
+            frameRateFps: 240,
+          },
+        ],
+      });
+      expect(backwards.statusCode).toBe(400);
+      expect(errorOf(backwards).details?.[0]?.path).toEqual(['body', 'entries', 0]);
+    });
+
     it('estimates the 1RM of an M15 with protocol warnings and relative strength', async () => {
       const base = {
         status: 'done',

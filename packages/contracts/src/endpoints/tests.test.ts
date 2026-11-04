@@ -27,6 +27,21 @@ describe('test contracts', () => {
     expect(testEntryInputSchema.safeParse({ kind: 'guess', value: 1 }).success).toBe(false);
   });
 
+  it('takes the frames of a sprint video, with the 10 m mark optional', () => {
+    const frames = { kind: 'sprint_video_frames', startFrame: 12, frame20: 780, frame40: 1380 };
+    expect(testEntryInputSchema.safeParse({ ...frames, frameRateFps: 240 }).success).toBe(true);
+    expect(
+      testEntryInputSchema.safeParse({ ...frames, frame10: 440, frameRateFps: 240 }).success,
+    ).toBe(true);
+    expect(testEntryInputSchema.safeParse(frames).success).toBe(false);
+    expect(
+      testEntryInputSchema.safeParse({ ...frames, startFrame: 1.5, frameRateFps: 240 }).success,
+    ).toBe(false);
+    expect(
+      testEntryInputSchema.safeParse({ ...frames, frameRateFps: 240, split20S: 3.2 }).success,
+    ).toBe(false);
+  });
+
   it('needs a method and entries when done, a reason when not done', () => {
     const body = createTestResult.body;
     const base = { playerId: PLAYER, testDefinitionId: DEFINITION };

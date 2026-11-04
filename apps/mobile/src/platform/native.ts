@@ -15,6 +15,7 @@ import { createNativeSignalPlayer } from './signal-audio.ts';
 import { NATIVE_APP_VERSION, parseAppBuildInfo, type AppBuildInfo } from '../version/index.ts';
 import { createNativePushDevice } from './push.ts';
 import { openNativeLocalDatabase } from './sqlite.ts';
+import { nativeSprintVideoFiles } from './sprint-video.tsx';
 import type { PreferenceStorage, SecureStorage } from './storage.ts';
 
 /**
@@ -123,5 +124,6 @@ export function nativePlatform(config: RuntimeConfig, build: AppBuildInfo): Plat
     createSignalPlayer: createNativeSignalPlayer,
     hardware: hardwareInfo(),
     createPushDevice: createNativePushDevice,
+    sprintVideoFiles: nativeSprintVideoFiles,
   };
 }
