@@ -1,5 +1,5 @@
 /**
- * The data migration `female_defaults` (B-804, ADR 0087) writes the
+ * The data migration `female_defaults` (B-804, ADR 0088) writes the
  * domain's female defaults as SQL literals. ADR 0027 forbids writing a
  * threshold twice, so this test is what keeps both copies equal: it reads
  * the migration and compares every literal with the domain constant.

@@ -1,5 +1,5 @@
 /**
- * The data migration `female_defaults` (B-804, ADR 0087) on clubs that were
+ * The data migration `female_defaults` (B-804, ADR 0088) on clubs that were
  * bootstrapped before it: each club is put back in the state the old
  * defaults left (growth rule without scope, no rule or zones for women) and
  * the migration's statements run again on top. The migration is written to

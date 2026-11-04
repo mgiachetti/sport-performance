@@ -428,7 +428,7 @@ export async function bootstrapClub(
     // kind with a default of its own, for each sex the club has a branch of, unless the
     // club has any such row (current, closed or archived) or replaced the club-wide zones
     // of that kind with its own bands: a sex-scoped row outranks a club-wide one, so a
-    // seeded default must never override the club's bands (ADR 0087).
+    // seeded default must never override the club's bands (ADR 0088).
     const existingSexZones = new Set(
       (
         await tx

@@ -1,4 +1,4 @@
--- Female thresholds (B-804, ADR 0087): explicit data migration of the defaults that
+-- Female thresholds (B-804, ADR 0088): explicit data migration of the defaults that
 -- changed for clubs bootstrapped before (ADR 0027: changing a default for existing clubs
 -- is a reviewed migration, never a re-seed). New clubs get the same rows from
 -- `bootstrapClub`. The literals below are the domain constants (`DEFAULT_ALERT_RULES`,

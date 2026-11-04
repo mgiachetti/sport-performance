@@ -170,7 +170,7 @@ export function alertSuggestionKey(kind: AlertRuleKind): AlertSuggestionKey {
  * CLAUDE.md does not fix (z-score, windows, sample sizes, growth threshold,
  * data age) are documented in ADR 0022.
  *
- * **By sex (B-804, ADR 0087).** Only growth is sex specific: girls reach a
+ * **By sex (B-804, ADR 0088).** Only growth is sex specific: girls reach a
  * lower peak height velocity than boys, so `growth_peak` applies to boys and
  * `growth_peak_female` to girls, and nobody gets two growth alerts for one
  * measurement. ACWR, wellness and CMJ are read against the player's own

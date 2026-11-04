@@ -56,7 +56,7 @@ export const DEFAULT_SPEED_ZONE_SETS: {
 };
 
 /**
- * Absolute zones for women, m/s (B-804, ADR 0087). Same zone codes as
+ * Absolute zones for women, m/s (B-804, ADR 0088). Same zone codes as
  * {@link DEFAULT_ABSOLUTE_SPEED_ZONES}, so a zone names the same kind of
  * effort in both branches; only the bounds move. Running from 12.5 km/h
  * (3.47 m/s), high-speed running from 19.0 km/h (5.28 m/s, the threshold of

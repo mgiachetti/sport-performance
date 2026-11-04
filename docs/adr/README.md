@@ -91,7 +91,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0085](0085-cmj-por-video.md) | CMJ por video: intento por la cola, video atado al intento y subida aparte cuando el intento está en el servidor | Aceptado |
 | [0086](0086-modo-kiosco.md) | Modo kiosco: carga del staff por el jugador con permiso propio, canal guardado en la fila, PIN local y nada de datos en pantalla | Aceptado |
 | [0087](0087-hockey-posiciones-del-club-y-nombres-de-categorias-por-deporte.md) | Hockey: posiciones del club dentro de líneas fijas del deporte y nombres de categoría por deporte como datos | Aceptado |
-| [0087](0087-umbrales-y-referencias-femeninas.md) | Umbrales y referencias femeninas: valores por defecto por sexo como datos, con fuente y sin bifurcar código | Aceptado |
+| [0088](0088-umbrales-y-referencias-femeninas.md) | Umbrales y referencias femeninas: valores por defecto por sexo como datos, con fuente y sin bifurcar código | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla, que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR y que cada enlace de markdown a un ADR en el repo vaya a un archivo que existe, con el mismo número en el texto del enlace.
 
