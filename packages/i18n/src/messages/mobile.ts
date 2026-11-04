@@ -174,7 +174,7 @@ export const mobileMessagesEsAR = {
   'ift.results.stageDown': 'Restar una etapa a {name}',
   'ift.results.stageUp': 'Sumar una etapa a {name}',
   'ift.results.saveHint':
-    'Cargá estas etapas en el día de test de la categoría: la VIFT se calcula sola. Quedan en este teléfono hasta que las borres.',
+    'Guardá estas etapas desde la estación del 30-15 del día de test de la categoría: la VIFT se calcula sola. Quedan en este teléfono hasta que las guardes o las borres.',
   'ift.results.discard': 'Borrar del teléfono',
   'ift.results.discardConfirm': '¿Borrar estos resultados del teléfono? No se pueden recuperar.',
   'ift.results.discardYes': 'Sí, borrar',
