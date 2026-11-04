@@ -78,9 +78,21 @@ const playerParams = z.strictObject({ playerId: playerIdSchema });
 export const playerLoadDaySchema = z
   .object({
     date: localDateSchema.meta({ description: 'Día del club.' }),
-    loadAu: z.number().min(0).meta({ description: 'sRPE del día (UA); 0 sin carga.' }),
-    hasData: z.boolean().meta({ description: 'Si hubo alguna sesión con RPE ese día.' }),
+    loadAu: z.number().min(0).meta({
+      description:
+        'sRPE del día (UA): sesiones del club más la carga externa informada por el jugador; 0 sin carga.',
+    }),
+    hasData: z.boolean().meta({
+      description: 'Si hubo alguna sesión con RPE o alguna actividad informada ese día.',
+    }),
     sessions: z.int().min(0).meta({ description: 'Sesiones con RPE.' }),
+    externalLoadAu: z.number().min(0).meta({
+      description:
+        'Parte de `loadAu` informada por el jugador fuera del club (otro deporte, educación física; B-511).',
+    }),
+    externalActivities: z.int().min(0).meta({
+      description: 'Actividades fuera del club informadas ese día.',
+    }),
     pendingRpe: z.int().min(0).meta({ description: 'Sesiones jugadas sin RPE todavía.' }),
     historyDays: z.int().min(1).meta({ description: 'Días de historia hasta ese día.' }),
     acuteEwmaAu: z.number().min(0).meta({ description: 'EWMA aguda (N = 7 por defecto).' }),

@@ -239,6 +239,13 @@ import {
 } from './training.js';
 import { listTrainingSessionRoster } from './session-roster.js';
 import {
+  archiveExternalLoad,
+  correctExternalLoad,
+  getExternalLoad,
+  listExternalLoads,
+  reportExternalLoad,
+} from './external-loads.js';
+import {
   correctWellness,
   getWellness,
   getWellnessForm,
@@ -328,6 +335,7 @@ export * from './training.js';
 export * from './session-roster.js';
 export * from './wellness.js';
 export * from './pain-reports.js';
+export * from './external-loads.js';
 export * from './tests.js';
 export * from './sync.js';
 export * from './support-access.js';
@@ -459,6 +467,11 @@ export const apiEndpoints = {
   submitPainReport,
   listPainReports,
   reviewPainReport,
+  reportExternalLoad,
+  correctExternalLoad,
+  archiveExternalLoad,
+  listExternalLoads,
+  getExternalLoad,
   listAlerts,
   getAlert,
   reviewAlert,

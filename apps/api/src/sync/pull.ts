@@ -3,6 +3,7 @@ import type { SyncChange } from '@sport-performance/contracts';
 import {
   anthroMeasurement,
   category,
+  externalLoad,
   gymProgram,
   gymSet,
   participation,
@@ -39,6 +40,7 @@ import {
   sessionDto,
 } from '../routes/training-shared.js';
 import { measurementColumns, measurementDto } from '../routes/anthropometry.js';
+import { externalLoadColumns, externalLoadDto } from '../routes/external-loads.js';
 import { wellnessColumns, wellnessDto } from '../routes/wellness.js';
 import {
   appliesTo,
@@ -69,6 +71,7 @@ const READ_KIND = {
   gym_program: 'gym_program',
   gym_set: 'gym_set',
   anthro_measurement: 'anthropometry',
+  external_load: 'external_load',
 } as const satisfies Record<SyncCollection, ResourceKind>;
 
 type Scope = Exclude<ListScope, { kind: 'none' } | { kind: 'platform' }>;
@@ -544,6 +547,29 @@ async function loadRows(
           id: row.id,
           clientUuid: row.clientUuid,
           data: measurementDto(row),
+        } as Upsert);
+      }
+      return out;
+    }
+    case 'external_load': {
+      // Archived activities too: the device learns they no longer count.
+      const rows = await db
+        .select({ ...externalLoadColumns, clientUuid: externalLoad.clientUuid })
+        .from(externalLoad)
+        .where(
+          and(
+            eq(externalLoad.clubId, clubId),
+            inArray(externalLoad.id, [...ids]),
+            playerScope(scope, externalLoad.clubId, externalLoad.playerId, today),
+          ),
+        );
+      for (const row of rows) {
+        out.set(row.id, {
+          collection,
+          op: 'upsert',
+          id: row.id,
+          clientUuid: row.clientUuid,
+          data: externalLoadDto(row),
         } as Upsert);
       }
       return out;

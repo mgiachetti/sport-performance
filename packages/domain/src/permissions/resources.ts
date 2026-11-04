@@ -78,6 +78,11 @@ export const PERMISSION_RESOURCES = {
   wellness: { target: 'player', medical: false, actions: ['read', 'submit'] },
   /** Session RPE. */
   rpe: { target: 'player', medical: false, actions: ['read', 'submit'] },
+  /**
+   * Load outside the club (another sport, physical education), reported by
+   * the player (B-511): `report` covers reporting, correcting and archiving.
+   */
+  external_load: { target: 'player', medical: false, actions: ['read', 'report'] },
   /** Training sessions and matches, with their drills (B-318), and the fixture (B-317). */
   training_session: { target: 'category', medical: false, actions: ['read', 'manage'] },
   /** Participation of a player in a session: minutes, status, contacts. */

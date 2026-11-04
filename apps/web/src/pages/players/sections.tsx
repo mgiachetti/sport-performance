@@ -664,6 +664,9 @@ export function LoadSection(props: {
           if (data === undefined) return null;
           const latest = data.load.at(-1);
           const pendingRpe = data.load.reduce((sum, d) => sum + d.pendingRpe, 0);
+          // Reported by the player outside the club (B-511): part of the daily load, said apart.
+          const externalLoadAu = data.load.reduce((sum, d) => sum + d.externalLoadAu, 0);
+          const externalActivities = data.load.reduce((sum, d) => sum + d.externalActivities, 0);
           const wellnessToday = data.wellness.find((w) => w.date === data.today);
           return (
             <>
@@ -677,6 +680,16 @@ export function LoadSection(props: {
               {pendingRpe === 0 ? null : (
                 <Notice level="info">
                   <p>{t('player.load.pendingRpe', { count: pendingRpe })}</p>
+                </Notice>
+              )}
+              {externalActivities === 0 ? null : (
+                <Notice level="info">
+                  <p>
+                    {t('player.load.external', {
+                      load: formatUnit(externalLoadAu, 'au', { decimals: 0 }),
+                      count: externalActivities,
+                    })}
+                  </p>
                 </Notice>
               )}
               {data.load.every((d) => !d.hasData) ? (

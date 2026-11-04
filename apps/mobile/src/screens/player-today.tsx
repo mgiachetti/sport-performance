@@ -73,6 +73,8 @@ export interface PlayerTodayActions {
    * and the player has the health consent; `null` (or absent) hides it.
    */
   readonly onOpenPainReport?: (() => void) | null;
+  /** "Otra actividad" (B-511): a load outside the club, also offline; `null` hides it. */
+  readonly onOpenExternalLoad?: (() => void) | null;
 }
 
 /** The reason of a correction, as the contract wants it (1–500 chars, trimmed). */
@@ -612,6 +614,16 @@ export function PlayerTodayScreen({
           </Card>
         </>
       )}
+      {actions.onOpenExternalLoad ? (
+        <Card>
+          <AppText tone="secondary">{t('externalLoad.open.hint')}</AppText>
+          <Button
+            variant="secondary"
+            label={t('externalLoad.open')}
+            onPress={actions.onOpenExternalLoad}
+          />
+        </Card>
+      ) : null}
       <AppText role="caption" tone="muted">
         {t('legal.notMedicalDevice')}
       </AppText>

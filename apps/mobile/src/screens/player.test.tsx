@@ -172,6 +172,23 @@ describe('PlayerTodayScreen: wellness', () => {
     expect(screen.queryByRole('button', { name: t('pain.title') })).toBeNull();
   });
 
+  it('opens "Otra actividad" from Hoy only for whoever reports it (B-511)', () => {
+    const onOpenExternalLoad = vi.fn();
+    const { unmount } = renderScreen(
+      <PlayerTodayScreen
+        greeting="Hola, Tomás"
+        state={{ status: 'ready', data: data() }}
+        notice={null}
+        actions={{ ...actions(), onOpenExternalLoad }}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: t('externalLoad.open') }));
+    expect(onOpenExternalLoad).toHaveBeenCalledOnce();
+    unmount();
+    renderToday();
+    expect(screen.queryByRole('button', { name: t('externalLoad.open') })).toBeNull();
+  });
+
   it('explains why there is nothing to load without a data consent', () => {
     renderToday({
       wellness: { kind: 'unavailable', reason: 'no_consent' },

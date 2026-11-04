@@ -78,8 +78,12 @@ export const playerLoadDaily = pgTable(
     ...tenantColumns(),
     playerId: uuid('player_id').notNull().$type<PlayerId>(),
     localDate: localDate('local_date').notNull(),
-    /** sRPE of the day (sum of RPE × minutes), in AU. */
+    /** sRPE of the day (sum of RPE × minutes), in AU: the club's sessions plus the external load. */
     loadAu: doublePrecision('load_au').notNull(),
+    /** Part of `load_au` reported by the player outside the club (B-511, `external_load`). */
+    externalLoadAu: doublePrecision('external_load_au').notNull().default(0),
+    /** External activities of the day counted in `external_load_au`. */
+    externalN: smallint('external_n').notNull().default(0),
     hasData: boolean('has_data').notNull(),
     /** Participations of the day with an RPE (counted in `load_au`). */
     sessionsN: smallint('sessions_n').notNull(),
@@ -108,7 +112,7 @@ export const playerLoadDaily = pgTable(
     index('player_load_daily_day_idx').on(t.clubId, t.localDate),
     check(
       'player_load_daily_values',
-      sql`${finite(t.loadAu)} and ${t.loadAu} >= 0 and ${finite(t.acuteEwmaAu)} and ${t.acuteEwmaAu} >= 0 and ${finite(t.chronicEwmaAu)} and ${t.chronicEwmaAu} >= 0 and ${finite(t.windowLoadAu)} and ${t.windowLoadAu} >= 0 and ${t.historyDays} >= 1 and ${t.sessionsN} >= 0 and ${t.pendingRpeN} >= 0 and ${t.missingDaysAcute} >= 0 and ${t.missingDaysChronic} >= 0`,
+      sql`${finite(t.loadAu)} and ${t.loadAu} >= 0 and ${finite(t.acuteEwmaAu)} and ${t.acuteEwmaAu} >= 0 and ${finite(t.chronicEwmaAu)} and ${t.chronicEwmaAu} >= 0 and ${finite(t.windowLoadAu)} and ${t.windowLoadAu} >= 0 and ${t.historyDays} >= 1 and ${t.sessionsN} >= 0 and ${t.pendingRpeN} >= 0 and ${finite(t.externalLoadAu)} and ${t.externalLoadAu} >= 0 and ${t.externalLoadAu} <= ${t.loadAu} and ${t.externalN} >= 0 and ${t.missingDaysAcute} >= 0 and ${t.missingDaysChronic} >= 0`,
     ),
     check(
       'player_load_daily_acwr',

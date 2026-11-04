@@ -33,6 +33,7 @@ const {
   club,
   derivedRefresh,
   khamisRocheTable,
+  externalLoad,
   participation,
   player,
   playerLoadDaily,
@@ -167,6 +168,8 @@ function loadRowValues(clubId: ClubId, playerId: PlayerId, now: Date, row: LoadD
     hasData: row.hasData,
     sessionsN: row.sessionsN,
     pendingRpeN: row.pendingRpeN,
+    externalLoadAu: row.externalLoadAu,
+    externalN: row.externalN,
     historyDays: row.historyDays,
     acuteEwmaAu: row.acuteEwmaAu,
     chronicEwmaAu: row.chronicEwmaAu,
@@ -214,8 +217,20 @@ async function refreshLoad(
         lte(trainingSession.localDate, end),
       ),
     );
+  // What the player reported outside the club (B-511); archived activities count no more.
+  const externalLoads = await tx.db
+    .select({ date: externalLoad.localDate, srpeAu: externalLoad.srpeAu })
+    .from(externalLoad)
+    .where(
+      and(
+        eq(externalLoad.playerId, playerId),
+        isNull(externalLoad.archivedAt),
+        lte(externalLoad.localDate, end),
+      ),
+    );
   const plan = planLoadDaily({
     participations,
+    externalLoads,
     requestedFrom: from,
     end,
     parameters: state.parameters.load,

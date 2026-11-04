@@ -166,6 +166,83 @@ describe.skipIf(!hasDatabase)('RLS by role (Postgres 16)', () => {
       expect(changed.rowCount).toBe(0);
     });
 
+    it('external load (B-511): the player reports, corrects and archives their own; the staff reads it in scope and never writes it', async () => {
+      const report = (playerId: string) => (client: pg.ClientBase) =>
+        client.query<{ id: string }>(
+          `insert into external_load (club_id, player_id, local_date, activity, minutes, rpe)
+           values ($1, $2, '2026-03-12', 'other_sport', 60, 6) returning id`,
+          [a.clubId, playerId],
+        );
+      const created = await run(as('player'), report(a.players.assigned));
+      const id = must(created.rows[0]).id;
+      expect(await pgCode(run(as('player'), report(a.players.other)))).toBe('42501');
+      for (const who of ['coach', 'sc', 'admin', 'parent'] as const) {
+        expect(await pgCode(run(as(who), report(a.players.assigned))), who).toBe('42501');
+      }
+      const loads = (context: TestContext) =>
+        ids(context, 'select player_id as id from external_load');
+      expect(await loads(as('player'))).toEqual([a.players.assigned, a.players.assigned]);
+      expect(await loads(as('coach'))).toEqual([a.players.assigned, a.players.assigned]);
+      expect(await loads(as('coachM17'))).toEqual([]);
+      expect(await loads(as('parent'))).toEqual([a.players.assigned, a.players.assigned]);
+      expect((await loads(as('admin'))).length).toBe(2);
+
+      // A correction says why (ADR 0030); archiving does not, and is final.
+      expect(
+        await pgCode(
+          run(as('player'), (client) =>
+            client.query(`update external_load set minutes = 50 where id = $1`, [id]),
+          ),
+        ),
+      ).toBe('23514');
+      await run(as('player'), async (client) => {
+        await client.query(`select set_config('app.change_reason', 'Fueron 50 minutos', true)`);
+        await client.query(`update external_load set minutes = 50 where id = $1`, [id]);
+      });
+      // The staff cannot touch it; the player never moves it to someone else.
+      const staffUpdate = await run(as('admin'), (client) =>
+        client.query(`update external_load set archived_at = now() where id = $1`, [id]),
+      );
+      expect(staffUpdate.rowCount).toBe(0);
+      expect(
+        await pgCode(
+          run(as('player'), (client) =>
+            client.query(`update external_load set player_id = $2 where id = $1`, [
+              id,
+              a.players.other,
+            ]),
+          ),
+        ),
+      ).toBe('42501');
+      await run(as('player'), (client) =>
+        client.query(`update external_load set archived_at = now() where id = $1`, [id]),
+      );
+      expect(
+        await pgCode(
+          run(as('player'), async (client) => {
+            await client.query(`select set_config('app.change_reason', 'Otra vez', true)`);
+            await client.query(`update external_load set rpe = 3 where id = $1`, [id]);
+          }),
+        ),
+      ).toBe('23514');
+      // Nobody in the API deletes it.
+      expect(
+        await pgCode(
+          run(as('player'), (client) =>
+            client.query(`delete from external_load where id = $1`, [id]),
+          ),
+        ),
+      ).toBe('42501');
+      const { rows } = await t.pool.query<{ srpe: number; archived: boolean; history: number }>(
+        `select l.srpe_au as srpe, l.archived_at is not null as archived,
+                (select count(*)::int from change_history h
+                  where h.table_name = 'external_load' and h.record_id = l.id) as history
+           from external_load l where l.id = $1`,
+        [id],
+      );
+      expect(rows[0]).toEqual({ srpe: 300, archived: true, history: 2 });
+    });
+
     it('parent: only their child, signs consents as themselves', async () => {
       const context = as('parent');
       expect(await players(context)).toEqual([a.players.assigned]);

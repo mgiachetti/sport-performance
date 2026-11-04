@@ -1,0 +1,66 @@
+/**
+ * Messages of the app's external load screen (B-511, ADR 0084): the player reports what they
+ * trained outside the club (another sport, physical education, on their own). Merged into the
+ * `es-AR` source catalog; same rules as `es-AR.ts`.
+ */
+export const mobileExternalLoadMessagesEsAR = {
+  'externalLoad.title': 'Otra actividad',
+  'externalLoad.open': 'Informar otra actividad',
+  'externalLoad.open.hint':
+    'Otro deporte, educación física o un entrenamiento por tu cuenta: suma a tu carga.',
+  'externalLoad.intro':
+    'Contanos lo que entrenaste fuera del club. Suma a tu carga como informada por vos, para que el staff vea la carga real.',
+  'externalLoad.notAllowed': 'Solo el jugador informa sus actividades fuera del club.',
+  'externalLoad.activity.label': '¿Qué hiciste?',
+  'externalLoad.activity.physical_education': 'Educación física',
+  'externalLoad.activity.other_sport': 'Otro deporte',
+  'externalLoad.activity.own_training': 'Entrenamiento por mi cuenta',
+  'externalLoad.activity.other': 'Otra',
+  'externalLoad.activity.missing': 'Elegí qué hiciste.',
+  'externalLoad.detail.label': '¿Cuál? (opcional)',
+  'externalLoad.detail.hint': 'Por ejemplo: fútbol, natación, tenis.',
+  'externalLoad.detail.invalid': 'Hasta {max} caracteres.',
+  'externalLoad.day.label': '¿Cuándo?',
+  'externalLoad.day.today': 'Hoy',
+  'externalLoad.day.yesterday': 'Ayer',
+  'externalLoad.day.missing': 'Elegí un día de esta semana.',
+  'externalLoad.minutes.label': '¿Cuántos minutos?',
+  'externalLoad.minutes.option': '{minutes} min',
+  'externalLoad.minutes.custom': 'Otra cantidad de minutos',
+  'externalLoad.minutes.invalid': 'Entre {min} y {max} minutos, sin decimales.',
+  'externalLoad.rpe.label': '¿Qué tan dura fue? (0 a 10)',
+  'externalLoad.rpe.missing': 'Elegí qué tan dura fue.',
+  'externalLoad.rpe.option': '{value}: {name}',
+  'externalLoad.load': 'Carga de la actividad: {load} UA',
+  'externalLoad.save': 'Guardar actividad',
+  'externalLoad.saved': 'Guardada en el teléfono. Se envía sola cuando haya señal.',
+  'externalLoad.saveFailed': 'No se pudo guardar en el teléfono. Probá de nuevo.',
+  'externalLoad.list.title': 'Lo que informaste esta semana',
+  'externalLoad.list.empty': 'Todavía no informaste nada esta semana.',
+  'externalLoad.list.total':
+    '{count, plural, one {# actividad} other {# actividades}} · {load} UA en total',
+  'externalLoad.item': '{activity} · {minutes} min · RPE {rpe}',
+  'externalLoad.item.state.local': 'Guardada en el teléfono, sin enviar',
+  'externalLoad.item.state.pending': 'Con un cambio sin enviar',
+  'externalLoad.item.state.synced': 'Enviada',
+  'externalLoad.correct': 'Corregir',
+  'externalLoad.correct.title': 'Corregir actividad',
+  'externalLoad.correct.for': 'Corregir {activity} del {day}',
+  'externalLoad.reason.label': '¿Por qué la corregís?',
+  'externalLoad.reason.hint': 'Queda registrado junto con el cambio.',
+  'externalLoad.reason.missing': 'Contanos por qué la corregís.',
+  'externalLoad.correct.nothing': 'No cambiaste nada.',
+  'externalLoad.saveCorrection': 'Guardar corrección',
+  'externalLoad.corrected': 'Corrección guardada en el teléfono.',
+  'externalLoad.cancel': 'Cancelar',
+  'externalLoad.archive': 'Borrar',
+  'externalLoad.archive.for': 'Borrar {activity} del {day}',
+  'externalLoad.archive.confirm':
+    'Tocá Borrar de nuevo para confirmar. Deja de sumar a tu carga y no se puede deshacer.',
+  'externalLoad.archived': 'Borrada: ya no suma a tu carga.',
+  'externalLoad.timeZoneUnknown':
+    'Sin señal todavía no sabemos el horario del club: usamos el del teléfono para el día.',
+  'sync.op.external_load.report': 'Actividad fuera del club',
+  'sync.op.external_load.correct': 'Corrección de una actividad fuera del club',
+  'sync.op.external_load.archive': 'Borrado de una actividad fuera del club',
+} as const;

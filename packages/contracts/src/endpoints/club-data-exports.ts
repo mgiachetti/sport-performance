@@ -27,7 +27,7 @@ export const clubDataExportIdSchema = idOf('exportación de datos');
 export const clubDataExportDatasetSchema = z.enum(CLUB_DATA_EXPORT_DATASETS).meta({
   id: 'ClubDataExportDataset',
   description:
-    'Un CSV del ZIP: `players` (jugadores.csv, con la disponibilidad del día del pedido, nunca el motivo), `player_categories`, `anthropometry` (con la maduración), `test_results` (un valor por fila), `wellness`, `participations`, `load_daily` (sRPE, EWMA, ACWR, monotonía), `field_metrics`, `gym_sets` y `metrics` (el diccionario de métricas). Siempre van además `diccionario.csv` y `manifiesto.csv`.',
+    'Un CSV del ZIP: `players` (jugadores.csv, con la disponibilidad del día del pedido, nunca el motivo), `player_categories`, `anthropometry` (con la maduración), `test_results` (un valor por fila), `wellness`, `participations`, `external_loads` (actividades fuera del club informadas por el jugador), `load_daily` (sRPE, EWMA, ACWR, monotonía, con la parte externa aparte), `field_metrics`, `gym_sets` y `metrics` (el diccionario de métricas). Siempre van además `diccionario.csv` y `manifiesto.csv`.',
 });
 
 export const clubDataExportStatusSchema = z.enum([...CLUB_DATA_EXPORT_STATUSES, 'expired']).meta({

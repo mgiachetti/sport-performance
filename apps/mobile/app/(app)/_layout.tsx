@@ -91,6 +91,8 @@ export default function AppLayout() {
         name="anthropometry"
         options={{ title: t('anthropometry.field.open'), href: null }}
       />
+      {/* Opened from Inicio by the player (B-511); not a tab of its own. */}
+      <Tabs.Screen name="external-load" options={{ title: t('externalLoad.title'), href: null }} />
     </Tabs>
   );
 }

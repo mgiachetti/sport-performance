@@ -43,6 +43,7 @@ pnpm --filter @sport-performance/mobile start   # después, solo el bundler
 - `src/weekly-cmj`: CMJ semanal de M17/M19 (B-506, [ADR 0079](../../docs/adr/0079-cmj-semanal-en-la-app.md)): reglas puras (`model.ts`: plantel por etapa, resultados de la base local y la cola, base y veredicto con las funciones del motor de alertas, mutaciones) y datos (`data.ts`: lecturas guardadas y escrituras por la cola).
 - `src/sprint-video`: sprint por video (B-605, [ADR 0082](../../docs/adr/0082-sprint-por-video-foto-finish.md)): permisos y destino del intento, armado de la cancha, marcado cuadro a cuadro, guardado por la cola y videos temporales que se borran.
 - `src/anthropometry`: la planilla de antropometría en cancha (B-508, [ADR 0083](../../docs/adr/0083-antropometria-en-cancha.md)): modelo puro (parseo es-AR, reglas, plausibilidad del dominio, entradas de la cola) y lecturas de la base local, de la cola y del contexto en caché.
+- `src/external-load`: carga externa del jugador (B-511, [ADR 0084](../../docs/adr/0084-carga-externa-informada-por-el-jugador.md)): formulario, lista de la semana con lo pendiente de la cola y día del club con la zona horaria guardada en el teléfono.
 - `src/screens`: pantallas de presentación (datos y callbacks por props); `src/ui`: tema, traductor, primitivas accesibles y fuentes.
 
 Los imports llevan la extensión `.ts` / `.tsx` (ADR 0058).

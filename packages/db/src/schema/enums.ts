@@ -13,6 +13,7 @@ import {
   DOMINANT_SIDES,
   CONTACT_LEVELS,
   EXPOSURE_CONTEXTS,
+  EXTERNAL_LOAD_ACTIVITIES,
   FIELD_METRIC_SOURCES,
   HEIGHT_SOURCES,
   FIXTURE_STATUSES,
@@ -217,6 +218,9 @@ export const deviceKindEnum = pgEnum('device_kind', DEVICE_KINDS);
 /** Where a field metric value comes from (B-601, F3). */
 export const EXTERNAL_METRIC_SOURCES = FIELD_METRIC_SOURCES;
 export const externalMetricSourceEnum = pgEnum('external_metric_source', EXTERNAL_METRIC_SOURCES);
+
+/** Kind of activity outside the club a player reports (B-511, `external_load`). */
+export const externalLoadActivityEnum = pgEnum('external_load_activity', EXTERNAL_LOAD_ACTIVITIES);
 
 /** Lifecycle of a generated alert (B-327). */
 export { ALERT_STATUSES };

@@ -27,3 +27,20 @@ export {
   type RpeWindowSession,
   type RpeWindowState,
 } from './rpe-window.js';
+export {
+  EXTERNAL_LOAD_ACTIVITIES,
+  EXTERNAL_LOAD_DETAIL_MAX_LENGTH,
+  EXTERNAL_LOAD_MINUTES_MAX,
+  EXTERNAL_LOAD_MINUTES_MIN,
+  EXTERNAL_LOAD_REPORT_WINDOW_DAYS,
+  EXTERNAL_LOAD_RPE_MAX,
+  EXTERNAL_LOAD_RPE_MIN,
+  externalLoadAu,
+  externalLoadIssues,
+  externalLoadWindowStart,
+  isExternalLoadActivity,
+  isWithinExternalLoadWindow,
+  parseExternalLoadActivity,
+  type ExternalLoadActivity,
+  type ExternalLoadProblem,
+} from './external-load.js';

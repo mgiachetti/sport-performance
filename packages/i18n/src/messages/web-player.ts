@@ -122,6 +122,8 @@ export const webPlayerMessagesEsAR = {
   'player.load.strain': 'Strain',
   'player.load.pendingRpe':
     '{count, plural, one {# sesión sin RPE} other {# sesiones sin RPE}} en el período.',
+  'player.load.external':
+    'Incluye {load} informadas por el jugador fuera del club ({count, plural, one {# actividad} other {# actividades}}: otro deporte, educación física).',
   'player.load.empty': 'Sin carga registrada en los últimos 28 días.',
   'player.load.wellness': 'Bienestar de hoy',
   'player.load.wellnessValue': '{score} de 5',

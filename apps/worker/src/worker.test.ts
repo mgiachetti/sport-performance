@@ -191,10 +191,62 @@ describe('planLoadDaily', () => {
     expect(plan).toMatchObject({ historyStart: START, end, replaceFrom: START });
     expect(plan.rows).toHaveLength(10);
     expect(plan.rows).toEqual(
-      expected.map((day, i) => ({ ...day, sessionsN: plan.rows[i]?.sessionsN, pendingRpeN: 0 })),
+      expected.map((day, i) => ({
+        ...day,
+        sessionsN: plan.rows[i]?.sessionsN,
+        pendingRpeN: 0,
+        externalLoadAu: 0,
+        externalN: 0,
+      })),
     );
     expect(plan.rows[0]).toMatchObject({ loadAu: 360, sessionsN: 2, pendingRpeN: 0 });
     expect(plan.rows[1]).toMatchObject({ loadAu: 0, hasData: false, sessionsN: 0 });
+  });
+
+  it('adds the external load the player reported to the day, counted apart (B-511)', () => {
+    const plan = planLoadDaily({
+      participations: [p(START, { rpe: 6, minutes: 50 })],
+      externalLoads: [
+        { date: START, srpeAu: 160 },
+        { date: addDays(START, 1), srpeAu: 240 },
+        { date: addDays(START, 1), srpeAu: 0 },
+        // After the end of the series: not counted.
+        { date: addDays(START, 9), srpeAu: 500 },
+      ],
+      requestedFrom: START,
+      end: addDays(START, 2),
+      parameters: DEFAULT_LOAD_PARAMETERS,
+    });
+    const expected = computeLoadSeries({
+      loads: [
+        { date: START, loadAu: 300 },
+        { date: START, loadAu: 160 },
+        { date: addDays(START, 1), loadAu: 240 },
+        { date: addDays(START, 1), loadAu: 0 },
+      ],
+      to: addDays(START, 2),
+    });
+    expect(plan.rows.map((r) => r.acuteEwmaAu)).toEqual(expected.map((day) => day.acuteEwmaAu));
+    expect(
+      plan.rows.map((r) => [r.loadAu, r.hasData, r.sessionsN, r.externalLoadAu, r.externalN]),
+    ).toEqual([
+      [460, true, 1, 160, 1],
+      [240, true, 0, 240, 2],
+      [0, false, 0, 0, 0],
+    ]);
+  });
+
+  it('starts the history with external load alone', () => {
+    const plan = planLoadDaily({
+      participations: [],
+      externalLoads: [{ date: addDays(START, 1), srpeAu: 200 }],
+      requestedFrom: START,
+      end: addDays(START, 1),
+      parameters: DEFAULT_LOAD_PARAMETERS,
+    });
+    expect(plan.historyStart).toBe(addDays(START, 1));
+    expect(plan.rows).toHaveLength(1);
+    expect(plan.rows[0]).toMatchObject({ loadAu: 200, externalLoadAu: 200, sessionsN: 0 });
   });
 
   it('recalculates a suffix with the same values as a full rebuild', () => {

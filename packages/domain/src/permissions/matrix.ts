@@ -71,7 +71,7 @@ const ownAndStaffRead: RoleRules = { ...staffRead, player: self };
  *   always audited; plus the registry of clubs. Never health data, never
  *   consents, never exporting or erasing a player's data.
  *
- * Collecting data of a player (wellness, RPE, results, measurements,
+ * Collecting data of a player (wellness, RPE, external load, results, measurements,
  * participation, parents' heights) needs a current `data` consent; images
  * need `image` to be uploaded or shown; health records need `health`.
  */
@@ -191,6 +191,11 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
   rpe: {
     read: ownAndStaffRead,
     submit: { ...nobody, player: allow('self', 'data') },
+  },
+  // Only the player knows it; the staff reads it next to the club's load (B-511).
+  external_load: {
+    read: ownAndStaffRead,
+    report: { ...nobody, player: allow('self', 'data') },
   },
   training_session: {
     read: staffRead,

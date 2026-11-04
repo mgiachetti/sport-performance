@@ -65,6 +65,8 @@ wellness.read            self                  -               assigned        a
 wellness.submit          self+data             -               -               -               -                -           -
 rpe.read                 self                  -               assigned        assigned        assigned         club        club
 rpe.submit               self+data             -               -               -               -                -           -
+external_load.read       self                  -               assigned        assigned        assigned         club        club
+external_load.report     self+data             -               -               -               -                -           -
 training_session.read    -                     -               assigned        assigned        assigned         club        club
 training_session.manage  -                     -               assigned        -               -                club        club
 participation.read       self                  -               assigned        assigned        assigned         club        club
@@ -704,6 +706,7 @@ describe('privacy invariants (independent of the specification)', () => {
     const collecting = [
       'wellness.submit',
       'rpe.submit',
+      'external_load.report',
       'participation.record',
       'test_result.record',
       'test_result.correct',

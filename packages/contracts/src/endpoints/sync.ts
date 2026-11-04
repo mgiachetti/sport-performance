@@ -23,6 +23,11 @@ import { uuidSchema } from '../primitives/ids.js';
 import { testSessionIdSchema, testSessionSchema } from './calendar.js';
 import { changeReasonSchema } from './change-history.js';
 import {
+  externalLoadCorrectionSchema,
+  externalLoadSchema,
+  reportExternalLoad,
+} from './external-loads.js';
+import {
   addTestResultEntries,
   createTestResult,
   recordTestSessionResults,
@@ -53,7 +58,7 @@ import { correctGymSet, gymProgramSchema, gymSetSchema, logGymSets, voidGymSet }
 export const syncCollectionSchema = z.enum(SYNC_COLLECTIONS).meta({
   id: 'SyncCollection',
   description:
-    'Colección sincronizable: `wellness`, `participation`, `training_session`, `test_session`, `test_result` (con sus intentos), `gym_program` (solo lectura), `gym_set` o `anthro_measurement` (con la maduración que deriva el worker).',
+    'Colección sincronizable: `wellness`, `participation`, `training_session`, `test_session`, `test_result` (con sus intentos), `gym_program` (solo lectura), `gym_set`, `anthro_measurement` (con la maduración que deriva el worker) o `external_load` (actividades fuera del club que informa el jugador).',
 });
 
 export const syncOperationSchema = z.enum(SYNC_OPERATIONS).meta({
@@ -154,6 +159,12 @@ export const SYNC_OPERATION_INPUTS = {
     target: syncTargetSchema,
     body: anthroUpdateBody,
   }),
+  'external_load.report': z.strictObject({ body: reportExternalLoad.body }),
+  'external_load.correct': z.strictObject({
+    target: syncTargetSchema,
+    body: externalLoadCorrectionSchema,
+  }),
+  'external_load.archive': z.strictObject({ target: syncTargetSchema }),
 } as const satisfies Record<SyncOperation, z.ZodType>;
 
 export type SyncOperationInput<Op extends SyncOperation> = z.output<
@@ -315,6 +326,12 @@ const upsertChange = z
       op: z.literal('upsert'),
       ...changeBase,
       data: anthroMeasurementSchema,
+    }),
+    z.object({
+      collection: z.literal('external_load'),
+      op: z.literal('upsert'),
+      ...changeBase,
+      data: externalLoadSchema,
     }),
   ])
   .meta({ id: 'SyncUpsert' });

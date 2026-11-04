@@ -2,6 +2,7 @@ import type {
   GymProgram,
   GymSet,
   AnthroMeasurement,
+  ExternalLoad,
   Participation,
   SyncChange,
   SyncOperationInput,
@@ -27,6 +28,7 @@ export interface CollectionData {
   readonly gym_program: GymProgram;
   readonly gym_set: GymSet;
   readonly anthro_measurement: AnthroMeasurement;
+  readonly external_load: ExternalLoad;
 }
 
 interface IndexColumns {
@@ -85,6 +87,12 @@ const INDEX_COLUMNS: { readonly [C in SyncCollection]: (data: CollectionData[C])
       parentId: row.testSessionId,
       categoryId: null,
       localDate: row.measuredOn,
+    }),
+    external_load: (row) => ({
+      playerId: row.playerId,
+      parentId: null,
+      categoryId: null,
+      localDate: row.localDate,
     }),
   };
 
