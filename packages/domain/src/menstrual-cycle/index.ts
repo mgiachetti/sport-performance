@@ -177,37 +177,66 @@ export function latestMenstrualEntryPerDay<E extends MenstrualCycleLogEntry>(
 }
 
 export interface MenstrualCycleSummary {
-  /** First days of each period found in the log, oldest first. */
+  /** First days of each period found in the range, oldest first. */
   readonly periodStarts: LocalDate[];
   /** The last one, or `null`. */
   readonly lastPeriodStart: LocalDate | null;
   /**
-   * Day of the current cycle on `today` (the first day of the last period is
-   * day 1), or `null` without a period in the log.
+   * Day of the cycle on the range's last day `to` (the first day of the last
+   * period is day 1), or `null` without a period start in the range.
    */
   readonly cycleDay: number | null;
-  /** Days between consecutive period starts (only complete cycles in the log). */
+  /** Days between consecutive period starts (only complete cycles in the range). */
   readonly cycleLengthsDays: number[];
-  /** Days with an entry. */
+  /** Days with an entry in the range. */
   readonly daysLogged: number;
+}
+
+/** A range of club days, both ends included. */
+export interface MenstrualCycleRange {
+  readonly from: LocalDate;
+  readonly to: LocalDate;
+}
+
+/**
+ * The days a summary of `range` reads: the range plus the day before `from`,
+ * which only tells whether a period on `from` starts there or comes from
+ * before the range.
+ */
+export function menstrualSummaryReadFrom(range: MenstrualCycleRange): LocalDate {
+  return addDays(range.from, -1);
 }
 
 /**
  * A descriptive summary of the days that count (one per day, e.g. from
- * {@link latestMenstrualEntryPerDay}): a period starts on a day of the period
- * whose previous calendar day is not one (logged without bleeding, with
- * spotting, or not logged). No phase, no forecast (see the module's note):
- * the summary says what was logged, nothing more. A day not logged inside a
- * period splits it in two: the app asks to log every day of the period.
+ * {@link latestMenstrualEntryPerDay}) in `range`: a period starts on a day of
+ * the period whose previous calendar day is not one (logged without bleeding,
+ * with spotting, or not logged). No phase, no forecast (see the module's
+ * note): the summary says what was logged, nothing more. A day not logged
+ * inside a period splits it in two: the app asks to log every day of the
+ * period.
+ *
+ * `days` must include the day before `from` when it was logged (read from
+ * {@link menstrualSummaryReadFrom}): a period that crosses `from` started
+ * before the range, so it is not a start in it. Days outside
+ * [`from` − 1, `to`] are ignored. `cycleDay` is counted on `to`, so a past
+ * range shows the cycle day of its last day.
  */
 export function summarizeMenstrualCycle(
   days: readonly Pick<MenstrualCycleLogEntry, 'localDate' | 'flow'>[],
-  today: LocalDate,
+  range: MenstrualCycleRange,
 ): MenstrualCycleSummary {
-  const periodDays = new Set(days.filter((d) => isPeriodFlow(d.flow)).map((d) => d.localDate));
+  const { from, to } = range;
+  const inRange = (day: LocalDate) =>
+    compareLocalDates(day, from) >= 0 && compareLocalDates(day, to) <= 0;
+  const periodDays = new Set(
+    days
+      .filter((d) => isPeriodFlow(d.flow))
+      .map((d) => d.localDate)
+      .filter((day) => inRange(day) || day === menstrualSummaryReadFrom(range)),
+  );
   const periodStarts = [...periodDays]
-    .filter((day) => !periodDays.has(addDays(day, -1)))
-    .filter((day) => compareLocalDates(day, today) <= 0)
+    .filter((day) => inRange(day) && !periodDays.has(addDays(day, -1)))
     .sort(compareLocalDates);
   const lastPeriodStart = periodStarts.at(-1) ?? null;
   const cycleLengthsDays = periodStarts
@@ -216,9 +245,9 @@ export function summarizeMenstrualCycle(
   return {
     periodStarts,
     lastPeriodStart,
-    cycleDay: lastPeriodStart === null ? null : daysBetween(lastPeriodStart, today) + 1,
+    cycleDay: lastPeriodStart === null ? null : daysBetween(lastPeriodStart, to) + 1,
     cycleLengthsDays,
-    daysLogged: new Set(days.map((d) => d.localDate)).size,
+    daysLogged: new Set(days.map((d) => d.localDate).filter(inRange)).size,
   };
 }
 

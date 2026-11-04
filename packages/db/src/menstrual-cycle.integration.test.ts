@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import type pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { club, consent, membership, player, staffAssignment } from './schema/index.js';
+import { club, consent, membership, player, staffAssignment, user } from './schema/index.js';
 import {
   connectAs,
   createMigratedDatabase,
@@ -48,6 +48,7 @@ describe.skipIf(!hasDatabase)('menstrual cycle in the medical schema (Postgres 1
   let a: ClubFixture;
   let b: ClubFixture;
   const memberships: Record<string, Partial<Record<FixtureUser, string>>> = {};
+  let superadminId: string;
 
   const as = (fixture: ClubFixture, who: FixtureUser, extra: TestContext = {}): TestContext => ({
     clubId: fixture.clubId,
@@ -203,6 +204,14 @@ describe.skipIf(!hasDatabase)('menstrual cycle in the medical schema (Postgres 1
         })),
       );
     }
+    superadminId = must(
+      (
+        await t.db
+          .insert(user)
+          .values({ name: 'Soporte', email: 'soporte@cycle.example.com', isSuperadmin: true })
+          .returning({ id: user.id })
+      )[0],
+    ).id;
     app = await connectAs(t, 'app');
   });
 
@@ -506,6 +515,84 @@ describe.skipIf(!hasDatabase)('menstrual cycle in the medical schema (Postgres 1
         }
       }
       expect(await code(readLogs(as(a, 'player', { requestId: null })))).toBe('42501');
+    });
+  });
+
+  describe('the reader loses the access', () => {
+    async function sharedWithMe(context: TestContext) {
+      return run(context, async (client) => {
+        const { rows } = await client.query<{ player_id: string }>(
+          'select player_id from medical.menstrual_cycle_shared_with_me()',
+        );
+        return rows;
+      });
+    }
+
+    it('a male player is never read by the staff, even with an authorization', async () => {
+      await share(a, 'medical');
+      expect((await readLogs(as(a, 'medical'))).length).toBeGreaterThan(0);
+      await t.db
+        .update(player)
+        .set({ sex: 'male' })
+        .where(and(eq(player.clubId, a.clubId), eq(player.id, a.players.assigned)));
+      expect(await readLogs(as(a, 'medical'))).toEqual([]);
+      expect(await sharedWithMe(as(a, 'medical'))).toEqual([]);
+      await t.db
+        .update(player)
+        .set({ sex: 'female' })
+        .where(and(eq(player.clubId, a.clubId), eq(player.id, a.players.assigned)));
+      expect((await readLogs(as(a, 'medical'))).length).toBeGreaterThan(0);
+    });
+
+    it('the superadmin never reads it, not even with a recorded support access', async () => {
+      const support = {
+        clubId: a.clubId,
+        userId: superadminId,
+        role: 'superadmin',
+        supportReason: 'Ticket 9',
+      };
+      expect(await code(readLogs(support))).toBe('42501');
+      expect(await code(readLogs(support, [a.players.assigned]))).toBe('42501');
+      expect(await code(sharedWithMe(support))).toBe('42501');
+      expect(
+        await code(
+          run(support, (client) =>
+            client.query('select * from medical.read_menstrual_cycle_shares($1)', [
+              [a.players.assigned],
+            ]),
+          ),
+        ),
+      ).toBe('42501');
+    });
+
+    it('an authorized member that loses the staff assignment reads nothing', async () => {
+      expect(await sharedWithMe(as(a, 'medical'))).toEqual([{ player_id: a.players.assigned }]);
+      await t.db
+        .update(staffAssignment)
+        .set({ validTo: '2021-01-01' as never })
+        .where(
+          and(
+            eq(staffAssignment.clubId, a.clubId),
+            eq(staffAssignment.membershipId, membershipOf(a, 'medical') as never),
+          ),
+        );
+      expect(await readLogs(as(a, 'medical'))).toEqual([]);
+      expect(await readLogs(as(a, 'medical'), [a.players.assigned])).toEqual([]);
+      expect(await sharedWithMe(as(a, 'medical'))).toEqual([]);
+    });
+
+    it('an authorized member whose membership ended reads nothing', async () => {
+      await share(a, 'sc');
+      expect((await readLogs(as(a, 'sc'))).length).toBeGreaterThan(0);
+      expect(await sharedWithMe(as(a, 'sc'))).toEqual([{ player_id: a.players.assigned }]);
+      await t.db
+        .update(membership)
+        .set({ startedAt: new Date('2020-01-01T00:00:00Z'), endedAt: new Date(Date.now() - 1000) })
+        .where(eq(membership.id, membershipOf(a, 'sc') as never));
+      // Without a current membership the role does not validate: the read is refused.
+      expect(await code(readLogs(as(a, 'sc')))).toBe('42501');
+      expect(await code(readLogs(as(a, 'sc'), [a.players.assigned]))).toBe('42501');
+      expect(await code(sharedWithMe(as(a, 'sc')))).toBe('42501');
     });
   });
 });

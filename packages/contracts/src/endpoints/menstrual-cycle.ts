@@ -67,12 +67,12 @@ export const menstrualCycleSummarySchema = z
   .object({
     periodStarts: z.array(localDateSchema).meta({
       description:
-        'Primer día de cada período registrado en el rango (un día de sangrado cuyo día anterior no lo es), del más viejo al más nuevo.',
+        'Primer día de cada período que empieza en el rango (un día de sangrado cuyo día anterior no lo es; un período que viene de antes de `from` no empieza en el rango), del más viejo al más nuevo.',
     }),
     lastPeriodStart: localDateSchema.nullable(),
     cycleDay: z.int().min(1).nullable().meta({
       description:
-        'Día del ciclo hoy (el primer día del último período es el 1); `null` sin períodos en el rango. No es una estimación de fase.',
+        'Día del ciclo en el último día del rango (`to`, o hoy si `to` es futuro; el primer día del último período es el 1); `null` sin inicios de período en el rango. No es una estimación de fase.',
     }),
     cycleLengthsDays: z.array(z.int().min(1)).meta({
       description: 'Días entre inicios consecutivos (solo ciclos completos dentro del rango).',

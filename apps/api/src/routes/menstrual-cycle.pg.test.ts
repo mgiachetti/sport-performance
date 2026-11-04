@@ -7,7 +7,7 @@
  * access lands in the medical log.
  */
 import { randomUUID } from 'node:crypto';
-import { formatHlc, type ClubId } from '@sport-performance/domain';
+import { addDays, formatHlc, type ClubId, type LocalDate } from '@sport-performance/domain';
 import type { LightMyRequestResponse } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -56,7 +56,13 @@ interface DayBody {
 interface DaysBody {
   playerId: string;
   days: DayBody[];
-  summary: { periodStarts: string[]; cycleDay: number | null; daysLogged: number };
+  summary: {
+    periodStarts: string[];
+    lastPeriodStart: string | null;
+    cycleDay: number | null;
+    cycleLengthsDays: number[];
+    daysLogged: number;
+  };
 }
 
 function errorOf(response: LightMyRequestResponse): Envelope['error'] {
@@ -328,6 +334,39 @@ describeWithPostgres('menstrual cycle (Postgres)', (serverUrl) => {
       expect(rows[0]?.n).toBe(1);
     });
 
+    it('a period that crosses `from` does not start on `from`', async () => {
+      const ago = (n: number) => addDays(today as LocalDate, -n);
+      for (const n of [3, 2, 1]) {
+        const logged = await post(playerA, '/v1/menstrual-cycle/days', {
+          flow: 'heavy',
+          localDate: ago(n),
+        });
+        expect(logged.statusCode, logged.body).toBe(201);
+      }
+      // The whole period: it starts 3 days ago, today is day 4.
+      const whole = (await days(playerA, pA, `?from=${ago(10)}`)).json<DaysBody>();
+      expect(whole.summary).toMatchObject({
+        periodStarts: [ago(3)],
+        lastPeriodStart: ago(3),
+        cycleDay: 4,
+      });
+      // From the middle of the period: it came from before, nothing starts in the range.
+      const middle = await days(playerA, pA, `?from=${ago(2)}`);
+      expect(middle.statusCode, middle.body).toBe(200);
+      const body = middle.json<DaysBody>();
+      expect(body.days.map((day) => day.localDate)).toEqual([ago(2), ago(1), today]);
+      expect(body.summary).toEqual({
+        periodStarts: [],
+        lastPeriodStart: null,
+        cycleDay: null,
+        cycleLengthsDays: [],
+        daysLogged: 3,
+      });
+      // A past range counts the cycle day on its last day, not on today.
+      const past = (await days(playerA, pA, `?from=${ago(5)}&to=${ago(2)}`)).json<DaysBody>();
+      expect(past.summary).toMatchObject({ periodStarts: [ago(3)], cycleDay: 2, daysLogged: 2 });
+    });
+
     it('nobody else logs a day', async () => {
       for (const caller of [parentA, coachA, scA, medicalA, adminA]) {
         expect((await post(caller, '/v1/menstrual-cycle/days', { flow: 'none' })).statusCode).toBe(
@@ -400,8 +439,12 @@ describeWithPostgres('menstrual cycle (Postgres)', (serverUrl) => {
       expect(revoked.statusCode, revoked.body).toBe(200);
       expect(revoked.json<StatusBody>().viewers).toEqual([]);
       expect((await days(medicalA)).json<DaysBody>().days).toEqual([]);
+      // Revoking again is a retry: the same answer.
+      const again = await post(playerA, `/v1/menstrual-cycle/me/viewers/${viewer.id}/revoke`);
+      expect(again.statusCode, again.body).toBe(200);
+      expect(again.json<StatusBody>().viewers).toEqual([]);
       expect(
-        (await post(playerA, `/v1/menstrual-cycle/me/viewers/${viewer.id}/revoke`)).statusCode,
+        (await post(playerA, `/v1/menstrual-cycle/me/viewers/${randomUUID()}/revoke`)).statusCode,
       ).toBe(404);
     });
 
@@ -430,6 +473,60 @@ describeWithPostgres('menstrual cycle (Postgres)', (serverUrl) => {
       expect(response.statusCode).toBe(403);
       expect(errorOf(response).code).toBe('consent_required');
       expect((await status(playerA)).json<StatusBody>().unavailableReason).toBe('missing_consent');
+      // The staff cannot tell a missing consent from a missing authorization.
+      for (const caller of [medicalA, scA]) {
+        const read = await days(caller);
+        expect(read.statusCode, read.body).toBe(200);
+        expect(read.json<DaysBody>()).toMatchObject({
+          playerId: pA,
+          days: [],
+          summary: { periodStarts: [], daysLogged: 0 },
+        });
+      }
+      await sign(clubA, pA, 'menstrual_cycle');
+    });
+  });
+
+  describe('losing the access', () => {
+    const sharedWithMe = (caller: SignedIn) =>
+      t.app.inject({ url: '/v1/menstrual-cycle/shared-with-me', headers: caller.headers });
+
+    it('an authorized member that loses the staff assignment reads nothing', async () => {
+      const shared = await post(playerA, '/v1/menstrual-cycle/me/viewers', {
+        membershipId: medicalMembership,
+      });
+      expect(shared.statusCode, shared.body).toBe(201);
+      expect((await days(medicalA)).json<DaysBody>().days.length).toBeGreaterThan(0);
+      expect((await sharedWithMe(medicalA)).json<{ items: unknown[] }>().items).toHaveLength(1);
+      await database.admin.query(
+        `update staff_assignment set valid_to = '2021-01-01' where membership_id = $1`,
+        [medicalMembership],
+      );
+      // The player is not one of hers any more: not even visible.
+      const read = await days(medicalA);
+      expect(read.statusCode).toBe(404);
+      const list = await sharedWithMe(medicalA);
+      expect(list.statusCode, list.body).toBe(200);
+      expect(list.json<{ items: unknown[] }>().items).toEqual([]);
+    });
+
+    it('an authorized member whose membership ended reads nothing', async () => {
+      const shared = await post(playerA, '/v1/menstrual-cycle/me/viewers', {
+        membershipId: scMembership,
+      });
+      expect(shared.statusCode, shared.body).toBe(201);
+      expect((await days(scA)).json<DaysBody>().days.length).toBeGreaterThan(0);
+      await database.admin.query(
+        `update membership set started_at = '2020-01-01', ended_at = now() - interval '1 second'
+          where id = $1`,
+        [scMembership],
+      );
+      const read = await days(scA);
+      expect(read.statusCode).toBeGreaterThanOrEqual(400);
+      expect(read.body).not.toContain('"days"');
+      const list = await sharedWithMe(scA);
+      expect(list.statusCode).toBeGreaterThanOrEqual(400);
+      expect(list.body).not.toContain(pA);
     });
   });
 });

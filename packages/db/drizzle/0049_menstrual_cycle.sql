@@ -195,8 +195,9 @@ $$;
 
 -- Players whose cycle the context may read, among `requested` (NULL: all it may):
 --   player         herself, always (the holder's access, even with the tracking off);
---   medical, sc    the assigned players that authorized this very membership, while the
---                  module is on, she has the tracking on and the three consents hold.
+--   medical, sc    the assigned (today) female players that authorized this very
+--                  membership, while the module is on, she has the tracking on and the
+--                  three consents hold. Losing the assignment or the membership cuts it.
 -- Raises for any other role (the API's matrix denies first; reaching this is a bug) and
 -- without a validated context or a request id.
 CREATE FUNCTION "medical"."menstrual_cycle_readable_players"(requested uuid[]) RETURNS uuid[]
@@ -224,6 +225,8 @@ BEGIN
     IF "medical"."menstrual_cycle_module_on"() AND viewer IS NOT NULL THEN
       SELECT array_agg(v) INTO scope FROM unnest("app"."visible_player_ids"()) v
        WHERE (requested IS NULL OR v = ANY (requested))
+         AND EXISTS (SELECT 1 FROM "public"."player" p
+                      WHERE p.club_id = club AND p.id = v AND p.sex = 'female')
          AND "medical"."is_tracking_menstrual_cycle"(v)
          AND "medical"."has_menstrual_cycle_consents"(v)
          AND EXISTS (SELECT 1 FROM "medical"."menstrual_cycle_share" s

@@ -11,6 +11,7 @@ import {
   latestMenstrualEntryPerDay,
   menstrualCycleDayIssues,
   menstrualCycleUnavailableReason,
+  menstrualSummaryReadFrom,
   normalizeMenstrualSymptoms,
   summarizeMenstrualCycle,
   type MenstrualFlow,
@@ -99,9 +100,12 @@ describe('latestMenstrualEntryPerDay', () => {
 
 describe('summarizeMenstrualCycle', () => {
   const day = (localDate: string, flow: MenstrualFlow) => ({ localDate: d(localDate), flow });
+  const range = (from: string, to: string) => ({ from: d(from), to: d(to) });
 
   it('is empty without a period', () => {
-    expect(summarizeMenstrualCycle([day('2026-11-01', 'spotting')], d('2026-11-04'))).toEqual({
+    expect(
+      summarizeMenstrualCycle([day('2026-11-01', 'spotting')], range('2026-08-07', '2026-11-04')),
+    ).toEqual({
       periodStarts: [],
       lastPeriodStart: null,
       cycleDay: null,
@@ -121,7 +125,7 @@ describe('summarizeMenstrualCycle', () => {
       day('2026-10-10', 'heavy'),
       day('2026-11-03', 'light'),
     ];
-    expect(summarizeMenstrualCycle(days, d('2026-11-04'))).toEqual({
+    expect(summarizeMenstrualCycle(days, range('2026-08-07', '2026-11-04'))).toEqual({
       periodStarts: ['2026-09-11', '2026-10-09', '2026-11-03'],
       lastPeriodStart: '2026-11-03',
       cycleDay: 2,
@@ -136,10 +140,63 @@ describe('summarizeMenstrualCycle', () => {
       day('2026-11-02', 'spotting'),
       day('2026-11-03', 'light'),
     ];
-    expect(summarizeMenstrualCycle(days, d('2026-11-03')).periodStarts).toEqual([
+    expect(summarizeMenstrualCycle(days, range('2026-10-01', '2026-11-03')).periodStarts).toEqual([
       '2026-11-01',
       '2026-11-03',
     ]);
+  });
+
+  it('reads the day before the range: a summary of [from, to] looks one day back', () => {
+    expect(menstrualSummaryReadFrom(range('2026-09-01', '2026-11-04'))).toBe('2026-08-31');
+  });
+
+  it('a period that crosses `from` does not start on `from`', () => {
+    // Read from the day before `from`, as the API does: 08-31 is a day of the period.
+    const days = [
+      day('2026-08-30', 'heavy'),
+      day('2026-08-31', 'heavy'),
+      day('2026-09-01', 'moderate'),
+      day('2026-09-02', 'light'),
+      day('2026-09-29', 'heavy'),
+      day('2026-10-27', 'light'),
+    ];
+    expect(summarizeMenstrualCycle(days, range('2026-09-01', '2026-11-04'))).toEqual({
+      periodStarts: ['2026-09-29', '2026-10-27'],
+      lastPeriodStart: '2026-10-27',
+      cycleDay: 9,
+      cycleLengthsDays: [28],
+      daysLogged: 4,
+    });
+    // When the crossing period is the latest one, there is no start in the range.
+    expect(
+      summarizeMenstrualCycle(days.slice(0, 4), range('2026-09-01', '2026-09-10')),
+    ).toMatchObject({ periodStarts: [], lastPeriodStart: null, cycleDay: null });
+  });
+
+  it('a period on `from` starts there when the day before is not one', () => {
+    const days = [day('2026-08-31', 'spotting'), day('2026-09-01', 'heavy')];
+    expect(summarizeMenstrualCycle(days, range('2026-09-01', '2026-09-03'))).toMatchObject({
+      periodStarts: ['2026-09-01'],
+      cycleDay: 3,
+      daysLogged: 1,
+    });
+    // Not logged the day before: as inside the range, a day without a log is not a period day.
+    expect(
+      summarizeMenstrualCycle(days.slice(1), range('2026-09-01', '2026-09-03')).periodStarts,
+    ).toEqual(['2026-09-01']);
+  });
+
+  it('counts the cycle day on `to`, not on the club day, for a past range', () => {
+    const days = [day('2026-06-03', 'heavy'), day('2026-06-04', 'heavy')];
+    expect(summarizeMenstrualCycle(days, range('2026-05-01', '2026-06-10')).cycleDay).toBe(8);
+  });
+
+  it('ignores the days outside the range', () => {
+    const days = [day('2026-08-20', 'heavy'), day('2026-11-05', 'heavy')];
+    expect(summarizeMenstrualCycle(days, range('2026-09-01', '2026-11-04'))).toMatchObject({
+      periodStarts: [],
+      daysLogged: 0,
+    });
   });
 });
 

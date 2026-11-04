@@ -26,7 +26,9 @@ import {
   latestMenstrualEntryPerDay,
   menstrualCycleDayIssues,
   menstrualCycleUnavailableReason,
+  menstrualSummaryReadFrom,
   normalizeMenstrualSymptoms,
+  PermissionDeniedError,
   summarizeMenstrualCycle,
   type ClubId,
   type LocalDate,
@@ -283,6 +285,17 @@ const PROBLEM_MESSAGES: Readonly<Record<MenstrualCycleDayProblem, string>> = {
 
 const DEFAULT_READ_DAYS = 90;
 
+/** What a member that may not read the range gets: the same as a range without days. */
+function emptyDays(playerId: PlayerId, from: LocalDate, to: LocalDate) {
+  return {
+    playerId,
+    from,
+    to,
+    days: [],
+    summary: summarizeMenstrualCycle([], { from, to }),
+  };
+}
+
 export function registerMenstrualCycleRoutes(app: FastifyInstance): void {
   registerEndpoint(app, getMenstrualCycleStatus, {
     transaction: true,
@@ -408,12 +421,8 @@ export function registerMenstrualCycleRoutes(app: FastifyInstance): void {
   registerEndpoint(app, getMenstrualCycleDays, {
     transaction: true,
     handler: async ({ params, query }, { db, permissions, auth: caller }) => {
-      const { clubId } = caller.membership;
+      const { clubId, role } = caller.membership;
       const { facts, today } = await requirePlayerFacts(db, clubId, params.playerId);
-      // The coach, the administration and the guardian never read it (`403`); the assigned
-      // medical and S&C staff read it only with the consents, and the database only when
-      // the player authorized this very member (else, nothing comes back).
-      await permissions.authorize('menstrual_cycle', 'read', { player: facts });
       const to = query.to ?? today;
       const from = query.from ?? addDays(to, -(DEFAULT_READ_DAYS - 1));
       if (compareLocalDates(from, to) > 0 || daysBetween(from, to) + 1 > MENSTRUAL_READ_MAX_DAYS) {
@@ -422,8 +431,40 @@ export function registerMenstrualCycleRoutes(app: FastifyInstance): void {
           `A range from \`from\` to \`to\` of at most ${String(MENSTRUAL_READ_MAX_DAYS)} days`,
         );
       }
+      // The coach, the administration and the guardian never read it (`403`); the assigned
+      // medical and S&C staff read it only with the consents, and the database only when
+      // the player authorized this very member (else, nothing comes back).
+      try {
+        await permissions.authorize('menstrual_cycle', 'read', { player: facts });
+      } catch (error) {
+        // For the staff, a missing consent answers as a missing authorization (an empty
+        // range): the `403 consent_required` would tell whether the player signed it.
+        if (
+          error instanceof PermissionDeniedError &&
+          error.reason === 'missing_consent' &&
+          isMenstrualCycleViewerRole(role)
+        ) {
+          return emptyDays(facts.id, from, to);
+        }
+        throw error;
+      }
+      if (role !== 'player') {
+        // Only a female player is ever read by the staff (the database checks it too).
+        const [row] = await db
+          .select({ sex: player.sex })
+          .from(player)
+          .where(and(eq(player.clubId, clubId), eq(player.id, facts.id)));
+        if (row?.sex !== 'female') return emptyDays(facts.id, from, to);
+      }
+      // One day before `from`: whether a period on `from` starts there or comes from before.
       const rows = latestMenstrualEntryPerDay(
-        (await readDays(db, { playerIds: [facts.id], from, to })).map((row) => ({
+        (
+          await readDays(db, {
+            playerIds: [facts.id],
+            from: menstrualSummaryReadFrom({ from, to }),
+            to,
+          })
+        ).map((row) => ({
           ...row,
           localDate: row.local_date as LocalDate,
           loggedAt: new Date(row.created_at),
@@ -433,8 +474,12 @@ export function registerMenstrualCycleRoutes(app: FastifyInstance): void {
         playerId: facts.id,
         from,
         to,
-        days: rows.map(dayDto),
-        summary: summarizeMenstrualCycle(rows, today),
+        days: rows.filter((row) => compareLocalDates(row.localDate, from) >= 0).map(dayDto),
+        // The cycle day on the range's last day, never on a day still to come.
+        summary: summarizeMenstrualCycle(rows, {
+          from,
+          to: compareLocalDates(to, today) > 0 ? today : to,
+        }),
       };
     },
   });
@@ -496,8 +541,13 @@ export function registerMenstrualCycleRoutes(app: FastifyInstance): void {
       // Always possible: taking an authorization back needs no consent.
       await permissions.authorize('menstrual_cycle', 'withdraw', { player: own.facts });
       await lockKeys(db, [`menstrual_cycle_share:${own.facts.id}`]);
-      const [share] = await readShares(db, own.facts.id, { ids: [params.shareId] });
+      const [share] = await readShares(db, own.facts.id, {
+        includeRevoked: true,
+        ids: [params.shareId],
+      });
       if (share === undefined) throw new HttpError('not_found', 'Authorization not found');
+      // Already revoked (a retry): the same answer, nothing to write.
+      if (share.revoked_at !== null) return statusOf(db, clubId, own);
       await db.execute(sql`
         update medical.menstrual_cycle_share
            set revoked_at = now(), revoked_by = ${caller.userId}, updated_by = ${caller.userId}
@@ -510,11 +560,14 @@ export function registerMenstrualCycleRoutes(app: FastifyInstance): void {
     transaction: true,
     handler: async (_input, { db, permissions, auth: caller }) => {
       const { clubId, role } = caller.membership;
+      // The matrix first (ADR 0032): the roles that never read it get `403`, a member
+      // without assignments today reads nobody.
+      const scope = await permissions.listScope('menstrual_cycle', 'read');
       if (!isMenstrualCycleViewerRole(role)) {
-        // The matrix answers for the roles that never read it; a player reads her own.
-        await permissions.listScope('menstrual_cycle', 'read');
+        // A player reads her own, never a list of others.
         throw new HttpError('forbidden', 'Only the medical and S&C staff are authorized');
       }
+      if (scope.kind === 'none') return { items: [] };
       const { rows } = await db.execute<{ player_id: PlayerId; shared_at: string }>(sql`
         select s.player_id, to_json(s.shared_at)#>>'{}' as shared_at
           from medical.menstrual_cycle_shared_with_me() s`);
