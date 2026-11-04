@@ -3,6 +3,8 @@ import {
   DEFAULT_ALERT_RULES,
   DomainValidationError,
   addDays,
+  alertRuleAppliesTo,
+  cmjRollingBaseline,
   evaluateAlertRules,
   highestAlertSeverity,
   meanWellnessScore,
@@ -478,5 +480,74 @@ describe('evaluateAlertRules', () => {
       evaluateAlertRules(Object.freeze([...DEFAULT_ALERT_RULES]), { date: DAY, wellness: frozen }),
     ).not.toThrow();
     expect(frozen[0]?.date).toBe(DAY);
+  });
+});
+
+describe('cmjRollingBaseline', () => {
+  const params = { baselineWindowDays: 42, minBaselineSamples: 3 };
+
+  it('is the mean of the best jump per day before the day, inside the window', () => {
+    const baseline = cmjRollingBaseline(
+      [
+        { date: addDays(DAY, -50), heightCm: 60 }, // outside the window
+        { date: addDays(DAY, -21), heightCm: 38 },
+        { date: addDays(DAY, -21), heightCm: 39 }, // same day: the best counts
+        { date: addDays(DAY, -14), heightCm: 41 },
+        { date: addDays(DAY, -7), heightCm: 40 },
+        { date: DAY, heightCm: 30 }, // the day itself is not its own baseline
+        { date: addDays(DAY, 3), heightCm: 10 }, // after the day: ignored
+      ],
+      DAY,
+      params,
+    );
+    expect(baseline).toEqual({ heightCm: 40, samples: 3, minSamples: 3, from: addDays(DAY, -42) });
+  });
+
+  it('has no height with fewer days than the rule needs', () => {
+    expect(
+      cmjRollingBaseline(
+        [
+          { date: addDays(DAY, -14), heightCm: 41 },
+          { date: addDays(DAY, -7), heightCm: 40 },
+        ],
+        DAY,
+        params,
+      ),
+    ).toMatchObject({ heightCm: null, samples: 2, minSamples: 3 });
+    expect(cmjRollingBaseline([], DAY, params)).toMatchObject({ heightCm: null, samples: 0 });
+  });
+
+  it('is the baseline the cmj_drop rule compares with', () => {
+    const measurements = [
+      { date: addDays(DAY, -30), heightCm: 42.5 },
+      { date: addDays(DAY, -20), heightCm: 41 },
+      { date: addDays(DAY, -10), heightCm: 43 },
+      { date: DAY, heightCm: 38 },
+    ];
+    const alert = only('cmj_drop', { cmj: { measurements } }).alerts[0];
+    expect(alert?.values.baselineHeightCm).toBe(
+      cmjRollingBaseline(measurements, DAY, params).heightCm,
+    );
+  });
+
+  it('refuses malformed jumps', () => {
+    expect(() => cmjRollingBaseline([{ date: DAY, heightCm: 0 }], DAY, params)).toThrow(
+      DomainValidationError,
+    );
+  });
+});
+
+describe('alertRuleAppliesTo', () => {
+  it('matches every dimension present in the scope', () => {
+    const rule = parseAlertRule({
+      ...defaultRule('cmj_drop'),
+      appliesTo: { stages: ['performance'], sexes: ['male'] },
+    });
+    expect(alertRuleAppliesTo(rule, { stage: 'performance', sex: 'male', sport: 'rugby' })).toBe(
+      true,
+    );
+    expect(alertRuleAppliesTo(rule, { stage: 'performance', sex: 'female' })).toBe(false);
+    expect(alertRuleAppliesTo(rule, { sex: 'male' })).toBe(false);
+    expect(alertRuleAppliesTo(defaultRule('cmj_drop'), {})).toBe(true);
   });
 });

@@ -14,6 +14,7 @@ import {
   type AlertRuleOf,
   type AlertSeverity,
   type AlertSuggestionKey,
+  type CmjDropParams,
 } from './rules.js';
 
 // ---------------------------------------------------------------------------
@@ -224,7 +225,23 @@ function severityFor(
   return null;
 }
 
-function inScope(rule: AlertRule, state: PlayerDailyState): boolean {
+/** Who a rule is evaluated for: the player's sport, sex and stage. */
+export interface AlertRuleSubject {
+  readonly sport?: Sport;
+  readonly sex?: Sex;
+  readonly stage?: Stage;
+}
+
+/**
+ * Whether a rule's `appliesTo` covers the player: every dimension present
+ * has to match; an absent dimension is "everyone". Clients use it to show
+ * the threshold the engine will apply (the weekly CMJ against its baseline).
+ */
+export function alertRuleAppliesTo(rule: AlertRule, subject: AlertRuleSubject): boolean {
+  return inScope(rule, subject);
+}
+
+function inScope(rule: AlertRule, state: AlertRuleSubject): boolean {
   const scope = rule.appliesTo;
   if (scope === undefined) return true;
   const matches = <T>(allowed: readonly T[] | undefined, value: T | undefined): boolean =>
@@ -303,17 +320,7 @@ function prepare(state: PlayerDailyState): PreparedState {
   let cmjDaily: CmjMeasurement[] | null = null;
   let cmjPinnedBaselineCm: number | null = null;
   if (state.cmj !== undefined && state.cmj !== null) {
-    const best = new Map<LocalDate, number>();
-    for (const m of state.cmj.measurements) {
-      assertDate(m.date, 'cmj.date');
-      assertFinite(m.heightCm, 'cmj.heightCm');
-      if (m.heightCm <= 0) invalid('cmj.heightCm', m.heightCm, 'a height > 0 cm');
-      if (compareLocalDates(m.date, date) > 0) continue;
-      best.set(m.date, Math.max(best.get(m.date) ?? 0, m.heightCm));
-    }
-    cmjDaily = [...best]
-      .map(([d, heightCm]) => ({ date: d, heightCm }))
-      .sort((a, b) => compareLocalDates(a.date, b.date));
+    cmjDaily = dailyBest(state.cmj.measurements, date);
     const pinned = state.cmj.baselineHeightCm;
     if (pinned !== undefined && pinned !== null) {
       assertFinite(pinned, 'cmj.baselineHeightCm');
@@ -433,6 +440,73 @@ function evaluateWellnessZScore(
   };
 }
 
+/** The rolling CMJ baseline of a player before a day (see {@link cmjRollingBaseline}). */
+export interface CmjBaseline {
+  /** Mean of the best jump of each day in the window; `null` with too few days. */
+  readonly heightCm: number | null;
+  /** Days with a CMJ inside the window. */
+  readonly samples: number;
+  /** The days the rule needs inside the window. */
+  readonly minSamples: number;
+  /** First day of the window (inclusive); the window ends the day before `date`. */
+  readonly from: LocalDate;
+}
+
+/** Best height per day, ascending: several jumps on one day count as their best. */
+function dailyBest(measurements: readonly CmjMeasurement[], upTo: LocalDate): CmjMeasurement[] {
+  const best = new Map<LocalDate, number>();
+  for (const m of measurements) {
+    assertDate(m.date, 'cmj.date');
+    assertFinite(m.heightCm, 'cmj.heightCm');
+    if (m.heightCm <= 0) invalid('cmj.heightCm', m.heightCm, 'a height > 0 cm');
+    if (compareLocalDates(m.date, upTo) > 0) continue;
+    best.set(m.date, Math.max(best.get(m.date) ?? 0, m.heightCm));
+  }
+  return [...best]
+    .map(([d, heightCm]) => ({ date: d, heightCm }))
+    .sort((a, b) => compareLocalDates(a.date, b.date));
+}
+
+function rollingBaseline(
+  daily: readonly CmjMeasurement[],
+  date: LocalDate,
+  windowDays: number,
+  minSamples: number,
+): CmjBaseline {
+  const from = addDays(date, -windowDays);
+  const window = daily
+    .filter((m) => compareLocalDates(m.date, from) >= 0 && compareLocalDates(m.date, date) < 0)
+    .map((m) => m.heightCm);
+  return {
+    heightCm: window.length < minSamples || window.length === 0 ? null : mean(window),
+    samples: window.length,
+    minSamples,
+    from,
+  };
+}
+
+/**
+ * The baseline the `cmj_drop` rule compares a jump of `date` with: the mean
+ * of the best jump of each day in the `baselineWindowDays` before it (the
+ * day itself excluded), once there are `minBaselineSamples` days. Pass the
+ * measurements of one method only (`cmjMeasurementsForAlerts`, principle 4).
+ * The engine uses this same function, so a client that shows the baseline
+ * before a jump (the weekly CMJ, B-506) shows the one the alert will use.
+ */
+export function cmjRollingBaseline(
+  measurements: readonly CmjMeasurement[],
+  date: LocalDate,
+  params: Pick<CmjDropParams, 'baselineWindowDays' | 'minBaselineSamples'>,
+): CmjBaseline {
+  assertDate(date, 'date');
+  return rollingBaseline(
+    dailyBest(measurements, date),
+    date,
+    params.baselineWindowDays,
+    params.minBaselineSamples,
+  );
+}
+
 function evaluateCmjDrop(rule: AlertRuleOf<'cmj_drop'>, state: PreparedState): Outcome {
   const daily = state.cmjDaily;
   const latest = daily?.at(-1);
@@ -443,15 +517,10 @@ function evaluateCmjDrop(rule: AlertRuleOf<'cmj_drop'>, state: PreparedState): O
   let baselineHeightCm = state.cmjPinnedBaselineCm;
   let samples = 0;
   if (baselineHeightCm === null) {
-    const from = addDays(latest.date, -baselineWindowDays);
-    const window = daily
-      .filter(
-        (m) => compareLocalDates(m.date, from) >= 0 && compareLocalDates(m.date, latest.date) < 0,
-      )
-      .map((m) => m.heightCm);
-    if (window.length < minBaselineSamples) return skip('insufficient_history');
-    baselineHeightCm = mean(window);
-    samples = window.length;
+    const baseline = rollingBaseline(daily, latest.date, baselineWindowDays, minBaselineSamples);
+    if (baseline.heightCm === null) return skip('insufficient_history');
+    baselineHeightCm = baseline.heightCm;
+    samples = baseline.samples;
   }
 
   const dropPct = ((baselineHeightCm - latest.heightCm) / baselineHeightCm) * 100;
