@@ -251,12 +251,15 @@ function projectNotDoneReasons(tables: ExportedTables, viewer: Role): ExportedTa
 /**
  * The rows of one clinical table. `once` shares a read between the tables it
  * feeds (the pain reports and their areas): one audited call, one log row.
+ * `null`: the table is not exported to this requester (the menstrual cycle,
+ * to anyone but the player herself: B-806, ADR 0087).
  */
 type MedicalReader = (
   db: TenantDatabase,
   playerId: PlayerId,
   once: <T>(key: string, read: () => Promise<T>) => Promise<T>,
-) => Promise<ExportedRow[]>;
+  role: Role,
+) => Promise<ExportedRow[] | null>;
 
 /** A clinical table read by one call of its audited function (ADR 0029). */
 const readAll =
@@ -330,6 +333,24 @@ const menarcheReports: MedicalReader = async (db, playerId) => {
   }
 };
 
+/**
+ * The menstrual cycle (B-806, ADR 0087) is exported only to the player
+ * herself: the guardian of a minor consents for her but does not read it, and
+ * the audited functions answer only the player.
+ */
+const onlyToThePlayer =
+  (read: MedicalReader): MedicalReader =>
+  async (db, playerId, once, role) =>
+    role === 'player' ? read(db, playerId, once, role) : null;
+
+const readCycleShares: MedicalReader = async (db, playerId) => {
+  const { rows } = await db.execute<{ rows: ExportedRow[] }>(
+    sql`select coalesce(jsonb_agg(to_jsonb(x)), '[]'::jsonb) as rows
+          from medical.read_menstrual_cycle_shares(array[${playerId}]::uuid[], true) x`,
+  );
+  return rows[0]?.rows ?? [];
+};
+
 /** Clinical tables read through the audited functions of the `medical` schema (ADR 0029). */
 export const MEDICAL_READS: Readonly<Record<string, MedicalReader>> = {
   'medical.injury': readAll('medical.read_injuries'),
@@ -339,9 +360,18 @@ export const MEDICAL_READS: Readonly<Record<string, MedicalReader>> = {
   'medical.pain_report': painReports,
   'medical.pain_report_area': painReportAreas,
   'medical.menarche_report': menarcheReports,
+  'medical.menstrual_cycle_enrollment': onlyToThePlayer(
+    readAll('medical.read_menstrual_cycle_enrollments'),
+  ),
+  'medical.menstrual_cycle_log': onlyToThePlayer(readAll('medical.read_menstrual_cycle_logs')),
+  'medical.menstrual_cycle_share': onlyToThePlayer(readCycleShares),
 };
 
-async function readMedical(db: TenantDatabase, playerId: PlayerId): Promise<ExportedTables> {
+async function readMedical(
+  db: TenantDatabase,
+  playerId: PlayerId,
+  role: Role,
+): Promise<ExportedTables> {
   const tables: ExportedTables = {};
   const shared = new Map<string, Promise<unknown>>();
   const once = <T>(key: string, read: () => Promise<T>): Promise<T> => {
@@ -353,7 +383,8 @@ async function readMedical(db: TenantDatabase, playerId: PlayerId): Promise<Expo
     return pending;
   };
   for (const [table, read] of Object.entries(MEDICAL_READS)) {
-    tables[table] = await read(db, playerId, once);
+    const rows = await read(db, playerId, once, role);
+    if (rows !== null) tables[table] = rows;
   }
   return tables;
 }
@@ -364,7 +395,8 @@ async function exportMedical(
   allowed: boolean,
   facts: PlayerFacts,
 ): Promise<PlayerDataExport['medical']> {
-  if (allowed) return { included: true, reason: null, tables: await readMedical(db, facts.id) };
+  if (allowed)
+    return { included: true, reason: null, tables: await readMedical(db, facts.id, role) };
   const reason = role === 'admin' ? 'not_holder' : 'no_health_consent';
   return { included: false, reason, tables: {} };
 }

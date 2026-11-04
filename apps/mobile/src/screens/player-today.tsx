@@ -75,6 +75,11 @@ export interface PlayerTodayActions {
   readonly onOpenPainReport?: (() => void) | null;
   /** "Otra actividad" (B-511): a load outside the club, also offline; `null` hides it. */
   readonly onOpenExternalLoad?: (() => void) | null;
+  /**
+   * "Mi ciclo" (B-806): only when the club offers it to the player (module on,
+   * a female player); `null` (or absent) hides it. Never says whether she uses it.
+   */
+  readonly onOpenMenstrualCycle?: (() => void) | null;
 }
 
 /** The reason of a correction, as the contract wants it (1–500 chars, trimmed). */
@@ -621,6 +626,16 @@ export function PlayerTodayScreen({
             variant="secondary"
             label={t('externalLoad.open')}
             onPress={actions.onOpenExternalLoad}
+          />
+        </Card>
+      ) : null}
+      {actions.onOpenMenstrualCycle ? (
+        <Card>
+          <AppText tone="secondary">{t('cycle.open.hint')}</AppText>
+          <Button
+            variant="secondary"
+            label={t('cycle.title')}
+            onPress={actions.onOpenMenstrualCycle}
           />
         </Card>
       ) : null}

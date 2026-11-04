@@ -1,0 +1,172 @@
+import { describe, expect, it } from 'vitest';
+import { DEFAULT_CLUB_MODULES } from '../club-modules.js';
+import type { LocalDate } from '../time.js';
+import {
+  MENSTRUAL_CYCLE_VIEWER_ROLES,
+  MENSTRUAL_FLOWS,
+  MENSTRUAL_NOTE_MAX_LENGTH,
+  consentTypesAskedFor,
+  isPeriodFlow,
+  isWithinMenstrualLogWindow,
+  latestMenstrualEntryPerDay,
+  menstrualCycleDayIssues,
+  menstrualCycleUnavailableReason,
+  normalizeMenstrualSymptoms,
+  summarizeMenstrualCycle,
+  type MenstrualFlow,
+} from './index.js';
+
+const d = (value: string) => value as LocalDate;
+const ON = { ...DEFAULT_CLUB_MODULES, menstrual_cycle: true };
+
+describe('vocabulary', () => {
+  it('keeps the stored values (the database enums are built from them)', () => {
+    expect(MENSTRUAL_FLOWS).toEqual(['none', 'spotting', 'light', 'moderate', 'heavy']);
+    expect(MENSTRUAL_CYCLE_VIEWER_ROLES).toEqual(['medical', 'sc']);
+  });
+
+  it('spotting and no bleeding are not days of the period', () => {
+    expect(MENSTRUAL_FLOWS.filter(isPeriodFlow)).toEqual(['light', 'moderate', 'heavy']);
+  });
+});
+
+describe('menstrualCycleDayIssues', () => {
+  it('accepts a day with symptoms and a note', () => {
+    expect(
+      menstrualCycleDayIssues({ flow: 'light', symptoms: ['cramps', 'fatigue'], note: 'ok' }),
+    ).toEqual([]);
+    expect(menstrualCycleDayIssues({ flow: 'none', symptoms: [] })).toEqual([]);
+  });
+
+  it('rejects repeated symptoms, blank and long notes', () => {
+    expect(
+      menstrualCycleDayIssues({
+        flow: 'heavy',
+        symptoms: ['cramps', 'cramps'],
+        note: ' ',
+      }),
+    ).toEqual([
+      { path: ['symptoms', 1], problem: 'duplicate_symptom' },
+      { path: ['note'], problem: 'note_blank' },
+    ]);
+    expect(
+      menstrualCycleDayIssues({
+        flow: 'none',
+        symptoms: [],
+        note: '🩸'.repeat(MENSTRUAL_NOTE_MAX_LENGTH),
+      }),
+    ).toEqual([]);
+    expect(
+      menstrualCycleDayIssues({
+        flow: 'none',
+        symptoms: [],
+        note: 'a'.repeat(MENSTRUAL_NOTE_MAX_LENGTH + 1),
+      }),
+    ).toEqual([{ path: ['note'], problem: 'note_too_long' }]);
+  });
+
+  it('normalizes symptoms to the vocabulary order', () => {
+    expect(normalizeMenstrualSymptoms(['fatigue', 'cramps', 'fatigue'])).toEqual([
+      'cramps',
+      'fatigue',
+    ]);
+  });
+});
+
+describe('isWithinMenstrualLogWindow', () => {
+  it('takes the last 14 club days, today included, never the future', () => {
+    const today = d('2026-11-04');
+    expect(isWithinMenstrualLogWindow(today, today)).toBe(true);
+    expect(isWithinMenstrualLogWindow(d('2026-10-22'), today)).toBe(true);
+    expect(isWithinMenstrualLogWindow(d('2026-10-21'), today)).toBe(false);
+    expect(isWithinMenstrualLogWindow(d('2026-11-05'), today)).toBe(false);
+  });
+});
+
+describe('latestMenstrualEntryPerDay', () => {
+  it('keeps the last entry of each day, by date', () => {
+    const entries = [
+      { localDate: d('2026-11-02'), flow: 'light' as const, loggedAt: new Date(3) },
+      { localDate: d('2026-11-01'), flow: 'heavy' as const, loggedAt: new Date(1) },
+      { localDate: d('2026-11-01'), flow: 'moderate' as const, loggedAt: new Date(2) },
+    ];
+    expect(latestMenstrualEntryPerDay(entries).map((e) => [e.localDate, e.flow])).toEqual([
+      ['2026-11-01', 'moderate'],
+      ['2026-11-02', 'light'],
+    ]);
+  });
+});
+
+describe('summarizeMenstrualCycle', () => {
+  const day = (localDate: string, flow: MenstrualFlow) => ({ localDate: d(localDate), flow });
+
+  it('is empty without a period', () => {
+    expect(summarizeMenstrualCycle([day('2026-11-01', 'spotting')], d('2026-11-04'))).toEqual({
+      periodStarts: [],
+      lastPeriodStart: null,
+      cycleDay: null,
+      cycleLengthsDays: [],
+      daysLogged: 1,
+    });
+  });
+
+  it('finds the starts of periods, the cycle lengths and the day of the cycle', () => {
+    const days = [
+      day('2026-09-10', 'spotting'),
+      day('2026-09-11', 'heavy'),
+      day('2026-09-12', 'moderate'),
+      day('2026-09-13', 'light'),
+      day('2026-09-14', 'none'),
+      day('2026-10-09', 'moderate'),
+      day('2026-10-10', 'heavy'),
+      day('2026-11-03', 'light'),
+    ];
+    expect(summarizeMenstrualCycle(days, d('2026-11-04'))).toEqual({
+      periodStarts: ['2026-09-11', '2026-10-09', '2026-11-03'],
+      lastPeriodStart: '2026-11-03',
+      cycleDay: 2,
+      cycleLengthsDays: [28, 25],
+      daysLogged: 8,
+    });
+  });
+
+  it('a day not logged inside a period splits it, and spotting does not join it', () => {
+    const days = [
+      day('2026-11-01', 'heavy'),
+      day('2026-11-02', 'spotting'),
+      day('2026-11-03', 'light'),
+    ];
+    expect(summarizeMenstrualCycle(days, d('2026-11-03')).periodStarts).toEqual([
+      '2026-11-01',
+      '2026-11-03',
+    ]);
+  });
+});
+
+describe('menstrualCycleUnavailableReason', () => {
+  const all = ['data', 'health', 'menstrual_cycle'] as const;
+
+  it('needs the module, a female player and the three consents', () => {
+    expect(menstrualCycleUnavailableReason(DEFAULT_CLUB_MODULES, 'female', all)).toBe('module_off');
+    expect(menstrualCycleUnavailableReason(ON, 'male', all)).toBe('not_female');
+    expect(menstrualCycleUnavailableReason(ON, 'female', ['data', 'health'])).toBe(
+      'missing_consent',
+    );
+    expect(menstrualCycleUnavailableReason(ON, 'female', all)).toBeNull();
+  });
+});
+
+describe('consentTypesAskedFor', () => {
+  it('asks for the cycle consent only where the module is offered, or once signed', () => {
+    expect(consentTypesAskedFor(DEFAULT_CLUB_MODULES, 'female', [])).toEqual([
+      'data',
+      'image',
+      'health',
+    ]);
+    expect(consentTypesAskedFor(ON, 'male', [])).toEqual(['data', 'image', 'health']);
+    expect(consentTypesAskedFor(ON, 'female', [])).toContain('menstrual_cycle');
+    expect(consentTypesAskedFor(DEFAULT_CLUB_MODULES, 'female', ['menstrual_cycle'])).toContain(
+      'menstrual_cycle',
+    );
+  });
+});

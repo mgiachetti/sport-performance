@@ -105,10 +105,12 @@ describe('consentStates', () => {
       ['data', 'outdated'],
       ['image', 'granted'],
       ['health', 'revoked'],
+      ['menstrual_cycle', 'missing'],
     ]);
     expect(states[0]?.current).toBe(data);
     expect(states[2]?.current).toBeNull();
     expect(consentStates([], documents, NOW).map((s) => s.state)).toEqual([
+      'missing',
       'missing',
       'missing',
       'missing',

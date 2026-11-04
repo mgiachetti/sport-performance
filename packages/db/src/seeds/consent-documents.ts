@@ -70,6 +70,17 @@ const BODIES: Readonly<Record<ConsentType, (clubName: string) => { title: string
         rights(clubName),
       ].join('\n\n'),
     }),
+    menstrual_cycle: (clubName) => ({
+      title: 'Consentimiento para el seguimiento del ciclo menstrual',
+      body: [
+        `${clubName} ofrece a sus jugadoras un registro opcional del ciclo menstrual: los días de sangrado, los síntomas que ella marque y una nota. Es un dato de salud y un dato sensible (Ley 25.326, artículo 2), aparte del consentimiento de salud general.`,
+        'Es voluntario y lo activa la jugadora en la app, solo si quiere: este consentimiento lo permite, no lo activa. Puede desactivarlo cuando quiera, y desde ese momento no se carga nada nuevo.',
+        'Lo ve solo la jugadora y las personas del staff médico o de preparación física asignadas a ella que ella misma elija, una por una; puede sacarles el acceso en cualquier momento. Nunca lo ven los entrenadores, la administración del club ni otras jugadoras, nunca aparece en rankings ni en informes, y cada acceso queda registrado. Quien firma este consentimiento por una jugadora menor de edad no ve sus registros.',
+        'La plataforma no es un dispositivo médico: no estima fases del ciclo ni predice la próxima menstruación, y no diagnostica. Ante cualquier duda de salud, la jugadora consulta al personal médico.',
+        signerClause(),
+        rights(clubName),
+      ].join('\n\n'),
+    }),
   };
 
 /** The default texts for a club, with its name as the data controller. */

@@ -75,6 +75,8 @@ export default function AppLayout() {
       <Tabs.Screen name="reaction" options={{ title: t('reaction.title'), href: null }} />
       {/* A step of the player's wellness (B-609), opened from Inicio and after the check-in. */}
       <Tabs.Screen name="pain-report" options={{ title: t('pain.title'), href: null }} />
+      {/* The player's cycle (B-806), opened from Inicio when the club offers it. */}
+      <Tabs.Screen name="menstrual-cycle" options={{ title: t('cycle.title'), href: null }} />
       <Tabs.Screen name="weekly-cmj" options={{ title: t('weeklyCmj.title'), href: null }} />
       {/* The sheet of one session, opened from Sesiones. */}
       <Tabs.Screen name="session" options={{ title: t('coachSession.nav'), href: null }} />

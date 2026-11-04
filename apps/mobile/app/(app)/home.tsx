@@ -41,6 +41,9 @@ export default function Home() {
         onOpenPainReport={() => {
           router.push('/pain-report');
         }}
+        onOpenMenstrualCycle={() => {
+          router.push('/menstrual-cycle');
+        }}
         // Activities outside the club (B-511): whoever the matrix lets report them.
         onOpenExternalLoad={
           canReportExternalLoad(state.activeMembership.role)

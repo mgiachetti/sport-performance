@@ -265,6 +265,16 @@ import {
 } from './pain-reports.js';
 import { getMenarche, reportMenarche } from './menarche.js';
 import {
+  getMenstrualCycleStatus,
+  startMenstrualCycleTracking,
+  endMenstrualCycleTracking,
+  logMenstrualCycleDay,
+  getMenstrualCycleDays,
+  authorizeMenstrualCycleViewer,
+  revokeMenstrualCycleViewer,
+  listMenstrualCycleSharedWithMe,
+} from './menstrual-cycle.js';
+import {
   addTestResultEntries,
   createTestResult,
   getTestResult,
@@ -342,6 +352,7 @@ export * from './session-roster.js';
 export * from './wellness.js';
 export * from './pain-reports.js';
 export * from './menarche.js';
+export * from './menstrual-cycle.js';
 export * from './external-loads.js';
 export * from './kiosk.js';
 export * from './tests.js';
@@ -481,6 +492,14 @@ export const apiEndpoints = {
   submitPainReport,
   listPainReports,
   reviewPainReport,
+  getMenstrualCycleStatus,
+  startMenstrualCycleTracking,
+  endMenstrualCycleTracking,
+  logMenstrualCycleDay,
+  getMenstrualCycleDays,
+  authorizeMenstrualCycleViewer,
+  revokeMenstrualCycleViewer,
+  listMenstrualCycleSharedWithMe,
   reportExternalLoad,
   correctExternalLoad,
   archiveExternalLoad,

@@ -422,7 +422,7 @@ describe('rules and vocabularies', () => {
   });
 
   it('parses consent vocabularies', () => {
-    expect(CONSENT_TYPES).toEqual(['data', 'image', 'health']);
+    expect(CONSENT_TYPES).toEqual(['data', 'image', 'health', 'menstrual_cycle']);
     expect(CONSENT_SIGNERS).toEqual(['guardian', 'player']);
     expect(isConsentType('image')).toBe(true);
     expect(parseConsentType('health')).toBe('health');

@@ -71,6 +71,8 @@ export const API_TAGS = {
   calendar: 'Calendario: temporadas, ventanas de tests V1 a V4, días de test y fixture.',
   training: 'Sesiones de entrenamiento y partidos, bloques, participación y RPE del jugador.',
   wellness: 'Bienestar antes de entrenar: una carga por jugador y día del club.',
+  menstrual_cycle:
+    'Seguimiento opcional del ciclo menstrual (B-806): dato de salud que carga la jugadora y ve solo quien ella autoriza.',
   alerts:
     'Alertas de carga (heurísticas, nunca un diagnóstico): episodios, historial y acuse del staff (B-327).',
   panel:

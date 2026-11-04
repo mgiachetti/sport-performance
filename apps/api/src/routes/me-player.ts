@@ -92,6 +92,7 @@ export function registerMePlayerRoutes(app: FastifyInstance): void {
           : { ...facts, stage: context.stage, ageBand: context.ageBand };
       const set = wellnessStage === null ? null : wellnessItemSetForStage(wellnessStage);
       const target = (playerFacts: PlayerFacts) => ({ clubId, player: playerFacts });
+      const modules = await clubModules(db, clubId);
       return {
         player: {
           id: row.id,
@@ -113,8 +114,11 @@ export function registerMePlayerRoutes(app: FastifyInstance): void {
           readPercentiles: can(subject, 'read', { kind: 'percentile', ...target(withStage) }),
           // The pain report of the wellness (B-609): the club's modules and the matrix.
           reportPain:
-            painReportModuleOn(await clubModules(db, clubId)) &&
+            painReportModuleOn(modules) &&
             can(subject, 'submit', { kind: 'pain_report', ...target(facts) }),
+          // Menstrual cycle tracking (B-806): offered to a female player when the club has
+          // the module; the screen tells her what is missing (consents) and whether she uses it.
+          menstrualCycle: modules.menstrual_cycle && row.sex === 'female',
         },
       };
     },

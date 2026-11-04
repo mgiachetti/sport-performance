@@ -93,6 +93,9 @@ export const SYNC_OPERATIONS = [
   'external_load.report',
   'external_load.correct',
   'external_load.archive',
+  // Create only (B-806, ADR 0087): a day of the menstrual cycle, to `medical`. Like the pain
+  // report, never pulled back and forgotten by the device once applied.
+  'menstrual_cycle.log',
 ] as const;
 export type SyncOperation = (typeof SYNC_OPERATIONS)[number];
 

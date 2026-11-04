@@ -57,10 +57,13 @@ export const webGuardianMessagesEsAR = {
   'guardian.consents.type.data': 'Datos personales y de entrenamiento',
   'guardian.consents.type.image': 'Imágenes y videos',
   'guardian.consents.type.health': 'Datos de salud',
+  'guardian.consents.type.menstrual_cycle': 'Seguimiento del ciclo menstrual',
   'guardian.consents.typeHelp.data':
     'Tests físicos, bienestar, carga de entrenamiento y medidas. Sin este no se carga nada.',
   'guardian.consents.typeHelp.image': 'Videos del salto (CMJ) y fotos para analizar la técnica.',
   'guardian.consents.typeHelp.health': 'Lesiones y altas, que gestiona el staff médico.',
+  'guardian.consents.typeHelp.menstrual_cycle':
+    'Opcional, solo para jugadoras: lo activa ella si quiere y lo ve solo a quien ella elija. Quien firma no ve sus registros.',
   'guardian.consents.state.granted': 'Vigente',
   'guardian.consents.state.outdated': 'Vigente sobre un texto anterior',
   'guardian.consents.state.adult_signature_required': 'Falta la firma del jugador/a',

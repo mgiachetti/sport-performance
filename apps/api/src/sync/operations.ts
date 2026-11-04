@@ -8,6 +8,7 @@ import {
   recordParticipations,
   recordTestSessionResults,
   reportExternalLoad,
+  logMenstrualCycleDay,
   submitPainReport,
   submitSessionRpe,
   submitWellness,
@@ -788,6 +789,14 @@ const painReportSubmit: Resolver<'pain_report.submit'> = async ({ body }, ctx) =
   return Promise.resolve(create({ endpoint: submitPainReport, body }));
 };
 
+// ─── Menstrual cycle (B-806, ADR 0087) ───────────────────────────────────────────────
+
+const menstrualCycleLog: Resolver<'menstrual_cycle.log'> = async ({ body }, ctx) => {
+  requireClientUuid(body, [...ctx.path, 'body']);
+  // Append-only: a create, never in conflict. Replayed by its clientUuid.
+  return Promise.resolve(create({ endpoint: logMenstrualCycleDay, body }));
+};
+
 // ─── Anthropometry ───────────────────────────────────────────────────────────────────
 
 const anthroRecord: Resolver<'anthro.record'> = async ({ body }, ctx) => {
@@ -958,6 +967,7 @@ export const SYNC_RESOLVERS: { readonly [Op in SyncOperation]: Resolver<Op> } = 
   'gym_set.correct': gymSetCorrect,
   'gym_set.void': gymSetVoid,
   'pain_report.submit': painReportSubmit,
+  'menstrual_cycle.log': menstrualCycleLog,
   'anthro.record': anthroRecord,
   'anthro.update': anthroUpdate,
   'external_load.report': externalLoadReport,
@@ -986,4 +996,5 @@ export const SYNC_ENDPOINTS: readonly EndpointDefinition[] = [
   reportExternalLoad,
   correctExternalLoad,
   archiveExternalLoad,
+  logMenstrualCycleDay,
 ];

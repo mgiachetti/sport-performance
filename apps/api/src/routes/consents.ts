@@ -12,10 +12,11 @@ import {
   type ConsentDocumentSummary,
   type ConsentTypeStatus,
 } from '@sport-performance/contracts';
-import { consent, consentDocument } from '@sport-performance/db/schema';
+import { consent, consentDocument, player } from '@sport-performance/db/schema';
 import {
   CONSENT_TYPES,
   consentSignerOfRole,
+  consentTypesAskedFor,
   consentStates,
   guardianConsentsLapseOn,
   guardianConsentsLapsed,
@@ -37,6 +38,7 @@ import { registerEndpoint } from '../http/endpoint.js';
 import { HttpError } from '../http/errors.js';
 import { keysetPage, type KeysetSpec } from '../http/pagination.js';
 import { insertIdempotent, markReplay } from '../http/writes.js';
+import { clubModules } from './pain-reports.js';
 
 /**
  * Consents (B-312, ADR 0043): versioned texts of the club, signature and
@@ -227,6 +229,32 @@ async function typeStatuses(
     });
 }
 
+/**
+ * The types the player is asked for: the menstrual cycle consent only where the
+ * module is offered to her (B-806, ADR 0087), or once one was signed.
+ */
+async function askedTypes(
+  db: TenantDatabase,
+  clubId: ClubId,
+  playerId: PlayerId,
+): Promise<ConsentType[]> {
+  const [row] = await db
+    .select({ sex: player.sex })
+    .from(player)
+    .where(and(eq(player.clubId, clubId), eq(player.id, playerId)));
+  const signed = await db
+    .selectDistinct({ type: consent.type })
+    .from(consent)
+    .where(ofPlayer(clubId, playerId));
+  return row === undefined
+    ? [...CONSENT_TYPES]
+    : consentTypesAskedFor(
+        await clubModules(db, clubId),
+        row.sex,
+        signed.map((s) => s.type),
+      );
+}
+
 export function registerConsentRoutes(app: FastifyInstance): void {
   registerEndpoint(app, listConsentDocuments, {
     transaction: true,
@@ -318,7 +346,13 @@ export function registerConsentRoutes(app: FastifyInstance): void {
         playerOfAge: ofAge,
         requiredSigner: requiredConsentSigner(ofAge),
         guardianSignaturesLapseOn: guardianConsentsLapseOn(loaded.birthDate),
-        types: await typeStatuses(db, clubId, await permissions.subject(), loaded),
+        types: await typeStatuses(
+          db,
+          clubId,
+          await permissions.subject(),
+          loaded,
+          await askedTypes(db, clubId, facts.id),
+        ),
       };
     },
   });

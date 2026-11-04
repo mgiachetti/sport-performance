@@ -128,12 +128,14 @@ export function PlayerToday({
   sync,
   onOpenPainReport,
   onOpenExternalLoad,
+  onOpenMenstrualCycle,
 }: {
   readonly sync?: ReactNode;
   /** Opens "¿Te duele algo?" (B-609); offered after the check-in when the club asks it. */
   readonly onOpenPainReport?: () => void;
   /** Opens "Otra actividad" (B-511): the load of an activity outside the club. */
   readonly onOpenExternalLoad?: (() => void) | null;
+  readonly onOpenMenstrualCycle?: (() => void) | null;
 }) {
   const services = useServices();
   const api = useApi();
@@ -275,6 +277,9 @@ export function PlayerToday({
     },
     onOpenPainReport: me.value?.permissions.reportPain === true ? (onOpenPainReport ?? null) : null,
     onOpenExternalLoad: onOpenExternalLoad ?? null,
+    // Menstrual cycle tracking (B-806): offered by the club to a female player.
+    onOpenMenstrualCycle:
+      me.value?.permissions.menstrualCycle === true ? (onOpenMenstrualCycle ?? null) : null,
   };
 
   return (

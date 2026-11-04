@@ -33,19 +33,30 @@ const STAFF_TABLES = ['concussion', 'concussion_stage', 'hold', 'injury', 'note'
 const PAIN_TABLES = ['pain_report', 'pain_report_area'];
 /** Told by the girl, her guardian or the medical staff (B-805, ADR 0089; `menarche.integration.test.ts`). */
 const MENARCHE_TABLES = ['menarche_report'];
-const CLINICAL_TABLES = [...STAFF_TABLES, ...PAIN_TABLES, ...MENARCHE_TABLES].sort();
+/** Written by the player (B-806, ADR 0087; `menstrual-cycle.integration.test.ts`). */
+const CYCLE_TABLES = ['menstrual_cycle_enrollment', 'menstrual_cycle_log', 'menstrual_cycle_share'];
+/** Append-only for everyone: never found by id nor updated. */
+const INSERT_ONLY = ['menarche_report', 'menstrual_cycle_log', 'note', 'pain_report_area'];
+const CLINICAL_TABLES = [...STAFF_TABLES, ...PAIN_TABLES, ...MENARCHE_TABLES, ...CYCLE_TABLES].sort();
 const MEDICAL_TABLES = [...CLINICAL_TABLES, 'access_log'].sort();
 const ENTRY_POINTS = [
   'availability',
   'availability_history',
+  'is_menstrual_cycle_holder',
   'may_report_menarche',
   'may_report_pain',
+  'may_track_menstrual_cycle',
   'may_write',
+  'menstrual_cycle_shared_with_me',
+  'menstrual_cycle_viewer_candidates',
   'read_concussion_stages',
   'read_concussions',
   'read_holds',
   'read_injuries',
   'read_menarche_reports',
+  'read_menstrual_cycle_enrollments',
+  'read_menstrual_cycle_logs',
+  'read_menstrual_cycle_shares',
   'read_notes',
   'read_pain_reports',
 ];
@@ -238,10 +249,13 @@ describe.skipIf(!hasDatabase)('medical schema and audit (Postgres 16)', () => {
           order by 1, 2, 3`,
         [Object.values(DATABASE_ROLES)],
       );
-      // Pain areas and menarche reports are not even found by id: nobody updates them.
+      // Pain areas, menarche reports and cycle days are not even found by id: nobody updates them.
       expect(rows).toEqual(
         CLINICAL_TABLES.filter(
-          (table) => table !== 'pain_report_area' && table !== 'menarche_report',
+          (table) =>
+            table !== 'pain_report_area' &&
+            table !== 'menarche_report' &&
+            table !== 'menstrual_cycle_log',
         ).map((table) => ({
           role: DATABASE_ROLES.app,
           table,
@@ -267,8 +281,8 @@ describe.skipIf(!hasDatabase)('medical schema and audit (Postgres 16)', () => {
       );
       const expected = CLINICAL_TABLES.flatMap((table) => [
         { role: DATABASE_ROLES.app, table: `medical.${table}`, privilege: 'INSERT' },
-        // Clinical notes and pain areas are append-only.
-        ...(table === 'note' || table === 'pain_report_area' || table === 'menarche_report'
+        // Clinical notes, pain areas, menarche reports and cycle days are append-only.
+        ...(INSERT_ONLY.includes(table)
           ? []
           : [{ role: DATABASE_ROLES.app, table: `medical.${table}`, privilege: 'UPDATE' }]),
       ]);

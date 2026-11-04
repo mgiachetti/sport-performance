@@ -157,6 +157,7 @@ function consentRow(type: ConsentType) {
     data: 'Datos personales y de entrenamiento',
     image: 'Imágenes y videos',
     health: 'Datos de salud',
+    menstrual_cycle: 'Seguimiento del ciclo menstrual',
   } as const;
   return screen.findByRole('article', { name: titles[type] });
 }
