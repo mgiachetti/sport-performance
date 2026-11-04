@@ -1,6 +1,7 @@
 import {
   FIELD_METRIC_SOURCES,
   MEASUREMENT_METHODS,
+  SUBSTITUTION_MODES,
   UNIT_CODES,
   type MetricDirection,
   type UnitCode,
@@ -22,6 +23,7 @@ import {
   contactsSchema,
   minutesSchema,
   participationStatusSchema,
+  periodMinutesSchema,
   rpeSchema,
   sessionKindSchema,
   trainingSessionIdSchema,
@@ -105,6 +107,9 @@ export const fieldSessionPlayerSchema = z
       .object({
         status: participationStatusSchema,
         minutes: minutesSchema.nullable(),
+        periodMinutes: periodMinutesSchema
+          .nullable()
+          .meta({ description: 'Minutos por tramo (partidos de hockey); `null` si va el total.' }),
         contactsN: contactsSchema.nullable(),
         rpe: rpeSchema.nullable(),
         srpeAu: z.int().min(0).nullable().meta({ description: 'sRPE = RPE × minutos (UA).' }),
@@ -133,9 +138,46 @@ export const fieldSessionReferenceSchema = z
   })
   .meta({ id: 'FieldSessionReference' });
 
+export const sportFieldRulesSchema = z
+  .object({
+    substitutions: z.enum(SUBSTITUTION_MODES).meta({
+      description:
+        '`limited` (pocos cambios: minutos totales, rugby) o `rolling` (cambios ilimitados: minutos por tramo en los partidos, hockey).',
+    }),
+    recordsContacts: z.boolean().meta({
+      description:
+        'Si el deporte registra contactos; en hockey no hay columna ni tarjeta de contactos.',
+    }),
+    matchPeriodCount: z
+      .int()
+      .min(1)
+      .meta({ description: 'Tramos de un partido reglamentario (2 tiempos, 4 cuartos).' }),
+    pitch: z
+      .object({
+        lengthM: z
+          .number()
+          .positive()
+          .meta({ examples: [91.4] }),
+        widthM: z
+          .number()
+          .positive()
+          .meta({ examples: [55] }),
+      })
+      .meta({
+        description:
+          'Cancha reglamentaria del deporte en metros (rugby sin el in-goal): el lienzo del mapa de calor cuando haya posiciones (pod, Fase 3).',
+      }),
+  })
+  .meta({
+    id: 'SportFieldRules',
+    description:
+      'Reglas de cancha del deporte de la sesión (B-803): datos del dominio con su fuente (reglamentos de World Rugby y de la FIH).',
+  });
+
 export const fieldSessionSchema = z
   .object({
     session: trainingSessionSchema,
+    fieldRules: sportFieldRulesSchema,
     columns: z.array(fieldMetricColumnSchema).meta({
       description:
         'Métricas con algún valor en la sesión, en el orden del diccionario canónico (las propias del club al final) y, dentro de una métrica, por fuente.',
@@ -175,6 +217,7 @@ export type FieldSessionPlayer = z.output<typeof fieldSessionPlayerSchema>;
 export type FieldSessionReference = z.output<typeof fieldSessionReferenceSchema>;
 export type FieldSession = z.output<typeof fieldSessionSchema>;
 export type FieldSessionListItem = z.output<typeof fieldSessionListItemSchema>;
+export type FieldSessionRules = z.output<typeof sportFieldRulesSchema>;
 
 export const listFieldSessions = defineEndpoint({
   method: 'GET',

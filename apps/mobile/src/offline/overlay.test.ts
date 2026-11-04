@@ -96,6 +96,25 @@ describe('overlays', () => {
     expect(next).toMatchObject({ status: 'partial', minutes: 30, srpeAu: 180 });
   });
 
+  it('sums the periods of a hockey match and clears them with a total (B-803)', () => {
+    const row = participationDto({ status: 'full', minutes: 60, rpe: 6, srpeAu: 360 });
+    const byPeriod = applyOverlay('participation.update', row, {
+      target: { id: row.id },
+      body: { periodMinutes: [15, 10, 0, 12] },
+    });
+    expect(byPeriod).toMatchObject({ minutes: 37, periodMinutes: [15, 10, 0, 12], srpeAu: 222 });
+    const total = applyOverlay('participation.update', byPeriod, {
+      target: { id: row.id },
+      body: { minutes: 40 },
+    });
+    expect(total).toMatchObject({ minutes: 40, periodMinutes: null });
+    const absent = applyOverlay('participation.update', byPeriod, {
+      target: { id: row.id },
+      body: { status: 'absent' },
+    });
+    expect(absent).toMatchObject({ minutes: null, periodMinutes: null });
+  });
+
   it('leaves operations without an overlay (creates) as served', () => {
     const row = testResult();
     expect(applyOverlay('test_result.create', row, {})).toBe(row);

@@ -10,6 +10,9 @@ import {
   planSave,
   rowValues,
   sessionTotals,
+  sheetRules,
+  splitMinutes,
+  withPeriod,
   withStatus,
   type DraftRow,
 } from './participation';
@@ -274,6 +277,103 @@ describe('participation sheet', () => {
       rpeReported: 1,
       srpeAu: 540,
     });
+  });
+});
+
+describe('participation sheet by sport (B-803)', () => {
+  const hockeyMatch = { sport: 'hockey', kind: 'match' } as const;
+  const byPeriod = sheetRules(hockeyMatch);
+  const saved = participation(P1, {
+    status: 'partial',
+    minutes: 42,
+    periodMinutes: [12, 9, 15, 6],
+  });
+
+  it('asks for contacts only in rugby and for periods only in hockey matches', () => {
+    expect(sheetRules({ sport: 'rugby', kind: 'match' })).toEqual({
+      contacts: true,
+      periods: null,
+    });
+    expect(sheetRules({ sport: 'hockey', kind: 'training' })).toEqual({
+      contacts: false,
+      periods: null,
+    });
+    expect(byPeriod).toEqual({ contacts: false, periods: 4 });
+    const longer = participation(P2, { minutes: 30, periodMinutes: [5, 5, 5, 5, 5, 5] });
+    expect(
+      sheetRules(hockeyMatch, [
+        rosterEntry(P2, { first: 'a', last: 'b' }, { participation: longer }),
+      ]).periods,
+    ).toBe(6);
+  });
+
+  it('drafts the periods, adds them up and clears them without load', () => {
+    const draft = initialDraft(
+      rosterEntry(P1, { first: 'a', last: 'b' }, { participation: saved }),
+      byPeriod,
+    );
+    expect(draft).toEqual({
+      status: 'partial',
+      minutes: '42',
+      contacts: '',
+      periods: ['12', '9', '15', '6'],
+    });
+    expect(rowValues(withPeriod(draft, 1, ''))).toEqual({
+      status: 'partial',
+      minutes: 33,
+      contactsN: null,
+      periodMinutes: [12, 0, 15, 6],
+    });
+    expect(rowValues(withPeriod(draft, 1, 'x'))).toEqual({ errors: ['periods'] });
+    expect(withStatus(draft, 'absent').periods).toEqual(['', '', '', '']);
+    expect(isDirty(draft, saved)).toBe(false);
+    expect(isDirty(withPeriod(draft, 3, '7'), saved)).toBe(true);
+    expect(
+      isCorrection(
+        { status: 'partial', minutes: 43, contactsN: null, periodMinutes: [12, 9, 15, 7] },
+        saved,
+      ),
+    ).toBe(true);
+  });
+
+  it('keeps a total loaded before when no period is typed', () => {
+    const total = participation(P1, { status: 'full', minutes: 60 });
+    const draft = initialDraft(
+      rosterEntry(P1, { first: 'a', last: 'b' }, { participation: total }),
+      byPeriod,
+    );
+    expect(rowValues(draft)).toEqual({
+      status: 'full',
+      minutes: 60,
+      contactsN: null,
+      periodMinutes: null,
+    });
+    expect(isDirty(draft, total)).toBe(false);
+  });
+
+  it('splits "todos presentes" across the periods', () => {
+    expect(splitMinutes(60, 4)).toEqual([15, 15, 15, 15]);
+    expect(splitMinutes(50, 4)).toEqual([13, 13, 12, 12]);
+    const rows = new Map<string, DraftRow>([
+      ['a', { status: '', minutes: '', contacts: '', periods: ['', '', '', ''] }],
+    ]);
+    expect(fillPresent(rows, new Set(['a']), 60).get('a')?.periods).toEqual([
+      '15',
+      '15',
+      '15',
+      '15',
+    ]);
+  });
+
+  it('sends periods instead of minutes, and no contacts in hockey', () => {
+    const entries = [rosterEntry(P2, { first: 'c', last: 'd' })];
+    const drafts = new Map<string, DraftRow>([
+      [P2, { status: 'partial', minutes: '', contacts: '', periods: ['10', '', '8', ''] }],
+    ]);
+    const plan = planSave(entries, drafts, () => 'uuid-1', byPeriod);
+    expect(plan.rows).toEqual([
+      { clientUuid: 'uuid-1', playerId: P2, status: 'partial', periodMinutes: [10, 0, 8, 0] },
+    ]);
   });
 });
 

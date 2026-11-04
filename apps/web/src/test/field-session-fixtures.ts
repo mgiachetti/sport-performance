@@ -51,7 +51,14 @@ export function player(
     firstName,
     lastName,
     position: null,
-    participation: { status: 'full', minutes: 70, contactsN: 10, rpe: 7, srpeAu: 490 },
+    participation: {
+      status: 'full',
+      minutes: 70,
+      periodMinutes: null,
+      contactsN: 10,
+      rpe: 7,
+      srpeAu: 490,
+    },
     values: [],
     ...overrides,
   };
@@ -84,6 +91,7 @@ export const CASTRO = player('0192e7a0-5555-7000-8000-000000000003', 'Lucas', 'C
   participation: {
     status: 'unavailable',
     minutes: null,
+    periodMinutes: null,
     contactsN: null,
     rpe: null,
     srpeAu: null,
@@ -100,6 +108,12 @@ export function fieldSession(overrides: Partial<FieldSession> = {}): FieldSessio
       createdAt: AT,
       updatedAt: AT,
       version: '1793586338688123',
+    },
+    fieldRules: {
+      substitutions: 'limited',
+      recordsContacts: true,
+      matchPeriodCount: 2,
+      pitch: { lengthM: 100, widthM: 70 },
     },
     columns: [
       { metricCode: 'dist_m', source: 'catapult', unit: 'm', direction: 'higher_is_better' },

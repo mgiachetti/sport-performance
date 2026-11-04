@@ -38,6 +38,8 @@ function valuesOf(drill: Drill): DrillValues {
 
 function DrillForm(props: {
   initial: DrillValues;
+  /** The sport records contacts (rugby); without them the level stays `none` (B-803). */
+  contacts: boolean;
   submitLabel: string;
   pending: boolean;
   onSubmit: (values: {
@@ -86,17 +88,19 @@ function DrillForm(props: {
             setValues({ ...values, durationMin: event.target.value });
           }}
         />
-        <SelectField
-          label={t('training.drill.contactLevel')}
-          value={values.contactLevel}
-          options={CONTACT_LEVELS.map((level) => ({
-            value: level,
-            label: t(`training.contact.${level}`),
-          }))}
-          onChange={(event) => {
-            setValues({ ...values, contactLevel: event.target.value as ContactLevel });
-          }}
-        />
+        {props.contacts ? (
+          <SelectField
+            label={t('training.drill.contactLevel')}
+            value={values.contactLevel}
+            options={CONTACT_LEVELS.map((level) => ({
+              value: level,
+              label: t(`training.contact.${level}`),
+            }))}
+            onChange={(event) => {
+              setValues({ ...values, contactLevel: event.target.value as ContactLevel });
+            }}
+          />
+        ) : null}
       </div>
       <div className="sp-form__actions">
         <Button type="submit" variant="secondary" disabled={props.pending}>
@@ -116,6 +120,8 @@ export function DrillsSection(props: {
   trainingSessionId: string;
   drills: readonly Drill[];
   editable: boolean;
+  /** Whether the session's sport records contacts (B-803): hockey shows no contact level. */
+  contacts: boolean;
 }) {
   const t = useT();
   const { api, selection } = useServices();
@@ -220,6 +226,7 @@ export function DrillsSection(props: {
                 {editing === drill.id ? (
                   <DrillForm
                     initial={valuesOf(drill)}
+                    contacts={props.contacts}
                     submitLabel={t('common.save')}
                     pending={update.isPending}
                     onSubmit={(values) => {
@@ -237,8 +244,8 @@ export function DrillsSection(props: {
                         {drill.durationMin === null
                           ? null
                           : t('training.session.minutes', { minutes: drill.durationMin })}
-                        {drill.durationMin === null ? null : ' · '}
-                        {t(`training.contact.${drill.contactLevel}`)}
+                        {drill.durationMin === null || !props.contacts ? null : ' · '}
+                        {props.contacts ? t(`training.contact.${drill.contactLevel}`) : null}
                       </span>
                     </div>
                     {props.editable ? (
@@ -308,6 +315,7 @@ export function DrillsSection(props: {
         <DrillForm
           key={addKey}
           initial={EMPTY}
+          contacts={props.contacts}
           submitLabel={t('training.drill.add')}
           pending={add.isPending}
           onSubmit={(values) => {

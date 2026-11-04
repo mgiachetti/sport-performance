@@ -252,8 +252,21 @@ const AVAILABILITY_LEVEL: Readonly<Record<string, StatusLevel>> = {
   unknown: 'warning',
 };
 
+/**
+ * What the sheet asks for, from the sport's field rules (B-803, ADR 0087):
+ * contacts only in sports with contacts; minutes by period in a match with
+ * rolling substitutions (hockey).
+ */
+export interface SheetFieldRules {
+  readonly contacts: boolean;
+  readonly byPeriod: boolean;
+}
+
+const TOTALS: SheetFieldRules = { contacts: true, byPeriod: false };
+
 function PlayerCard({
   player,
+  rules,
   onStatus,
   onMinutes,
   onContacts,
@@ -261,6 +274,7 @@ function PlayerCard({
   onToggleField,
 }: {
   readonly player: SheetPlayer;
+  readonly rules: SheetFieldRules;
   readonly onStatus: (playerId: string, status: ParticipationStatus) => void;
   readonly onMinutes: (playerId: string, text: string) => void;
   readonly onContacts: (playerId: string, delta: 1 | -1) => void;
@@ -365,49 +379,58 @@ function PlayerCard({
                 accessibilityLabel: t('coachSession.player.minutesOf', { name }),
               }}
             />
+            {row.periods === undefined || row.periods === '' ? null : (
+              <AppText role="bodySmall" tone="secondary">
+                {t('coachSession.player.periods', {
+                  periods: row.periods.split(',').join(' · '),
+                })}
+              </AppText>
+            )}
           </View>
-          <View style={{ flex: 1, minWidth: 180, gap: theme.spacing.xs }}>
-            <TextField
-              label={t('coachSession.player.contacts')}
-              value={row.contacts}
-              onChangeText={(text) => {
-                onContactsText(player.id, text);
-              }}
-              error={
-                player.errors.includes('contacts')
-                  ? t('coachSession.player.error.contacts', { max: PARTICIPATION_CONTACTS_MAX })
-                  : null
-              }
-              inputProps={{
-                keyboardType: 'number-pad',
-                editable,
-                accessibilityLabel: t('coachSession.player.contactsOf', { name }),
-              }}
-            />
-            <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-              <View style={{ flex: 1 }}>
-                <Button
-                  variant="secondary"
-                  label={t('coachSession.player.contactRemove')}
-                  accessibilityLabel={t('coachSession.player.contactRemoveOf', { name })}
-                  disabled={!editable || row.contacts === '' || row.contacts === '0'}
-                  onPress={() => {
-                    onContacts(player.id, -1);
-                  }}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Button
-                  label={t('coachSession.player.contactAdd')}
-                  accessibilityLabel={t('coachSession.player.contactAddOf', { name })}
-                  disabled={!editable}
-                  onPress={() => {
-                    onContacts(player.id, 1);
-                  }}
-                />
+          {!rules.contacts ? null : (
+            <View style={{ flex: 1, minWidth: 180, gap: theme.spacing.xs }}>
+              <TextField
+                label={t('coachSession.player.contacts')}
+                value={row.contacts}
+                onChangeText={(text) => {
+                  onContactsText(player.id, text);
+                }}
+                error={
+                  player.errors.includes('contacts')
+                    ? t('coachSession.player.error.contacts', { max: PARTICIPATION_CONTACTS_MAX })
+                    : null
+                }
+                inputProps={{
+                  keyboardType: 'number-pad',
+                  editable,
+                  accessibilityLabel: t('coachSession.player.contactsOf', { name }),
+                }}
+              />
+              <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    variant="secondary"
+                    label={t('coachSession.player.contactRemove')}
+                    accessibilityLabel={t('coachSession.player.contactRemoveOf', { name })}
+                    disabled={!editable || row.contacts === '' || row.contacts === '0'}
+                    onPress={() => {
+                      onContacts(player.id, -1);
+                    }}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    label={t('coachSession.player.contactAdd')}
+                    accessibilityLabel={t('coachSession.player.contactAddOf', { name })}
+                    disabled={!editable}
+                    onPress={() => {
+                      onContacts(player.id, 1);
+                    }}
+                  />
+                </View>
               </View>
             </View>
-          </View>
+          )}
         </View>
       ) : null}
       {player.rpe !== null ? (
@@ -435,11 +458,13 @@ function PlayerCard({
 
 function ClockCard({
   clock,
+  byPeriod,
   onStart,
   onPause,
   onFinish,
 }: {
   readonly clock: ClockView;
+  readonly byPeriod: boolean;
   readonly onStart: () => void;
   readonly onPause: () => void;
   readonly onFinish: () => void;
@@ -456,6 +481,11 @@ function ClockCard({
           <AppText role="bodySmall" tone="secondary">
             {t('coachSession.clock.hint')}
           </AppText>
+          {byPeriod ? (
+            <AppText role="bodySmall" tone="secondary">
+              {t('coachSession.clock.periodHint')}
+            </AppText>
+          ) : null}
           <Button variant="secondary" label={t('coachSession.clock.start')} onPress={onStart} />
         </>
       ) : (
@@ -468,12 +498,19 @@ function ClockCard({
           <AppText role="bodySmall" tone="secondary">
             {t('coachSession.clock.onField', { count: clock.onField })}
           </AppText>
+          {byPeriod ? (
+            <AppText role="bodySmall" tone="secondary">
+              {t('coachSession.clock.periods', { count: clock.periods })}
+            </AppText>
+          ) : null}
           <View style={{ flexDirection: 'row', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
             <Button
               variant="secondary"
               label={
                 clock.status === 'running'
-                  ? t('coachSession.clock.pause')
+                  ? byPeriod
+                    ? t('coachSession.clock.endPeriod')
+                    : t('coachSession.clock.pause')
                   : t('coachSession.clock.resume')
               }
               onPress={clock.status === 'running' ? onPause : onStart}
@@ -507,6 +544,7 @@ export function CoachSessionSheetScreen({
   title,
   when,
   plannedMinutes,
+  fieldRules = TOTALS,
   roster,
   clock,
   summary,
@@ -537,6 +575,8 @@ export function CoachSessionSheetScreen({
   readonly title: string;
   readonly when: string;
   readonly plannedMinutes: number | null;
+  /** The sport's field rules; a rugby sheet when omitted. */
+  readonly fieldRules?: SheetFieldRules;
   readonly roster: RosterState;
   readonly clock: ClockView;
   readonly summary: SheetSummary;
@@ -607,6 +647,7 @@ export function CoachSessionSheetScreen({
             <>
               <ClockCard
                 clock={clock}
+                byPeriod={fieldRules.byPeriod}
                 onStart={onStartClock}
                 onPause={onPauseClock}
                 onFinish={onFinishClock}
@@ -626,16 +667,21 @@ export function CoachSessionSheetScreen({
                 </AppText>
                 <AppText>{t('coachSession.summary.line', { ...summary })}</AppText>
                 <AppText role="bodySmall" tone="secondary">
-                  {t('coachSession.summary.totals', {
-                    minutes: formatNumber(summary.minutes),
-                    contacts: formatNumber(summary.contacts),
-                  })}
+                  {fieldRules.contacts
+                    ? t('coachSession.summary.totals', {
+                        minutes: formatNumber(summary.minutes),
+                        contacts: formatNumber(summary.contacts),
+                      })
+                    : t('coachSession.summary.minutesOnly', {
+                        minutes: formatNumber(summary.minutes),
+                      })}
                 </AppText>
               </Card>
               {roster.players.map((player) => (
                 <PlayerCard
                   key={player.id}
                   player={player}
+                  rules={fieldRules}
                   onStatus={onStatus}
                   onMinutes={onMinutes}
                   onContacts={onContacts}

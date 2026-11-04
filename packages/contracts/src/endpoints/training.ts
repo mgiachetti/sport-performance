@@ -1,11 +1,13 @@
 import {
   CONTACT_LEVELS,
   EXPOSURE_CONTEXTS,
+  MATCH_PERIODS_MAX,
   MAX_SESSION_DURATION_MIN,
   PARTICIPATION_STATUSES,
   RPE_CR10_MAX,
   RPE_CR10_MIN,
   participationCarriesLoad,
+  periodMinutesTotal,
 } from '@sport-performance/domain';
 import { z } from 'zod';
 import { defineEndpoint } from '../endpoint.js';
@@ -92,11 +94,15 @@ export const minutesSchema = z
   .min(0)
   .max(PARTICIPATION_MINUTES_MAX)
   .meta({ description: 'Minutos que participó.' });
-export const contactsSchema = z
-  .int()
-  .min(0)
-  .max(PARTICIPATION_CONTACTS_MAX)
-  .meta({ description: 'Contactos (tackles, rucks, scrums) registrados.' });
+export const contactsSchema = z.int().min(0).max(PARTICIPATION_CONTACTS_MAX).meta({
+  description:
+    'Contactos (tackles, rucks, scrums) registrados. Solo en los deportes con contacto (rugby); en hockey siempre `null` (B-803).',
+});
+export const periodMinutesSchema = z.array(minutesSchema).min(1).max(MATCH_PERIODS_MAX).meta({
+  id: 'PeriodMinutes',
+  description:
+    'Minutos jugados en cada tramo del partido (cuartos, tiempos), en orden. Solo en partidos de deportes con cambios ilimitados (hockey, B-803); `minutes` es su suma. Ningún tramo puede superar la duración planificada del partido.',
+});
 export const rpeSchema = z
   .int()
   .min(RPE_CR10_MIN)
@@ -177,6 +183,10 @@ export const participationSchema = z
     playerId: playerIdSchema,
     status: participationStatusSchema,
     minutes: minutesSchema.nullable(),
+    periodMinutes: periodMinutesSchema
+      .nullable()
+      .default(null)
+      .meta({ description: 'Minutos por tramo; `null` si se cargó el total.' }),
     contactsN: contactsSchema.nullable(),
     rpe: rpeSchema
       .nullable()
@@ -242,7 +252,9 @@ const drillInputFields = {
     .optional()
     .meta({ description: 'Por defecto, después del último bloque.' }),
   durationMin: durationMinSchema.optional(),
-  contactLevel: contactLevelSchema.optional().meta({ description: 'Por defecto `none`.' }),
+  contactLevel: contactLevelSchema.optional().meta({
+    description: 'Por defecto `none`. En deportes sin contacto (hockey), solo `none` (B-803).',
+  }),
   notes: trimmedText(TRAINING_NOTES_MAX_LENGTH).optional(),
 };
 
@@ -263,17 +275,45 @@ function opponentOnlyInMatches(
   }
 }
 
-/** Rows without load (absent, unavailable) carry no minutes and no contacts. */
+/**
+ * Rows without load (absent, unavailable) carry no minutes, periods or
+ * contacts; minutes sent with periods are their sum.
+ */
 function noLoadWithoutMinutes(
   value: {
     status?: string | undefined;
     minutes?: number | null | undefined;
+    periodMinutes?: readonly number[] | null | undefined;
     contactsN?: number | null | undefined;
   },
   ctx: z.core.$RefinementCtx,
 ): void {
+  const periods = value.periodMinutes;
+  if (
+    periods !== undefined &&
+    periods !== null &&
+    value.minutes !== undefined &&
+    value.minutes !== periodMinutesTotal(periods)
+  ) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['minutes'],
+      message: 'With periodMinutes, minutes is their sum (or omitted)',
+    });
+  }
   const status = value.status;
   if (status === undefined) return;
+  if (
+    !participationCarriesLoad(status as (typeof PARTICIPATION_STATUSES)[number]) &&
+    periods !== undefined &&
+    periods !== null
+  ) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['periodMinutes'],
+      message: `A player who is ${status} has no periodMinutes`,
+    });
+  }
   if (participationCarriesLoad(status as (typeof PARTICIPATION_STATUSES)[number])) return;
   for (const field of ['minutes', 'contactsN'] as const) {
     const amount = value[field];
@@ -460,7 +500,12 @@ export const participationRowSchema = z
     playerId: playerIdSchema,
     status: participationStatusSchema,
     minutes: minutesSchema.nullable().optional().meta({
-      description: 'Omitido: se mantiene; `null`: se vacía. Ausente o no disponible: sin minutos.',
+      description:
+        'Omitido: se mantiene; `null`: se vacía. Ausente o no disponible: sin minutos. Mandar solo los minutos borra los tramos.',
+    }),
+    periodMinutes: periodMinutesSchema.nullable().optional().meta({
+      description:
+        'Minutos por tramo (partidos de hockey): fijan `minutes` como su suma. Omitido: se mantienen; `null`: se borran.',
     }),
     contactsN: contactsSchema.nullable().optional(),
     version: expectedVersionSchema.optional().meta({
@@ -492,7 +537,7 @@ export const recordParticipations = defineEndpoint({
   path: '/v1/training-sessions/{trainingSessionId}/participations/batch',
   summary: 'Cargar la participación de la sesión',
   description:
-    'Carga masiva del staff (`coach` de los jugadores asignados, administración), con consentimiento `data` vigente de cada jugador. Crea o actualiza por jugador; todo o nada. Ausente o no disponible borra los minutos, los contactos y el RPE. Corregir un valor ya cargado pide `changeReason`. Cada fila es idempotente por `clientUuid` (apta para la cola offline). Jugador desconocido: `validation_failed` en `body.rows[i].playerId`; sesión archivada o `version` desactualizada: `conflict`.',
+    'Carga masiva del staff (`coach` de los jugadores asignados, administración), con consentimiento `data` vigente de cada jugador. Crea o actualiza por jugador; todo o nada. Ausente o no disponible borra los minutos, los contactos y el RPE. Corregir un valor ya cargado pide `changeReason`. Cada fila es idempotente por `clientUuid` (apta para la cola offline). En los deportes sin contacto (hockey) `contactsN` va vacío, y en los partidos con cambios ilimitados los minutos pueden ir por tramo (`periodMinutes`); si no corresponde, `validation_failed` en el campo (B-803). Jugador desconocido: `validation_failed` en `body.rows[i].playerId`; sesión archivada o `version` desactualizada: `conflict`.',
   tags: ['training'],
   auth: 'club',
   params: sessionParams,
@@ -536,7 +581,7 @@ export const updateParticipation = defineEndpoint({
   path: '/v1/participations/{participationId}',
   summary: 'Editar la participación de un jugador',
   description:
-    'Mismo permiso que la carga masiva. Corregir un valor ya cargado pide `changeReason`. `version` desactualizada o sesión archivada: `conflict`.',
+    'Mismo permiso que la carga masiva y mismas reglas del deporte (contactos y minutos por tramo, B-803). Corregir un valor ya cargado pide `changeReason`. `version` desactualizada o sesión archivada: `conflict`.',
   tags: ['training'],
   auth: 'club',
   params: participationParams,
@@ -546,6 +591,7 @@ export const updateParticipation = defineEndpoint({
       changeReason: changeReasonSchema.optional(),
       status: participationStatusSchema.optional(),
       minutes: minutesSchema.nullable().optional(),
+      periodMinutes: periodMinutesSchema.nullable().optional(),
       contactsN: contactsSchema.nullable().optional(),
     })
     .superRefine(noLoadWithoutMinutes),

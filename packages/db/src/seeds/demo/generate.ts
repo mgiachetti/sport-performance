@@ -3,6 +3,7 @@ import {
   DEFAULT_AGE_BANDS,
   DEFAULT_CLUB_TIME_ZONE,
   DEFAULT_POSITION_LINES,
+  SPORT_FIELD_RULES,
   STAGE_PROFILES,
   addDays,
   ageBandForBirthYear,
@@ -18,7 +19,10 @@ import {
   localDate,
   localDateParts,
   localDateRange,
+  periodMinutesTotal,
+  recordsPeriodMinutes,
   scoreResultMetrics,
+  sportRecordsContacts,
   scoreTestEntry,
   testScoringSettings,
   wellnessItemSetForStage,
@@ -1205,7 +1209,7 @@ export function generateDemoDataset(options: DemoOptions): DemoDataset {
             absentBlock,
           });
           participations.push(...rows);
-          if (branch.sport === 'rugby' && SENIOR_BANDS.includes(band.code)) {
+          if (SENIOR_BANDS.includes(band.code)) {
             externalMetrics.push(...sessionFieldMetrics(ctx, session, rows, roster));
           }
         }
@@ -1507,15 +1511,17 @@ function sessionParticipation(
 ): DemoParticipation[] {
   const date = session.localDate;
   const out: DemoParticipation[] = [];
-  const rugby = session.sport === 'rugby';
+  // Contacts only in the sports that record them (B-803): never in hockey.
+  const contactSport = sportRecordsContacts(session.sport);
   const baseRpe =
     slot.kind === 'match' ? 7.6 : { foundation: 4.6, development: 5.2, performance: 5.8 }[stage];
-  const contactDay = rugby && isoWeekday(date) === 2;
+  const contactDay = contactSport && isoWeekday(date) === 2;
   const row = (
     plan: PlayerPlan,
     status: DemoParticipation['status'],
     minutes: number | null,
     r: Random,
+    periodMinutes: readonly number[] | null = null,
   ): DemoParticipation => {
     const loaded = status === 'full' || status === 'partial';
     const phase = rules.loadPhase(plan, date);
@@ -1531,9 +1537,13 @@ function sessionParticipation(
       : null;
     const minutesFactor = phase === 'heavy' ? 1.6 : phase === 'light' ? 0.5 : 1;
     const mins =
-      minutes === null ? null : Math.max(1, Math.min(600, Math.round(minutes * minutesFactor)));
+      periodMinutes !== null
+        ? periodMinutesTotal(periodMinutes)
+        : minutes === null
+          ? null
+          : Math.max(1, Math.min(600, Math.round(minutes * minutesFactor)));
     const contacts =
-      !rugby || !loaded || limited
+      !contactSport || !loaded || limited
         ? null
         : slot.kind === 'match'
           ? r.int(plan.line === 'forwards' ? 10 : 5, plan.line === 'forwards' ? 24 : 14)
@@ -1546,6 +1556,7 @@ function sessionParticipation(
       playerId: plan.id,
       status,
       minutes: loaded ? mins : null,
+      periodMinutes: loaded ? periodMinutes : null,
       contactsN: contacts,
       rpe,
       rpeReportedAt:
@@ -1581,6 +1592,21 @@ function sessionParticipation(
   );
   const { squad, starters } = MATCH_SQUAD[session.sport];
   const selected = r.shuffle(eligible).slice(0, squad);
+  if (recordsPeriodMinutes(session)) {
+    // Rolling substitutions (hockey, B-803): minutes by quarter. The first one picked is the
+    // goalkeeper and plays every minute; the others rotate, the starters for longer.
+    const lengths = splitEvenly(slot.minutes, SPORT_FIELD_RULES[session.sport].matchPeriodCount);
+    selected.forEach((plan, index) => {
+      const pr = randomFor(ctx.ns, 'participation', session.id, plan.key);
+      const share = index === 0 ? 1 : index < starters ? pr.float(0.62, 0.85) : pr.float(0.3, 0.55);
+      const periods = lengths.map((length) =>
+        index === 0 ? length : clamp(Math.round(length * (share + pr.normal(0, 0.1))), 0, length),
+      );
+      const total = periodMinutesTotal(periods);
+      out.push(row(plan, total === slot.minutes ? 'full' : 'partial', total, pr, periods));
+    });
+    return out;
+  }
   selected.forEach((plan, index) => {
     const pr = randomFor(ctx.ns, 'participation', session.id, plan.key);
     if (index < starters) out.push(row(plan, 'full', slot.minutes, pr));
@@ -1589,12 +1615,23 @@ function sessionParticipation(
   return out;
 }
 
+/** Whole minutes split across the periods, the remainder to the first ones. */
+function splitEvenly(minutes: number, periods: number): number[] {
+  const base = Math.floor(minutes / periods);
+  return Array.from(
+    { length: periods },
+    (_, index) => base + (index < minutes - base * periods ? 1 : 0),
+  );
+}
+
 /**
  * Catapult totals of a session for the players who took part (B-408): the
  * metrics of the canonical dictionary an OpenField export brings, with the
  * shape of a junior rugby session (backs run more and faster, forwards have
- * more contacts; matches are more intense). The relative ones use the
- * player's own Vmax, as Catapult does with its "% Max Velocity".
+ * more contacts; matches are more intense) or of a junior hockey one (B-803:
+ * more metres per minute on the field, rolling substitutions, no contacts).
+ * The relative ones use the player's own Vmax, as Catapult does with its
+ * "% Max Velocity".
  */
 function sessionFieldMetrics(
   ctx: Context,
@@ -1609,13 +1646,19 @@ function sessionFieldMetrics(
     const plan = plans.get(row.playerId);
     if (plan === undefined || row.minutes === null || row.minutes === 0) continue;
     const r = randomFor(ctx.ns, 'field_metric', session.id, plan.key);
+    const hockey = session.sport === 'hockey';
     const forward = plan.line === 'forwards';
     const age = decimalAgeYears(plan.birthDate, session.localDate);
-    const ownVmaxMs = byAge(age, 6.6, 8.6) + (forward ? -0.4 : 0.2) + 0.25 * plan.traits.speed;
-    const metresPerMin = (match ? 72 : 58) + (forward ? -6 : 4) + r.normal(0, 5);
+    const ownVmaxMs = hockey
+      ? byAge(age, 6.2, 7.6) + 0.25 * plan.traits.speed
+      : byAge(age, 6.6, 8.6) + (forward ? -0.4 : 0.2) + 0.25 * plan.traits.speed;
+    const metresPerMin = hockey
+      ? (match ? 112 : 72) + r.normal(0, 7)
+      : (match ? 72 : 58) + (forward ? -6 : 4) + r.normal(0, 5);
     const distM = Math.max(200, metresPerMin * row.minutes);
     const vmaxMs = ownVmaxMs * r.float(0.82, 0.97);
-    const hsrShare = (match ? 0.08 : 0.05) * (forward ? 0.6 : 1.2) * (1 + r.normal(0, 0.2));
+    const hsrShare =
+      (match ? 0.08 : 0.05) * (hockey ? 1 : forward ? 0.6 : 1.2) * (1 + r.normal(0, 0.2));
     const values: Record<string, number> = {
       dist_m: Math.round(distM),
       dist_m_min: round(distM / row.minutes, 1),

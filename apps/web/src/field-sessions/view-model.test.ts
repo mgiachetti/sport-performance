@@ -52,6 +52,22 @@ describe('field session view model', () => {
     expect(kpis[0]?.leader).toBeNull();
   });
 
+  it('never shows a contacts card in a sport without contacts (B-803)', () => {
+    const view = fs.fieldSession({
+      fieldRules: {
+        substitutions: 'rolling',
+        recordsContacts: false,
+        matchPeriodCount: 4,
+        pitch: { lengthM: 91.4, widthM: 55 },
+      },
+    });
+    expect(sessionKpis(view, viewColumns(view)).map((k) => k.metricCode)).toEqual([
+      'dist_m',
+      'hsr_abs_m',
+      'vmax_ms',
+    ]);
+  });
+
   it('skips the cards of metrics the session does not have', () => {
     const view = fs.fieldSession({ columns: [], players: [fs.CASTRO] });
     expect(sessionKpis(view, viewColumns(view))).toEqual([]);

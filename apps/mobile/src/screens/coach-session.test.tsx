@@ -226,7 +226,7 @@ describe('CoachSessionSheetScreen', () => {
 
   it('runs the clock and marks who goes in and out', () => {
     const props = sheet({
-      clock: { status: 'running', elapsedS: 125, onField: 1 },
+      clock: { status: 'running', elapsedS: 125, onField: 1, periods: 0 },
       roster: {
         status: 'ready',
         staleSince: null,
@@ -245,6 +245,30 @@ describe('CoachSessionSheetScreen', () => {
     expect(props.onPauseClock).toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: t('coachSession.clock.finish') }));
     expect(props.onFinishClock).toHaveBeenCalled();
+  });
+
+  it('loads a hockey match by period, without contacts (B-803)', () => {
+    const props = sheet({
+      fieldRules: { contacts: false, byPeriod: true },
+      clock: { status: 'running', elapsedS: 1000, onField: 1, periods: 2 },
+      roster: {
+        status: 'ready',
+        staleSince: null,
+        players: [
+          player({
+            row: { status: 'partial', minutes: '20', contacts: '', periods: '15,5' },
+            field: { on: true, minutes: 20 },
+          }),
+        ],
+      },
+    });
+    expect(screen.getByText(t('coachSession.player.periods', { periods: '15 · 5' }))).toBeTruthy();
+    expect(screen.getByText(t('coachSession.clock.periods', { count: 2 }))).toBeTruthy();
+    expect(
+      screen.queryByLabelText(t('coachSession.player.contactsOf', { name: 'Pérez, Juan' })),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: t('coachSession.clock.endPeriod') }));
+    expect(props.onPauseClock).toHaveBeenCalled();
   });
 
   it('says the roster is not on the phone instead of an empty sheet', () => {

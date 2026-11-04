@@ -33,7 +33,7 @@ export const parseSyncCollection = memberParser(
  */
 export const SYNC_FIELD_COLUMNS = {
   wellness: ['sleep', 'fatigue', 'soreness', 'stress', 'mood'],
-  participation: ['status', 'minutes', 'contacts_n', 'rpe'],
+  participation: ['status', 'minutes', 'period_minutes', 'contacts_n', 'rpe'],
   test_result: [
     'measured_on',
     'status',

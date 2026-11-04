@@ -73,6 +73,7 @@ export function participation(
     playerId: parsePlayerId(playerId),
     status: 'full',
     minutes: 90,
+    periodMinutes: null,
     contactsN: null,
     rpe: null,
     rpeReportedAt: null,

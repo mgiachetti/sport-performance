@@ -51,6 +51,7 @@ export function participationDto(
     playerId: PLAYER_ID,
     status: 'full',
     minutes: 60,
+    periodMinutes: null,
     contactsN: null,
     rpe: null,
     rpeReportedAt: null,

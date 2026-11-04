@@ -7,10 +7,12 @@ import {
   type TrainingSession,
 } from '@sport-performance/contracts';
 import {
+  MATCH_PERIODS_MAX,
   SYNC_RECORDED_AT_MAX_AGE_DAYS,
   addDays,
   compareLocalDates,
   participationCarriesLoad,
+  periodMinutesTotal,
   ruleFor,
   type LocalDate,
   type ParticipationStatus,
@@ -76,6 +78,8 @@ export interface KnownParticipation {
   readonly target: ParticipationTarget;
   readonly status: ParticipationStatus;
   readonly minutes: number | null;
+  /** Minutes by period (hockey matches, B-803); `null` when loaded as a total. */
+  readonly periodMinutes: readonly number[] | null;
   readonly contactsN: number | null;
   /** What the player reported (read only for the coach). */
   readonly rpe: number | null;
@@ -91,16 +95,43 @@ export type DraftStatus = ParticipationStatus | '';
 
 export interface DraftRow {
   readonly status: DraftStatus;
-  /** As typed: digits or empty. */
+  /** As typed: digits or empty. With periods, their sum. */
   readonly minutes: string;
   readonly contacts: string;
+  /**
+   * Minutes of each period as the clock of a hockey match measured them
+   * (B-803), comma-separated (`'12,9,15,6'`); `''` or omitted for a total.
+   * Part of the `minutes` field: typing a total clears them.
+   */
+  readonly periods?: string;
 }
 
 export type RowError = 'minutes' | 'contacts';
 
-/** A field of a draft row. */
-export type DraftField = keyof DraftRow;
+/** A field of a draft row; `minutes` carries the periods (one field, as on the server). */
+export type DraftField = Exclude<keyof DraftRow, 'periods'>;
 const DRAFT_FIELDS: readonly DraftField[] = ['status', 'minutes', 'contacts'];
+
+const periodsOf = (row: DraftRow): string => row.periods ?? '';
+
+/** Periods as the draft keeps them. */
+export function periodsText(periodMinutes: readonly number[] | null): string {
+  return periodMinutes === null ? '' : periodMinutes.join(',');
+}
+
+/** The periods of a draft (`null` for a total), or `'invalid'`. */
+export function parsePeriods(text: string): number[] | null | 'invalid' {
+  if (text === '') return null;
+  const parts = text.split(',');
+  if (parts.length > MATCH_PERIODS_MAX || !parts.every((part) => /^\d{1,3}$/.test(part))) {
+    return 'invalid';
+  }
+  const values = parts.map(Number);
+  return values.every((value) => value <= PARTICIPATION_MINUTES_MAX) &&
+    periodMinutesTotal(values) <= PARTICIPATION_MINUTES_MAX
+    ? values
+    : 'invalid';
+}
 
 /**
  * A row the coach touched, as the draft keeps it: the values and the fields
@@ -123,10 +154,12 @@ export function touchRow(
 ): DraftEntry {
   const touched = new Set(entry?.touched ?? []);
   for (const field of DRAFT_FIELDS) if (before[field] !== after[field]) touched.add(field);
+  if (periodsOf(before) !== periodsOf(after)) touched.add('minutes');
   return {
     status: after.status,
     minutes: after.minutes,
     contacts: after.contacts,
+    ...(periodsOf(after) === '' ? {} : { periods: periodsOf(after) }),
     touched: DRAFT_FIELDS.filter((field) => touched.has(field)),
   };
 }
@@ -145,7 +178,13 @@ export function mergeDraftRow(base: DraftRow, entry: DraftEntry | undefined): Dr
   if (status !== '' && !participationCarriesLoad(status)) {
     return { status, minutes: '', contacts: '' };
   }
-  return { status, minutes: pick('minutes'), contacts: pick('contacts') };
+  const periods = touched.has('minutes') ? periodsOf(entry) : periodsOf(base);
+  return {
+    status,
+    minutes: pick('minutes'),
+    contacts: pick('contacts'),
+    ...(periods === '' ? {} : { periods }),
+  };
 }
 
 function numberText(value: number | null | undefined): string {
@@ -154,10 +193,12 @@ function numberText(value: number | null | undefined): string {
 
 export function knownDraft(known: KnownParticipation | null): DraftRow {
   if (known === null) return { status: '', minutes: '', contacts: '' };
+  const periods = periodsText(known.periodMinutes);
   return {
     status: known.status,
     minutes: numberText(known.minutes),
     contacts: numberText(known.contactsN),
+    ...(periods === '' ? {} : { periods }),
   };
 }
 
@@ -185,6 +226,11 @@ export function withStatus(row: DraftRow, status: DraftStatus): DraftRow {
   return { ...row, status };
 }
 
+/** A total typed by hand: it replaces the periods the clock measured. */
+export function withMinutes(row: DraftRow, text: string): DraftRow {
+  return { status: row.status, minutes: text, contacts: row.contacts };
+}
+
 /** Only digits, at most the length of the largest value: what the number fields accept. */
 export function digitsOnly(text: string, max: number): string {
   return text.replace(/\D/g, '').slice(0, String(max).length);
@@ -200,8 +246,8 @@ export function stepContacts(row: DraftRow, delta: 1 | -1): DraftRow {
   const current = /^\d+$/.test(row.contacts) ? Number(row.contacts) : 0;
   const next = Math.min(PARTICIPATION_CONTACTS_MAX, Math.max(0, current + delta));
   return {
+    ...row,
     status: row.status === '' ? 'full' : row.status,
-    minutes: row.minutes,
     contacts: String(next),
   };
 }
@@ -235,6 +281,8 @@ function parseCount(text: string, max: number): number | null | 'invalid' {
 export interface RowValues {
   readonly status: ParticipationStatus;
   readonly minutes: number | null;
+  /** Minutes by period; `null` for a total. */
+  readonly periodMinutes: readonly number[] | null;
   readonly contactsN: number | null;
 }
 
@@ -242,15 +290,26 @@ export interface RowValues {
 export function rowValues(row: DraftRow): RowValues | { readonly errors: RowError[] } | null {
   if (row.status === '') return null;
   if (!participationCarriesLoad(row.status)) {
-    return { status: row.status, minutes: null, contactsN: null };
+    return { status: row.status, minutes: null, periodMinutes: null, contactsN: null };
   }
-  const minutes = parseCount(row.minutes, PARTICIPATION_MINUTES_MAX);
+  const periodMinutes = parsePeriods(periodsOf(row));
+  const minutes =
+    periodMinutes === null || periodMinutes === 'invalid'
+      ? parseCount(row.minutes, PARTICIPATION_MINUTES_MAX)
+      : periodMinutesTotal(periodMinutes);
   const contactsN = parseCount(row.contacts, PARTICIPATION_CONTACTS_MAX);
   const errors: RowError[] = [];
-  if (minutes === 'invalid') errors.push('minutes');
+  if (minutes === 'invalid' || periodMinutes === 'invalid') errors.push('minutes');
   if (contactsN === 'invalid') errors.push('contacts');
-  if (minutes === 'invalid' || contactsN === 'invalid') return { errors };
-  return { status: row.status, minutes, contactsN };
+  if (minutes === 'invalid' || periodMinutes === 'invalid' || contactsN === 'invalid') {
+    return { errors };
+  }
+  return { status: row.status, minutes, periodMinutes, contactsN };
+}
+
+function samePeriods(a: readonly number[] | null, b: readonly number[] | null): boolean {
+  if (a === null || b === null) return a === b;
+  return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
 function isError(
@@ -267,7 +326,9 @@ export function changedFields(
   if (known === null) return ['status', 'minutes', 'contactsN'];
   const fields: ('status' | 'minutes' | 'contactsN')[] = [];
   if (values.status !== known.status) fields.push('status');
-  if (values.minutes !== known.minutes) fields.push('minutes');
+  if (values.minutes !== known.minutes || !samePeriods(values.periodMinutes, known.periodMinutes)) {
+    fields.push('minutes');
+  }
   if (values.contactsN !== known.contactsN) fields.push('contactsN');
   return fields;
 }
@@ -289,6 +350,9 @@ export function isCorrection(values: RowValues, known: KnownParticipation | null
   if (known === null) return false;
   if (values.status !== known.status) return true;
   if (known.minutes !== null && values.minutes !== known.minutes) return true;
+  if (known.periodMinutes !== null && !samePeriods(values.periodMinutes, known.periodMinutes)) {
+    return true;
+  }
   if (known.contactsN !== null && values.contactsN !== known.contactsN) return true;
   return false;
 }
@@ -311,6 +375,11 @@ export interface FieldClock {
   readonly playedMs: Readonly<Record<string, number>>;
   /** When the current stint of each player on the field started counting (only while running). */
   readonly stintSinceMs: Readonly<Record<string, number>>;
+  /**
+   * Time on the field of each player at the end of each period: every pause
+   * closes one (a quarter of a hockey match, B-803). Cumulative, in order.
+   */
+  readonly periodEndsMs?: readonly Readonly<Record<string, number>>[];
 }
 
 export const EMPTY_CLOCK: FieldClock = {
@@ -319,6 +388,7 @@ export const EMPTY_CLOCK: FieldClock = {
   onField: [],
   playedMs: {},
   stintSinceMs: {},
+  periodEndsMs: [],
 };
 
 const since = (fromMs: number, nowMs: number) => Math.max(0, nowMs - fromMs);
@@ -357,7 +427,24 @@ export function pauseClock(clock: FieldClock, nowMs: number): FieldClock {
     onField: clock.onField,
     playedMs,
     stintSinceMs: {},
+    periodEndsMs: [...(clock.periodEndsMs ?? []), playedMs],
   };
+}
+
+/**
+ * Minutes of each player in each period the clock closed, to the nearest
+ * minute; `null` with no period or more than a participation keeps.
+ */
+export function periodMinutesOf(clock: FieldClock, playerId: string): number[] | null {
+  const ends = clock.periodEndsMs ?? [];
+  if (ends.length === 0 || ends.length > MATCH_PERIODS_MAX) return null;
+  let before = 0;
+  return ends.map((end) => {
+    const played = end[playerId] ?? before;
+    const minutes = minutesOf(Math.max(0, played - before));
+    before = played;
+    return minutes;
+  });
 }
 
 /** A player goes in or comes off. */
@@ -400,6 +487,7 @@ export function finishClock(
   rows: ReadonlyMap<string, DraftRow>,
   editable: ReadonlySet<string>,
   nowMs: number,
+  byPeriod = false,
 ): Map<string, DraftRow> {
   const settled = pauseClock(clock, nowMs);
   const next = new Map(rows);
@@ -413,7 +501,19 @@ export function finishClock(
         : whole
           ? 'full'
           : 'partial';
-    next.set(playerId, { status, minutes: String(minutesOf(playedMs)), contacts: row.contacts });
+    // In a match by period (hockey, B-803) the minutes are the sum of the rounded periods.
+    const periods = byPeriod ? periodMinutesOf(settled, playerId) : null;
+    next.set(
+      playerId,
+      periods === null
+        ? { status, minutes: String(minutesOf(playedMs)), contacts: row.contacts }
+        : {
+            status,
+            minutes: String(periodMinutesTotal(periods)),
+            contacts: row.contacts,
+            periods: periodsText(periods),
+          },
+    );
   }
   return next;
 }
@@ -435,8 +535,18 @@ export interface ParticipationEdit {
   readonly fields: {
     readonly status?: ParticipationStatus;
     readonly minutes?: number | null;
+    readonly periodMinutes?: number[];
     readonly contactsN?: number | null;
   };
+}
+
+/** The minutes of a write: the periods (which set the total) or the total (which clears them). */
+function minutesFields(
+  values: RowValues,
+): { minutes: number | null } | { periodMinutes: number[] } {
+  return values.periodMinutes === null
+    ? { minutes: values.minutes }
+    : { periodMinutes: [...values.periodMinutes] };
 }
 
 export interface SavePlan {
@@ -468,6 +578,8 @@ export function planSave(
   entries: readonly SessionRosterEntry[],
   known: ReadonlyMap<string, KnownParticipation>,
   rows: ReadonlyMap<string, DraftRow>,
+  /** The sport records contacts (rugby); hockey sends none (B-803). */
+  contacts = true,
 ): SavePlan {
   const creates: PlannedParticipation[] = [];
   const edits: ParticipationEdit[] = [];
@@ -489,8 +601,8 @@ export function planSave(
       creates.push({
         playerId,
         status: values.status,
-        minutes: values.minutes,
-        contactsN: values.contactsN,
+        ...minutesFields(values),
+        ...(contacts && { contactsN: values.contactsN }),
       });
       continue;
     }
@@ -501,7 +613,11 @@ export function planSave(
       playerId,
       target: current.target,
       correction,
-      fields: Object.fromEntries(fields.map((field) => [field, values[field]])),
+      fields: {
+        ...(fields.includes('status') && { status: values.status }),
+        ...(fields.includes('minutes') && minutesFields(values)),
+        ...(fields.includes('contactsN') && { contactsN: values.contactsN }),
+      },
     });
   }
   return { creates, edits, errors, needsReason };

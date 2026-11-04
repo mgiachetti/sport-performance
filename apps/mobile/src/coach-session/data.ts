@@ -13,6 +13,7 @@ import {
   isParticipationStatus,
   isTimeZone,
   participationCarriesLoad,
+  periodMinutesTotal,
   type LocalDate,
   type ParticipationStatus,
   type TimeZone,
@@ -22,6 +23,7 @@ import type { ReadCache, ReadSchema } from '../offline/read-cache.ts';
 import {
   RECENT_SESSION_DAYS,
   createBatches,
+  parsePeriods,
   type DraftEntry,
   type DraftField,
   type FieldClock,
@@ -247,13 +249,44 @@ export async function loadSession(
 interface KnownFields {
   readonly status?: ParticipationStatus | undefined;
   readonly minutes?: number | null | undefined;
+  readonly periodMinutes?: readonly number[] | null | undefined;
   readonly contactsN?: number | null | undefined;
 }
 
 function withLoadRule(known: KnownParticipation): KnownParticipation {
   if (participationCarriesLoad(known.status)) return known;
   // No load without taking part (the API's rule): the RPE goes too.
-  return { ...known, minutes: null, contactsN: null, rpe: null, srpeAu: null };
+  return {
+    ...known,
+    minutes: null,
+    periodMinutes: null,
+    contactsN: null,
+    rpe: null,
+    srpeAu: null,
+  };
+}
+
+/**
+ * The minutes after a write, as the API decides them (B-803): periods set
+ * the total as their sum; a total alone clears the periods.
+ */
+function minutesAfter(
+  known: Pick<KnownParticipation, 'minutes' | 'periodMinutes'>,
+  fields: Pick<KnownFields, 'minutes' | 'periodMinutes'>,
+): Pick<KnownParticipation, 'minutes' | 'periodMinutes'> {
+  if (fields.periodMinutes !== undefined && fields.periodMinutes !== null) {
+    return {
+      minutes: periodMinutesTotal(fields.periodMinutes),
+      periodMinutes: fields.periodMinutes,
+    };
+  }
+  if (fields.periodMinutes === null || fields.minutes !== undefined) {
+    return {
+      minutes: fields.minutes === undefined ? known.minutes : fields.minutes,
+      periodMinutes: null,
+    };
+  }
+  return { minutes: known.minutes, periodMinutes: known.periodMinutes };
 }
 
 function edited(
@@ -264,7 +297,7 @@ function edited(
   return withLoadRule({
     ...known,
     ...(fields.status !== undefined && { status: fields.status }),
-    ...(fields.minutes !== undefined && { minutes: fields.minutes }),
+    ...minutesAfter(known, fields),
     ...(fields.contactsN !== undefined && { contactsN: fields.contactsN }),
     pending: known.pending || pending,
   });
@@ -300,6 +333,7 @@ export async function loadKnownParticipations(
       target: { id: row.id },
       status: row.data.status,
       minutes: row.data.minutes,
+      periodMinutes: row.data.periodMinutes,
       contactsN: row.data.contactsN,
       rpe: row.data.rpe,
       srpeAu: row.data.srpeAu,
@@ -313,6 +347,7 @@ export async function loadKnownParticipations(
       target: { id: participation.id },
       status: participation.status,
       minutes: participation.minutes,
+      periodMinutes: participation.periodMinutes,
       contactsN: participation.contactsN,
       rpe: participation.rpe,
       srpeAu: participation.srpeAu,
@@ -333,6 +368,7 @@ export async function loadKnownParticipations(
         const fields = {
           status: row.status,
           ...(row.minutes !== undefined && { minutes: row.minutes }),
+          ...(row.periodMinutes !== undefined && { periodMinutes: row.periodMinutes }),
           ...(row.contactsN !== undefined && { contactsN: row.contactsN }),
         };
         known.set(
@@ -341,7 +377,7 @@ export async function loadKnownParticipations(
             ? withLoadRule({
                 target: { clientUuid: row.clientUuid },
                 status: row.status,
-                minutes: row.minutes ?? null,
+                ...minutesAfter({ minutes: null, periodMinutes: null }, fields),
                 contactsN: row.contactsN ?? null,
                 rpe: null,
                 srpeAu: null,
@@ -355,8 +391,8 @@ export async function loadKnownParticipations(
     const input = queued.input as SyncOperationInput<'participation.update'>;
     for (const [playerId, current] of known) {
       if (syncedPlayers.has(playerId) || !sameTarget(current.target, input.target)) continue;
-      const { status, minutes, contactsN } = input.body;
-      known.set(playerId, edited(current, { status, minutes, contactsN }, true));
+      const { status, minutes, periodMinutes, contactsN } = input.body;
+      known.set(playerId, edited(current, { status, minutes, periodMinutes, contactsN }, true));
     }
   }
   return known;
@@ -389,12 +425,25 @@ const isDraftField = (value: unknown): value is DraftField =>
 
 function parseDraftEntry(value: unknown): DraftEntry | null {
   if (!isRecord(value)) return null;
-  const { status, minutes, contacts, touched } = value;
+  const { status, minutes, contacts, periods, touched } = value;
   if (status !== '' && !isParticipationStatus(status)) return null;
   if (!isCountText(minutes, PARTICIPATION_MINUTES_MAX)) return null;
   if (!isCountText(contacts, PARTICIPATION_CONTACTS_MAX)) return null;
+  // Periods measured by the clock of a hockey match (B-803); older drafts have none.
+  if (
+    periods !== undefined &&
+    (typeof periods !== 'string' || parsePeriods(periods) === 'invalid')
+  ) {
+    return null;
+  }
   if (!Array.isArray(touched) || !touched.every(isDraftField)) return null;
-  return { status, minutes, contacts, touched: DRAFT_FIELDS.filter((f) => touched.includes(f)) };
+  return {
+    status,
+    minutes,
+    contacts,
+    ...(periods === undefined || periods === '' ? {} : { periods }),
+    touched: DRAFT_FIELDS.filter((f) => touched.includes(f)),
+  };
 }
 
 function parseMsRecord(value: unknown): Record<string, number> | null {
@@ -417,7 +466,17 @@ function parseClock(value: unknown): FieldClock | null | undefined {
   const playedMs = parseMsRecord(value.playedMs);
   const stintSinceMs = parseMsRecord(value.stintSinceMs);
   if (playedMs === null || stintSinceMs === null) return undefined;
-  return { runningSinceMs, elapsedMs, onField, playedMs, stintSinceMs };
+  // The ends of the periods (B-803); a clock an older build kept has none.
+  const periodEndsMs: Record<string, number>[] = [];
+  if (value.periodEndsMs !== undefined) {
+    if (!Array.isArray(value.periodEndsMs)) return undefined;
+    for (const end of value.periodEndsMs) {
+      const parsed = parseMsRecord(end);
+      if (parsed === null) return undefined;
+      periodEndsMs.push(parsed);
+    }
+  }
+  return { runningSinceMs, elapsedMs, onField, playedMs, stintSinceMs, periodEndsMs };
 }
 
 /** A draft an older build wrote that no longer parses is a miss, never a crash. */

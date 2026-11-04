@@ -66,6 +66,7 @@ export const mobileCoachSessionMessagesEsAR = {
   'coachSession.player.minutes': 'Minutos',
   'coachSession.player.minutesOf': 'Minutos de {name}',
   'coachSession.player.contacts': 'Contactos',
+  'coachSession.player.periods': 'Por tramo: {periods} min',
   'coachSession.player.contactsOf': 'Contactos de {name}',
   'coachSession.player.contactAdd': '+1',
   'coachSession.player.contactAddOf': 'Sumar un contacto a {name}',
@@ -95,6 +96,11 @@ export const mobileCoachSessionMessagesEsAR = {
     'Marcá quién entra y quién sale: los minutos de cada jugador salen del tiempo en cancha. Sigue contando aunque cierres la app.',
   'coachSession.clock.start': 'Arrancar reloj',
   'coachSession.clock.pause': 'Pausar',
+  'coachSession.clock.endPeriod': 'Terminar el tramo',
+  'coachSession.clock.periodHint':
+    'Partido por tramos: cada pausa cierra un tramo y al terminar se pasan los minutos de cada tramo.',
+  'coachSession.clock.periods':
+    '{count, plural, =0 {Ningún tramo cerrado} one {# tramo cerrado} other {# tramos cerrados}}',
   'coachSession.clock.resume': 'Reanudar',
   'coachSession.clock.finish': 'Terminar y pasar los minutos',
   'coachSession.clock.running': 'Corriendo · {elapsed}',
@@ -109,6 +115,7 @@ export const mobileCoachSessionMessagesEsAR = {
   'coachSession.summary.line':
     '{present} presentes · {absent} ausentes · {unavailable} no disponibles · {pending} sin cargar',
   'coachSession.summary.totals': '{minutes} min · {contacts} contactos',
+  'coachSession.summary.minutesOnly': '{minutes} min',
   'coachSession.reason.label': 'Motivo de la corrección',
   'coachSession.reason.help':
     'Estás cambiando datos que ya estaban cargados: el cambio queda registrado con este motivo.',

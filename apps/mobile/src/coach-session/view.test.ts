@@ -31,6 +31,7 @@ const knownA: KnownParticipation = {
   target: { id: 'p-a' },
   status: 'full',
   minutes: 70,
+  periodMinutes: null,
   contactsN: 4,
   rpe: 6,
   srpeAu: 420,
@@ -106,7 +107,12 @@ describe('sheetPlayers', () => {
       readOnly: 'noConsent',
       field: { on: false },
     });
-    expect(clockView(clock, 125_000)).toEqual({ status: 'running', elapsedS: 125, onField: 1 });
+    expect(clockView(clock, 125_000)).toEqual({
+      status: 'running',
+      elapsedS: 125,
+      onField: 1,
+      periods: 0,
+    });
     expect(clockView(null, 0)).toEqual({ status: 'off' });
   });
 

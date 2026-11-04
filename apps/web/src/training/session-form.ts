@@ -150,8 +150,13 @@ export function parseSessionForm(
   };
 }
 
+/**
+ * The drills of a new session; without contacts in the sport (hockey,
+ * B-803) every drill goes as `none`, whatever was picked for another category.
+ */
 export function parseDrills(
   drills: readonly DrillDraft[],
+  contacts = true,
 ): { ok: true; drills: DrillCreate[] } | { ok: false; errors: DrillErrors } {
   const errors = new Map<string, Partial<Record<DrillField, FieldError>>>();
   const parsed: DrillCreate[] = [];
@@ -167,7 +172,7 @@ export function parseDrills(
     }
     parsed.push({
       name,
-      contactLevel: draft.contactLevel,
+      contactLevel: contacts ? draft.contactLevel : 'none',
       ...(durationMin === null ? {} : { durationMin }),
     });
   }

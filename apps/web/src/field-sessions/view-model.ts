@@ -3,6 +3,7 @@ import type {
   FieldSession,
   FieldSessionPlayer,
   FieldSessionReference,
+  FieldSessionRules,
 } from '@sport-performance/contracts';
 import { RUGBY_LINE_CODES, type FieldMetricSource } from '@sport-performance/domain';
 
@@ -92,14 +93,16 @@ export interface Kpi {
 /**
  * Summary cards. A metric from several sources is summarised from its first
  * source (dictionary order of sources), never from a blend; the card says
- * which source it is.
+ * which source it is. The contacts card is only for sports that record
+ * contacts (`fieldRules`, B-803): a hockey session never shows it.
  */
 export function sessionKpis(
-  view: Pick<FieldSession, 'players'>,
+  view: Pick<FieldSession, 'players'> & { fieldRules?: Pick<FieldSessionRules, 'recordsContacts'> },
   columns: readonly ViewColumn[],
 ): Kpi[] {
   const kpis: Kpi[] = [];
   for (const spec of KPI_SPECS) {
+    if (spec.metricCode === 'contacts_n' && view.fieldRules?.recordsContacts === false) continue;
     const column = columns.find((c) => c.metricCode === spec.metricCode);
     if (column === undefined) continue;
     const entries = view.players.flatMap((player) => {

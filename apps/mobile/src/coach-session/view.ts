@@ -177,6 +177,8 @@ export type ClockView =
       readonly status: 'running' | 'paused';
       readonly elapsedS: number;
       readonly onField: number;
+      /** Periods the pauses closed (a match by period, B-803). */
+      readonly periods: number;
     };
 
 export function clockView(clock: FieldClock | null, nowMs: number): ClockView {
@@ -185,6 +187,7 @@ export function clockView(clock: FieldClock | null, nowMs: number): ClockView {
     status: clockRunning(clock) ? 'running' : 'paused',
     elapsedS: Math.floor(clockElapsedMs(clock, nowMs) / 1000),
     onField: clock.onField.length,
+    periods: clock.periodEndsMs?.length ?? 0,
   };
 }
 

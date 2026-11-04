@@ -7,7 +7,11 @@ import type {
   TestResult,
   Wellness,
 } from '@sport-performance/contracts';
-import { participationCarriesLoad, type SyncOperation } from '@sport-performance/domain';
+import {
+  participationCarriesLoad,
+  periodMinutesTotal,
+  type SyncOperation,
+} from '@sport-performance/domain';
 
 /**
  * How a queued edit shows on the row the server last served (ADR 0069):
@@ -44,7 +48,15 @@ const wellnessCorrect: Overlay<'wellness.correct', Wellness> = (row, { body }) =
 function withLoad(row: Participation): Participation {
   if (!participationCarriesLoad(row.status)) {
     // The online rule (ADR 0037, ADR 0050): no load without taking part.
-    return { ...row, minutes: null, contactsN: null, rpe: null, rpeChannel: null, srpeAu: null };
+    return {
+      ...row,
+      minutes: null,
+      periodMinutes: null,
+      contactsN: null,
+      rpe: null,
+      rpeChannel: null,
+      srpeAu: null,
+    };
   }
   return {
     ...row,
@@ -52,11 +64,31 @@ function withLoad(row: Participation): Participation {
   };
 }
 
+/**
+ * The minutes after a write, as the API decides them (B-803): periods set
+ * the total as their sum; a total alone clears the periods.
+ */
+function withMinutes(
+  row: Participation,
+  edit: { minutes?: number | null | undefined; periodMinutes?: number[] | null | undefined },
+): Pick<Participation, 'minutes' | 'periodMinutes'> {
+  if (edit.periodMinutes !== undefined && edit.periodMinutes !== null) {
+    return { minutes: periodMinutesTotal(edit.periodMinutes), periodMinutes: edit.periodMinutes };
+  }
+  if (edit.periodMinutes === null || edit.minutes !== undefined) {
+    return {
+      minutes: edit.minutes === undefined ? row.minutes : edit.minutes,
+      periodMinutes: null,
+    };
+  }
+  return { minutes: row.minutes, periodMinutes: row.periodMinutes };
+}
+
 const participationUpdate: Overlay<'participation.update', Participation> = (row, { body }) =>
   withLoad({
     ...row,
     ...(body.status !== undefined && { status: body.status }),
-    ...(body.minutes !== undefined && { minutes: body.minutes }),
+    ...withMinutes(row, body),
     ...(body.contactsN !== undefined && { contactsN: body.contactsN }),
   });
 
@@ -77,7 +109,7 @@ const participationRecord: Overlay<'participation.record', Participation> = (row
   return withLoad({
     ...row,
     status: edit.status,
-    ...(edit.minutes !== undefined && { minutes: edit.minutes }),
+    ...withMinutes(row, edit),
     ...(edit.contactsN !== undefined && { contactsN: edit.contactsN }),
   });
 };
