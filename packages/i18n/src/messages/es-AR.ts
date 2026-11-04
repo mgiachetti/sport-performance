@@ -6,6 +6,7 @@ import { mobileTestDayMessagesEsAR } from './mobile-test-day.js';
 import { mobileReactionMessagesEsAR } from './mobile-reaction.js';
 import { mobilePainMessagesEsAR } from './mobile-pain.js';
 import { mobileWeeklyCmjMessagesEsAR } from './mobile-weekly-cmj.js';
+import { mobileCoachSessionMessagesEsAR } from './mobile-coach-session.js';
 import { reportMessagesEsAR } from './report.js';
 import { categoryReportMessagesEsAR } from './category-report.js';
 import { mobilePlayerMessagesEsAR } from './mobile-player.js';
@@ -477,6 +478,7 @@ export const sourceMessageFiles = {
   'mobile-reaction.ts': mobileReactionMessagesEsAR,
   'mobile-pain.ts': mobilePainMessagesEsAR,
   'mobile-weekly-cmj.ts': mobileWeeklyCmjMessagesEsAR,
+  'mobile-coach-session.ts': mobileCoachSessionMessagesEsAR,
   'protocols.ts': protocolMessagesEsAR,
   'web-help.ts': webHelpMessagesEsAR,
   'report.ts': reportMessagesEsAR,
@@ -512,6 +514,7 @@ export const esAR = {
   ...mobilePainMessagesEsAR,
   // The weekly CMJ of M17/M19 in the app (B-506)
   ...mobileWeeklyCmjMessagesEsAR,
+  ...mobileCoachSessionMessagesEsAR,
   ...protocolMessagesEsAR,
   ...webHelpMessagesEsAR,
   // The PDF report of a player (B-602), rendered by the worker
