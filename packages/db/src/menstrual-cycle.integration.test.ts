@@ -64,7 +64,7 @@ describe.skipIf(!hasDatabase)('menstrual cycle in the medical schema (Postgres 1
   async function setModule(fixture: ClubFixture, on: boolean) {
     await t.db
       .update(club)
-      .set({ settings: { modules: { menstrual_cycle: on } } as never })
+      .set({ settings: { modules: { menstrual_cycle: on } } })
       .where(eq(club.id, fixture.clubId));
   }
 
@@ -483,8 +483,8 @@ describe.skipIf(!hasDatabase)('menstrual cycle in the medical schema (Postgres 1
       await enroll(a);
       expect(await readLogs(as(a, 'medical'))).toEqual([]);
       const active = await run(as(a, 'player'), async (client) => {
-        const { rows } = await client.query(
-          'select * from medical.read_menstrual_cycle_shares($1)',
+        const { rows } = await client.query<{ id: string }>(
+          'select id from medical.read_menstrual_cycle_shares($1)',
           [[a.players.assigned]],
         );
         return rows;

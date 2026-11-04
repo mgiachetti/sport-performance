@@ -210,10 +210,9 @@ export function summarizeMenstrualCycle(
     .filter((day) => compareLocalDates(day, today) <= 0)
     .sort(compareLocalDates);
   const lastPeriodStart = periodStarts.at(-1) ?? null;
-  const cycleLengthsDays: number[] = [];
-  for (let i = 1; i < periodStarts.length; i++) {
-    cycleLengthsDays.push(daysBetween(periodStarts[i - 1]!, periodStarts[i]!));
-  }
+  const cycleLengthsDays = periodStarts
+    .slice(1)
+    .map((start, i) => daysBetween(periodStarts[i] ?? start, start));
   return {
     periodStarts,
     lastPeriodStart,

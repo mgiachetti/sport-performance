@@ -1,4 +1,3 @@
-import type { MenstrualCycleStatus } from '@sport-performance/contracts';
 import { addDays, type LocalDate } from '@sport-performance/domain';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -96,7 +95,7 @@ export default function MenstrualCycle() {
     }
   }
 
-  async function change(run: () => Promise<MenstrualCycleStatus | unknown>) {
+  async function change(run: () => Promise<unknown>) {
     setBusy(true);
     setSettingsError(null);
     try {
