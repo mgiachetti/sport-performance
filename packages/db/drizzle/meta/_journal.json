@@ -323,6 +323,13 @@
       "when": 1793804398664,
       "tag": "0045_positions_of_the_club",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1793807104704,
+      "tag": "0046_female_defaults",
+      "breakpoints": true
     }
   ]
 }
