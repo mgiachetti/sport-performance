@@ -275,7 +275,7 @@ describe.skipIf(!hasDatabase)('RLS by role (Postgres 16)', () => {
       expect(await pgCode(run(as('admin'), sign(a.users.admin, a.players.assigned)))).toBe('42501');
     });
 
-    it('derived values (ADR 0044): the player scope reads them, pending marks are staff only, nobody in the API writes them', async () => {
+    it('derived values (ADR 0046): the player scope reads them, pending marks are staff only, nobody in the API writes them', async () => {
       const derived = (context: TestContext) =>
         ids(context, 'select player_id as id from player_load_daily');
       expect(await derived(as('player'))).toEqual([a.players.assigned]);

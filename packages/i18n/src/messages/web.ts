@@ -1,5 +1,5 @@
 /**
- * Messages of the staff web shell (B-401, ADR 0054): layout, sign-in, club selector, support mode,
+ * Messages of the staff web shell (B-401, ADR 0057): layout, sign-in, club selector, support mode,
  * scope selector, connection status and error envelope. Merged into the `es-AR` source catalog;
  * same rules as `es-AR.ts`. Screens add their own namespace here or next to it.
  */

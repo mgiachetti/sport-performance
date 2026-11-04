@@ -1,15 +1,19 @@
 // Validates docs/adr against the template in docs/adr/README.md and checks
-// that CLAUDE.md links every architecture decision to an existing ADR.
-// Pure functions over file contents, so they can be unit-tested without disk.
+// that CLAUDE.md links every architecture decision to an existing ADR, and
+// that every markdown link to an ADR points to an existing file whose number
+// matches the link text. Pure functions over file contents, so they can be
+// unit-tested without disk.
 
-import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { join, posix } from 'node:path';
 
 const ADR_FILE = /^(\d{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
 const STATUS = /^(?:Propuesto|Aceptado|Reemplazado por (\d{4}))$/;
 const REQUIRED_SECTIONS = ['Contexto', 'Decisión', 'Consecuencias'];
 const INDEX_ROW = /^\|\s*\[(\d{4})\]\(([^)]+)\)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*$/;
 const ADR_LINK = /docs\/adr\/([^)\s]+\.md)/g;
+const MARKDOWN_LINK = /\[([^\]]*)\]\(([^)\s]+)\)/g;
 const ADR_MENTION = /\bADRs?\s+((?:\d{4}(?:\s*,\s*|\s+y\s+)?)+)/g;
 
 /** @param {string} value */
@@ -222,6 +226,62 @@ export function lintAdrs({ files, readme, claudeMd }) {
 }
 
 /**
+ * Checks every markdown link to an ADR file (`[text](…/docs/adr/NNNN-slug.md)`,
+ * resolved from the file that holds it): the file must exist, and a number in
+ * the link text must be the number of the file it points to.
+ * @param {{ markdown: Record<string, string>; adrFiles: string[] }} input
+ *   `markdown` maps repository-relative paths to their content; `adrFiles`
+ *   lists the file names in docs/adr.
+ * @returns {string[]} human-readable errors; empty when every link is right.
+ */
+export function lintAdrLinks({ markdown, adrFiles }) {
+  /** @type {string[]} */
+  const errors = [];
+  const existing = new Set(adrFiles);
+  for (const [path, content] of Object.entries(markdown).sort(([a], [b]) => a.localeCompare(b))) {
+    content.split(/\r?\n/).forEach((line, index) => {
+      for (const match of line.matchAll(MARKDOWN_LINK)) {
+        const text = match[1] ?? '';
+        const href = (match[2] ?? '').split('#')[0] ?? '';
+        if (/^[a-z]+:/i.test(href)) continue;
+        const target = posix.normalize(posix.join(posix.dirname(path), href));
+        const adrMatch = /^docs\/adr\/((\d{4})-[^/]+\.md)$/.exec(target);
+        if (adrMatch === null) continue;
+        const [, fileName = '', number = ''] = adrMatch;
+        const where = `${path}:${String(index + 1)}`;
+        if (!existing.has(fileName)) {
+          errors.push(`${where}: enlaza docs/adr/${fileName}, que no existe`);
+          continue;
+        }
+        const textNumber = /\b(\d{4})\b/.exec(text)?.[1];
+        if (textNumber !== undefined && textNumber !== number)
+          errors.push(`${where}: el texto dice ${textNumber} y el enlace va a ${fileName}`);
+      }
+    });
+  }
+  return errors;
+}
+
+/**
+ * Markdown files tracked by git, outside `node_modules`.
+ * @param {string} root repository root
+ */
+function trackedMarkdown(root) {
+  const listed = execFileSync('git', ['ls-files', '-z', '--', '*.md'], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  /** @type {Record<string, string>} */
+  const markdown = {};
+  for (const path of listed.split('\0')) {
+    if (path === '' || path.split('/').includes('node_modules')) continue;
+    if (!existsSync(join(root, path))) continue;
+    markdown[path] = readFileSync(join(root, path), 'utf8');
+  }
+  return markdown;
+}
+
+/**
  * Reads the repository from disk and lints it.
  * @param {string} root repository root
  */
@@ -233,9 +293,12 @@ export function lintRepository(root) {
     if (name === 'README.md') continue;
     files[name] = readFileSync(join(adrDir, name), 'utf8');
   }
-  return lintAdrs({
-    files,
-    readme: readFileSync(join(adrDir, 'README.md'), 'utf8'),
-    claudeMd: readFileSync(join(root, 'CLAUDE.md'), 'utf8'),
-  });
+  return [
+    ...lintAdrs({
+      files,
+      readme: readFileSync(join(adrDir, 'README.md'), 'utf8'),
+      claudeMd: readFileSync(join(root, 'CLAUDE.md'), 'utf8'),
+    }),
+    ...lintAdrLinks({ markdown: trackedMarkdown(root), adrFiles: Object.keys(files) }),
+  ];
 }

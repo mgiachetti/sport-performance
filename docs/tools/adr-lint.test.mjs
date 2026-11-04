@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
+  lintAdrLinks,
   lintAdrs,
   lintRepository,
   parseAdr,
@@ -174,6 +175,40 @@ describe('lintAdrs', () => {
     const fixture = validFixture();
     fixture.claudeMd = '# P\n';
     assert.ok(lintAdrs(fixture).some((e) => e.includes('## Arquitectura')));
+  });
+});
+
+describe('lintAdrLinks', () => {
+  const adrFiles = ['0001-uno.md', '0002-dos.md'];
+
+  it('accepts links that resolve to an existing ADR with the same number', () => {
+    const markdown = {
+      'CLAUDE.md': '[0001](docs/adr/0001-uno.md) y [x](docs/adr/0002-dos.md#consecuencias)',
+      'apps/api/README.md':
+        'Ver [ADR 0002](../../docs/adr/0002-dos.md) y [web](https://x.dev/0001-uno.md).',
+      'docs/adr/0002-dos.md': 'Como en [ADR 0001](0001-uno.md); [`apps/`](../../apps/README.md).',
+    };
+    assert.deepEqual(lintAdrLinks({ markdown, adrFiles }), []);
+  });
+
+  it('rejects a link to an ADR file that does not exist', () => {
+    const errors = lintAdrLinks({
+      markdown: { 'packages/x/README.md': 'Línea 1\n[ADR 0003](../../docs/adr/0003-tres.md)' },
+      adrFiles,
+    });
+    assert.deepEqual(errors, [
+      'packages/x/README.md:2: enlaza docs/adr/0003-tres.md, que no existe',
+    ]);
+  });
+
+  it('rejects link text whose number is not the number of the target', () => {
+    const errors = lintAdrLinks({
+      markdown: {
+        'CLAUDE.md': '| x | [0001](docs/adr/0001-uno.md), [0003](docs/adr/0002-dos.md) |',
+      },
+      adrFiles,
+    });
+    assert.deepEqual(errors, ['CLAUDE.md:1: el texto dice 0003 y el enlace va a 0002-dos.md']);
   });
 });
 

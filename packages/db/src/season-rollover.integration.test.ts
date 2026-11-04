@@ -12,7 +12,7 @@ import {
 import { seedClubFixture, type ClubFixture } from './testing/tenant-fixture.js';
 
 /**
- * Season change (B-316, migration 0021): one draft per season, the
+ * Season change (B-316, migration 0024): one draft per season, the
  * consistency checks of an item, the guards that freeze an applied or
  * cancelled change, and RLS (only the administration) through the app role.
  */

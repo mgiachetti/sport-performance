@@ -32,7 +32,7 @@ import { referenceScopeSchema } from './reference-values.js';
 import { exerciseCodeSchema, metricCodeSchema, testCodeSchema } from './tests.js';
 
 /**
- * The PDF report of a player for a test window (B-602, ADR 0069), for the
+ * The PDF report of a player for a test window (B-602, ADR 0071), for the
  * player and their family. The staff asks for it; the API freezes what it
  * shows into a versioned snapshot (`content`), read with the rules of the
  * player profile (ADR 0060), and the worker renders it into a `pdf_report`

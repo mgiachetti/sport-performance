@@ -135,7 +135,7 @@ export interface PlayerCategoryDay {
   readonly stage: Stage;
   /**
    * Whether the category's programs without a stage reach the player: they
-   * were validated against the category's default stage (ADR 0073), so they
+   * were validated against the category's default stage (ADR 0075), so they
    * reach only a player whose strength assessment in the category is the
    * same (a late or early maturer pinned to another stage gets the programs
    * of their own stage).

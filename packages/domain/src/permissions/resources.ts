@@ -144,7 +144,7 @@ export const PERMISSION_RESOURCES = {
    */
   data_export: { target: 'player', medical: false, actions: ['export'] },
   /**
-   * The PDF report of a player for a test window (B-602, ADR 0069): for the
+   * The PDF report of a player for a test window (B-602, ADR 0071): for the
    * player and their family. The staff asks for it (`generate`); the player,
    * the guardian, the assigned staff and the administration read and download
    * it (`read`).

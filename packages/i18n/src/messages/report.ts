@@ -1,5 +1,5 @@
 /**
- * Texts of the PDF report of a player for a test window (B-602, ADR 0069),
+ * Texts of the PDF report of a player for a test window (B-602, ADR 0071),
  * rendered by the worker for the player and their family. Plain language,
  * never a diagnosis; values arrive already formatted (es-AR, with their unit).
  * Metric, test, method and equation names come from the shared catalog.

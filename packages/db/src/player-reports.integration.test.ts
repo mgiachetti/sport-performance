@@ -13,7 +13,7 @@ import {
 import { seedClubFixture, type ClubFixture } from './testing/tenant-fixture.js';
 
 /**
- * Player reports in the database (B-602, ADR 0069): read with the player
+ * Player reports in the database (B-602, ADR 0071): read with the player
  * scope (the player, the guardian, the assigned staff, the administration),
  * inserted pending by the staff as themselves, completed only by the worker
  * with a PDF of the same player, and never changed once finished.
