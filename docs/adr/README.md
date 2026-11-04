@@ -80,6 +80,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0074](0074-app-del-jugador-lecturas-propias-y-cache-local.md) | App del jugador: lecturas propias del rol `player`, caché local de lecturas por membresía y escrituras solo por la cola | Aceptado |
 | [0075](0075-gimnasio-programas-por-etapa-series-y-e1rm.md) | Gimnasio: programas por etapa, series con su tipo de carga y e1RM del protocolo de fuerza | Aceptado |
 | [0076](0076-dia-de-test-en-cancha.md) | Día de test en cancha: planilla guardada en el teléfono, intentos que solo se agregan por la cola y varios evaluadores sin coordinarse | Aceptado |
+| [0077](0077-test-de-reaccion-en-la-app.md) | Test de reacción en la app: equipo registrado por instalación, series puras en el dominio, tiempo desde el primer cuadro y comparación solo con el mismo jugador en el mismo equipo | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla y que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR.
 

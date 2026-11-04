@@ -789,7 +789,8 @@ export function registerTestResultRoutes(app: FastifyInstance): void {
           protocolVersion: testDefinition.version,
           deviceId: testResult.deviceId,
           exercise: testResult.exercise,
-          sameDeviceOnly: sql<boolean>`coalesce((${testDefinition.protocol} -> 'parameters' ->> 'sameDeviceOnly')::boolean, false)`,
+          // As JSON, never cast: a non-boolean value is "no", as the domain reads it.
+          sameDeviceOnly: sql<boolean>`coalesce(${testDefinition.protocol} -> 'parameters' -> 'sameDeviceOnly' = 'true'::jsonb, false)`,
         })
         .from(testResult)
         .innerJoin(testDefinition, joinDefinition)

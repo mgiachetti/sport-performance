@@ -52,6 +52,7 @@ export default function AppLayout() {
       <Tabs.Screen name="ift-3015" options={{ title: t('ift.title'), href: null }} />
       {/* The player's consents, opened from Cuenta. */}
       <Tabs.Screen name="consents" options={{ title: t('playerApp.consents.title'), href: null }} />
+      <Tabs.Screen name="reaction" options={{ title: t('reaction.title'), href: null }} />
     </Tabs>
   );
 }

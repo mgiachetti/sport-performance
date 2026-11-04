@@ -106,6 +106,32 @@ export {
 } from './ift3015-signals.js';
 
 export {
+  DEFAULT_REACTION_PROTOCOL,
+  REACTION_METRIC_BY_TASK,
+  REACTION_OUTCOMES,
+  REACTION_STIMULI,
+  REACTION_TASKS,
+  assertReactionProtocol,
+  classifyReactionResponse,
+  isSameDeviceOnlyProtocol,
+  nextReactionTrial,
+  reactionHistoryOnDevice,
+  reactionProtocol,
+  recordReactionTrial,
+  summarizeReactionSeries,
+  type ReactionHistoryPoint,
+  type ReactionOutcome,
+  type ReactionProtocol,
+  type ReactionResponse,
+  type ReactionSeriesStatus,
+  type ReactionSeriesSummary,
+  type ReactionStimulus,
+  type ReactionTask,
+  type ReactionTrial,
+  type ReactionTrialRecord,
+} from './reaction.js';
+
+export {
   DEFAULT_TEST_SCORING_SETTINGS,
   RESULT_LEVEL_DERIVED_METRICS,
   STRENGTH_METRICS_BY_ASSESSMENT,

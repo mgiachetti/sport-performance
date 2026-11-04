@@ -9,6 +9,7 @@ import * as Updates from 'expo-updates';
 import { Platform as ReactNativePlatform } from 'react-native';
 import { parseRuntimeConfig, type RuntimeConfig } from '../config/runtime-config.ts';
 import type { SentryBuild } from '../observability/sentry-options.ts';
+import type { HardwareInfo } from '../reaction/installation.ts';
 import type { Platform } from '../state/services.ts';
 import { createNativeSignalPlayer } from './signal-audio.ts';
 import { NATIVE_APP_VERSION, parseAppBuildInfo, type AppBuildInfo } from '../version/index.ts';
@@ -69,6 +70,41 @@ export function versionLabel(build: AppBuildInfo): string {
   return number === null ? build.nativeVersion : `${build.nativeVersion} (${number})`;
 }
 
+/**
+ * The phone as it registers as a measuring device (B-606): phone or tablet,
+ * model and system version, from React Native's platform constants (no
+ * extra native module).
+ */
+export function hardwareInfo(): HardwareInfo {
+  const constants = ReactNativePlatform.constants as unknown as Record<string, unknown>;
+  const text = (value: unknown) =>
+    typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
+  if (ReactNativePlatform.OS === 'ios') {
+    const idiom = text(constants.interfaceIdiom);
+    const version = text(constants.osVersion);
+    return {
+      kind: idiom === 'pad' ? 'tablet' : 'phone',
+      model: idiom === 'pad' ? 'iPad' : 'iPhone',
+      osVersion: version === null ? null : `iOS ${version}`,
+    };
+  }
+  const brand = text(constants.Brand) ?? text(constants.Manufacturer);
+  const model = text(constants.Model);
+  const release = text(constants.Release);
+  const named =
+    model === null
+      ? brand
+      : brand === null || model.toLowerCase().startsWith(brand.toLowerCase())
+        ? model
+        : `${brand} ${model}`;
+  return {
+    // Android does not tell a tablet apart without another module: the staff names it.
+    kind: 'phone',
+    model: named,
+    osVersion: release === null ? null : `Android ${release}`,
+  };
+}
+
 /** The device as the app services see it. */
 export function nativePlatform(config: RuntimeConfig, build: AppBuildInfo): Platform {
   const reportError = (error: unknown) => {
@@ -84,5 +120,6 @@ export function nativePlatform(config: RuntimeConfig, build: AppBuildInfo): Plat
     reportError,
     openLocalDatabase: () => openNativeLocalDatabase(reportError),
     createSignalPlayer: createNativeSignalPlayer,
+    hardware: hardwareInfo(),
   };
 }

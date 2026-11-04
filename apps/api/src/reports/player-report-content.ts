@@ -40,6 +40,7 @@ import {
   groupSpan,
   peakZoneOf,
   readSamples,
+  comparableGroup,
   testMetrics,
   type ProfileTarget,
 } from '../routes/player-profile.js';
@@ -279,7 +280,7 @@ export async function buildPlayerReportContent(
     ).map((w) => [w.id, w]),
   );
   const span = groupSpan(own, windows);
-  const group = span === null ? [] : await read(span);
+  const group = span === null ? [] : comparableGroup(await read(span), metrics);
   const series = evolution(own, group, metrics, windows, today);
 
   const sportOf = await referenceSportOf(db, clubId, target.id, asOf, today);

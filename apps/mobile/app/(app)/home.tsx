@@ -44,6 +44,13 @@ export default function Home() {
             }
           : null
       }
+      onOpenReaction={
+        canRunIft3015(state.activeMembership.role)
+          ? () => {
+              router.push('/reaction');
+            }
+          : null
+      }
     />
   );
 }

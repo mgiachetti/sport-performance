@@ -91,6 +91,7 @@ export function testServices(options: { secure?: Record<string, string> } = {}) 
     languageTags: ['es-AR'],
     reportError: (error) => errors.push(error),
     createSignalPlayer: () => audio,
+    hardware: { kind: 'phone', model: 'Pixel 9', osVersion: 'Android 16' },
     fetch: api.fetch,
     openLocalDatabase: () => openLocalDatabase(nodeSqliteDriver()),
   };

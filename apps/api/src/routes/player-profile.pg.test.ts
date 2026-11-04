@@ -492,6 +492,99 @@ describeWithPostgres('player profile reads (Postgres)', (serverUrl) => {
     });
   });
 
+  // After the blocks above: it adds reaction results they do not expect.
+  describe('metrics compared only on the same device (B-606, ADR 0077)', () => {
+    beforeAll(async () => {
+      // The subject and the nine peers, in V1: enough for a percentile and a category average.
+      await result(subject, 'reaction', '2026-02-11', {
+        reaction_simple_msec: [250, 260, 255, 245, 250],
+      });
+      for (const [index, peer] of peers.entries()) {
+        await result(peer, 'reaction', '2026-02-11', { reaction_simple_msec: [280 + index] });
+      }
+    });
+
+    it('marks the seeded reaction protocol as compared only on the same device', async () => {
+      const { rows } = await database.admin.query<{ same: boolean }>(
+        `select coalesce(protocol -> 'parameters' -> 'sameDeviceOnly' = 'true'::jsonb, false) as same
+           from test_definition where club_id = $1 and code = 'reaction'`,
+        [clubA],
+      );
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows.every((row) => row.same)).toBe(true);
+    });
+
+    it('leaves the reaction metrics out of the percentiles', async () => {
+      const response = await get(scA, `/v1/players/${subject}/percentiles`);
+      expect(response.statusCode, response.body).toBe(200);
+      const codes = response
+        .json<{ items: { metricCode: string }[] }>()
+        .items.map((i) => i.metricCode);
+      expect(codes).toContain('cmj_height_cm');
+      expect(codes).not.toContain('reaction_simple_msec');
+      expect(codes).not.toContain('reaction_go_no_go_msec');
+    });
+
+    it('gives the player their own reaction values without a category average', async () => {
+      const response = await get(coachA, `/v1/players/${subject}/test-evolution`);
+      expect(response.statusCode, response.body).toBe(200);
+      const body = response.json<{
+        metrics: {
+          metricCode: string;
+          points: {
+            columnKey: string;
+            value: number;
+            categoryAverage: number | null;
+            categorySize: number | null;
+          }[];
+        }[];
+      }>();
+      const reaction = body.metrics.find((m) => m.metricCode === 'reaction_simple_msec');
+      expect(reaction?.points).toEqual([
+        expect.objectContaining({
+          columnKey: `w:${v1}`,
+          value: 252,
+          categoryAverage: null,
+          categorySize: null,
+        }),
+      ]);
+      // The CMJ keeps its category average.
+      const cmj = body.metrics.find((m) => m.metricCode === 'cmj_height_cm');
+      expect(cmj?.points[0]?.categorySize).toBe(10);
+    });
+
+    it('reads a non-boolean `sameDeviceOnly` as false instead of failing', async () => {
+      const saved = await database.admin.query<{ id: string; protocol: unknown }>(
+        `select id, protocol from test_definition where club_id = $1 and code = 'cmj'`,
+        [clubA],
+      );
+      await database.admin.query(
+        `update test_definition
+            set protocol = protocol || jsonb_build_object('parameters',
+                  coalesce(protocol -> 'parameters', '{}'::jsonb) || '{"sameDeviceOnly": "si"}'::jsonb)
+          where club_id = $1 and code = 'cmj'`,
+        [clubA],
+      );
+      try {
+        const percentiles = await get(scA, `/v1/players/${subject}/percentiles`);
+        expect(percentiles.statusCode, percentiles.body).toBe(200);
+        const codes = percentiles
+          .json<{ items: { metricCode: string }[] }>()
+          .items.map((i) => i.metricCode);
+        expect(codes).toContain('cmj_height_cm');
+        const evolution = await get(coachA, `/v1/players/${subject}/test-evolution`);
+        expect(evolution.statusCode, evolution.body).toBe(200);
+      } finally {
+        for (const row of saved.rows) {
+          await database.admin.query('update test_definition set protocol = $2 where id = $1', [
+            row.id,
+            JSON.stringify(row.protocol),
+          ]);
+        }
+      }
+    });
+  });
+
   // Runs last: it adds a peer and a measurement the blocks above do not expect.
   describe('comparison groups that cannot be differenced (ADR 0060)', () => {
     beforeAll(async () => {

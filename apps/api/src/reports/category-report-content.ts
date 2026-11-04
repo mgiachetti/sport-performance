@@ -48,7 +48,7 @@ import {
 } from '@sport-performance/domain';
 import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import type { TenantDatabase } from '../db/database.js';
-import { testMetrics } from '../routes/player-profile.js';
+import { rankableMetrics, testMetrics } from '../routes/player-profile.js';
 import { firstTeamReferencesOf } from '../routes/reference-values.js';
 import { batteryEntries, scheduledTests } from '../routes/test-session-sheet.js';
 import {
@@ -592,7 +592,8 @@ export async function buildCategoryReportContent(
       startsOn: w.startsOn,
       endsOn: w.endsOn,
     }));
-  const metrics = await testMetrics(db, clubId, false);
+  // A test compared only on the same device (reaction) has no group average (ADR 0077).
+  const metrics = rankableMetrics(await testMetrics(db, clubId, false));
   const oldest = columns[0];
   const columnOf = (row: { testWindowId: string | null; measuredOn: LocalDate }) =>
     columns.find((c) =>

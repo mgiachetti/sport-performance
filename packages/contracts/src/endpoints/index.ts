@@ -273,6 +273,14 @@ import {
   previewTestImport,
 } from './test-imports.js';
 import { getTestSessionSheet } from './test-day-sheet.js';
+import {
+  getDevice,
+  listDevices,
+  registerDevice,
+  restoreDevice,
+  retireDevice,
+  updateDevice,
+} from './devices.js';
 
 export * from './alerts.js';
 export * from './anthropometry.js';
@@ -320,6 +328,7 @@ export * from './test-imports.js';
 export * from './panel.js';
 export * from './test-definitions.js';
 export * from './test-day-sheet.js';
+export * from './devices.js';
 
 /**
  * Every endpoint of the API, keyed by operationId. The API registers its
@@ -452,6 +461,12 @@ export const apiEndpoints = {
   addTestResultEntries,
   voidTestResultEntries,
   listPlayerTestMetric,
+  listDevices,
+  getDevice,
+  registerDevice,
+  updateDevice,
+  retireDevice,
+  restoreDevice,
   recordAnthroMeasurements,
   previewAnthroMeasurements,
   listAnthroMeasurements,
