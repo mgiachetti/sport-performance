@@ -431,7 +431,9 @@ describe('player profile (B-404)', () => {
     const loadCard = screen.getByRole('region', { name: 'Carga de los últimos 28 días' });
     expect(await within(loadCard).findByText('1,45')).toBeVisible();
     expect(within(loadCard).getByText('Crítico')).toBeVisible();
-    expect(within(loadCard).getByText('3,2 de 5')).toBeVisible();
+    // Each tile reads its figure and unit together ("3,2 de 5").
+    const wellnessTile = within(loadCard).getByText('Bienestar de hoy').closest('.sp-kpi');
+    expect(wellnessTile?.querySelector('.sp-kpi__value')).toHaveTextContent('3,2 de 5');
     expect(within(loadCard).getByText('1 sesión sin RPE en el período.')).toBeVisible();
     expect(
       within(loadCard).getByText(/informadas por el jugador fuera del club \(1 actividad:/),

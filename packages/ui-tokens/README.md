@@ -21,7 +21,7 @@ TypeScript puro, sin dependencias de React, React Native ni DOM.
 | Cifras | `kpi` 44, `metricXl` 56, `metric` 32, `metricSmall` 20, `unit` 18, `tableNumber` 17, `tabular` 14 | Siempre `tabular-nums`; la unidad (`/ 24`, `UA`) más chica y apagada |
 | Espaciado (`spacing`) | `xxs` 2 · `xs` 4 · `sm` 8 · `md` 12 · `lg` 16 · `xl` 24 · `xxl` 32 · `xxxl` 48 | Padding de tarjeta `xl`, separación de tarjetas `md` |
 | Radios (`radius`) | `sm` 4 · `md` 8 · `lg` 12 · `xl` 16 · `pill` | Tarjetas `lg`, controles `md`, chips `pill` |
-| Tamaños (`sizes`) | `touchTarget` 44, `controlSmall` 36, `tableRow` 48, `avatar` 32, `sidebar` 256, `contentMax` 1440 | |
+| Tamaños (`sizes`) | `touchTarget` 44, `controlSmall` 36, `tableRow` 48, `avatar` 32, `avatarLarge` 64, `sidebar` 256, `contentMax` 1440 | |
 | Capas | `background` → `surface` → `surfaceRaised`; `elevation.raised` / `elevation.overlay` (`--sp-elevation-*`) | Las sombras solo para lo que flota (menús, cajón) |
 | Foco | `focus` (marca ≥ 3:1), `focusRing.width` 2, `offset` 2 | Siempre visible |
 | Rayas | `--sp-stripes-sm\|md\|lg` (bandas), `--sp-stripes-seal` (línea de segmentos) | Decorativas, `aria-hidden` |

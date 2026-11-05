@@ -52,13 +52,17 @@ export function Button({
 /** A labelled input with its help and error text wired by `aria-describedby`. */
 export function TextField({
   label,
+  hideLabel,
   help,
   error,
   ...input
-}: { label: string; help?: string | undefined; error?: string | null | undefined } & Omit<
-  InputHTMLAttributes<HTMLInputElement>,
-  'id'
->) {
+}: {
+  label: string;
+  /** Keep the label for assistive technology only (a search beside a card title). */
+  hideLabel?: boolean;
+  help?: string | undefined;
+  error?: string | null | undefined;
+} & Omit<InputHTMLAttributes<HTMLInputElement>, 'id'>) {
   const id = useId();
   const helpId = `${id}-help`;
   const errorId = `${id}-error`;
@@ -67,7 +71,7 @@ export function TextField({
     .join(' ');
   return (
     <div className="sp-field">
-      <label htmlFor={id} className="sp-field__label">
+      <label htmlFor={id} className={hideLabel === true ? 'sp-visually-hidden' : 'sp-field__label'}>
         {label}
       </label>
       <input
@@ -270,6 +274,8 @@ export function KpiTile(props: {
   highlighted?: boolean;
   /** `li`: one tile of a list of figures (`<ul className="sp-kpis">`). */
   as?: 'div' | 'li';
+  /** A status on its own row under the figure (`StatusChip`, `StatusBadge`): icon + text, never color alone. */
+  status?: ReactNode;
 }) {
   const Tile = props.as ?? 'div';
   return (
@@ -279,6 +285,7 @@ export function KpiTile(props: {
         <span className="sp-kpi__figure">{props.value}</span>
         {props.unit === undefined ? null : <span className="sp-kpi__unit"> {props.unit}</span>}
       </p>
+      {props.status === undefined ? null : <div className="sp-kpi__status">{props.status}</div>}
       {props.caption === undefined ? null : <p className="sp-kpi__caption">{props.caption}</p>}
     </Tile>
   );
@@ -393,10 +400,21 @@ export function EmptyState(props: {
  * next to it): drawn by CSS from `data-label`, so it is neither announced nor
  * part of the row's text (copying a name, reading a cell).
  */
-export function Avatar(props: { label: string; variant?: 'default' | 'brand' }) {
+export function Avatar(props: {
+  label: string;
+  variant?: 'default' | 'brand';
+  /** `lg`: the head of a profile. */
+  size?: 'md' | 'lg';
+}) {
   return (
     <span
-      className={`sp-avatar${props.variant === 'brand' ? ' sp-avatar--brand' : ''}`}
+      className={[
+        'sp-avatar',
+        props.variant === 'brand' ? 'sp-avatar--brand' : null,
+        props.size === 'lg' ? 'sp-avatar--lg' : null,
+      ]
+        .filter(Boolean)
+        .join(' ')}
       data-label={props.label}
       aria-hidden="true"
     />

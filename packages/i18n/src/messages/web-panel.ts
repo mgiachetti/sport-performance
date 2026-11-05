@@ -70,8 +70,11 @@ export const webPanelMessagesEsAR = {
   'panel.attention.short.acwr_high': 'ACWR alto {acwrRatio} · umbral {thresholdRatio}',
   'panel.attention.short.acwr_low': 'ACWR bajo {acwrRatio} · umbral {thresholdRatio}',
   'panel.attention.short.wellness_low': 'Bienestar {wellnessScore} de 5 · umbral {thresholdScore}',
-  'panel.attention.short.wellness_zscore_low': 'Bienestar z {zScore} · umbral {thresholdZScore}',
+  'panel.attention.short.wellness_zscore_low':
+    'Bienestar bajo lo habitual (z\u00a0{zScore}) · umbral {thresholdZScore}',
   'panel.attention.short.cmj_drop': 'CMJ {dropPct} bajo la base',
+  // When the alert carries the rule's threshold (`thresholdPct`).
+  'panel.attention.short.cmj_drop_threshold': 'CMJ {dropPct} bajo la base · umbral {thresholdPct}',
   'panel.attention.short.growth_peak':
     'Crecimiento {velocityCmYear} · pico desde {thresholdCmYear}',
 
@@ -81,6 +84,9 @@ export const webPanelMessagesEsAR = {
   'panel.roster.player': 'Jugador',
   'panel.roster.position': 'Posición',
   'panel.roster.maturity': 'Maduración',
+  // Maturity in two number columns (one figure per cell, the row stays one line high).
+  'panel.roster.phvOffsetColumn': 'Años del PHV',
+  'panel.roster.adultHeightColumn': '% talla adulta',
   'panel.roster.wellness': 'Bienestar (semana)',
   'panel.roster.load': 'sRPE semana',
   'panel.roster.acwr': 'ACWR',
@@ -95,6 +101,11 @@ export const webPanelMessagesEsAR = {
   'panel.roster.adultHeight': '{value} de la talla adulta',
   'panel.roster.measuredOn': 'Medido el {date}',
   'panel.roster.empty': 'No hay jugadores en este grupo.',
+  // Narrow screens: one card per player instead of a table that scrolls sideways.
+  'panel.roster.card.wellness': 'Bienestar',
+  'panel.roster.card.load': 'sRPE',
+  'panel.roster.card.acwr': 'ACWR',
+  'panel.roster.card.maturity': 'Maduración: {value}',
 
   // ACWR states
   'panel.acwr.insufficient_history': 'Historia insuficiente',

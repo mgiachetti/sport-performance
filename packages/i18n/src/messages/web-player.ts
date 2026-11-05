@@ -11,10 +11,16 @@ export const webPlayerMessagesEsAR = {
   'players.search': 'Buscar por nombre o apellido',
   'players.empty': 'No hay jugadores con ese filtro en lo que ves.',
   'players.count': '{count, plural, one {# jugador} other {# jugadores}}',
+  'players.countShown':
+    'Mostrando {count, plural, one {# jugador} other {los primeros # jugadores}}',
   'players.more': 'Mostrar más',
   'players.table.name': 'Jugador',
   'players.table.category': 'Categoría',
   'players.table.birthDate': 'Nacimiento',
+  'players.table.title': 'Plantel',
+  'players.table.position': 'Posición',
+  'players.table.age': 'Edad',
+  'players.table.ageValue': '{age} años',
 
   // Profile header
   'player.title': 'Ficha del jugador',
@@ -25,6 +31,12 @@ export const webPlayerMessagesEsAR = {
   'player.noCategory': 'Sin categoría vigente',
   'player.left': 'De baja desde el {date}',
   'player.availabilityNow': 'Disponibilidad de hoy',
+  // Labels of the facts in the profile's header.
+  'player.fact.availability': 'Hoy',
+  'player.fact.category': 'Categoría',
+  'player.fact.position': 'Posición',
+  'player.fact.age': 'Edad',
+  'player.fact.measure': 'Talla y peso',
   'player.notFound': 'No encontramos a este jugador en lo que ves.',
   'player.section.unavailable': 'No tenés permiso para ver esta sección de la ficha.',
   'player.refreshPending': 'Hay datos nuevos que se están recalculando. Volvé a mirar en un rato.',
@@ -126,7 +138,8 @@ export const webPlayerMessagesEsAR = {
     'Incluye {load} informadas por el jugador fuera del club ({count, plural, one {# actividad} other {# actividades}}: otro deporte, educación física).',
   'player.load.empty': 'Sin carga registrada en los últimos 28 días.',
   'player.load.wellness': 'Bienestar de hoy',
-  'player.load.wellnessValue': '{score} de 5',
+  // The unit next to the wellness figure of its tile ("3,2 de 5").
+  'player.load.ofScore': 'de 5',
   'player.load.wellnessNone': 'Sin bienestar cargado hoy',
 
   // Alerts history

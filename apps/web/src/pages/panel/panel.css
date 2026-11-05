@@ -80,6 +80,15 @@
   overflow-y: auto;
   border-radius: var(--sp-radius-sm);
 }
+/* Scroll cue without script: a shade at the bottom edge while there is more below. The shade is
+   fixed to the box (`scroll`); a cover in the card's color travels with the content (`local`) and
+   hides it once the end is reached. */
+.sp-panel-attention__scroll.is-expanded {
+  background:
+    linear-gradient(transparent, var(--sp-color-surface) 70%) 0 100% / 100% 2.5rem no-repeat local,
+    linear-gradient(transparent, color-mix(in srgb, var(--sp-color-text-primary) 22%, transparent))
+      0 100% / 100% 2rem no-repeat scroll;
+}
 .sp-panel-attention__scroll.is-expanded:focus-visible {
   outline: var(--sp-focus-ring-width) solid var(--sp-color-focus);
   outline-offset: var(--sp-focus-ring-offset);
@@ -136,7 +145,7 @@
 }
 .sp-panel-wellness__bar {
   position: relative;
-  width: 4.5rem;
+  width: 3rem;
   height: 0.375rem;
   overflow: hidden;
   border-radius: var(--sp-radius-pill);
@@ -155,20 +164,91 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The roster table takes its look from the table primitive (primitives.css). */
+/* The roster table takes its look from the table primitive (primitives.css), with tighter cell
+   padding: nine columns fit a 1440 px screen without scrolling sideways. */
+.sp-panel-table thead th,
+.sp-panel-table tbody th,
+.sp-panel-table tbody td {
+  padding-right: var(--sp-space-sm);
+  padding-left: var(--sp-space-sm);
+}
 .sp-panel-table tbody td {
   vertical-align: middle;
 }
 .sp-panel-table tbody th .sp-table__cell-player,
-.sp-panel-maturity,
+.sp-panel-availability,
 .sp-panel-nowrap {
   white-space: nowrap;
+}
+/* The muted second line of a number cell (band, pending RPE, "as of"): body font, not figures. */
+.sp-panel-table .is-number .sp-panel-block {
+  font-family: var(--sp-text-body-family);
+  font-weight: var(--sp-text-body-weight);
 }
 /* Narrow screens scroll the table sideways instead of squeezing its columns (local size, ADR 0097). */
 .sp-panel-table {
   min-width: 60rem;
 }
-/* A state in words in a number column ("Historia insuficiente") may wrap; the figures do not. */
+/* A state in words in a number column ("Historia insuficiente") may wrap; the figures and the
+   muted line under them ("1 RPE pendiente", "Último cálculo: …") do not. */
 .sp-panel-table .is-number .sp-panel-muted {
   white-space: normal;
+}
+.sp-panel-table .is-number .sp-panel-block {
+  white-space: nowrap;
+}
+
+/* Roster on a phone: one card per player (the table needs 60 rem). */
+.sp-panel-cards {
+  display: grid;
+  margin: var(--sp-space-sm) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.sp-panel-cards__item {
+  display: grid;
+  gap: var(--sp-space-xs);
+  padding: var(--sp-space-md) 0;
+  border-bottom: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+}
+.sp-panel-cards__item:last-child {
+  border-bottom: 0;
+}
+.sp-panel-cards__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-sm);
+}
+.sp-panel-cards__who {
+  flex: 1;
+  min-width: 0;
+}
+.sp-panel-cards__name {
+  overflow: hidden;
+  font-weight: var(--sp-text-body-strong-weight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sp-panel-cards__figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-space-xxs) var(--sp-space-lg);
+  margin: 0;
+}
+.sp-panel-cards__figures > div {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-space-xs);
+}
+/* Muted label, the figure in the table-number type: same language as the KPIs and the table. */
+.sp-panel-cards__figures dt {
+  color: var(--sp-color-text-muted);
+  font-size: var(--sp-text-body-small-size);
+}
+.sp-panel-cards__figures dd {
+  margin: 0;
+  font-family: var(--sp-text-table-number-family);
+  font-size: var(--sp-text-table-number-size);
+  font-weight: var(--sp-text-table-number-weight);
+  font-variant-numeric: tabular-nums;
 }

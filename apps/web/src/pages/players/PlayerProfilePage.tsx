@@ -14,8 +14,11 @@ import { Link } from '@tanstack/react-router';
 import { useServices } from '../../app/services';
 import { useActiveClub } from '../../club/active-club';
 import { useT } from '../../i18n/i18n';
+import './players.css';
 import { useCan } from '../../permissions/permissions';
-import { ErrorNotice, Loading, Notice, Page } from '../../ui/components';
+import { Avatar, buttonClass, ErrorNotice, Loading, Notice, Page } from '../../ui/components';
+import { Icon } from '../../ui/icons';
+import { initialsOf } from '../../lib/initials';
 import { GymSection } from '../../gym/GymSection';
 import { positionName } from '../../lib/positions';
 import {
@@ -74,8 +77,9 @@ function NotFound() {
 function BackLink() {
   const t = useT();
   return (
-    <Link to="/players" activeOptions={{ exact: true }} className="sp-button sp-button--ghost">
-      {t('player.back')}
+    <Link to="/players" activeOptions={{ exact: true }} className={buttonClass('secondary', 'sm')}>
+      <Icon name="chevronLeft" />
+      <span>{t('player.back')}</span>
     </Link>
   );
 }
@@ -170,39 +174,76 @@ function ProfileBody(props: { player: Player }) {
   return (
     <Page title={name} subtitle={t('player.subtitle')} actions={<BackLink />}>
       <section className="sp-card sp-profile__hero" aria-label={t('player.title')}>
-        <ul className="sp-profile__meta">
+        <Avatar label={initialsOf(name)} size="lg" />
+        <ul className="sp-profile__facts">
           {availableNow === undefined ? null : (
-            <li aria-label={t('player.availabilityNow')}>
-              <AvailabilityBadge status={availableNow} />
+            <li aria-label={t('player.availabilityNow')} className="sp-profile__fact">
+              <span className="sp-profile__fact-label" aria-hidden="true">
+                {t('player.fact.availability')}
+              </span>
+              <span className="sp-profile__fact-value">
+                <AvailabilityBadge status={availableNow} />
+              </span>
             </li>
           )}
-          <li>{categoryName === '' ? t('player.noCategory') : categoryName}</li>
-          {mainPosition === undefined ? null : <li>{positionName(t, mainPosition)}</li>}
-          <li>
-            {t('player.age', {
-              age: formatNumber(decimalAgeYears(player.birthDate, today), { decimals: 1 }),
-            })}
+          <li className="sp-profile__fact">
+            <span className="sp-profile__fact-label">{t('player.fact.category')}</span>
+            <span className="sp-profile__fact-value">
+              {categoryName === '' ? t('player.noCategory') : categoryName}
+            </span>
+          </li>
+          {mainPosition === undefined ? null : (
+            <li className="sp-profile__fact">
+              <span className="sp-profile__fact-label">{t('player.fact.position')}</span>
+              <span className="sp-profile__fact-value">{positionName(t, mainPosition)}</span>
+            </li>
+          )}
+          <li className="sp-profile__fact">
+            <span className="sp-profile__fact-label">{t('player.fact.age')}</span>
+            <span className="sp-profile__fact-value">
+              {t('player.age', {
+                age: formatNumber(decimalAgeYears(player.birthDate, today), { decimals: 1 }),
+              })}
+            </span>
           </li>
           {lastMeasure === undefined ? null : (
-            <li>
-              {t('player.lastMeasure', {
-                height: formatUnit(lastMeasure.heightCm, 'cm', { decimals: 0 }),
-                weight: formatUnit(lastMeasure.weightKg, 'kg', { decimals: 0 }),
-                date: formatLocalDate(lastMeasure.measuredOn),
-              })}
+            <li className="sp-profile__fact">
+              <span className="sp-profile__fact-label">{t('player.fact.measure')}</span>
+              <span className="sp-profile__fact-value">
+                {t('player.lastMeasure', {
+                  height: formatUnit(lastMeasure.heightCm, 'cm', { decimals: 0 }),
+                  weight: formatUnit(lastMeasure.weightKg, 'kg', { decimals: 0 }),
+                  date: formatLocalDate(lastMeasure.measuredOn),
+                })}
+              </span>
             </li>
           )}
           {player.leftOn === null ? null : (
-            <li>{t('player.left', { date: formatLocalDate(player.leftOn) })}</li>
+            <li className="sp-profile__fact">
+              <span className="sp-profile__fact-value">
+                {t('player.left', { date: formatLocalDate(player.leftOn) })}
+              </span>
+            </li>
           )}
         </ul>
       </section>
+      {/* Three short cards side by side (status, maturation, alerts), then the blocks with charts
+          and long lists across the whole width. */}
       <div className="sp-profile__grid">
         <AvailabilitySection playerId={player.id} allowed={can.availability} />
         <MaturationSection
           playerId={player.id}
           allowed={can.maturation}
           peakAlert={activeAlert(['growth_peak'])}
+        />
+        <AlertsSection
+          allowed={can.alerts}
+          alerts={{ data: alerts, error: alertsQuery.error, pending: alertsQuery.isPending }}
+        />
+        <LoadSection
+          playerId={player.id}
+          allowed={can.load}
+          acwrAlert={activeAlert(['acwr_high', 'acwr_low'])}
         />
         <EvolutionSection
           playerId={player.id}
@@ -211,16 +252,7 @@ function ProfileBody(props: { player: Player }) {
           allowed={can.evolution}
         />
         <PercentilesSection playerId={player.id} allowed={can.percentiles} />
-        <LoadSection
-          playerId={player.id}
-          allowed={can.load}
-          acwrAlert={activeAlert(['acwr_high', 'acwr_low'])}
-        />
         <GymSection playerId={player.id} playerName={name} allowed={can.gym} canLog={can.logGym} />
-        <AlertsSection
-          allowed={can.alerts}
-          alerts={{ data: alerts, error: alertsQuery.error, pending: alertsQuery.isPending }}
-        />
       </div>
     </Page>
   );
