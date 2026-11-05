@@ -20,14 +20,15 @@
   text-align: left;
   vertical-align: top;
 }
+/* Same header as the shared data table (ADR 0097): condensed, muted, sentence case. */
 .sp-td-table thead th {
-  color: var(--sp-color-text-secondary);
-  font-family: var(--sp-text-overline-family);
-  font-size: var(--sp-text-overline-size);
-  font-weight: var(--sp-text-overline-weight);
-  letter-spacing: var(--sp-text-overline-letter-spacing);
-  text-transform: var(--sp-text-overline-transform);
+  color: var(--sp-color-text-muted);
+  font-family: var(--sp-text-table-header-family);
+  font-size: var(--sp-text-table-header-size);
+  font-weight: var(--sp-text-table-header-weight);
+  letter-spacing: var(--sp-text-table-header-letter-spacing);
   white-space: nowrap;
+  vertical-align: bottom;
 }
 .sp-td-table tbody th {
   font-weight: var(--sp-text-body-strong-weight);
@@ -107,15 +108,64 @@
 }
 .sp-td-settings {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
   gap: var(--sp-space-lg);
   align-items: start;
 }
 
-.sp-td-attempt,
 .sp-td-state {
   display: grid;
   gap: var(--sp-space-xs);
+}
+/* The fields of one attempt side by side (10 / 20 / 40 m): one short row per player. */
+.sp-td-attempt {
+  display: grid;
+  grid-auto-columns: max-content;
+  grid-auto-flow: column;
+  align-items: start;
+  gap: var(--sp-space-xs);
+}
+.sp-td-sheet :is(th, td) {
+  padding-inline: var(--sp-space-xs);
+}
+/* The fields of one attempt close together; the cell padding separates attempts. */
+.sp-td-sheet .sp-td-attempt {
+  gap: var(--sp-space-xxs);
+}
+.sp-td-scroll:has(> .sp-td-sheet) {
+  margin-inline: calc((var(--sp-space-xl) - var(--sp-space-xs)) * -1);
+}
+.sp-td-sheet select.sp-td-input,
+.sp-td-sheet select {
+  width: auto;
+  max-width: 7.5rem;
+}
+.sp-td-sheet .sp-td-input {
+  width: 3.25rem;
+  padding: 0 var(--sp-space-xs);
+}
+/* Previous result and its method or protocol note: wide enough to keep each on two lines. */
+.sp-td-sheet td:has(.sp-td-previous) {
+  min-width: 11rem;
+  font-size: var(--sp-text-caption-size);
+}
+.sp-td-previous .sp-td-msg {
+  align-items: flex-start;
+  font-size: inherit;
+}
+.sp-td-previous .sp-td-msg svg {
+  flex: none;
+  margin-top: var(--sp-space-xxs);
+}
+/*
+ * Player names: one line for most ("Duarte, Julián"), a long one
+ * ("Echeverría, Juan Cruz") wraps instead of pushing the method column out of
+ * the card at 1440 px.
+ */
+.sp-td-sheet .sp-td-name {
+  display: block;
+  min-width: 8.5rem;
+  max-width: 10rem;
 }
 .sp-td-cell {
   display: grid;
@@ -216,10 +266,28 @@
   margin-top: var(--sp-space-xxs);
 }
 
+/* The save bar of the sheet stays in reach at the bottom of the screen. */
 .sp-td-save {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: 0 calc(var(--sp-space-xl) * -1);
+  padding: var(--sp-space-md) var(--sp-space-xl);
+  border-top: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+  background: var(--sp-color-surface);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: var(--sp-space-md);
+}
+
+@media (max-width: 40rem) {
+  .sp-td-save {
+    margin-inline: calc(var(--sp-space-lg) * -1);
+    padding-inline: var(--sp-space-lg);
+  }
+  .sp-td-scroll:has(> .sp-td-sheet) {
+    margin-inline: calc((var(--sp-space-lg) - var(--sp-space-xs)) * -1);
+  }
 }

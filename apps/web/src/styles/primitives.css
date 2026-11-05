@@ -59,6 +59,26 @@
   color: var(--sp-color-text-muted);
   font-size: var(--sp-text-body-small-size);
 }
+/* Compact tiles: a row of totals inside a card (on the page background, metric-size figures) */
+.sp-kpis--compact {
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--sp-space-sm);
+}
+.sp-kpis--compact > .sp-kpi {
+  padding: var(--sp-space-md) var(--sp-space-lg);
+  border-radius: var(--sp-radius-md);
+  background: var(--sp-color-background);
+}
+.sp-kpis--compact .sp-kpi__figure {
+  font-size: var(--sp-text-metric-size);
+  line-height: var(--sp-text-metric-line-height);
+}
+/* A list of tiles (`<ul className="sp-kpis">` of `KpiTile as="li"`) */
+ul.sp-kpis {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
 
 /* Segmented control: native radios drawn as a pill group */
 .sp-segmented {
@@ -350,6 +370,107 @@
   max-width: 32rem;
 }
 
+/* Flush card: the table runs edge to edge under the header (lists of the page) */
+.sp-card--flush {
+  padding-inline: 0;
+  padding-bottom: var(--sp-space-xs);
+}
+.sp-card--flush:not(:has(> .sp-card__header)) {
+  padding-top: 0;
+}
+.sp-card--flush > * {
+  margin-inline: var(--sp-space-xl);
+}
+.sp-card--flush > .sp-table-wrap {
+  margin-inline: 0;
+  margin-top: 0;
+}
+.sp-card--flush .sp-table :is(th, td):first-child {
+  padding-left: var(--sp-space-xl);
+}
+.sp-card--flush .sp-table :is(th, td):last-child {
+  padding-right: var(--sp-space-xl);
+}
+.sp-card--flush .sp-table__caption {
+  padding-inline: var(--sp-space-xl);
+}
+.sp-card--flush > .sp-card__footer {
+  padding-bottom: var(--sp-space-md);
+}
+.sp-card__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-space-sm);
+}
+
+/* Columns of cards: two (or more) side by side when the width allows, one under 48rem */
+.sp-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+  gap: 0 var(--sp-space-lg);
+  align-items: start;
+}
+.sp-columns--stretch {
+  align-items: stretch;
+}
+/* Main column + narrow aside (data of a page next to its secondary panel) */
+.sp-columns--aside {
+  grid-template-columns: minmax(0, 2fr) minmax(min(100%, 20rem), 1fr);
+}
+@media (max-width: 64rem) {
+  .sp-columns--aside {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/*
+ * Toolbar of a list: filters on the left, aligned to the bottom of their inputs.
+ * `.sp-filters` (the older name, still on the admin screens) is the same
+ * primitive with a top margin: migrate those to `.sp-toolbar`, do not add a third.
+ */
+.sp-toolbar,
+.sp-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-space-md);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.sp-filters {
+  margin-top: var(--sp-space-lg);
+}
+.sp-toolbar > .sp-field,
+.sp-filters > .sp-field {
+  min-width: 12rem;
+}
+.sp-toolbar__end {
+  margin-left: auto;
+}
+
+/* A visible table name (its scope or source) as a muted line above the headers */
+.sp-table__caption {
+  padding: 0 0 var(--sp-space-sm);
+  color: var(--sp-color-text-secondary);
+  font-size: var(--sp-text-body-small-size);
+  text-align: left;
+}
+
+/* Muted text inside a table cell (a secondary value, "no data") */
+.sp-table .is-muted,
+.sp-cell-muted {
+  color: var(--sp-color-text-secondary);
+}
+.sp-table .is-date {
+  font-family: var(--sp-text-table-number-family);
+  font-size: var(--sp-text-table-number-size);
+  font-weight: var(--sp-text-table-number-weight);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 @media (max-width: 40rem) {
   .sp-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -361,6 +482,22 @@
   .sp-kpi__figure {
     font-size: var(--sp-text-metric-size);
     line-height: var(--sp-text-metric-line-height);
+  }
+  /* Cards have less padding on a phone: the flush tables follow it. */
+  .sp-card--flush > * {
+    margin-inline: var(--sp-space-lg);
+  }
+  .sp-card--flush > .sp-table-wrap {
+    margin-inline: 0;
+  }
+  .sp-card--flush .sp-table :is(th, td):first-child {
+    padding-left: var(--sp-space-lg);
+  }
+  .sp-card--flush .sp-table :is(th, td):last-child {
+    padding-right: var(--sp-space-lg);
+  }
+  .sp-card--flush .sp-table__caption {
+    padding-inline: var(--sp-space-lg);
   }
 }
 

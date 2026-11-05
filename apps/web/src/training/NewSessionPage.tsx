@@ -7,13 +7,14 @@ import {
 } from '@sport-performance/domain';
 import { TRAINING_TEXT_MAX_LENGTH } from '@sport-performance/contracts';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import { useState, type SubmitEvent } from 'react';
 import { useServices } from '../app/services';
 import { useActiveClub } from '../club/active-club';
 import { useScope } from '../club/use-scope';
 import { useT } from '../i18n/i18n';
-import { Button, ErrorNotice, Notice, Page, TextField } from '../ui/components';
+import { BackLink } from '../ui/back-link';
+import { Button, Card, ErrorNotice, Notice, Page, TextField } from '../ui/components';
 import { SelectField } from '../ui/fields';
 import { Icon } from '../ui/icons';
 import { manageableCategories } from './permissions';
@@ -108,21 +109,31 @@ export function NewSessionPage() {
   };
 
   return (
-    <Page title={t('training.new.title')} subtitle={t('training.new.subtitle')}>
-      <p>
-        <Link to="/sessions">{t('training.detail.back')}</Link>
-      </p>
-      <form className="sp-form" aria-label={t('training.new.title')} onSubmit={submit} noValidate>
-        <SessionFields
-          values={values}
-          errors={errors}
-          categories={categories}
-          timeZone={timeZone}
-          onChange={setValues}
-        />
+    <Page
+      title={t('training.new.title')}
+      subtitle={t('training.new.subtitle')}
+      back={<BackLink to="/sessions">{t('training.detail.back')}</BackLink>}
+    >
+      <form
+        className="sp-form sp-form--cards"
+        aria-label={t('training.new.title')}
+        onSubmit={submit}
+        noValidate
+      >
+        <Card title={t('training.detail.data')}>
+          <SessionFields
+            values={values}
+            errors={errors}
+            categories={categories}
+            timeZone={timeZone}
+            onChange={setValues}
+          />
+        </Card>
 
-        <fieldset className="sp-fieldset">
-          <legend className="sp-card__title">{t('training.drills.title')}</legend>
+        <fieldset className="sp-fieldset sp-card">
+          <legend className="sp-card__title sp-fieldset__card-legend">
+            {t('training.drills.title')}
+          </legend>
           <p className="sp-field__help">{t('training.new.drillsHelp')}</p>
           {drills.map((drill, index) => {
             const rowErrors = drillErrors.get(drill.key) ?? {};
@@ -195,7 +206,7 @@ export function NewSessionPage() {
         </fieldset>
 
         {create.isError ? <ErrorNotice error={create.error} /> : null}
-        <div>
+        <div className="sp-form__actions">
           <Button type="submit" disabled={create.isPending}>
             {create.isPending ? t('common.loading') : t('training.new.submit')}
           </Button>

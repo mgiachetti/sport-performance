@@ -5,7 +5,16 @@ import { useServices } from '../app/services';
 import { useActiveClub } from '../club/active-club';
 import { useScope } from '../club/use-scope';
 import { useT } from '../i18n/i18n';
-import { Button, ErrorNotice, Loading, Notice, Page, TextField } from '../ui/components';
+import {
+  Button,
+  Card,
+  EmptyState,
+  ErrorNotice,
+  Loading,
+  Page,
+  TextField,
+  buttonClass,
+} from '../ui/components';
 import { SelectField, StatusLabel } from '../ui/fields';
 import { Icon } from '../ui/icons';
 import { categoryName, sessionName } from './labels';
@@ -57,14 +66,14 @@ export function SessionsPage() {
       subtitle={t('training.list.subtitle')}
       actions={
         canCreate ? (
-          <Link to="/sessions/new" className="sp-button sp-button--primary">
+          <Link to="/sessions/new" className={buttonClass('primary')}>
             <Icon name="plus" />
             <span>{t('training.list.new')}</span>
           </Link>
         ) : undefined
       }
     >
-      <fieldset className="sp-filters">
+      <fieldset className="sp-toolbar">
         <legend className="sp-visually-hidden">{t('training.filter.label')}</legend>
         <SelectField
           label={t('training.filter.kind')}
@@ -112,71 +121,73 @@ export function SessionsPage() {
       {sessions.isPending && !invalidRange ? <Loading /> : null}
       {sessions.isError ? <ErrorNotice error={sessions.error} /> : null}
       {sessions.isSuccess && items.length === 0 ? (
-        <Notice level="info" role="status">
-          <p>{t('training.list.empty')}</p>
-        </Notice>
+        <Card>
+          <EmptyState role="status" icon="clipboard" title={t('training.list.empty')} />
+        </Card>
       ) : null}
       {items.length === 0 ? null : (
-        <div className="sp-table-wrap">
-          <table className="sp-table">
-            <caption className="sp-visually-hidden">{t('training.list.caption')}</caption>
-            <thead>
-              <tr>
-                <th scope="col">{t('training.list.when')}</th>
-                <th scope="col">{t('training.list.session')}</th>
-                <th scope="col">{t('training.list.kind')}</th>
-                <th scope="col">{t('training.list.category')}</th>
-                <th scope="col" className="sp-table__number">
-                  {t('training.list.duration')}
-                </th>
-                <th scope="col">{t('training.list.state')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((session) => (
-                <tr key={session.id}>
-                  <td className="sp-table__number">
-                    {formatDateTime(new Date(session.startsAt), { timeZone })}
-                  </td>
-                  <th scope="row">
-                    <Link
-                      to="/sessions/$trainingSessionId"
-                      params={{ trainingSessionId: session.id }}
-                    >
-                      {sessionName(session, active.categories, t)}
-                    </Link>
+        <Card variant="flush">
+          <div className="sp-table-wrap">
+            <table className="sp-table">
+              <caption className="sp-visually-hidden">{t('training.list.caption')}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">{t('training.list.when')}</th>
+                  <th scope="col">{t('training.list.session')}</th>
+                  <th scope="col">{t('training.list.kind')}</th>
+                  <th scope="col">{t('training.list.category')}</th>
+                  <th scope="col" className="sp-table__number">
+                    {t('training.list.duration')}
                   </th>
-                  <td>{t(`training.kind.${session.kind}`)}</td>
-                  <td>{categoryName(active.categories, session.categoryId, t)}</td>
-                  <td className="sp-table__number">
-                    {session.plannedDurationMin === null
-                      ? t('common.noData')
-                      : t('training.session.minutes', { minutes: session.plannedDurationMin })}
-                  </td>
-                  <td>
-                    {session.archivedAt === null ? (
-                      <StatusLabel level="ok">{t('training.list.active')}</StatusLabel>
-                    ) : (
-                      <StatusLabel level="info">{t('training.session.archived')}</StatusLabel>
-                    )}
-                  </td>
+                  <th scope="col">{t('training.list.state')}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {items.map((session) => (
+                  <tr key={session.id}>
+                    <td className="is-date">
+                      {formatDateTime(new Date(session.startsAt), { timeZone })}
+                    </td>
+                    <th scope="row">
+                      <Link
+                        to="/sessions/$trainingSessionId"
+                        params={{ trainingSessionId: session.id }}
+                      >
+                        {sessionName(session, active.categories, t)}
+                      </Link>
+                    </th>
+                    <td>{t(`training.kind.${session.kind}`)}</td>
+                    <td>{categoryName(active.categories, session.categoryId, t)}</td>
+                    <td className="sp-table__number">
+                      {session.plannedDurationMin === null
+                        ? t('common.noData')
+                        : t('training.session.minutes', { minutes: session.plannedDurationMin })}
+                    </td>
+                    <td>
+                      {session.archivedAt === null ? (
+                        <span className="is-muted">{t('training.list.active')}</span>
+                      ) : (
+                        <StatusLabel level="info">{t('training.session.archived')}</StatusLabel>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {sessions.hasNextPage ? (
+            <div className="sp-card__footer">
+              <Button
+                variant="secondary"
+                disabled={sessions.isFetchingNextPage}
+                onClick={() => void sessions.fetchNextPage()}
+              >
+                {sessions.isFetchingNextPage ? t('common.loading') : t('training.list.more')}
+              </Button>
+            </div>
+          ) : null}
+        </Card>
       )}
-      {sessions.hasNextPage ? (
-        <div className="sp-form__secondary">
-          <Button
-            variant="secondary"
-            disabled={sessions.isFetchingNextPage}
-            onClick={() => void sessions.fetchNextPage()}
-          >
-            {sessions.isFetchingNextPage ? t('common.loading') : t('training.list.more')}
-          </Button>
-        </div>
-      ) : null}
     </Page>
   );
 }

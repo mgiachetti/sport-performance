@@ -102,6 +102,7 @@ export const anthropometryMessagesEsAR = {
 
   // Latest measurements
   'anthropometry.recent.title': 'Últimas mediciones',
+  'anthropometry.recent.subtitle': 'Categoría {category}',
   'anthropometry.recent.caption': 'Últimas mediciones de {category}',
   'anthropometry.recent.empty': 'Todavía no hay mediciones de la categoría.',
   'anthropometry.recent.pending': 'Calculando…',

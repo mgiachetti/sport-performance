@@ -2,12 +2,13 @@ import { ApiError, type GymProgram } from '@sport-performance/contracts';
 import { GYM_LOAD_KINDS, STAGES, localDateInTimeZone } from '@sport-performance/domain';
 import type { MessageKey } from '@sport-performance/i18n';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams } from '@tanstack/react-router';
+import { useNavigate, useParams } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useServices } from '../app/services';
 import { useActiveClub } from '../club/active-club';
 import { useScope } from '../club/use-scope';
 import { useT } from '../i18n/i18n';
+import { BackLink as Back } from '../ui/back-link';
 import { Button, ErrorNotice, Loading, Notice, Page, TextField } from '../ui/components';
 import { FieldGroup, SelectField, TextAreaField } from '../ui/fields';
 import { Icon } from '../ui/icons';
@@ -31,11 +32,7 @@ import { categoryPlayersQuery, gymKey, gymProgramQuery } from './queries';
 
 function BackLink() {
   const t = useT();
-  return (
-    <Link to="/gym" className="sp-button sp-button--ghost">
-      {t('gym.web.back')}
-    </Link>
-  );
+  return <Back to="/gym">{t('gym.web.back')}</Back>;
 }
 
 /** New program (`/gym/new`). */
@@ -51,7 +48,7 @@ export function NewGymProgramPage() {
       : (categories[0]?.id ?? '');
   if (categories.length === 0) {
     return (
-      <Page title={t('gym.web.new.title')} actions={<BackLink />}>
+      <Page title={t('gym.web.new.title')} back={<BackLink />}>
         <Notice level="warning" role="alert">
           <p>{t('error.forbidden')}</p>
         </Notice>
@@ -59,11 +56,7 @@ export function NewGymProgramPage() {
     );
   }
   return (
-    <Page
-      title={t('gym.web.new.title')}
-      subtitle={t('gym.web.form.subtitle')}
-      actions={<BackLink />}
-    >
+    <Page title={t('gym.web.new.title')} subtitle={t('gym.web.form.subtitle')} back={<BackLink />}>
       <ProgramEditor initial={emptyProgramForm(initialCategory, today)} program={null} />
     </Page>
   );
@@ -77,14 +70,14 @@ export function GymProgramPage() {
   const query = useQuery(gymProgramQuery(api, selection.get(), gymProgramId));
   if (query.isPending) {
     return (
-      <Page title={t('gym.web.edit.title')} actions={<BackLink />}>
+      <Page title={t('gym.web.edit.title')} back={<BackLink />}>
         <Loading />
       </Page>
     );
   }
   if (query.error !== null) {
     return (
-      <Page title={t('gym.web.edit.title')} actions={<BackLink />}>
+      <Page title={t('gym.web.edit.title')} back={<BackLink />}>
         {query.error instanceof ApiError && query.error.status === 404 ? (
           <Notice level="info">
             <p>{t('gym.web.notFound')}</p>
@@ -96,7 +89,7 @@ export function GymProgramPage() {
     );
   }
   return (
-    <Page title={query.data.name} subtitle={t('gym.web.form.subtitle')} actions={<BackLink />}>
+    <Page title={query.data.name} subtitle={t('gym.web.form.subtitle')} back={<BackLink />}>
       <ProgramEditor
         key={query.data.version}
         initial={programForm(query.data)}
@@ -202,7 +195,7 @@ function ProgramEditor(props: { initial: ProgramForm; program: GymProgram | null
           <p>{t('gym.web.readOnly')}</p>
         </Notice>
       ) : null}
-      <fieldset className="sp-form__grid" disabled={!editable}>
+      <fieldset className="sp-form__grid sp-card" disabled={!editable}>
         <TextField
           label={t('gym.web.field.name')}
           value={form.name}
@@ -359,7 +352,7 @@ function DayEditor(props: {
   };
   return (
     <section className="sp-card" aria-label={t('gym.web.day.label', { number: index + 1 })}>
-      <fieldset className="sp-form__grid" disabled={!props.editable}>
+      <fieldset className="sp-form__grid sp-form__grid--day" disabled={!props.editable}>
         <TextField
           label={t('gym.web.day.name', { number: index + 1 })}
           value={day.name}

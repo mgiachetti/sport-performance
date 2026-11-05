@@ -216,7 +216,7 @@ export function DrillsSection(props: {
         {t('training.drills.title')}
       </h2>
       {drills.length === 0 ? (
-        <p>{t('training.drills.empty')}</p>
+        <p className="sp-cell-muted">{t('training.drills.empty')}</p>
       ) : (
         <ol className="sp-drill-list">
           {drills.map((drill, index) => {

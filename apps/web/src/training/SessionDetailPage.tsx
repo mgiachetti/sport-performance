@@ -6,12 +6,13 @@ import {
 import { CHANGE_REASON_MAX_LENGTH, sportRecordsContacts } from '@sport-performance/domain';
 import { formatDateTime } from '@sport-performance/i18n';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, getRouteApi } from '@tanstack/react-router';
+import { getRouteApi } from '@tanstack/react-router';
 import { useState, type SubmitEvent } from 'react';
 import { useServices } from '../app/services';
 import { useActiveClub } from '../club/active-club';
 import { useT } from '../i18n/i18n';
-import { Button, ErrorNotice, Loading, Notice, Page } from '../ui/components';
+import { BackLink } from '../ui/back-link';
+import { Button, Card, ErrorNotice, Loading, Notice, Page } from '../ui/components';
 import { TextAreaField } from '../ui/fields';
 import { DrillsSection } from './DrillsSection';
 import { categoryName, sessionName } from './labels';
@@ -182,10 +183,7 @@ function SessionData(props: { session: TrainingSession }) {
   if (session.opponent !== null) rows.push([t('training.form.opponent'), session.opponent]);
   if (session.notes !== null) rows.push([t('training.form.notes'), session.notes]);
   return (
-    <section className="sp-card" aria-labelledby="session-data">
-      <h2 id="session-data" className="sp-card__title">
-        {t('training.detail.data')}
-      </h2>
+    <Card title={t('training.detail.data')}>
       <dl className="sp-details">
         {rows.map(([label, value]) => (
           <div key={label}>
@@ -194,7 +192,7 @@ function SessionData(props: { session: TrainingSession }) {
           </div>
         ))}
       </dl>
-    </section>
+    </Card>
   );
 }
 
@@ -227,10 +225,10 @@ export function SessionDetailPage() {
   if (query.isPending) return <Loading />;
   if (query.isError) {
     return (
-      <Page title={t('training.list.title')}>
-        <p>
-          <Link to="/sessions">{t('training.detail.back')}</Link>
-        </p>
+      <Page
+        title={t('training.list.title')}
+        back={<BackLink to="/sessions">{t('training.detail.back')}</BackLink>}
+      >
         <ErrorNotice error={query.error} />
       </Page>
     );
@@ -244,6 +242,7 @@ export function SessionDetailPage() {
   return (
     <Page
       title={title}
+      back={<BackLink to="/sessions">{t('training.detail.back')}</BackLink>}
       subtitle={`${t(`training.kind.${session.kind}`)} · ${formatDateTime(
         new Date(session.startsAt),
         {
@@ -298,9 +297,6 @@ export function SessionDetailPage() {
         ) : undefined
       }
     >
-      <p>
-        <Link to="/sessions">{t('training.detail.back')}</Link>
-      </p>
       {confirmArchive && !archived ? (
         <Notice level="info" role="status">
           <p>{t('training.detail.archiveHelp')}</p>
@@ -313,22 +309,24 @@ export function SessionDetailPage() {
       ) : null}
       {archive.isError ? <ErrorNotice error={archive.error} /> : null}
 
-      {editing ? (
-        <EditSession
-          session={session}
-          onDone={() => {
-            setEditing(false);
-          }}
+      <div className="sp-columns sp-columns--stretch">
+        {editing ? (
+          <EditSession
+            session={session}
+            onDone={() => {
+              setEditing(false);
+            }}
+          />
+        ) : (
+          <SessionData session={session} />
+        )}
+        <DrillsSection
+          trainingSessionId={session.id}
+          drills={session.drills}
+          editable={manage && !archived}
+          contacts={sportRecordsContacts(session.sport)}
         />
-      ) : (
-        <SessionData session={session} />
-      )}
-      <DrillsSection
-        trainingSessionId={session.id}
-        drills={session.drills}
-        editable={manage && !archived}
-        contacts={sportRecordsContacts(session.sport)}
-      />
+      </div>
       <ParticipationSection session={session} editable={!archived} />
     </Page>
   );

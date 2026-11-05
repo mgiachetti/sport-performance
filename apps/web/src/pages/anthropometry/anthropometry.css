@@ -27,9 +27,12 @@
   vertical-align: top;
 }
 .sp-anthro__table thead th {
-  font-family: var(--sp-text-heading-family);
-  font-size: var(--sp-text-body-small-size);
-  color: var(--sp-color-text-secondary);
+  color: var(--sp-color-text-muted);
+  font-family: var(--sp-text-table-header-family);
+  font-size: var(--sp-text-table-header-size);
+  font-weight: var(--sp-text-table-header-weight);
+  letter-spacing: var(--sp-text-table-header-letter-spacing);
+  vertical-align: bottom;
 }
 .sp-anthro__table tr[aria-invalid='true'] th {
   border-left: var(--sp-border-width-thick) solid var(--sp-color-status-critical-border);

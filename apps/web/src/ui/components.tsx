@@ -156,6 +156,8 @@ export function Page(props: {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
+  /** The way back to the list (`BackLink`), above the title. */
+  back?: ReactNode;
   children: ReactNode;
 }) {
   const t = useT();
@@ -169,6 +171,7 @@ export function Page(props: {
   }, []);
   return (
     <section className="sp-page" aria-labelledby="page-title">
+      {props.back}
       <header className="sp-page__header">
         <div>
           <h1 id="page-title" ref={heading} tabIndex={-1} className="sp-page__title">
@@ -272,11 +275,14 @@ export function KpiTile(props: {
   unit?: string | undefined;
   caption?: string | undefined;
   highlighted?: boolean;
+  /** `li`: one tile of a list of figures (`<ul className="sp-kpis">`). */
+  as?: 'div' | 'li';
   /** A status on its own row under the figure (`StatusChip`, `StatusBadge`): icon + text, never color alone. */
   status?: ReactNode;
 }) {
+  const Tile = props.as ?? 'div';
   return (
-    <div className={`sp-kpi${props.highlighted === true ? ' sp-kpi--highlighted' : ''}`}>
+    <Tile className={`sp-kpi${props.highlighted === true ? ' sp-kpi--highlighted' : ''}`}>
       <p className="sp-kpi__label">{props.label}</p>
       <p className="sp-kpi__value">
         <span className="sp-kpi__figure">{props.value}</span>
@@ -284,7 +290,7 @@ export function KpiTile(props: {
       </p>
       {props.status === undefined ? null : <div className="sp-kpi__status">{props.status}</div>}
       {props.caption === undefined ? null : <p className="sp-kpi__caption">{props.caption}</p>}
-    </div>
+    </Tile>
   );
 }
 
@@ -384,9 +390,11 @@ export function EmptyState(props: {
   title: string;
   children?: ReactNode;
   action?: ReactNode;
+  /** `status`: announce it politely when it appears (a list that turned out empty). */
+  role?: 'status';
 }) {
   return (
-    <div className="sp-empty">
+    <div className="sp-empty" role={props.role}>
       <span className="sp-empty__icon" aria-hidden="true">
         <Icon name={props.icon ?? 'info'} size={24} />
       </span>

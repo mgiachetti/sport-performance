@@ -8,7 +8,16 @@ import { useActiveClub } from '../club/active-club';
 import { useScope } from '../club/use-scope';
 import { clubModulesQuery } from '../field-sessions/queries';
 import { useT } from '../i18n/i18n';
-import { Button, ErrorNotice, Loading, Notice, Page } from '../ui/components';
+import {
+  Button,
+  Card,
+  EmptyState,
+  ErrorNotice,
+  Loading,
+  Notice,
+  Page,
+  buttonClass,
+} from '../ui/components';
 import { SelectField, StatusLabel } from '../ui/fields';
 import { Icon } from '../ui/icons';
 import { canManageProgram, manageableGymCategories } from './model';
@@ -61,7 +70,7 @@ export function GymProgramsPage() {
       subtitle={t('gym.web.list.subtitle')}
       actions={
         canCreate ? (
-          <Link to="/gym/new" className="sp-button sp-button--primary">
+          <Link to="/gym/new" className={buttonClass('primary')}>
             <Icon name="plus" />
             <span>{t('gym.web.list.new')}</span>
           </Link>
@@ -73,7 +82,7 @@ export function GymProgramsPage() {
           <p>{t('gym.web.moduleOff')}</p>
         </Notice>
       ) : null}
-      <fieldset className="sp-filters">
+      <fieldset className="sp-toolbar">
         <legend className="sp-visually-hidden">{t('gym.web.filter.label')}</legend>
         <SelectField
           label={t('gym.web.filter.status')}
@@ -93,80 +102,84 @@ export function GymProgramsPage() {
       ) : programs.error !== null ? (
         <ErrorNotice error={programs.error} />
       ) : items.length === 0 ? (
-        <Notice level="info">
-          <p>{t('gym.web.list.empty')}</p>
-        </Notice>
+        <Card>
+          <EmptyState role="status" icon="dumbbell" title={t('gym.web.list.empty')} />
+        </Card>
       ) : (
-        <div className="sp-table-wrap">
-          <table className="sp-table">
-            <caption className="sp-visually-hidden">{t('gym.web.list.title')}</caption>
-            <thead>
-              <tr>
-                <th scope="col">{t('gym.web.col.name')}</th>
-                <th scope="col">{t('gym.web.col.target')}</th>
-                <th scope="col">{t('gym.web.col.days')}</th>
-                <th scope="col">{t('gym.web.col.validity')}</th>
-                <th scope="col">{t('gym.web.col.status')}</th>
-                <th scope="col">
-                  <span className="sp-visually-hidden">{t('gym.web.col.actions')}</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((program) => (
-                <tr key={program.id}>
-                  <td>
-                    <Link to="/gym/$gymProgramId" params={{ gymProgramId: program.id }}>
-                      {program.name}
-                    </Link>
-                  </td>
-                  <td>{target(program)}</td>
-                  <td>{program.plan.days.map((day) => day.name).join(' · ')}</td>
-                  <td>
-                    {program.validTo === null
-                      ? t('gym.web.validity.from', { from: formatLocalDate(program.validFrom) })
-                      : t('gym.web.validity.range', {
-                          from: formatLocalDate(program.validFrom),
-                          to: formatLocalDate(program.validTo),
-                        })}
-                  </td>
-                  <td>
-                    {program.archivedAt === null ? (
-                      <StatusLabel level="ok">{t('gym.web.status.active')}</StatusLabel>
-                    ) : (
-                      <StatusLabel level="info">{t('gym.web.status.archived')}</StatusLabel>
-                    )}
-                  </td>
-                  <td>
-                    {canManageProgram(active, program) ? (
-                      <Button
-                        variant="ghost"
-                        disabled={archive.isPending}
-                        onClick={() => {
-                          archive.mutate(program);
-                        }}
-                      >
-                        {program.archivedAt === null
-                          ? t('gym.web.archive', { name: program.name })
-                          : t('gym.web.restore', { name: program.name })}
-                      </Button>
-                    ) : null}
-                  </td>
+        <Card variant="flush">
+          <div className="sp-table-wrap">
+            <table className="sp-table">
+              <caption className="sp-visually-hidden">{t('gym.web.list.title')}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">{t('gym.web.col.name')}</th>
+                  <th scope="col">{t('gym.web.col.target')}</th>
+                  <th scope="col">{t('gym.web.col.days')}</th>
+                  <th scope="col">{t('gym.web.col.validity')}</th>
+                  <th scope="col">{t('gym.web.col.status')}</th>
+                  <th scope="col">
+                    <span className="sp-visually-hidden">{t('gym.web.col.actions')}</span>
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {items.map((program) => (
+                  <tr key={program.id}>
+                    <th scope="row">
+                      <Link to="/gym/$gymProgramId" params={{ gymProgramId: program.id }}>
+                        {program.name}
+                      </Link>
+                    </th>
+                    <td>{target(program)}</td>
+                    <td>{program.plan.days.map((day) => day.name).join(' · ')}</td>
+                    <td>
+                      {program.validTo === null
+                        ? t('gym.web.validity.from', { from: formatLocalDate(program.validFrom) })
+                        : t('gym.web.validity.range', {
+                            from: formatLocalDate(program.validFrom),
+                            to: formatLocalDate(program.validTo),
+                          })}
+                    </td>
+                    <td>
+                      {program.archivedAt === null ? (
+                        <span className="is-muted">{t('gym.web.status.active')}</span>
+                      ) : (
+                        <StatusLabel level="info">{t('gym.web.status.archived')}</StatusLabel>
+                      )}
+                    </td>
+                    <td>
+                      {canManageProgram(active, program) ? (
+                        <Button
+                          variant="ghost"
+                          disabled={archive.isPending}
+                          onClick={() => {
+                            archive.mutate(program);
+                          }}
+                        >
+                          {program.archivedAt === null
+                            ? t('gym.web.archive', { name: program.name })
+                            : t('gym.web.restore', { name: program.name })}
+                        </Button>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {programs.hasNextPage ? (
+            <div className="sp-card__footer">
+              <Button
+                variant="secondary"
+                disabled={programs.isFetchingNextPage}
+                onClick={() => void programs.fetchNextPage()}
+              >
+                {t('gym.web.loadMore')}
+              </Button>
+            </div>
+          ) : null}
+        </Card>
       )}
-      {programs.hasNextPage ? (
-        <Button
-          variant="secondary"
-          disabled={programs.isFetchingNextPage}
-          onClick={() => void programs.fetchNextPage()}
-        >
-          {t('gym.web.loadMore')}
-        </Button>
-      ) : null}
     </Page>
   );
 }

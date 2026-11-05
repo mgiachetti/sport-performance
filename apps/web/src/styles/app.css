@@ -230,6 +230,8 @@ img {
 }
 .sp-field {
   display: grid;
+  /* In a row of fields, a sibling's help text must not stretch this input. */
+  align-content: start;
   gap: var(--sp-space-xs);
 }
 .sp-field__label {
@@ -1254,7 +1256,19 @@ select:hover {
 .sp-back-link {
   display: inline-flex;
   align-items: center;
+  gap: var(--sp-space-xxs);
   min-height: var(--sp-size-touch-target);
+  color: var(--sp-color-text-secondary);
+  font-weight: var(--sp-text-body-strong-weight);
+  text-decoration: none;
+}
+.sp-back-link:hover {
+  color: var(--sp-color-text-primary);
+  text-decoration: underline;
+}
+/* Above the page title: the way back to the list. */
+.sp-page > .sp-back-link:first-child {
+  margin-bottom: var(--sp-space-xs);
 }
 .sp-protocol-list,
 .sp-media-list {

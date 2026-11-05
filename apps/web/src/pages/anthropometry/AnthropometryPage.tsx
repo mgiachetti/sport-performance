@@ -13,7 +13,16 @@ import { useActiveClub } from '../../club/active-club';
 import { useScope } from '../../club/use-scope';
 import { useT } from '../../i18n/i18n';
 import { canOnCategoryPlayers } from '../../permissions/permissions';
-import { Button, ErrorNotice, Loading, Notice, Page, TextField } from '../../ui/components';
+import {
+  Button,
+  Card,
+  EmptyState,
+  ErrorNotice,
+  Loading,
+  Notice,
+  Page,
+  TextField,
+} from '../../ui/components';
 import { Icon } from '../../ui/icons';
 import { MeasurementSheet, playerName } from './MeasurementSheet';
 import { categoryPlayersQuery, recentMeasurementsQuery } from './queries';
@@ -44,9 +53,9 @@ export function AnthropometryPage() {
           <p>{t('error.forbidden')}</p>
         </Notice>
       ) : category === null ? (
-        <Notice level="info">
-          <p>{t('anthropometry.pickCategory')}</p>
-        </Notice>
+        <Card>
+          <EmptyState icon="ruler" title={t('anthropometry.pickCategory')} />
+        </Card>
       ) : (
         <CategoryAnthropometry key={category.id} category={category} />
       )}
@@ -118,32 +127,47 @@ function RecentMeasurements(props: { category: Category; players: ReadonlyMap<st
   const skinfolds = items.some((item) => item.skinfoldsSumMm !== null);
 
   return (
-    <section className="sp-card" aria-labelledby="anthro-recent-title">
-      <h2 id="anthro-recent-title" className="sp-card__title">
-        {t('anthropometry.recent.title')}
-      </h2>
+    <Card
+      variant="flush"
+      title={t('anthropometry.recent.title')}
+      subtitle={t('anthropometry.recent.subtitle', { category: props.category.name })}
+    >
       {query.isPending ? (
         <Loading />
       ) : query.error !== null ? (
         <ErrorNotice error={query.error} />
       ) : items.length === 0 ? (
-        <p>{t('anthropometry.recent.empty')}</p>
+        <EmptyState icon="ruler" title={t('anthropometry.recent.empty')} />
       ) : (
-        <div className="sp-anthro__scroll">
-          <table className="sp-anthro__table">
-            <caption>
+        <div className="sp-table-wrap">
+          <table className="sp-table">
+            <caption className="sp-visually-hidden">
               {t('anthropometry.recent.caption', { category: props.category.name })}
             </caption>
             <thead>
               <tr>
                 <th scope="col">{t('anthropometry.column.date')}</th>
                 <th scope="col">{t('anthropometry.column.player')}</th>
-                <th scope="col">{t('anthropometry.column.heightCm')}</th>
-                <th scope="col">{t('anthropometry.column.sittingHeightCm')}</th>
-                <th scope="col">{t('anthropometry.column.weightKg')}</th>
-                {skinfolds ? <th scope="col">{t('anthropometry.column.skinfoldsSumMm')}</th> : null}
-                <th scope="col">{t('anthropometry.column.phvOffset')}</th>
-                <th scope="col">{t('anthropometry.column.adultHeight')}</th>
+                <th scope="col" className="sp-table__number">
+                  {t('anthropometry.column.heightCm')}
+                </th>
+                <th scope="col" className="sp-table__number">
+                  {t('anthropometry.column.sittingHeightCm')}
+                </th>
+                <th scope="col" className="sp-table__number">
+                  {t('anthropometry.column.weightKg')}
+                </th>
+                {skinfolds ? (
+                  <th scope="col" className="sp-table__number">
+                    {t('anthropometry.column.skinfoldsSumMm')}
+                  </th>
+                ) : null}
+                <th scope="col" className="sp-table__number">
+                  {t('anthropometry.column.phvOffset')}
+                </th>
+                <th scope="col" className="sp-table__number">
+                  {t('anthropometry.column.adultHeight')}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -160,7 +184,7 @@ function RecentMeasurements(props: { category: Category; players: ReadonlyMap<st
         </div>
       )}
       {query.hasNextPage ? (
-        <div className="sp-form__secondary">
+        <div className="sp-card__footer">
           <Button
             variant="secondary"
             disabled={query.isFetchingNextPage}
@@ -172,7 +196,7 @@ function RecentMeasurements(props: { category: Category; players: ReadonlyMap<st
           </Button>
         </div>
       ) : null}
-    </section>
+    </Card>
   );
 }
 
@@ -195,13 +219,13 @@ function RecentRow(props: {
     );
   return (
     <tr>
-      <td>{formatLocalDate(item.measuredOn)}</td>
+      <td className="is-date">{formatLocalDate(item.measuredOn)}</td>
       <th scope="row">{props.player === undefined ? '—' : playerName(props.player)}</th>
-      <td>{cm(item.heightCm)}</td>
-      <td>{cm(item.sittingHeightCm)}</td>
-      <td>{cm(item.weightKg)}</td>
-      {props.skinfolds ? <td>{cm(item.skinfoldsSumMm)}</td> : null}
-      <td>
+      <td className="sp-table__number">{cm(item.heightCm)}</td>
+      <td className="sp-table__number">{cm(item.sittingHeightCm)}</td>
+      <td className="sp-table__number">{cm(item.weightKg)}</td>
+      {props.skinfolds ? <td className="sp-table__number">{cm(item.skinfoldsSumMm)}</td> : null}
+      <td className="sp-table__number">
         {derived(
           item.maturation.phvOffsetYears === null
             ? '—'
@@ -213,7 +237,7 @@ function RecentRow(props: {
               }),
         )}
       </td>
-      <td>
+      <td className="sp-table__number">
         {derived(
           item.maturation.adultHeightPct === null
             ? '—'

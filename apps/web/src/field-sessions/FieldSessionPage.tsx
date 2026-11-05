@@ -3,6 +3,7 @@ import { BarChart, ChartsProvider } from '@sport-performance/charts/web';
 import type { BarChartSpec } from '@sport-performance/charts';
 import type { FieldSession, FieldSessionPlayer } from '@sport-performance/contracts';
 import type { ParticipationStatus } from '@sport-performance/domain';
+import type { StatusLevel } from '@sport-performance/ui-tokens';
 import {
   UNIT_DEFAULT_DECIMALS,
   formatLocalDateLong,
@@ -11,13 +12,23 @@ import {
   unitLabelEsAr,
 } from '@sport-performance/i18n';
 import { useQuery } from '@tanstack/react-query';
-import { Link, getRouteApi } from '@tanstack/react-router';
-import { useId, useMemo, useState } from 'react';
+import { getRouteApi } from '@tanstack/react-router';
+import { useMemo, useState } from 'react';
 import { useServices } from '../app/services';
 import { useActiveClub } from '../club/active-club';
 import { useT, useTranslator } from '../i18n/i18n';
-import { ErrorNotice, Loading, Notice, Page } from '../ui/components';
-import { Icon, type IconName } from '../ui/icons';
+import { BackLink as Back } from '../ui/back-link';
+import {
+  Card,
+  EmptyState,
+  ErrorNotice,
+  KpiTile,
+  Loading,
+  Notice,
+  Page,
+  StatusChip,
+} from '../ui/components';
+import { SelectField } from '../ui/fields';
 import './field-sessions.css';
 import {
   columnLabel,
@@ -68,8 +79,7 @@ export function FieldSessionPage() {
   }
   if (view.isError) {
     return (
-      <Page title={t('fieldSession.nav')}>
-        <BackLink />
+      <Page title={t('fieldSession.nav')} back={<BackLink />}>
         <ErrorNotice error={view.error} />
       </Page>
     );
@@ -79,11 +89,7 @@ export function FieldSessionPage() {
 
 function BackLink() {
   const t = useT();
-  return (
-    <Link to="/field-sessions" className="sp-fs-back">
-      {t('fieldSession.back')}
-    </Link>
-  );
+  return <Back to="/field-sessions">{t('fieldSession.back')}</Back>;
 }
 
 function SessionView(props: { view: FieldSession; gpsOff: boolean }) {
@@ -115,8 +121,8 @@ function SessionView(props: { view: FieldSession; gpsOff: boolean }) {
           ? t('fieldSession.subtitleNoCategory', { date, duration })
           : t('fieldSession.subtitle', { category, date, duration })
       }`}
+      back={<BackLink />}
     >
-      <BackLink />
       {props.gpsOff ? (
         <Notice level="info">
           <p>{t('fieldSession.module.off')}</p>
@@ -128,9 +134,16 @@ function SessionView(props: { view: FieldSession; gpsOff: boolean }) {
         </Notice>
       )}
       {columns.length === 0 ? (
-        <Notice level="info" role="status">
-          <p>{view.players.length === 0 ? t('fieldSession.noPlayers') : t('fieldSession.empty')}</p>
-        </Notice>
+        <Card>
+          <div role="status">
+            <EmptyState
+              icon="field"
+              title={
+                view.players.length === 0 ? t('fieldSession.noPlayers') : t('fieldSession.empty')
+              }
+            />
+          </div>
+        </Card>
       ) : (
         <>
           {mixed === null ? null : (
@@ -164,23 +177,23 @@ function Kpis(props: { view: FieldSession; columns: readonly ViewColumn[] }) {
   const kpis = sessionKpis(props.view, props.columns);
   if (kpis.length === 0) return null;
   return (
-    <section aria-labelledby="fs-kpis" className="sp-card">
+    <section aria-labelledby="fs-kpis" className="sp-fs-kpis-region">
       <h2 id="fs-kpis" className="sp-visually-hidden">
         {t('fieldSession.kpi.title')}
       </h2>
-      <ul className="sp-fs-kpis">
+      <ul className="sp-kpis">
         {kpis.map((kpi) => (
-          <li key={kpi.metricCode} className="sp-fs-kpi">
-            <span className="sp-fs-kpi__label">{t(`fieldSession.kpi.${kpi.metricCode}`)}</span>
-            <span className="sp-fs-kpi__value">{kpiValue(kpi)}</span>
-            <span className="sp-fs-kpi__meta">
-              {kpi.leader === null
+          <KpiTile
+            key={kpi.metricCode}
+            as="li"
+            label={t(`fieldSession.kpi.${kpi.metricCode}`)}
+            value={kpiValue(kpi)}
+            caption={`${
+              kpi.leader === null
                 ? t('fieldSession.kpi.players', { count: kpi.count })
-                : t('fieldSession.kpi.bestOf', { name: playerName(kpi.leader) })}
-              {' · '}
-              {sourceLabel(t, kpi.column.source)}
-            </span>
-          </li>
+                : t('fieldSession.kpi.bestOf', { name: playerName(kpi.leader) })
+            } · ${sourceLabel(t, kpi.column.source)}`}
+          />
         ))}
       </ul>
     </section>
@@ -190,7 +203,6 @@ function Kpis(props: { view: FieldSession; columns: readonly ViewColumn[] }) {
 function MetricChart(props: { view: FieldSession; columns: readonly ViewColumn[] }) {
   const t = useT();
   const translator = useTranslator();
-  const selectId = useId();
   const [selected, setSelected] = useState(props.columns[0]?.key ?? '');
   const column = props.columns.find((c) => c.key === selected) ?? props.columns[0];
   const spec = useMemo((): BarChartSpec | null => {
@@ -229,27 +241,26 @@ function MetricChart(props: { view: FieldSession; columns: readonly ViewColumn[]
 
   if (column === undefined || spec === null) return null;
   return (
-    <section className="sp-card" aria-label={spec.title}>
-      <div className="sp-fs-toolbar">
-        <label htmlFor={selectId}>
-          {t('fieldSession.chart.metric')}
-          <select
-            id={selectId}
-            value={column.key}
-            onChange={(event) => {
-              setSelected(event.target.value);
-            }}
-          >
-            {props.columns.map((c) => (
-              <option key={c.key} value={c.key}>
-                {c.sharedMetric
-                  ? `${metricLabel(t, c.metricCode)} · ${sourceLabel(t, c.source)}`
-                  : metricLabel(t, c.metricCode)}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+    <Card
+      className="sp-fs-chart"
+      title={t('fieldSession.chart.cardTitle')}
+      subtitle={t('fieldSession.chart.cardSubtitle')}
+      actions={
+        <SelectField
+          label={t('fieldSession.chart.metric')}
+          value={column.key}
+          options={props.columns.map((c) => ({
+            value: c.key,
+            label: c.sharedMetric
+              ? `${metricLabel(t, c.metricCode)} · ${sourceLabel(t, c.source)}`
+              : metricLabel(t, c.metricCode),
+          }))}
+          onChange={(event) => {
+            setSelected(event.target.value);
+          }}
+        />
+      }
+    >
       <ChartsProvider translator={translator}>
         <BarChart
           spec={spec}
@@ -259,11 +270,11 @@ function MetricChart(props: { view: FieldSession; columns: readonly ViewColumn[]
           })}
         />
       </ChartsProvider>
-    </section>
+    </Card>
   );
 }
 
-const STATUS_ICONS: Readonly<Record<ParticipationStatus, IconName>> = {
+const STATUS_LEVELS: Readonly<Record<ParticipationStatus, StatusLevel | 'info'>> = {
   full: 'ok',
   partial: 'warning',
   absent: 'info',
@@ -273,14 +284,11 @@ const STATUS_ICONS: Readonly<Record<ParticipationStatus, IconName>> = {
 function ParticipationCell(props: { participation: FieldSessionPlayer['participation'] }) {
   const t = useT();
   if (props.participation === null) {
-    return <span className="sp-fs-muted">{t('fieldSession.table.noParticipation')}</span>;
+    return <span className="sp-cell-muted">{t('fieldSession.table.noParticipation')}</span>;
   }
   const { status } = props.participation;
   return (
-    <span className="sp-fs-status">
-      <Icon name={STATUS_ICONS[status]} size={16} />
-      <span>{t(`fieldSession.status.${status}`)}</span>
-    </span>
+    <StatusChip level={STATUS_LEVELS[status]}>{t(`fieldSession.status.${status}`)}</StatusChip>
   );
 }
 
@@ -288,29 +296,31 @@ function PlayerTable(props: { view: FieldSession; columns: readonly ViewColumn[]
   const t = useT();
   const sources = sourcesOf(props.columns);
   return (
-    <section className="sp-card" aria-labelledby="fs-table">
-      <h2 id="fs-table" className="sp-card__title">
-        {t('fieldSession.table.title')}
-      </h2>
-      <p className="sp-fs-muted">{t('fieldSession.table.subtitle')}</p>
-      <div className="sp-fs-table-wrap">
-        <table className="sp-fs-table">
+    <Card
+      variant="flush"
+      title={t('fieldSession.table.title')}
+      subtitle={t('fieldSession.table.subtitle')}
+    >
+      <div className="sp-table-wrap">
+        <table className="sp-table sp-fs-table">
           {sources.length === 0 ? null : (
-            <caption>{t('fieldSession.sources', { sources: sourcesLabel(t, sources) })}</caption>
+            <caption className="sp-table__caption">
+              {t('fieldSession.sources', { sources: sourcesLabel(t, sources) })}
+            </caption>
           )}
           <thead>
             <tr>
               <th scope="col">{t('fieldSession.table.player')}</th>
               <th scope="col">{t('fieldSession.table.position')}</th>
               <th scope="col">{t('fieldSession.table.status')}</th>
-              <th scope="col" className="sp-fs-num">
+              <th scope="col" className="sp-table__number">
                 {t('fieldSession.table.minutes')}
               </th>
-              <th scope="col" className="sp-fs-num">
+              <th scope="col" className="sp-table__number">
                 {t('fieldSession.table.srpe')}
               </th>
               {props.columns.map((column) => (
-                <th key={column.key} scope="col" className="sp-fs-num">
+                <th key={column.key} scope="col" className="sp-table__number">
                   {columnLabel(t, column)}
                 </th>
               ))}
@@ -324,15 +334,19 @@ function PlayerTable(props: { view: FieldSession; columns: readonly ViewColumn[]
                 <td>
                   <ParticipationCell participation={player.participation} />
                 </td>
-                <td className="sp-fs-num">{formatNumber(player.participation?.minutes ?? null)}</td>
-                <td className="sp-fs-num">{formatNumber(player.participation?.srpeAu ?? null)}</td>
+                <td className="sp-table__number">
+                  {formatNumber(player.participation?.minutes ?? null)}
+                </td>
+                <td className="sp-table__number">
+                  {formatNumber(player.participation?.srpeAu ?? null)}
+                </td>
                 {player.values.length === 0 && props.columns.length > 0 ? (
-                  <td colSpan={props.columns.length} className="sp-fs-muted">
+                  <td colSpan={props.columns.length} className="is-muted">
                     {t('fieldSession.table.noData')}
                   </td>
                 ) : (
                   props.columns.map((column) => (
-                    <td key={column.key} className="sp-fs-num">
+                    <td key={column.key} className="sp-table__number">
                       {formatNumber(valueOf(player, column), {
                         decimals: UNIT_DEFAULT_DECIMALS[column.unit],
                       })}
@@ -344,6 +358,6 @@ function PlayerTable(props: { view: FieldSession; columns: readonly ViewColumn[]
           </tbody>
         </table>
       </div>
-    </section>
+    </Card>
   );
 }

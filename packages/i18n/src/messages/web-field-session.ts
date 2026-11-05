@@ -63,6 +63,8 @@ export const webFieldSessionMessagesEsAR = {
   'fieldSession.kpi.bestOf': 'De {name}',
 
   // Chart
+  'fieldSession.chart.cardTitle': 'Comparación del plantel',
+  'fieldSession.chart.cardSubtitle': 'Elegí la métrica para ver a cada jugador.',
   'fieldSession.chart.metric': 'Métrica',
   'fieldSession.chart.title': '{metric} por jugador',
   'fieldSession.chart.titleWithUnit': '{metric} por jugador ({unit})',

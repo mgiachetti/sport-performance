@@ -165,7 +165,6 @@ export const webTrainingMessagesEsAR = {
   'training.summary.unavailable': 'No disponibles',
   'training.summary.minutes': 'Minutos jugados',
   'training.summary.rpe': 'RPE cargados',
-  'training.summary.rpeValue': '{reported} de {present}',
+  'training.summary.rpeOf': 'de {present}',
   'training.summary.load': 'Carga total (sRPE)',
-  'training.summary.loadValue': '{value} UA',
 } as const;
