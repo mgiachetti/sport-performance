@@ -265,6 +265,8 @@ export function KpiTile(props: {
   unit?: string | undefined;
   caption?: string | undefined;
   highlighted?: boolean;
+  /** A status next to the figure (`StatusChip`, `StatusBadge`): icon + text, never color alone. */
+  status?: ReactNode;
 }) {
   return (
     <div className={`sp-kpi${props.highlighted === true ? ' sp-kpi--highlighted' : ''}`}>
@@ -272,6 +274,7 @@ export function KpiTile(props: {
       <p className="sp-kpi__value">
         <span className="sp-kpi__figure">{props.value}</span>
         {props.unit === undefined ? null : <span className="sp-kpi__unit"> {props.unit}</span>}
+        {props.status === undefined ? null : <span className="sp-kpi__status">{props.status}</span>}
       </p>
       {props.caption === undefined ? null : <p className="sp-kpi__caption">{props.caption}</p>}
     </div>
@@ -385,10 +388,21 @@ export function EmptyState(props: {
  * next to it): drawn by CSS from `data-label`, so it is neither announced nor
  * part of the row's text (copying a name, reading a cell).
  */
-export function Avatar(props: { label: string; variant?: 'default' | 'brand' }) {
+export function Avatar(props: {
+  label: string;
+  variant?: 'default' | 'brand';
+  /** `lg`: the head of a profile. */
+  size?: 'md' | 'lg';
+}) {
   return (
     <span
-      className={`sp-avatar${props.variant === 'brand' ? ' sp-avatar--brand' : ''}`}
+      className={[
+        'sp-avatar',
+        props.variant === 'brand' ? 'sp-avatar--brand' : null,
+        props.size === 'lg' ? 'sp-avatar--lg' : null,
+      ]
+        .filter(Boolean)
+        .join(' ')}
       data-label={props.label}
       aria-hidden="true"
     />

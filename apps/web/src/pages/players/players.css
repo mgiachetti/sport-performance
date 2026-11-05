@@ -1,0 +1,263 @@
+/* Roster and player profile (B-404). Tokens only (`--sp-*` of packages/ui-tokens): the club
+   theme and the high-contrast variant apply at runtime. */
+
+/* Roster: the search sits in the card's header, the table runs edge to edge. */
+.sp-players__search {
+  width: min(22rem, 100%);
+}
+.sp-players__search .sp-field {
+  margin: 0;
+}
+.sp-players .sp-table-wrap {
+  margin: 0 calc(-1 * var(--sp-space-xl));
+}
+.sp-players .sp-table thead th:first-child,
+.sp-players .sp-table tbody th {
+  padding-left: var(--sp-space-xl);
+}
+.sp-players .sp-table thead th:last-child,
+.sp-players .sp-table tbody td:last-child {
+  padding-right: var(--sp-space-xl);
+}
+.sp-players__more {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--sp-space-sm);
+}
+/* Phones: name, category and age; position and birth date are in the profile. */
+@media (max-width: 40rem) {
+  .sp-players__search {
+    width: 100%;
+  }
+  .sp-players__optional {
+    display: none;
+  }
+  .sp-players .sp-table-wrap {
+    margin: 0 calc(-1 * var(--sp-space-lg));
+  }
+  .sp-players .sp-table thead th:first-child,
+  .sp-players .sp-table tbody th {
+    padding-left: var(--sp-space-lg);
+  }
+  .sp-players .sp-table thead th:last-child,
+  .sp-players .sp-table tbody td:last-child {
+    padding-right: var(--sp-space-lg);
+  }
+}
+
+/* Player profile: header with the avatar and the key facts, then the blocks. */
+.sp-profile__hero {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-xl);
+  margin-top: 0;
+}
+.sp-profile__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-space-md) var(--sp-space-xxl);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sp-profile__fact {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-space-xxs);
+}
+.sp-profile__fact-label {
+  color: var(--sp-color-text-muted);
+  font-family: var(--sp-text-table-header-family);
+  font-size: var(--sp-text-table-header-size);
+  font-weight: var(--sp-text-table-header-weight);
+  letter-spacing: var(--sp-text-table-header-letter-spacing);
+}
+.sp-profile__fact-value {
+  display: flex;
+  align-items: center;
+  min-height: var(--sp-size-chip);
+  font-family: var(--sp-text-metric-small-family);
+  font-size: var(--sp-text-metric-small-size);
+  font-weight: var(--sp-text-metric-small-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Three short cards per row on a wide screen; charts and long lists take the whole width. */
+.sp-profile__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-space-md);
+  margin-top: var(--sp-space-md);
+}
+.sp-profile__grid > .sp-profile__card {
+  margin-top: 0;
+}
+.sp-profile__card--wide {
+  grid-column: 1 / -1;
+}
+@media (max-width: 80rem) {
+  .sp-profile__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 52rem) {
+  .sp-profile__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.sp-profile__subtitle,
+.sp-profile__muted {
+  color: var(--sp-color-text-secondary);
+  font-size: var(--sp-text-body-small-size);
+}
+.sp-profile__minor-title {
+  color: var(--sp-color-text-muted);
+  font-family: var(--sp-text-table-header-family);
+  font-size: var(--sp-text-table-header-size);
+  font-weight: var(--sp-text-table-header-weight);
+  letter-spacing: var(--sp-text-table-header-letter-spacing);
+}
+.sp-profile__status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-space-sm) var(--sp-space-lg);
+}
+.sp-profile__notes,
+.sp-alert-list,
+.sp-percentiles {
+  display: grid;
+  gap: var(--sp-space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sp-profile__select {
+  max-width: 24rem;
+}
+.sp-profile__kpis {
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+
+/* Alert history: one entry per alert, newest first. */
+.sp-alert-list {
+  gap: 0;
+}
+.sp-alert-list__item {
+  display: grid;
+  gap: var(--sp-space-xs);
+  padding: var(--sp-space-md) 0;
+  border-bottom: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+}
+.sp-alert-list__item:first-child {
+  padding-top: 0;
+}
+.sp-alert-list__item:last-child {
+  border-bottom: 0;
+}
+
+/* Maturity track: years from PHV, −3 to +3 */
+.sp-maturity {
+  display: grid;
+  gap: var(--sp-space-xs);
+}
+.sp-maturity__labels {
+  display: flex;
+  justify-content: space-between;
+  color: var(--sp-color-text-secondary);
+  font-size: var(--sp-text-caption-size);
+}
+.sp-maturity__track {
+  position: relative;
+  height: 0.75rem;
+  border: var(--sp-border-width-hairline) solid var(--sp-color-border-strong);
+  border-radius: var(--sp-radius-pill);
+  background: linear-gradient(
+    90deg,
+    var(--sp-color-surface-raised),
+    var(--sp-color-brand-subtle) 50%,
+    var(--sp-color-surface-raised)
+  );
+}
+.sp-maturity__pin {
+  position: absolute;
+  top: 50%;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: var(--sp-border-width-thick) solid var(--sp-color-background);
+  border-radius: var(--sp-radius-pill);
+  background: var(--sp-color-brand-solid);
+  transform: translate(-50%, -50%);
+}
+.sp-maturity__value {
+  margin-top: var(--sp-space-xs);
+  font-family: var(--sp-text-metric-family);
+  font-size: var(--sp-text-metric-size);
+  font-weight: var(--sp-text-metric-weight);
+  line-height: var(--sp-text-metric-line-height);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Percentiles: two columns of rows on a wide card (local size, ADR 0097: the row's minimum). */
+.sp-percentiles {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 28rem), 1fr));
+  gap: var(--sp-space-lg) var(--sp-space-xxl);
+}
+.sp-percentiles__row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 11rem) 1fr auto;
+  align-items: center;
+  gap: var(--sp-space-xs) var(--sp-space-md);
+  align-content: start;
+}
+.sp-percentiles__label {
+  font-weight: var(--sp-text-body-strong-weight);
+}
+.sp-percentiles__detail {
+  grid-column: 1 / -1;
+}
+.sp-percentiles__track {
+  position: relative;
+  height: 0.625rem;
+  border-radius: var(--sp-radius-pill);
+  background: var(--sp-color-surface-raised);
+}
+.sp-percentiles__bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--sp-radius-pill);
+  /* The player's mark in brand color, adjusted to ≥ 3:1 on the surface in both variants. */
+  background: var(--sp-color-chart-player);
+}
+.sp-percentiles__median {
+  position: absolute;
+  top: -0.25rem;
+  bottom: -0.25rem;
+  left: 50%;
+  width: 2px;
+  background: var(--sp-color-text-primary);
+}
+.sp-percentiles__value {
+  font-family: var(--sp-text-table-number-family);
+  font-size: var(--sp-text-table-number-size);
+  font-weight: var(--sp-text-table-number-weight);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 40rem) {
+  .sp-profile__hero {
+    align-items: flex-start;
+    gap: var(--sp-space-lg);
+  }
+  .sp-profile__facts {
+    gap: var(--sp-space-md) var(--sp-space-xl);
+  }
+  .sp-percentiles__row {
+    grid-template-columns: minmax(0, 1fr) 5rem auto;
+  }
+  .sp-profile__kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

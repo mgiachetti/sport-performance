@@ -47,6 +47,8 @@ import {
 } from '../../ui/components';
 import { Icon } from '../../ui/icons';
 import { initialsOf } from '../../lib/initials';
+import { typographicMinus } from '../../lib/minus';
+import { NARROW_QUERY, useMediaQuery } from '../../lib/use-media-query';
 import {
   BIO_BAND_SCHEMES,
   isCurrentWeek,
@@ -407,10 +409,13 @@ export const ATTENTION_VISIBLE = 5;
  * message when this build has no short text for the kind, a generic line when it has neither.
  */
 function attentionLine(t: ReturnType<typeof useT>, alert: PanelPlayer['alerts'][number]): string {
-  return (
-    alertMessage(t, `panel.attention.short.${alert.kind}`, alert.values) ??
-    alertText(t, alert) ??
-    t('common.noData')
+  // The CMJ drop says its threshold when the alert carries it (older rules did not).
+  const key =
+    alert.kind === 'cmj_drop' && alert.values.thresholdPct !== undefined
+      ? 'panel.attention.short.cmj_drop_threshold'
+      : `panel.attention.short.${alert.kind}`;
+  return typographicMinus(
+    alertMessage(t, key, alert.values) ?? alertText(t, alert) ?? t('common.noData'),
   );
 }
 
@@ -517,58 +522,99 @@ function Availability(props: { availability: PanelPlayer['availability'] }) {
     return <span className="sp-panel-muted">{label('available')}</span>;
   }
   // The detail is visible text (not a tooltip) so screen readers and touch screens get it too.
+  // The detail only when training and match differ from the chip (one line under it, so the
+  // row stays two lines high); when both say the same, the chip says it all.
+  const sameEverywhere =
+    availability.training === availability.overall && availability.match === availability.overall;
   return (
-    <span>
+    <span className="sp-panel-availability">
       <StatusBadge
         level={AVAILABILITY_LEVELS[availability.overall]}
         label={label(availability.overall)}
       />
-      <span className="sp-panel-muted sp-panel-block">
-        {t('panel.availability.training', { status: label(availability.training) })}
-      </span>
-      <span className="sp-panel-muted sp-panel-block">
-        {t('panel.availability.match', { status: label(availability.match) })}
-      </span>
+      {sameEverywhere ? null : (
+        <span className="sp-panel-muted sp-panel-block">
+          <span>{t('panel.availability.training', { status: label(availability.training) })}</span>
+          {' · '}
+          <span>{t('panel.availability.match', { status: label(availability.match) })}</span>
+        </span>
+      )}
     </span>
   );
 }
 
-function Maturity(props: { player: PanelPlayer; grouping: PanelGrouping }) {
+interface MaturityFigures {
+  /** Years from PHV, signed ("+3,2", "−0,4"); null without an offset. */
+  readonly offset: string | null;
+  /** % of predicted adult height ("100,5 %"); null without parents' heights. */
+  readonly adultHeight: string | null;
+  /** The bio-band of the grouping and the column it belongs under, when grouping by maturity. */
+  readonly band: { readonly label: string; readonly column: 'offset' | 'adultHeight' } | null;
+  readonly measuredOn: LocalDate;
+}
+
+function maturityFigures(
+  t: ReturnType<typeof useT>,
+  player: PanelPlayer,
+  grouping: PanelGrouping,
+): MaturityFigures | null {
+  const { maturity } = player;
+  if (maturity === null) return null;
+  const scheme = grouping === 'category' ? null : BIO_BAND_SCHEMES[grouping];
+  const value = scheme === null ? null : maturityValue(player, scheme);
+  return {
+    offset:
+      maturity.phvOffsetYearsOnDate === null
+        ? null
+        : typographicMinus(
+            formatNumber(maturity.phvOffsetYearsOnDate, { decimals: 1, sign: 'always' }),
+          ),
+    adultHeight:
+      maturity.adultHeightPct === null
+        ? null
+        : formatUnit(maturity.adultHeightPct, 'pct', { decimals: 1 }),
+    band:
+      scheme === null || value === null
+        ? null
+        : {
+            label: bandLabel(t, scheme, value),
+            column: grouping === 'phv_offset' ? 'offset' : 'adultHeight',
+          },
+    measuredOn: maturity.measuredOn,
+  };
+}
+
+/**
+ * Maturity as two number columns (years from PHV, % of adult height): one figure per cell, so a
+ * row stays one line high; the band of the grouping, if any, as a muted line under its figure.
+ */
+function MaturityCells(props: { player: PanelPlayer; grouping: PanelGrouping }) {
   const t = useT();
-  const { maturity } = props.player;
-  if (maturity === null) {
-    return <span className="sp-panel-muted">{t('panel.roster.noMaturity')}</span>;
+  const figures = maturityFigures(t, props.player, props.grouping);
+  if (figures === null) {
+    return (
+      <>
+        <td className="is-number">
+          <span className="sp-panel-muted">{t('panel.roster.noMaturity')}</span>
+        </td>
+        <td className="is-number">{formatNumber(null)}</td>
+      </>
+    );
   }
-  const offset =
-    maturity.phvOffsetYearsOnDate === null
-      ? null
-      : t('panel.roster.phvOffset', {
-          value: formatNumber(maturity.phvOffsetYearsOnDate, { decimals: 1, sign: 'always' }),
-        });
-  const adultHeight =
-    maturity.adultHeightPct === null
-      ? null
-      : t('panel.roster.adultHeight', {
-          value: formatUnit(maturity.adultHeightPct, 'pct', { decimals: 1 }),
-        });
-  const scheme = props.grouping === 'category' ? null : BIO_BAND_SCHEMES[props.grouping];
-  const value = scheme === null ? null : maturityValue(props.player, scheme);
-  // One fact per line, the offset first and the % of adult height as secondary text.
+  const title = t('panel.roster.measuredOn', { date: formatLocalDate(figures.measuredOn) });
+  const cell = (column: 'offset' | 'adultHeight', figure: string | null) => (
+    <td className="is-number" title={title}>
+      {figure ?? formatNumber(null)}
+      {figures.band?.column === column ? (
+        <span className="sp-panel-muted sp-panel-block">{figures.band.label}</span>
+      ) : null}
+    </td>
+  );
   return (
-    <span
-      className="sp-panel-maturity"
-      title={t('panel.roster.measuredOn', { date: formatLocalDate(maturity.measuredOn) })}
-    >
-      <span className="sp-panel-block">
-        {offset ?? adultHeight ?? t('panel.roster.noMaturity')}
-      </span>
-      {offset === null || adultHeight === null ? null : (
-        <span className="sp-panel-muted sp-panel-block">{adultHeight}</span>
-      )}
-      {scheme === null || value === null ? null : (
-        <span className="sp-panel-muted sp-panel-block">{bandLabel(t, scheme, value)}</span>
-      )}
-    </span>
+    <>
+      {cell('offset', figures.offset)}
+      {cell('adultHeight', figures.adultHeight)}
+    </>
   );
 }
 
@@ -608,6 +654,37 @@ function Acwr(props: { load: PanelPlayer['load']; referenceDate: LocalDate }) {
   );
 }
 
+function WellnessCell(props: { player: PanelPlayer }) {
+  const t = useT();
+  const score = props.player.wellness.weekMeanScore;
+  if (score === null) {
+    return <span className="sp-panel-muted">{t('panel.roster.noWellness')}</span>;
+  }
+  return (
+    <span className="sp-panel-wellness">
+      <span className="sp-panel-wellness__bar" aria-hidden="true">
+        <span
+          className="sp-panel-wellness__fill"
+          style={{ width: `${String((score / 5) * 100)}%` }}
+        />
+      </span>
+      <span className="sp-panel-wellness__value">
+        {t('panel.roster.wellnessValue', { value: formatNumber(score, { decimals: 1 }) })}
+      </span>
+    </span>
+  );
+}
+
+function StatusCell(props: { player: PanelPlayer }) {
+  const t = useT();
+  const severity = worstSeverity(props.player);
+  return severity === null ? (
+    <StatusBadge level="ok" label={t('panel.status.inRange')} />
+  ) : (
+    <StatusBadge level={severity} />
+  );
+}
+
 function Roster(props: {
   panel: WeeklyPanel;
   players: readonly PanelPlayer[];
@@ -615,6 +692,8 @@ function Roster(props: {
 }) {
   const t = useT();
   const headingId = useId();
+  // Phones get one card per player: a 9-column table would scroll sideways.
+  const narrow = useMediaQuery(NARROW_QUERY);
   return (
     <section className="sp-card sp-panel-roster" aria-labelledby={headingId}>
       <div className="sp-card__heading">
@@ -625,6 +704,13 @@ function Roster(props: {
       </div>
       {props.players.length === 0 ? (
         <p>{t('panel.roster.empty')}</p>
+      ) : narrow ? (
+        <RosterCards
+          panel={props.panel}
+          players={props.players}
+          grouping={props.grouping}
+          labelledBy={headingId}
+        />
       ) : (
         <div className="sp-panel-table-scroll">
           <table className="sp-panel-table" aria-labelledby={headingId}>
@@ -632,7 +718,12 @@ function Roster(props: {
               <tr>
                 <th scope="col">{t('panel.roster.player')}</th>
                 <th scope="col">{t('panel.roster.position')}</th>
-                <th scope="col">{t('panel.roster.maturity')}</th>
+                <th scope="col" className="is-number">
+                  {t('panel.roster.phvOffsetColumn')}
+                </th>
+                <th scope="col" className="is-number">
+                  {t('panel.roster.adultHeightColumn')}
+                </th>
                 <th scope="col">{t('panel.roster.wellness')}</th>
                 <th scope="col" className="is-number">
                   {t('panel.roster.load')}
@@ -646,7 +737,6 @@ function Roster(props: {
             </thead>
             <tbody>
               {props.players.map((player) => {
-                const severity = worstSeverity(player);
                 return (
                   <tr key={player.playerId}>
                     <th scope="row">
@@ -656,29 +746,9 @@ function Roster(props: {
                       </span>
                     </th>
                     <td className="sp-panel-nowrap">{positionName(t, player)}</td>
+                    <MaturityCells player={player} grouping={props.grouping} />
                     <td>
-                      <Maturity player={player} grouping={props.grouping} />
-                    </td>
-                    <td>
-                      {player.wellness.weekMeanScore === null ? (
-                        <span className="sp-panel-muted">{t('panel.roster.noWellness')}</span>
-                      ) : (
-                        <span className="sp-panel-wellness">
-                          <span className="sp-panel-wellness__bar" aria-hidden="true">
-                            <span
-                              className="sp-panel-wellness__fill"
-                              style={{
-                                width: `${String((player.wellness.weekMeanScore / 5) * 100)}%`,
-                              }}
-                            />
-                          </span>
-                          <span className="sp-panel-wellness__value">
-                            {t('panel.roster.wellnessValue', {
-                              value: formatNumber(player.wellness.weekMeanScore, { decimals: 1 }),
-                            })}
-                          </span>
-                        </span>
-                      )}
+                      <WellnessCell player={player} />
                     </td>
                     <td className="is-number">
                       {formatUnit(player.load.weekLoadAu, 'au', { decimals: 0 })}
@@ -695,11 +765,7 @@ function Roster(props: {
                       <Availability availability={player.availability} />
                     </td>
                     <td>
-                      {severity === null ? (
-                        <StatusBadge level="ok" label={t('panel.status.inRange')} />
-                      ) : (
-                        <StatusBadge level={severity} />
-                      )}
+                      <StatusCell player={player} />
                     </td>
                   </tr>
                 );
@@ -709,5 +775,82 @@ function Roster(props: {
         </div>
       )}
     </section>
+  );
+}
+
+/** The roster on a phone: name and status, then the figures of the week, then maturity. */
+function RosterCards(props: {
+  panel: WeeklyPanel;
+  players: readonly PanelPlayer[];
+  grouping: PanelGrouping;
+  labelledBy: string;
+}) {
+  const t = useT();
+  return (
+    <ul className="sp-panel-cards" aria-labelledby={props.labelledBy}>
+      {props.players.map((player) => {
+        const figures = maturityFigures(t, player, props.grouping);
+        const maturity =
+          figures === null
+            ? t('panel.roster.noMaturity')
+            : [
+                figures.offset === null
+                  ? null
+                  : t('panel.roster.phvOffset', { value: figures.offset }),
+                figures.adultHeight === null
+                  ? null
+                  : t('panel.roster.adultHeight', { value: figures.adultHeight }),
+                figures.band?.label ?? null,
+              ]
+                .filter((part): part is string => part !== null)
+                .join(' · ') || t('panel.roster.noMaturity');
+        return (
+          <li key={player.playerId} className="sp-panel-cards__item">
+            <div className="sp-panel-cards__head">
+              <Avatar label={initialsOf(`${player.firstName} ${player.lastName}`)} />
+              <div className="sp-panel-cards__who">
+                <p className="sp-panel-cards__name">{playerName(t, player)}</p>
+                <p className="sp-panel-muted">{positionName(t, player)}</p>
+              </div>
+              <StatusCell player={player} />
+            </div>
+            <p className="sp-panel-cards__figures">
+              <span>
+                {t('panel.roster.card.wellness', {
+                  value:
+                    player.wellness.weekMeanScore === null
+                      ? t('panel.roster.noWellness')
+                      : t('panel.roster.wellnessValue', {
+                          value: formatNumber(player.wellness.weekMeanScore, { decimals: 1 }),
+                        }),
+                })}
+              </span>
+              <span>
+                {t('panel.roster.card.load', {
+                  value: formatUnit(player.load.weekLoadAu, 'au', { decimals: 0 }),
+                })}
+              </span>
+              <span>
+                {t('panel.roster.card.acwr', {
+                  value:
+                    player.load.acwrStatus === 'ok'
+                      ? formatNumber(player.load.acwr, { decimals: 2 })
+                      : t(`panel.acwr.${player.load.acwrStatus}`),
+                })}
+              </span>
+              {player.load.pendingRpeN === 0 ? null : (
+                <span className="sp-panel-muted">
+                  {t('panel.roster.pendingRpe', { count: player.load.pendingRpeN })}
+                </span>
+              )}
+            </p>
+            <p className="sp-panel-muted">{t('panel.roster.card.maturity', { value: maturity })}</p>
+            {player.availability === null || player.availability.overall === 'available' ? null : (
+              <Availability availability={player.availability} />
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }

@@ -52,6 +52,10 @@
   font-weight: var(--sp-text-unit-weight);
   font-variant-numeric: var(--sp-text-unit-numeric);
 }
+.sp-kpi__status {
+  align-self: center;
+  margin-left: var(--sp-space-xs);
+}
 .sp-kpi__caption {
   color: var(--sp-color-text-muted);
   font-size: var(--sp-text-body-small-size);
@@ -258,6 +262,25 @@
 .sp-panel-table thead th.is-number {
   text-align: right;
 }
+/* Headers of number columns keep the header type: only the figures are condensed numbers. */
+.sp-table thead th.sp-table__number,
+.sp-table thead th.is-number,
+.sp-panel-table thead th.is-number {
+  font-family: var(--sp-text-table-header-family);
+  font-size: var(--sp-text-table-header-size);
+  font-weight: var(--sp-text-table-header-weight);
+}
+/* A link that names the row (a player): text color, underlined on hover and focus only. */
+.sp-table__link {
+  color: var(--sp-color-text-primary);
+  font-weight: var(--sp-text-body-strong-weight);
+  text-decoration: none;
+}
+.sp-table__link:hover,
+.sp-table__link:focus-visible {
+  color: var(--sp-color-brand-accent);
+  text-decoration: underline;
+}
 .sp-table__cell-player {
   display: flex;
   align-items: center;
@@ -282,6 +305,14 @@
 }
 .sp-avatar::before {
   content: attr(data-label);
+}
+.sp-avatar--lg {
+  width: var(--sp-size-avatar-large);
+  height: var(--sp-size-avatar-large);
+  border-width: var(--sp-border-width-thick);
+  border-color: var(--sp-color-brand-border);
+  color: var(--sp-color-text-primary);
+  font-size: var(--sp-text-metric-size);
 }
 .sp-avatar--brand {
   border-color: transparent;

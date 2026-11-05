@@ -34,25 +34,29 @@ export function HomePage() {
       </p>
       <div className="sp-home-grid">
         <Card title={t('home.scope.title')} className="sp-home-scope">
-          <p>
-            {scopedByAssignments
-              ? t('home.scope.assigned', { count: active.categories.length })
-              : t('home.scope.club')}
-          </p>
-          {selected.length === 0 ? null : (
-            <p className="sp-card__subtitle-text">
-              {t('home.scope.selected', { scope: selected.join(' · ') })}
-            </p>
-          )}
-          {scope.categoryOptions.length === 0 ? null : (
-            <ul className="sp-tag-list">
-              {scope.categoryOptions.map((category) => (
-                <li key={category.id} className="sp-tag">
-                  {category.name}
-                </li>
-              ))}
-            </ul>
-          )}
+          <div className="sp-home-scope__body">
+            <div>
+              <p>
+                {scopedByAssignments
+                  ? t('home.scope.assigned', { count: active.categories.length })
+                  : t('home.scope.club')}
+              </p>
+              {selected.length === 0 ? null : (
+                <p className="sp-card__subtitle-text">
+                  {t('home.scope.selected', { scope: selected.join(' · ') })}
+                </p>
+              )}
+            </div>
+            {scope.categoryOptions.length === 0 ? null : (
+              <ul className="sp-tag-list">
+                {scope.categoryOptions.map((category) => (
+                  <li key={category.id} className="sp-tag">
+                    {category.name}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </Card>
         {shortcuts.length === 0 ? null : (
           <Card

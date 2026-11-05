@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { parseLocalDate } from '@sport-performance/domain';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { apiError } from '../../test/fake-api';
 import * as fixtures from '../../test/fixtures';
 import { renderApp, signedIn } from '../../test/render-app';
@@ -62,9 +62,9 @@ describe('weekly panel', () => {
 
     const bianchi = rowOf('Bianchi, Tomás');
     expect(within(bianchi).getByText('Hooker')).toBeVisible();
-    // One fact per line: the offset, then the % of adult height.
-    expect(within(bianchi).getByText('-0,4 años del PHV')).toBeVisible();
-    expect(within(bianchi).getByText('91,2 % de la talla adulta')).toBeVisible();
+    // Maturity in two number columns, the offset with a real minus sign.
+    expect(within(bianchi).getByText('\u22120,4')).toBeVisible();
+    expect(within(bianchi).getByText('91,2 %')).toBeVisible();
     expect(within(bianchi).getByText('2,5 de 5')).toBeVisible();
     expect(within(bianchi).getByText('1.200 UA')).toBeVisible();
     expect(within(bianchi).getByText('1 RPE pendiente')).toBeVisible();
@@ -122,6 +122,79 @@ describe('weekly panel', () => {
     expect(within(list).getAllByRole('listitem')).toHaveLength(11);
     await user.click(within(attention).getByRole('button', { name: 'Ver menos' }));
     expect(items()).toHaveLength(5);
+  });
+
+  it('says the threshold of a CMJ drop and a wellness z-score in the attention lines', async () => {
+    const players = [
+      panelPlayer(1, {
+        alerts: [
+          panelAlert({
+            kind: 'cmj_drop',
+            severity: 'warning',
+            messageKey: 'alert.cmj_drop.message',
+            values: { dropPct: 9.3, thresholdPct: 7, heightCm: 38.2, baselineHeightCm: 42.1 },
+          }),
+        ],
+      }),
+      panelPlayer(2, {
+        alerts: [
+          panelAlert({
+            kind: 'wellness_zscore_low',
+            severity: 'warning',
+            messageKey: 'alert.wellness_zscore_low.message',
+            values: { wellnessScore: 2.8, meanScore: 3.9, zScore: -2.24, thresholdZScore: -1.5 },
+          }),
+        ],
+      }),
+    ];
+    renderApp({
+      path: '/panel',
+      handlers: { ...signedIn(), getWeeklyPanel: () => weeklyPanel(players) },
+    });
+    const attention = await screen.findByRole('region', { name: 'Requieren atención' });
+    expect(within(attention).getByText('CMJ 9,3 % bajo la base · umbral 7,0 %')).toBeVisible();
+    expect(
+      // A no-break space keeps "z" with its figure; the minus is U+2212.
+      within(attention).getByText(
+        (_, element) =>
+          element?.textContent ===
+          'Bienestar bajo lo habitual (z\u00a0\u22122,2) · umbral \u22121,5',
+      ),
+    ).toBeVisible();
+  });
+
+  it('shows the roster as one card per player on a phone', async () => {
+    const matchMedia = vi.spyOn(window, 'matchMedia').mockImplementation(
+      (query: string) =>
+        ({
+          matches: query === '(max-width: 40rem)',
+          media: query,
+          onchange: null,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+          dispatchEvent: () => false,
+        }) as unknown as MediaQueryList,
+    );
+    try {
+      renderApp({
+        path: '/panel',
+        handlers: { ...signedIn(), getWeeklyPanel: () => weeklyPanel(squad()) },
+      });
+      const section = await screen.findByRole('region', { name: 'Plantel' });
+      expect(within(section).queryByRole('table')).toBeNull();
+      const cards = within(within(section).getByRole('list', { name: 'Plantel' })).getAllByRole(
+        'listitem',
+      );
+      expect(cards).toHaveLength(3);
+      const bianchi = cards.find((card) => card.textContent.includes('Bianchi, Tomás'));
+      expect(bianchi).toBeDefined();
+      if (bianchi === undefined) return;
+      expect(within(bianchi).getByText('Crítico')).toBeVisible();
+      expect(within(bianchi).getByText('ACWR 1,46')).toBeVisible();
+      expect(within(bianchi).getByText('Entrenar: Limitado')).toBeVisible();
+    } finally {
+      matchMedia.mockRestore();
+    }
   });
 
   it('groups by maturity (bio-banding) and filters by group', async () => {
