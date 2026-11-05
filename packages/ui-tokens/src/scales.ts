@@ -44,6 +44,8 @@ export const sizes = {
   tableRow: 48,
   /** Avatar of a player in lists and tables (jersey number or initials). */
   avatar: 32,
+  /** Avatar at the head of a player's profile. */
+  avatarLarge: 64,
   /** Height of a status chip (tinted pill, icon + text). */
   chip: 26,
   /** Square tile behind an icon (shortcuts); `iconTileLarge` for empty states. */

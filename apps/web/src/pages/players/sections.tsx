@@ -16,14 +16,16 @@ import {
   formatNumber,
   formatUnit,
   isMessageKey,
+  unitLabelEsAr,
   type MessageKey,
 } from '@sport-performance/i18n';
 import { useQuery } from '@tanstack/react-query';
 import { useId, useState, type ReactNode } from 'react';
 import { useActiveClub } from '../../club/active-club';
 import { translate, useT } from '../../i18n/i18n';
-import { ErrorNotice, Loading, Notice } from '../../ui/components';
+import { ErrorNotice, KpiTile, Loading, Notice } from '../../ui/components';
 import { useServices } from '../../app/services';
+import { typographicMinus } from '../../lib/minus';
 import { AVAILABILITY_LEVEL, alertMessageValues, availabilityLabel, metricLabel } from './format';
 import {
   availabilityQuery,
@@ -56,19 +58,24 @@ export function Section(props: {
       className={[
         'sp-card',
         'sp-profile__card',
+        // A wide block keeps its row even when the role cannot see it (never an orphan third of
+        // a row with two empty columns next to it); denied, it is one compact line.
         props.wide === true ? 'sp-profile__card--wide' : '',
+        props.allowed ? '' : 'sp-profile__card--restricted',
       ]
         .filter(Boolean)
         .join(' ')}
       aria-labelledby={props.id}
     >
-      <header>
-        <h2 id={props.id} className="sp-card__title">
-          {props.title}
-        </h2>
-        {props.subtitle === undefined ? null : (
-          <p className="sp-profile__subtitle">{props.subtitle}</p>
-        )}
+      <header className="sp-card__header">
+        <div className="sp-card__heading">
+          <h2 id={props.id} className="sp-card__title">
+            {props.title}
+          </h2>
+          {props.subtitle === undefined ? null : (
+            <p className="sp-card__subtitle-text">{props.subtitle}</p>
+          )}
+        </div>
       </header>
       {props.allowed ? (
         props.children
@@ -135,16 +142,24 @@ export function AvailabilitySection(props: { playerId: PlayerId; allowed: boolea
             <>
               <div className="sp-profile__status-row">
                 <AvailabilityBadge status={data.current.overall} />
-                <span>
-                  {t('player.availability.training', {
-                    status: availabilityLabel(t, data.current.training),
-                  })}
-                </span>
-                <span>
-                  {t('player.availability.match', {
-                    status: availabilityLabel(t, data.current.match),
-                  })}
-                </span>
+                {/* Training and match only when they differ from the overall state (as in the
+                    panel): when all three say the same, the chip says it all. */}
+                {data.current.training === data.current.overall &&
+                data.current.match === data.current.overall ? null : (
+                  <span className="sp-profile__muted">
+                    <span>
+                      {t('player.availability.training', {
+                        status: availabilityLabel(t, data.current.training),
+                      })}
+                    </span>
+                    {' · '}
+                    <span>
+                      {t('player.availability.match', {
+                        status: availabilityLabel(t, data.current.match),
+                      })}
+                    </span>
+                  </span>
+                )}
               </div>
               {data.current.staffNotes.length === 0 ? null : (
                 <div>
@@ -160,33 +175,35 @@ export function AvailabilitySection(props: { playerId: PlayerId; allowed: boolea
               {notAvailable.length === 0 ? (
                 <p>{t('player.availability.allAvailable')}</p>
               ) : (
-                <table className="sp-profile__table">
-                  <thead>
-                    <tr>
-                      <th scope="col">{t('player.availability.table.period')}</th>
-                      <th scope="col">{t('player.availability.table.training')}</th>
-                      <th scope="col">{t('player.availability.table.match')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[...notAvailable].reverse().map((period) => (
-                      <tr key={period.from}>
-                        <th scope="row">
-                          {t('player.availability.period', {
-                            from: formatLocalDate(period.from),
-                            to: formatLocalDate(period.to),
-                          })}
-                        </th>
-                        <td>
-                          <AvailabilityBadge status={period.training} />
-                        </td>
-                        <td>
-                          <AvailabilityBadge status={period.match} />
-                        </td>
+                <div className="sp-table-wrap">
+                  <table className="sp-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">{t('player.availability.table.period')}</th>
+                        <th scope="col">{t('player.availability.table.training')}</th>
+                        <th scope="col">{t('player.availability.table.match')}</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {[...notAvailable].reverse().map((period) => (
+                        <tr key={period.from}>
+                          <th scope="row">
+                            {t('player.availability.period', {
+                              from: formatLocalDate(period.from),
+                              to: formatLocalDate(period.to),
+                            })}
+                          </th>
+                          <td>
+                            <AvailabilityBadge status={period.training} />
+                          </td>
+                          <td>
+                            <AvailabilityBadge status={period.match} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </>
           );
@@ -299,10 +316,12 @@ function MaturityTrack(props: {
   const left = ((clamped + TRACK_YEARS) / (2 * TRACK_YEARS)) * 100;
   const years = formatNumber(props.offsetYears, { decimals: 1 });
   const rounded = Number(props.offsetYears.toFixed(1));
-  const offsetText = t('player.maturation.offset', {
-    offset: rounded > 0 ? 'positive' : rounded < 0 ? 'negative' : 'zero',
-    years,
-  });
+  const offsetText = typographicMinus(
+    t('player.maturation.offset', {
+      offset: rounded > 0 ? 'positive' : rounded < 0 ? 'negative' : 'zero',
+      years,
+    }),
+  );
   const equationKey = `player.maturation.equation.${props.equation ?? ''}`;
   return (
     <div className="sp-maturity">
@@ -513,6 +532,7 @@ export function PercentilesSection(props: { playerId: PlayerId; allowed: boolean
       title={t('player.percentiles.title')}
       subtitle={t('player.percentiles.subtitle')}
       allowed={props.allowed}
+      wide
     >
       <QueryState error={query.error} pending={query.isPending}>
         {() => {
@@ -575,6 +595,9 @@ export function PercentilesSection(props: { playerId: PlayerId; allowed: boolean
 
 // ─── Load of the last 28 days ────────────────────────────────────────────────────────
 
+const isMissing = (value: number | null | undefined): value is null | undefined =>
+  value === null || value === undefined;
+
 function LoadTiles(props: {
   latest: PlayerLoadDay | undefined;
   wellnessToday: PlayerWellnessDay | undefined;
@@ -583,59 +606,54 @@ function LoadTiles(props: {
 }) {
   const t = useT();
   const { latest } = props;
+  const acwr =
+    latest === undefined || latest.acwrStatus === 'insufficient_history'
+      ? // Not an alert (CLAUDE.md: no ACWR alert without 28 days): neutral text, no badge.
+        { value: formatNumber(null), caption: t('status.insufficientHistory') }
+      : latest.acwrStatus === 'zero_chronic_load' || latest.acwr === null
+        ? { value: formatNumber(null), caption: t('player.load.acwrZeroChronic') }
+        : { value: formatNumber(latest.acwr, { decimals: 2 }), caption: undefined };
+  const showAcwrStatus = acwr.caption === undefined && props.acwrAlert !== null;
   return (
-    <dl className="sp-tiles">
-      <div className="sp-tile">
-        <dt>{t('player.load.acwrLabel')}</dt>
-        <dd>
-          {latest === undefined || latest.acwrStatus === 'insufficient_history' ? (
-            // Not an alert (CLAUDE.md: no ACWR alert without 28 days): neutral text, no badge.
-            <span className="sp-profile__muted">{t('status.insufficientHistory')}</span>
-          ) : latest.acwrStatus === 'zero_chronic_load' || latest.acwr === null ? (
-            <span>{t('player.load.acwrZeroChronic')}</span>
-          ) : (
-            <>
-              <span className="sp-tile__value">{formatNumber(latest.acwr, { decimals: 2 })}</span>
-              {props.acwrAlert === null ? null : (
-                <StatusBadge level={props.acwrAlert.currentSeverity} />
-              )}
-            </>
-          )}
-        </dd>
-      </div>
-      <div className="sp-tile">
-        <dt>{t('player.load.week')}</dt>
-        <dd className="sp-tile__value">
-          {formatUnit(latest?.weekLoadAu ?? null, 'au', { decimals: 0 })}
-        </dd>
-      </div>
-      <div className="sp-tile">
-        <dt>{t('player.load.monotony')}</dt>
-        <dd className="sp-tile__value">
-          {formatNumber(latest?.monotony ?? null, { decimals: 2 })}
-        </dd>
-      </div>
-      <div className="sp-tile">
-        <dt>{t('player.load.strain')}</dt>
-        <dd className="sp-tile__value">
-          {formatUnit(latest?.strainAu ?? null, 'au', { decimals: 0 })}
-        </dd>
-      </div>
-      <div className="sp-tile">
-        <dt>{t('player.load.wellness')}</dt>
-        <dd>
-          {props.wellnessToday === undefined ? (
-            <span>{t('player.load.wellnessNone')}</span>
-          ) : (
-            <span className="sp-tile__value">
-              {t('player.load.wellnessValue', {
-                score: formatNumber(props.wellnessToday.meanScore, { decimals: 1 }),
-              })}
-            </span>
-          )}
-        </dd>
-      </div>
-    </dl>
+    <div className="sp-kpis sp-profile__kpis">
+      <KpiTile
+        label={t('player.load.acwrLabel')}
+        value={acwr.value}
+        caption={acwr.caption}
+        // The chip carries the state (icon + text, its own color); a brand tint on top would
+        // say something else.
+        {...(showAcwrStatus && props.acwrAlert !== null
+          ? { status: <StatusBadge level={props.acwrAlert.currentSeverity} /> }
+          : {})}
+      />
+      <KpiTile
+        label={t('player.load.week')}
+        value={formatNumber(latest?.weekLoadAu ?? null, { decimals: 0 })}
+        unit={isMissing(latest?.weekLoadAu) ? undefined : unitLabelEsAr('au')}
+      />
+      <KpiTile
+        label={t('player.load.monotony')}
+        value={formatNumber(latest?.monotony ?? null, { decimals: 2 })}
+      />
+      <KpiTile
+        label={t('player.load.strain')}
+        value={formatNumber(latest?.strainAu ?? null, { decimals: 0 })}
+        unit={isMissing(latest?.strainAu) ? undefined : unitLabelEsAr('au')}
+      />
+      {props.wellnessToday === undefined ? (
+        <KpiTile
+          label={t('player.load.wellness')}
+          value={formatNumber(null)}
+          caption={t('player.load.wellnessNone')}
+        />
+      ) : (
+        <KpiTile
+          label={t('player.load.wellness')}
+          value={formatNumber(props.wellnessToday.meanScore, { decimals: 1 })}
+          unit={t('player.load.ofScore')}
+        />
+      )}
+    </div>
   );
 }
 
@@ -657,6 +675,7 @@ export function LoadSection(props: {
       title={t('player.load.title')}
       subtitle={t('player.load.subtitle')}
       allowed={props.allowed}
+      wide
     >
       <QueryState error={query.error} pending={query.isPending}>
         {() => {
