@@ -519,6 +519,13 @@ select:hover {
   display: grid;
   grid-template-columns: var(--sp-size-sidebar) minmax(0, 1fr);
   min-height: 100vh;
+  /* The sidebar column keeps its panel and edge below the sticky sidebar on long pages. */
+  background: linear-gradient(
+    90deg,
+    var(--sp-color-surface) calc(var(--sp-size-sidebar) - 1px),
+    var(--sp-color-border-subtle) calc(var(--sp-size-sidebar) - 1px) var(--sp-size-sidebar),
+    transparent var(--sp-size-sidebar)
+  );
 }
 .sp-sidebar {
   position: sticky;
@@ -790,6 +797,7 @@ select:hover {
 @media (max-width: 64rem) {
   .sp-shell {
     grid-template-columns: minmax(0, 1fr);
+    background: none;
   }
   .sp-sidebar {
     position: fixed;
