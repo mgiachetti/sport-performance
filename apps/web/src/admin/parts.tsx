@@ -45,21 +45,22 @@ export function ConfirmPanel(props: {
   label: string;
   /** What happens, in one sentence. */
   question: ReactNode;
-  confirmLabel?: string;
+  confirmLabel?: string | undefined;
   confirmVariant?: ButtonVariant;
-  pending?: boolean;
+  pending?: boolean | undefined;
   autoFocus?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
   const t = useT();
-  const confirmRef = useRef<HTMLButtonElement>(null);
+  const groupRef = useRef<HTMLDivElement>(null);
   const autoFocus = props.autoFocus === true;
   useEffect(() => {
-    if (autoFocus) confirmRef.current?.focus();
+    if (autoFocus) groupRef.current?.querySelector('button')?.focus();
   }, [autoFocus]);
   return (
     <div
+      ref={groupRef}
       className="sp-admin__confirm"
       role="group"
       aria-label={props.label}
@@ -73,7 +74,6 @@ export function ConfirmPanel(props: {
       <p>{props.question}</p>
       <div className="sp-form__actions">
         <Button
-          ref={confirmRef}
           variant={props.confirmVariant ?? 'primary'}
           disabled={props.pending}
           onClick={props.onConfirm}
@@ -101,7 +101,7 @@ export function ConfirmAction(props: {
   pending?: boolean;
   /** The trigger's look (secondary by default; a quieter `ghost` beside a row's main action). */
   variant?: ButtonVariant;
-  size?: ButtonSize;
+  size?: ButtonSize | undefined;
   /** Why it is disabled, by id (`aria-describedby`). */
   describedBy?: string | undefined;
   onConfirm: () => void;
@@ -111,7 +111,7 @@ export function ConfirmAction(props: {
     return (
       <Button
         variant={props.variant ?? 'secondary'}
-        size={props.size}
+        size={props.size ?? 'md'}
         disabled={props.disabled}
         aria-describedby={props.describedBy}
         onClick={() => {

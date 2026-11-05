@@ -176,7 +176,7 @@
 }
 .sp-admin__role-edit > .sp-field {
   flex: none;
-  width: 11rem;
+  width: 12.5rem;
 }
 .sp-admin__role-actions {
   display: flex;
@@ -203,9 +203,19 @@
   .sp-admin__role-cell {
     min-width: 22rem;
   }
+  .sp-admin__role-edit {
+    flex-wrap: nowrap;
+  }
 }
 @media (forced-colors: active) {
   .sp-admin__role-edit select[data-changed] {
     outline: 2px solid Highlight;
   }
+}
+/* The live region of a role saved out of the filtered list: no room while empty */
+.sp-admin__saved:empty {
+  position: absolute;
+}
+.sp-admin__saved {
+  margin-bottom: var(--sp-space-md);
 }

@@ -188,6 +188,27 @@ describe('administration: users and roles', () => {
     expect(api.unhandled).toEqual([]);
   });
 
+  it('says it was saved above the list when the filter no longer shows the person', async () => {
+    const coach = admin.member('coach', { name: 'Pablo Gómez' });
+    let list: Member[] = [coach];
+    const { user } = renderApp({
+      path: '/admin/members',
+      handlers: asAdmin({
+        listMembers: (request) => membersHandler(list)(request),
+        changeMemberRole: () => {
+          list = [];
+          return admin.member('sc', { name: 'Pablo Gómez' });
+        },
+      }),
+    });
+    const row = await findRow('Pablo Gómez');
+    await user.selectOptions(within(row).getByRole('combobox'), 'sc');
+    await user.click(within(row).getByRole('button', { name: 'Guardar' }));
+    expect(
+      await screen.findByText('Guardado: Pablo Gómez ahora es Preparador/a físico/a.'),
+    ).toBeVisible();
+  });
+
   it('asks before giving or taking the administration or the health data', async () => {
     const coach = admin.member('coach', { name: 'Pablo Gómez' });
     const doctor = admin.member('medical', { name: 'Ana Díaz' });

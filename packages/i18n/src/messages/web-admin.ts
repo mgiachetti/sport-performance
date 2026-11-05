@@ -57,6 +57,7 @@ export const webAdminMessagesEsAR = {
   'admin.members.lastAdminHint':
     'Es la única persona administradora vigente: el club no puede quedarse sin una.',
   'admin.members.roleSaved': 'Guardado',
+  'admin.members.roleSavedOutside': 'Guardado: {name} ahora es {role}.',
   'admin.members.changeRole': 'Cambiar rol',
   'admin.members.confirmRole': '¿Pasar a {name} a {role}?',
   'admin.members.confirmRole.toAdmin':

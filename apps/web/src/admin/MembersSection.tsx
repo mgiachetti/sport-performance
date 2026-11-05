@@ -49,6 +49,11 @@ export function isSensitiveRoleChange(from: MembershipRole, to: MembershipRole):
   return from !== to && (SENSITIVE_ROLES.includes(from) || SENSITIVE_ROLES.includes(to));
 }
 
+function memberLabel(member: Member): string {
+  const name = member.user.name.trim();
+  return name === '' ? member.user.email : name;
+}
+
 /** How long "Guardado" stays after a role change. */
 export const ROLE_SAVED_MS = 4000;
 
@@ -59,6 +64,8 @@ export const ROLE_SAVED_MS = 4000;
 interface SavedRole {
   readonly from: string;
   readonly to: string;
+  readonly name: string;
+  readonly role: MembershipRole;
 }
 
 /**
@@ -155,6 +162,19 @@ export function MembersSection() {
         </div>
       </form>
 
+      {/* Saved, and the list (a role filter) no longer shows the person: say it above it. */}
+      <div role="status" aria-live="polite" className="sp-admin__saved">
+        {saved !== null && !items.some((m) => m.id === saved.from || m.id === saved.to) ? (
+          <Notice level="ok">
+            <p>
+              {t('admin.members.roleSavedOutside', {
+                name: saved.name,
+                role: t(`role.${saved.role}`),
+              })}
+            </p>
+          </Notice>
+        ) : null}
+      </div>
       {members.isPending ? <Loading /> : null}
       {members.isError ? <ErrorNotice error={members.error} /> : null}
       {members.isSuccess && items.length === 0 ? (
@@ -186,7 +206,12 @@ export function MembersSection() {
                   saved={saved !== null && (saved.from === member.id || saved.to === member.id)}
                   focusRole={saved?.to === member.id}
                   onSaved={(next) => {
-                    setSaved({ from: member.id, to: next.id });
+                    setSaved({
+                      from: member.id,
+                      to: next.id,
+                      name: memberLabel(member),
+                      role: next.role,
+                    });
                   }}
                   onChanged={refresh}
                 />
@@ -246,7 +271,7 @@ function MemberRow(props: {
   }, [focusRole]);
 
   const name = member.user.name.trim();
-  const label = name === '' ? member.user.email : name;
+  const label = memberLabel(member);
   const ended = member.status === 'ended';
   const editable = !ended && isStaffMemberRole(member.role);
   const locked = own || props.lastAdmin;
