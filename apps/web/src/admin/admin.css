@@ -158,25 +158,76 @@
   }
 }
 /*
+ * Users and roles. The list is a table measured by its container (the
+ * card), not the viewport, so it never scrolls sideways:
+ * - 62rem and up: fixed columns; the role cell keeps room for the select
+ *   with "Guardar" and "Cancelar" beside it, so nothing moves when they
+ *   appear; the person (name and email) truncates with an ellipsis.
+ * - 48rem to 62rem: the same table with the buttons under the select.
+ * - under 48rem: each member is a card (the rows keep their table roles,
+ *   set explicitly in the markup), with the column's name over each value.
+ */
+.sp-admin__members {
+  container: members / inline-size;
+}
+.sp-admin__members > .sp-table {
+  table-layout: fixed;
+}
+.sp-admin__members-role {
+  width: 24.5rem;
+}
+.sp-admin__members-status {
+  width: 8.5rem;
+}
+.sp-admin__members-since {
+  width: 7rem;
+}
+.sp-admin__members-actions {
+  width: 10rem;
+}
+.sp-admin__person > .sp-admin__name,
+.sp-admin__person > .sp-admin__email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sp-admin__cell-label {
+  display: none;
+}
+.sp-admin__members .sp-admin__confirm {
+  max-width: 100%;
+}
+/* "Dar de baja" asks in its narrow cell: the buttons one under the other */
+.sp-admin__members-end .sp-form__actions {
+  flex-direction: column;
+  align-items: stretch;
+}
+.sp-admin__members-end .sp-admin__confirm p {
+  font-size: var(--sp-text-body-small-size);
+}
+
+/*
  * A member's role, edited in place: the select alone at rest; a change marks
  * it (brand outline) and shows "Guardar" and "Cancelar" beside it, or under
- * it where the cell is narrow. The cell keeps room for them on a wide screen
- * so the columns do not move when they appear.
+ * it where the cell is narrow; "Guardado" takes their place once saved.
  */
 .sp-admin__role {
   display: grid;
   gap: var(--sp-space-xs);
   justify-items: start;
+  min-width: 0;
 }
 .sp-admin__role-edit {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--sp-space-xs) var(--sp-space-sm);
+  max-width: 100%;
 }
 .sp-admin__role-edit > .sp-field {
   flex: none;
   width: 12.5rem;
+  max-width: 100%;
 }
 .sp-admin__role-actions {
   display: flex;
@@ -187,32 +238,111 @@
   border-color: var(--sp-color-brand-border);
   box-shadow: inset 0 0 0 var(--sp-border-width-hairline) var(--sp-color-brand-border);
 }
-/* The live region is always there (so "Guardado" is announced) but takes no room while empty */
-.sp-admin__role-status:empty {
-  position: absolute;
-}
 .sp-admin__role .sp-admin__meta {
-  max-width: 18rem;
+  max-width: 100%;
   white-space: normal;
 }
 .sp-admin__role .sp-notice,
 .sp-admin__role .sp-admin__confirm {
-  max-width: 24rem;
+  max-width: min(24rem, 100%);
 }
-@media (min-width: 64.0625rem) {
-  .sp-admin__role-cell {
-    min-width: 22rem;
-  }
-  .sp-admin__role-edit {
-    flex-wrap: nowrap;
-  }
+.sp-admin__members .sp-notice {
+  overflow-wrap: anywhere;
 }
 @media (forced-colors: active) {
   .sp-admin__role-edit select[data-changed] {
     outline: 2px solid Highlight;
   }
 }
-/* The live region of a role saved out of the filtered list: no room while empty */
+
+@container members (width < 62rem) {
+  .sp-admin__members-role {
+    width: 14rem;
+  }
+  .sp-admin__members-actions {
+    width: 8.5rem;
+  }
+  .sp-admin__role-edit {
+    flex-wrap: wrap;
+  }
+}
+
+@container members (width < 48rem) {
+  .sp-admin__members > .sp-table,
+  .sp-admin__members > .sp-table > tbody,
+  .sp-admin__members > .sp-table > tbody > tr > * {
+    display: block;
+  }
+  .sp-admin__members > .sp-table > colgroup {
+    display: none;
+  }
+  /* The column headers stay for assistive technology; each card says them over its values */
+  .sp-admin__members > .sp-table > thead {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .sp-admin__members > .sp-table > tbody {
+    display: grid;
+    gap: var(--sp-space-md);
+  }
+  .sp-admin__members > .sp-table > tbody > tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--sp-space-md) var(--sp-space-lg);
+    padding: var(--sp-space-lg);
+    border: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+    border-radius: var(--sp-radius-md);
+    background: var(--sp-color-surface-raised);
+  }
+  .sp-admin__members > .sp-table > tbody > tr > * {
+    height: auto;
+    min-width: 0;
+    padding: 0;
+    border-bottom: 0;
+    background: none;
+  }
+  .sp-admin__members > .sp-table > tbody > tr:hover > * {
+    background: none;
+  }
+  .sp-admin__members > .sp-table > tbody > tr > :is(th, td:first-of-type, td:last-child) {
+    grid-column: 1 / -1;
+  }
+  .sp-admin__members > .sp-table > tbody > tr > td.sp-table__number {
+    text-align: right;
+  }
+  .sp-admin__cell-label {
+    display: block;
+    margin-bottom: var(--sp-space-xs);
+    color: var(--sp-color-text-muted);
+    font-family: var(--sp-text-table-header-family);
+    font-size: var(--sp-text-table-header-size);
+    font-weight: var(--sp-text-table-header-weight);
+    letter-spacing: var(--sp-text-table-header-letter-spacing);
+  }
+  /* The select takes the card's width (up to a field's), at rest and while it changes; the buttons go under it */
+  .sp-admin__role {
+    justify-items: stretch;
+  }
+  .sp-admin__role-edit > .sp-field {
+    flex: 1 1 100%;
+    width: auto;
+    max-width: 24rem;
+  }
+  .sp-admin__members-end .sp-form__actions {
+    flex-direction: row;
+    align-items: center;
+  }
+  .sp-admin__members-end .sp-admin__confirm p {
+    font-size: inherit;
+  }
+}
+/* The section's live region of a saved role: no room while empty (or only heard) */
 .sp-admin__saved:empty {
   position: absolute;
 }

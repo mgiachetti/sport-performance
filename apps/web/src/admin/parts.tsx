@@ -198,5 +198,8 @@ export function useClubFormat() {
     dateTime: (iso: string | null) =>
       formatDateTime(iso === null ? null : new Date(iso), { timeZone: club.timeZone }),
     date: (day: string | null) => formatLocalDate(day as LocalDate | null),
+    /** The club's day of an instant (`dd/mm/aaaa`): a compact column; the time goes in its title. */
+    dayOf: (iso: string | null) =>
+      formatLocalDate(iso === null ? null : localDateInTimeZone(new Date(iso), club.timeZone)),
   };
 }
