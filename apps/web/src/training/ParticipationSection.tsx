@@ -172,7 +172,7 @@ export function ParticipationSection(props: { session: TrainingSessionDetail; ed
         {t('training.participation.title')}
       </h2>
 
-      <dl className="sp-summary" aria-label={t('training.summary.title')}>
+      <dl className="sp-summary sp-summary--tiles" aria-label={t('training.summary.title')}>
         <div>
           <dt>{t('training.summary.present')}</dt>
           <dd>{formatNumber(totals.present)}</dd>
@@ -254,27 +254,34 @@ export function ParticipationSection(props: { session: TrainingSessionDetail; ed
                 return (
                   <tr key={entry.player.id} className={dirty ? 'is-dirty' : undefined}>
                     <th scope="row">
-                      <span className="sp-sheet__name">{name}</span>
-                      {entry.inCategory ? null : (
-                        <span className="sp-tag">{t('training.participation.calledUp')}</span>
-                      )}
-                      {entry.player.archivedAt === null ? null : (
-                        <span className="sp-tag">{t('training.participation.leftClub')}</span>
-                      )}
-                      {entry.hasDataConsent ? null : (
-                        <StatusLabel level="warning">
-                          {t('training.participation.noConsent')}
-                        </StatusLabel>
-                      )}
+                      <div className="sp-sheet__who">
+                        <span className="sp-sheet__name">{name}</span>
+                        {entry.inCategory ? null : (
+                          <span className="sp-tag">{t('training.participation.calledUp')}</span>
+                        )}
+                        {entry.player.archivedAt === null ? null : (
+                          <span className="sp-tag">{t('training.participation.leftClub')}</span>
+                        )}
+                        {entry.hasDataConsent ? null : (
+                          <StatusLabel level="warning">
+                            {t('training.participation.noConsent')}
+                          </StatusLabel>
+                        )}
+                      </div>
                     </th>
                     <td>
                       {entry.availability === null ? (
                         t('training.availability.unknown')
                       ) : (
                         <>
-                          <StatusLabel level={AVAILABILITY_LEVELS[entry.availability.status]}>
-                            {t(`training.availability.${entry.availability.status}`)}
-                          </StatusLabel>
+                          {/* Pills only for who is limited or unavailable (ADR 0097). */}
+                          {entry.availability.status === 'available' ? (
+                            <span>{t('training.availability.available')}</span>
+                          ) : (
+                            <StatusLabel level={AVAILABILITY_LEVELS[entry.availability.status]}>
+                              {t(`training.availability.${entry.availability.status}`)}
+                            </StatusLabel>
+                          )}
                           {entry.availability.staffNotes.map((note) => (
                             <span key={note} className="sp-sheet__note">
                               {note}

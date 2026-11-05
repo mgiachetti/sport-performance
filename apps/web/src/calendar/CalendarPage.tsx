@@ -16,7 +16,7 @@ import { useActiveClub } from '../club/active-club';
 import { useScope } from '../club/use-scope';
 import { useT } from '../i18n/i18n';
 import { categoryFacts, RequirePermission, useCan } from '../permissions/permissions';
-import { Button, ErrorNotice, Loading, Notice, Page } from '../ui/components';
+import { Button, ErrorNotice, Loading, Notice, Page, SegmentedControl } from '../ui/components';
 import { Icon } from '../ui/icons';
 import { FixtureEditor } from './FixtureEditor';
 import {
@@ -287,23 +287,18 @@ function CalendarScreen() {
             </Button>
           )}
         </div>
-        <fieldset className="sp-cal__views">
-          <legend className="sp-visually-hidden">{t('calendar.view.label')}</legend>
-          {(['month', 'list'] as const).map((option) => (
-            <label key={option} className="sp-cal__view-option">
-              <input
-                type="radio"
-                name="calendar-view"
-                value={option}
-                checked={view === option}
-                onChange={() => {
-                  goTo({ view: option });
-                }}
-              />
-              <span>{t(`calendar.view.${option}`)}</span>
-            </label>
-          ))}
-        </fieldset>
+        <SegmentedControl
+          label={t('calendar.view.label')}
+          hideLabel
+          options={(['month', 'list'] as const).map((option) => ({
+            value: option,
+            label: t(`calendar.view.${option}`),
+          }))}
+          value={view}
+          onChange={(option) => {
+            goTo({ view: option });
+          }}
+        />
         <div className="sp-form__actions">
           {schedulable.length > 0 ? (
             <Button

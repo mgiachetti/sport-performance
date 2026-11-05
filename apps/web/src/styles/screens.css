@@ -112,10 +112,13 @@
   flex-wrap: wrap;
   gap: var(--sp-space-xxs);
 }
-.sp-table--sheet th[scope='row'] {
+.sp-sheet__who {
   display: grid;
   gap: var(--sp-space-xxs);
   justify-items: start;
+}
+.sp-table--sheet td .sp-field__input {
+  min-height: var(--sp-size-control-small);
 }
 .sp-table--sheet tr.is-dirty {
   box-shadow: inset var(--sp-border-width-thick) 0 0 var(--sp-color-brand-accent);
@@ -128,11 +131,143 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+/* The save bar of a long sheet stays in reach at the bottom of the screen. */
 .sp-sheet__footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   display: grid;
   gap: var(--sp-space-md);
-  margin-top: var(--sp-space-lg);
+  margin: var(--sp-space-sm) calc(var(--sp-space-xl) * -1) calc(var(--sp-space-xl) * -1);
+  padding: var(--sp-space-md) var(--sp-space-xl);
+  border-top: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+  border-radius: 0 0 var(--sp-radius-lg) var(--sp-radius-lg);
+  background: var(--sp-color-surface);
+}
+/* A summary as a row of figure tiles (participation totals). */
+.sp-summary--tiles {
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--sp-space-sm);
+}
+.sp-summary--tiles > div {
+  display: grid;
+  gap: var(--sp-space-xxs);
+  padding: var(--sp-space-md) var(--sp-space-lg);
+  border: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+  border-radius: var(--sp-radius-md);
+  background: var(--sp-color-background);
+}
+.sp-summary--tiles dd {
+  font-family: var(--sp-text-metric-family);
+  font-size: var(--sp-text-metric-size);
+  line-height: var(--sp-text-metric-line-height);
 }
 .sp-sheet__pending {
   color: var(--sp-color-text-secondary);
+}
+
+/* A form made of cards (data, then its parts), with the actions under them */
+.sp-form--cards > .sp-card {
+  margin-top: 0;
+}
+/* A fieldset drawn as a card: its legend is the card title, inside the frame */
+.sp-fieldset.sp-card {
+  padding: var(--sp-space-xl);
+  border: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+}
+.sp-fieldset__card-legend {
+  float: left;
+  width: 100%;
+  padding: 0;
+}
+
+/* A grid of fields that uses the width: short fields side by side, long ones on a row of their own */
+.sp-form__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: var(--sp-space-md);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+fieldset.sp-form__grid.sp-card {
+  padding: var(--sp-space-xl);
+  border: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+}
+.sp-form--cards > .sp-form__grid.sp-card,
+.sp-form > .sp-card {
+  margin-top: 0;
+}
+.sp-form__grid > :is(.sp-field:has(textarea), .sp-fieldset, .sp-notice),
+.sp-form__grid--day > .sp-field:first-child {
+  grid-column: 1 / -1;
+}
+/* A group inside the grid (an exercise of a day): framed, its fields in short columns */
+.sp-form__grid > .sp-fieldset {
+  padding: var(--sp-space-lg);
+  border: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+  border-radius: var(--sp-radius-md);
+  background: var(--sp-color-background);
+}
+.sp-form__grid > .sp-fieldset > legend {
+  float: left;
+  width: 100%;
+  padding: 0;
+  color: var(--sp-color-text-primary);
+  font-family: var(--sp-text-card-title-family);
+  font-size: var(--sp-text-body-size);
+  font-weight: var(--sp-text-card-title-weight);
+}
+.sp-form__grid > .sp-fieldset > .sp-fieldset__body {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9rem), 1fr));
+  align-items: start;
+  gap: var(--sp-space-md);
+}
+.sp-form__grid > .sp-fieldset > .sp-fieldset__body > :is(.sp-field:first-child, .sp-notice) {
+  grid-column: span 2;
+}
+.sp-form__grid > .sp-fieldset > .sp-fieldset__body > .sp-field:has(+ .sp-button:last-child),
+.sp-form__grid > .sp-fieldset > .sp-fieldset__body > .sp-field:last-child {
+  grid-column: span 2;
+}
+.sp-form__grid > .sp-fieldset > .sp-fieldset__body > .sp-button {
+  align-self: end;
+  justify-self: start;
+}
+.sp-form__grid .sp-field,
+.sp-form__grid .sp-field__input {
+  min-width: 0;
+}
+
+@media (max-width: 40rem) {
+  /* Cards have less padding on a phone: the save bar and the flush tables follow it. */
+  .sp-sheet__footer {
+    margin-inline: calc(var(--sp-space-lg) * -1);
+    margin-bottom: calc(var(--sp-space-lg) * -1);
+    padding-inline: var(--sp-space-lg);
+  }
+  .sp-card--flush {
+    padding-inline: 0;
+  }
+  .sp-card--flush > * {
+    margin-inline: var(--sp-space-lg);
+  }
+  .sp-card--flush > .sp-table-wrap {
+    margin-inline: 0;
+  }
+  .sp-card--flush .sp-table :is(th, td):first-child {
+    padding-left: var(--sp-space-lg);
+  }
+  .sp-card--flush .sp-table :is(th, td):last-child {
+    padding-right: var(--sp-space-lg);
+  }
+  .sp-card--flush .sp-table__caption {
+    padding-inline: var(--sp-space-lg);
+  }
+  fieldset.sp-form__grid.sp-card,
+  .sp-fieldset.sp-card {
+    padding: var(--sp-space-lg);
+  }
 }

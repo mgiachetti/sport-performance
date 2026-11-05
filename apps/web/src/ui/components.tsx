@@ -152,6 +152,8 @@ export function Page(props: {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
+  /** The way back to the list (`BackLink`), above the title. */
+  back?: ReactNode;
   children: ReactNode;
 }) {
   const t = useT();
@@ -165,6 +167,7 @@ export function Page(props: {
   }, []);
   return (
     <section className="sp-page" aria-labelledby="page-title">
+      {props.back}
       <header className="sp-page__header">
         <div>
           <h1 id="page-title" ref={heading} tabIndex={-1} className="sp-page__title">

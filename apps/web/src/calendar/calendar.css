@@ -75,35 +75,14 @@
 }
 .sp-cal__month {
   min-width: 12rem;
-  font-size: var(--sp-text-heading-size);
+  font-family: var(--sp-text-card-title-family);
+  font-size: var(--sp-text-card-title-size);
+  font-weight: var(--sp-text-card-title-weight);
   text-align: center;
-  text-transform: capitalize;
 }
-.sp-cal__views {
-  display: flex;
-  gap: var(--sp-space-xs);
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-.sp-cal__view-option {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-space-xs);
-  min-height: var(--sp-size-touch-target);
-  padding: 0 var(--sp-space-md);
-  border: var(--sp-border-width-hairline) solid var(--sp-color-border-strong);
-  border-radius: var(--sp-radius-pill);
-  cursor: pointer;
-}
-.sp-cal__view-option:has(input:checked) {
-  border-color: var(--sp-color-brand-accent);
-  background: var(--sp-color-brand-subtle);
-  font-weight: var(--sp-text-body-strong-weight);
-}
-.sp-cal__view-option:has(input:focus-visible) {
-  outline: var(--sp-focus-ring-width) solid var(--sp-color-focus);
-  outline-offset: var(--sp-focus-ring-offset);
+/* "noviembre de 2026" → "Noviembre de 2026" (capitalize would also raise "De"). */
+.sp-cal__month::first-letter {
+  text-transform: uppercase;
 }
 .sp-cal__legend {
   display: flex;

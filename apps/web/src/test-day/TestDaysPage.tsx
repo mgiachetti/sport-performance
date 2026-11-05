@@ -9,7 +9,7 @@ import { useActiveClub } from '../club/active-club';
 import { useScope } from '../club/use-scope';
 import { useT } from '../i18n/i18n';
 import { RequirePermission } from '../permissions/permissions';
-import { Button, ErrorNotice, Loading, Page } from '../ui/components';
+import { Button, Card, EmptyState, ErrorNotice, Loading, Page } from '../ui/components';
 import { TestDayStatus, useWindowLabels } from './parts';
 import { testDaysQuery } from './queries';
 import './test-day.css';
@@ -49,7 +49,6 @@ function TestDaysSection(props: { when: 'upcoming' | 'past' }) {
     ),
   );
   const windows = useWindowLabels();
-  const headingId = `test-days-${props.when}`;
   const days = query.data?.pages.flatMap((page) => page.items) ?? [];
   const categoryName = (session: TestSession) =>
     session.categoryId === null
@@ -57,20 +56,23 @@ function TestDaysSection(props: { when: 'upcoming' | 'past' }) {
       : (active.categories.find((c) => c.id === session.categoryId)?.name ?? '—');
 
   return (
-    <section className="sp-card" aria-labelledby={headingId}>
-      <h2 id={headingId} className="sp-card__title">
-        {t(props.when === 'upcoming' ? 'testDay.list.upcoming' : 'testDay.list.past')}
-      </h2>
+    <Card
+      variant="flush"
+      title={t(props.when === 'upcoming' ? 'testDay.list.upcoming' : 'testDay.list.past')}
+    >
       {query.isPending ? <Loading /> : null}
       {query.error === null ? null : <ErrorNotice error={query.error} />}
       {query.isSuccess && days.length === 0 ? (
-        <p>
-          {t(props.when === 'upcoming' ? 'testDay.list.emptyUpcoming' : 'testDay.list.emptyPast')}
-        </p>
+        <EmptyState
+          icon="stopwatch"
+          title={t(
+            props.when === 'upcoming' ? 'testDay.list.emptyUpcoming' : 'testDay.list.emptyPast',
+          )}
+        />
       ) : null}
       {days.length === 0 ? null : (
-        <div className="sp-td-scroll">
-          <table className="sp-td-table">
+        <div className="sp-table-wrap">
+          <table className="sp-table">
             <thead>
               <tr>
                 <th scope="col">{t('testDay.list.date')}</th>
@@ -83,7 +85,7 @@ function TestDaysSection(props: { when: 'upcoming' | 'past' }) {
             <tbody>
               {days.map((session) => (
                 <tr key={session.id}>
-                  <th scope="row">
+                  <th scope="row" className="sp-td-date">
                     <Link to="/test-days/$testSessionId" params={{ testSessionId: session.id }}>
                       {formatLocalDateLong(session.scheduledOn)}
                     </Link>
@@ -105,7 +107,7 @@ function TestDaysSection(props: { when: 'upcoming' | 'past' }) {
         </div>
       )}
       {query.hasNextPage ? (
-        <div>
+        <div className="sp-card__footer">
           <Button
             variant="secondary"
             disabled={query.isFetchingNextPage}
@@ -115,6 +117,6 @@ function TestDaysSection(props: { when: 'upcoming' | 'past' }) {
           </Button>
         </div>
       ) : null}
-    </section>
+    </Card>
   );
 }
