@@ -2007,4 +2007,41 @@ describeWithPostgres('offline sync (Postgres)', (serverUrl) => {
       expect(typeof after.items[0]?.data?.archivedAt).toBe('string');
     });
   });
+
+  // Last in the file: recording a restore changes the sync epoch of the whole database.
+  describe('after a restore (B-702, ADR 0094)', () => {
+    it('resets a cursor past the next txid, as one issued by a history the database lacks', async () => {
+      const current = await pullAll(adminA);
+      const payload = JSON.parse(Buffer.from(current.cursor, 'base64url').toString('utf8')) as {
+        x: string | null;
+        s: number | null;
+      };
+      const ahead = Buffer.from(
+        JSON.stringify({ ...payload, x: '9223372036854775807', s: 0 }),
+        'utf8',
+      ).toString('base64url');
+      const page = await pullOk(adminA, `?cursor=${ahead}`);
+      expect(page.reset).toBe(true);
+      expect(page.items.length).toBeGreaterThan(0);
+      // The cursor of this history is still good.
+      expect((await pullOk(adminA, `?cursor=${current.cursor}`)).reset).toBe(false);
+    });
+
+    it('resets every cursor issued before a restore was recorded, once', async () => {
+      const before = await pullAll(adminA);
+      const player = await pullAll(player15);
+      await database.admin.query(
+        `insert into ops.restore_event (kind, environment, recovery_target_at, reason)
+         values ('incident', 'test', now() - interval '1 minute', 'Prueba de restauración')`,
+      );
+      const again = await pullOk(adminA, `?cursor=${before.cursor}`);
+      expect(again.reset).toBe(true);
+      expect(again.items.length).toBeGreaterThan(0);
+      expect((await pullOk(player15, `?cursor=${player.cursor}`)).reset).toBe(true);
+      // The new cursors carry the new epoch: no reset loop.
+      const next = await pullAll(adminA, { cursor: again.cursor });
+      expect(next.reset).toBe(false);
+      expect((await pullOk(adminA, `?cursor=${next.cursor}`)).reset).toBe(false);
+    });
+  });
 });
