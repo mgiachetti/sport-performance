@@ -232,6 +232,23 @@
 .sp-panel-cards__figures {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 var(--sp-space-md);
+  gap: var(--sp-space-xxs) var(--sp-space-lg);
+  margin: 0;
+}
+.sp-panel-cards__figures > div {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-space-xs);
+}
+/* Muted label, the figure in the table-number type: same language as the KPIs and the table. */
+.sp-panel-cards__figures dt {
+  color: var(--sp-color-text-muted);
+  font-size: var(--sp-text-body-small-size);
+}
+.sp-panel-cards__figures dd {
+  margin: 0;
+  font-family: var(--sp-text-table-number-family);
+  font-size: var(--sp-text-table-number-size);
+  font-weight: var(--sp-text-table-number-weight);
   font-variant-numeric: tabular-nums;
 }

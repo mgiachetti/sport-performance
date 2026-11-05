@@ -26,6 +26,10 @@
 }
 /* Phones: name, category and age; position and birth date are in the profile. */
 @media (max-width: 40rem) {
+  /* The search takes its own full row under the title. */
+  .sp-players .sp-card__actions {
+    flex: 1 1 100%;
+  }
   .sp-players__search {
     width: 100%;
   }
@@ -59,6 +63,13 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+/* Wide screens: the facts spread across the hero instead of leaving its right half empty. */
+@media (min-width: 64rem) {
+  .sp-profile__facts {
+    flex: 1;
+    justify-content: space-between;
+  }
 }
 .sp-profile__fact {
   display: grid;
@@ -94,6 +105,28 @@
 }
 .sp-profile__card--wide {
   grid-column: 1 / -1;
+}
+/* A block the role cannot see: its title and the notice on one compact line. */
+.sp-profile__card--restricted {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-space-sm) var(--sp-space-xl);
+  padding: var(--sp-space-md) var(--sp-space-xl);
+}
+.sp-profile__card--restricted .sp-card__subtitle-text {
+  display: none;
+}
+.sp-profile__card--restricted > .sp-notice {
+  flex: 0 1 auto;
+  margin-top: 0;
+  padding: var(--sp-space-xs) var(--sp-space-md);
+}
+.sp-profile__card--restricted .sp-notice__icon {
+  margin-top: 0;
+  align-self: center;
 }
 @media (max-width: 80rem) {
   .sp-profile__grid {

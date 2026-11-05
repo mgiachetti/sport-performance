@@ -52,13 +52,17 @@ export function Button({
 /** A labelled input with its help and error text wired by `aria-describedby`. */
 export function TextField({
   label,
+  hideLabel,
   help,
   error,
   ...input
-}: { label: string; help?: string | undefined; error?: string | null | undefined } & Omit<
-  InputHTMLAttributes<HTMLInputElement>,
-  'id'
->) {
+}: {
+  label: string;
+  /** Keep the label for assistive technology only (a search beside a card title). */
+  hideLabel?: boolean;
+  help?: string | undefined;
+  error?: string | null | undefined;
+} & Omit<InputHTMLAttributes<HTMLInputElement>, 'id'>) {
   const id = useId();
   const helpId = `${id}-help`;
   const errorId = `${id}-error`;
@@ -67,7 +71,7 @@ export function TextField({
     .join(' ');
   return (
     <div className="sp-field">
-      <label htmlFor={id} className="sp-field__label">
+      <label htmlFor={id} className={hideLabel === true ? 'sp-visually-hidden' : 'sp-field__label'}>
         {label}
       </label>
       <input
@@ -265,7 +269,7 @@ export function KpiTile(props: {
   unit?: string | undefined;
   caption?: string | undefined;
   highlighted?: boolean;
-  /** A status next to the figure (`StatusChip`, `StatusBadge`): icon + text, never color alone. */
+  /** A status on its own row under the figure (`StatusChip`, `StatusBadge`): icon + text, never color alone. */
   status?: ReactNode;
 }) {
   return (
@@ -274,8 +278,8 @@ export function KpiTile(props: {
       <p className="sp-kpi__value">
         <span className="sp-kpi__figure">{props.value}</span>
         {props.unit === undefined ? null : <span className="sp-kpi__unit"> {props.unit}</span>}
-        {props.status === undefined ? null : <span className="sp-kpi__status">{props.status}</span>}
       </p>
+      {props.status === undefined ? null : <div className="sp-kpi__status">{props.status}</div>}
       {props.caption === undefined ? null : <p className="sp-kpi__caption">{props.caption}</p>}
     </div>
   );

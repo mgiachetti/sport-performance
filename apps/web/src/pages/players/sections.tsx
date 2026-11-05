@@ -58,8 +58,10 @@ export function Section(props: {
       className={[
         'sp-card',
         'sp-profile__card',
-        // A block the role cannot see is one short notice: it never takes a whole row.
-        props.wide === true && props.allowed ? 'sp-profile__card--wide' : '',
+        // A wide block keeps its row even when the role cannot see it (never an orphan third of
+        // a row with two empty columns next to it); denied, it is one compact line.
+        props.wide === true ? 'sp-profile__card--wide' : '',
+        props.allowed ? '' : 'sp-profile__card--restricted',
       ]
         .filter(Boolean)
         .join(' ')}
@@ -140,16 +142,24 @@ export function AvailabilitySection(props: { playerId: PlayerId; allowed: boolea
             <>
               <div className="sp-profile__status-row">
                 <AvailabilityBadge status={data.current.overall} />
-                <span>
-                  {t('player.availability.training', {
-                    status: availabilityLabel(t, data.current.training),
-                  })}
-                </span>
-                <span>
-                  {t('player.availability.match', {
-                    status: availabilityLabel(t, data.current.match),
-                  })}
-                </span>
+                {/* Training and match only when they differ from the overall state (as in the
+                    panel): when all three say the same, the chip says it all. */}
+                {data.current.training === data.current.overall &&
+                data.current.match === data.current.overall ? null : (
+                  <span className="sp-profile__muted">
+                    <span>
+                      {t('player.availability.training', {
+                        status: availabilityLabel(t, data.current.training),
+                      })}
+                    </span>
+                    {' · '}
+                    <span>
+                      {t('player.availability.match', {
+                        status: availabilityLabel(t, data.current.match),
+                      })}
+                    </span>
+                  </span>
+                )}
               </div>
               {data.current.staffNotes.length === 0 ? null : (
                 <div>
@@ -610,7 +620,8 @@ function LoadTiles(props: {
         label={t('player.load.acwrLabel')}
         value={acwr.value}
         caption={acwr.caption}
-        highlighted={showAcwrStatus}
+        // The chip carries the state (icon + text, its own color); a brand tint on top would
+        // say something else.
         {...(showAcwrStatus && props.acwrAlert !== null
           ? { status: <StatusBadge level={props.acwrAlert.currentSeverity} /> }
           : {})}

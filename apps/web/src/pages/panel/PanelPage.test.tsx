@@ -190,7 +190,15 @@ describe('weekly panel', () => {
       expect(bianchi).toBeDefined();
       if (bianchi === undefined) return;
       expect(within(bianchi).getByText('Crítico')).toBeVisible();
-      expect(within(bianchi).getByText('ACWR 1,46')).toBeVisible();
+      // Each figure is a muted term with its value: ACWR → 1,46.
+      const acwrTerm = within(bianchi).getByText('ACWR', { selector: 'dt' });
+      expect(acwrTerm).toBeVisible();
+      expect(acwrTerm.nextElementSibling).toHaveTextContent(/^1,46$/);
+      // The name opens the player's profile.
+      expect(within(bianchi).getByRole('link', { name: 'Bianchi, Tomás' })).toHaveAttribute(
+        'href',
+        expect.stringMatching(/^\/players\/[^/]+$/) as string,
+      );
       expect(within(bianchi).getByText('Entrenar: Limitado')).toBeVisible();
     } finally {
       matchMedia.mockRestore();

@@ -102,9 +102,9 @@ export const webPanelMessagesEsAR = {
   'panel.roster.measuredOn': 'Medido el {date}',
   'panel.roster.empty': 'No hay jugadores en este grupo.',
   // Narrow screens: one card per player instead of a table that scrolls sideways.
-  'panel.roster.card.wellness': 'Bienestar {value}',
-  'panel.roster.card.load': 'sRPE {value}',
-  'panel.roster.card.acwr': 'ACWR {value}',
+  'panel.roster.card.wellness': 'Bienestar',
+  'panel.roster.card.load': 'sRPE',
+  'panel.roster.card.acwr': 'ACWR',
   'panel.roster.card.maturity': 'Maduración: {value}',
 
   // ACWR states

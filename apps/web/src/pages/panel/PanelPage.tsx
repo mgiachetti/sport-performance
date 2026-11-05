@@ -25,7 +25,7 @@ import {
 } from '@sport-performance/i18n';
 import type { StatusLevel } from '@sport-performance/ui-tokens';
 import { keepPreviousData, queryOptions, useQuery } from '@tanstack/react-query';
-import { getRouteApi } from '@tanstack/react-router';
+import { Link, getRouteApi } from '@tanstack/react-router';
 import { useId, useMemo, useState } from 'react';
 import type { ClubSelection } from '../../api/club-selection';
 import { clubQueryKey } from '../../api/queries';
@@ -742,7 +742,7 @@ function Roster(props: {
                     <th scope="row">
                       <span className="sp-table__cell-player">
                         <Avatar label={initialsOf(`${player.firstName} ${player.lastName}`)} />
-                        <span>{playerName(t, player)}</span>
+                        <PlayerLink player={player} />
                       </span>
                     </th>
                     <td className="sp-panel-nowrap">{positionName(t, player)}</td>
@@ -778,6 +778,20 @@ function Roster(props: {
   );
 }
 
+/** The player's name as the way into the profile (each block of the profile checks its access). */
+function PlayerLink(props: { player: PanelPlayer }) {
+  const t = useT();
+  return (
+    <Link
+      to="/players/$playerId"
+      params={{ playerId: props.player.playerId }}
+      className="sp-table__link"
+    >
+      {playerName(t, props.player)}
+    </Link>
+  );
+}
+
 /** The roster on a phone: name and status, then the figures of the week, then maturity. */
 function RosterCards(props: {
   panel: WeeklyPanel;
@@ -809,41 +823,42 @@ function RosterCards(props: {
             <div className="sp-panel-cards__head">
               <Avatar label={initialsOf(`${player.firstName} ${player.lastName}`)} />
               <div className="sp-panel-cards__who">
-                <p className="sp-panel-cards__name">{playerName(t, player)}</p>
+                <p className="sp-panel-cards__name">
+                  <PlayerLink player={player} />
+                </p>
                 <p className="sp-panel-muted">{positionName(t, player)}</p>
               </div>
               <StatusCell player={player} />
             </div>
-            <p className="sp-panel-cards__figures">
-              <span>
-                {t('panel.roster.card.wellness', {
-                  value:
-                    player.wellness.weekMeanScore === null
-                      ? t('panel.roster.noWellness')
-                      : t('panel.roster.wellnessValue', {
-                          value: formatNumber(player.wellness.weekMeanScore, { decimals: 1 }),
-                        }),
-                })}
-              </span>
-              <span>
-                {t('panel.roster.card.load', {
-                  value: formatUnit(player.load.weekLoadAu, 'au', { decimals: 0 }),
-                })}
-              </span>
-              <span>
-                {t('panel.roster.card.acwr', {
-                  value:
-                    player.load.acwrStatus === 'ok'
-                      ? formatNumber(player.load.acwr, { decimals: 2 })
-                      : t(`panel.acwr.${player.load.acwrStatus}`),
-                })}
-              </span>
-              {player.load.pendingRpeN === 0 ? null : (
-                <span className="sp-panel-muted">
-                  {t('panel.roster.pendingRpe', { count: player.load.pendingRpeN })}
-                </span>
-              )}
-            </p>
+            <dl className="sp-panel-cards__figures">
+              <div>
+                <dt>{t('panel.roster.card.wellness')}</dt>
+                <dd>
+                  {player.wellness.weekMeanScore === null
+                    ? t('panel.roster.noWellness')
+                    : t('panel.roster.wellnessValue', {
+                        value: formatNumber(player.wellness.weekMeanScore, { decimals: 1 }),
+                      })}
+                </dd>
+              </div>
+              <div>
+                <dt>{t('panel.roster.card.load')}</dt>
+                <dd>{formatUnit(player.load.weekLoadAu, 'au', { decimals: 0 })}</dd>
+              </div>
+              <div>
+                <dt>{t('panel.roster.card.acwr')}</dt>
+                <dd>
+                  {player.load.acwrStatus === 'ok'
+                    ? formatNumber(player.load.acwr, { decimals: 2 })
+                    : t(`panel.acwr.${player.load.acwrStatus}`)}
+                </dd>
+              </div>
+            </dl>
+            {player.load.pendingRpeN === 0 ? null : (
+              <p className="sp-panel-muted">
+                {t('panel.roster.pendingRpe', { count: player.load.pendingRpeN })}
+              </p>
+            )}
             <p className="sp-panel-muted">{t('panel.roster.card.maturity', { value: maturity })}</p>
             {player.availability === null || player.availability.overall === 'available' ? null : (
               <Availability availability={player.availability} />

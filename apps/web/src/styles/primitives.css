@@ -53,8 +53,7 @@
   font-variant-numeric: var(--sp-text-unit-numeric);
 }
 .sp-kpi__status {
-  align-self: center;
-  margin-left: var(--sp-space-xs);
+  display: flex;
 }
 .sp-kpi__caption {
   color: var(--sp-color-text-muted);

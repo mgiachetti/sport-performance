@@ -54,13 +54,20 @@ export function PlayersPage() {
         title={t('players.table.title')}
         subtitle={
           query.isPending || query.error !== null ? undefined : (
-            <span role="status">{t('players.count', { count: players.length })}</span>
+            <span role="status">
+              {/* While more pages remain, the count is what is shown, not the roster size. */}
+              {t(query.hasNextPage ? 'players.countShown' : 'players.count', {
+                count: players.length,
+              })}
+            </span>
           )
         }
         actions={
           <div className="sp-players__search">
             <TextField
               label={t('players.search')}
+              hideLabel
+              placeholder={t('players.search')}
               type="search"
               value={search}
               onChange={(event) => {

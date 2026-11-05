@@ -11,6 +11,8 @@ export const webPlayerMessagesEsAR = {
   'players.search': 'Buscar por nombre o apellido',
   'players.empty': 'No hay jugadores con ese filtro en lo que ves.',
   'players.count': '{count, plural, one {# jugador} other {# jugadores}}',
+  'players.countShown':
+    'Mostrando {count, plural, one {# jugador} other {los primeros # jugadores}}',
   'players.more': 'Mostrar más',
   'players.table.name': 'Jugador',
   'players.table.category': 'Categoría',
