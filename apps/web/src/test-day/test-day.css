@@ -128,6 +128,10 @@
 .sp-td-sheet :is(th, td) {
   padding-inline: var(--sp-space-xs);
 }
+/* The fields of one attempt close together; the cell padding separates attempts. */
+.sp-td-sheet .sp-td-attempt {
+  gap: var(--sp-space-xxs);
+}
 .sp-td-scroll:has(> .sp-td-sheet) {
   margin-inline: calc((var(--sp-space-xl) - var(--sp-space-xs)) * -1);
 }
@@ -142,7 +146,7 @@
 }
 /* Previous result and its method or protocol note: wide enough to keep each on two lines. */
 .sp-td-sheet td:has(.sp-td-previous) {
-  min-width: 12.5rem;
+  min-width: 11rem;
   font-size: var(--sp-text-caption-size);
 }
 .sp-td-previous .sp-td-msg {
@@ -153,9 +157,15 @@
   flex: none;
   margin-top: var(--sp-space-xxs);
 }
-/* One line per player name ("Lima, Juan Cruz"): rows stay short. */
+/*
+ * Player names: one line for most ("Duarte, Julián"), a long one
+ * ("Echeverría, Juan Cruz") wraps instead of pushing the method column out of
+ * the card at 1440 px.
+ */
 .sp-td-sheet .sp-td-name {
-  white-space: nowrap;
+  display: block;
+  min-width: 8.5rem;
+  max-width: 10rem;
 }
 .sp-td-cell {
   display: grid;
@@ -278,6 +288,6 @@
     padding-inline: var(--sp-space-lg);
   }
   .sp-td-scroll:has(> .sp-td-sheet) {
-    margin-inline: calc((var(--sp-space-lg) - var(--sp-space-sm)) * -1);
+    margin-inline: calc((var(--sp-space-lg) - var(--sp-space-xs)) * -1);
   }
 }

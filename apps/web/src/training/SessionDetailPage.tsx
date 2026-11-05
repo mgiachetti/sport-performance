@@ -309,7 +309,7 @@ export function SessionDetailPage() {
       ) : null}
       {archive.isError ? <ErrorNotice error={archive.error} /> : null}
 
-      <div className="sp-columns">
+      <div className="sp-columns sp-columns--stretch">
         {editing ? (
           <EditSession
             session={session}

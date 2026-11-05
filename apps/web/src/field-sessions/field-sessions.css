@@ -13,12 +13,19 @@
   min-width: 14rem;
 }
 
-.sp-fs-table thead th {
+/*
+ * Long metric headers ("Distancia por minuto (m/min)") wrap onto two lines;
+ * the number columns' `nowrap` of the shared table is more specific, so it is named here.
+ */
+.sp-fs-table thead th,
+.sp-fs-table thead th.sp-table__number {
   white-space: normal;
   vertical-align: bottom;
-  min-width: 4.5rem;
+  min-width: 5.5rem;
 }
-.sp-fs-table tbody th {
+.sp-fs-table tbody th,
+.sp-fs-table tbody th + td {
+  /* Name and position ("Segunda línea") on one line: every row 48 px. */
   white-space: nowrap;
 }
 .sp-fs-table thead th {

@@ -302,7 +302,7 @@ export function SeasonsSection(props: { today: LocalDate; onDone: (message: stri
                               {t('calendar.windows.missing')}
                             </StatusLabel>
                           ) : window.archivedAt === null ? (
-                            <StatusLabel level="ok">{t('calendar.windows.active')}</StatusLabel>
+                            <span className="is-muted">{t('calendar.windows.active')}</span>
                           ) : (
                             <StatusLabel level="info">{t('calendar.windows.archived')}</StatusLabel>
                           )}

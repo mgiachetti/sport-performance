@@ -11,9 +11,6 @@
 
 /* Filters and form layout */
 /* `.sp-filters` itself is the toolbar primitive (styles/primitives.css). */
-.sp-filters > .sp-field {
-  min-width: 12rem;
-}
 .sp-form__row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
