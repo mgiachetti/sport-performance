@@ -8,7 +8,7 @@ import { DATABASE_ENVIRONMENT_SETTING } from './seeds/demo/guard.js';
 /**
  * Backups and recovery (B-702, ADR 0094): the tooling of a restore drill and
  * of the restore of an incident, over the `ops` schema of migration
- * `0045_restore_drills`. Everything here runs as the owner of the database
+ * `0051_restore_drills`. Everything here runs as the owner of the database
  * (a superuser or a role with BYPASSRLS, like the migration runner): it reads
  * every club and the `medical` schema to count rows, and it never returns a
  * row's content, only table names, counts and timestamps.

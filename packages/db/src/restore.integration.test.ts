@@ -17,7 +17,7 @@ import {
 import { seedClubFixture } from './testing/tenant-fixture.js';
 
 /**
- * Backups and recovery (B-702, migration 0045, ADR 0094): the `ops` schema
+ * Backups and recovery (B-702, migration 0051, ADR 0094): the `ops` schema
  * belongs to the owner only, markers and restore events are append-only, the
  * sync epoch changes with a recorded restore, and the verification of a
  * restored copy reads a migrated database right and catches a broken one.
