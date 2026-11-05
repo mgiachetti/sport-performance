@@ -150,6 +150,12 @@ describe.each(Object.entries(CLUB_BRANDS))('accessibility for club brand %s', (_
       expectContrast(theme.color.border.strong, all, CONTRAST.nonText, 'border.strong');
       expectContrast(theme.color.chart.player, all, CONTRAST.nonText, 'chart.player');
       expectContrast(theme.color.chart.categoryAverage, all, CONTRAST.nonText, 'chart.avg');
+      expectContrast(theme.color.chart.playerMuted, all, CONTRAST.nonText, 'chart.playerMuted');
+      expectContrast(theme.color.brand.border, all, CONTRAST.nonText, 'brand.border');
+    });
+
+    it('dims the brand series without making it the same color', () => {
+      expect(theme.color.chart.playerMuted).not.toBe(theme.color.chart.player);
     });
 
     it('keeps the raw club colors for fills and stripes', () => {

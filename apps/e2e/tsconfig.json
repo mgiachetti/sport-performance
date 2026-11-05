@@ -9,5 +9,5 @@
     "declaration": false,
     "declarationMap": false
   },
-  "include": ["src", "tests", "playwright.config.ts", "vitest.config.ts"]
+  "include": ["src", "tests", "screenshots", "playwright.config.ts", "vitest.config.ts"]
 }

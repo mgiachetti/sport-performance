@@ -31,3 +31,11 @@ export {
   type PurgeOptions,
   type PurgeReport,
 } from './retention.js';
+export {
+  InvalidClubLogoError,
+  installClubLogo,
+  sniffImageType,
+  type ClubLogoContentType,
+  type InstallClubLogoOptions,
+  type InstallClubLogoResult,
+} from './club-logo.js';

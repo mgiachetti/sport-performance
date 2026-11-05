@@ -13,6 +13,15 @@ export function stripesGradient(theme: Theme, size: StripeSize = 'md'): string {
   return `repeating-linear-gradient(180deg, ${first} 0 ${String(band)}px, ${second} ${String(band)}px ${String(band * 2)}px)`;
 }
 
+/**
+ * The stripes as a thin horizontal seal (a line of alternating segments, the
+ * bands seen edge-on): for headers and the edge of the navigation.
+ */
+export function stripesSeal(theme: Theme, segmentPx = 12): string {
+  const [first, second] = theme.stripes.colors;
+  return `repeating-linear-gradient(90deg, ${first} 0 ${String(segmentPx)}px, ${second} ${String(segmentPx)}px ${String(segmentPx * 2)}px)`;
+}
+
 export interface StripeBand {
   readonly color: HexColor;
   /** Band height in px (the last band may be shorter to fit `totalHeightPx`). */

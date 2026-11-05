@@ -43,6 +43,8 @@ export const webPanelMessagesEsAR = {
   'panel.kpi.alertsDetail':
     '{count, plural, =0 {Ninguno en crítico} one {# en crítico} other {# en crítico}}',
   'panel.kpi.outOf': '{value} de {total}',
+  'panel.kpi.ofTotal': 'de {total}',
+  'panel.kpi.ofScore': 'de 5',
 
   // Load chart
   'panel.chart.title':
@@ -58,6 +60,8 @@ export const webPanelMessagesEsAR = {
   'panel.attention.subtitle':
     'Alertas activas por carga, bienestar y crecimiento. Son heurísticas de carga, no un diagnóstico.',
   'panel.attention.none': 'Nadie del grupo tiene alertas activas.',
+  'panel.attention.showAll': 'Ver todas ({count})',
+  'panel.attention.showFewer': 'Ver menos',
   'panel.attention.more':
     '{count, plural, one {Y # alerta más de este jugador} other {Y # alertas más de este jugador}}',
 

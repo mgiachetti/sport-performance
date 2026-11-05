@@ -19,6 +19,7 @@ const state: RunState = {
     validFrom: '2026-11-01',
     validTo: '2026-11-25',
   },
+  files: true,
 };
 
 describe('state of the run', () => {

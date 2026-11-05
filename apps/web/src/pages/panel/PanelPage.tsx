@@ -15,7 +15,13 @@ import {
   type LocalDate,
   type Sport,
 } from '@sport-performance/domain';
-import { formatLocalDate, formatNumber, formatUnit, isMessageKey } from '@sport-performance/i18n';
+import {
+  formatLocalDate,
+  formatNumber,
+  formatUnit,
+  isMessageKey,
+  unitLabelEsAr,
+} from '@sport-performance/i18n';
 import type { StatusLevel } from '@sport-performance/ui-tokens';
 import { keepPreviousData, queryOptions, useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
@@ -27,7 +33,18 @@ import { ASSIGNED_ROLES, useActiveClub } from '../../club/active-club';
 import { useScope } from '../../club/use-scope';
 import { translate, useT } from '../../i18n/i18n';
 import { alertText } from '../../lib/alert-text';
-import { Button, ErrorNotice, Loading, Notice, Page } from '../../ui/components';
+import {
+  Avatar,
+  Button,
+  Card,
+  ErrorNotice,
+  KpiTile,
+  Loading,
+  Notice,
+  Page,
+} from '../../ui/components';
+import { Icon } from '../../ui/icons';
+import { initialsOf } from '../../lib/initials';
 import {
   BIO_BAND_SCHEMES,
   isCurrentWeek,
@@ -172,10 +189,13 @@ function PanelControls(props: { panel: WeeklyPanel | undefined; grouping: PanelG
   };
   return (
     <div className="sp-panel-controls">
-      <div className="sp-scope__field">
-        <label htmlFor={groupId}>{t('panel.group.label')}</label>
+      <div className="sp-field sp-panel-controls__group">
+        <label htmlFor={groupId} className="sp-field__label">
+          {t('panel.group.label')}
+        </label>
         <select
           id={groupId}
+          className="sp-select--sm"
           value={props.grouping}
           onChange={(event) => {
             const value = event.target.value as PanelGrouping;
@@ -195,15 +215,18 @@ function PanelControls(props: { panel: WeeklyPanel | undefined; grouping: PanelG
       <div className="sp-panel-week" role="group" aria-label={t('panel.week.label')}>
         <Button
           variant="secondary"
+          size="sm"
           disabled={panel === undefined}
           onClick={() => {
             if (panel !== undefined) goToWeek(addDays(panel.week.from, -7));
           }}
         >
-          {t('panel.week.previous')}
+          <Icon name="chevronLeft" />
+          <span>{t('panel.week.previous')}</span>
         </Button>
         <Button
           variant="secondary"
+          size="sm"
           disabled={panel === undefined || isCurrentWeek(panel)}
           onClick={() => {
             if (panel === undefined) return;
@@ -211,10 +234,12 @@ function PanelControls(props: { panel: WeeklyPanel | undefined; grouping: PanelG
             goToWeek(next > panel.today ? undefined : next);
           }}
         >
-          {t('panel.week.next')}
+          <span>{t('panel.week.next')}</span>
+          <Icon name="chevronRight" />
         </Button>
         <Button
           variant="ghost"
+          size="sm"
           disabled={panel === undefined || isCurrentWeek(panel)}
           onClick={() => {
             goToWeek(undefined);
@@ -263,6 +288,7 @@ function PanelBody(props: { panel: WeeklyPanel; grouping: PanelGrouping }) {
       <div className="sp-panel-groups" role="group" aria-label={t('panel.group.tabs')}>
         <Button
           variant="secondary"
+          size="sm"
           aria-pressed={selected === undefined}
           onClick={() => {
             setSelectedKey(ALL_GROUP);
@@ -274,6 +300,7 @@ function PanelBody(props: { panel: WeeklyPanel; grouping: PanelGrouping }) {
           <Button
             key={group.key}
             variant="secondary"
+            size="sm"
             aria-pressed={selected?.key === group.key}
             onClick={() => {
               setSelectedKey(group.key);
@@ -291,7 +318,7 @@ function PanelBody(props: { panel: WeeklyPanel; grouping: PanelGrouping }) {
       <Kpis panel={panel} players={players} />
       <div className="sp-panel-grid">
         <LoadChart panel={panel} players={players} />
-        <Attention players={players} />
+        <Attention key={selectedKey} players={players} />
       </div>
       <Roster panel={panel} players={players} grouping={grouping} />
     </>
@@ -302,45 +329,34 @@ function Kpis(props: { panel: WeeklyPanel; players: readonly PanelPlayer[] }) {
   const t = useT();
   const current = isCurrentWeek(props.panel);
   const summary = panelSummary(props.players, current);
-  const outOf = (value: number) =>
-    t('panel.kpi.outOf', { value: formatNumber(value), total: formatNumber(summary.players) });
-  const cards: { label: string; value: string; detail: string; alert?: boolean }[] = [
-    {
-      label: current ? t('panel.kpi.wellnessToday') : t('panel.kpi.wellnessWeek'),
-      value: outOf(summary.wellnessResponded),
-      detail: current ? t('panel.kpi.wellnessTodayDetail') : t('panel.kpi.wellnessWeekDetail'),
-    },
-    {
-      label: t('panel.kpi.wellnessMean'),
-      value:
-        summary.wellnessMeanScore === null
-          ? formatNumber(null)
-          : t('panel.roster.wellnessValue', {
-              value: formatNumber(summary.wellnessMeanScore, { decimals: 1 }),
-            }),
-      detail: t('panel.kpi.wellnessMeanDetail', { count: summary.wellnessPlayers }),
-    },
-    {
-      label: t('panel.kpi.load'),
-      value: formatUnit(summary.loadMeanAu, 'au', { decimals: 0 }),
-      detail: t('panel.kpi.loadDetail', { count: summary.loadPlayers }),
-    },
-    {
-      label: t('panel.kpi.alerts'),
-      value: outOf(summary.withAlerts),
-      detail: t('panel.kpi.alertsDetail', { count: summary.critical }),
-      alert: summary.critical > 0,
-    },
-  ];
+  const ofTotal = t('panel.kpi.ofTotal', { total: formatNumber(summary.players) });
   return (
-    <section className="sp-panel-kpis" aria-label={t('panel.kpi.label')}>
-      {cards.map((card) => (
-        <div key={card.label} className={`sp-card sp-panel-kpi${card.alert ? ' is-alert' : ''}`}>
-          <p className="sp-panel-kpi__label">{card.label}</p>
-          <p className="sp-panel-kpi__value">{card.value}</p>
-          <p className="sp-panel-kpi__detail">{card.detail}</p>
-        </div>
-      ))}
+    <section className="sp-kpis sp-panel-kpis" aria-label={t('panel.kpi.label')}>
+      <KpiTile
+        label={current ? t('panel.kpi.wellnessToday') : t('panel.kpi.wellnessWeek')}
+        value={formatNumber(summary.wellnessResponded)}
+        unit={ofTotal}
+        caption={current ? t('panel.kpi.wellnessTodayDetail') : t('panel.kpi.wellnessWeekDetail')}
+      />
+      <KpiTile
+        label={t('panel.kpi.wellnessMean')}
+        value={formatNumber(summary.wellnessMeanScore, { decimals: 1 })}
+        unit={summary.wellnessMeanScore === null ? undefined : t('panel.kpi.ofScore')}
+        caption={t('panel.kpi.wellnessMeanDetail', { count: summary.wellnessPlayers })}
+      />
+      <KpiTile
+        label={t('panel.kpi.load')}
+        value={formatNumber(summary.loadMeanAu, { decimals: 0 })}
+        unit={summary.loadMeanAu === null ? undefined : unitLabelEsAr('au')}
+        caption={t('panel.kpi.loadDetail', { count: summary.loadPlayers })}
+      />
+      <KpiTile
+        label={t('panel.kpi.alerts')}
+        value={formatNumber(summary.withAlerts)}
+        unit={ofTotal}
+        caption={t('panel.kpi.alertsDetail', { count: summary.critical })}
+        highlighted={summary.critical > 0}
+      />
     </section>
   );
 }
@@ -370,9 +386,13 @@ function LoadChart(props: { panel: WeeklyPanel; players: readonly PanelPlayer[] 
       directLabel: 'last',
     };
   }, [panel.weeks, players, t]);
+  // The current (or chosen) week in full brand color, the earlier ones dimmed.
+  const lastHasValue = spec.bars.at(-1)?.value !== null;
   return (
-    <div className="sp-card sp-panel-chart">
-      <BarChart spec={spec} description={t('panel.chart.description')} height={260} />
+    <div
+      className={`sp-card sp-panel-chart${lastHasValue ? ' sp-panel-chart--emphasize-last' : ''}`}
+    >
+      <BarChart spec={spec} description={t('panel.chart.description')} height={300} />
     </div>
   );
 }
@@ -381,45 +401,73 @@ function playerName(t: ReturnType<typeof useT>, player: PanelPlayer): string {
   return t('panel.roster.name', { firstName: player.firstName, lastName: player.lastName });
 }
 
+/** How many players the attention list shows before "see all". */
+export const ATTENTION_VISIBLE = 8;
+
 function Attention(props: { players: readonly PanelPlayer[] }) {
   const t = useT();
-  const headingId = useId();
+  const listId = useId();
   const players = playersNeedingAttention(props.players);
+  const [expanded, setExpanded] = useState(false);
+  const shown = expanded ? players : players.slice(0, ATTENTION_VISIBLE);
+  const hidden = players.length - ATTENTION_VISIBLE;
   return (
-    <section className="sp-card sp-panel-attention" aria-labelledby={headingId}>
-      <div>
-        <h2 id={headingId} className="sp-card__title">
-          {t('panel.attention.title')}
-        </h2>
-        <p className="sp-panel-note">{t('panel.attention.subtitle')}</p>
-      </div>
+    <Card
+      className="sp-panel-attention"
+      title={t('panel.attention.title')}
+      subtitle={t('panel.attention.subtitle')}
+    >
       {players.length === 0 ? (
         <Notice level="ok">
           <p>{t('panel.attention.none')}</p>
         </Notice>
       ) : (
-        <ul className="sp-panel-attention__list">
-          {players.map((player) => {
-            const [first, ...rest] = player.alerts;
-            if (first === undefined) return null;
-            return (
-              <li key={player.playerId} className="sp-panel-attention__item">
-                <div>
-                  <p className="sp-panel-attention__name">{playerName(t, player)}</p>
-                  <p className="sp-panel-note">{alertText(t, first) ?? t('common.noData')}</p>
-                  {rest.length === 0 ? null : (
-                    <p className="sp-panel-note">
-                      {t('panel.attention.more', { count: rest.length })}
-                    </p>
-                  )}
-                </div>
-                <StatusBadge level={first.severity} />
-              </li>
-            );
-          })}
-        </ul>
+        <>
+          <ul id={listId} className="sp-panel-attention__list">
+            {shown.map((player) => {
+              const [first, ...rest] = player.alerts;
+              if (first === undefined) return null;
+              return (
+                <li key={player.playerId} className="sp-panel-attention__item">
+                  <Avatar label={initialsOf(`${player.firstName} ${player.lastName}`)} />
+                  <div className="sp-panel-attention__body">
+                    <div className="sp-panel-attention__head">
+                      <p className="sp-panel-attention__name">{playerName(t, player)}</p>
+                      <StatusBadge level={first.severity} />
+                    </div>
+                    <p className="sp-panel-note">{alertText(t, first) ?? t('common.noData')}</p>
+                    {rest.length === 0 ? null : (
+                      <p className="sp-panel-note">
+                        {t('panel.attention.more', { count: rest.length })}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          {hidden > 0 ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="sp-panel-attention__toggle"
+              aria-expanded={expanded}
+              aria-controls={listId}
+              onClick={() => {
+                setExpanded((value) => !value);
+              }}
+            >
+              <span>
+                {expanded
+                  ? t('panel.attention.showFewer')
+                  : t('panel.attention.showAll', { count: players.length })}
+              </span>
+              <Icon name={expanded ? 'chevronUp' : 'chevronDown'} />
+            </Button>
+          ) : null}
+        </>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -532,12 +580,12 @@ function Roster(props: {
   const t = useT();
   const headingId = useId();
   return (
-    <section className="sp-card" aria-labelledby={headingId}>
-      <div>
+    <section className="sp-card sp-panel-roster" aria-labelledby={headingId}>
+      <div className="sp-card__heading">
         <h2 id={headingId} className="sp-card__title">
           {t('panel.roster.title')}
         </h2>
-        <p className="sp-panel-note">{t('panel.roster.subtitle')}</p>
+        <p className="sp-card__subtitle-text">{t('panel.roster.subtitle')}</p>
       </div>
       {props.players.length === 0 ? (
         <p>{t('panel.roster.empty')}</p>
@@ -565,7 +613,12 @@ function Roster(props: {
                 const severity = worstSeverity(player);
                 return (
                   <tr key={player.playerId}>
-                    <th scope="row">{playerName(t, player)}</th>
+                    <th scope="row">
+                      <span className="sp-table__cell-player">
+                        <Avatar label={initialsOf(`${player.firstName} ${player.lastName}`)} />
+                        <span>{playerName(t, player)}</span>
+                      </span>
+                    </th>
                     <td>{positionName(t, player)}</td>
                     <td>
                       <Maturity player={player} grouping={props.grouping} />
@@ -574,9 +627,21 @@ function Roster(props: {
                       {player.wellness.weekMeanScore === null ? (
                         <span className="sp-panel-muted">{t('panel.roster.noWellness')}</span>
                       ) : (
-                        t('panel.roster.wellnessValue', {
-                          value: formatNumber(player.wellness.weekMeanScore, { decimals: 1 }),
-                        })
+                        <span className="sp-panel-wellness">
+                          <span className="sp-panel-wellness__bar" aria-hidden="true">
+                            <span
+                              className="sp-panel-wellness__fill"
+                              style={{
+                                width: `${String((player.wellness.weekMeanScore / 5) * 100)}%`,
+                              }}
+                            />
+                          </span>
+                          <span className="sp-panel-wellness__value">
+                            {t('panel.roster.wellnessValue', {
+                              value: formatNumber(player.wellness.weekMeanScore, { decimals: 1 }),
+                            })}
+                          </span>
+                        </span>
                       )}
                     </td>
                     <td className="is-number">

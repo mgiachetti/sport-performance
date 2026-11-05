@@ -144,6 +144,7 @@
 - **B-413 Vista para padres y tutores** (cambia) · `area:web` `privacy`. Ficha resumida y consentimientos. **Más la carga de la altura de los padres (la necesita Khamis-Roche).**
 - **B-414 Consola de superadmin** (nuevo) · `area:web`. Alta de clubes, módulos activos por club, acceso de soporte con auditoría.
 - **B-415 Ayuda y protocolos** (nuevo) · `area:web` `area:mobile`. El protocolo de cada test con texto e imagen o video; guía de uso para el staff.
+- **B-416 Sistema de diseño de la web** (nuevo) · `area:web` `a11y`. Pasada de diseño con la identidad del club en runtime: escala tipográfica, tamaños, capas y rayas como tokens; primitivas de pantalla; shell como la maqueta (escudo, rayas, menú de usuario); el club demo con la marca y el escudo de ORC por el camino real; capturas de todas las pantallas. Fase 1 la base, inicio y panel; fase 2 el resto de las pantallas.
 
 ## M5 · Mobile (Expo)
 

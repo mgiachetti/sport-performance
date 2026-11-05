@@ -1,22 +1,21 @@
-import { useQuery } from '@tanstack/react-query';
-import { Link, Outlet, useNavigate } from '@tanstack/react-router';
-import { membershipsQuery } from '../api/queries';
+import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
+import { useEffect, useId, useState } from 'react';
 import { useServices } from '../app/services';
 import { useActiveClub } from '../club/active-club';
 import { useT } from '../i18n/i18n';
-import { useSignOut } from '../session/use-sign-out';
 import { ConnectionStatus } from '../status/ConnectionStatus';
-import { Button, ErrorNotice, Notice, Stripes } from '../ui/components';
+import { Button, Notice, Stripes } from '../ui/components';
 import { Icon } from '../ui/icons';
 import { NAV_ITEMS, visibleNavItems, type NavItem } from './navigation';
 import { ScopeSelector } from './ScopeSelector';
-import { ThemeSwitcher } from './ThemeSwitcher';
+import { UserMenu } from './UserMenu';
 
 /**
- * Shell of the club (maqueta: sidebar + content): club identity and jersey
- * stripes, navigation gated by the permission matrix, connection status and
- * user in the sidebar; scope, theme and account in the top bar; the
- * support-mode banner whenever a superadmin is acting in a club.
+ * Shell of the club (maqueta, ADR 0097): the sidebar carries the club's crest
+ * and name with the jersey stripes, the navigation gated by the permission
+ * matrix and, in its footer, the connection status and the user menu (theme,
+ * club switch, sign out). The top bar keeps the sport/category scope. Under
+ * 64rem the sidebar becomes a drawer opened from the top bar.
  */
 export function AppShell(props: {
   navItems?: readonly NavItem[];
@@ -28,34 +27,51 @@ export function AppShell(props: {
   const t = useT();
   const active = useActiveClub();
   const items = visibleNavItems(props.navItems ?? NAV_ITEMS, active.subject, active.categories);
-  const roleLabel = t(`role.${active.role}`);
+  const drawerId = useId();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  // Open on the page it was opened on: following a link closes it. So does Escape.
+  const [openOn, setOpenOn] = useState<string | null>(null);
+  const drawerOpen = openOn === pathname;
+  const setDrawerOpen = (open: boolean) => {
+    setOpenOn(open ? pathname : null);
+  };
+  useEffect(() => {
+    if (!drawerOpen) return undefined;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpenOn(null);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [drawerOpen]);
 
   return (
-    <div className="sp-shell">
+    <div className={`sp-shell${drawerOpen ? ' is-drawer-open' : ''}`}>
       <a className="sp-skip-link" href="#main">
         {t('layout.skipToContent')}
       </a>
-      <aside className="sp-sidebar">
+      <aside id={drawerId} className="sp-sidebar">
         <div className="sp-sidebar__club">
-          {active.theme.logoUrl === null ? (
-            <span className="sp-sidebar__monogram" aria-hidden="true">
-              {active.theme.shortName}
-            </span>
-          ) : (
-            <img
-              className="sp-sidebar__logo"
-              src={active.theme.logoUrl}
-              alt={t('club.logoAlt', { clubName: active.club.name })}
-              width={40}
-              height={40}
-            />
-          )}
-          <div>
+          <Stripes variant="rail" />
+          <ClubMark />
+          <div className="sp-sidebar__club-text">
+            <p className="sp-sidebar__app-name">
+              {t('layout.clubApp', { shortName: active.theme.shortName })}
+            </p>
             <p className="sp-sidebar__club-name">{active.club.name}</p>
-            <p className="sp-sidebar__app-name">{t('app.name')}</p>
           </div>
+          <button
+            type="button"
+            className="sp-icon-button sp-sidebar__close"
+            aria-label={t('nav.close')}
+            onClick={() => {
+              setDrawerOpen(false);
+            }}
+          >
+            <Icon name="close" size={20} />
+          </button>
         </div>
-        <Stripes size="sm" />
         <nav aria-label={t('nav.label')} className="sp-nav">
           <ul>
             {items.map((item) => (
@@ -75,23 +91,40 @@ export function AppShell(props: {
         </nav>
         <div className="sp-sidebar__foot">
           <ConnectionStatus timeZone={active.club.timeZone} />
-          <p className="sp-sidebar__user">
-            {active.user.name === '' ? active.user.email : active.user.name}
-            <br />
-            {roleLabel}
-          </p>
+          <UserMenu />
         </div>
       </aside>
+      <button
+        type="button"
+        className="sp-shell__backdrop"
+        tabIndex={-1}
+        aria-hidden="true"
+        onClick={() => {
+          setDrawerOpen(false);
+        }}
+      />
       <div className="sp-shell__content">
         {active.selection.kind === 'support' ? (
           <SupportBanner clubName={active.club.name} reason={active.selection.reason} />
         ) : null}
         <header className="sp-topbar">
-          {props.showScope === false ? null : <ScopeSelector />}
-          <div className="sp-topbar__actions">
-            <ThemeSwitcher />
-            <AccountActions />
+          <button
+            type="button"
+            className="sp-icon-button sp-topbar__menu"
+            aria-label={t('nav.open')}
+            aria-expanded={drawerOpen}
+            aria-controls={drawerId}
+            onClick={() => {
+              setDrawerOpen(true);
+            }}
+          >
+            <Icon name="menu" size={22} />
+          </button>
+          <div className="sp-topbar__club" aria-hidden="true">
+            <ClubMark />
+            <span>{t('layout.clubApp', { shortName: active.theme.shortName })}</span>
           </div>
+          {props.showScope === false ? null : <ScopeSelector />}
         </header>
         {props.scopeIgnored === true ? (
           <div className="sp-banner">
@@ -99,7 +132,7 @@ export function AppShell(props: {
               level="info"
               role="status"
               action={
-                <Button variant="ghost" onClick={props.onDismissScopeIgnored}>
+                <Button variant="ghost" size="sm" onClick={props.onDismissScopeIgnored}>
                   {t('common.close')}
                 </Button>
               }
@@ -113,6 +146,25 @@ export function AppShell(props: {
         </main>
       </div>
     </div>
+  );
+}
+
+/** The crest served by the API (white-label theme), or the short name as a monogram. */
+function ClubMark() {
+  const t = useT();
+  const active = useActiveClub();
+  return active.theme.logoUrl === null ? (
+    <span className="sp-club-mark sp-club-mark--monogram" aria-hidden="true">
+      {active.theme.shortName}
+    </span>
+  ) : (
+    <img
+      className="sp-club-mark"
+      src={active.theme.logoUrl}
+      alt={t('club.logoAlt', { clubName: active.club.name })}
+      width={44}
+      height={44}
+    />
   );
 }
 
@@ -131,43 +183,13 @@ function SupportBanner(props: { clubName: string; reason: string }) {
         level="warning"
         role="status"
         action={
-          <Button variant="secondary" onClick={() => void exit()}>
+          <Button variant="secondary" size="sm" onClick={() => void exit()}>
             {t('support.exit')}
           </Button>
         }
       >
         <p>{t('support.banner', { clubName: props.clubName, reason: props.reason })}</p>
       </Notice>
-    </div>
-  );
-}
-
-function AccountActions() {
-  const t = useT();
-  const { api } = useServices();
-  const active = useActiveClub();
-  const signOut = useSignOut();
-  const memberships = useQuery(membershipsQuery(api));
-  const canSwitch = active.user.isSuperadmin || (memberships.data?.items.length ?? 0) > 1;
-  return (
-    <div className="sp-account" role="group" aria-label={t('account.menu')}>
-      {canSwitch ? (
-        <Link to="/clubs" className="sp-button sp-button--ghost">
-          <Icon name="club" />
-          <span>{t('club.switch')}</span>
-        </Link>
-      ) : null}
-      <Button
-        variant="ghost"
-        onClick={() => {
-          signOut.mutate();
-        }}
-        disabled={signOut.isPending}
-      >
-        <Icon name="signOut" />
-        <span>{t('auth.signOut')}</span>
-      </Button>
-      {signOut.isError ? <ErrorNotice error={signOut.error} /> : null}
     </div>
   );
 }

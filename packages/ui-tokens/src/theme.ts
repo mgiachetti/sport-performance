@@ -8,7 +8,7 @@ import {
   type HexColor,
 } from './color.js';
 import { darkExtras, lightHighContrastPalette, orcPalette } from './palette.js';
-import { borderWidth, focusRing, radius, sizes, spacing } from './scales.js';
+import { borderWidth, focusRing, radius, sizes, spacing, type ElevationLevel } from './scales.js';
 import { textStyles } from './typography.js';
 
 /**
@@ -64,6 +64,8 @@ export interface ThemeColors {
     readonly accent: HexColor;
     /** Brand tint for selected/hover backgrounds. */
     readonly subtle: HexColor;
+    /** Brand color as an outline (highlighted tile, selected option): ≥ 3:1 on surfaces. */
+    readonly border: HexColor;
     /** Second jersey color. */
     readonly secondary: HexColor;
     readonly onSecondary: HexColor;
@@ -73,6 +75,8 @@ export interface ThemeColors {
   readonly chart: {
     /** The player's series: brand color. */
     readonly player: HexColor;
+    /** The brand series dimmed (past weeks next to the current one); still ≥ 3:1. */
+    readonly playerMuted: HexColor;
     /** Category average: grey. */
     readonly categoryAverage: HexColor;
     /** First-team reference: dotted white (dark) / black (light) line with a direct label. */
@@ -94,6 +98,18 @@ export interface StripeTokens {
 
 export type StripeSize = keyof StripeTokens['bandPx'];
 
+/** A drop shadow; `none` for the flat level. */
+export interface ShadowToken {
+  readonly offsetYPx: number;
+  readonly blurPx: number;
+  readonly spreadPx: number;
+  readonly color: HexColor;
+  /** 0–1. */
+  readonly opacity: number;
+}
+
+export type ElevationTokens = Readonly<Record<ElevationLevel, ShadowToken | null>>;
+
 export interface Theme {
   readonly variant: ThemeVariant;
   readonly colorScheme: 'dark' | 'light';
@@ -108,6 +124,8 @@ export interface Theme {
   readonly focusRing: typeof focusRing;
   readonly sizes: typeof sizes;
   readonly stripes: StripeTokens;
+  /** Shadows of what floats above the page (ADR 0097). */
+  readonly elevation: ElevationTokens;
   readonly chartDash: {
     /** Dash pattern for the first-team reference line, in px (dash, gap). */
     readonly reference: readonly [number, number];
@@ -134,6 +152,8 @@ interface Neutrals {
   reference: string;
   /** Weight of the hue in tinted backgrounds. */
   tint: number;
+  /** Shadow color and opacities of the raised and overlay levels. */
+  shadow: { color: string; raised: number; overlay: number };
   minText: number;
   colorScheme: 'dark' | 'light';
 }
@@ -152,6 +172,7 @@ const NEUTRALS: Record<ThemeVariant, Neutrals> = {
     categoryAverage: darkExtras.chartCategoryAverage,
     reference: darkExtras.chartReference,
     tint: 0.16,
+    shadow: { color: '#000000', raised: 0.28, overlay: 0.5 },
     minText: CONTRAST.aa,
     colorScheme: 'dark',
   },
@@ -172,6 +193,7 @@ const NEUTRALS: Record<ThemeVariant, Neutrals> = {
     categoryAverage: lightHighContrastPalette.chartCategoryAverage,
     reference: lightHighContrastPalette.text,
     tint: 0.12,
+    shadow: { color: '#2e2924', raised: 0.12, overlay: 0.22 },
     minText: CONTRAST.aaa,
     colorScheme: 'light',
   },
@@ -242,6 +264,7 @@ export function createTheme(options: CreateThemeOptions = {}): Theme {
       onSolid: mostContrasting(brand.primary, INKS),
       accent,
       subtle: brandSubtle,
+      border: nonText(brand.primary),
       secondary: brand.secondary,
       onSecondary: mostContrasting(brand.secondary, INKS),
     },
@@ -249,6 +272,7 @@ export function createTheme(options: CreateThemeOptions = {}): Theme {
     status,
     chart: {
       player: accent,
+      playerMuted: nonText(mix(surface, accent, n.colorScheme === 'dark' ? 0.5 : 0.55)),
       categoryAverage: nonText(n.categoryAverage),
       reference: text(n.reference),
       grid: normalizeHex(n.borderSubtle),
@@ -272,6 +296,23 @@ export function createTheme(options: CreateThemeOptions = {}): Theme {
     focusRing,
     sizes,
     stripes: { colors: [brand.primary, brand.secondary], bandPx: { sm: 5, md: 10, lg: 16 } },
+    elevation: {
+      flat: null,
+      raised: {
+        offsetYPx: 1,
+        blurPx: 2,
+        spreadPx: 0,
+        color: normalizeHex(n.shadow.color),
+        opacity: n.shadow.raised,
+      },
+      overlay: {
+        offsetYPx: 12,
+        blurPx: 32,
+        spreadPx: -4,
+        color: normalizeHex(n.shadow.color),
+        opacity: n.shadow.overlay,
+      },
+    },
     chartDash: { reference: [6, 4] },
   };
 }

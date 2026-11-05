@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { apiError } from '../../test/fake-api';
 import * as fixtures from '../../test/fixtures';
 import { renderApp, signedIn } from '../../test/render-app';
-import { squad, weeklyPanel } from './panel-fixtures';
+import { panelAlert, panelPlayer, squad, weeklyPanel } from './panel-fixtures';
 
 function roster(): HTMLElement {
   return screen.getByRole('table', { name: 'Plantel' });
@@ -40,10 +40,14 @@ describe('weekly panel', () => {
     });
     const kpis = await screen.findByRole('region', { name: 'Resumen del grupo' });
     expect(within(kpis).getByText('Respondieron bienestar hoy')).toBeVisible();
-    expect(within(kpis).getAllByText('1 de 3')[0]).toBeVisible();
-    expect(within(kpis).getByText('3,5 de 5')).toBeVisible();
-    expect(within(kpis).getByText('1.000 UA')).toBeVisible();
-    expect(within(kpis).getByText('2 de 3')).toBeVisible();
+    // Each tile: the figure and its unit read together ("1 de 3").
+    const values = kpis.querySelectorAll('.sp-kpi__value');
+    expect([...values].map((value) => value.textContent)).toEqual([
+      '1 de 3',
+      '3,5 de 5',
+      '1.000 UA',
+      '2 de 3',
+    ]);
     expect(within(kpis).getByText('1 en crítico')).toBeVisible();
 
     const attention = screen.getByRole('region', { name: 'Requieren atención' });
@@ -89,6 +93,31 @@ describe('weekly panel', () => {
     expect(
       screen.getByRole('figure', { name: /Carga del grupo, últimas 4 semanas/ }),
     ).toBeVisible();
+  });
+
+  it('shows the first eight who need attention, critical first, and the rest on demand', async () => {
+    const players = Array.from({ length: 11 }, (_, index) =>
+      panelPlayer(index + 1, {
+        alerts: [panelAlert({ severity: index >= 8 ? 'critical' : 'warning' })],
+      }),
+    );
+    const { user } = renderApp({
+      path: '/panel',
+      handlers: { ...signedIn(), getWeeklyPanel: () => weeklyPanel(players) },
+    });
+    const attention = await screen.findByRole('region', { name: 'Requieren atención' });
+    const items = () => within(attention).getAllByRole('listitem');
+    expect(items()).toHaveLength(8);
+    // The three critical ones (players 9 to 11) lead the list.
+    expect(items()[0]).toHaveTextContent('Apellido 9, Jugador');
+    expect(items()[2]).toHaveTextContent('Apellido 11, Jugador');
+
+    const toggle = within(attention).getByRole('button', { name: 'Ver todas (11)' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await user.click(toggle);
+    expect(items()).toHaveLength(11);
+    await user.click(within(attention).getByRole('button', { name: 'Ver menos' }));
+    expect(items()).toHaveLength(8);
   });
 
   it('groups by maturity (bio-banding) and filters by group', async () => {

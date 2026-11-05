@@ -17,6 +17,11 @@ export const E2E_DEMO_SEED = 'e2e';
 export const E2E_HISTORY_DAYS = 35;
 /** Emails of the demo are `<slug>.<role>@example.com` (RFC 2606, never delivered). */
 export const E2E_EMAIL_DOMAIN = 'example.com';
+/**
+ * The crest the demo club shows (ADR 0097): the ORC identity, installed in the run's bucket
+ * through the same file path an admin's upload takes. The club's name stays fictitious.
+ */
+export const E2E_DEMO_CREST = resolve(REPO_DIR, 'assets/clubs/orc/escudo.png');
 /** Environment the stack runs as: an allowed one for the demo seed guard. */
 export const E2E_ENVIRONMENT = 'test';
 
@@ -35,6 +40,12 @@ export interface StackConfig extends StackEndpoints {
   readonly adminDatabaseUrl: string;
   /** The database the run creates from scratch and drops when it stops (also before, if a killed run left it). */
   readonly databaseName: string;
+  /**
+   * S3-compatible server (`http://<access key>:<secret>@host:port`, MinIO) where the run creates
+   * its own bucket and drops it when it stops; `null` runs without files (no crest, no uploads).
+   * Never logged.
+   */
+  readonly storageServerUrl: string | null;
 }
 
 export class StackConfigError extends Error {
@@ -90,7 +101,8 @@ export function stackEndpoints(env: NodeJS.ProcessEnv = process.env): StackEndpo
  * The whole configuration of the stack: {@link stackEndpoints} plus the
  * server, `E2E_DATABASE_URL` (or `DATABASE_URL`, like the integration tests:
  * an owner connection to the Postgres 16 server) and `E2E_DATABASE_NAME`
- * (`sport_performance_e2e`).
+ * (`sport_performance_e2e`), and optionally `E2E_STORAGE_URL` (or `STORAGE_TEST_URL`, like the
+ * integration tests): the S3-compatible server of the run's bucket.
  */
 export function stackConfig(env: NodeJS.ProcessEnv = process.env): StackConfig {
   const adminDatabaseUrl = (env.E2E_DATABASE_URL ?? env.DATABASE_URL ?? '').trim();
@@ -105,7 +117,21 @@ export function stackConfig(env: NodeJS.ProcessEnv = process.env): StackConfig {
       'E2E_DATABASE_NAME must be a plain lowercase identifier of at most 56 characters.',
     );
   }
-  return { ...stackEndpoints(env), adminDatabaseUrl, databaseName };
+  const storageRaw = (env.E2E_STORAGE_URL ?? env.STORAGE_TEST_URL ?? '').trim();
+  let storageServerUrl: string | null = null;
+  if (storageRaw !== '') {
+    let parsed: URL;
+    try {
+      parsed = new URL(storageRaw);
+    } catch {
+      throw new StackConfigError('E2E_STORAGE_URL must be an http(s) URL with its credentials.');
+    }
+    if (!/^https?:$/.test(parsed.protocol) || parsed.username === '' || parsed.password === '') {
+      throw new StackConfigError('E2E_STORAGE_URL must be an http(s) URL with its credentials.');
+    }
+    storageServerUrl = storageRaw;
+  }
+  return { ...stackEndpoints(env), adminDatabaseUrl, databaseName, storageServerUrl };
 }
 
 /** `url` pointing at another database of the same server. */
