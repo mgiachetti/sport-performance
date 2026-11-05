@@ -674,6 +674,7 @@ describe.skipIf(!hasDatabase)('worker and derived values (Postgres 16)', () => {
         'derived-sweep',
         'files-daily',
         'player-reports-sweep',
+        'usage-daily',
       ]);
     } finally {
       await running.stop(10_000);

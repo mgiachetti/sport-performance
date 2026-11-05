@@ -121,6 +121,10 @@
     {
       "name": "support",
       "description": "Accesos de soporte del superadmin (auditoría): quién entró a qué club, cuándo y por qué (B-414)."
+    },
+    {
+      "name": "usage",
+      "description": "Métricas de uso del club (B-707): adopción por semana, solo conteos, con instrumentación propia sin SDK de terceros."
     }
   ],
   "paths": {
@@ -27714,6 +27718,92 @@
         }
       }
     },
+    "/v1/usage/summary": {
+      "get": {
+        "operationId": "getUsageSummary",
+        "summary": "Métricas de uso",
+        "description": "Adopción del club por semana (lunes a domingo del club), solo conteos: bienestar en días de sesión, RPE, días de test cargados y uso de las superficies (panel, ficha, planilla de test, app del jugador, tutor, kiosco) por rol y por web o app. El uso lo registra la API al servir esas superficies, sin SDK de terceros; el uso por miembro se guarda 91 días y después quedan conteos semanales sin miembros. Nunca muestra a un miembro ni a un jugador. Solo la administración (y el superadmin con acceso de soporte, que no cuenta como uso). Filas solo donde hay algo. Una semana futura: `bad_request`.",
+        "tags": [
+          "usage"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "weekOf",
+            "in": "query",
+            "required": false,
+            "description": "Cualquier día de la última semana; por defecto, hoy del club.",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+              "examples": [
+                "2026-11-01"
+              ]
+            }
+          },
+          {
+            "name": "weeks",
+            "in": "query",
+            "required": false,
+            "description": "Semanas, la pedida incluida (1 a 26).",
+            "schema": {
+              "default": 4,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 26
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Las métricas de uso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.bad_request.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
     "/v1/wellness": {
       "get": {
         "operationId": "listWellness",
@@ -49083,6 +49173,479 @@
           "localDate",
           "plannedDurationMin",
           "archivedAt"
+        ]
+      },
+      "UsageCategory": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de categoría (UUID, RFC 9562)."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60,
+            "description": "Nombre que usa el club.",
+            "examples": [
+              "M15",
+              "Menores de 15"
+            ]
+          },
+          "sport": {
+            "$ref": "#/components/schemas/Sport"
+          },
+          "sex": {
+            "$ref": "#/components/schemas/Sex"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "sport",
+          "sex"
+        ]
+      },
+      "UsageClient": {
+        "type": "string",
+        "enum": [
+          "web",
+          "app"
+        ],
+        "description": "Desde dónde: `web` (la web del staff) o `app` (la app mobile)."
+      },
+      "UsageMembersRow": {
+        "type": "object",
+        "properties": {
+          "weekStart": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "role": {
+            "$ref": "#/components/schemas/MembershipRole"
+          },
+          "members": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Membresías activas con ese rol en algún momento de la semana."
+          }
+        },
+        "required": [
+          "weekStart",
+          "role",
+          "members"
+        ]
+      },
+      "UsageSummary": {
+        "type": "object",
+        "properties": {
+          "timeZone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Zona horaria IANA de la región del club (`UTC` o `Área/Lugar`).",
+            "examples": [
+              "America/Argentina/Buenos_Aires"
+            ]
+          },
+          "today": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Hoy en la zona del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "isDemo": {
+            "type": "boolean",
+            "description": "Club demo (datos ficticios): no se mezcla con los clubes reales."
+          },
+          "weeks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UsageWeek"
+            },
+            "description": "Las semanas pedidas, en orden."
+          },
+          "usageRetainedFrom": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Lunes desde el que hay uso por miembro (91 días). Antes, solo los conteos semanales que quedaron.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UsageCategory"
+            },
+            "description": "Categorías nombradas en las filas."
+          },
+          "training": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UsageTrainingRow"
+            }
+          },
+          "wellness": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UsageWellnessRow"
+            }
+          },
+          "tests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UsageTestRow"
+            }
+          },
+          "surfaces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UsageSurfaceRow"
+            }
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UsageMembersRow"
+            }
+          }
+        },
+        "required": [
+          "timeZone",
+          "today",
+          "isDemo",
+          "weeks",
+          "usageRetainedFrom",
+          "categories",
+          "training",
+          "wellness",
+          "tests",
+          "surfaces",
+          "members"
+        ]
+      },
+      "UsageSurface": {
+        "type": "string",
+        "enum": [
+          "panel",
+          "player_profile",
+          "test_day_sheet",
+          "player_home",
+          "guardian_home",
+          "kiosk"
+        ],
+        "description": "Superficie usada: `panel` (panel semanal del staff), `player_profile` (ficha de un jugador abierta por el staff), `test_day_sheet` (planilla de un día de test), `player_home` (inicio del jugador en la app), `guardian_home` (hijos/as del tutor) o `kiosk` (plantel del kiosco)."
+      },
+      "UsageSurfaceRow": {
+        "type": "object",
+        "properties": {
+          "weekStart": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "surface": {
+            "$ref": "#/components/schemas/UsageSurface"
+          },
+          "client": {
+            "$ref": "#/components/schemas/UsageClient"
+          },
+          "role": {
+            "$ref": "#/components/schemas/MembershipRole"
+          },
+          "activeMembers": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Miembros distintos con ese rol que la usaron en la semana."
+          },
+          "memberDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Suma de los días que la usó cada uno (de 1 a 7 por miembro)."
+          },
+          "events": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Veces que se sirvió (pedidos, no tiempo de uso)."
+          }
+        },
+        "required": [
+          "weekStart",
+          "surface",
+          "client",
+          "role",
+          "activeMembers",
+          "memberDays",
+          "events"
+        ]
+      },
+      "UsageTestRow": {
+        "type": "object",
+        "properties": {
+          "weekStart": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "categoryId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de categoría (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Categoría del día de test; `null`: resultados sin día de test o de un día sin categoría."
+          },
+          "testDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Días de test con al menos un resultado medido en la semana."
+          },
+          "results": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Resultados cargados (hechos o no hechos), sin los importados."
+          },
+          "playersTested": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Jugadores distintos con un resultado."
+          },
+          "importedResults": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Resultados históricos importados con fecha de la semana (aparte)."
+          }
+        },
+        "required": [
+          "weekStart",
+          "categoryId",
+          "testDays",
+          "results",
+          "playersTested",
+          "importedResults"
+        ]
+      },
+      "UsageTrainingRow": {
+        "type": "object",
+        "properties": {
+          "weekStart": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "categoryId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de categoría (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Categoría de la sesión; `null`: sesiones sin categoría."
+          },
+          "sessions": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Sesiones y partidos de la semana, hasta hoy."
+          },
+          "attendedPlayerDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Jugador × día con una sesión a la que fue (completa o parcial)."
+          },
+          "attendedPlayerDaysWithWellness": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "De esos, los que tienen bienestar cargado ese día del club."
+          },
+          "attendedParticipations": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Participaciones completas o parciales."
+          },
+          "participationsWithRpe": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "De esas, las que tienen RPE."
+          },
+          "rpeViaKiosk": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "RPE cargados en el kiosco del club."
+          },
+          "wellnessOnSessionDaysRate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Bienestar en días de sesión / días de sesión; `null` sin sesiones."
+          },
+          "rpeRate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Participaciones con RPE / participaciones; `null` sin participaciones."
+          }
+        },
+        "required": [
+          "weekStart",
+          "categoryId",
+          "sessions",
+          "attendedPlayerDays",
+          "attendedPlayerDaysWithWellness",
+          "attendedParticipations",
+          "participationsWithRpe",
+          "rpeViaKiosk",
+          "wellnessOnSessionDaysRate",
+          "rpeRate"
+        ]
+      },
+      "UsageWeek": {
+        "type": "object",
+        "properties": {
+          "weekStart": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Lunes de la semana (día del club).",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "weekEnd": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Domingo de la semana.",
+            "examples": [
+              "2026-11-01"
+            ]
+          }
+        },
+        "required": [
+          "weekStart",
+          "weekEnd"
+        ]
+      },
+      "UsageWellnessRow": {
+        "type": "object",
+        "properties": {
+          "weekStart": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "description": "Fecha de calendario `YYYY-MM-DD`, en la zona horaria del club.",
+            "examples": [
+              "2026-11-01"
+            ]
+          },
+          "categoryId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de categoría (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Categoría del jugador ese día; `null`: sin categoría."
+          },
+          "rosterPlayers": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Jugadores en la categoría en algún día de la semana (sin los dados de baja)."
+          },
+          "responses": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Bienestares cargados en la semana."
+          },
+          "respondents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Jugadores distintos que cargaron alguno."
+          },
+          "viaKiosk": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Bienestares cargados en el kiosco."
+          }
+        },
+        "required": [
+          "weekStart",
+          "categoryId",
+          "rosterPlayers",
+          "responses",
+          "respondents",
+          "viaKiosk"
         ]
       },
       "ValidationIssue": {

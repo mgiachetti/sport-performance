@@ -50,6 +50,8 @@ import {
   TEST_RESULT_STATUSES,
   TEST_SESSION_STATUSES,
   UNIT_CODES,
+  USAGE_CLIENTS,
+  USAGE_SURFACES,
   type MetricDirection,
   type MetricSource,
   type UnitCode,
@@ -231,3 +233,7 @@ export const alertEventTypeEnum = pgEnum('alert_event_type', ALERT_EVENT_TYPES);
 /** Status of the ACWR and of Foster's monotony of a day (B-202, `player_load_daily`). */
 export const acwrStatusEnum = pgEnum('acwr_status', ACWR_STATUSES);
 export const monotonyStatusEnum = pgEnum('monotony_status', MONOTONY_STATUSES);
+
+/** Surface and client of a recorded use (B-707, `usage_activity`, `usage_weekly`). */
+export const usageSurfaceEnum = pgEnum('usage_surface', USAGE_SURFACES);
+export const usageClientEnum = pgEnum('usage_client', USAGE_CLIENTS);

@@ -230,6 +230,7 @@ function rpeStateOf(current: SessionOfPlayer['participation']): KioskRpeState {
 export function registerKioskRoutes(app: FastifyInstance): void {
   registerEndpoint(app, getKioskRoster, {
     transaction: true,
+    usage: 'kiosk',
     handler: async ({ params, query }, { db, permissions, auth: caller }) => {
       const clubId: ClubId = caller.membership.clubId;
       // Throws `403` for a role that never loads on the kiosk.

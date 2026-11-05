@@ -378,6 +378,7 @@ async function devicesOf(db: TenantDatabase, clubId: ClubId): Promise<TestDayShe
 export function registerTestSessionSheetRoutes(app: FastifyInstance): void {
   registerEndpoint(app, getTestSessionSheet, {
     transaction: true,
+    usage: 'test_day_sheet',
     handler: async ({ params }, { db, permissions, auth: caller }) => {
       const { clubId } = caller.membership;
       const session = await readTestSession(db, clubId, params.testSessionId);

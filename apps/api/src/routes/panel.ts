@@ -542,6 +542,7 @@ function playerDto(
 export function registerPanelRoutes(app: FastifyInstance): void {
   registerEndpoint(app, getWeeklyPanel, {
     transaction: true,
+    usage: 'panel',
     handler: async ({ query }, { db, permissions }): Promise<WeeklyPanel> => {
       const inScope = await panelScope(permissions);
       const range = panelRange(await clubToday(db), query.weekOf, query.weeks);

@@ -102,6 +102,8 @@ export const API_TAGS = {
     'Notificaciones push y por email: el token del dispositivo y las preferencias de cada usuario (B-328).',
   support:
     'Accesos de soporte del superadmin (auditoría): quién entró a qué club, cuándo y por qué (B-414).',
+  usage:
+    'Métricas de uso del club (B-707): adopción por semana, solo conteos, con instrumentación propia sin SDK de terceros.',
 } as const satisfies Record<string, string>;
 
 export type ApiTag = keyof typeof API_TAGS;

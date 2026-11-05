@@ -22,6 +22,8 @@ import {
   drill,
   externalLoad,
   externalMetric,
+  usageActivity,
+  usageWeekly,
   fixture,
   file,
   testProtocolMedia,
@@ -727,6 +729,35 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         rpe: 4,
       })
       .returning({ id: externalLoad.id }),
+  );
+  // Usage metrics (B-707): a coach opened the panel; a folded week of it (ADR 0093).
+  rows.usage_activity = await id(
+    db
+      .insert(usageActivity)
+      .values({
+        ...base,
+        membershipId: memberships.coach,
+        role: 'coach',
+        localDate: day('2026-03-11'),
+        surface: 'panel',
+        client: 'web',
+      })
+      .returning({ id: usageActivity.id }),
+  );
+  rows.usage_weekly = await id(
+    db
+      .insert(usageWeekly)
+      .values({
+        ...base,
+        weekStart: day('2025-11-03'),
+        surface: 'panel',
+        client: 'web',
+        role: 'coach',
+        activeMembersN: 1,
+        memberDaysN: 2,
+        eventsN: 5,
+      })
+      .returning({ id: usageWeekly.id }),
   );
   rows.gym_program = await id(
     db

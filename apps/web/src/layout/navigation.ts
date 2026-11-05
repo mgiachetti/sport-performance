@@ -112,6 +112,13 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: 'support',
     permission: { kind: 'support_access', action: 'read' },
   }),
+  // Usage metrics of the club (B-707): the administration.
+  navItem({
+    to: '/usage',
+    labelKey: 'usage.nav',
+    icon: 'activity',
+    permission: { kind: 'usage_metrics', action: 'read' },
+  }),
   navItem({
     to: '/help',
     labelKey: 'nav.help',

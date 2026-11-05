@@ -36,6 +36,11 @@ export const QUEUES = {
   playerReportsClubDead: 'player-reports-club-dead',
   /** Every minute: the clubs with due reports (a lost notification, a retry's backoff). */
   playerReportsSweep: 'player-reports-sweep',
+  /** Fold the usage activity past its retention into weekly counts (B-707, ADR 0093). */
+  usageFoldClub: 'usage-fold-club',
+  usageFoldClubDead: 'usage-fold-club-dead',
+  /** Once a day: every club's usage retention. */
+  usageDaily: 'usage-daily',
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -159,12 +164,33 @@ export const QUEUE_DEFINITIONS: readonly Queue[] = [
     expireInSeconds: 2 * MINUTE,
     deleteAfterSeconds: DAY,
   },
+  { name: QUEUES.usageFoldClubDead, policy: 'standard', deleteAfterSeconds: 30 * DAY },
+  {
+    name: QUEUES.usageFoldClub,
+    policy: 'stately',
+    retryLimit: 5,
+    retryDelay: 60,
+    retryBackoff: true,
+    retryDelayMax: 60 * MINUTE,
+    expireInSeconds: 5 * MINUTE,
+    deleteAfterSeconds: 7 * DAY,
+    deadLetter: QUEUES.usageFoldClubDead,
+  },
+  {
+    name: QUEUES.usageDaily,
+    policy: 'stately',
+    retryLimit: 0,
+    expireInSeconds: 10 * MINUTE,
+    deleteAfterSeconds: 7 * DAY,
+  },
 ];
 
 /** Cron schedules (UTC; each club job computes "the day" in the club's own zone). */
 export const SCHEDULES = [
   { queue: QUEUES.sweep, cron: '* * * * *' },
   { queue: QUEUES.daily, cron: '5 * * * *' },
+  // Usage retention (B-707): once a day; each club folds by its own today.
+  { queue: QUEUES.usageDaily, cron: '41 5 * * *' },
 ] as const;
 
 /** Notifications: every minute, when the worker sends them (B-328). */

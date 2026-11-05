@@ -10,6 +10,7 @@ import { purgeClubFiles } from './files.js';
 import { runClubNotifications, type DeliveryDependencies } from './notifications/index.js';
 import { runClubReports } from './reports/job.js';
 import { startRefreshListener, type RefreshListener } from './listener.js';
+import { foldClubUsage } from './usage.js';
 import type { ErrorReporter } from './observability.js';
 import {
   QUEUES,
@@ -130,6 +131,28 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
   };
   await boss.work(QUEUES.sweep, { pollingIntervalSeconds }, fanOut(true));
   await boss.work(QUEUES.daily, { pollingIntervalSeconds }, fanOut(false));
+
+  // Usage metrics retention (B-707, ADR 0093): per-member rows become weekly counts.
+  await boss.work(
+    QUEUES.usageFoldClub,
+    { localConcurrency: options.clubConcurrency, pollingIntervalSeconds },
+    async ([job]: Job<unknown>[]) => {
+      if (job === undefined) return;
+      const { clubId } = parseRefreshClubJob(job.data);
+      try {
+        await foldClubUsage({ pool: options.pool, logger }, clubId, { jobId: job.id });
+      } catch (error) {
+        logger.error({ err: error, clubId, jobId: job.id }, 'usage fold failed');
+        reporter.capture(error, { job: QUEUES.usageFoldClub, jobId: job.id, clubId });
+        throw error;
+      }
+    },
+  );
+  await boss.work(QUEUES.usageDaily, { pollingIntervalSeconds }, async () => {
+    for (const clubId of await listClubs(options.pool, false)) {
+      await enqueueClubJob(boss, QUEUES.usageFoldClub, clubId);
+    }
+  });
 
   const storage = options.storage;
   if (storage !== null) {

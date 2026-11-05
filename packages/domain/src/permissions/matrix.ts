@@ -113,6 +113,11 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
   support_access: {
     read: administration,
   },
+  // Adoption of the club (B-707): the administration, and the superadmin supporting the
+  // pilot. Never the staff: the counts of who uses what are about the staff themselves.
+  usage_metrics: {
+    read: administration,
+  },
   membership: {
     read: administration,
     invite: administration,

@@ -28,6 +28,12 @@ export const PERMISSION_RESOURCES = {
    * entered, when and why. The registry-wide log is `club_registry.read`.
    */
   support_access: { target: 'club', medical: false, actions: ['read'] },
+  /**
+   * Usage metrics of the club (B-707, ADR 0093): adoption counts by week
+   * (wellness answered, RPE reported, test days loaded, active members per
+   * surface and role). Aggregates only, never a member nor a player.
+   */
+  usage_metrics: { target: 'club', medical: false, actions: ['read'] },
   /** Memberships of users in the club and invitations (B-309). */
   membership: { target: 'club', medical: false, actions: ['read', 'invite', 'update', 'revoke'] },
   /** Which categories or sport each staff member sees (B-314). */

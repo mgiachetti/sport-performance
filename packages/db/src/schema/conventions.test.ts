@@ -109,6 +109,8 @@ describe('schema conventions', () => {
         'test_session',
         'test_window',
         'training_session',
+        'usage_activity',
+        'usage_weekly',
         'user',
         'verification',
         'wellness',
