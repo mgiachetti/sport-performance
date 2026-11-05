@@ -54,7 +54,7 @@ const sentryShape = {
 /**
  * Environment variables of the API. Every variable is documented in
  * `apps/api/.env.example`. Secrets (`DATABASE_URL`, `AUTH_DATABASE_URL`, `SENTRY_DSN`,
- * `AUTH_SECRET`, `RESEND_API_KEY`, `STORAGE_SECRET_ACCESS_KEY`) never appear in error
+ * `AUTH_SECRET`, `RESEND_API_KEY`, `STORAGE_SECRET_ACCESS_KEY`, `OPS_MONITOR_TOKEN`) never appear in error
  * messages or logs.
  */
 export const envSchema = z
@@ -95,6 +95,16 @@ export const envSchema = z
     DATABASE_CONNECT_TIMEOUT_MS: integer(100, 60_000).default(5000),
     DATABASE_STATEMENT_TIMEOUT_MS: integer(100, 600_000).default(15_000),
     HEALTH_DB_TIMEOUT_MS: integer(100, 30_000).default(2000),
+    /**
+     * Bearer token of `GET /health/ops` for the uptime monitor (B-703, ADR 0095).
+     * Unset: the route does not exist. 32+ random characters in production.
+     */
+    OPS_MONITOR_TOKEN: z
+      .string()
+      .min(32)
+      .max(512)
+      .regex(/^[\x21-\x7e]+$/)
+      .optional(),
     SHUTDOWN_TIMEOUT_MS: integer(1000, 120_000).default(10_000),
 
     // Auth (ADR 0010, ADR 0028)
@@ -193,6 +203,18 @@ export const envSchema = z
     // Secrets of production: long, unpredictable, not the example values (ADR 0031).
     for (const message of secretProblems(env.AUTH_SECRET)) {
       ctx.addIssue({ code: 'custom', path: ['AUTH_SECRET'], message });
+    }
+    if (env.OPS_MONITOR_TOKEN !== undefined) {
+      for (const message of secretProblems(env.OPS_MONITOR_TOKEN)) {
+        ctx.addIssue({ code: 'custom', path: ['OPS_MONITOR_TOKEN'], message });
+      }
+      if (env.OPS_MONITOR_TOKEN === env.AUTH_SECRET) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['OPS_MONITOR_TOKEN'],
+          message: 'must not be the same value as AUTH_SECRET',
+        });
+      }
     }
     if (env.RESEND_API_KEY !== undefined && env.RESEND_API_KEY.length < 20) {
       ctx.addIssue({
@@ -296,7 +318,11 @@ export interface ApiConfig {
     connectTimeoutMs: number;
     statementTimeoutMs: number;
   };
-  health: { databaseTimeoutMs: number };
+  health: {
+    databaseTimeoutMs: number;
+    /** `null`: no `/health/ops`. Never logged. */
+    opsMonitorToken?: string | null;
+  };
   shutdownTimeoutMs: number;
   /** `null` when `SENTRY_DSN` is unset: Sentry stays disabled. */
   sentry: SentryConfig | null;
@@ -400,6 +426,8 @@ export function configSummary(config: ApiConfig) {
     },
     mobileApp: config.mobileApp,
     sentry: config.sentry !== null,
+    // Whether the ops probe is on, never the token.
+    opsHealth: (config.health.opsMonitorToken ?? null) !== null,
   };
 }
 
@@ -491,7 +519,10 @@ export function loadConfig(env: Env = process.env): ApiConfig {
       connectTimeoutMs: e.DATABASE_CONNECT_TIMEOUT_MS,
       statementTimeoutMs: e.DATABASE_STATEMENT_TIMEOUT_MS,
     },
-    health: { databaseTimeoutMs: e.HEALTH_DB_TIMEOUT_MS },
+    health: {
+      databaseTimeoutMs: e.HEALTH_DB_TIMEOUT_MS,
+      opsMonitorToken: e.OPS_MONITOR_TOKEN ?? null,
+    },
     shutdownTimeoutMs: e.SHUTDOWN_TIMEOUT_MS,
     sentry: sentryOf(e),
     auth: {

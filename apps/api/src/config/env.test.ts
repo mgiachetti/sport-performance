@@ -10,6 +10,7 @@ const AUTH_SECRET = 'a-test-secret-of-at-least-32-characters!!';
 const RESEND_KEY_PLACEHOLDER = 'placeholder-resend-key';
 /** Production-grade values, generated per run so no strong-looking secret is committed. */
 const strongSecret = () => randomBytes(48).toString('base64url');
+const OPS_TOKEN = strongSecret();
 const strongDatabaseUrl = (user: string) =>
   `postgres://${user}:${randomBytes(24).toString('base64url')}@db.internal:5432/sport_performance`;
 
@@ -49,7 +50,7 @@ describe('loadConfig', () => {
         connectTimeoutMs: 5000,
         statementTimeoutMs: 15_000,
       },
-      health: { databaseTimeoutMs: 2000 },
+      health: { databaseTimeoutMs: 2000, opsMonitorToken: null },
       shutdownTimeoutMs: 10_000,
       sentry: null,
       auth: {
@@ -157,10 +158,29 @@ describe('auth and email configuration', () => {
     STORAGE_SECRET_ACCESS_KEY: strongSecret(),
   };
 
+  it('takes the ops monitor token and checks it like a production secret (B-703)', () => {
+    const token = strongSecret();
+    expect(loadConfig({ ...production, OPS_MONITOR_TOKEN: token }).health.opsMonitorToken).toBe(
+      token,
+    );
+    for (const value of [
+      'change-me-to-a-long-random-ops-token-of-40-chars',
+      'a'.repeat(40),
+      production.AUTH_SECRET,
+      'short',
+      `${token} x`,
+    ]) {
+      expect(configError({ ...production, OPS_MONITOR_TOKEN: value }).variables).toEqual([
+        'OPS_MONITOR_TOKEN',
+      ]);
+    }
+  });
+
   it('logs a summary of the configuration without any secret', () => {
     const config = loadConfig({
       ...production,
       SENTRY_DSN: 'https://public@o1.ingest.sentry.io/1',
+      OPS_MONITOR_TOKEN: OPS_TOKEN,
     });
     const logs = memoryLogger();
     logs.logger.info({ config: configSummary(config) }, 'api ready');
@@ -174,6 +194,7 @@ describe('auth and email configuration', () => {
       new URL(production.DATABASE_URL).password,
       production.STORAGE_SECRET_ACCESS_KEY,
       production.STORAGE_ACCESS_KEY_ID,
+      OPS_TOKEN,
       'o1.ingest.sentry.io',
     ]) {
       expect(raw).not.toContain(secret);

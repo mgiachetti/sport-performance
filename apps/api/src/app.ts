@@ -218,6 +218,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     version: config.version,
     mobileApp: config.mobileApp,
     databaseTimeoutMs: config.health.databaseTimeoutMs,
+    opsMonitorToken: config.health.opsMonitorToken ?? null,
     auth: options.auth,
     files: options.files,
   });

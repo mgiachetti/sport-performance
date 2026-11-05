@@ -79,6 +79,8 @@ describe.skipIf(!hasDatabase)('backups and recovery tooling (Postgres 16)', () =
         [ROLES],
       );
       expect(tables.rows).toEqual([
+        // The state of the operational checks (B-703, ADR 0095) shares the schema.
+        { table: 'check_state', rls: true, granted: false },
         { table: 'restore_drill_marker', rls: true, granted: false },
         { table: 'restore_event', rls: true, granted: false },
       ]);

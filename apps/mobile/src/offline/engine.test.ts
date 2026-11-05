@@ -19,7 +19,13 @@ import { COACH_AT_ORC, USER } from '../test/fixtures.ts';
 import { runBackgroundSync } from './background.ts';
 import { openLocalDatabase } from './db/database.ts';
 import { deviceMeta, mutation, syncIssue } from './db/schema.ts';
-import { ACKED_OVERLAY_MAX_MS, createSyncEngine, type SyncEngineOptions } from './engine.ts';
+import {
+  ACKED_OVERLAY_MAX_MS,
+  SYNC_STALL_REPORT_AFTER_MS,
+  createSyncEngine,
+  type SyncEngineOptions,
+  type SyncTelemetry,
+} from './engine.ts';
 import { InvalidMutationError, MissingClientUuidError } from './operations.ts';
 
 const SCOPE = { membershipId: 'a1111111-1111-4111-8111-111111111111', userId: 'u1' };
@@ -660,6 +666,87 @@ describe('pull', () => {
     advance(1);
     await engine.syncNow();
     expect(await engine.store.pending(SCOPE.membershipId)).toEqual([]);
+  });
+});
+
+describe('telemetry (B-703)', () => {
+  it('tells the operation and the error code of a rejected mutation, never its input', async () => {
+    const events: SyncTelemetry[] = [];
+    const { engine, server } = await setup({ engine: { onTelemetry: (e) => events.push(e) } });
+    await engine.enqueue('wellness.submit', submitWellness());
+    server.decide(() => ({
+      status: 'rejected',
+      hlc: null,
+      error: { code: 'forbidden', message: 'no' },
+    }));
+    await engine.syncNow();
+    expect(events).toEqual([
+      { kind: 'mutation_rejected', op: 'wellness.submit', errorCode: 'forbidden' },
+    ]);
+  });
+
+  it('reports once a queue the failing server keeps from draining, until it syncs', async () => {
+    const events: SyncTelemetry[] = [];
+    const { engine, server, advance } = await setup({
+      engine: { onTelemetry: (e) => events.push(e) },
+    });
+    await engine.enqueue('wellness.submit', submitWellness());
+    server.failPush(apiError(500, 'internal'));
+    await engine.syncNow();
+    // Young: a server hiccup is not a stall.
+    expect(events).toEqual([]);
+
+    advance(SYNC_STALL_REPORT_AFTER_MS);
+    server.failPush(apiError(500, 'internal'), apiError(502, 'internal'));
+    await engine.syncNow();
+    await engine.syncNow();
+    expect(events).toEqual([
+      {
+        kind: 'queue_stalled',
+        pendingCount: 1,
+        oldestPendingAgeS: SYNC_STALL_REPORT_AFTER_MS / 1000,
+        failures: 2,
+      },
+    ]);
+
+    // It drains; a later stall is reported again.
+    await engine.syncNow();
+    expect(engine.getStatus().pendingCount).toBe(0);
+    await engine.enqueue('wellness.submit', submitWellness());
+    advance(SYNC_STALL_REPORT_AFTER_MS + 1000);
+    server.failPush(apiError(500, 'internal'));
+    await engine.syncNow();
+    expect(events.map((e) => e.kind)).toEqual(['queue_stalled', 'queue_stalled']);
+  });
+
+  it('does not report an old queue of a device without signal', async () => {
+    const events: SyncTelemetry[] = [];
+    const { engine, server, advance } = await setup({
+      engine: { onTelemetry: (e) => events.push(e) },
+    });
+    await engine.enqueue('wellness.submit', submitWellness());
+    advance(3 * SYNC_STALL_REPORT_AFTER_MS);
+    server.failPush('network-error');
+    expect(await engine.syncNow()).toEqual({ status: 'failed', phase: 'offline' });
+    expect(events).toEqual([]);
+  });
+
+  it('a telemetry sink that throws never breaks the sync', async () => {
+    const { engine, server, errors } = await setup({
+      engine: {
+        onTelemetry: () => {
+          throw new Error('sink down');
+        },
+      },
+    });
+    await engine.enqueue('wellness.submit', submitWellness());
+    server.decide(() => ({
+      status: 'rejected',
+      hlc: null,
+      error: { code: 'forbidden', message: 'no' },
+    }));
+    expect(await engine.syncNow()).toMatchObject({ status: 'synced' });
+    expect(errors).toEqual([new Error('sink down')]);
   });
 });
 

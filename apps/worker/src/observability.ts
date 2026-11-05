@@ -48,9 +48,37 @@ export interface ErrorReportContext {
   readonly source?: string | undefined;
 }
 
+/**
+ * An operational notice (B-703, ADR 0095): one Sentry issue per `fingerprint`,
+ * so a check failing for hours is one issue, not one per pass. Tags are codes
+ * and statuses, never ids of a club or a person.
+ */
+export interface OpsNotice {
+  readonly message: string;
+  readonly level: 'warning' | 'error';
+  readonly fingerprint: readonly string[];
+  readonly tags: Readonly<Record<string, string>>;
+}
+
+/** A heartbeat of a scheduled job for Sentry Crons: a missing one is an alert in Sentry. */
+export interface CronCheckIn {
+  readonly monitorSlug: string;
+  readonly status: 'ok' | 'error';
+  /** Crontab of the job (UTC), declared with every check-in: the monitor is configuration as code. */
+  readonly crontab: string;
+  /** Minutes late before Sentry counts the check-in as missed. */
+  readonly marginMinutes: number;
+  /** Minutes a run may take. */
+  readonly maxRuntimeMinutes: number;
+  /** Consecutive misses or errors before Sentry opens an issue. */
+  readonly failureIssueThreshold: number;
+}
+
 export interface ErrorReporter {
   readonly enabled: boolean;
   capture(error: unknown, context?: ErrorReportContext): void;
+  notice(notice: OpsNotice): void;
+  checkIn(checkIn: CronCheckIn): void;
   flush(timeoutMs: number): Promise<boolean>;
 }
 
@@ -58,6 +86,12 @@ export const disabledErrorReporter: ErrorReporter = {
   enabled: false,
   capture() {
     // Disabled: the error is still logged.
+  },
+  notice() {
+    // Disabled: the notice is still logged.
+  },
+  checkIn() {
+    // Disabled: nothing watches the schedule but `/health/ops`.
   },
   flush: () => Promise.resolve(true),
 };
@@ -102,6 +136,26 @@ export function sentryErrorReporter(config: SentryConfig): ErrorReporter {
         }
         Sentry.captureException(error);
       });
+    },
+    notice(notice) {
+      Sentry.captureMessage(notice.message, {
+        level: notice.level,
+        fingerprint: [...notice.fingerprint],
+        tags: { ...notice.tags },
+      });
+    },
+    checkIn(checkIn) {
+      Sentry.captureCheckIn(
+        { monitorSlug: checkIn.monitorSlug, status: checkIn.status },
+        {
+          schedule: { type: 'crontab', value: checkIn.crontab },
+          timezone: 'Etc/UTC',
+          checkinMargin: checkIn.marginMinutes,
+          maxRuntime: checkIn.maxRuntimeMinutes,
+          failureIssueThreshold: checkIn.failureIssueThreshold,
+          recoveryThreshold: 1,
+        },
+      );
     },
     flush: (timeoutMs) => Sentry.flush(timeoutMs),
   };

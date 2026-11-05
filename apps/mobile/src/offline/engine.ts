@@ -84,6 +84,33 @@ export interface SyncIssue {
   readonly createdAt: number;
 }
 
+/**
+ * What the engine tells operational monitoring (B-703, ADR 0095), with no
+ * data of anyone: the operation and the error code of a rejected mutation
+ * (never its input), and a queue that the server keeps failing to take.
+ */
+export type SyncTelemetry =
+  | {
+      readonly kind: 'mutation_rejected';
+      readonly op: SyncOperation;
+      readonly errorCode: string;
+    }
+  | {
+      readonly kind: 'queue_stalled';
+      readonly pendingCount: number;
+      /** Age of the oldest mutation still waiting, in seconds. */
+      readonly oldestPendingAgeS: number;
+      /** Failed cycles in a row. */
+      readonly failures: number;
+    };
+
+/**
+ * A queue whose oldest mutation waits longer than this while the server
+ * answers with errors (`failing`) is reported once, until a cycle syncs.
+ * Offline is not reported: the device cannot reach anyone, and that is normal.
+ */
+export const SYNC_STALL_REPORT_AFTER_MS = 60 * 60_000;
+
 export type SyncCycleOutcome =
   | { readonly status: 'synced'; readonly pushed: number; readonly pulled: number }
   | { readonly status: 'skipped'; readonly reason: 'no_scope' | 'paused' | 'retry_after' }
@@ -145,6 +172,8 @@ export interface SyncEngineOptions {
   readonly now?: () => number;
   readonly random?: () => number;
   readonly reportError?: (error: unknown) => void;
+  /** Operational telemetry without data (B-703); never throws into the engine. */
+  readonly onTelemetry?: (event: SyncTelemetry) => void;
   readonly setTimer?: (task: () => void, ms: number) => unknown;
   readonly clearTimer?: (handle: unknown) => void;
   /** Mutations per push (at most `SYNC_PUSH_MAX`). */
@@ -268,6 +297,13 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   const now = options.now ?? Date.now;
   const random = options.random ?? Math.random;
   const report = options.reportError ?? (() => undefined);
+  const telemetry = (event: SyncTelemetry) => {
+    try {
+      options.onTelemetry?.(event);
+    } catch (error) {
+      report(error);
+    }
+  };
   const setTimer = options.setTimer ?? ((task, ms) => setTimeout(task, ms));
   const clearTimer =
     options.clearTimer ??
@@ -303,6 +339,8 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
   let timer: unknown = null;
   let disposed = false;
   let wiping: Promise<void> | null = null;
+  /** The current stall was already reported: once until a cycle syncs. */
+  let stallReported = false;
 
   function setStatus(patch: Partial<SyncStatus>): void {
     const next = { ...status, ...patch };
@@ -405,6 +443,13 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
     detail: { errorCode?: string; errorPaths?: string[]; fields?: string[] },
   ): Promise<void> {
     issuesVersion += 1;
+    if (kind === 'rejected') {
+      telemetry({
+        kind: 'mutation_rejected',
+        op: queued.op,
+        errorCode: detail.errorCode ?? 'internal',
+      });
+    }
     await db.insert(syncIssue).values({
       membershipId: ref.membershipId,
       mutationId: queued.mutationId,
@@ -745,6 +790,7 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
       );
       failures = 0;
       retryAfterUntil = 0;
+      stallReported = false;
       if (scope?.membershipId === ref.membershipId) setStatus({ phase: 'idle' });
       await refreshCounts();
       return { status: 'synced', pushed, pulled };
@@ -760,12 +806,37 @@ export function createSyncEngine(options: SyncEngineOptions): SyncEngine {
         return { status: 'failed', phase: 'paused' };
       }
       failures += 1;
+      if (failure.phase === 'failing') await reportStall(ref).catch(report);
       const delay = syncRetryDelayMs(failures, random, failure.retryAfterS);
       if (failure.retryAfterS !== undefined) retryAfterUntil = now() + delay;
       setStatus({ phase: failure.phase, nextAttemptAt: now() + delay });
       schedule(delay);
       return { status: 'failed', phase: failure.phase };
     }
+  }
+
+  /** Reports the queue once when its oldest mutation waits too long on a failing server. */
+  async function reportStall(ref: SyncScopeRef): Promise<void> {
+    if (stallReported) return;
+    const oldest = await database.read(async (db) => {
+      const [row] = await db
+        .select({ createdAt: mutation.createdAt })
+        .from(mutation)
+        .where(and(eq(mutation.membershipId, ref.membershipId), eq(mutation.state, 'pending')))
+        .orderBy(asc(mutation.createdAt))
+        .limit(1);
+      return row?.createdAt ?? null;
+    });
+    if (oldest === null) return;
+    const ageMs = now() - oldest;
+    if (ageMs < SYNC_STALL_REPORT_AFTER_MS) return;
+    stallReported = true;
+    telemetry({
+      kind: 'queue_stalled',
+      pendingCount: status.pendingCount,
+      oldestPendingAgeS: Math.round(ageMs / 1000),
+      failures,
+    });
   }
 
   /** The membership changed since the last cycle started: run again for the new one. */

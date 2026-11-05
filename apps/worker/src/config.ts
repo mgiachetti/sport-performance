@@ -109,6 +109,11 @@ export const envSchema = z
      * whose email is of one of these domains (catch-all mailboxes of staging).
      */
     DEMO_NOTIFICATION_EMAIL_DOMAINS: demoEmailDomains.default([]),
+    // Operational monitoring (B-703, ADR 0095)
+    /** `off`: no operational checks (`/health/ops` then reports the worker as down). */
+    OPS_MONITOR: z.enum(['on', 'off']).default('on'),
+    /** A check that stays failing is announced to Sentry again every this many minutes. */
+    OPS_RENOTIFY_MINUTES: integer(5, 7 * 24 * 60).default(60),
   })
   .superRefine((env, ctx) => {
     // The bucket of the file retention job (ADR 0044): all of its variables or none.
@@ -184,6 +189,8 @@ export interface WorkerConfig {
     /** The only domains a demo club delivers to; empty = a demo club delivers nothing. */
     readonly demoEmailDomains: readonly string[];
   } | null;
+  /** `null` when `OPS_MONITOR=off`. */
+  readonly opsMonitor: { readonly renotifyMinutes: number } | null;
 }
 
 /** Invalid environment: the message names the variables, never their values. */
@@ -236,6 +243,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): WorkerConfig {
             expoAccessToken: e.EXPO_ACCESS_TOKEN,
             demoEmailDomains: e.DEMO_NOTIFICATION_EMAIL_DOMAINS,
           },
+    opsMonitor: e.OPS_MONITOR === 'off' ? null : { renotifyMinutes: e.OPS_RENOTIFY_MINUTES },
     sentry:
       e.SENTRY_DSN === undefined
         ? null
@@ -255,6 +263,7 @@ export function configSummary(config: WorkerConfig): Record<string, unknown> {
     jobQueuePoolMax: config.jobQueue.poolMax,
     clubConcurrency: config.clubConcurrency,
     sentry: config.sentry !== null,
+    opsMonitor: config.opsMonitor,
     storage: config.storage === null ? null : { bucket: config.storage.bucket },
     notifications:
       config.notifications === null

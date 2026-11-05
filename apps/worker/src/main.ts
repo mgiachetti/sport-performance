@@ -67,6 +67,7 @@ async function main(): Promise<void> {
     clubConcurrency: config.clubConcurrency,
     jobQueuePoolMax: config.jobQueue.poolMax,
     storage: config.storage === null ? null : createS3Storage(config.storage),
+    opsMonitor: config.opsMonitor,
     notifications:
       config.notifications === null
         ? null
