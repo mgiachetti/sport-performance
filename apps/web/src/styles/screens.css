@@ -42,6 +42,10 @@
   padding: 0;
   border: 0;
 }
+/* The browser pads a legend 2px inline: it would sit off the labels below it */
+.sp-fieldset:not(.sp-fieldset--nested) > legend {
+  padding: 0;
+}
 .sp-fieldset--nested {
   padding: var(--sp-space-md);
   border: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);

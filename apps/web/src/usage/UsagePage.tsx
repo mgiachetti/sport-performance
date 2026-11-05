@@ -12,7 +12,7 @@ import { clubQueryKey } from '../api/queries';
 import { useServices } from '../app/services';
 import { useActiveClub } from '../club/active-club';
 import { useT } from '../i18n/i18n';
-import { RequirePermission } from '../permissions/permissions';
+import { RequirePermission, useCan } from '../permissions/permissions';
 import { Button, ErrorNotice, KpiTile, Loading, Notice, Page } from '../ui/components';
 import { SelectField } from '../ui/fields';
 
@@ -27,48 +27,58 @@ const WEEK_OPTIONS = [4, 8, 12, 26] as const;
 export function UsagePage() {
   const t = useT();
   const active = useActiveClub();
+  const canRead = useCan('usage_metrics', 'read');
+  const [weeks, setWeeks] = useState<number>(USAGE_WEEKS_DEFAULT);
   return (
-    <Page title={t('usage.title')} subtitle={t('usage.subtitle', { clubName: active.club.name })}>
+    <Page
+      title={t('usage.title')}
+      subtitle={t('usage.subtitle', { clubName: active.club.name })}
+      // The period is the page's context: on the right of the header, like the weekly panel.
+      actions={
+        canRead ? (
+          <form
+            className="sp-usage__period"
+            onSubmit={(event) => {
+              event.preventDefault();
+            }}
+          >
+            <SelectField
+              label={t('usage.weeks.label')}
+              name="weeks"
+              value={String(weeks)}
+              options={WEEK_OPTIONS.map((n) => ({
+                value: String(n),
+                label: t('usage.weeks.option', { weeks: n }),
+              }))}
+              onChange={(event) => {
+                setWeeks(Number(event.target.value));
+              }}
+            />
+          </form>
+        ) : undefined
+      }
+    >
       <RequirePermission kind="usage_metrics" action="read">
-        <Usage />
+        <Usage weeks={weeks} />
       </RequirePermission>
     </Page>
   );
 }
 
-function Usage() {
+function Usage(props: { weeks: number }) {
   const t = useT();
   const { api } = useServices();
   const active = useActiveClub();
-  const [weeks, setWeeks] = useState<number>(USAGE_WEEKS_DEFAULT);
+  const { weeks } = props;
   const query = useQuery({
     queryKey: clubQueryKey(active.selection, 'usageSummary', weeks),
     queryFn: ({ signal }) => api.getUsageSummary({ query: { weeks } }, { signal }),
   });
   return (
     <>
-      <p className="sp-page__subtitle">
+      <p className="sp-page__subtitle sp-usage__privacy">
         {t('usage.privacy', { days: USAGE_ACTIVITY_RETENTION_DAYS })}
       </p>
-      <form
-        className="sp-filters"
-        onSubmit={(event) => {
-          event.preventDefault();
-        }}
-      >
-        <SelectField
-          label={t('usage.weeks.label')}
-          name="weeks"
-          value={String(weeks)}
-          options={WEEK_OPTIONS.map((n) => ({
-            value: String(n),
-            label: t('usage.weeks.option', { weeks: n }),
-          }))}
-          onChange={(event) => {
-            setWeeks(Number(event.target.value));
-          }}
-        />
-      </form>
       {query.isPending ? (
         <Loading />
       ) : query.isError ? (

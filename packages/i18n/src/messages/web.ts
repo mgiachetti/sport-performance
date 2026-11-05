@@ -36,7 +36,6 @@ export const webMessagesEsAR = {
     'Con tu rol en {clubName} ({role}) usás la app en el teléfono: ahí cargás el bienestar y el RPE y ves la ficha.',
 
   // Standalone screens (sign-in, club selector, errors): the brand panel
-  'standalone.brand': 'Presentación',
   'standalone.productMark': 'SP',
   'standalone.tagline': 'El rendimiento de las juveniles, medido como en la primera.',
   'standalone.point.metrics':

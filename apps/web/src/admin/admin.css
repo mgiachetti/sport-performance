@@ -50,6 +50,11 @@
   padding: 0;
   list-style: none;
 }
+/* Many categories to pick: as many columns as fit, not one long column */
+.sp-admin__checks--columns {
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  column-gap: var(--sp-space-lg);
+}
 .sp-admin__check {
   display: inline-flex;
   align-items: center;
@@ -86,8 +91,6 @@
   margin-top: calc(
     var(--sp-text-body-small-size) * var(--sp-text-body-small-line-height) + var(--sp-space-xs)
   );
-}
-.sp-admin__color-picker {
   width: var(--sp-size-touch-target);
   height: var(--sp-size-touch-target);
   padding: 0;
@@ -144,9 +147,6 @@
   font-family: var(--sp-text-title-family);
   font-weight: var(--sp-text-title-weight);
 }
-.sp-admin__nowrap {
-  white-space: nowrap;
-}
 /* A person's email under the name: one line, regular weight (the name is the row header) */
 .sp-table th .sp-admin__meta {
   font-weight: var(--sp-text-body-weight);
@@ -155,5 +155,32 @@
 @media (min-width: 64.0625rem) {
   .sp-admin__row-actions {
     flex-wrap: nowrap;
+  }
+}
+/*
+ * A member's actions (role select, "Cambiar rol", "Dar de baja") stay
+ * left-aligned like the other rows: the role change on one line and "Dar de
+ * baja" under it, or all on one line where the card is wide enough for the
+ * table not to scroll sideways. The role column may break into two lines (the
+ * person's cell already has two).
+ */
+.sp-admin__row-actions--role {
+  flex-direction: column;
+  align-items: flex-start;
+}
+.sp-admin__row-actions--role .sp-admin__inline {
+  flex-wrap: nowrap;
+}
+.sp-admin__row-actions--role > *,
+.sp-admin__row-actions--role .sp-admin__inline > * {
+  flex: none;
+}
+.sp-admin__row-actions--role .sp-admin__inline > .sp-field {
+  width: 10rem;
+}
+@media (min-width: 87.5rem) {
+  .sp-admin__row-actions--role {
+    flex-direction: row;
+    align-items: center;
   }
 }

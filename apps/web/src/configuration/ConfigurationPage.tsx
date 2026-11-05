@@ -17,6 +17,7 @@ import {
   buttonClass,
 } from '../ui/components';
 import { SelectField } from '../ui/fields';
+import { useActiveTabInView } from '../ui/use-active-tab';
 import { AlertRulesSection } from './AlertRulesSection';
 import { BatterySection } from './BatterySection';
 import { ReferencesSection } from './ReferencesSection';
@@ -69,6 +70,7 @@ function ConfigurationContent() {
   const { selection } = useActiveClub();
   const canEdit = useCan('configuration', 'update');
   const section = search.section ?? 'battery';
+  const tabsRef = useActiveTabInView<HTMLElement>();
 
   const sport = scope.sport;
   const branches = useQuery({ ...clubBranchesQuery(api, selection), enabled: sport !== null });
@@ -85,7 +87,7 @@ function ConfigurationContent() {
       : (mine ?? sexes[0] ?? null));
 
   const tabs = (
-    <nav aria-label={t('configuration.sections')} className="sp-tabs">
+    <nav ref={tabsRef} aria-label={t('configuration.sections')} className="sp-tabs">
       <ul>
         {CONFIGURATION_SECTIONS.map((candidate) => (
           <li key={candidate}>

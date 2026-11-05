@@ -375,6 +375,9 @@ select:hover {
   grid-template-columns: minmax(20rem, 34rem) minmax(0, 1fr);
   min-height: 100vh;
 }
+.sp-standalone--compact {
+  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+}
 .sp-standalone__aside {
   position: relative;
   display: flex;
@@ -459,9 +462,6 @@ select:hover {
   border: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
   border-radius: var(--sp-radius-lg);
   background: var(--sp-color-surface);
-}
-.sp-standalone__panel--wide {
-  width: min(100%, 48rem);
 }
 .sp-standalone__panel .sp-page__header {
   margin-bottom: var(--sp-space-md);
@@ -1605,4 +1605,10 @@ select:hover {
 }
 .sp-usage__kpis {
   margin-top: var(--sp-space-lg);
+}
+.sp-usage__period .sp-field {
+  min-width: 12rem;
+}
+.sp-usage__privacy {
+  margin-top: 0;
 }

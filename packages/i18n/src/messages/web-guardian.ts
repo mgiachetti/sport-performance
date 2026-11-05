@@ -12,6 +12,7 @@ export const webGuardianMessagesEsAR = {
   'guardian.children.subtitle': 'En {clubName}',
   'guardian.children.intro':
     'Acá ves la ficha de tus hijos/as en el club, firmás sus consentimientos e informás tu altura y la del otro padre o madre.',
+  'guardian.children.noneTitle': 'Sin hijos/as vinculados',
   'guardian.children.none':
     'Todavía no tenés hijos/as vinculados en el club. Pedile a la administración que te vincule.',
   'guardian.children.open': 'Ver la ficha de {name}',

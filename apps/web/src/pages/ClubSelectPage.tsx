@@ -69,7 +69,7 @@ export function ClubSelectPage() {
                     })}
                     onClick={() => void choose(membership)}
                   >
-                    <ClubCrest slug={membership.club.slug} />
+                    <ClubCrest slug={membership.club.slug} name={membership.club.name} />
                     <span className="sp-choice__text">
                       <span className="sp-choice__title">{membership.club.name}</span>
                       <span className="sp-choice__meta">{t(`role.${membership.role}`)}</span>
@@ -117,17 +117,18 @@ export function ClubSelectPage() {
 
 /**
  * The crest of a club in the list, from its public theme (the same read the
- * shell does once a club is picked); the short name while it loads or when the
- * club has none. Decorative: the button is named by the club and the role.
+ * shell does once a club is picked); without a crest, its short name, or the
+ * initial of its name while the theme loads. Decorative: the button is named
+ * by the club and the role.
  */
-function ClubCrest(props: { slug: string }) {
+function ClubCrest(props: { slug: string; name: string }) {
   const { api } = useServices();
   const theme = useQuery(clubThemeQuery(api, props.slug));
   const logoUrl = theme.data?.logoUrl ?? null;
   if (logoUrl === null) {
     return (
       <span className="sp-club-mark sp-club-mark--monogram" aria-hidden="true">
-        {theme.data?.shortName ?? ''}
+        {theme.data?.shortName ?? props.name.trim().charAt(0).toLocaleUpperCase('es-AR')}
       </span>
     );
   }

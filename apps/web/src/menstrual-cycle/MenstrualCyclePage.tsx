@@ -50,7 +50,7 @@ function DaysTable({ days }: { readonly days: MenstrualCycleDays }) {
   const t = useT();
   if (days.days.length === 0) {
     return (
-      <EmptyState icon="cycle" title={t('cycle.shared.daysTitle')}>
+      <EmptyState icon="calendar" title={t('cycle.shared.daysTitle')}>
         <p>{t('cycle.shared.noDays')}</p>
       </EmptyState>
     );
@@ -157,10 +157,13 @@ export function MenstrualCyclePage() {
   const modules = useQuery(clubModulesQuery(api, active.selection));
   const shared = useQuery(sharedWithMeQuery(api, selection.get()));
   const [open, setOpen] = useState<{ id: PlayerId; name: string } | null>(null);
+  const moduleOff = modules.data?.modules.menstrual_cycle === false;
+  const noneShared = shared.data?.items.length === 0;
 
   return (
     <Page title={t('cycle.shared.title')} subtitle={t('cycle.shared.intro')}>
-      {modules.data?.modules.menstrual_cycle === false ? (
+      {/* With the module off and nobody sharing, the empty state says it alone. */}
+      {moduleOff && !noneShared ? (
         <Notice level="info">
           <p>{t('cycle.unavailable.module_off')}</p>
         </Notice>
@@ -179,7 +182,10 @@ export function MenstrualCyclePage() {
         <ErrorNotice error={shared.error} />
       ) : shared.data.items.length === 0 ? (
         <Card>
-          <EmptyState icon="cycle" title={t('cycle.shared.none')} />
+          <EmptyState
+            icon="calendar"
+            title={moduleOff ? t('cycle.unavailable.module_off') : t('cycle.shared.none')}
+          />
         </Card>
       ) : (
         <Card>

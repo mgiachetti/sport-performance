@@ -64,7 +64,14 @@ function ClubLayoutFor(props: { selection: ClubSelection }) {
       <GuardianClubLayout selection={props.selection} me={me} club={club} clubTheme={clubTheme} />
     );
   }
-  if (!isStaffRole(role)) return <StaffOnlyPage clubName={club.name} role={role} />;
+  if (!isStaffRole(role)) {
+    return (
+      <StaffOnlyPage
+        club={{ name: club.name, shortName: clubTheme.shortName, logoUrl: clubTheme.logoUrl }}
+        role={role}
+      />
+    );
+  }
   return (
     <StaffClubLayout
       selection={props.selection}

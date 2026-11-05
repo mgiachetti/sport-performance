@@ -27,19 +27,24 @@ export interface StandaloneClub {
  * jersey stripes on the left and the content on the right; on a narrow one
  * the stripes on top, the brand and the content below. With a known club it
  * carries its crest and name; otherwise the product's neutral mark (the
- * colors stay the default brand until a club is picked, ADR 0014).
+ * colors stay the default brand until a club is picked, ADR 0014). The brand
+ * panel is decorative (crest, name, tagline), not a landmark.
  */
 export function StandaloneLayout(props: {
   children: ReactNode;
   club?: StandaloneClub | undefined;
-  /** `wide`: a panel for lists and tables (support, the club selector with many clubs). */
-  width?: 'narrow' | 'wide';
+  /**
+   * `compact`: only the crest and the name, without the product tagline and
+   * its points (error pages, where the user expects the app, not a pitch).
+   */
+  variant?: 'full' | 'compact';
 }) {
   const t = useT();
   const club = props.club;
+  const compact = props.variant === 'compact';
   return (
-    <div className="sp-standalone">
-      <aside className="sp-standalone__aside" aria-label={t('standalone.brand')}>
+    <div className={`sp-standalone${compact ? ' sp-standalone--compact' : ''}`}>
+      <div className="sp-standalone__aside">
         <Stripes variant="rail" />
         <div className="sp-standalone__identity">
           {club === undefined ? (
@@ -74,20 +79,20 @@ export function StandaloneLayout(props: {
             {club === undefined ? null : <p className="sp-standalone__club">{club.name}</p>}
           </div>
         </div>
-        <p className="sp-standalone__tagline">{t('standalone.tagline')}</p>
-        <ul className="sp-standalone__points">
-          <li>{t('standalone.point.metrics')}</li>
-          <li>{t('standalone.point.load')}</li>
-          <li>{t('standalone.point.privacy')}</li>
-        </ul>
+        {compact ? null : (
+          <>
+            <p className="sp-standalone__tagline">{t('standalone.tagline')}</p>
+            <ul className="sp-standalone__points">
+              <li>{t('standalone.point.metrics')}</li>
+              <li>{t('standalone.point.load')}</li>
+              <li>{t('standalone.point.privacy')}</li>
+            </ul>
+          </>
+        )}
         <Stripes size="lg" />
-      </aside>
+      </div>
       <main id="main" className="sp-standalone__main">
-        <div
-          className={`sp-standalone__panel${props.width === 'wide' ? ' sp-standalone__panel--wide' : ''}`}
-        >
-          {props.children}
-        </div>
+        <div className="sp-standalone__panel">{props.children}</div>
       </main>
     </div>
   );

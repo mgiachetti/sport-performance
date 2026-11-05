@@ -175,7 +175,7 @@ function MemberRow(props: { member: Member; onChanged: () => Promise<unknown> })
         {name === '' ? null : <span className="sp-admin__meta">{member.user.email}</span>}
         {own ? <span className="sp-admin__meta">{t('admin.members.you')}</span> : null}
       </th>
-      <td className="sp-admin__nowrap">{t(`role.${member.role}`)}</td>
+      <td>{t(`role.${member.role}`)}</td>
       <td>
         {ended ? (
           <StatusLabel level="info">
@@ -192,7 +192,7 @@ function MemberRow(props: { member: Member; onChanged: () => Promise<unknown> })
             {own ? t('admin.members.ownHint') : t('common.notAvailable')}
           </span>
         ) : (
-          <div className="sp-admin__row-actions">
+          <div className="sp-admin__row-actions sp-admin__row-actions--role">
             {isStaffMemberRole(member.role) ? (
               <div className="sp-admin__inline">
                 <SelectField

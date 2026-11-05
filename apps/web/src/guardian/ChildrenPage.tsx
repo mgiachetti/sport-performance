@@ -24,7 +24,7 @@ export function ChildrenPage() {
       <p className="sp-lead-muted">{t('guardian.children.intro')}</p>
       {active.children.length === 0 ? (
         <Card>
-          <EmptyState icon="family" title={t('guardian.children.title')}>
+          <EmptyState icon="family" title={t('guardian.children.noneTitle')}>
             <p>{t('guardian.children.none')}</p>
           </EmptyState>
         </Card>
