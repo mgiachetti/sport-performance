@@ -3,7 +3,8 @@
 
 /* Roster: the search sits in the card's header, the table runs edge to edge. */
 .sp-players__search {
-  width: min(22rem, 100%);
+  width: 22rem;
+  max-width: 100%;
 }
 .sp-players__search .sp-field {
   margin: 0;
