@@ -10,7 +10,15 @@ import { View } from 'react-native';
 import { errorMessage } from '../api/error-message.ts';
 import type { SignedOutNotice } from '../state/session-controller.ts';
 import { useTranslator } from '../ui/i18n.tsx';
-import { AppText, Button, ScreenBody, StatusMessage, TextField } from '../ui/primitives.tsx';
+import {
+  AppText,
+  Button,
+  Card,
+  ScreenBody,
+  ScreenHeader,
+  StatusMessage,
+  TextField,
+} from '../ui/primitives.tsx';
 import { useTheme } from '../ui/theme.tsx';
 
 /** Runs an async action with a busy flag and its error as text. */
@@ -66,34 +74,39 @@ export function SignInScreen({
   }
 
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('auth.signIn.title', { appName: t('app.name') })}
-      </AppText>
-      <AppText tone="secondary">{t('auth.signIn.subtitle')}</AppText>
+    <ScreenBody
+      header={
+        <ScreenHeader
+          title={t('auth.signIn.title', { appName: t('app.name') })}
+          subtitle={t('auth.signIn.subtitle')}
+        />
+      }
+    >
       {notice === 'sessionExpired' ? (
         <StatusMessage level="warning">{t('error.sessionExpired')}</StatusMessage>
       ) : null}
-      <TextField
-        label={t('auth.email.label')}
-        value={email}
-        onChangeText={setEmail}
-        error={error}
-        inputProps={{
-          autoCapitalize: 'none',
-          autoCorrect: false,
-          autoComplete: 'email',
-          keyboardType: 'email-address',
-          textContentType: 'emailAddress',
-          inputMode: 'email',
-          placeholder: t('auth.email.placeholder'),
-          returnKeyType: 'send',
-          onSubmitEditing: submit,
-        }}
-      />
-      <Button label={t('auth.email.submit')} onPress={submit} busy={busy} />
-      <View style={{ marginTop: theme.spacing.lg }}>
-        <Button variant="link" label={t('auth.playerAccess.link')} onPress={onPlayerAccess} />
+      <Card>
+        <TextField
+          label={t('auth.email.label')}
+          value={email}
+          onChangeText={setEmail}
+          error={error}
+          inputProps={{
+            autoCapitalize: 'none',
+            autoCorrect: false,
+            autoComplete: 'email',
+            keyboardType: 'email-address',
+            textContentType: 'emailAddress',
+            inputMode: 'email',
+            placeholder: t('auth.email.placeholder'),
+            returnKeyType: 'send',
+            onSubmitEditing: submit,
+          }}
+        />
+        <Button size="lg" label={t('auth.email.submit')} onPress={submit} busy={busy} />
+      </Card>
+      <View style={{ marginTop: theme.spacing.sm }}>
+        <Button variant="ghost" label={t('auth.playerAccess.link')} onPress={onPlayerAccess} />
       </View>
     </ScreenBody>
   );
@@ -137,39 +150,43 @@ export function VerifyCodeScreen({
   }
 
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('auth.otp.title')}
-      </AppText>
-      <AppText tone="secondary">{t('auth.otp.sent', { email })}</AppText>
-      <AppText tone="secondary" role="bodySmall">
-        {t('auth.otp.expiresIn', { minutes })}
-      </AppText>
+    <ScreenBody
+      header={
+        <ScreenHeader title={t('auth.otp.title')} subtitle={t('auth.otp.sent', { email })}>
+          <AppText role="bodySmall" tone="secondary">
+            {t('auth.otp.expiresIn', { minutes })}
+          </AppText>
+        </ScreenHeader>
+      }
+    >
       {resent ? <StatusMessage level="ok">{t('auth.otp.resent')}</StatusMessage> : null}
-      <TextField
-        label={t('auth.otp.label')}
-        value={code}
-        onChangeText={changeCode}
-        error={verifying.error ?? resending.error}
-        inputProps={{
-          keyboardType: 'number-pad',
-          inputMode: 'numeric',
-          textContentType: 'oneTimeCode',
-          autoComplete: 'one-time-code',
-          maxLength: SIGN_IN_CODE_LENGTH,
-          returnKeyType: 'done',
-          onSubmitEditing: () => {
+      <Card>
+        <TextField
+          label={t('auth.otp.label')}
+          value={code}
+          onChangeText={changeCode}
+          error={verifying.error ?? resending.error}
+          inputProps={{
+            keyboardType: 'number-pad',
+            inputMode: 'numeric',
+            textContentType: 'oneTimeCode',
+            autoComplete: 'one-time-code',
+            maxLength: SIGN_IN_CODE_LENGTH,
+            returnKeyType: 'done',
+            onSubmitEditing: () => {
+              submit();
+            },
+          }}
+        />
+        <Button
+          size="lg"
+          label={t('auth.signIn')}
+          onPress={() => {
             submit();
-          },
-        }}
-      />
-      <Button
-        label={t('auth.signIn')}
-        onPress={() => {
-          submit();
-        }}
-        busy={verifying.busy}
-      />
+          }}
+          busy={verifying.busy}
+        />
+      </Card>
       <Button
         variant="secondary"
         label={t('auth.otp.resend')}
@@ -189,7 +206,7 @@ export function VerifyCodeScreen({
             });
         }}
       />
-      <Button variant="link" label={t('auth.otp.changeEmail')} onPress={onChangeEmail} />
+      <Button variant="ghost" label={t('auth.otp.changeEmail')} onPress={onChangeEmail} />
     </ScreenBody>
   );
 }
@@ -215,32 +232,35 @@ export function PlayerAccessScreen({
   }
 
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('auth.playerAccess.title')}
-      </AppText>
-      <AppText tone="secondary">
-        {t('auth.playerAccess.body', { minutes: PLAYER_ACCESS_CODE_EXPIRES_IN_S / 60 })}
-      </AppText>
-      <TextField
-        label={t('auth.playerAccess.label')}
-        value={code}
-        onChangeText={(value) => {
-          setCode(value.toUpperCase());
-        }}
-        error={error}
-        hint={t('auth.playerAccess.invalidFormat')}
-        inputProps={{
-          autoCapitalize: 'characters',
-          autoCorrect: false,
-          autoComplete: 'off',
-          maxLength: 9,
-          returnKeyType: 'done',
-          onSubmitEditing: submit,
-        }}
-      />
-      <Button label={t('auth.signIn')} onPress={submit} busy={busy} />
-      <Button variant="link" label={t('auth.withEmail')} onPress={onUseEmail} />
+    <ScreenBody
+      header={
+        <ScreenHeader
+          title={t('auth.playerAccess.title')}
+          subtitle={t('auth.playerAccess.body', { minutes: PLAYER_ACCESS_CODE_EXPIRES_IN_S / 60 })}
+        />
+      }
+    >
+      <Card>
+        <TextField
+          label={t('auth.playerAccess.label')}
+          value={code}
+          onChangeText={(value) => {
+            setCode(value.toUpperCase());
+          }}
+          error={error}
+          hint={t('auth.playerAccess.invalidFormat')}
+          inputProps={{
+            autoCapitalize: 'characters',
+            autoCorrect: false,
+            autoComplete: 'off',
+            maxLength: 9,
+            returnKeyType: 'done',
+            onSubmitEditing: submit,
+          }}
+        />
+        <Button size="lg" label={t('auth.signIn')} onPress={submit} busy={busy} />
+      </Card>
+      <Button variant="ghost" label={t('auth.withEmail')} onPress={onUseEmail} />
     </ScreenBody>
   );
 }

@@ -42,6 +42,8 @@ export const mobileMessagesEsAR = {
   'nav.account': 'Cuenta',
   'home.next':
     'Desde acá vas a cargar tu bienestar y tu esfuerzo, y ver tus tests y lo que tengas pendiente.',
+  'home.tools': 'Herramientas de cancha',
+  'home.kiosk': 'Modo kiosco',
 
   // Account
   'account.title': 'Cuenta',

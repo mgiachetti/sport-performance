@@ -27,6 +27,7 @@ import {
   Card,
   LoadingView,
   ScreenBody,
+  ScreenHeader,
   StatusMessage,
   TextField,
 } from '../ui/primitives.tsx';
@@ -77,10 +78,7 @@ export function AnthropometryCategoriesScreen({
   const { t } = useTranslator();
   if (state.status === 'loading') return <LoadingView label={t('common.loading')} />;
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('anthropometry.field.open')}
-      </AppText>
+    <ScreenBody header={<ScreenHeader title={t('anthropometry.field.open')} />}>
       <AppText role="bodySmall" tone="secondary">
         {t('anthropometry.field.subtitle')}
       </AppText>
@@ -145,13 +143,16 @@ export function AnthropometrySheetScreen(props: SheetProps) {
   const { t } = useTranslator();
   const { squad } = props;
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('anthropometry.field.sheetTitle', {
-          category: props.categoryName,
-          date: formatLocalDate(props.measuredOn),
-        })}
-      </AppText>
+    <ScreenBody
+      header={
+        <ScreenHeader
+          title={t('anthropometry.field.sheetTitle', {
+            category: props.categoryName,
+            date: formatLocalDate(props.measuredOn),
+          })}
+        />
+      }
+    >
       <Button
         variant="link"
         label={t('anthropometry.field.changeCategory')}
@@ -264,10 +265,7 @@ function PlayerRow({
   };
 
   return (
-    <Card>
-      <AppText role="heading" accessibilityRole="header">
-        {player.name}
-      </AppText>
+    <Card title={player.name}>
       {player.blocked ? (
         <StatusMessage level="critical">{t('anthropometry.blocked')}</StatusMessage>
       ) : null}

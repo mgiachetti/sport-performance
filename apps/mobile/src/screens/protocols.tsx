@@ -3,7 +3,14 @@ import { addDays } from '@sport-performance/domain';
 import { formatLocalDate, isMessageKey, type Translator } from '@sport-performance/i18n';
 import { Pressable, View } from 'react-native';
 import { useTranslator } from '../ui/i18n.tsx';
-import { AppText, Button, Card, ScreenBody, StatusMessage } from '../ui/primitives.tsx';
+import {
+  AppText,
+  Button,
+  Card,
+  ScreenBody,
+  ScreenHeader,
+  StatusMessage,
+} from '../ui/primitives.tsx';
 import { useTheme } from '../ui/theme.tsx';
 
 /**
@@ -62,11 +69,7 @@ export function ProtocolListScreen({
   const { t } = translator;
   const theme = useTheme();
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('nav.protocols')}
-      </AppText>
-      <AppText tone="secondary">{t('protocol.intro')}</AppText>
+    <ScreenBody header={<ScreenHeader title={t('nav.protocols')} subtitle={t('protocol.intro')} />}>
       {offline ? <StatusMessage level="warning">{t('sync.offline')}</StatusMessage> : null}
       {state.status === 'loading' ? (
         <AppText tone="secondary">{t('common.loading')}</AppText>
@@ -130,10 +133,7 @@ export function ProtocolScreen({
       <AppText tone="secondary">
         {`${t('protocol.version', { version: definition.version })} · ${validityLabel(translator, definition)}`}
       </AppText>
-      <Card>
-        <AppText role="overline" tone="secondary" accessibilityRole="header">
-          {t('protocol.summary')}
-        </AppText>
+      <Card title={t('protocol.summary')}>
         {protocol.summary === null ? null : <AppText>{protocol.summary}</AppText>}
         <AppText>{attemptsLabel(translator, definition)}</AppText>
         {protocol.restBetweenAttemptsS === null ? null : (
@@ -143,10 +143,7 @@ export function ProtocolScreen({
       {definition.maximalLoad ? (
         <StatusMessage level="warning">{t('protocol.maximalLoad')}</StatusMessage>
       ) : null}
-      <Card>
-        <AppText role="overline" tone="secondary" accessibilityRole="header">
-          {t('protocol.steps')}
-        </AppText>
+      <Card title={t('protocol.steps')}>
         {protocol.steps.length === 0 ? (
           <AppText tone="secondary">{t('protocol.noSteps')}</AppText>
         ) : (
@@ -164,10 +161,7 @@ export function ProtocolScreen({
         )}
       </Card>
       {protocol.equipment.length === 0 ? null : (
-        <Card>
-          <AppText role="overline" tone="secondary" accessibilityRole="header">
-            {t('protocol.equipment')}
-          </AppText>
+        <Card title={t('protocol.equipment')}>
           {protocol.equipment.map((item, index) => (
             <AppText key={`${String(index)}-${item}`}>{`• ${item}`}</AppText>
           ))}

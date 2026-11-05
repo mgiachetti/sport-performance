@@ -13,6 +13,7 @@ import {
   Card,
   LoadingView,
   ScreenBody,
+  ScreenHeader,
   StatusMessage,
 } from '../ui/primitives.tsx';
 import { useTheme } from '../ui/theme.tsx';
@@ -63,10 +64,7 @@ export function CmjVideoDaysScreen({
 }) {
   const { t } = useTranslator();
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('cmjVideo.title')}
-      </AppText>
+    <ScreenBody header={<ScreenHeader title={t('cmjVideo.title')} />}>
       <AppText role="heading" accessibilityRole="header">
         {t('cmjVideo.days.title')}
       </AppText>
@@ -113,10 +111,7 @@ export function CmjVideoPlayersScreen({
 }) {
   const { t } = useTranslator();
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('cmjVideo.players.title')}
-      </AppText>
+    <ScreenBody header={<ScreenHeader title={t('cmjVideo.players.title')} />}>
       {offline ? <StatusMessage level="warning">{t('sync.offline')}</StatusMessage> : null}
       {notice === null ? null : <StatusMessage level="ok">{notice}</StatusMessage>}
       {rows.map(({ player, attempts }) => {
@@ -306,11 +301,14 @@ export function CmjVideoMarkScreen({
   ];
   const frameNumber = marking.frame + 1;
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('cmjVideo.mark.title', { name: playerName })}
-      </AppText>
-      <AppText tone="secondary">{t('cmjVideo.mark.help')}</AppText>
+    <ScreenBody
+      header={
+        <ScreenHeader
+          title={t('cmjVideo.mark.title', { name: playerName })}
+          subtitle={t('cmjVideo.mark.help')}
+        />
+      }
+    >
       <View
         style={{
           aspectRatio: 9 / 16,

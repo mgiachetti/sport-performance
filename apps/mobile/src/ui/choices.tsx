@@ -3,10 +3,11 @@ import { Pressable, Text, View } from 'react-native';
 import { useTheme } from './theme.tsx';
 
 /**
- * One option of a quick scale (wellness, RPE): a 44 pt target with a
- * visible focus ring, announced as a radio with its full name ("Sueño: Bien")
- * and its selected state. The selection is told by a thicker border, a fill
- * and a check mark, never by color alone.
+ * One option of a quick scale (wellness, RPE): a thumb-sized target (≥ 44 pt,
+ * taller than a control) with a visible focus ring, announced as a radio
+ * with its full name ("Sueño: Bien") and its selected state. The chosen one
+ * is filled in the club color with its ink and carries a check mark: never
+ * color alone. `children` receive the ink of the state (a drawn face).
  */
 export function ChoiceButton({
   label,
@@ -23,11 +24,12 @@ export function ChoiceButton({
   readonly selected: boolean;
   readonly onPress: () => void;
   readonly disabled?: boolean;
-  readonly children?: ReactNode;
+  readonly children?: ReactNode | ((ink: string) => ReactNode);
   readonly minWidth?: number;
 }) {
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
+  const ink = selected ? theme.colors.brand.onSolid : theme.colors.text.primary;
   return (
     <Pressable
       accessibilityRole="radio"
@@ -42,37 +44,36 @@ export function ChoiceButton({
         setFocused(false);
       }}
       style={({ pressed }) => ({
-        minHeight: theme.sizes.touchTarget,
+        minHeight: theme.sizes.touchTarget + theme.spacing.sm,
         minWidth: minWidth ?? theme.sizes.touchTarget,
         flexGrow: 1,
         flexBasis: 0,
         alignItems: 'center',
         justifyContent: 'center',
-        gap: theme.spacing.xs,
+        gap: theme.spacing.xxs,
         paddingVertical: theme.spacing.xs,
         borderRadius: theme.radius.md,
-        borderWidth: selected ? theme.borderWidth.thick * 2 : theme.borderWidth.thick,
+        borderWidth: theme.borderWidth.thick,
         borderColor: focused
           ? theme.colors.focus
           : selected
             ? theme.colors.brand.solid
             : theme.colors.border.strong,
-        backgroundColor: selected ? theme.colors.surfaceRaised : theme.colors.surface,
-        opacity: disabled ? 0.5 : pressed ? 0.85 : 1,
+        backgroundColor: selected
+          ? theme.colors.brand.solid
+          : pressed
+            ? theme.colors.brand.subtle
+            : theme.colors.surfaceRaised,
+        opacity: disabled ? 0.5 : 1,
       })}
     >
-      {children}
+      {typeof children === 'function' ? children(ink) : children}
       {label !== undefined ? (
-        <Text
-          style={[
-            theme.text.metricSmall,
-            { color: selected ? theme.colors.brand.accent : theme.colors.text.primary },
-          ]}
-        >
+        <Text style={[theme.text.metricSmall, { color: ink }]}>
           {selected ? `✓ ${label}` : label}
         </Text>
       ) : selected ? (
-        <Text style={[theme.text.caption, { color: theme.colors.brand.accent }]}>✓</Text>
+        <Text style={[theme.text.caption, { color: ink }]}>✓</Text>
       ) : null}
     </Pressable>
   );
@@ -106,12 +107,15 @@ export function ChoiceGroup({
 export function Face({
   level,
   size = 36,
+  color: ink,
 }: {
   readonly level: 1 | 2 | 3 | 4 | 5;
   readonly size?: number;
+  /** The ink of the button it is drawn on; the primary text color by default. */
+  readonly color?: string;
 }) {
   const theme = useTheme();
-  const color = theme.colors.text.primary;
+  const color = ink ?? theme.colors.text.primary;
   const stroke = Math.max(2, Math.round(size / 14));
   const eye = Math.max(3, Math.round(size / 9));
   const mouthWidth = size * (level === 3 ? 0.4 : 0.5);

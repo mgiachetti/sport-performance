@@ -75,6 +75,8 @@ export const mobilePlayerMessagesEsAR = {
   'playerApp.streak.title': 'Racha',
   'playerApp.streak.none': 'Cargá tu bienestar hoy para empezar una racha.',
   'playerApp.streak.keepAlive': 'Cargá el de hoy para no cortarla.',
+  // The unit next to the streak's figure ("11 · días seguidos").
+  'playerApp.streak.unit': '{days, plural, one {día seguido} other {días seguidos}}',
 
   // Test days
   'playerApp.testDays.title': 'Próximos días de test',

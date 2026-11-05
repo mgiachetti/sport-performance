@@ -14,7 +14,15 @@ import { Pressable, Text, View } from 'react-native';
 import type { SheetSummary } from '../coach-session/model.ts';
 import type { ClockView, SessionListItem, SheetPlayer } from '../coach-session/view.ts';
 import { useTranslator } from '../ui/i18n.tsx';
-import { AppText, Button, Card, ScreenBody, StatusMessage, TextField } from '../ui/primitives.tsx';
+import {
+  AppText,
+  Button,
+  Card,
+  ScreenBody,
+  ScreenHeader,
+  StatusMessage,
+  TextField,
+} from '../ui/primitives.tsx';
 import { useTheme } from '../ui/theme.tsx';
 
 /**
@@ -134,11 +142,14 @@ export function CoachSessionListScreen({
 }) {
   const { t } = useTranslator();
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('coachSession.list.title')}
-      </AppText>
-      <AppText tone="secondary">{t('coachSession.list.subtitle')}</AppText>
+    <ScreenBody
+      header={
+        <ScreenHeader
+          title={t('coachSession.list.title')}
+          subtitle={t('coachSession.list.subtitle')}
+        />
+      }
+    >
       {sync}
       {neverSynced ? (
         <StatusMessage level="warning">{t('coachSession.list.neverSynced')}</StatusMessage>
@@ -472,10 +483,7 @@ function ClockCard({
   const theme = useTheme();
   const { t } = useTranslator();
   return (
-    <Card>
-      <AppText role="overline" tone="secondary" accessibilityRole="header">
-        {t('coachSession.clock.title')}
-      </AppText>
+    <Card title={t('coachSession.clock.title')}>
       {clock.status === 'off' ? (
         <>
           <AppText role="bodySmall" tone="secondary">
@@ -661,10 +669,7 @@ export function CoachSessionSheetScreen({
                 }
                 onPress={onFillPresent}
               />
-              <Card>
-                <AppText role="overline" tone="secondary" accessibilityRole="header">
-                  {t('coachSession.summary.title')}
-                </AppText>
+              <Card title={t('coachSession.summary.title')}>
                 <AppText>{t('coachSession.summary.line', { ...summary })}</AppText>
                 <AppText role="bodySmall" tone="secondary">
                   {fieldRules.contacts

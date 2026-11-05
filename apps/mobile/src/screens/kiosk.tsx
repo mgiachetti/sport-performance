@@ -8,7 +8,7 @@ import {
 } from '@sport-performance/domain';
 import { formatDate, formatTime, type MessageKey } from '@sport-performance/i18n';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import type { KioskExitResult } from '../kiosk/controller.ts';
 import { kioskPinProblem, KIOSK_PIN_MAX_LENGTH } from '../kiosk/pin.ts';
 import { searchKioskPlayers, type KioskPlayer, type KioskSessionTask } from '../kiosk/roster.ts';
@@ -20,6 +20,7 @@ import {
   Card,
   LoadingView,
   ScreenBody,
+  ScreenHeader,
   StatusMessage,
   TextField,
 } from '../ui/primitives.tsx';
@@ -97,15 +98,10 @@ export function KioskSetupScreen({
   };
 
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('kiosk.setup.title')}
-      </AppText>
-      <AppText tone="secondary">{t('kiosk.setup.body')}</AppText>
-      <Card>
-        <AppText role="heading" accessibilityRole="header">
-          {t('kiosk.setup.categories')}
-        </AppText>
+    <ScreenBody
+      header={<ScreenHeader title={t('kiosk.setup.title')} subtitle={t('kiosk.setup.body')} />}
+    >
+      <Card title={t('kiosk.setup.categories')}>
         {categories.status === 'loading' ? (
           <LoadingView label={t('common.loading')} />
         ) : categories.status === 'error' ? (
@@ -150,6 +146,7 @@ export function KioskSetupScreen({
       {problem !== null ? <StatusMessage level="critical">{problem}</StatusMessage> : null}
       {error !== null ? <StatusMessage level="critical">{error}</StatusMessage> : null}
       <Button
+        size="lg"
         label={starting ? t('kiosk.setup.starting') : t('kiosk.setup.start')}
         busy={starting}
         disabled={categories.status !== 'ready' || categories.data.length === 0}
@@ -186,11 +183,7 @@ export function KioskPickScreen({
   const [query, setQuery] = useState('');
   const shown = players.status === 'ready' ? searchKioskPlayers(players.data, query) : [];
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {title}
-      </AppText>
-      <AppText role="heading">{t('kiosk.pick')}</AppText>
+    <ScreenBody header={<ScreenHeader title={title} subtitle={t('kiosk.pick')} />}>
       <TextField
         label={t('kiosk.search')}
         hint={t('kiosk.search.hint')}
@@ -215,6 +208,7 @@ export function KioskPickScreen({
             <View key={player.id} style={{ flexGrow: 1, flexBasis: 160 }}>
               <Button
                 variant="secondary"
+                size="lg"
                 label={player.displayName}
                 onPress={() => {
                   onPick(player.id);
@@ -329,22 +323,19 @@ export function KioskTurn({
       });
   };
 
-  const cancel = <Button variant="link" label={t('kiosk.turn.notMe')} onPress={actions.onFinish} />;
+  const cancel = (
+    <Button variant="ghost" label={t('kiosk.turn.notMe')} onPress={actions.onFinish} />
+  );
   const progress =
-    index >= 0 && steps.length > 1 ? (
-      <AppText role="caption" tone="secondary">
-        {t('kiosk.turn.step', { step: index + 1, total: steps.length })}
-      </AppText>
-    ) : null;
+    index >= 0 && steps.length > 1
+      ? t('kiosk.turn.step', { step: index + 1, total: steps.length })
+      : null;
 
   if (step.kind === 'confirm') {
     if (confirmed) {
       // Confirmed, and nothing to ask or not allowed: the message, then back.
       return (
-        <ScreenBody>
-          <AppText role="title" accessibilityRole="header">
-            {player.displayName}
-          </AppText>
+        <ScreenBody header={<ScreenHeader title={player.displayName} />}>
           <StatusMessage level={player.canReport ? 'ok' : 'warning'}>
             {player.canReport ? t('kiosk.turn.nothingLeft') : t('kiosk.turn.unavailable')}
           </StatusMessage>
@@ -353,11 +344,11 @@ export function KioskTurn({
       );
     }
     return (
-      <ScreenBody>
-        <AppText role="title" accessibilityRole="header">
-          {t('kiosk.turn.confirm', { name: player.displayName })}
-        </AppText>
+      <ScreenBody
+        header={<ScreenHeader title={t('kiosk.turn.confirm', { name: player.displayName })} />}
+      >
         <Button
+          size="lg"
           label={t('kiosk.turn.yes')}
           onPress={() => {
             setConfirmed(true);
@@ -372,10 +363,9 @@ export function KioskTurn({
 
   if (step.kind === 'done') {
     return (
-      <ScreenBody>
-        <AppText role="title" accessibilityRole="header">
-          {t('kiosk.turn.done', { name: player.firstName })}
-        </AppText>
+      <ScreenBody
+        header={<ScreenHeader title={t('kiosk.turn.done', { name: player.firstName })} />}
+      >
         <StatusMessage level="ok">{t('kiosk.turn.doneHint')}</StatusMessage>
         <Button label={t('kiosk.turn.back')} onPress={actions.onFinish} />
       </ScreenBody>
@@ -388,14 +378,15 @@ export function KioskTurn({
     const faces = wellness.itemCount === 3;
     const missing = wellness.items.filter((item) => scores[item] === undefined);
     return (
-      <ScreenBody>
-        {progress}
-        <AppText role="title" accessibilityRole="header">
-          {t('wellness.prompt')}
-        </AppText>
-        <AppText role="bodySmall" tone="secondary">
-          {player.displayName}
-        </AppText>
+      <ScreenBody
+        header={
+          <ScreenHeader
+            eyebrow={progress}
+            title={t('wellness.prompt')}
+            subtitle={player.displayName}
+          />
+        }
+      >
         {wellness.items.map((item) => (
           <WellnessScale
             key={item}
@@ -409,6 +400,7 @@ export function KioskTurn({
         ))}
         {problem !== null ? <StatusMessage level="critical">{problem}</StatusMessage> : null}
         <Button
+          size="lg"
           label={steps.length > 1 ? t('kiosk.turn.next') : t('kiosk.turn.send')}
           busy={busy}
           onPress={() => {
@@ -441,12 +433,9 @@ export function KioskTurn({
       : t('kiosk.turn.session', { title: session.title, time });
   const word = rpe === null ? null : rpeWord(t, rpe);
   return (
-    <ScreenBody>
-      {progress}
-      <AppText role="title" accessibilityRole="header">
-        {t('rpe.prompt')}
-      </AppText>
-      <AppText role="bodyStrong">{sessionName}</AppText>
+    <ScreenBody
+      header={<ScreenHeader eyebrow={progress} title={t('rpe.prompt')} subtitle={sessionName} />}
+    >
       <ChoiceGroup label={t('rpe.prompt')}>
         {RPE_VALUES.map((value) => {
           const name = rpeWord(t, value);
@@ -472,12 +461,13 @@ export function KioskTurn({
         <AppText role="caption" tone="secondary">{`${t('rpe.scale.10')} · 10`}</AppText>
       </View>
       {rpe !== null ? (
-        <AppText role="bodyStrong" tone="accent">
+        <AppText role="metric" tone="accent">
           {word === null ? String(rpe) : `${String(rpe)} · ${word}`}
         </AppText>
       ) : null}
       {problem !== null ? <StatusMessage level="critical">{problem}</StatusMessage> : null}
       <Button
+        size="lg"
         label={index + 1 < steps.length ? t('kiosk.turn.next') : t('kiosk.turn.send')}
         busy={busy}
         onPress={() => {
@@ -509,7 +499,7 @@ function WellnessScale({
   const name = t(itemKey(item));
   return (
     <View style={{ gap: theme.spacing.xs }}>
-      <AppText role="heading">{name}</AppText>
+      <AppText role="cardTitle">{name}</AppText>
       <ChoiceGroup label={name}>
         {LEVELS.map((level) => {
           const word = t(`kiosk.face.${String(level) as '1'}`);
@@ -522,10 +512,12 @@ function WellnessScale({
                 onChange(level);
               }}
             >
-              <Face level={level} size={48} />
-              <AppText role="caption" tone="secondary">
-                {word}
-              </AppText>
+              {(ink: string) => (
+                <>
+                  <Face level={level} size={48} color={ink} />
+                  <Text style={[theme.text.caption, { color: ink }]}>{word}</Text>
+                </>
+              )}
             </ChoiceButton>
           ) : (
             <ChoiceButton
@@ -584,11 +576,9 @@ export function KioskExitScreen({
       });
   };
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('kiosk.exit.title')}
-      </AppText>
-      <AppText tone="secondary">{t('kiosk.exit.body')}</AppText>
+    <ScreenBody
+      header={<ScreenHeader title={t('kiosk.exit.title')} subtitle={t('kiosk.exit.body')} />}
+    >
       <TextField
         label={t('kiosk.exit.pin')}
         value={pin}
@@ -603,6 +593,7 @@ export function KioskExitScreen({
       />
       {problem !== null ? <StatusMessage level="critical">{problem}</StatusMessage> : null}
       <Button
+        size="lg"
         label={t('kiosk.exit.confirm')}
         busy={busy}
         disabled={pin.length === 0}

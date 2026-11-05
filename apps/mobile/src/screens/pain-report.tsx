@@ -36,6 +36,7 @@ import {
   Card,
   LoadingView,
   ScreenBody,
+  ScreenHeader,
   StatusMessage,
   TextField,
 } from '../ui/primitives.tsx';
@@ -243,10 +244,7 @@ export function PainReportScreen({
   }
   if (question.kind === 'unavailable') {
     return (
-      <ScreenBody>
-        <AppText role="title" accessibilityRole="header">
-          {t('pain.title')}
-        </AppText>
+      <ScreenBody header={<ScreenHeader title={t('pain.title')} />}>
         <StatusMessage level="warning">{t(`pain.unavailable.${question.reason}`)}</StatusMessage>
       </ScreenBody>
     );
@@ -308,10 +306,7 @@ export function PainReportScreen({
 
       {draft.hasPain === true ? (
         <>
-          <Card>
-            <AppText role="heading" accessibilityRole="header">
-              {t('pain.map.title')}
-            </AppText>
+          <Card title={t('pain.map.title')}>
             <AppText role="caption" tone="secondary">
               {t('pain.map.hint')}
             </AppText>
@@ -346,10 +341,7 @@ export function PainReportScreen({
             ) : null}
           </Card>
 
-          <Card>
-            <AppText role="heading" accessibilityRole="header">
-              {t('pain.areas.title')}
-            </AppText>
+          <Card title={t('pain.areas.title')}>
             {draft.areas.length === 0 ? (
               <AppText tone="secondary">{t('pain.areas.none')}</AppText>
             ) : null}

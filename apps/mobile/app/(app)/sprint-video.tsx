@@ -42,10 +42,10 @@ import { saveSprintAttempt, type SprintMarks } from '../../src/sprint-video/save
 import { useApi, useServices, useSession, useSyncStatus } from '../../src/state/app-context.tsx';
 import { useTranslator } from '../../src/ui/i18n.tsx';
 import {
-  AppText,
   Button,
   LoadingView,
   ScreenBody,
+  ScreenHeader,
   StatusMessage,
 } from '../../src/ui/primitives.tsx';
 
@@ -194,10 +194,7 @@ export default function SprintVideo() {
   if (membership === null || userId === null) return null;
   if (!allowed) {
     return (
-      <ScreenBody>
-        <AppText role="title" accessibilityRole="header">
-          {t('sprintVideo.title')}
-        </AppText>
+      <ScreenBody header={<ScreenHeader title={t('sprintVideo.title')} />}>
         <StatusMessage level="warning">{t('sprintVideo.notAllowed')}</StatusMessage>
       </ScreenBody>
     );

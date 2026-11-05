@@ -25,7 +25,15 @@ import {
   type ExternalLoadItemState,
 } from '../external-load/model.ts';
 import { useTranslator } from '../ui/i18n.tsx';
-import { AppText, Button, Card, ScreenBody, StatusMessage, TextField } from '../ui/primitives.tsx';
+import {
+  AppText,
+  Button,
+  Card,
+  ScreenBody,
+  ScreenHeader,
+  StatusMessage,
+  TextField,
+} from '../ui/primitives.tsx';
 import { useTheme } from '../ui/theme.tsx';
 
 /**
@@ -234,11 +242,14 @@ export function ExternalLoadScreen({
   const presetChosen = MINUTES_PRESETS.some((m) => String(m) === minutesValue);
 
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {editing === null ? t('externalLoad.title') : t('externalLoad.correct.title')}
-      </AppText>
-      <AppText tone="secondary">{t('externalLoad.intro')}</AppText>
+    <ScreenBody
+      header={
+        <ScreenHeader
+          title={editing === null ? t('externalLoad.title') : t('externalLoad.correct.title')}
+          subtitle={t('externalLoad.intro')}
+        />
+      }
+    >
       {timeZoneKnown ? null : (
         <StatusMessage level="warning">{t('externalLoad.timeZoneUnknown')}</StatusMessage>
       )}
@@ -371,10 +382,7 @@ export function ExternalLoadScreen({
         )}
       </Card>
 
-      <Card>
-        <AppText role="overline" tone="secondary" accessibilityRole="header">
-          {t('externalLoad.list.title')}
-        </AppText>
+      <Card title={t('externalLoad.list.title')}>
         {items.length === 0 ? (
           <AppText tone="secondary">{t('externalLoad.list.empty')}</AppText>
         ) : (

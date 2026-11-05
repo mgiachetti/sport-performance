@@ -7,36 +7,48 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
   type TextInputProps,
 } from 'react-native';
 import { useTranslator } from './i18n.tsx';
-import { useTheme } from './theme.tsx';
+import { useClubMark, useTheme, type ClubMark } from './theme.tsx';
+
+/**
+ * The shared pieces of every screen (design system, ADR 0097 and ADR 0098):
+ * text by role, stripes, the screen body and its header with the crest,
+ * cards, buttons, status messages and fields. Colors, sizes and type come
+ * from `ui-tokens` through `useTheme()`; nothing here names a club.
+ */
 
 type Tone = 'primary' | 'secondary' | 'muted' | 'accent';
 
 export function AppText({
   role = 'body',
   tone = 'primary',
+  align,
   children,
   accessibilityRole,
+  accessibilityLabel,
   nativeID,
 }: {
   readonly role?: TextStyleRole;
   readonly tone?: Tone;
+  readonly align?: 'left' | 'center' | 'right';
   readonly children: ReactNode;
   readonly accessibilityRole?: 'header' | 'text';
+  /** What a screen reader says instead of the text (a figure with its unit spelled out). */
+  readonly accessibilityLabel?: string;
   readonly nativeID?: string;
 }) {
   const theme = useTheme();
   const color = tone === 'accent' ? theme.colors.brand.accent : theme.colors.text[tone];
   return (
     <Text
-      style={[theme.text[role], { color }]}
+      style={[theme.text[role], { color }, align === undefined ? null : { textAlign: align }]}
       accessibilityRole={accessibilityRole}
+      accessibilityLabel={accessibilityLabel}
       nativeID={nativeID}
     >
       {children}
@@ -61,12 +73,103 @@ export function Stripes({ height = 12 }: { readonly height?: number }) {
   );
 }
 
-/** Scrollable screen body on the theme background, with the stripes on top. */
+/**
+ * The top of a main screen, as in the mockup: the stripes band, then an
+ * eyebrow (greeting, club or context), the H1 in the big condensed face and
+ * a subtitle, with the club's crest on the right. The title is the screen's
+ * heading; the crest is announced once with the club's name.
+ */
+export function ScreenHeader({
+  title,
+  eyebrow,
+  subtitle,
+  crest = true,
+  club: clubProp,
+  children,
+}: {
+  readonly title: string;
+  readonly eyebrow?: string | null;
+  readonly subtitle?: string | null;
+  /** The active club's crest at the right; off where the screen already shows it. */
+  readonly crest?: boolean;
+  /** The club to show, when the screen has it (its theme); the active club's by default. */
+  readonly club?: ClubMark | null;
+  /** Under the titles, inside the header (a context line, a segmented control). */
+  readonly children?: ReactNode;
+}) {
+  const theme = useTheme();
+  const activeClub = useClubMark();
+  const club = clubProp ?? activeClub;
+  return (
+    <View
+      style={{
+        backgroundColor: theme.colors.surface,
+        borderBottomWidth: theme.borderWidth.hairline,
+        borderBottomColor: theme.colors.border.subtle,
+      }}
+    >
+      <Stripes height={theme.spacing.xl} />
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          gap: theme.spacing.md,
+          paddingHorizontal: theme.spacing.lg,
+          paddingTop: theme.spacing.lg,
+          paddingBottom: theme.spacing.lg,
+        }}
+      >
+        <View style={{ flex: 1, gap: theme.spacing.xs }}>
+          {eyebrow !== undefined && eyebrow !== null ? (
+            <AppText role="bodyStrong" tone="secondary">
+              {eyebrow}
+            </AppText>
+          ) : null}
+          <AppText role="pageTitle" accessibilityRole="header">
+            {title}
+          </AppText>
+          {subtitle !== undefined && subtitle !== null ? (
+            <AppText role="bodySmall" tone="secondary">
+              {subtitle}
+            </AppText>
+          ) : null}
+        </View>
+        {crest && club !== null ? (
+          <ClubBadge
+            name={club.name}
+            shortName={club.shortName}
+            logoUrl={club.logoUrl}
+            size={theme.sizes.clubMark}
+          />
+        ) : null}
+      </View>
+      {children !== undefined ? (
+        <View
+          style={{
+            paddingHorizontal: theme.spacing.lg,
+            paddingBottom: theme.spacing.lg,
+            gap: theme.spacing.sm,
+          }}
+        >
+          {children}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/**
+ * Scrollable screen body on the theme background. With a `header`
+ * (`ScreenHeader`) the header scrolls with the content; without one, the
+ * stripes band stays on top as the club's seal.
+ */
 export function ScreenBody({
   children,
+  header,
   stripes = true,
 }: {
   readonly children: ReactNode;
+  readonly header?: ReactNode;
   readonly stripes?: boolean;
 }) {
   const theme = useTheme();
@@ -75,49 +178,112 @@ export function ScreenBody({
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ flex: 1, backgroundColor: theme.colors.background }}
     >
-      {stripes ? <Stripes /> : null}
+      {header === undefined && stripes ? <Stripes /> : null}
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{
-          padding: theme.spacing.xl,
-          gap: theme.spacing.lg,
-          flexGrow: 1,
-        }}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: theme.spacing.xxl }}
       >
-        {children}
+        {header}
+        <View
+          style={{
+            paddingHorizontal: theme.spacing.lg,
+            paddingTop: theme.spacing.lg,
+            gap: theme.spacing.md,
+          }}
+        >
+          {children}
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-export function Card({ children }: { readonly children: ReactNode }) {
+/**
+ * A card: a raised surface with an optional condensed title (the section's
+ * heading), a subtitle and an action at the right. `highlight` outlines it
+ * in the club color (what the screen asks first); `flush` drops the padding
+ * for lists whose rows bring their own.
+ */
+export function Card({
+  children,
+  title,
+  subtitle,
+  action,
+  variant = 'default',
+}: {
+  readonly children?: ReactNode;
+  readonly title?: string;
+  readonly subtitle?: string | null;
+  readonly action?: ReactNode;
+  readonly variant?: 'default' | 'highlight' | 'flush';
+}) {
   const theme = useTheme();
+  const highlight = variant === 'highlight';
+  const flush = variant === 'flush';
+  const head =
+    title !== undefined ? (
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          gap: theme.spacing.sm,
+          ...(flush
+            ? {
+                paddingHorizontal: theme.spacing.lg,
+                paddingTop: theme.spacing.lg,
+                paddingBottom: theme.spacing.xs,
+              }
+            : {}),
+        }}
+      >
+        <View style={{ flex: 1, gap: theme.spacing.xxs }}>
+          <AppText role="cardTitle" accessibilityRole="header">
+            {title}
+          </AppText>
+          {subtitle !== undefined && subtitle !== null ? (
+            <AppText role="bodySmall" tone="secondary">
+              {subtitle}
+            </AppText>
+          ) : null}
+        </View>
+        {action}
+      </View>
+    ) : null;
   return (
     <View
       style={{
-        backgroundColor: theme.colors.surface,
-        borderColor: theme.colors.border.subtle,
-        borderWidth: theme.borderWidth.hairline,
+        backgroundColor: highlight ? theme.colors.brand.subtle : theme.colors.surface,
+        borderColor: highlight ? theme.colors.brand.border : theme.colors.border.subtle,
+        borderWidth: highlight ? theme.borderWidth.thick : theme.borderWidth.hairline,
         borderRadius: theme.radius.lg,
-        padding: theme.spacing.lg,
-        gap: theme.spacing.sm,
+        padding: flush ? 0 : theme.spacing.lg,
+        gap: flush ? 0 : theme.spacing.md,
+        overflow: 'hidden',
       }}
     >
+      {head}
       {children}
     </View>
   );
 }
 
-type ButtonVariant = 'primary' | 'secondary' | 'link';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'link';
 
 /**
  * Pressable with a 44 pt minimum target, a visible focus ring (keyboards and
- * switch control) and its busy state announced.
+ * switch control) and its busy state announced. `primary` is the club color
+ * with its legible ink (one per screen: the action the screen is for),
+ * `secondary` an outline, `ghost` (and its older name `link`) text in the
+ * club accent for the quiet actions, `danger` for signing out with changes
+ * pending. Labels are condensed and in sentence case (`text.button`).
+ * `size="lg"` is the thumb-sized submit of a quick form.
  */
 export function Button({
   label,
   onPress,
   variant = 'primary',
+  size = 'md',
+  align = 'stretch',
   disabled = false,
   busy = false,
   accessibilityHint,
@@ -128,6 +294,9 @@ export function Button({
   readonly accessibilityLabel?: string;
   readonly onPress: () => void;
   readonly variant?: ButtonVariant;
+  readonly size?: 'md' | 'lg';
+  /** `start`: as wide as its label, at the start of its row (an action inside a list row). */
+  readonly align?: 'stretch' | 'start';
   readonly disabled?: boolean;
   readonly busy?: boolean;
   readonly accessibilityHint?: string;
@@ -135,19 +304,41 @@ export function Button({
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
   const inactive = disabled || busy;
-  const colors = {
-    primary: {
-      bg: theme.colors.brand.solid,
-      fg: theme.colors.brand.onSolid,
-      border: theme.colors.brand.solid,
-    },
-    secondary: {
-      bg: theme.colors.surfaceRaised,
-      fg: theme.colors.text.primary,
-      border: theme.colors.border.strong,
-    },
-    link: { bg: 'transparent', fg: theme.colors.brand.accent, border: 'transparent' },
-  }[variant];
+  const quiet = variant === 'ghost' || variant === 'link';
+  const filled = !quiet;
+  // Off (not busy): a flat surface with muted ink, not the action's color faded.
+  const off = disabled && !busy && filled;
+  const colors = off
+    ? {
+        bg: theme.colors.surfaceRaised,
+        fg: theme.colors.text.muted,
+        border: theme.colors.border.subtle,
+      }
+    : {
+        primary: {
+          bg: theme.colors.brand.solid,
+          fg: theme.colors.brand.onSolid,
+          border: theme.colors.brand.solid,
+        },
+        secondary: {
+          bg: theme.colors.surfaceRaised,
+          fg: theme.colors.text.primary,
+          border: theme.colors.border.strong,
+        },
+        ghost: { bg: 'transparent', fg: theme.colors.brand.accent, border: 'transparent' },
+        link: { bg: 'transparent', fg: theme.colors.brand.accent, border: 'transparent' },
+        danger: {
+          bg: theme.colors.status.critical.bg,
+          fg: theme.colors.status.critical.fg,
+          border: theme.colors.status.critical.border,
+        },
+      }[variant];
+  const minHeight =
+    size === 'lg'
+      ? theme.sizes.touchTarget + theme.spacing.md
+      : quiet
+        ? theme.sizes.touchTarget
+        : theme.sizes.touchTarget + theme.spacing.xs;
   return (
     <Pressable
       accessibilityRole="button"
@@ -163,24 +354,25 @@ export function Button({
         setFocused(false);
       }}
       style={({ pressed }) => ({
-        minHeight: theme.sizes.touchTarget,
-        paddingHorizontal: theme.spacing.lg,
+        minHeight,
+        ...(align === 'start' ? { alignSelf: 'flex-start' as const } : {}),
+        paddingHorizontal: quiet ? theme.spacing.sm : theme.spacing.lg,
         paddingVertical: theme.spacing.sm,
         borderRadius: theme.radius.md,
         borderWidth: theme.borderWidth.thick,
         borderColor: focused ? theme.colors.focus : colors.border,
-        backgroundColor: colors.bg,
+        backgroundColor: pressed && quiet ? theme.colors.brand.subtle : colors.bg,
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'row',
         gap: theme.spacing.sm,
-        opacity: inactive && !busy ? 0.5 : pressed ? 0.85 : 1,
+        opacity: disabled && !busy && quiet ? 0.5 : pressed && filled && !inactive ? 0.85 : 1,
       })}
     >
       {busy ? <ActivityIndicator color={colors.fg} /> : null}
       <Text
         style={[
-          variant === 'link' ? theme.text.bodyStrong : theme.text.button,
+          size === 'lg' ? theme.text.cardTitle : theme.text.button,
           { color: colors.fg, textAlign: 'center' },
         ]}
       >
@@ -190,11 +382,53 @@ export function Button({
   );
 }
 
-const STATUS_GLYPHS: Readonly<Record<StatusLevel, string>> = {
+export const STATUS_GLYPHS: Readonly<Record<StatusLevel, string>> = {
   ok: '✓',
   warning: '!',
   critical: '✕',
 };
+
+/** The icon of a status: its glyph on the solid status color. Decorative next to its text. */
+export function StatusIcon({
+  level,
+  size,
+}: {
+  readonly level: StatusLevel;
+  readonly size?: number;
+}) {
+  const theme = useTheme();
+  const colors = theme.colors.status[level];
+  const side = size ?? theme.sizes.statusIcon + theme.spacing.xs;
+  return (
+    <View
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+      accessibilityElementsHidden
+      style={{
+        width: side,
+        height: side,
+        borderRadius: side / 2,
+        backgroundColor: colors.solid,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Text
+        style={[
+          theme.text.caption,
+          {
+            color: colors.onSolid,
+            fontFamily: theme.text.button.fontFamily,
+            fontSize: Math.round(side * 0.6),
+            lineHeight: side,
+          },
+        ]}
+      >
+        {STATUS_GLYPHS[level]}
+      </Text>
+    </View>
+  );
+}
 
 /**
  * A status message: always an icon and a text, never color alone (CLAUDE.md).
@@ -210,37 +444,28 @@ export function StatusMessage({
   const theme = useTheme();
   const { t } = useTranslator();
   const colors = theme.colors.status[level];
-  const size = theme.sizes.statusIcon + theme.spacing.xs;
   return (
     <View
       accessible
       accessibilityRole={level === 'ok' ? 'text' : 'alert'}
       accessibilityLiveRegion={level === 'ok' ? 'polite' : 'assertive'}
       accessibilityLabel={`${t(`status.${level}`)}: ${children}`}
-      style={[
-        styles.status,
-        {
-          backgroundColor: colors.bg,
-          borderColor: colors.border,
-          borderRadius: theme.radius.md,
-          padding: theme.spacing.md,
-          gap: theme.spacing.sm,
-        },
-      ]}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        backgroundColor: colors.bg,
+        borderColor: colors.border,
+        borderWidth: theme.borderWidth.hairline,
+        borderLeftWidth: theme.spacing.xs,
+        borderLeftColor: colors.solid,
+        borderRadius: theme.radius.md,
+        paddingVertical: theme.spacing.sm,
+        paddingHorizontal: theme.spacing.md,
+        gap: theme.spacing.sm,
+      }}
     >
-      <View
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: colors.solid,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Text style={[theme.text.caption, { color: colors.onSolid, fontWeight: '700' }]}>
-          {STATUS_GLYPHS[level]}
-        </Text>
+      <View style={{ paddingTop: theme.spacing.xxs }}>
+        <StatusIcon level={level} />
       </View>
       <Text style={[theme.text.bodySmall, { color: colors.fg, flex: 1 }]}>{children}</Text>
     </View>
@@ -350,7 +575,14 @@ export function ClubBadge({
         justifyContent: 'center',
       }}
     >
-      <Text style={[theme.text.heading, { color: theme.colors.brand.onSolid }]}>{shortName}</Text>
+      <Text
+        style={[
+          size < theme.sizes.avatarLarge ? theme.text.button : theme.text.heading,
+          { color: theme.colors.brand.onSolid },
+        ]}
+      >
+        {shortName}
+      </Text>
     </View>
   );
 }
@@ -373,7 +605,3 @@ export function LoadingView({ label }: { readonly label: string }) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  status: { flexDirection: 'row', alignItems: 'center', borderWidth: 1 },
-});

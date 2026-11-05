@@ -15,6 +15,7 @@ import {
   Card,
   LoadingView,
   ScreenBody,
+  ScreenHeader,
   StatusMessage,
 } from '../ui/primitives.tsx';
 import { useTheme } from '../ui/theme.tsx';
@@ -70,10 +71,7 @@ function TypeCard({
     status.actions.includes('revoke') &&
     (status.state === 'granted' || status.state === 'outdated');
   return (
-    <Card>
-      <AppText role="heading" accessibilityRole="header">
-        {t(`guardian.consents.type.${status.type}`)}
-      </AppText>
+    <Card title={t(`guardian.consents.type.${status.type}`)}>
       <AppText role="bodySmall" tone="secondary">
         {t(`guardian.consents.typeHelp.${status.type}`)}
       </AppText>
@@ -174,10 +172,7 @@ function DocumentView({
   const [accepted, setAccepted] = useState(false);
   const [mustAccept, setMustAccept] = useState(false);
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {document.title}
-      </AppText>
+    <ScreenBody header={<ScreenHeader title={document.title} />}>
       <AppText role="caption" tone="secondary">
         {t('guardian.consents.documentVersion', {
           version: document.version,
@@ -267,11 +262,14 @@ export function PlayerConsentsScreen({
   }
   if (state.status === 'loading') return <LoadingView label={t('common.loading')} />;
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('playerApp.consents.title')}
-      </AppText>
-      <AppText tone="secondary">{t('playerApp.consents.intro')}</AppText>
+    <ScreenBody
+      header={
+        <ScreenHeader
+          title={t('playerApp.consents.title')}
+          subtitle={t('playerApp.consents.intro')}
+        />
+      }
+    >
       {notice !== null ? <StatusMessage level={notice.level}>{notice.text}</StatusMessage> : null}
       {error !== null ? <StatusMessage level="critical">{error}</StatusMessage> : null}
       {state.status === 'error' ? (

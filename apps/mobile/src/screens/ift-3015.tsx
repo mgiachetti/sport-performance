@@ -15,6 +15,7 @@ import {
   Card,
   LoadingView,
   ScreenBody,
+  ScreenHeader,
   StatusMessage,
 } from '../ui/primitives.tsx';
 import { useTheme } from '../ui/theme.tsx';
@@ -187,18 +188,11 @@ export function IftSetupScreen({
   const roster = players?.status === 'ready' ? players.data : [];
   const chosen = roster.filter((player) => selected.has(player.id)).length;
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('ift.title')}
-      </AppText>
-      <AppText tone="secondary">{t('ift.setup.body')}</AppText>
+    <ScreenBody header={<ScreenHeader title={t('ift.title')} subtitle={t('ift.setup.body')} />}>
       <ProtocolSummary protocol={protocol} />
       {offline ? <StatusMessage level="warning">{t('sync.offline')}</StatusMessage> : null}
 
-      <Card>
-        <AppText role="overline" tone="secondary" accessibilityRole="header">
-          {t('ift.setup.category')}
-        </AppText>
+      <Card title={t('ift.setup.category')}>
         {categories.status === 'loading' ? (
           <AppText tone="secondary">{t('common.loading')}</AppText>
         ) : categories.status === 'error' ? (
@@ -510,10 +504,7 @@ export function IftInterruptedScreen({
 }) {
   const { t } = useTranslator();
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('ift.interrupted.title')}
-      </AppText>
+    <ScreenBody header={<ScreenHeader title={t('ift.interrupted.title')} />}>
       <StatusMessage level="warning">
         {t('ift.interrupted.body', {
           stage: moment.stage,
@@ -635,10 +626,7 @@ export function IftResultsScreen({
   const { t } = useTranslator();
   const [confirming, setConfirming] = useState(false);
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('ift.results.title')}
-      </AppText>
+    <ScreenBody header={<ScreenHeader title={t('ift.results.title')} />}>
       {interrupted ? (
         <StatusMessage level="warning">{t('ift.results.interrupted')}</StatusMessage>
       ) : null}

@@ -5,7 +5,8 @@ import { View } from 'react-native';
 import { metricLabel, metricValue, testLabel, unitValue } from '../player/format.ts';
 import type { PersonalRecord } from '../player/records.ts';
 import { useTranslator } from '../ui/i18n.tsx';
-import { AppText, Card, ScreenBody, StatusMessage } from '../ui/primitives.tsx';
+import { EmptyState } from '../ui/blocks.tsx';
+import { AppText, Card, ScreenBody, ScreenHeader, StatusMessage } from '../ui/primitives.tsx';
 import { useTheme } from '../ui/theme.tsx';
 import { TestDaySummary } from './player-today.tsx';
 
@@ -16,18 +17,44 @@ export type PercentilesSection =
   | { readonly kind: 'error'; readonly message: string }
   | { readonly kind: 'ready'; readonly items: readonly PlayerPercentile[] };
 
-function Row({ children }: { readonly children: ReactNode }) {
+function Row({ children, first }: { readonly children: ReactNode; readonly first: boolean }) {
   const theme = useTheme();
   return (
     <View
       style={{
         gap: theme.spacing.xs,
-        paddingTop: theme.spacing.sm,
-        borderTopWidth: theme.borderWidth.hairline,
+        paddingVertical: theme.spacing.md,
+        borderTopWidth: first ? 0 : theme.borderWidth.hairline,
         borderTopColor: theme.colors.border.subtle,
       }}
     >
       {children}
+    </View>
+  );
+}
+
+/** A label (and its caption) at the left and a figure at the right. */
+function FigureLine({
+  label,
+  caption,
+  figure,
+}: {
+  readonly label: string;
+  readonly caption?: string;
+  readonly figure: string;
+}) {
+  const theme = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
+      <View style={{ flex: 1, gap: theme.spacing.xxs }}>
+        <AppText role="bodyStrong">{label}</AppText>
+        {caption !== undefined ? (
+          <AppText role="caption" tone="secondary">
+            {caption}
+          </AppText>
+        ) : null}
+      </View>
+      <Figure>{figure}</Figure>
     </View>
   );
 }
@@ -42,17 +69,50 @@ function Section({
   readonly children: ReactNode;
 }) {
   return (
-    <Card>
-      <AppText role="heading" accessibilityRole="header">
-        {title}
-      </AppText>
-      {intro !== undefined ? (
-        <AppText role="bodySmall" tone="secondary">
-          {intro}
-        </AppText>
-      ) : null}
-      {children}
+    <Card title={title} subtitle={intro ?? null}>
+      <View>{children}</View>
     </Card>
+  );
+}
+
+/** A figure at the right of a row: condensed, tabular, the unit inside the formatted value. */
+function Figure({ children }: { readonly children: string }) {
+  return (
+    <AppText role="metric" align="right">
+      {children}
+    </AppText>
+  );
+}
+
+/**
+ * Where the player is in the group, drawn as a bar from 0 to 100: decorative,
+ * the percentile is always written next to it.
+ */
+function PercentileBar({ percentile }: { readonly percentile: number }) {
+  const theme = useTheme();
+  const clamped = Math.min(100, Math.max(0, percentile));
+  return (
+    <View
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+      accessibilityElementsHidden
+      style={{
+        height: theme.spacing.sm,
+        borderRadius: theme.radius.pill,
+        backgroundColor: theme.colors.surfaceRaised,
+        borderWidth: theme.borderWidth.hairline,
+        borderColor: theme.colors.border.subtle,
+        overflow: 'hidden',
+      }}
+    >
+      <View
+        style={{
+          width: `${String(clamped)}%`,
+          height: '100%',
+          backgroundColor: theme.colors.chart.player,
+        }}
+      />
+    </View>
   );
 }
 
@@ -65,20 +125,18 @@ function Records({ records }: { readonly records: readonly PersonalRecord[] }) {
   return (
     <Section title={t('playerApp.records.title')} intro={t('playerApp.records.intro')}>
       {records.length === 0 ? (
-        <AppText tone="secondary">{t('playerApp.records.none')}</AppText>
+        <EmptyState mark="0" title={t('playerApp.records.none')} />
       ) : (
-        records.map((record) => (
-          <Row key={record.key}>
-            <AppText role="bodyStrong">
-              {metricLabel(t, record.metricCode, record.exercise)}
-            </AppText>
-            <AppText role="metricSmall">{unitValue(record.value, record.unit)}</AppText>
-            <AppText role="caption" tone="secondary">
-              {t('playerApp.records.when', {
+        records.map((record, index) => (
+          <Row key={record.key} first={index === 0}>
+            <FigureLine
+              label={metricLabel(t, record.metricCode, record.exercise)}
+              caption={t('playerApp.records.when', {
                 date: formatLocalDate(record.measuredOn),
                 method: methodLabel(t, record.method),
               })}
-            </AppText>
+              figure={unitValue(record.value, record.unit)}
+            />
             {record.mixedMethods ? (
               <StatusMessage level="warning">{t('playerApp.records.mixedMethods')}</StatusMessage>
             ) : null}
@@ -94,7 +152,7 @@ function Percentiles({ section }: { readonly section: PercentilesSection }) {
   if (section.kind === 'hidden') {
     return (
       <Section title={t('playerApp.percentiles.title')}>
-        <AppText tone="secondary">{t('playerApp.percentiles.fromM15')}</AppText>
+        <EmptyState mark="%" title={t('playerApp.percentiles.fromM15')} />
       </Section>
     );
   }
@@ -105,18 +163,19 @@ function Percentiles({ section }: { readonly section: PercentilesSection }) {
       ) : section.kind === 'error' ? (
         <StatusMessage level="critical">{section.message}</StatusMessage>
       ) : section.items.length === 0 ? (
-        <AppText tone="secondary">{t('playerApp.percentiles.none')}</AppText>
+        <EmptyState mark="%" title={t('playerApp.percentiles.none')} />
       ) : (
-        section.items.map((item) => (
-          <Row key={`${item.metricCode}:${item.exercise ?? ''}`}>
-            <AppText role="bodyStrong">{metricLabel(t, item.metricCode, item.exercise)}</AppText>
+        section.items.map((item, index) => (
+          <Row key={`${item.metricCode}:${item.exercise ?? ''}`} first={index === 0}>
             {item.status === 'ok' && item.percentile !== null ? (
               <>
-                <AppText role="metricSmall">
-                  {t('playerApp.percentiles.value', {
+                <FigureLine
+                  label={metricLabel(t, item.metricCode, item.exercise)}
+                  figure={t('playerApp.percentiles.value', {
                     percentile: formatNumber(item.percentile, { decimals: 0 }),
                   })}
-                </AppText>
+                />
+                <PercentileBar percentile={item.percentile} />
                 <AppText role="caption" tone="secondary">
                   {t('playerApp.percentiles.detail', {
                     value: metricValue(item.metricCode, item.value, item.unit),
@@ -134,7 +193,14 @@ function Percentiles({ section }: { readonly section: PercentilesSection }) {
                 ) : null}
               </>
             ) : (
-              <AppText tone="secondary">{t('playerApp.percentiles.insufficient')}</AppText>
+              <>
+                <AppText role="bodyStrong">
+                  {metricLabel(t, item.metricCode, item.exercise)}
+                </AppText>
+                <AppText role="bodySmall" tone="secondary">
+                  {t('playerApp.percentiles.insufficient')}
+                </AppText>
+              </>
             )}
           </Row>
         ))
@@ -148,10 +214,10 @@ function History({ results }: { readonly results: readonly TestResult[] }) {
   return (
     <Section title={t('playerApp.history.title')}>
       {results.length === 0 ? (
-        <AppText tone="secondary">{t('playerApp.history.none')}</AppText>
+        <EmptyState mark="—" title={t('playerApp.history.none')} />
       ) : (
-        results.map((result) => (
-          <Row key={result.id}>
+        results.map((result, index) => (
+          <Row key={result.id} first={index === 0}>
             <AppText role="bodyStrong">{testLabel(t, result.testCode)}</AppText>
             <AppText role="caption" tone="secondary">
               {t('playerApp.history.when', {
@@ -200,19 +266,16 @@ export function PlayerTestsScreen({
 }) {
   const { t } = useTranslator();
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('nav.myTests')}
-      </AppText>
+    <ScreenBody header={<ScreenHeader title={t('nav.myTests')} />}>
       {notice !== null ? <StatusMessage level="warning">{notice}</StatusMessage> : null}
       <Section title={t('playerApp.testDays.title')}>
         {testDays === null ? (
           <AppText tone="secondary">{t('common.loading')}</AppText>
         ) : testDays.length === 0 ? (
-          <AppText tone="secondary">{t('playerApp.testDays.none')}</AppText>
+          <EmptyState mark="—" title={t('playerApp.testDays.none')} />
         ) : (
-          testDays.map((day) => (
-            <Row key={day.id}>
+          testDays.map((day, index) => (
+            <Row key={day.id} first={index === 0}>
               <TestDaySummary day={day} />
             </Row>
           ))
