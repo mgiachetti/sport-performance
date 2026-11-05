@@ -48,7 +48,7 @@ export function registerSyncRoutes(app: FastifyInstance): void {
       const scopes = pullScopes(subject, requested);
       const view = await pullFingerprint(db, subject, scopes);
       const { fingerprint } = view;
-      const { at, reset } = decodePullCursor(query.cursor, clubId, fingerprint);
+      const { at, reset } = decodePullCursor(query.cursor, clubId, fingerprint, view.nextTxid);
       const page = await pullPage(db, clubId, scopes, view, at, query.limit);
       return {
         items: page.items,

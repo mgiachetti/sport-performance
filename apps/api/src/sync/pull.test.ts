@@ -46,6 +46,28 @@ describe('pull cursor', () => {
     });
   });
 
+  it('restarts with reset when the cursor is past the next txid (a restored database, ADR 0094)', () => {
+    const cursor = encodePullCursor(CLUB, 'f', { txid: '12345', seq: 9 });
+    // The server will assign 12345 next: the cursor read a transaction this history lacks.
+    expect(decodePullCursor(cursor, CLUB, 'f', '12345')).toEqual({
+      at: { txid: null, seq: null },
+      reset: true,
+    });
+    expect(decodePullCursor(cursor, CLUB, 'f', '900')).toEqual({
+      at: { txid: null, seq: null },
+      reset: true,
+    });
+    expect(decodePullCursor(cursor, CLUB, 'f', '12346')).toEqual({
+      at: { txid: '12345', seq: 9 },
+      reset: false,
+    });
+    const start = encodePullCursor(CLUB, 'f', { txid: null, seq: null });
+    expect(decodePullCursor(start, CLUB, 'f', '1')).toEqual({
+      at: { txid: null, seq: null },
+      reset: false,
+    });
+  });
+
   it('rejects a malformed cursor or one of another club', () => {
     const encode = (value: unknown) =>
       Buffer.from(JSON.stringify(value), 'utf8').toString('base64url');

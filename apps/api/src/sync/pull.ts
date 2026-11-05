@@ -129,13 +129,18 @@ function invalidCursor(): never {
 
 /**
  * Where to read from. A cursor of another fingerprint (the caller's scope
- * changed) restarts from the beginning with `reset`; a malformed one or one
- * of another club is `400`.
+ * changed, or the database was restored: the fingerprint carries its sync
+ * epoch) restarts from the beginning with `reset`; so does a cursor at or
+ * past `nextTxid`, the next transaction id the server will assign: no change
+ * it read can be that new, so it comes from a history this database does not
+ * have (a restore not recorded yet, ADR 0094). A malformed cursor or one of
+ * another club is `400`.
  */
 export function decodePullCursor(
   cursor: string | undefined,
   clubId: ClubId,
   fingerprint: string,
+  nextTxid?: string,
 ): { at: PullPosition; reset: boolean } {
   if (cursor === undefined) return { at: START, reset: false };
   let parsed: unknown;
@@ -161,6 +166,9 @@ export function decodePullCursor(
     at = { txid: x, seq: s };
   } else return invalidCursor();
   if (f !== fingerprint) return { at: START, reset: true };
+  if (at.txid !== null && nextTxid !== undefined && BigInt(at.txid) >= BigInt(nextTxid)) {
+    return { at: START, reset: true };
+  }
   return { at, reset: false };
 }
 
@@ -177,6 +185,12 @@ export function decodePullCursor(
  */
 export interface PullView {
   readonly fingerprint: string;
+  /**
+   * The next transaction id the server will assign (`pg_snapshot_xmax` of
+   * the current snapshot), as text: a cursor at or past it is not of this
+   * database's history.
+   */
+  readonly nextTxid: string;
   /** The club day the pull is read on. */
   readonly today: LocalDate;
   /**
@@ -192,10 +206,19 @@ export async function pullFingerprint(
   scopes: ReadonlyMap<SyncCollection, Scope>,
 ): Promise<PullView> {
   const today = await clubToday(db);
-  const { rows } = await db.execute<{ ids: string[] | null; categories: string[] | null }>(
+  const { rows } = await db.execute<{
+    ids: string[] | null;
+    categories: string[] | null;
+    epoch: string;
+    next_txid: string;
+  }>(
     sql`select coalesce((select array_agg(v order by v) from unnest(app.visible_player_ids()) v), '{}')::text[] as ids,
-               coalesce((select array_agg(v order by v) from unnest(app.assigned_category_ids()) v), '{}')::text[] as categories`,
+               coalesce((select array_agg(v order by v) from unnest(app.assigned_category_ids()) v), '{}')::text[] as categories,
+               app.sync_epoch() as epoch,
+               pg_snapshot_xmax(pg_current_snapshot())::text as next_txid`,
   );
+  const facts = rows[0];
+  if (facts === undefined) throw new Error('pull: the fingerprint query returned no row');
   // Which category programs reach a player follows their categories and stage today: a
   // change of either can bring or take programs without a change in the log.
   const programScope = scopes.get('gym_program');
@@ -228,14 +251,17 @@ export async function pullFingerprint(
         subject.role,
         subject.clubId,
         scopeKeys,
-        rows[0]?.ids ?? [],
-        rows[0]?.categories ?? [],
+        facts.ids ?? [],
+        facts.categories ?? [],
         ...(playerDays === null ? [] : [playerDays]),
+        // The database's sync epoch (ADR 0094): '' until a restore is recorded, and then
+        // left out of the hash's input so the cursors issued before it existed stay valid.
+        ...(facts.epoch === '' ? [] : [['epoch', facts.epoch]]),
       ]),
     )
     .digest('base64url')
     .slice(0, 22);
-  return { fingerprint, today, programDays };
+  return { fingerprint, nextTxid: facts.next_txid, today, programDays };
 }
 
 // ─── Scope filters ───────────────────────────────────────────────────────────────────

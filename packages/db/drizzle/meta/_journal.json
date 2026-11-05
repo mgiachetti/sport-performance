@@ -358,6 +358,13 @@
       "when": 1793840660871,
       "tag": "0050_usage_metrics",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1793841592715,
+      "tag": "0051_restore_drills",
+      "breakpoints": true
     }
   ]
 }
