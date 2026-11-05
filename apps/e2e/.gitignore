@@ -1,0 +1,4 @@
+.e2e-run/
+playwright-report/
+test-results/
+blob-report/

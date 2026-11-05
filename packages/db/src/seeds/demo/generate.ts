@@ -638,7 +638,11 @@ const TEST_METHOD: Readonly<Partial<Record<CanonicalTestCode, MeasurementMethod>
 /** Tests the demo records: the battery but the anthropometry (its own table) and the neck (Phase 2 hardware). */
 const RECORDED_TESTS = new Set<CanonicalTestCode>(Object.keys(TEST_METHOD) as CanonicalTestCode[]);
 
-const MARK = 'Dato ficticio de demostración.';
+/** Ends every free text the demo writes (notes, diagnoses): fictitious data, never a real record. */
+export const DEMO_MARK = 'Dato ficticio de demostración.';
+const MARK = DEMO_MARK;
+/** Start of every diagnosis of the demo (`Lesión ficticia (<region>). <mark>`). */
+export const DEMO_INJURY_DIAGNOSIS_PREFIX = 'Lesión ficticia';
 
 interface Context {
   readonly o: ResolvedOptions;
@@ -1052,7 +1056,7 @@ export function generateDemoDataset(options: DemoOptions): DemoDataset {
             : 'right',
         onset: r.chance(0.8) ? 'acute' : 'gradual',
         mechanism: r.pick(['contact', 'non_contact'] as const),
-        diagnosis: `Lesión ficticia (${region}). ${MARK}`,
+        diagnosis: `${DEMO_INJURY_DIAGNOSIS_PREFIX} (${region}). ${MARK}`,
         expectedReturnOn,
         returnedOn: before(o.asOf, expectedReturnOn) ? null : expectedReturnOn,
       };

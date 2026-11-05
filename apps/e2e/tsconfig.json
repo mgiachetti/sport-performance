@@ -1,0 +1,13 @@
+{
+  "extends": "@sport-performance/config/tsconfig/node.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // Node runs the stack from source (type stripping) and Playwright and Vitest load the
+    // tests from source: imports keep their `.ts` extension and the syntax stays erasable.
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["src", "tests", "playwright.config.ts", "vitest.config.ts"]
+}

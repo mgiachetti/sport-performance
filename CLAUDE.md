@@ -101,7 +101,7 @@ Códigos canónicos: `dist_m`, `dist_m_min`, `hsr_abs_m` (> 5,5 m/s por defecto,
 | Tema | Decisión | ADR |
 |---|---|---|
 | Lenguaje | TypeScript estricto en todo (salvo `firmware/`) | [0002](docs/adr/0002-typescript-estricto.md) |
-| Monorepo | pnpm workspaces + Turborepo. `apps/{api,worker,web,mobile}`, `packages/{domain,contracts,db,ui-tokens,i18n,config,storage,charts}`, `mockups/`, `assets/`, `firmware/`, `docs/` | [0001](docs/adr/0001-monorepo-tooling.md) |
+| Monorepo | pnpm workspaces + Turborepo. `apps/{api,worker,web,mobile,e2e}`, `packages/{domain,contracts,db,ui-tokens,i18n,config,storage,charts}`, `mockups/`, `assets/`, `firmware/`, `docs/` | [0001](docs/adr/0001-monorepo-tooling.md) |
 | Infra | Railway (no Supabase: Postgres estándar, sin auth ni helpers de RLS del proveedor): Postgres con HA y PITR, API, worker, web, buckets S3-compatibles. Ambientes `staging` y `production`. Proyecto como código en `.railway/railway.ts` (secretos con `preserve()`), una imagen Docker por servicio, `db:release` en el pre-deploy de la API (migraciones y logins por rol), `staging` desde `main` y `production` desde la rama `production` (workflow `promote`); runbook en `docs/infra/railway.md` | [0003](docs/adr/0003-infra-railway.md), [0090](docs/adr/0090-proyecto-de-railway-como-codigo-y-deploy.md) |
 | Backups y recuperación | PITR de Railway + backups de volumen; simulacro con marcadores antes y después del punto, verificación automática de la copia (`sport-performance-db-restore`) y registro en `docs/ops/`; la copia restaurada registra un evento que cambia la época de sincronización y fuerza `reset` en los dispositivos | [0094](docs/adr/0094-backups-pitr-y-simulacros-de-restauracion.md) |
 | DB | PostgreSQL 16. Drizzle ORM + migraciones SQL versionadas en `packages/db`; datos de referencia como seeds; FK compuestas `(club_id, id)` y auditoría en toda tabla del club | [0004](docs/adr/0004-postgres-drizzle.md), [0023](docs/adr/0023-convenciones-del-esquema-de-base.md), [0027](docs/adr/0027-seeds-y-bootstrap-de-club.md) |
@@ -127,6 +127,7 @@ Códigos canónicos: `dist_m`, `dist_m_min`, `hsr_abs_m` (> 5,5 m/s por defecto,
 | Multi-deporte y sexo | `sport` y `sex` en el modelo desde el día uno; lo específico de hockey y femenino en M8. Valores por defecto por sexo como datos del dominio con su fuente, sin bifurcar código | [0017](docs/adr/0017-deporte-y-sexo-en-el-modelo.md), [0088](docs/adr/0088-umbrales-y-referencias-femeninas.md) |
 | Sin facturación | No se cobra la app por ahora | [0018](docs/adr/0018-sin-facturacion.md) |
 | i18n | ICU MessageFormat (FormatJS) con catálogo fuente `es-AR` tipado en `packages/i18n`; formateadores es-AR propios sobre `Intl`, con la zona horaria del club obligatoria | [0019](docs/adr/0019-i18n-y-formatos-es-ar.md) |
+| Tests de punta a punta | `apps/e2e`: stack real (base nueva con migraciones, logins por rol y el club demo `demo-e2e` de `runDemoSeed`; API y worker compilados; web compilada con `vite preview`), código de ingreso leído del log de la API (sin puerta trasera), Playwright en Chromium con una sesión guardada por cuenta y textos del catálogo es-AR; mobile en CI sin dispositivo con el cliente y el motor de sincronización de la app sobre SQLite real; Maestro fuera de CI; job `e2e` aparte en CI | [0096](docs/adr/0096-tests-de-punta-a-punta.md) |
 | Seguridad del repo | Dependabot, gitleaks en Actions, CodeQL condicionado al plan, workflows endurecidos y ruleset de `main` versionado (sin aprobaciones obligatorias; check `ci` requerido) | [0021](docs/adr/0021-seguridad-del-repo.md) |
 
 ## Identidad visual (tenant ORC; todo como tokens en `packages/ui-tokens`)
@@ -140,7 +141,7 @@ Naranja `#F1882A`, negro `#050505`, fondo `#141210`, paneles `#1C1916` / `#24201
 - Nada de reglas de alerta hardcodeadas: reglas declarativas con valores por defecto en seeds.
 - Accesibilidad: estado con ícono + texto, foco visible, contraste AA, tabla alternativa por gráfico.
 - Privacidad por defecto: el jugador solo ve lo suyo; rankings con nombres solo para el staff.
-- Tests: unitarios con Vitest; integración de DB contra Postgres real (Docker local `postgres:16`, servicio en CI). Los tests de RLS son obligatorios para toda tabla nueva.
+- Tests: unitarios con Vitest; integración de DB contra Postgres real (Docker local `postgres:16`, servicio en CI). Los tests de RLS son obligatorios para toda tabla nueva. De punta a punta: Playwright en `apps/e2e` contra el club demo y `test:e2e` de mobile (ver `apps/e2e/README.md`).
 
 ## Proceso de trabajo
 

@@ -12,5 +12,13 @@
     "declarationMap": false,
     "types": ["node"]
   },
-  "include": ["app", "src", "app.config.ts", "vitest.config.ts", "vitest.setup.ts"]
+  "include": [
+    "app",
+    "src",
+    "e2e",
+    "app.config.ts",
+    "vitest.config.ts",
+    "vitest.e2e.config.ts",
+    "vitest.setup.ts"
+  ]
 }

@@ -123,6 +123,106 @@ jobs:
           save-pnpm-cache: 'true'
       - run: pnpm build
 
+  # End-to-end tests (B-108, ADR 0096): the real stack (fresh database with the demo club,
+  # compiled API and worker, built web) started once, then Playwright on the web and the
+  # mobile app's client and sync engine against it. Its own job, in parallel with the others.
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      # Must match the defaults of apps/e2e/src/stack/config.ts (or set E2E_API_PORT/E2E_WEB_PORT).
+      E2E_API_URL: http://127.0.0.1:3100
+      E2E_WEB_URL: http://127.0.0.1:4174
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      # Throwaway credentials of the ephemeral service container; not a secret.
+      - name: Export E2E_DATABASE_URL
+        env:
+          PG_PORT: ${{ job.services.postgres.ports['5432'] }}
+        run: echo "E2E_DATABASE_URL=postgres://postgres:postgres@localhost:${PG_PORT}/postgres" >>"$GITHUB_ENV"
+      # The web inlines the API URL at build time (VITE_API_URL is part of Turborepo's hash).
+      - name: Build the stack
+        env:
+          VITE_API_URL: ${{ env.E2E_API_URL }}
+        run: >-
+          pnpm turbo run build --filter=@sport-performance/api --filter=@sport-performance/worker
+          --filter=@sport-performance/web
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(pnpm --filter @sport-performance/e2e exec playwright --version | awk '{print $2}')" >>"$GITHUB_OUTPUT"
+      - name: Cache the Playwright browser
+        id: browser-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium
+      - name: Install the Playwright browser
+        if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @sport-performance/e2e exec playwright install --with-deps chromium
+      - name: Install the browser's system dependencies
+        if: steps.browser-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @sport-performance/e2e exec playwright install-deps chromium
+      # In the background for the next steps; Playwright reuses it (`reuseExistingServer`).
+      - name: Start the stack
+        run: |
+          node apps/e2e/src/stack/main.ts >"$RUNNER_TEMP/e2e-stack.log" 2>&1 &
+          pid=$!
+          echo "E2E_STACK_PID=${pid}" >>"$GITHUB_ENV"
+          for _ in $(seq 1 300); do
+            if curl -fsS "$E2E_WEB_URL" >/dev/null 2>&1; then break; fi
+            if ! kill -0 "$pid" 2>/dev/null; then cat "$RUNNER_TEMP/e2e-stack.log"; exit 1; fi
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/e2e-stack.log"
+          curl -fsS "$E2E_API_URL/health/ready"
+      - name: Web (Playwright)
+        run: pnpm --filter @sport-performance/e2e e2e
+      - name: Mobile (client and sync engine)
+        if: ${{ !cancelled() }}
+        run: pnpm --filter @sport-performance/mobile test:e2e
+      # Stops the children and drops the run's database and logins, like a local run.
+      - name: Stop the stack
+        if: ${{ always() && env.E2E_STACK_PID != '' }}
+        run: |
+          kill -TERM "$E2E_STACK_PID" 2>/dev/null || exit 0
+          for _ in $(seq 1 30); do
+            if ! kill -0 "$E2E_STACK_PID" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          tail -n 5 "$RUNNER_TEMP/e2e-stack.log"
+      # Playwright's HTML report plus the trace, screenshot and video of each failed test
+      # (`test-results/`), and the logs of the stack and of each of its processes.
+      - name: Upload the report and the stack logs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-report
+          path: |
+            apps/e2e/playwright-report/
+            apps/e2e/test-results/
+            apps/e2e/.e2e-run/*.log
+            ${{ runner.temp }}/e2e-stack.log
+          retention-days: 7
+          if-no-files-found: ignore
+
   # The Docker images Railway builds (B-701, ADR 0090): every PR builds and smoke-tests them, so
   # a broken Dockerfile never reaches a deploy. Nothing is pushed anywhere.
   images:
@@ -177,7 +277,7 @@ jobs:
   ci:
     name: ci
     if: always()
-    needs: [format, lint, typecheck, test, build, images, workflows]
+    needs: [format, lint, typecheck, test, build, e2e, images, workflows]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
