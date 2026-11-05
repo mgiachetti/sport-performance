@@ -4,56 +4,9 @@
  * lists and the training screens (B-407). Same rule: only `--sp-*` tokens.
  */
 
-/* Inline status: icon + text, the icon tinted by status (never color alone). */
-.sp-status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-space-xs);
-  font-size: var(--sp-text-body-small-size);
-}
-.sp-status--ok svg {
-  color: var(--sp-color-status-ok-fg);
-}
-.sp-status--warning svg {
-  color: var(--sp-color-status-warning-fg);
-}
-.sp-status--critical svg {
-  color: var(--sp-color-status-critical-fg);
-}
-
-/* Data tables: scroll sideways on narrow screens, tabular figures. */
+/* Inline status chips and data tables: see primitives.css (ADR 0097). */
 .sp-table-wrap {
   margin-top: var(--sp-space-lg);
-  overflow-x: auto;
-}
-.sp-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.sp-table th,
-.sp-table td {
-  padding: var(--sp-space-sm) var(--sp-space-md);
-  border-bottom: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
-  text-align: left;
-  vertical-align: middle;
-}
-.sp-table thead th {
-  color: var(--sp-color-text-secondary);
-  font-size: var(--sp-text-body-small-size);
-  font-weight: var(--sp-text-body-strong-weight);
-  white-space: nowrap;
-}
-.sp-table tbody th {
-  font-weight: var(--sp-text-body-strong-weight);
-}
-.sp-table__number {
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-  white-space: nowrap;
-}
-.sp-table th.sp-table__number,
-.sp-table td.sp-table__number {
-  text-align: right;
 }
 
 /* Filters and form layout */

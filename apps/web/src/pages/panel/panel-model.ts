@@ -154,12 +154,59 @@ export function weeklyLoadSeries(
   });
 }
 
-/** Players with active alerts, critical first, otherwise in roster order (alphabetical). */
+/**
+ * Where each alert kind keeps its observed value and the threshold it crossed (`values` of the
+ * domain rules engine), and on which side of the threshold it alerts.
+ */
+const ALERT_MARGINS: Readonly<
+  Record<string, { observed: string; threshold: string; direction: 'above' | 'below' }>
+> = {
+  acwr_high: { observed: 'acwrRatio', threshold: 'thresholdRatio', direction: 'above' },
+  acwr_low: { observed: 'acwrRatio', threshold: 'thresholdRatio', direction: 'below' },
+  wellness_low: { observed: 'wellnessScore', threshold: 'thresholdScore', direction: 'below' },
+  wellness_zscore_low: { observed: 'zScore', threshold: 'thresholdZScore', direction: 'below' },
+  cmj_drop: { observed: 'dropPct', threshold: 'thresholdPct', direction: 'above' },
+  growth_peak: { observed: 'velocityCmYear', threshold: 'thresholdCmYear', direction: 'above' },
+};
+
+/**
+ * How far past its threshold an alert is, relative to the threshold (0,53 against an ACWR floor
+ * of 0,8 is further than 0,77). 0 when the kind or its values are unknown to this build.
+ *
+ * A display heuristic only (ADR 0097), not a severity scale: it puts margins of different kinds
+ * side by side (a z-score margin against an ACWR margin), which are not the same magnitude. The
+ * severity is the rule's own `severity`; this only orders the list within one.
+ */
+export function alertMargin(alert: {
+  readonly kind: string;
+  readonly values: Readonly<Record<string, number>>;
+}): number {
+  const keys = ALERT_MARGINS[alert.kind];
+  if (keys === undefined) return 0;
+  const observed = alert.values[keys.observed];
+  const threshold = alert.values[keys.threshold];
+  if (observed === undefined || threshold === undefined) return 0;
+  const past = keys.direction === 'above' ? observed - threshold : threshold - observed;
+  return Math.max(0, threshold === 0 ? past : past / Math.abs(threshold));
+}
+
+/**
+ * Players with active alerts, prioritized: critical first; within a severity, the furthest past
+ * its threshold (the largest margin among the alerts of that severity); ties keep the roster
+ * order (alphabetical).
+ */
 export function playersNeedingAttention(players: readonly PanelPlayer[]): PanelPlayer[] {
-  const rank = (player: PanelPlayer) => (worstSeverity(player) === 'critical' ? 0 : 1);
-  return players
+  const ranked = players
     .filter((player) => player.alerts.length > 0)
-    .map((player, index) => ({ player, index }))
-    .sort((a, b) => rank(a.player) - rank(b.player) || a.index - b.index)
+    .map((player, index) => {
+      const severity = worstSeverity(player);
+      const margin = Math.max(
+        0,
+        ...player.alerts.filter((a) => a.severity === severity).map(alertMargin),
+      );
+      return { player, index, rank: severity === 'critical' ? 0 : 1, margin };
+    });
+  return ranked
+    .sort((a, b) => a.rank - b.rank || b.margin - a.margin || a.index - b.index)
     .map(({ player }) => player);
 }

@@ -28,6 +28,7 @@ const state: RunState = {
     validFrom: '2026-08-17',
     validTo: '2026-09-10',
   },
+  files: false,
 };
 const dataset = demoDataset(state);
 

@@ -158,6 +158,20 @@ jobs:
         env:
           PG_PORT: ${{ job.services.postgres.ports['5432'] }}
         run: echo "E2E_DATABASE_URL=postgres://postgres:postgres@localhost:${PG_PORT}/postgres" >>"$GITHUB_ENV"
+      # The stack's bucket (the demo club's crest, uploads; ADR 0097): same MinIO as the test job.
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio -p 9000 \
+            -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin123 \
+            pgsty/minio:RELEASE.2026-08-04T00-00-00Z@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372 \
+            server /data
+          port="$(docker port minio 9000/tcp | head -n 1 | sed 's/.*://')"
+          for _ in $(seq 1 30); do
+            if curl -fsS "http://localhost:${port}/minio/health/live" >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS "http://localhost:${port}/minio/health/live"
+          echo "E2E_STORAGE_URL=http://minioadmin:minioadmin123@localhost:${port}" >>"$GITHUB_ENV"
       # The web inlines the API URL at build time (VITE_API_URL is part of Turborepo's hash).
       - name: Build the stack
         env:

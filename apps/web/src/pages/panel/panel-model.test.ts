@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { M15_RUGBY, M17_RUGBY } from '../../test/fixtures';
-import { panelPlayer, squad, weeklyPanel } from './panel-fixtures';
+import { panelAlert, panelPlayer, squad, weeklyPanel } from './panel-fixtures';
 import {
+  alertMargin,
   isCurrentWeek,
   panelGroups,
   panelSummary,
@@ -80,13 +81,47 @@ describe('weekly load series', () => {
 });
 
 describe('attention', () => {
-  it('puts critical first and keeps the roster order otherwise', () => {
+  it('puts critical first and keeps the roster order on ties', () => {
     const [bianchi, paz, roldan] = squad();
     expect(bianchi && worstSeverity(bianchi)).toBe('critical');
     expect(paz && worstSeverity(paz)).toBeNull();
     expect(roldan && worstSeverity(roldan)).toBe('warning');
     const order = playersNeedingAttention([roldan, paz, bianchi].filter((p) => p !== undefined));
     expect(order.map((p) => p.lastName)).toEqual(['Bianchi', 'Roldán']);
+  });
+
+  it('within a severity, puts first who is furthest past the threshold', () => {
+    const low = (id: number, lastName: string, acwrRatio: number) =>
+      panelPlayer(id, {
+        lastName,
+        alerts: [
+          panelAlert({
+            kind: 'acwr_low',
+            severity: 'warning',
+            values: { acwrRatio, thresholdRatio: 0.8 },
+          }),
+        ],
+      });
+    const order = playersNeedingAttention([
+      low(1, 'Aguirre', 0.77),
+      low(2, 'Barrios', 0.53),
+      low(3, 'Castro', 0.77),
+      panelPlayer(4, {
+        lastName: 'Díaz',
+        alerts: [panelAlert({ kind: 'cmj_drop', severity: 'warning', values: {} })],
+      }),
+    ]);
+    expect(order.map((p) => p.lastName)).toEqual(['Barrios', 'Aguirre', 'Castro', 'Díaz']);
+  });
+
+  it('measures the margin relative to the threshold, on the side the rule alerts', () => {
+    expect(
+      alertMargin({ kind: 'acwr_high', values: { acwrRatio: 1.68, thresholdRatio: 1.4 } }),
+    ).toBeCloseTo(0.2);
+    expect(
+      alertMargin({ kind: 'wellness_zscore_low', values: { zScore: -3, thresholdZScore: -2 } }),
+    ).toBeCloseTo(0.5);
+    expect(alertMargin({ kind: 'unknown_kind', values: { value: 9 } })).toBe(0);
   });
 });
 

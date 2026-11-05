@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { apiError } from '../../test/fake-api';
 import * as fixtures from '../../test/fixtures';
 import { renderApp, signedIn } from '../../test/render-app';
-import { squad, weeklyPanel } from './panel-fixtures';
+import { panelAlert, panelPlayer, squad, weeklyPanel } from './panel-fixtures';
 
 function roster(): HTMLElement {
   return screen.getByRole('table', { name: 'Plantel' });
@@ -40,10 +40,14 @@ describe('weekly panel', () => {
     });
     const kpis = await screen.findByRole('region', { name: 'Resumen del grupo' });
     expect(within(kpis).getByText('Respondieron bienestar hoy')).toBeVisible();
-    expect(within(kpis).getAllByText('1 de 3')[0]).toBeVisible();
-    expect(within(kpis).getByText('3,5 de 5')).toBeVisible();
-    expect(within(kpis).getByText('1.000 UA')).toBeVisible();
-    expect(within(kpis).getByText('2 de 3')).toBeVisible();
+    // Each tile: the figure and its unit read together ("1 de 3").
+    const values = kpis.querySelectorAll('.sp-kpi__value');
+    expect([...values].map((value) => value.textContent)).toEqual([
+      '1 de 3',
+      '3,5 de 5',
+      '1.000 UA',
+      '2 de 3',
+    ]);
     expect(within(kpis).getByText('1 en crítico')).toBeVisible();
 
     const attention = screen.getByRole('region', { name: 'Requieren atención' });
@@ -51,23 +55,16 @@ describe('weekly panel', () => {
     expect(items).toHaveLength(2);
     expect(items[0]).toHaveTextContent('Bianchi, Tomás');
     expect(items[1]).toHaveTextContent('Roldán, Felipe');
-    expect(
-      within(attention).getByText(
-        'Carga aguda alta respecto de la crónica: ACWR 1,46 (umbral 1,40).',
-      ),
-    ).toBeVisible();
-    expect(within(attention).getByText('Y 1 alerta más de este jugador')).toBeVisible();
-    expect(
-      within(attention).getByText(
-        'Crecimiento rápido: 9,4 cm/año (zona de pico desde 8,0 cm/año).',
-      ),
-    ).toBeVisible();
+    // One short line per player: the metric and its threshold, and how many alerts more.
+    expect(items[0]).toHaveTextContent('ACWR alto 1,46 · umbral 1,40');
+    expect(within(attention).getByText('+1 alerta')).toBeVisible();
+    expect(items[1]).toHaveTextContent('Crecimiento 9,4 cm/año · pico desde 8,0 cm/año');
 
     const bianchi = rowOf('Bianchi, Tomás');
     expect(within(bianchi).getByText('Hooker')).toBeVisible();
-    expect(
-      within(bianchi).getByText('-0,4 años del PHV · 91,2 % de la talla adulta'),
-    ).toBeVisible();
+    // One fact per line: the offset, then the % of adult height.
+    expect(within(bianchi).getByText('-0,4 años del PHV')).toBeVisible();
+    expect(within(bianchi).getByText('91,2 % de la talla adulta')).toBeVisible();
     expect(within(bianchi).getByText('2,5 de 5')).toBeVisible();
     expect(within(bianchi).getByText('1.200 UA')).toBeVisible();
     expect(within(bianchi).getByText('1 RPE pendiente')).toBeVisible();
@@ -75,7 +72,10 @@ describe('weekly panel', () => {
     // Availability as a status with icon and text, never the cause.
     expect(within(bianchi).getByText('No disponible')).toBeVisible();
     // The detail is visible text, not a tooltip (screen readers and touch screens).
-    expect(within(bianchi).getByText('Entrenar: Limitado · Partido: No disponible')).toBeVisible();
+    expect(within(bianchi).getByText('Entrenar: Limitado')).toBeVisible();
+    expect(within(bianchi).getByText('Partido: No disponible')).toBeVisible();
+    // Available is plain text: the chips are for who is limited or out.
+    expect(within(rowOf('Paz, Bautista')).getByText('Disponible')).toBeVisible();
     expect(within(rowOf('Paz, Bautista')).queryByText(/Entrenar:/)).toBeNull();
     expect(within(bianchi).getByText('Crítico')).toBeVisible();
 
@@ -91,15 +91,48 @@ describe('weekly panel', () => {
     ).toBeVisible();
   });
 
+  it('shows the first five who need attention, critical first, and the rest on demand', async () => {
+    const players = Array.from({ length: 11 }, (_, index) =>
+      panelPlayer(index + 1, {
+        alerts: [panelAlert({ severity: index >= 8 ? 'critical' : 'warning' })],
+      }),
+    );
+    const { user } = renderApp({
+      path: '/panel',
+      handlers: { ...signedIn(), getWeeklyPanel: () => weeklyPanel(players) },
+    });
+    const attention = await screen.findByRole('region', { name: 'Requieren atención' });
+    const items = () => within(attention).getAllByRole('listitem');
+    expect(items()).toHaveLength(5);
+    // The three critical ones (players 9 to 11) lead the list.
+    expect(items()[0]).toHaveTextContent('Apellido 9, Jugador');
+    expect(items()[2]).toHaveTextContent('Apellido 11, Jugador');
+
+    const toggle = within(attention).getByRole('button', { name: 'Ver todas (11)' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    // Collapsed, the list does not scroll on its own (nothing hidden behind a scroll).
+    expect(within(attention).queryByRole('region')).toBeNull();
+    await user.click(toggle);
+    expect(items()).toHaveLength(11);
+    // Expanded, it scrolls inside the card as a named region the keyboard can reach.
+    const list = within(attention).getByRole('region', { name: 'Lista completa: 11 jugadores' });
+    expect(list).toHaveAttribute('tabindex', '0');
+    // The region wraps the list: the items keep their list parent (WCAG 1.3.1).
+    expect(within(list).getByRole('list')).toBeVisible();
+    expect(within(list).getAllByRole('listitem')).toHaveLength(11);
+    await user.click(within(attention).getByRole('button', { name: 'Ver menos' }));
+    expect(items()).toHaveLength(5);
+  });
+
   it('groups by maturity (bio-banding) and filters by group', async () => {
     const { user, app } = renderApp({
       path: '/panel',
       handlers: { ...signedIn(), getWeeklyPanel: () => weeklyPanel(squad()) },
     });
-    await user.selectOptions(
-      await screen.findByLabelText('Agrupar por'),
-      'Maduración: años desde el pico de crecimiento',
-    );
+    const grouping = await screen.findByRole('radiogroup', { name: 'Agrupar por' });
+    // By category the top bar's scope filters: no group tabs on the page.
+    expect(screen.queryByRole('group', { name: 'Grupos' })).toBeNull();
+    await user.click(within(grouping).getByRole('radio', { name: 'Años desde el PHV' }));
     await waitFor(() => {
       expect(app.router.state.location.search).toMatchObject({ group: 'phv_offset' });
     });

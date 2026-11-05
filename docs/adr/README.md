@@ -100,6 +100,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0094](0094-backups-pitr-y-simulacros-de-restauracion.md) | Backups y recuperación: PITR de Railway verificado por simulacros con marcadores, verificación automática y época de sincronización | Aceptado |
 | [0095](0095-monitoreo-operativo.md) | Monitoreo operativo: chequeos declarativos medidos por el worker, `/health/ops` para el monitor de uptime y avisos por Sentry sin datos personales | Aceptado |
 | [0096](0096-tests-de-punta-a-punta.md) | Tests de punta a punta: stack real con el club demo, código de ingreso leído del log de la API, Playwright para la web y el motor de la app sin dispositivo | Aceptado |
+| [0097](0097-sistema-de-diseno-de-la-web.md) | Sistema de diseño de la web: escala tipográfica y de capas en los tokens, primitivas compartidas, shell con escudo y menú de usuario, y el escudo del club demo por el mismo camino que una subida | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla, que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR y que cada enlace de markdown a un ADR en el repo vaya a un archivo que existe, con el mismo número en el texto del enlace.
 

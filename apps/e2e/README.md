@@ -24,6 +24,8 @@ pnpm --filter @sport-performance/e2e e2e -- --ui              # o --headed, --de
 pnpm --filter @sport-performance/e2e exec playwright show-report
 ```
 
+Con `E2E_STORAGE_URL=http://<usuario>:<clave>@localhost:9000` (el MinIO de los tests de integración; también toma `STORAGE_TEST_URL`) el stack crea un bucket propio de la corrida, se lo pasa a la API y al worker, instala el escudo de ORC (`assets/clubs/orc/escudo.png`) en el club demo con `installClubLogo` (el mismo camino que la subida del admin, [ADR 0097](../../docs/adr/0097-sistema-de-diseno-de-la-web.md)) y borra el bucket al bajar. Sin ella corre sin archivos: el demo muestra su sigla en vez del escudo y las subidas están apagadas. CI la usa.
+
 Variables (todas opcionales salvo la base): `E2E_DATABASE_URL` (o `DATABASE_URL`), `E2E_DATABASE_NAME` (`sport_performance_e2e`, hasta 56 caracteres; se borra al bajar el stack y también al arrancar, por si quedó de una corrida que murió; con otro nombre, dos stacks conviven en el mismo servidor), `E2E_API_PORT` (3100), `E2E_WEB_PORT` (4174), `E2E_RUN_DIR` (`apps/e2e/.e2e-run`). Si se cambia el puerto de la API, la web se compila con esa URL: el stack se niega a arrancar con una web que llama a otra API.
 
 ## Qué levanta el stack (`src/stack/main.ts`)
@@ -33,6 +35,22 @@ Variables (todas opcionales salvo la base): `E2E_DATABASE_URL` (o `DATABASE_URL`
 3. La API compilada (`127.0.0.1:3100`, `NODE_ENV=test`, sin `RESEND_API_KEY`), el worker (notificaciones apagadas) y la web compilada con `vite preview` (`127.0.0.1:4174`).
 
 En `.e2e-run/` quedan `state.json` (día y opciones del demo, para recalcular el dataset, y la lesión del fixture; se valida al leerlo), `mailbox.jsonl` (los emails que la API escribió en su log: los códigos de ingreso) y los logs de cada proceso. En CI se suben como artefacto cuando algo falla, con el reporte, las trazas y los videos de Playwright.
+
+## Capturas para revisar el diseño
+
+Con un stack corriendo (mismas variables `E2E_*`):
+
+```sh
+pnpm --filter @sport-performance/e2e screenshots
+```
+
+Abre la sesión de cada cuenta del demo (el proyecto `setup`), recorre las secciones de la barra lateral y, desde cada una, el primer detalle de cada tipo (`/players/:id`), y guarda capturas de página completa a 1440 y 390 px, en oscuro y en claro alto contraste, en `<E2E_RUN_DIR>/screenshots/<ancho>-<variante>/<cuenta>-NN-<ruta>.png`. Al terminar `screenshots/index.ts` escribe `index.json`, `index.txt` (archivo y ruta) e `index.html` (hoja de contactos). `SCREENSHOTS_WORKERS` (2) y `SCREENSHOTS_MAX_PAGES` (40 por cuenta y vista) ajustan la carga. No es un test, no corre en CI y las capturas no se commitean (el directorio de la corrida está ignorado).
+
+Cada captura es un test titulado `<cuenta> at <ancho> px, <variante>` (las cuentas son las claves de `DEMO_ACCOUNTS` en `src/harness`), así que `--grep` elige qué capturar (`screenshots/run.ts` le pasa a Playwright los argumentos y después escribe el índice). El patrón es una expresión regular sobre la ruta completa del test (proyecto, archivo y título separados por espacios, por eso `^` no sirve): para una sola cuenta empezalo con un espacio y terminalo en `at` (sin eso, `admin` también encuentra a `superadmin`):
+
+```sh
+pnpm --filter @sport-performance/e2e screenshots --grep ' coachRugbySenior at 1440 px'
+```
 
 ## Escribir un escenario
 

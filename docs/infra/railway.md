@@ -136,6 +136,8 @@ DEMO_SEED_CONFIRM=staging node /app/node_modules/@sport-performance/db/dist/cli/
 
 En producción el seed demo se niega solo: la base está declarada `production`.
 
+**Escudo del club** (ADR 0097): los colores los trae el seed (ORC y el demo usan la marca por defecto de `packages/ui-tokens`); el escudo es un archivo del bucket. La administración del club lo sube desde la web (**Club → Escudo**, PNG o WebP de hasta 1 MiB; el de ORC es `assets/clubs/orc/escudo.png`, también para el demo de staging). Desde un lugar con el archivo, la base del dueño y las variables `STORAGE_*` del bucket, `pnpm --filter @sport-performance/storage club:logo --slug=<club> --file=assets/clubs/orc/escudo.png` hace lo mismo (es idempotente).
+
 ## 7. Deploys
 
 - **Staging:** cada commit de `main` se despliega cuando sus checks de GitHub pasan ("Wait for CI" de Railway). Nada que hacer.

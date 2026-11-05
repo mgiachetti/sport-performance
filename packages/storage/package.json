@@ -18,12 +18,16 @@
   "files": [
     "dist"
   ],
+  "bin": {
+    "sport-performance-club-logo": "./dist/cli/club-logo.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "club:logo": "node dist/cli/club-logo.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1161.0",

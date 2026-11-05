@@ -37,6 +37,7 @@ import {
   type TestEntryInput,
   type TimeZone,
 } from '@sport-performance/domain';
+import { defaultBrand } from '@sport-performance/ui-tokens';
 import { batterySeeds } from '../battery.js';
 import { testDefinitionSeeds, type TestDefinitionSeed } from '../test-definitions.js';
 import {
@@ -1448,8 +1449,10 @@ export function generateDemoDataset(options: DemoOptions): DemoDataset {
           : `Club Atlético Demo (${o.slug.slice(5)})`,
       shortName: 'DEMO',
       timeZone: tz,
-      primaryColor: '#1f8a70',
-      secondaryColor: '#0b1f33',
+      // The product's default brand (the ORC identity of packages/ui-tokens, ADR 0097): the demo
+      // shows the look of a real tenant; its name stays fictitious.
+      primaryColor: defaultBrand.primary,
+      secondaryColor: defaultBrand.secondary,
       seed: o.seed,
     },
     asOf: o.asOf,

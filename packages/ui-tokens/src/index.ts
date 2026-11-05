@@ -42,7 +42,9 @@ export {
   radius,
   sizes,
   spacing,
+  type ElevationLevel,
   type RadiusKey,
+  type SizeKey,
   type SpacingKey,
 } from './scales.js';
 export {
@@ -58,6 +60,8 @@ export {
   statusLevels,
   themeVariants,
   type CreateThemeOptions,
+  type ElevationTokens,
+  type ShadowToken,
   type StatusColors,
   type StatusLevel,
   type StripeSize,
@@ -66,7 +70,7 @@ export {
   type ThemeColors,
   type ThemeVariant,
 } from './theme.js';
-export { stripeBands, stripesGradient, type StripeBand } from './stripes.js';
+export { stripeBands, stripesGradient, stripesSeal, type StripeBand } from './stripes.js';
 export {
   CSS_VAR_PREFIX,
   applyCssVariables,

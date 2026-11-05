@@ -283,9 +283,12 @@ describe('club shell', () => {
 
   it('switches to the light high-contrast variant and remembers it', async () => {
     const { user } = renderApp({ handlers: signedIn() });
-    await user.selectOptions(
-      await screen.findByLabelText('Colores'),
-      'Claro, alto contraste (para el sol)',
+    // The colors live in the user menu of the sidebar footer.
+    await user.click(await screen.findByRole('button', { name: /Tu cuenta/ }));
+    const colors = screen.getByRole('radiogroup', { name: 'Colores' });
+    expect(within(colors).getByRole('radio', { name: 'Automático' })).toBeChecked();
+    await user.click(
+      within(colors).getByRole('radio', { name: 'Claro, alto contraste (para el sol)' }),
     );
     await waitFor(() => {
       expect(document.documentElement).toHaveAttribute('data-theme', 'light-hc');
@@ -315,24 +318,25 @@ describe('club shell', () => {
         categories: [fixtures.M15_RUGBY, fixtures.M17_RUGBY, fixtures.F15_HOCKEY],
       }),
     });
-    const sport = await screen.findByLabelText('Deporte');
+    // Few options: segmented controls (radio groups) instead of selects.
+    const sport = await screen.findByRole('radiogroup', { name: 'Deporte' });
     expect(
       within(sport)
-        .getAllByRole('option')
-        .map((o) => o.textContent),
+        .getAllByRole('radio')
+        .map((o) => o.closest('span')?.textContent),
     ).toEqual(['Todos los deportes', 'Rugby', 'Hockey']);
-    await user.selectOptions(sport, 'Hockey');
+    await user.click(within(sport).getByRole('radio', { name: 'Hockey' }));
     await waitFor(() => {
       expect(app.router.state.location.search).toEqual({ sport: 'hockey' });
       expect(app.router.state.location.searchStr).toBe('?sport=hockey');
     });
-    const category = screen.getByLabelText('Categoría');
+    const category = screen.getByRole('radiogroup', { name: 'Categoría' });
     expect(
       within(category)
-        .getAllByRole('option')
-        .map((o) => o.textContent),
+        .getAllByRole('radio')
+        .map((o) => o.closest('span')?.textContent),
     ).toEqual(['Todas las categorías', 'Sub 15']);
-    await user.selectOptions(category, 'Sub 15');
+    await user.click(within(category).getByRole('radio', { name: 'Sub 15' }));
     await waitFor(() => {
       expect(app.router.state.location.search).toEqual({
         sport: 'hockey',
@@ -340,6 +344,69 @@ describe('club shell', () => {
       });
     });
     expect(screen.getByText('Mirando: Hockey · Sub 15')).toBeVisible();
+  });
+
+  it('keeps a select for the category when there are many', async () => {
+    const many = Array.from({ length: 7 }, (_, index) =>
+      fixtures.category(
+        `0192e7a0-2222-7000-8000-0000000002${String(index).padStart(2, '0')}`,
+        `M${String(13 + index)}`,
+        'rugby',
+        { sortOrder: index },
+      ),
+    );
+    const { user, app } = renderApp({ handlers: signedIn({ categories: many }) });
+    const select = await screen.findByRole('combobox', { name: 'Categoría' });
+    expect(within(select).getAllByRole('option')).toHaveLength(8);
+    await user.selectOptions(select, 'M16');
+    await waitFor(() => {
+      expect(app.router.state.location.search).toEqual({ category: many[3]?.id });
+    });
+  });
+
+  it('opens the user menu with the account and closes it with Escape', async () => {
+    const { user } = renderApp({ handlers: signedIn() });
+    const account = await screen.findByRole('button', { name: /Tu cuenta/ });
+    expect(account).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: 'Cerrar sesión', hidden: true })).not.toBeVisible();
+    await user.click(account);
+    expect(account).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
+    await user.keyboard('{Escape}');
+    expect(account).toHaveAttribute('aria-expanded', 'false');
+    expect(account).toHaveFocus();
+  });
+
+  it('moves the focus into the drawer, makes the page inert and gives the focus back', async () => {
+    const { user } = renderApp({ handlers: signedIn() });
+    const menu = await screen.findByRole('button', { name: 'Abrir el menú' });
+    const page = screen.getByRole('main').parentElement;
+    expect(menu).toHaveAttribute('aria-expanded', 'false');
+
+    await user.click(menu);
+    expect(menu).toHaveAttribute('aria-expanded', 'true');
+    const close = screen.getByRole('button', { name: 'Cerrar el menú', hidden: true });
+    expect(close).toHaveFocus();
+    expect(page).toHaveAttribute('inert');
+
+    await user.keyboard('{Escape}');
+    expect(menu).toHaveAttribute('aria-expanded', 'false');
+    expect(page).not.toHaveAttribute('inert');
+    expect(menu).toHaveFocus();
+
+    // Escape in the user menu closes only the user menu; the drawer stays open.
+    await user.click(menu);
+    const account = screen.getByRole('button', { name: /Tu cuenta/, hidden: true });
+    await user.click(account);
+    expect(account).toHaveAttribute('aria-expanded', 'true');
+    await user.keyboard('{Escape}');
+    expect(account).toHaveAttribute('aria-expanded', 'false');
+    expect(account).toHaveFocus();
+    expect(menu).toHaveAttribute('aria-expanded', 'true');
+
+    await user.click(close);
+    expect(menu).toHaveAttribute('aria-expanded', 'false');
+    expect(menu).toHaveFocus();
   });
 
   it('ignores a shared link to a category the user does not see, and says so', async () => {
@@ -356,8 +423,8 @@ describe('club shell', () => {
       expect(app.router.state.location.search).toEqual({});
     });
     // Only rugby: no sport selector, the category one stays.
-    expect(screen.queryByLabelText('Deporte')).toBeNull();
-    expect(screen.getByLabelText('Categoría')).toBeVisible();
+    expect(screen.queryByRole('radiogroup', { name: 'Deporte' })).toBeNull();
+    expect(screen.getByRole('radiogroup', { name: 'Categoría' })).toBeVisible();
   });
 
   it('counts the assigned categories of a coach', async () => {
@@ -371,6 +438,7 @@ describe('club shell', () => {
     const { user, api } = renderApp({ handlers: signedIn() });
     await screen.findByRole('heading', { name: 'Inicio' });
     api.use(signedOut());
+    await user.click(screen.getByRole('button', { name: /Tu cuenta/ }));
     await user.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
     expect(
       await screen.findByRole('heading', { name: 'Ingresá a Sport Performance' }),
@@ -387,6 +455,7 @@ describe('club shell', () => {
         throw new FakeNetworkError();
       },
     });
+    await user.click(screen.getByRole('button', { name: /Tu cuenta/ }));
     await user.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
     expect(
       await screen.findByText('No hay conexión. Revisá la señal y probá de nuevo.'),

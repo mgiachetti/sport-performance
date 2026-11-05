@@ -12,6 +12,18 @@ import {
 const DB = 'postgres://postgres:postgres@localhost:5432/postgres';
 
 describe('stack configuration', () => {
+  it('takes an optional S3-compatible server with its credentials', () => {
+    const url = 'http://minio:secret123@localhost:9000';
+    expect(stackConfig({ DATABASE_URL: DB, E2E_STORAGE_URL: url }).storageServerUrl).toBe(url);
+    expect(stackConfig({ DATABASE_URL: DB, STORAGE_TEST_URL: url }).storageServerUrl).toBe(url);
+    expect(() =>
+      stackConfig({ DATABASE_URL: DB, E2E_STORAGE_URL: 'http://localhost:9000' }),
+    ).toThrow(StackConfigError);
+    expect(() => stackConfig({ DATABASE_URL: DB, E2E_STORAGE_URL: 'not a url' })).toThrow(
+      StackConfigError,
+    );
+  });
+
   it('defaults to loopback ports and the package run directory', () => {
     expect(stackEndpoints({})).toEqual({
       apiPort: 3100,
@@ -23,6 +35,7 @@ describe('stack configuration', () => {
     expect(stackConfig({ DATABASE_URL: DB })).toMatchObject({
       adminDatabaseUrl: DB,
       databaseName: 'sport_performance_e2e',
+      storageServerUrl: null,
     });
   });
 

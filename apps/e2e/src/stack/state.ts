@@ -28,6 +28,8 @@ const runStateSchema = z.strictObject({
   apiUrl: z.url(),
   webUrl: z.url(),
   injuryFixture: injuryFixtureSchema,
+  /** The run has a bucket (`E2E_STORAGE_URL`): the demo club shows its crest, uploads work. */
+  files: z.boolean(),
 });
 
 export type InjuryFixture = Readonly<z.infer<typeof injuryFixtureSchema>>;

@@ -9,7 +9,10 @@ export const webMessagesEsAR = {
   // Layout and accessibility
   'layout.skipToContent': 'Saltar al contenido',
   'nav.label': 'Secciones',
+  'nav.open': 'Abrir el menú',
+  'nav.close': 'Cerrar el menú',
   'account.menu': 'Tu cuenta',
+  'layout.clubApp': '{shortName} Performance',
 
   // Home of the club
   'home.title': 'Inicio',
@@ -19,6 +22,9 @@ export const webMessagesEsAR = {
   'home.scope.assigned':
     '{count, plural, =0 {Todavía no tenés categorías asignadas. Pedile a la administración del club que te asigne.} one {# categoría asignada.} other {# categorías asignadas.}}',
   'home.scope.selected': 'Mirando: {scope}',
+  'home.shortcuts.title': 'Accesos',
+  'home.shortcuts.subtitle': 'Las secciones que podés abrir con tu rol.',
+  'home.shortcuts.open': 'Abrir',
 
   // Club selector
   'club.select.subtitle': 'Tenés acceso a más de un club. Elegí con cuál querés trabajar.',

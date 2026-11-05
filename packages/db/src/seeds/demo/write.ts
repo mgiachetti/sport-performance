@@ -137,6 +137,11 @@ export async function seedDemoClub(
         `The club "${data.club.slug}" is not a demo club: demo data is never written to a real club.`,
       );
     }
+    // A demo club created before keeps up with the demo's brand (only a demo club, never a real one).
+    await tx
+      .update(club)
+      .set({ primaryColor: data.club.primaryColor, secondaryColor: data.club.secondaryColor })
+      .where(eq(club.id, existing.id));
     const storedSeed = existing.settings.demo?.seed;
     if (storedSeed !== undefined && storedSeed !== data.club.seed) {
       throw new DemoSeedRefusedError(

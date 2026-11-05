@@ -5,7 +5,8 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from 'react';
-import { Icon, type IconName } from './icons';
+import { StatusChip } from './components';
+import { Icon } from './icons';
 
 /**
  * Form fields and inline status of the screens, next to `TextField` in
@@ -132,19 +133,7 @@ export function FieldGroup(props: {
   );
 }
 
-const LEVEL_ICONS: Record<StatusLevel | 'info', IconName> = {
-  ok: 'ok',
-  warning: 'warning',
-  critical: 'critical',
-  info: 'info',
-};
-
-/** An inline status (a table cell, a list row): always icon + text, never color alone. */
+/** An inline status (a table cell, a list row): the status chip, icon + text. */
 export function StatusLabel(props: { level: StatusLevel | 'info'; children: ReactNode }) {
-  return (
-    <span className={`sp-status sp-status--${props.level}`}>
-      <Icon name={LEVEL_ICONS[props.level]} />
-      <span>{props.children}</span>
-    </span>
-  );
+  return <StatusChip level={props.level}>{props.children}</StatusChip>;
 }

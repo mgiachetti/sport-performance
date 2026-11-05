@@ -39,8 +39,8 @@ describe('CSS output', () => {
     expect(vars['--sp-color-status-critical-fg']).toBe(theme.color.status.critical.fg);
     expect(vars['--sp-color-chart-category-average']).toBe(theme.color.chart.categoryAverage);
     const colorVars = Object.keys(vars).filter((k) => k.startsWith('--sp-color-'));
-    // background, surface, surfaceRaised, 2 borders, 3 text, 6 brand, focus, 3×5 status, 8 chart.
-    expect(colorVars).toHaveLength(3 + 2 + 3 + 6 + 1 + 15 + 8);
+    // background, surface, surfaceRaised, 2 borders, 3 text, 7 brand, focus, 3×5 status, 9 chart.
+    expect(colorVars).toHaveLength(3 + 2 + 3 + 7 + 1 + 15 + 9);
     for (const key of colorVars) expect(vars[key as `--${string}`]).toMatch(/^#[0-9a-f]{6}$/);
   });
 
@@ -68,6 +68,18 @@ describe('CSS output', () => {
       'repeating-linear-gradient(180deg, #f1882a 0 10px, #050505 10px 20px)',
     );
     expect(vars['--sp-chart-reference-dash']).toBe('6 4');
+    expect(vars['--sp-stripes-seal']).toBe(
+      'repeating-linear-gradient(90deg, #f1882a 0 12px, #050505 12px 24px)',
+    );
+    expect(vars['--sp-size-table-row']).toBe('3rem');
+    expect(vars['--sp-size-chip']).toBe('1.625rem');
+    expect(vars['--sp-size-icon-tile']).toBe('2.25rem');
+  });
+
+  it('emits elevation shadows, none for the flat level', () => {
+    expect(vars['--sp-elevation-flat']).toBe('none');
+    expect(vars['--sp-elevation-overlay']).toBe('0 12px 32px -4px rgba(0, 0, 0, 0.5)');
+    expect(vars['--sp-elevation-scrim']).toBe('rgba(0, 0, 0, 0.5)');
   });
 
   it('builds rules and a stylesheet with both variants', () => {

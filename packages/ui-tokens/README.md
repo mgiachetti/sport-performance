@@ -13,6 +13,21 @@ TypeScript puro, sin dependencias de React, React Native ni DOM.
   - `status.critical.fg` es `#e5604f` aclarado lo justo para leerse sobre su propio fondo tintado; `status.*.solid` conserva el valor de la identidad.
 - Los rellenos de marca (`brand.solid`, rayas) usan el color del club tal cual; el texto encima (`brand.onSolid`) se elige por contraste.
 
+## Escala del sistema de diseño ([ADR 0097](../../docs/adr/0097-sistema-de-diseno-de-la-web.md))
+
+| Grupo | Tokens | Uso |
+|---|---|---|
+| Tipografía (`textStyles`) | `pageTitle` 34, `title` 28, `cardTitle` 20, `heading` 20, `tableHeader` 15, `button` 17, `body` 16, `bodySmall` 14, `caption` 12 | Títulos, controles y encabezados en Barlow Condensed; texto corrido en Barlow |
+| Cifras | `kpi` 44, `metricXl` 56, `metric` 32, `metricSmall` 20, `unit` 18, `tableNumber` 17, `tabular` 14 | Siempre `tabular-nums`; la unidad (`/ 24`, `UA`) más chica y apagada |
+| Espaciado (`spacing`) | `xxs` 2 · `xs` 4 · `sm` 8 · `md` 12 · `lg` 16 · `xl` 24 · `xxl` 32 · `xxxl` 48 | Padding de tarjeta `xl`, separación de tarjetas `md` |
+| Radios (`radius`) | `sm` 4 · `md` 8 · `lg` 12 · `xl` 16 · `pill` | Tarjetas `lg`, controles `md`, chips `pill` |
+| Tamaños (`sizes`) | `touchTarget` 44, `controlSmall` 36, `tableRow` 48, `avatar` 32, `sidebar` 256, `contentMax` 1440 | |
+| Capas | `background` → `surface` → `surfaceRaised`; `elevation.raised` / `elevation.overlay` (`--sp-elevation-*`) | Las sombras solo para lo que flota (menús, cajón) |
+| Foco | `focus` (marca ≥ 3:1), `focusRing.width` 2, `offset` 2 | Siempre visible |
+| Rayas | `--sp-stripes-sm\|md\|lg` (bandas), `--sp-stripes-seal` (línea de segmentos) | Decorativas, `aria-hidden` |
+
+Colores derivados para el sistema: `brand.border` (contorno de marca ≥ 3:1: KPI destacado, opción elegida) y `chart.playerMuted` (serie de marca atenuada ≥ 3:1: semanas anteriores a la actual).
+
 ## Estados
 
 `ok`, `warning`, `critical`, cada uno con `fg`, `bg`, `border`, `solid` y `onSolid`. **Siempre con ícono y texto, nunca solo color.** El texto sale de `packages/i18n`.

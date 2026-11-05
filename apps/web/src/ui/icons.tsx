@@ -36,7 +36,11 @@ export type IconName =
   | 'help'
   | 'dumbbell'
   | 'cycle'
-  | 'activity';
+  | 'activity'
+  | 'menu'
+  | 'close'
+  | 'chevronDown'
+  | 'chevronUp';
 
 const PATHS: Record<IconName, readonly string[]> = {
   ok: ['M20 6 9 17l-5-5'],
@@ -83,6 +87,10 @@ const PATHS: Record<IconName, readonly string[]> = {
   // A circle closing on itself: the cycle (B-806).
   cycle: ['M20 12a8 8 0 1 1-2.3-5.7', 'M20 4v4h-4'],
   activity: ['M3 12h4l3-8 4 16 3-8h4'],
+  menu: ['M4 6h16', 'M4 12h16', 'M4 18h16'],
+  close: ['M6 6l12 12', 'M18 6 6 18'],
+  chevronDown: ['m6 9 6 6 6-6'],
+  chevronUp: ['m18 15-6-6-6 6'],
   help: ['M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4Z', 'M20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6Z'],
 };
 

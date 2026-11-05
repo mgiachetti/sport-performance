@@ -18,8 +18,8 @@ export const webPanelMessagesEsAR = {
   // Grouping (bio-banding)
   'panel.group.label': 'Agrupar por',
   'panel.group.category': 'Categoría',
-  'panel.group.phv_offset': 'Maduración: años desde el pico de crecimiento',
-  'panel.group.pct_adult_height': 'Maduración: % de la talla adulta',
+  'panel.group.phv_offset': 'Años desde el PHV',
+  'panel.group.pct_adult_height': '% de la talla adulta',
   'panel.group.tabs': 'Grupos',
   'panel.group.all': 'Todos ({count})',
   'panel.group.option': '{name} ({count})',
@@ -43,6 +43,8 @@ export const webPanelMessagesEsAR = {
   'panel.kpi.alertsDetail':
     '{count, plural, =0 {Ninguno en crítico} one {# en crítico} other {# en crítico}}',
   'panel.kpi.outOf': '{value} de {total}',
+  'panel.kpi.ofTotal': 'de {total}',
+  'panel.kpi.ofScore': 'de 5',
 
   // Load chart
   'panel.chart.title':
@@ -58,8 +60,20 @@ export const webPanelMessagesEsAR = {
   'panel.attention.subtitle':
     'Alertas activas por carga, bienestar y crecimiento. Son heurísticas de carga, no un diagnóstico.',
   'panel.attention.none': 'Nadie del grupo tiene alertas activas.',
-  'panel.attention.more':
-    '{count, plural, one {Y # alerta más de este jugador} other {Y # alertas más de este jugador}}',
+  'panel.attention.showAll': 'Ver todas ({count})',
+  'panel.attention.showFewer': 'Ver menos',
+  'panel.attention.listLabel':
+    '{count, plural, one {Lista completa: # jugador} other {Lista completa: # jugadores}}',
+  'panel.attention.more': '{count, plural, one {+# alerta} other {+# alertas}}',
+  // One short line per alert kind (arguments as in `alert.<kind>.message`): the full sentence
+  // is in the player's alert history.
+  'panel.attention.short.acwr_high': 'ACWR alto {acwrRatio} · umbral {thresholdRatio}',
+  'panel.attention.short.acwr_low': 'ACWR bajo {acwrRatio} · umbral {thresholdRatio}',
+  'panel.attention.short.wellness_low': 'Bienestar {wellnessScore} de 5 · umbral {thresholdScore}',
+  'panel.attention.short.wellness_zscore_low': 'Bienestar z {zScore} · umbral {thresholdZScore}',
+  'panel.attention.short.cmj_drop': 'CMJ {dropPct} bajo la base',
+  'panel.attention.short.growth_peak':
+    'Crecimiento {velocityCmYear} · pico desde {thresholdCmYear}',
 
   // Roster
   'panel.roster.title': 'Plantel',
@@ -89,7 +103,8 @@ export const webPanelMessagesEsAR = {
 
   // Status and availability (always icon + text; never the cause)
   'panel.status.inRange': 'En rango',
-  'panel.availability.detail': 'Entrenar: {training} · Partido: {match}',
+  'panel.availability.training': 'Entrenar: {status}',
+  'panel.availability.match': 'Partido: {status}',
 
   // Empty states
   'panel.empty.noCategories':

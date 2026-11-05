@@ -25,7 +25,12 @@ import {
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
+import { createDatabase, createPool } from '@sport-performance/db';
+import { createS3Storage, installClubLogo, sniffImageType } from '@sport-performance/storage';
+import { createTestBucket, type TestBucket } from '@sport-performance/storage/testing';
+import type { ClubId } from '@sport-performance/domain';
 import {
+  E2E_DEMO_CREST,
   E2E_DEMO_SEED,
   E2E_DEMO_SLUG,
   E2E_EMAIL_DOMAIN,
@@ -83,6 +88,8 @@ const children: Child[] = [];
 let stopping = false;
 /** Set once the run has a database: dropped when the stack stops. */
 let databaseToDrop: StackConfig | undefined;
+/** Set once the run has a bucket: emptied and dropped when the stack stops. */
+let bucketToDrop: TestBucket | undefined;
 
 function start(
   name: string,
@@ -142,6 +149,15 @@ async function stop(exitCode: number): Promise<void> {
     ),
   );
   let code = exitCode;
+  if (bucketToDrop !== undefined) {
+    try {
+      await bucketToDrop.drop();
+      log(`bucket ${bucketToDrop.config.bucket} dropped`);
+    } catch (error) {
+      log(`could not drop the bucket: ${error instanceof Error ? error.message : String(error)}`);
+      code = code === 0 ? 1 : code;
+    }
+  }
   if (databaseToDrop !== undefined) {
     try {
       await dropDatabase(databaseToDrop);
@@ -195,12 +211,14 @@ async function main(): Promise<void> {
     demoDataset(options),
   );
   log('injury fixture added');
+  const storageEnv = await prepareStorage(config, database.ownerUrl, database.seed.clubId);
   const state: RunState = {
     startedAt: new Date().toISOString(),
     ...options,
     apiUrl: config.apiUrl,
     webUrl: config.webUrl,
     injuryFixture,
+    files: config.storageServerUrl !== null,
   };
   writeFileSync(files.state, `${JSON.stringify(state, null, 2)}\n`);
 
@@ -224,6 +242,7 @@ async function main(): Promise<void> {
         AUTH_BASE_URL: config.apiUrl,
         WEB_ORIGINS: config.webUrl,
         WEB_APP_URL: config.webUrl,
+        ...storageEnv,
         // Without RESEND_API_KEY the API writes each email to its log: the mailbox of the run.
       },
       onLine: (line) => {
@@ -241,6 +260,7 @@ async function main(): Promise<void> {
     env: {
       ...common,
       DATABASE_URL: database.logins.worker,
+      ...storageEnv,
       // Demo clubs deliver nothing anyway (ADR 0055); no email or push leaves the run.
       NOTIFICATIONS: 'off',
     },
@@ -258,6 +278,48 @@ async function main(): Promise<void> {
   );
   await waitFor(config.webUrl, web);
   log(`web ready at ${config.webUrl} (demo club ${E2E_DEMO_SLUG}, as of ${state.asOf})`);
+}
+
+/**
+ * With `E2E_STORAGE_URL`: a bucket of the run for the API and the worker, and the demo club's
+ * crest in it (`installClubLogo`, the path of an admin's upload). Without it, no files.
+ */
+async function prepareStorage(
+  config: StackConfig,
+  ownerUrl: string,
+  clubId: ClubId,
+): Promise<NodeJS.ProcessEnv> {
+  if (config.storageServerUrl === null) {
+    log('no E2E_STORAGE_URL: running without a bucket (no crest, no uploads)');
+    return {};
+  }
+  const bucket = await createTestBucket(config.storageServerUrl);
+  bucketToDrop = bucket;
+  const bytes = readFileSync(E2E_DEMO_CREST);
+  const contentType = sniffImageType(bytes);
+  if (contentType === null) throw new StackError(`${E2E_DEMO_CREST} is not a PNG or WebP image.`);
+  const pool = createPool({ connectionString: ownerUrl, applicationName: 'e2e-crest', max: 1 });
+  try {
+    await installClubLogo({
+      db: createDatabase(pool),
+      storage: createS3Storage(bucket.config),
+      clubId,
+      bytes,
+      contentType,
+      fileName: 'escudo.png',
+    });
+  } finally {
+    await pool.end();
+  }
+  log(`bucket ${bucket.config.bucket} ready, demo crest installed`);
+  return {
+    STORAGE_ENDPOINT: bucket.config.endpoint,
+    STORAGE_REGION: bucket.config.region,
+    STORAGE_BUCKET: bucket.config.bucket,
+    STORAGE_ACCESS_KEY_ID: bucket.config.accessKeyId,
+    STORAGE_SECRET_ACCESS_KEY: bucket.config.secretAccessKey,
+    STORAGE_FORCE_PATH_STYLE: 'true',
+  };
 }
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
