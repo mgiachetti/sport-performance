@@ -12,7 +12,8 @@
     "config": "expo config --type public",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts"
   },
   "dependencies": {
     "@expo-google-fonts/barlow": "0.4.1",
@@ -58,6 +59,7 @@
   },
   "devDependencies": {
     "@sport-performance/config": "workspace:*",
+    "@sport-performance/e2e": "workspace:*",
     "@testing-library/dom": "10.4.2",
     "@testing-library/react": "16.3.3",
     "@types/node": "26.6.6",

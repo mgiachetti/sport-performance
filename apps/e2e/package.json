@@ -1,0 +1,35 @@
+{
+  "name": "@sport-performance/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "End-to-end tests (B-108): the real stack with the demo club, Playwright on the staff web and the harness of the mobile end-to-end tests.",
+  "type": "module",
+  "exports": {
+    "./harness": "./src/harness/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "e2e": "playwright test",
+    "e2e:stack": "node src/stack/main.ts",
+    "e2e:install-browser": "playwright install --with-deps chromium"
+  },
+  "dependencies": {
+    "@sport-performance/db": "workspace:*",
+    "@sport-performance/domain": "workspace:*",
+    "@sport-performance/i18n": "workspace:*",
+    "pg": "8.23.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@sport-performance/api": "workspace:*",
+    "@sport-performance/config": "workspace:*",
+    "@types/node": "26.6.6",
+    "@types/pg": "8.23.1",
+    "eslint": "10.14.0",
+    "typescript": "6.0.3",
+    "vitest": "5.0.5"
+  }
+}
