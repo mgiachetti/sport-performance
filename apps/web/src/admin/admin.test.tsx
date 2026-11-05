@@ -1,3 +1,4 @@
+import type { Member } from '@sport-performance/contracts';
 import { localDateInTimeZone, parseTimeZone, parseUuid } from '@sport-performance/domain';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -74,28 +75,44 @@ describe('administration: access', () => {
   });
 });
 
+/** `listMembers` with the club's active admins (the "last admin" query) apart from the list. */
+function membersHandler(
+  list: readonly Member[],
+  admins: readonly Member[] = [admin.ownAdminMember()],
+) {
+  return (request: { url: URL }) =>
+    fixtures.page(
+      request.url.searchParams.get('role') === 'admin' &&
+        request.url.searchParams.get('limit') === '2'
+        ? admins
+        : list,
+    );
+}
+
+async function findRow(text: string): Promise<HTMLElement> {
+  const found = (await screen.findByText(text)).closest('tr');
+  if (found === null) throw new Error('no row');
+  return found;
+}
+
 describe('administration: users and roles', () => {
-  it('lists members, filters them and changes the role of a staff member', async () => {
+  it('lists members and filters them; the own membership cannot change', async () => {
     const coach = admin.member('coach', { name: 'Pablo Gómez', email: 'pablo@example.com' });
     const { user, api } = renderApp({
       path: '/admin/members',
-      handlers: asAdmin({
-        listMembers: () => fixtures.page([admin.ownAdminMember(), coach]),
-        changeMemberRole: () => admin.member('sc', { name: 'Pablo Gómez' }),
-      }),
+      handlers: asAdmin({ listMembers: membersHandler([admin.ownAdminMember(), coach]) }),
     });
-    const findRow = async () => {
-      const found = (await screen.findByText('Pablo Gómez')).closest('tr');
-      if (found === null) throw new Error('no row');
-      return found;
-    };
-    let row = await findRow();
-    expect(within(row).getByRole('cell', { name: 'Entrenador/a' })).toBeVisible();
+    const row = await findRow('Pablo Gómez');
+    expect(within(row).getByRole('combobox', { name: 'Rol de Pablo Gómez' })).toHaveValue('coach');
     expect(within(row).getByText('Vigente')).toBeVisible();
 
-    // The own membership offers no actions.
-    const own = screen.getByText('Sos vos').closest('tr');
-    if (own === null) throw new Error('no own row');
+    // The own membership: its role disabled with the reason, no actions.
+    const own = await findRow('Sos vos');
+    const ownRole = within(own).getByRole('combobox');
+    expect(ownRole).toBeDisabled();
+    expect(ownRole).toHaveAccessibleDescription(
+      'Tu propia membresía la cambia otra persona administradora.',
+    );
     expect(within(own).queryByRole('button')).not.toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText('Rol', { selector: 'select' }), 'coach');
@@ -103,16 +120,53 @@ describe('administration: users and roles', () => {
       expect(api.callsTo('listMembers').at(-1)?.url.searchParams.get('role')).toBe('coach');
     });
     expect(api.callsTo('listMembers').at(-1)?.url.searchParams.get('status')).toBe('active');
-    row = await findRow();
+  });
 
-    await user.selectOptions(within(row).getByLabelText('Nuevo rol de Pablo Gómez'), 'sc');
-    await user.click(within(row).getByRole('button', { name: 'Cambiar rol' }));
-    expect(
-      within(row).getByText(/Va a pasar a Preparador\/a físico\/a\. Se cierran sus asignaciones/),
-    ).toBeVisible();
-    const [confirmRole] = within(row).getAllByRole('button', { name: 'Cambiar rol' });
-    if (confirmRole === undefined) throw new Error('no confirm');
-    await user.click(confirmRole);
+  it('edits the role in place: Guardar and Cancelar only while it changed', async () => {
+    const coach = admin.member('coach', { name: 'Pablo Gómez' });
+    const { user, api } = renderApp({
+      path: '/admin/members',
+      handlers: asAdmin({ listMembers: membersHandler([coach]) }),
+    });
+    const row = await findRow('Pablo Gómez');
+    const select = within(row).getByRole('combobox', { name: 'Rol de Pablo Gómez' });
+    expect(within(row).queryByRole('button', { name: 'Guardar' })).not.toBeInTheDocument();
+    expect(within(row).queryByRole('button', { name: 'Cancelar' })).not.toBeInTheDocument();
+    expect(select).not.toHaveAttribute('data-changed');
+
+    await user.selectOptions(select, 'sc');
+    expect(select).toHaveAttribute('data-changed', 'true');
+    expect(within(row).getByRole('button', { name: 'Guardar' })).toBeVisible();
+    await user.click(within(row).getByRole('button', { name: 'Cancelar' }));
+    expect(select).toHaveValue('coach');
+    expect(select).toHaveFocus();
+    expect(within(row).queryByRole('button', { name: 'Guardar' })).not.toBeInTheDocument();
+
+    await user.selectOptions(select, 'sc');
+    select.focus();
+    await user.keyboard('{Escape}');
+    expect(select).toHaveValue('coach');
+    expect(within(row).queryByRole('button', { name: 'Guardar' })).not.toBeInTheDocument();
+    expect(api.callsTo('changeMemberRole')).toHaveLength(0);
+  });
+
+  it('saves a change between coach and S&C directly and says it was saved', async () => {
+    const coach = admin.member('coach', { name: 'Pablo Gómez' });
+    const next = admin.member('sc', { name: 'Pablo Gómez' });
+    let list: Member[] = [coach];
+    const { user, api } = renderApp({
+      path: '/admin/members',
+      handlers: asAdmin({
+        listMembers: (request) => membersHandler(list)(request),
+        changeMemberRole: () => {
+          list = [next];
+          return next;
+        },
+      }),
+    });
+    const row = await findRow('Pablo Gómez');
+    await user.selectOptions(within(row).getByRole('combobox'), 'sc');
+    await user.click(within(row).getByRole('button', { name: 'Guardar' }));
     await waitFor(() => {
       expect(api.callsTo('changeMemberRole')).toHaveLength(1);
     });
@@ -120,7 +174,131 @@ describe('administration: users and roles', () => {
       params: { membershipId: coach.id },
       body: { version: coach.version, role: 'sc' },
     });
+    // The change opened another membership: its row says "Guardado" and has the focus.
+    const saved = await screen.findByText('Guardado');
+    expect(saved).toBeVisible();
+    expect(saved.closest('[role="status"]')).toHaveAttribute('aria-live', 'polite');
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: 'Rol de Pablo Gómez' })).toHaveValue('sc');
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: 'Rol de Pablo Gómez' })).toHaveFocus();
+    });
+    expect(screen.queryByRole('button', { name: 'Guardar' })).not.toBeInTheDocument();
     expect(api.unhandled).toEqual([]);
+  });
+
+  it('says it was saved above the list when the filter no longer shows the person', async () => {
+    const coach = admin.member('coach', { name: 'Pablo Gómez' });
+    let list: Member[] = [coach];
+    const { user } = renderApp({
+      path: '/admin/members',
+      handlers: asAdmin({
+        listMembers: (request) => membersHandler(list)(request),
+        changeMemberRole: () => {
+          list = [];
+          return admin.member('sc', { name: 'Pablo Gómez' });
+        },
+      }),
+    });
+    const row = await findRow('Pablo Gómez');
+    await user.selectOptions(within(row).getByRole('combobox'), 'sc');
+    await user.click(within(row).getByRole('button', { name: 'Guardar' }));
+    expect(
+      await screen.findByText('Guardado: Pablo Gómez ahora es Preparador/a físico/a.'),
+    ).toBeVisible();
+  });
+
+  it('asks before giving or taking the administration or the health data', async () => {
+    const coach = admin.member('coach', { name: 'Pablo Gómez' });
+    const doctor = admin.member('medical', { name: 'Ana Díaz' });
+    const { user, api } = renderApp({
+      path: '/admin/members',
+      handlers: asAdmin({
+        listMembers: membersHandler([coach, doctor]),
+        changeMemberRole: () => admin.member('admin', { name: 'Pablo Gómez' }),
+      }),
+    });
+    const row = await findRow('Pablo Gómez');
+    const select = within(row).getByRole('combobox');
+    await user.selectOptions(select, 'admin');
+    await user.click(within(row).getByRole('button', { name: 'Guardar' }));
+    const confirm = within(row).getByRole('group', {
+      name: '¿Pasar a Pablo Gómez a Administrador/a?',
+    });
+    expect(within(confirm).getByText(/Va a poder administrar todo el club/)).toBeVisible();
+    expect(api.callsTo('changeMemberRole')).toHaveLength(0);
+    // Escape backs out of the confirmation and restores the role.
+    await user.keyboard('{Escape}');
+    expect(select).toHaveValue('coach');
+    expect(select).toHaveFocus();
+
+    const doctorRow = await findRow('Ana Díaz');
+    await user.selectOptions(within(doctorRow).getByRole('combobox'), 'sc');
+    await user.click(within(doctorRow).getByRole('button', { name: 'Guardar' }));
+    expect(within(doctorRow).getByText(/Deja de ver los datos de salud/)).toBeVisible();
+
+    await user.selectOptions(select, 'admin');
+    await user.click(within(row).getByRole('button', { name: 'Guardar' }));
+    await user.click(within(row).getByRole('button', { name: 'Cambiar rol' }));
+    await waitFor(() => {
+      expect(api.callsTo('changeMemberRole')).toHaveLength(1);
+    });
+    expect(api.callsTo('changeMemberRole')[0]?.body).toMatchObject({ role: 'admin' });
+  });
+
+  it('shows a failed save in the cell and keeps the new role to retry', async () => {
+    const coach = admin.member('coach', { name: 'Pablo Gómez' });
+    const { user, api } = renderApp({
+      path: '/admin/members',
+      handlers: asAdmin({
+        listMembers: membersHandler([coach]),
+        changeMemberRole: () => apiError(409, 'conflict'),
+      }),
+    });
+    const row = await findRow('Pablo Gómez');
+    const select = within(row).getByRole('combobox');
+    await user.selectOptions(select, 'sc');
+    await user.click(within(row).getByRole('button', { name: 'Guardar' }));
+    expect(await within(row).findByText(/alguien|cambió/)).toBeVisible();
+    expect(within(row).getByRole('alert')).toBeVisible();
+    expect(select).toHaveValue('sc');
+    expect(within(row).getByRole('button', { name: 'Guardar' })).toBeEnabled();
+    await user.click(within(row).getByRole('button', { name: 'Cancelar' }));
+    expect(within(row).queryByRole('alert')).not.toBeInTheDocument();
+    expect(api.callsTo('changeMemberRole')).toHaveLength(1);
+  });
+
+  it('does not offer to change or end the only active admin of the club', async () => {
+    const other = admin.member('admin', { name: 'Marta Ruiz' });
+    renderApp({
+      path: '/admin/members',
+      handlers: asAdmin({ listMembers: membersHandler([other], [other]) }),
+    });
+    const row = await findRow('Marta Ruiz');
+    const reason = 'Es la única persona administradora vigente: el club no puede quedarse sin una.';
+    await waitFor(() => {
+      expect(within(row).getByRole('combobox')).toBeDisabled();
+    });
+    expect(within(row).getByRole('combobox')).toHaveAccessibleDescription(reason);
+    const end = within(row).getByRole('button', { name: 'Dar de baja' });
+    expect(end).toBeDisabled();
+    expect(end).toHaveAccessibleDescription(reason);
+  });
+
+  it('shows the role of an ended membership as text', async () => {
+    const ended = admin.member('coach', {
+      name: 'Pablo Gómez',
+      status: 'ended',
+      endedAt: '2026-10-01T12:00:00.000Z',
+    });
+    renderApp({
+      path: '/admin/members',
+      handlers: asAdmin({ listMembers: membersHandler([ended]) }),
+    });
+    const row = await findRow('Pablo Gómez');
+    expect(within(row).getByRole('cell', { name: 'Entrenador/a' })).toBeVisible();
+    expect(within(row).queryByRole('combobox')).not.toBeInTheDocument();
   });
 
   it('ends a membership after confirming and explains the last-admin conflict', async () => {
@@ -128,12 +306,11 @@ describe('administration: users and roles', () => {
     const { user, api } = renderApp({
       path: '/admin/members',
       handlers: asAdmin({
-        listMembers: () => fixtures.page([other]),
+        listMembers: membersHandler([other], [admin.ownAdminMember(), other]),
         endMember: () => apiError(409, 'conflict'),
       }),
     });
-    const row = (await screen.findByText('Marta Ruiz')).closest('tr');
-    if (row === null) throw new Error('no row');
+    const row = await findRow('Marta Ruiz');
     await user.click(within(row).getByRole('button', { name: 'Dar de baja' }));
     expect(within(row).getByText(/Deja de tener acceso al club desde ahora/)).toBeVisible();
     await user.click(within(row).getByRole('button', { name: 'Dar de baja' }));
