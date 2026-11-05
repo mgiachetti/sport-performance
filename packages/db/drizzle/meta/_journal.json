@@ -365,6 +365,13 @@
       "when": 1793841592715,
       "tag": "0051_restore_drills",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1793842415522,
+      "tag": "0052_ops_monitoring",
+      "breakpoints": true
     }
   ]
 }
