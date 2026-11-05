@@ -1,7 +1,7 @@
 import type { MembershipSummary } from '@sport-performance/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { Link, getRouteApi, useNavigate } from '@tanstack/react-router';
-import { meQuery, membershipsQuery } from '../api/queries';
+import { clubThemeQuery, meQuery, membershipsQuery } from '../api/queries';
 import { useServices } from '../app/services';
 import { useT } from '../i18n/i18n';
 import { StandaloneLayout } from '../layout/RootLayout';
@@ -63,15 +63,18 @@ export function ClubSelectPage() {
                   <button
                     type="button"
                     className="sp-choice"
+                    aria-label={t('club.select.asRole', {
+                      clubName: membership.club.name,
+                      role: t(`role.${membership.role}`),
+                    })}
                     onClick={() => void choose(membership)}
                   >
-                    <Icon name="club" />
-                    <span>
-                      {t('club.select.asRole', {
-                        clubName: membership.club.name,
-                        role: t(`role.${membership.role}`),
-                      })}
+                    <ClubCrest slug={membership.club.slug} name={membership.club.name} />
+                    <span className="sp-choice__text">
+                      <span className="sp-choice__title">{membership.club.name}</span>
+                      <span className="sp-choice__meta">{t(`role.${membership.role}`)}</span>
                     </span>
+                    <Icon name="chevronRight" className="sp-choice__chevron" />
                   </button>
                 </li>
               ))}
@@ -110,4 +113,24 @@ export function ClubSelectPage() {
       </Page>
     </StandaloneLayout>
   );
+}
+
+/**
+ * The crest of a club in the list, from its public theme (the same read the
+ * shell does once a club is picked); without a crest, its short name, or the
+ * initial of its name while the theme loads. Decorative: the button is named
+ * by the club and the role.
+ */
+function ClubCrest(props: { slug: string; name: string }) {
+  const { api } = useServices();
+  const theme = useQuery(clubThemeQuery(api, props.slug));
+  const logoUrl = theme.data?.logoUrl ?? null;
+  if (logoUrl === null) {
+    return (
+      <span className="sp-club-mark sp-club-mark--monogram" aria-hidden="true">
+        {theme.data?.shortName ?? props.name.trim().charAt(0).toLocaleUpperCase('es-AR')}
+      </span>
+    );
+  }
+  return <img className="sp-club-mark" src={logoUrl} alt="" width={44} height={44} />;
 }

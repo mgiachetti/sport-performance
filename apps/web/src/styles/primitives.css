@@ -194,6 +194,9 @@
 .sp-status--info svg {
   color: var(--sp-color-brand-accent);
 }
+.sp-status--neutral {
+  color: var(--sp-color-text-secondary);
+}
 
 /* Data tables: sticky condensed headers, 48px rows, tabular right-aligned numbers */
 .sp-table-wrap,
@@ -359,4 +362,196 @@
     font-size: var(--sp-text-metric-size);
     line-height: var(--sp-text-metric-line-height);
   }
+}
+
+/*
+ * Section tabs: a `<nav>` of links (each section is its own URL), the current
+ * one with `aria-current="page"` (or `.is-active`) and a brand underline.
+ * One row that scrolls sideways on a narrow screen instead of wrapping.
+ */
+.sp-tabs {
+  display: flex;
+  gap: var(--sp-space-xxs);
+  margin: 0 0 var(--sp-space-lg);
+  padding: 0;
+  overflow-x: auto;
+  border-bottom: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+  /* Edge shades when the strip scrolls: a shade sits on each edge (scroll)
+     and a cover in the page color scrolls with the content (local), hiding
+     the shade at the start and the end. Shows only that there is more. */
+  background:
+    linear-gradient(to right, var(--sp-color-background) 40%, transparent) left / 2rem 100%
+      no-repeat local,
+    linear-gradient(to left, var(--sp-color-background) 40%, transparent) right / 2rem 100%
+      no-repeat local,
+    radial-gradient(
+        farthest-side at 0 50%,
+        color-mix(in srgb, var(--sp-color-text-primary) 28%, transparent),
+        transparent
+      )
+      left / 0.875rem 100% no-repeat scroll,
+    radial-gradient(
+        farthest-side at 100% 50%,
+        color-mix(in srgb, var(--sp-color-text-primary) 28%, transparent),
+        transparent
+      )
+      right / 0.875rem 100% no-repeat scroll;
+  scrollbar-width: thin;
+}
+.sp-tabs > ul {
+  display: flex;
+  gap: var(--sp-space-xxs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sp-tabs__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--sp-size-touch-target);
+  padding: 0 var(--sp-space-md);
+  border-radius: var(--sp-radius-sm) var(--sp-radius-sm) 0 0;
+  color: var(--sp-color-text-secondary);
+  font-family: var(--sp-text-button-family);
+  font-size: var(--sp-text-button-size);
+  font-weight: var(--sp-text-button-weight);
+  letter-spacing: var(--sp-text-button-letter-spacing);
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: inset 0 calc(-1 * var(--sp-border-width-thick)) 0 transparent;
+}
+.sp-tabs__link:hover {
+  background: var(--sp-color-surface);
+  color: var(--sp-color-text-primary);
+}
+.sp-tabs__link:focus-visible {
+  outline-offset: calc(-1 * var(--sp-focus-ring-width));
+}
+.sp-tabs__link[aria-current='page'],
+.sp-tabs__link.is-active {
+  color: var(--sp-color-text-primary);
+  box-shadow: inset 0 calc(-1 * var(--sp-border-width-thick)) 0 var(--sp-color-brand-accent);
+}
+@media (forced-colors: active) {
+  .sp-tabs__link[aria-current='page'],
+  .sp-tabs__link.is-active {
+    text-decoration: underline;
+  }
+}
+
+/* Actions inside a table row: the small button, so a row keeps its 48 px rhythm */
+.sp-table tbody .sp-button {
+  min-height: var(--sp-size-control-small);
+  padding: 0 var(--sp-space-md);
+  font-size: var(--sp-text-body-size);
+}
+.sp-table tbody .sp-field__input,
+.sp-table tbody select {
+  min-height: var(--sp-size-control-small);
+}
+
+/* File picker (FileField): the native input, transparent, over our own
+   button and file name, so the click, keyboard and focus stay the browser's
+   while the text is es-AR. */
+.sp-file {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-md);
+  min-width: 0;
+  min-height: var(--sp-size-touch-target);
+  padding: var(--sp-space-xs);
+  border: var(--sp-border-width-hairline) solid var(--sp-color-border-strong);
+  border-radius: var(--sp-radius-md);
+  background-color: var(--sp-color-background);
+}
+.sp-file__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.sp-file__button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  min-height: var(--sp-size-control-small);
+  padding: 0 var(--sp-space-md);
+  border: var(--sp-border-width-hairline) solid var(--sp-color-border-strong);
+  border-radius: calc(var(--sp-radius-md) - 0.125rem);
+  background: var(--sp-color-surface-raised);
+  color: var(--sp-color-text-primary);
+  font-family: var(--sp-text-button-family);
+  font-size: var(--sp-text-body-size);
+  font-weight: var(--sp-text-button-weight);
+}
+.sp-file__name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--sp-color-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sp-file:hover {
+  border-color: var(--sp-color-brand-border);
+}
+.sp-file:hover .sp-file__button {
+  border-color: var(--sp-color-brand-border);
+}
+.sp-file:has(.sp-file__input:focus-visible) {
+  outline: var(--sp-focus-ring-width) solid var(--sp-color-focus);
+  outline-offset: var(--sp-focus-ring-offset);
+}
+.sp-file[data-invalid] {
+  border-color: var(--sp-color-status-critical-border);
+}
+.sp-file__input:disabled {
+  cursor: not-allowed;
+}
+
+/* A row of fields lines up by the top of its labels, whatever help text each one has */
+.sp-form__row {
+  align-items: start;
+}
+/* A field never grows past its column (a select with a long option, a file input) */
+.sp-form__row > * {
+  min-width: 0;
+}
+.sp-field > .sp-field__input {
+  width: 100%;
+  min-width: 0;
+  text-overflow: ellipsis;
+}
+
+/* Cards side by side: as many columns as fit (forms next to their list, small summaries) */
+.sp-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  gap: var(--sp-space-lg);
+  margin-top: var(--sp-space-lg);
+}
+.sp-card-grid > .sp-card {
+  margin-top: 0;
+}
+
+/*
+ * A card is a grid: without this its children (a wide table's scroller) take
+ * their content's width and push the page sideways on a phone instead of
+ * scrolling inside the card.
+ */
+.sp-card > * {
+  min-width: 0;
+}
+
+/*
+ * The scroller of a wide table contains what is positioned inside it: a
+ * visually hidden caption or label (absolute) would otherwise sit at the
+ * table's far edge and widen the whole page on a phone.
+ */
+.sp-table-wrap,
+.sp-panel-table-scroll {
+  position: relative;
 }

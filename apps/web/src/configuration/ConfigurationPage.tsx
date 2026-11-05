@@ -7,8 +7,17 @@ import { useActiveClub } from '../club/active-club';
 import { useScope } from '../club/use-scope';
 import { useT } from '../i18n/i18n';
 import { RequirePermission, useCan } from '../permissions/permissions';
-import { ErrorNotice, Loading, Notice, Page } from '../ui/components';
+import {
+  Card,
+  EmptyState,
+  ErrorNotice,
+  Loading,
+  Notice,
+  Page,
+  buttonClass,
+} from '../ui/components';
 import { SelectField } from '../ui/fields';
+import { useActiveTabInView } from '../ui/use-active-tab';
 import { AlertRulesSection } from './AlertRulesSection';
 import { BatterySection } from './BatterySection';
 import { ReferencesSection } from './ReferencesSection';
@@ -61,6 +70,7 @@ function ConfigurationContent() {
   const { selection } = useActiveClub();
   const canEdit = useCan('configuration', 'update');
   const section = search.section ?? 'battery';
+  const tabsRef = useActiveTabInView<HTMLElement>();
 
   const sport = scope.sport;
   const branches = useQuery({ ...clubBranchesQuery(api, selection), enabled: sport !== null });
@@ -77,7 +87,7 @@ function ConfigurationContent() {
       : (mine ?? sexes[0] ?? null));
 
   const tabs = (
-    <nav aria-label={t('configuration.sections')} className="sp-tabs">
+    <nav ref={tabsRef} aria-label={t('configuration.sections')} className="sp-tabs">
       <ul>
         {CONFIGURATION_SECTIONS.map((candidate) => (
           <li key={candidate}>
@@ -126,9 +136,30 @@ function ConfigurationContent() {
       ) : sport !== null && branches.data === undefined ? (
         <Loading />
       ) : sport === null || sex === null ? (
-        <Notice level="info">
-          <p>{t('configuration.pickSport')}</p>
-        </Notice>
+        <Card>
+          <EmptyState
+            icon="settings"
+            title={t('configuration.pickSport.title')}
+            action={
+              scope.sports.length === 0 ? undefined : (
+                <div className="sp-form__actions">
+                  {scope.sports.map((candidate) => (
+                    <Link
+                      key={candidate}
+                      to="/configuration"
+                      search={(prev) => ({ ...prev, sport: candidate })}
+                      className={buttonClass('secondary')}
+                    >
+                      {t(`sport.${candidate}`)}
+                    </Link>
+                  ))}
+                </div>
+              )
+            }
+          >
+            <p>{t('configuration.pickSport')}</p>
+          </EmptyState>
+        </Card>
       ) : section === 'battery' ? (
         <BatterySection
           sport={sport}

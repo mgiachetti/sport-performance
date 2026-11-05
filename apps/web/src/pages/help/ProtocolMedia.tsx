@@ -1,14 +1,14 @@
 import type { ProtocolMediaDto, TestDefinitionDto } from '@sport-performance/contracts';
 import { FILE_KIND_POLICIES, PROTOCOL_MEDIA_CAPTION_MAX_LENGTH } from '@sport-performance/domain';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { useId, useRef, useState, type SubmitEvent } from 'react';
+import { useRef, useState, type SubmitEvent } from 'react';
 import { sha256Base64 } from '../../api/storage-upload';
 import { useServices } from '../../app/services';
 import { useActiveClub } from '../../club/active-club';
 import { useT } from '../../i18n/i18n';
 import { useCan } from '../../permissions/permissions';
 import { Button, ErrorNotice, Loading, Notice, TextField } from '../../ui/components';
-import { Icon } from '../../ui/icons';
+import { FileField } from '../../ui/fields';
 import { fileDownloadQuery, protocolMediaKey, protocolMediaQuery } from './queries';
 
 const POLICY = FILE_KIND_POLICIES.protocol_media;
@@ -201,7 +201,6 @@ function AddMediaForm({ testDefinitionId }: { testDefinitionId: string }) {
   const t = useT();
   const { api, queryClient, uploadToStorage } = useServices();
   const { selection } = useActiveClub();
-  const fileInputId = useId();
   const fileInput = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [caption, setCaption] = useState('');
@@ -274,33 +273,18 @@ function AddMediaForm({ testDefinitionId }: { testDefinitionId: string }) {
   return (
     <form className="sp-form sp-media-form" onSubmit={onSubmit} noValidate>
       <h3 className="sp-card__title">{t('help.media.add.title')}</h3>
-      <div className="sp-field">
-        <label htmlFor={fileInputId} className="sp-field__label">
-          {t('help.media.add.file')}
-        </label>
-        <input
-          ref={fileInput}
-          id={fileInputId}
-          className="sp-field__input"
-          type="file"
-          name="file"
-          accept={ACCEPTED.join(',')}
-          aria-describedby={`${fileInputId}-help${fileError === null ? '' : ` ${fileInputId}-error`}`}
-          aria-invalid={fileError === null ? undefined : true}
-          onChange={(event) => {
-            setFile(event.target.files?.[0] ?? null);
-          }}
-        />
-        <p id={`${fileInputId}-help`} className="sp-field__help">
-          {t('help.media.add.fileHelp', { maxMb: MAX_MB })}
-        </p>
-        {fileError === null ? null : (
-          <p id={`${fileInputId}-error`} className="sp-field__error">
-            <Icon name="critical" />
-            <span>{fileError}</span>
-          </p>
-        )}
-      </div>
+      <FileField
+        ref={fileInput}
+        label={t('help.media.add.file')}
+        help={t('help.media.add.fileHelp', { maxMb: MAX_MB })}
+        error={fileError}
+        fileName={file?.name ?? null}
+        name="file"
+        accept={ACCEPTED.join(',')}
+        onChange={(event) => {
+          setFile(event.target.files?.[0] ?? null);
+        }}
+      />
       <TextField
         label={t('help.media.add.caption')}
         help={t('help.media.add.captionHelp')}

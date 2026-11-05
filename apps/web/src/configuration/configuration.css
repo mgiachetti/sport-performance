@@ -1,84 +1,7 @@
 /*
- * Configuration of the club (B-409). Only `--sp-*` tokens, like `styles/app.css`. The first block
- * holds the shared screen pieces it uses (inline status, tables, form rows and actions); they are
- * the same rules other screens declare, so loading both is harmless.
+ * Configuration of the club (B-409). Only `--sp-*` tokens, like `styles/app.css`. Status chips,
+ * tables, form rows and section tabs are the shared ones (`styles/primitives.css`, ADR 0097).
  */
-
-.sp-status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-space-xs);
-  font-size: var(--sp-text-body-small-size);
-}
-.sp-status--ok svg {
-  color: var(--sp-color-status-ok-fg);
-}
-.sp-status--warning svg {
-  color: var(--sp-color-status-warning-fg);
-}
-.sp-status--critical svg {
-  color: var(--sp-color-status-critical-fg);
-}
-.sp-table-wrap {
-  margin-top: var(--sp-space-md);
-  overflow-x: auto;
-}
-.sp-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.sp-table th,
-.sp-table td {
-  padding: var(--sp-space-sm) var(--sp-space-md);
-  border-bottom: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
-  text-align: left;
-  vertical-align: middle;
-}
-.sp-table thead th {
-  color: var(--sp-color-text-secondary);
-  font-size: var(--sp-text-body-small-size);
-  font-weight: var(--sp-text-body-strong-weight);
-  white-space: nowrap;
-}
-.sp-form__row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: var(--sp-space-md);
-}
-.sp-form__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-space-sm);
-}
-
-/* Section tabs */
-.sp-tabs ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-space-xs);
-  margin: 0 0 var(--sp-space-lg);
-  padding: 0;
-  list-style: none;
-  border-bottom: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
-}
-.sp-tabs__link {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--sp-size-touch-target);
-  padding: 0 var(--sp-space-md);
-  color: var(--sp-color-text-secondary);
-  text-decoration: none;
-  border-bottom: var(--sp-border-width-thick) solid transparent;
-}
-.sp-tabs__link:hover {
-  color: var(--sp-color-text-primary);
-}
-.sp-tabs__link[aria-current='page'] {
-  color: var(--sp-color-text-primary);
-  font-weight: var(--sp-text-body-strong-weight);
-  border-bottom-color: var(--sp-color-brand-solid);
-}
 
 /* Checkboxes */
 .sp-check {
@@ -130,7 +53,7 @@
 }
 .sp-config__zones {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr));
   gap: var(--sp-space-lg);
 }
 .sp-config__zone-list {
@@ -162,9 +85,12 @@
   gap: var(--sp-space-xs);
 }
 .sp-num {
-  font-family: var(--sp-text-metric-small-family);
+  font-family: var(--sp-text-table-number-family);
+  font-size: var(--sp-text-table-number-size);
+  font-weight: var(--sp-text-table-number-weight);
   font-variant-numeric: tabular-nums;
   text-align: right;
+  white-space: nowrap;
 }
 .sp-table th.sp-num,
 .sp-table td.sp-num {
@@ -181,7 +107,17 @@
   text-align: left;
 }
 .sp-matrix__tag {
+  min-height: var(--sp-size-chip);
   margin-left: var(--sp-space-xs);
+  padding: 0 var(--sp-space-sm);
+  color: var(--sp-color-text-secondary);
+  font-size: var(--sp-text-body-small-size);
+}
+.sp-config__name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-space-xxs);
 }
 .sp-matrix__cell {
   min-width: 6rem;

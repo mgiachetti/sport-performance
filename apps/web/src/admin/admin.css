@@ -1,155 +1,10 @@
 /*
- * Administration (B-411). Only `--sp-*` tokens. The generic rules of the
- * screens (`sp-status`, `sp-table`, `sp-filters`, `sp-form__row`,
- * `sp-form__actions`, `sp-summary`) are repeated here until the shared
- * `styles/screens.css` lands; loading both is harmless.
+ * Administration (B-411). Only `--sp-*` tokens. The generic pieces (status
+ * chips, tables, filters, form rows, section tabs, summaries) are the shared
+ * ones of `styles/primitives.css` and `styles/screens.css` (ADR 0097): only
+ * what is specific to the administration lives here.
  */
 
-.sp-status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-space-xs);
-  font-size: var(--sp-text-body-small-size);
-}
-.sp-status--ok svg {
-  color: var(--sp-color-status-ok-fg);
-}
-.sp-status--warning svg {
-  color: var(--sp-color-status-warning-fg);
-}
-.sp-status--critical svg {
-  color: var(--sp-color-status-critical-fg);
-}
-
-.sp-table-wrap {
-  margin-top: var(--sp-space-lg);
-  overflow-x: auto;
-}
-.sp-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.sp-table th,
-.sp-table td {
-  padding: var(--sp-space-sm) var(--sp-space-md);
-  border-bottom: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
-  text-align: left;
-  vertical-align: top;
-}
-.sp-table thead th {
-  color: var(--sp-color-text-secondary);
-  font-size: var(--sp-text-body-small-size);
-  font-weight: var(--sp-text-body-strong-weight);
-  white-space: nowrap;
-}
-.sp-table tbody th {
-  font-weight: var(--sp-text-body-strong-weight);
-}
-.sp-table th.sp-table__number,
-.sp-table td.sp-table__number {
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.sp-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--sp-space-md);
-  margin: var(--sp-space-lg) 0 0;
-  padding: 0;
-  border: 0;
-}
-.sp-filters > .sp-field {
-  min-width: 12rem;
-}
-.sp-form__row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: var(--sp-space-md);
-}
-.sp-form__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-space-sm);
-}
-.sp-fieldset {
-  display: grid;
-  gap: var(--sp-space-md);
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-.sp-fieldset--nested {
-  padding: var(--sp-space-md);
-  border: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
-  border-radius: var(--sp-radius-md);
-}
-.sp-button {
-  text-decoration: none;
-}
-.sp-summary,
-.sp-details {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  gap: var(--sp-space-md);
-  margin: var(--sp-space-md) 0 0;
-}
-.sp-summary dt,
-.sp-details dt {
-  color: var(--sp-color-text-secondary);
-  font-size: var(--sp-text-body-small-size);
-}
-.sp-summary dd,
-.sp-details dd {
-  margin: 0;
-}
-.sp-summary dd {
-  font-family: var(--sp-text-metric-small-family);
-  font-size: var(--sp-text-heading-size);
-  font-weight: var(--sp-text-metric-small-weight);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Tabs of the administration */
-.sp-admin__tabs ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-space-xs);
-  margin: 0 0 var(--sp-space-lg);
-  padding: 0;
-  list-style: none;
-  border-bottom: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
-}
-.sp-admin__tab {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--sp-size-touch-target);
-  padding: 0 var(--sp-space-md);
-  color: var(--sp-color-text-secondary);
-  text-decoration: none;
-  border-bottom: var(--sp-border-width-thick) solid transparent;
-}
-.sp-admin__tab:hover {
-  color: var(--sp-color-text-primary);
-}
-.sp-admin__tab.is-active {
-  color: var(--sp-color-text-primary);
-  font-weight: var(--sp-text-body-strong-weight);
-  border-bottom-color: var(--sp-color-brand-accent);
-}
-
-.sp-admin__section {
-  margin-bottom: var(--sp-space-lg);
-}
-.sp-admin__section-head {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: var(--sp-space-md);
-}
 .sp-admin__intro,
 .sp-admin__meta {
   color: var(--sp-color-text-secondary);
@@ -166,7 +21,7 @@
 .sp-admin__inline {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   gap: var(--sp-space-sm);
 }
 .sp-admin__confirm {
@@ -195,6 +50,11 @@
   padding: 0;
   list-style: none;
 }
+/* Many categories to pick: as many columns as fit, not one long column */
+.sp-admin__checks--columns {
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  column-gap: var(--sp-space-lg);
+}
 .sp-admin__check {
   display: inline-flex;
   align-items: center;
@@ -217,10 +77,20 @@
 /* Brand */
 .sp-admin__color {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: var(--sp-space-sm);
 }
+.sp-admin__color > .sp-field {
+  flex: 1;
+}
+/* The swatch lines up with the input, below the field's label */
+.sp-admin__color .sp-field__label {
+  line-height: var(--sp-text-body-small-line-height);
+}
 .sp-admin__color-picker {
+  margin-top: calc(
+    var(--sp-text-body-small-size) * var(--sp-text-body-small-line-height) + var(--sp-space-xs)
+  );
   width: var(--sp-size-touch-target);
   height: var(--sp-size-touch-target);
   padding: 0;
@@ -244,12 +114,73 @@
   font-family: var(--sp-text-metric-small-family);
   font-weight: var(--sp-text-metric-small-weight);
 }
+.sp-admin__logo {
+  display: grid;
+  place-items: center;
+  min-height: 10rem;
+  padding: var(--sp-space-lg);
+  border: var(--sp-border-width-hairline) dashed var(--sp-color-border-strong);
+  border-radius: var(--sp-radius-md);
+  background: var(--sp-color-background);
+}
 .sp-admin__logo img {
   max-width: 8rem;
   max-height: 8rem;
+}
+/* Profile and brand beside the crest on a wide screen */
+.sp-admin__club-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(18rem, 1fr);
+  gap: var(--sp-space-lg);
+  align-items: start;
+}
+.sp-admin__club-grid > .sp-card {
+  margin-top: 0;
+}
+@media (max-width: 75rem) {
+  .sp-admin__club-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .sp-admin__subtitle {
   margin: var(--sp-space-xl) 0 var(--sp-space-xs);
   font-family: var(--sp-text-title-family);
   font-weight: var(--sp-text-title-weight);
+}
+/* A person's email under the name: one line, regular weight (the name is the row header) */
+.sp-table th .sp-admin__meta {
+  font-weight: var(--sp-text-body-weight);
+  white-space: nowrap;
+}
+@media (min-width: 64.0625rem) {
+  .sp-admin__row-actions {
+    flex-wrap: nowrap;
+  }
+}
+/*
+ * A member's actions (role select, "Cambiar rol", "Dar de baja") stay
+ * left-aligned like the other rows: the role change on one line and "Dar de
+ * baja" under it, or all on one line where the card is wide enough for the
+ * table not to scroll sideways. The role column may break into two lines (the
+ * person's cell already has two).
+ */
+.sp-admin__row-actions--role {
+  flex-direction: column;
+  align-items: flex-start;
+}
+.sp-admin__row-actions--role .sp-admin__inline {
+  flex-wrap: nowrap;
+}
+.sp-admin__row-actions--role > *,
+.sp-admin__row-actions--role .sp-admin__inline > * {
+  flex: none;
+}
+.sp-admin__row-actions--role .sp-admin__inline > .sp-field {
+  width: 10rem;
+}
+@media (min-width: 87.5rem) {
+  .sp-admin__row-actions--role {
+    flex-direction: row;
+    align-items: center;
+  }
 }

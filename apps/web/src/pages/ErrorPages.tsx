@@ -9,7 +9,7 @@ import { Button, ErrorNotice, Page } from '../ui/components';
 export function NotFoundPage() {
   const t = useT();
   return (
-    <StandaloneLayout>
+    <StandaloneLayout variant="compact">
       <Page title={t('error.pageNotFound.title')} subtitle={t('error.pageNotFound.body')}>
         <Link to="/" className="sp-button sp-button--primary">
           {t('nav.goHome')}
@@ -32,7 +32,7 @@ export function RouteErrorPage({ error, reset }: ErrorComponentProps) {
   }, [queryReset]);
   const forbidden = error instanceof ApiError && error.status === 403;
   return (
-    <StandaloneLayout>
+    <StandaloneLayout variant="compact">
       <Page title={forbidden ? t('error.forbidden') : t('error.title')}>
         <ErrorNotice
           error={error}
