@@ -12,7 +12,7 @@ import { seedClubFixture, type ClubFixture } from './testing/tenant-fixture.js';
 
 /**
  * Operational monitoring in the database (B-703, ADR 0095, migration
- * `0045_ops_monitoring`): `ops.check_state` is reached by nobody but the
+ * `0052_ops_monitoring`): `ops.check_state` is reached by nobody but the
  * SECURITY DEFINER functions (the worker records, the API reads), the record
  * function decides what to announce in one statement, and the backlog the
  * worker reads across clubs carries counts only.
