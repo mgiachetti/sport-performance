@@ -29,12 +29,23 @@ export { DERIVED_REFRESH_CHANNEL, startRefreshListener } from './listener.js';
 export {
   createLogger,
   disabledErrorReporter,
+  type CronCheckIn,
   type ErrorReporter,
   type ErrorReportContext,
+  type OpsNotice,
 } from './observability.js';
 export {
+  OPS_MONITOR_SLUG,
+  createOpsMonitor,
+  type MeasuredCheck,
+  type OpsMonitor,
+  type OpsMonitorDependencies,
+} from './ops/monitor.js';
+export {
   QUEUES,
+  DEAD_LETTER_QUEUES,
   FILE_SCHEDULES,
+  OPS_MONITOR_SCHEDULE,
   QUEUE_DEFINITIONS,
   SCHEDULES,
   enqueueClubJob,

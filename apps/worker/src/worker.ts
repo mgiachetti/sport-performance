@@ -8,6 +8,7 @@ import { refreshClub, type RefreshDependencies } from './derived/refresh.js';
 import { listExportClubs, runClubExports } from './exports/process.js';
 import { purgeClubFiles } from './files.js';
 import { runClubNotifications, type DeliveryDependencies } from './notifications/index.js';
+import { createOpsMonitor } from './ops/monitor.js';
 import { runClubReports } from './reports/job.js';
 import { startRefreshListener, type RefreshListener } from './listener.js';
 import { foldClubUsage } from './usage.js';
@@ -43,6 +44,12 @@ export interface StartWorkerOptions {
    * `null` turns the notification jobs off (tests of other jobs).
    */
   readonly notifications: Omit<DeliveryDependencies, 'pool' | 'logger'> | null;
+  /**
+   * The operational monitor (B-703, ADR 0095): a failing check is announced
+   * again every `renotifyMinutes`. `null` turns it off (`OPS_MONITOR=off`, tests
+   * of other jobs). Default: on, every 60 minutes.
+   */
+  readonly opsMonitor?: { readonly renotifyMinutes: number } | null;
   /** Current instant for "today"; injectable for tests. */
   readonly now?: () => Date;
 }
@@ -85,9 +92,12 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
     logger.warn({ warning: warning.message, type }, 'job queue warning');
   });
   await boss.start();
+  const opsMonitorOptions =
+    options.opsMonitor === undefined ? { renotifyMinutes: 60 } : options.opsMonitor;
   await setUpQueues(boss, {
     files: options.storage !== null,
     notifications: options.notifications !== null,
+    opsMonitor: opsMonitorOptions !== null,
   });
   if (options.storage === null) {
     logger.warn('no bucket configured (STORAGE_*): the file retention and report jobs are off');
@@ -268,6 +278,27 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
         await enqueueClubJob(boss, QUEUES.notificationsClub, clubId);
       }
     });
+  }
+
+  if (opsMonitorOptions !== null) {
+    const monitor = createOpsMonitor({
+      pool: options.pool,
+      logger,
+      reporter,
+      renotifyMinutes: opsMonitorOptions.renotifyMinutes,
+      ...(options.now && { now: options.now }),
+    });
+    await boss.work(QUEUES.opsMonitor, { pollingIntervalSeconds }, async (jobs: Job<unknown>[]) => {
+      try {
+        await monitor.run();
+      } catch (error) {
+        logger.error({ err: error, jobId: jobs[0]?.id }, 'ops monitor failed');
+        reporter.capture(error, { job: QUEUES.opsMonitor, jobId: jobs[0]?.id });
+        throw error;
+      }
+    });
+  } else {
+    logger.warn('OPS_MONITOR=off: no operational checks; /health/ops reports the worker as down');
   }
 
   const listener: RefreshListener = startRefreshListener({

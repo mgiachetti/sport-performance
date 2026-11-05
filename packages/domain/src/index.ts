@@ -454,3 +454,6 @@ export * from './category-report.js';
 
 // Notifications: kinds, preferences, club parameters and allowed hours (B-328).
 export * from './notifications/index.js';
+
+// Operational checks of the platform: definitions, thresholds and evaluation (B-703).
+export * from './ops-checks.js';

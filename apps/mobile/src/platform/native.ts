@@ -122,6 +122,14 @@ export function nativePlatform(config: RuntimeConfig, build: AppBuildInfo): Plat
     sha256Hex: (text) => digestStringAsync(CryptoDigestAlgorithm.SHA256, text),
     languageTags: getLocales().map((locale) => locale.languageTag),
     reportError,
+    reportNotice: (notice) => {
+      if (config.sentry === null) return;
+      Sentry.captureMessage(notice.message, {
+        level: notice.level,
+        fingerprint: [...notice.fingerprint],
+        tags: { ...notice.tags },
+      });
+    },
     openLocalDatabase: () => openNativeLocalDatabase(reportError),
     createSignalPlayer: createNativeSignalPlayer,
     hardware: hardwareInfo(),

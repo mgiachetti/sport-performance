@@ -41,6 +41,8 @@ export const QUEUES = {
   usageFoldClubDead: 'usage-fold-club-dead',
   /** Once a day: every club's usage retention. */
   usageDaily: 'usage-daily',
+  /** Every minute: the operational checks of the platform (B-703, ADR 0095). */
+  opsMonitor: 'ops-monitor',
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -183,7 +185,21 @@ export const QUEUE_DEFINITIONS: readonly Queue[] = [
     expireInSeconds: 10 * MINUTE,
     deleteAfterSeconds: 7 * DAY,
   },
+  {
+    // A missed pass is the heartbeat the API and Sentry Crons watch: no retry, the next
+    // minute measures again.
+    name: QUEUES.opsMonitor,
+    policy: 'stately',
+    retryLimit: 0,
+    expireInSeconds: 2 * MINUTE,
+    deleteAfterSeconds: DAY,
+  },
 ];
+
+/** The dead letter queues: jobs there exhausted every retry and wait for a person. */
+export const DEAD_LETTER_QUEUES: readonly string[] = QUEUE_DEFINITIONS.flatMap((q) =>
+  q.deadLetter === undefined ? [] : [q.deadLetter],
+);
 
 /** Cron schedules (UTC; each club job computes "the day" in the club's own zone). */
 export const SCHEDULES = [
@@ -198,7 +214,9 @@ export const NOTIFICATION_SCHEDULES = [
   { queue: QUEUES.notificationsSweep, cron: '* * * * *' },
 ] as const;
 
-/**
+/** The operational monitor (B-703), unless `OPS_MONITOR=off`. */
+export const OPS_MONITOR_SCHEDULE = { queue: QUEUES.opsMonitor, cron: '* * * * *' } as const;
+
 /**
  * Bucket jobs, only when the bucket is configured: file retention once a day, and the
  * sweeps of the player reports and of the pending CSV exports every minute.
@@ -227,7 +245,11 @@ export function parseRefreshClubJob(data: unknown): RefreshClubJob {
  */
 export async function setUpQueues(
   boss: PgBoss,
-  options: { readonly files: boolean; readonly notifications: boolean },
+  options: {
+    readonly files: boolean;
+    readonly notifications: boolean;
+    readonly opsMonitor?: boolean;
+  },
 ): Promise<void> {
   const existing = new Set((await boss.getQueues()).map((q) => q.name));
   for (const { name, ...options } of QUEUE_DEFINITIONS) {
@@ -255,6 +277,11 @@ export async function setUpQueues(
   for (const { queue, cron } of NOTIFICATION_SCHEDULES) {
     if (options.notifications) await boss.schedule(queue, cron, {}, { tz: 'UTC' });
     else await boss.unschedule(queue);
+  }
+  if (options.opsMonitor ?? true) {
+    await boss.schedule(OPS_MONITOR_SCHEDULE.queue, OPS_MONITOR_SCHEDULE.cron, {}, { tz: 'UTC' });
+  } else {
+    await boss.unschedule(OPS_MONITOR_SCHEDULE.queue);
   }
 }
 

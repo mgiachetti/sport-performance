@@ -24,7 +24,8 @@ import {
   type MeasuringInstallation,
 } from '../reaction/installation.ts';
 import { reopeningLocalDatabase, type LocalDatabase } from '../offline/db/database.ts';
-import { createSyncEngine, type SyncEngine } from '../offline/engine.ts';
+import { syncTelemetryNotice, type AppNotice } from '../observability/sync-telemetry.ts';
+import { createSyncEngine, type SyncEngine, type SyncTelemetry } from '../offline/engine.ts';
 import { createReadCache, type ReadCache } from '../offline/read-cache.ts';
 import { bindSyncToSession, syncScopeOf } from '../offline/session-binding.ts';
 import {
@@ -55,6 +56,8 @@ export interface Platform {
   /** BCP 47 tags of the device languages, in order of preference. */
   readonly languageTags: readonly string[];
   readonly reportError: (error: unknown) => void;
+  /** Operational notices without data (B-703): Sentry messages on the phone; none in tests. */
+  readonly reportNotice?: (notice: AppNotice) => void;
   /** The speaker of the 30-15 IFT signals (`expo-audio` on the phone). */
   readonly createSignalPlayer: (options: {
     /** Shown on the lock screen while the test runs (no player data). */
@@ -171,6 +174,9 @@ export function createAppServices(platform: Platform): AppServices {
     // A module the club turned off is not pulled (issue #215): the kept modules, else the defaults.
     collections: async (scope) =>
       pulledCollections(effectiveClubModules(await keptClubModules(readCache, scope.membershipId))),
+    ...(platform.reportNotice !== undefined && {
+      onTelemetry: (event: SyncTelemetry) => platform.reportNotice?.(syncTelemetryNotice(event)),
+    }),
   });
   const unbindSync = bindSyncToSession(sync, session, reportError);
   const iftRunStore = createSecureIftRunStore(platform.secureStorage);
