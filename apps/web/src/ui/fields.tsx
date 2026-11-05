@@ -64,6 +64,8 @@ export function SelectField({
   help?: string | undefined;
   error?: string | null | undefined;
   options: readonly SelectOption[];
+  /** The `<select>` itself (to give it the focus back after an inline edit). */
+  ref?: Ref<HTMLSelectElement> | undefined;
 } & Omit<SelectHTMLAttributes<HTMLSelectElement>, 'id' | 'children'>) {
   const id = useId();
   return (

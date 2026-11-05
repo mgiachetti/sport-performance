@@ -58,6 +58,19 @@ export function membersQuery(
   });
 }
 
+/**
+ * Up to two active admins of the club: whether one is the only one (the API
+ * refuses to end it or change its role, so the club is never left without
+ * an admin). Under `members`, so a change in the list reads it again.
+ */
+export function activeAdminsQuery(api: ApiClient, selection: ClubSelection | null) {
+  return queryOptions({
+    queryKey: adminKey(selection, 'members', 'active-admins'),
+    queryFn: ({ signal }) =>
+      api.listMembers({ query: { role: 'admin', status: 'active', limit: 2 } }, { signal }),
+  });
+}
+
 /** Roles a staff assignment can be given to (ADR 0025, `assigned` scope). */
 export const ASSIGNABLE_ROLES = ['coach', 'sc', 'medical'] as const;
 
