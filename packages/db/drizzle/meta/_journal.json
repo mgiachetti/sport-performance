@@ -351,6 +351,13 @@
       "when": 1793817981187,
       "tag": "0049_menstrual_cycle",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1793840660871,
+      "tag": "0050_usage_metrics",
+      "breakpoints": true
     }
   ]
 }
