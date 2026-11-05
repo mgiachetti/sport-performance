@@ -47,14 +47,14 @@ pnpm --filter @sport-performance/mobile start   # después, solo el bundler
 - `src/cmj-video`: CMJ por video (B-604, [ADR 0085](../../docs/adr/0085-cmj-por-video.md)): marcado cuadro a cuadro (`marking.ts`), el intento por la cola (`attempt.ts`), los videos que esperan en el teléfono (`captures.ts`) y su subida cuando el intento está en el servidor (`uploader.ts`, `service.ts`).
 - `src/platform`: lo nativo (`expo-secure-store`, AsyncStorage, `expo-application`, `expo-updates`, `expo-localization`, `expo-sqlite` con SQLCipher, `expo-network`, `expo-background-task`, la cámara de `react-native-vision-camera` y los cuadros exactos del módulo propio `modules/cmj-frames`) detrás de interfaces.
 - `modules/`: módulos nativos propios de la app (Expo Modules, autolinkeados): `cmj-frames` da el cuadro exacto de un tiempo y la duración de un video (ADR 0085).
-- `src/screens`: pantallas de presentación (datos y callbacks por props); `src/ui`: tema, traductor, primitivas accesibles y fuentes.
+- `src/screens`: pantallas de presentación (datos y callbacks por props); `src/ui`: tema (con el escudo del club activo, `useClubMark`), traductor, fuentes y las primitivas del sistema de diseño ([ADR 0098](../../docs/adr/0098-sistema-de-diseno-de-la-app.md)): `primitives.tsx` (`ScreenBody`, `ScreenHeader`, `Card`, `Button`, `StatusMessage`, `TextField`…), `blocks.tsx` (`StatusChip`, `KpiTile`, `ListRow`, `EmptyState`, `SegmentedControl`) y `choices.tsx` (escalas de bienestar y RPE).
 
 Los imports llevan la extensión `.ts` / `.tsx` (ADR 0058).
 
 ## Pantallas nuevas
 
 1. Ruta en `app/(app)/…` que lee datos con `useApi()` y `useQuery` (query key que empiece por la membresía activa) y los pasa a un componente de `src/screens`.
-2. Textos en `packages/i18n` (es-AR, vos); estados siempre con `StatusMessage` (ícono + texto).
+2. Textos en `packages/i18n` (es-AR, vos); la pantalla compone las primitivas de `src/ui` (encabezado con `ScreenHeader`, tarjetas con título, estados siempre con `StatusMessage` o `StatusChip`: ícono + texto), sin colores ni tamaños sueltos; una escena en la galería para mirarla.
 3. Test del componente con `renderScreen` (`src/test/render.tsx`) y, si hay lógica, test en Node.
 
 ## Datos sin conexión (B-502)
@@ -80,6 +80,18 @@ El worker manda los avisos (ADR 0054); la app registra el token de Expo de la se
 ## Modo kiosco (B-504)
 
 Un `coach`, `sc` o `admin` abre el kiosco desde Inicio ([ADR 0086](../../docs/adr/0086-modo-kiosco.md)): elige categorías y un PIN, la app trae los planteles (`GET /v1/categories/{id}/kiosk-roster`, guardados en la caché local) y desde ahí la raíz solo muestra `app/kiosk.tsx`, también después de matar la app. Cada jugador toca su nombre, confirma y carga bienestar y RPE por la cola (`wellness.submit` y `rpe.submit` con `playerId`); el turno se descarta al terminar, con "No soy yo" o tras un minuto sin tocar. Para salir hace falta el PIN (`src/kiosk/controller.ts`: hash con sal en el almacenamiento seguro, espera creciente después de 5 intentos). Lógica pura en `src/kiosk`, pantallas en `src/screens/kiosk.tsx`, contenedores en `src/state/kiosk-screens.tsx`. En el equipo del club conviene fijar la app con Acceso guiado (iOS) o Fijar pantalla (Android).
+
+## Galería de pantallas (diseño)
+
+Para mirar el diseño sin simulador ni API ([ADR 0098](../../docs/adr/0098-sistema-de-diseno-de-la-app.md)): `gallery/` monta las pantallas de `src/screens` con props de ejemplo por `react-native-web`, con las fuentes de la app y el escudo de ORC.
+
+```sh
+pnpm --filter @sport-performance/mobile gallery                 # http://localhost:4310 (índice de escenas)
+pnpm --filter @sport-performance/mobile gallery:shots           # capturas en apps/mobile/.gallery-shots/
+pnpm --filter @sport-performance/mobile gallery:shots /tmp/shots player-today-faces staff-board
+```
+
+Necesita los paquetes del workspace compilados (`pnpm turbo run build --filter=@sport-performance/mobile^...`) y el Chromium de Playwright (`pnpm --filter @sport-performance/e2e e2e:install-browser`). Cada escena se captura a 390 × 844 (escala 2), en oscuro y en claro alto contraste, a página completa; `?scene=<nombre>&variant=light-hc` la abre en el navegador. Una escena nueva: su nombre (y qué tocar antes de capturar) en `gallery/scene-list.ts` y su render en `gallery/scenes.tsx`. `GALLERY_PORT` cambia el puerto. Es una aproximación (fuentes, sombras y controles nativos difieren un poco): lo que dependa de la plataforma se mira en un dev build.
 
 ## Tests
 

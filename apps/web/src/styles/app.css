@@ -976,15 +976,35 @@ select:hover {
   }
 }
 @media (max-width: 40rem) {
+  /* The scope goes under the menu and the crest, one control per row at the full width: the
+     sport pills share the row (wrapping only if a club had many sports) and the category select
+     takes the whole line, so nothing runs off the right edge or scrolls sideways. */
   .sp-topbar .sp-scope {
     flex-basis: 100%;
-    overflow-x: auto;
-    flex-wrap: nowrap;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-space-xs);
     padding-bottom: var(--sp-space-xs);
   }
-  /* Each control keeps its width and the row scrolls: shrunk, the pills ran under the select. */
-  .sp-topbar .sp-scope > * {
-    flex: none;
+  .sp-topbar .sp-segmented,
+  .sp-topbar .sp-segmented__options,
+  .sp-topbar .sp-scope__field {
+    display: flex;
+    width: 100%;
+  }
+  .sp-topbar .sp-segmented__options {
+    flex-wrap: wrap;
+  }
+  .sp-topbar .sp-segmented__option {
+    flex: 1 1 auto;
+  }
+  .sp-topbar .sp-segmented__option label {
+    width: 100%;
+  }
+  .sp-topbar .sp-scope__field .sp-select {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
   }
   .sp-page__title {
     font-size: var(--sp-text-title-size);

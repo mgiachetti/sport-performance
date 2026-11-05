@@ -3,9 +3,27 @@ import type { ClubTheme } from '@sport-performance/contracts';
 import type { ReactNode } from 'react';
 import { Switch, View } from 'react-native';
 import type { UpdatePrompt } from '../version/index.ts';
+import { ListRow } from '../ui/blocks.tsx';
 import { roleLabel, useTranslator } from '../ui/i18n.tsx';
-import { AppText, Button, Card, ClubBadge, ScreenBody, StatusMessage } from '../ui/primitives.tsx';
-import { useTheme, useThemeVariant } from '../ui/theme.tsx';
+import {
+  AppText,
+  Button,
+  Card,
+  ClubBadge,
+  ScreenBody,
+  ScreenHeader,
+  StatusMessage,
+} from '../ui/primitives.tsx';
+import { useTheme, useThemeVariant, type ClubMark } from '../ui/theme.tsx';
+
+/** The crest and names of the club a screen shows (its theme, or the membership without one). */
+function clubMarkOf(membership: MembershipSummary, clubTheme: ClubTheme | null): ClubMark {
+  return {
+    name: membership.club.name,
+    shortName: clubTheme?.shortName ?? membership.club.name.slice(0, 3).toUpperCase(),
+    logoUrl: clubTheme?.logoUrl ?? null,
+  };
+}
 
 function ClubHeader({
   membership,
@@ -16,19 +34,31 @@ function ClubHeader({
 }) {
   const theme = useTheme();
   const translator = useTranslator();
+  const club = clubMarkOf(membership, clubTheme);
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
       <ClubBadge
-        name={membership.club.name}
-        shortName={clubTheme?.shortName ?? membership.club.name.slice(0, 3).toUpperCase()}
-        logoUrl={clubTheme?.logoUrl ?? null}
+        name={club.name}
+        shortName={club.shortName}
+        logoUrl={club.logoUrl}
+        size={theme.sizes.clubMark}
       />
       <View style={{ flex: 1 }}>
-        <AppText role="heading">{membership.club.name}</AppText>
-        <AppText tone="secondary">{roleLabel(membership.role, translator)}</AppText>
+        <AppText role="cardTitle">{membership.club.name}</AppText>
+        <AppText role="bodySmall" tone="secondary">
+          {roleLabel(membership.role, translator)}
+        </AppText>
       </View>
     </View>
   );
+}
+
+/** A field tool of the staff's home: the whole row opens it. */
+interface HomeTool {
+  readonly key: string;
+  readonly label: string;
+  readonly hint: string;
+  readonly onPress: () => void;
 }
 
 export function HomeScreen({
@@ -66,62 +96,83 @@ export function HomeScreen({
   /** The club's kiosk mode (B-504), for whoever loads on it; `null` hides it. */
   readonly onOpenKiosk?: (() => void) | null;
 }) {
-  const { t } = useTranslator();
+  const translator = useTranslator();
+  const { t } = translator;
   const name = userName.trim();
+  const offered: {
+    readonly key: string;
+    readonly label: string;
+    readonly hint: string;
+    readonly onPress: (() => void) | null;
+  }[] = [
+    { key: 'ift', label: t('ift.open'), hint: t('ift.open.hint'), onPress: onOpenIft3015 },
+    {
+      key: 'reaction',
+      label: t('reaction.open'),
+      hint: t('reaction.open.hint'),
+      onPress: onOpenReaction,
+    },
+    {
+      key: 'weeklyCmj',
+      label: t('weeklyCmj.open'),
+      hint: t('weeklyCmj.open.hint'),
+      onPress: onOpenWeeklyCmj,
+    },
+    {
+      key: 'sprintVideo',
+      label: t('sprintVideo.open'),
+      hint: t('sprintVideo.open.hint'),
+      onPress: onOpenSprintVideo,
+    },
+    {
+      key: 'anthropometry',
+      label: t('anthropometry.field.open'),
+      hint: t('anthropometry.field.subtitle'),
+      onPress: onOpenAnthropometry,
+    },
+    {
+      key: 'cmjVideo',
+      label: t('cmjVideo.open'),
+      hint: t('cmjVideo.open.hint'),
+      onPress: onOpenCmjVideo,
+    },
+  ];
+  const tools: HomeTool[] = offered.flatMap(({ onPress, ...tool }) =>
+    onPress === null ? [] : [{ ...tool, onPress }],
+  );
   return (
-    <ScreenBody>
-      <ClubHeader membership={membership} clubTheme={clubTheme} />
-      <AppText role="title" accessibilityRole="header">
-        {name === '' ? t('home.greetingAnonymous') : t('home.greeting', { name })}
-      </AppText>
+    <ScreenBody
+      header={
+        <ScreenHeader
+          eyebrow={membership.club.name}
+          title={name === '' ? t('home.greetingAnonymous') : t('home.greeting', { name })}
+          subtitle={roleLabel(membership.role, translator)}
+          club={clubMarkOf(membership, clubTheme)}
+        />
+      }
+    >
       {offline ? <StatusMessage level="warning">{t('sync.offline')}</StatusMessage> : null}
       {sync}
       <Card>
         <AppText tone="secondary">{t('home.next')}</AppText>
       </Card>
-      {onOpenIft3015 === null ? null : (
-        <Card>
-          <AppText tone="secondary">{t('ift.open.hint')}</AppText>
-          <Button variant="secondary" label={t('ift.open')} onPress={onOpenIft3015} />
+      {tools.length > 0 ? (
+        <Card title={t('home.tools')}>
+          <View>
+            {tools.map((tool, index) => (
+              <ListRow
+                key={tool.key}
+                first={index === 0}
+                title={tool.label}
+                subtitle={tool.hint}
+                onPress={tool.onPress}
+              />
+            ))}
+          </View>
         </Card>
-      )}
-      {onOpenReaction === null ? null : (
-        <Card>
-          <AppText tone="secondary">{t('reaction.open.hint')}</AppText>
-          <Button variant="secondary" label={t('reaction.open')} onPress={onOpenReaction} />
-        </Card>
-      )}
-      {onOpenWeeklyCmj === null ? null : (
-        <Card>
-          <AppText tone="secondary">{t('weeklyCmj.open.hint')}</AppText>
-          <Button variant="secondary" label={t('weeklyCmj.open')} onPress={onOpenWeeklyCmj} />
-        </Card>
-      )}
-      {onOpenSprintVideo === null ? null : (
-        <Card>
-          <AppText tone="secondary">{t('sprintVideo.open.hint')}</AppText>
-          <Button variant="secondary" label={t('sprintVideo.open')} onPress={onOpenSprintVideo} />
-        </Card>
-      )}
-      {onOpenAnthropometry === null ? null : (
-        <Card>
-          <AppText tone="secondary">{t('anthropometry.field.subtitle')}</AppText>
-          <Button
-            variant="secondary"
-            label={t('anthropometry.field.open')}
-            onPress={onOpenAnthropometry}
-          />
-        </Card>
-      )}
-      {onOpenCmjVideo === null ? null : (
-        <Card>
-          <AppText tone="secondary">{t('cmjVideo.open.hint')}</AppText>
-          <Button variant="secondary" label={t('cmjVideo.open')} onPress={onOpenCmjVideo} />
-        </Card>
-      )}
+      ) : null}
       {onOpenKiosk === null ? null : (
-        <Card>
-          <AppText tone="secondary">{t('kiosk.open.hint')}</AppText>
+        <Card title={t('home.kiosk')} subtitle={t('kiosk.open.hint')}>
           <Button variant="secondary" label={t('kiosk.open')} onPress={onOpenKiosk} />
         </Card>
       )}
@@ -172,24 +223,24 @@ export function AccountScreen({
   const { t } = useTranslator();
   const theme = useTheme();
   const { variant, setVariant } = useThemeVariant();
+  const confirming = confirmSignOut && pendingCount > 0;
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('account.title')}
-      </AppText>
-      {email !== null ? (
-        <AppText tone="secondary">{t('account.signedInAs', { email })}</AppText>
-      ) : null}
+    <ScreenBody
+      header={
+        <ScreenHeader
+          title={t('account.title')}
+          subtitle={email !== null ? t('account.signedInAs', { email }) : null}
+          crest={false}
+        />
+      }
+    >
       <Card>
         <ClubHeader membership={membership} clubTheme={clubTheme} />
         {canChangeClub ? (
           <Button variant="secondary" label={t('club.switch')} onPress={onChangeClub} />
         ) : null}
       </Card>
-      <Card>
-        <AppText role="overline" tone="secondary" accessibilityRole="header">
-          {t('account.appearance')}
-        </AppText>
+      <Card title={t('account.appearance')}>
         <View
           style={{
             flexDirection: 'row',
@@ -199,7 +250,7 @@ export function AccountScreen({
           }}
         >
           <View style={{ flex: 1 }}>
-            <AppText>{t('account.highContrast')}</AppText>
+            <AppText role="bodyStrong">{t('account.highContrast')}</AppText>
             <AppText role="bodySmall" tone="secondary">
               {t('account.highContrast.hint')}
             </AppText>
@@ -212,18 +263,13 @@ export function AccountScreen({
               setVariant(on ? 'light-hc' : 'dark');
             }}
             trackColor={{ true: theme.colors.brand.solid, false: theme.colors.border.strong }}
+            thumbColor={theme.colors.text.primary}
           />
         </View>
       </Card>
       {extra}
       {onOpenNotifications !== null ? (
-        <Card>
-          <AppText role="overline" tone="secondary" accessibilityRole="header">
-            {t('staff.notifications.title')}
-          </AppText>
-          <AppText role="bodySmall" tone="secondary">
-            {t('staff.notifications.privacy')}
-          </AppText>
+        <Card title={t('staff.notifications.title')} subtitle={t('staff.notifications.privacy')}>
           <Button
             variant="secondary"
             label={t('staff.notifications.open')}
@@ -231,31 +277,22 @@ export function AccountScreen({
           />
         </Card>
       ) : null}
-      {sync !== undefined ? (
-        <Card>
-          <AppText role="overline" tone="secondary" accessibilityRole="header">
-            {t('sync.title')}
-          </AppText>
-          {sync}
-        </Card>
-      ) : null}
+      {sync !== undefined ? <Card title={t('sync.title')}>{sync}</Card> : null}
       {offline ? (
         <StatusMessage level="warning">{t('account.signOut.offline')}</StatusMessage>
       ) : null}
-      {confirmSignOut && pendingCount > 0 ? (
+      {confirming ? (
         <StatusMessage level="critical">
           {t('account.signOut.pending', { count: pendingCount })}
         </StatusMessage>
       ) : null}
       <Button
-        variant="secondary"
-        label={
-          confirmSignOut && pendingCount > 0 ? t('account.signOut.confirm') : t('auth.signOut')
-        }
+        variant={confirming ? 'danger' : 'secondary'}
+        label={confirming ? t('account.signOut.confirm') : t('auth.signOut')}
         onPress={onSignOut}
         busy={signingOut}
       />
-      <AppText role="caption" tone="muted">
+      <AppText role="caption" tone="muted" align="center">
         {t('account.version', { version })}
       </AppText>
     </ScreenBody>
@@ -271,10 +308,7 @@ export function UpdateRequiredScreen({
   readonly onOpenStore: (url: string) => void;
 }) {
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {prompt.title}
-      </AppText>
+    <ScreenBody header={<ScreenHeader title={prompt.title} />}>
       <StatusMessage level="critical">{prompt.body}</StatusMessage>
       {prompt.action !== null ? (
         <Button

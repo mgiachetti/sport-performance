@@ -17,6 +17,7 @@ import {
   Card,
   LoadingView,
   ScreenBody,
+  ScreenHeader,
   StatusMessage,
   TextField,
 } from '../ui/primitives.tsx';
@@ -96,10 +97,7 @@ function OptionRow({
 export function ReactionNotAllowedScreen() {
   const { t } = useTranslator();
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('reaction.title')}
-      </AppText>
+    <ScreenBody header={<ScreenHeader title={t('reaction.title')} />}>
       <StatusMessage level="warning">{t('reaction.notAllowed')}</StatusMessage>
     </ScreenBody>
   );
@@ -108,10 +106,7 @@ export function ReactionNotAllowedScreen() {
 export function ReactionLoadFailedScreen({ onRetry }: { readonly onRetry: () => void }) {
   const { t } = useTranslator();
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('reaction.title')}
-      </AppText>
+    <ScreenBody header={<ScreenHeader title={t('reaction.title')} />}>
       <StatusMessage level="critical">{t('reaction.loadFailed')}</StatusMessage>
       <Button label={t('reaction.retry')} variant="secondary" onPress={onRetry} />
     </ScreenBody>
@@ -146,10 +141,7 @@ function DeviceCard({
   const trimmed = label.trim();
   const labelError = trimmed.length === 0 || trimmed.length > 60;
   return (
-    <Card>
-      <AppText role="overline" tone="secondary" accessibilityRole="header">
-        {t('reaction.device.title')}
-      </AppText>
+    <Card title={t('reaction.device.title')}>
       {device.kind === 'registered' ? (
         <StatusMessage level="ok">
           {t('reaction.device.registered', { label: device.label })}
@@ -244,10 +236,7 @@ export function ReactionSetupScreen({
   const { t } = useTranslator();
   const ready = hasDefinition && device.kind === 'registered';
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('reaction.title')}
-      </AppText>
+    <ScreenBody header={<ScreenHeader title={t('reaction.title')} />}>
       {notice !== null ? <StatusMessage level={notice.level}>{notice.text}</StatusMessage> : null}
       {offline || fromCache ? (
         <StatusMessage level="warning">{t('reaction.offlineCopy')}</StatusMessage>
@@ -267,10 +256,7 @@ export function ReactionSetupScreen({
       />
       {ready ? (
         <>
-          <Card>
-            <AppText role="overline" tone="secondary" accessibilityRole="header">
-              {t('reaction.category.title')}
-            </AppText>
+          <Card title={t('reaction.category.title')}>
             {categories.length === 0 ? (
               <AppText tone="secondary">{t('reaction.category.none')}</AppText>
             ) : (
@@ -289,10 +275,7 @@ export function ReactionSetupScreen({
             )}
           </Card>
           {players !== null ? (
-            <Card>
-              <AppText role="overline" tone="secondary" accessibilityRole="header">
-                {t('reaction.player.title')}
-              </AppText>
+            <Card title={t('reaction.player.title')}>
               {players.status === 'loading' ? (
                 <LoadingView label={t('reaction.loading')} />
               ) : players.status === 'error' ? (
@@ -502,10 +485,7 @@ function SeriesResult({
   const previous = history.at(-1);
   const best = history.length === 0 ? null : Math.min(...history.map((item) => item.valueMs));
   return (
-    <Card>
-      <AppText role="heading" accessibilityRole="header">
-        {t(`reaction.task.${summary.task}`)}
-      </AppText>
+    <Card title={t(`reaction.task.${summary.task}`)}>
       {summary.status === 'complete' && summary.meanMs !== null ? (
         <>
           <AppText role="metric">{t('reaction.result.mean', { time: ms(summary.meanMs) })}</AppText>
@@ -552,10 +532,7 @@ function HistoryList({ items }: { readonly items: readonly ReactionHistoryItem[]
   const { t } = useTranslator();
   if (items.length === 0) return null;
   return (
-    <Card>
-      <AppText role="overline" tone="secondary" accessibilityRole="header">
-        {t('reaction.result.historyTitle')}
-      </AppText>
+    <Card title={t('reaction.result.historyTitle')}>
       <AppText role="bodySmall" tone="secondary">
         {t('reaction.result.historyHint')}
       </AppText>
@@ -593,10 +570,7 @@ export function ReactionResultScreen({
   const savable = summaries.some((summary) => summary.status === 'complete');
   const all = history === null ? [] : [...history.simple, ...history.go_no_go];
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('reaction.result.title', { name: playerName })}
-      </AppText>
+    <ScreenBody header={<ScreenHeader title={t('reaction.result.title', { name: playerName })} />}>
       {summaries.map((summary) => (
         <SeriesResult
           key={summary.task}

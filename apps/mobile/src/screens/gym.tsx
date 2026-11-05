@@ -26,6 +26,7 @@ import {
   Card,
   LoadingView,
   ScreenBody,
+  ScreenHeader,
   StatusMessage,
   TextField,
 } from '../ui/primitives.tsx';
@@ -156,10 +157,7 @@ function ExerciseCard({
   };
   const rir = form.rir.trim();
   return (
-    <Card>
-      <AppText role="heading" accessibilityRole="header">
-        {name}
-      </AppText>
+    <Card title={name}>
       <AppText tone="secondary">
         {t('gym.mobile.prescription', { text: prescription(exercise, translator) })}
       </AppText>
@@ -259,10 +257,7 @@ export function GymScreen({
   );
   if (!moduleOn) {
     return (
-      <ScreenBody>
-        <AppText role="title" accessibilityRole="header">
-          {t('gym.mobile.title')}
-        </AppText>
+      <ScreenBody header={<ScreenHeader title={t('gym.mobile.title')} />}>
         <StatusMessage level="warning">{t('gym.mobile.moduleOff')}</StatusMessage>
       </ScreenBody>
     );
@@ -339,10 +334,7 @@ export function GymScreen({
           ))}
         </>
       )}
-      <Card>
-        <AppText role="heading" accessibilityRole="header">
-          {t('gym.mobile.best.title')}
-        </AppText>
+      <Card title={t('gym.mobile.best.title')}>
         {best.length === 0 ? (
           <AppText tone="muted">{t('gym.mobile.best.none')}</AppText>
         ) : (

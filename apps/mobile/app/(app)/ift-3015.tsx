@@ -24,7 +24,7 @@ import {
 import { useApi, useServices, useSession } from '../../src/state/app-context.tsx';
 import { cachedSheet } from '../../src/test-day/data.ts';
 import { useTranslator } from '../../src/ui/i18n.tsx';
-import { AppText, ScreenBody, StatusMessage } from '../../src/ui/primitives.tsx';
+import { ScreenBody, ScreenHeader, StatusMessage } from '../../src/ui/primitives.tsx';
 
 function loadState<T>(
   query: { isPending: boolean; isError: boolean; error: unknown; data: T | undefined },
@@ -150,10 +150,7 @@ export default function Ift3015() {
   if (membership === null || userId === null) return null;
   if (!allowed) {
     return (
-      <ScreenBody>
-        <AppText role="title" accessibilityRole="header">
-          {t('ift.title')}
-        </AppText>
+      <ScreenBody header={<ScreenHeader title={t('ift.title')} />}>
         <StatusMessage level="warning">{t('ift.notAllowed')}</StatusMessage>
       </ScreenBody>
     );

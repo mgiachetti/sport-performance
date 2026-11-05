@@ -36,7 +36,10 @@ export default function AppLayout() {
         },
         tabBarActiveTintColor: theme.colors.brand.accent,
         tabBarInactiveTintColor: theme.colors.text.secondary,
-        tabBarLabelStyle: theme.text.overline,
+        // The active tab also gets the brand tint behind its label: never told by color of text alone.
+        tabBarActiveBackgroundColor: theme.colors.brand.subtle,
+        // Condensed and in sentence case, as the buttons (ADR 0097); uppercase did not read as a tab.
+        tabBarLabelStyle: theme.text.tableHeader,
         // Labels always visible: the tab is never told by its icon or color alone.
         tabBarIcon: () => null,
         tabBarLabelPosition: 'below-icon',

@@ -168,10 +168,7 @@ export function SprintVideoSetupScreen({
         inputProps={{ keyboardType: 'decimal-pad' }}
       />
       {layout === null ? null : (
-        <Card>
-          <AppText role="overline" tone="secondary" accessibilityRole="header">
-            {t('sprintVideo.setup.cones')}
-          </AppText>
+        <Card title={t('sprintVideo.setup.cones')}>
           <AppText>
             {t('sprintVideo.setup.camera', {
               at: metres(layout.cameraAtM),
@@ -529,10 +526,7 @@ export function SprintVideoMarkScreen({
         <StatusMessage level="warning">{t('sprintVideo.mark.invalid')}</StatusMessage>
       ) : null}
       {result.status === 'measured' ? (
-        <Card>
-          <AppText role="overline" tone="secondary" accessibilityRole="header">
-            {t('sprintVideo.mark.result')}
-          </AppText>
+        <Card title={t('sprintVideo.mark.result')}>
           {result.splits.split10S === undefined ? null : (
             <AppText>
               {t('sprintVideo.mark.split', {

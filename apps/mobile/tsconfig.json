@@ -16,6 +16,7 @@
     "app",
     "src",
     "e2e",
+    "gallery",
     "app.config.ts",
     "vitest.config.ts",
     "vitest.e2e.config.ts",

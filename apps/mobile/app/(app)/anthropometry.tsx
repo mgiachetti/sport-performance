@@ -36,7 +36,7 @@ import {
   useSyncStatus,
 } from '../../src/state/app-context.tsx';
 import { useTranslator } from '../../src/ui/i18n.tsx';
-import { AppText, ScreenBody, StatusMessage } from '../../src/ui/primitives.tsx';
+import { ScreenBody, ScreenHeader, StatusMessage } from '../../src/ui/primitives.tsx';
 
 type Loaded<T> =
   | { readonly status: 'loading' }
@@ -157,10 +157,7 @@ export default function Anthropometry() {
   if (membership === null || membershipId === null) return null;
   if (!allowed) {
     return (
-      <ScreenBody>
-        <AppText role="title" accessibilityRole="header">
-          {t('anthropometry.field.open')}
-        </AppText>
+      <ScreenBody header={<ScreenHeader title={t('anthropometry.field.open')} />}>
         <StatusMessage level="warning">{t('anthropometry.error.player')}</StatusMessage>
       </ScreenBody>
     );

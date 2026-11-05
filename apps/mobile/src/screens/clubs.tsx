@@ -1,9 +1,9 @@
 import type { MembershipSummary } from '@sport-performance/contracts';
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import type { ClubNotice } from '../state/session-controller.ts';
 import { roleLabel, useTranslator } from '../ui/i18n.tsx';
-import { AppText, Button, ScreenBody, StatusMessage } from '../ui/primitives.tsx';
+import { AppText, Button, ScreenBody, ScreenHeader, StatusMessage } from '../ui/primitives.tsx';
 import { useTheme } from '../ui/theme.tsx';
 
 function MembershipRow({
@@ -33,26 +33,44 @@ function MembershipRow({
         setFocused(false);
       }}
       style={({ pressed }) => ({
-        minHeight: theme.sizes.touchTarget + theme.spacing.lg,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.md,
+        minHeight: theme.sizes.touchTarget + theme.spacing.xl,
         padding: theme.spacing.lg,
         borderRadius: theme.radius.lg,
         borderWidth: theme.borderWidth.thick,
         borderColor: focused
           ? theme.colors.focus
           : current
-            ? theme.colors.brand.accent
+            ? theme.colors.brand.border
             : theme.colors.border.subtle,
-        backgroundColor: pressed ? theme.colors.brand.subtle : theme.colors.surface,
-        gap: theme.spacing.xxs,
+        backgroundColor: pressed || current ? theme.colors.brand.subtle : theme.colors.surface,
       })}
     >
-      <AppText role="heading">{membership.club.name}</AppText>
-      <AppText tone="secondary">{role}</AppText>
-      {current ? (
-        <AppText role="overline" tone="accent">
-          {translator.t('club.select.current')}
+      <View style={{ flex: 1, gap: theme.spacing.xxs }}>
+        <AppText role="cardTitle">{membership.club.name}</AppText>
+        <AppText role="bodySmall" tone="secondary">
+          {role}
         </AppText>
-      ) : null}
+        {current ? (
+          <View style={{ flexDirection: 'row', gap: theme.spacing.xs }}>
+            <Text
+              accessible={false}
+              importantForAccessibility="no"
+              style={[theme.text.tableHeader, { color: theme.colors.brand.accent }]}
+            >
+              ✓
+            </Text>
+            <AppText role="tableHeader" tone="accent">
+              {translator.t('club.select.current')}
+            </AppText>
+          </View>
+        ) : null}
+      </View>
+      <AppText role="title" tone="muted">
+        ›
+      </AppText>
     </Pressable>
   );
 }
@@ -71,15 +89,18 @@ export function SelectClubScreen({
   const { t } = useTranslator();
   const theme = useTheme();
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('club.select.title')}
-      </AppText>
+    <ScreenBody
+      header={
+        <ScreenHeader
+          title={t('club.select.title')}
+          subtitle={notice === 'membershipLost' ? null : t('club.select.body')}
+          crest={false}
+        />
+      }
+    >
       {notice === 'membershipLost' ? (
         <StatusMessage level="warning">{t('club.membershipLost')}</StatusMessage>
-      ) : (
-        <AppText tone="secondary">{t('club.select.body')}</AppText>
-      )}
+      ) : null}
       <View style={{ gap: theme.spacing.md }} accessibilityRole="list">
         {memberships.map((membership) => (
           <MembershipRow
@@ -107,11 +128,9 @@ export function NoClubScreen({
 }) {
   const { t } = useTranslator();
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('club.none.title')}
-      </AppText>
-      <AppText tone="secondary">{t('club.none.body')}</AppText>
+    <ScreenBody
+      header={<ScreenHeader title={t('club.none.title')} subtitle={t('club.none.body')} />}
+    >
       {offline ? <StatusMessage level="warning">{t('sync.offline')}</StatusMessage> : null}
       <Button variant="secondary" label={t('common.retry')} onPress={onRetry} />
       <Button variant="link" label={t('auth.signOut')} onPress={onSignOut} />
@@ -130,10 +149,7 @@ export function UnavailableScreen({
 }) {
   const { t } = useTranslator();
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('startup.unavailable.title')}
-      </AppText>
+    <ScreenBody header={<ScreenHeader title={t('startup.unavailable.title')} />}>
       <StatusMessage level="warning">{t('startup.unavailable.body')}</StatusMessage>
       <Button label={t('common.retry')} onPress={onRetry} busy={retrying} />
       <Button variant="link" label={t('auth.signOut')} onPress={onSignOut} />

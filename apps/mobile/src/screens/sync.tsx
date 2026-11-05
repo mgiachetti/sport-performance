@@ -60,10 +60,7 @@ export function SyncIssuesList({
   const theme = useTheme();
   if (issues.length === 0) return null;
   return (
-    <Card>
-      <AppText role="overline" tone="secondary" accessibilityRole="header">
-        {t('sync.issues.title')}
-      </AppText>
+    <Card title={t('sync.issues.title')}>
       {issues.map((issue) => {
         const text = syncIssueText(issue, translator);
         return (

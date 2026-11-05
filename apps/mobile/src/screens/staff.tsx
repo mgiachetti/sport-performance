@@ -7,11 +7,12 @@ import type {
 import type { AvailabilityStatus, NotificationKind } from '@sport-performance/domain';
 import { alertMessage, formatLocalDate, type Translator } from '@sport-performance/i18n';
 import type { StatusLevel } from '@sport-performance/ui-tokens';
-import { useState, type ReactNode } from 'react';
-import { Pressable, Switch, Text, View } from 'react-native';
+import type { ReactNode } from 'react';
+import { Switch, View } from 'react-native';
 import type { PushState } from '../notifications/registration.ts';
 import type { Board, BoardPlayer } from '../staff/board.ts';
 import { useKeyedState } from '../state/keyed-state.ts';
+import { SegmentedControl, StatusChip } from '../ui/blocks.tsx';
 import { useTranslator } from '../ui/i18n.tsx';
 import {
   AppText,
@@ -19,6 +20,7 @@ import {
   Card,
   LoadingView,
   ScreenBody,
+  ScreenHeader,
   StatusMessage,
   TextField,
 } from '../ui/primitives.tsx';
@@ -30,42 +32,6 @@ import { useTheme } from '../ui/theme.tsx';
  * Presentation only: data and callbacks come by props (the routes read the
  * local database and the API).
  */
-
-const GLYPHS: Readonly<Record<StatusLevel, string>> = { ok: '✓', warning: '!', critical: '✕' };
-
-/**
- * A state inside a row: icon and text, never color alone. Unlike
- * `StatusMessage` it is not announced as it appears (a list of players is
- * not an alert).
- */
-function StatusPill({ level, label }: { readonly level: StatusLevel; readonly label: string }) {
-  const theme = useTheme();
-  const colors = theme.colors.status[level];
-  return (
-    <View
-      accessible
-      accessibilityRole="text"
-      accessibilityLabel={label}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        alignSelf: 'flex-start',
-        gap: theme.spacing.xs,
-        paddingHorizontal: theme.spacing.sm,
-        paddingVertical: theme.spacing.xs,
-        borderRadius: theme.radius.md,
-        borderWidth: theme.borderWidth.hairline,
-        borderColor: colors.border,
-        backgroundColor: colors.bg,
-      }}
-    >
-      <Text style={[theme.text.caption, { color: colors.fg, fontWeight: '700' }]}>
-        {GLYPHS[level]}
-      </Text>
-      <Text style={[theme.text.caption, { color: colors.fg }]}>{label}</Text>
-    </View>
-  );
-}
 
 const AVAILABILITY_LEVEL: Readonly<Record<AvailabilityStatus, StatusLevel>> = {
   available: 'ok',
@@ -127,60 +93,14 @@ function FreshnessLine({ freshness }: { readonly freshness: Freshness }) {
   );
 }
 
-function Chip({
-  label,
-  selected,
-  onPress,
-}: {
-  readonly label: string;
-  readonly selected: boolean;
-  readonly onPress: () => void;
-}) {
-  const theme = useTheme();
-  const [focused, setFocused] = useState(false);
-  return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityLabel={label}
-      accessibilityState={{ selected, checked: selected }}
-      onPress={onPress}
-      onFocus={() => {
-        setFocused(true);
-      }}
-      onBlur={() => {
-        setFocused(false);
-      }}
-      style={{
-        minHeight: theme.sizes.touchTarget,
-        paddingHorizontal: theme.spacing.md,
-        justifyContent: 'center',
-        borderRadius: theme.radius.md,
-        borderWidth: theme.borderWidth.thick,
-        borderColor: focused
-          ? theme.colors.focus
-          : selected
-            ? theme.colors.brand.solid
-            : theme.colors.border.strong,
-        backgroundColor: selected ? theme.colors.brand.solid : theme.colors.surfaceRaised,
-      }}
-    >
-      <Text
-        style={[
-          theme.text.bodyStrong,
-          { color: selected ? theme.colors.brand.onSolid : theme.colors.text.primary },
-        ]}
-      >
-        {selected ? `✓ ${label}` : label}
-      </Text>
-    </Pressable>
-  );
-}
-
 function PlayerRow({
   player,
+  first,
   onOpenAlert,
 }: {
   readonly player: BoardPlayer;
+  /** The first row of its card draws no divider under the card's title. */
+  readonly first: boolean;
   readonly onOpenAlert: (alertId: string) => void;
 }) {
   const translator = useTranslator();
@@ -191,12 +111,12 @@ function PlayerRow({
     <View
       style={{
         gap: theme.spacing.xs,
-        paddingVertical: theme.spacing.sm,
-        borderTopWidth: theme.borderWidth.hairline,
+        paddingVertical: theme.spacing.md,
+        borderTopWidth: first ? 0 : theme.borderWidth.hairline,
         borderTopColor: theme.colors.border.subtle,
       }}
     >
-      <AppText role="bodyStrong">{name}</AppText>
+      <AppText role="cardTitle">{name}</AppText>
       {player.categoryNames.length > 0 ? (
         <AppText role="caption" tone="secondary">
           {player.categoryNames.join(' · ')}
@@ -204,12 +124,12 @@ function PlayerRow({
       ) : null}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.xs }}>
         {player.availability !== null && player.availability !== 'available' ? (
-          <StatusPill
+          <StatusChip
             level={AVAILABILITY_LEVEL[player.availability]}
             label={availabilityLabel(player.availability, translator)}
           />
         ) : null}
-        <StatusPill
+        <StatusChip
           level={player.wellnessToday ? 'ok' : 'warning'}
           label={
             player.wellnessToday ? t('staff.board.wellnessToday') : t('staff.board.wellnessMissing')
@@ -217,14 +137,23 @@ function PlayerRow({
         />
       </View>
       {player.alerts.map((alert) => (
-        <View key={alert.id} style={{ gap: theme.spacing.xs }}>
-          <StatusPill
+        <View
+          key={alert.id}
+          style={{
+            gap: theme.spacing.xs,
+            paddingLeft: theme.spacing.md,
+            borderLeftWidth: theme.borderWidth.thick,
+            borderLeftColor: theme.colors.status[alert.severity].solid,
+          }}
+        >
+          <StatusChip
             level={alert.severity}
             label={t(alert.severity === 'critical' ? 'status.critical' : 'status.warning')}
           />
           <AppText role="bodySmall">{alertLine(alert, translator)}</AppText>
           <Button
-            variant="link"
+            variant="ghost"
+            align="start"
             label={t('staff.board.openAlert')}
             accessibilityLabel={t('staff.board.openAlertOf', { name })}
             onPress={() => {
@@ -276,13 +205,16 @@ function CountsSummary({ board }: { readonly board: Board }) {
       style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.xs }}
     >
       {shown.length === 0 ? (
-        <StatusPill level="ok" label={t('staff.board.allClear')} />
+        <StatusChip level="ok" label={t('staff.board.allClear')} />
       ) : (
-        shown.map((item) => <StatusPill key={item.label} level={item.level} label={item.label} />)
+        shown.map((item) => <StatusChip key={item.label} level={item.level} label={item.label} />)
       )}
     </View>
   );
 }
+
+/** The "all categories" option of the segmented control (a category id is a UUID). */
+const ALL_CATEGORIES = '*';
 
 export interface BoardCategory {
   readonly id: string;
@@ -323,15 +255,12 @@ export function StaffBoardScreen({
 }) {
   const translator = useTranslator();
   const { t } = translator;
-  const theme = useTheme();
   if (loading && board === null) return <LoadingView label={t('staff.board.loading')} />;
   const offerPush = push.status === 'needsPermission';
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('staff.board.title')}
-      </AppText>
-      <AppText tone="secondary">{t('staff.board.subtitle')}</AppText>
+    <ScreenBody
+      header={<ScreenHeader title={t('staff.board.title')} subtitle={t('staff.board.subtitle')} />}
+    >
       <FreshnessLine freshness={freshness} />
       {board?.stale === true ? (
         <StatusMessage level="warning">
@@ -339,10 +268,7 @@ export function StaffBoardScreen({
         </StatusMessage>
       ) : null}
       {offerPush ? (
-        <Card>
-          <AppText role="overline" tone="secondary" accessibilityRole="header">
-            {t('staff.push.prompt.title')}
-          </AppText>
+        <Card title={t('staff.push.prompt.title')}>
           <AppText role="bodySmall">{t('staff.push.prompt.body')}</AppText>
           <Button
             variant="secondary"
@@ -360,29 +286,17 @@ export function StaffBoardScreen({
       ) : (
         <>
           {categories.length > 1 ? (
-            <View
-              accessibilityRole="radiogroup"
-              accessibilityLabel={t('staff.board.categories')}
-              style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.xs }}
-            >
-              <Chip
-                label={t('staff.board.allCategories')}
-                selected={categoryId === null}
-                onPress={() => {
-                  onSelectCategory(null);
-                }}
-              />
-              {categories.map((category) => (
-                <Chip
-                  key={category.id}
-                  label={category.name}
-                  selected={categoryId === category.id}
-                  onPress={() => {
-                    onSelectCategory(category.id);
-                  }}
-                />
-              ))}
-            </View>
+            <SegmentedControl
+              label={t('staff.board.categories')}
+              options={[
+                { value: ALL_CATEGORIES, label: t('staff.board.allCategories') },
+                ...categories.map((category) => ({ value: category.id, label: category.name })),
+              ]}
+              value={categoryId ?? ALL_CATEGORIES}
+              onChange={(value) => {
+                onSelectCategory(value === ALL_CATEGORIES ? null : value);
+              }}
+            />
           ) : null}
           {sessionFilter !== null ? (
             <AppText role="bodySmall" tone="secondary">
@@ -397,22 +311,26 @@ export function StaffBoardScreen({
             <>
               <CountsSummary board={board} />
               {board.attention.length > 0 ? (
-                <Card>
-                  <AppText role="overline" tone="secondary" accessibilityRole="header">
-                    {t('staff.board.attention')}
-                  </AppText>
-                  {board.attention.map((player) => (
-                    <PlayerRow key={player.playerId} player={player} onOpenAlert={onOpenAlert} />
+                <Card title={t('staff.board.attention')}>
+                  {board.attention.map((player, index) => (
+                    <PlayerRow
+                      key={player.playerId}
+                      player={player}
+                      first={index === 0}
+                      onOpenAlert={onOpenAlert}
+                    />
                   ))}
                 </Card>
               ) : null}
               {board.missingWellness.length > 0 ? (
-                <Card>
-                  <AppText role="overline" tone="secondary" accessibilityRole="header">
-                    {t('staff.board.missingWellness')}
-                  </AppText>
-                  {board.missingWellness.map((player) => (
-                    <PlayerRow key={player.playerId} player={player} onOpenAlert={onOpenAlert} />
+                <Card title={t('staff.board.missingWellness')}>
+                  {board.missingWellness.map((player, index) => (
+                    <PlayerRow
+                      key={player.playerId}
+                      player={player}
+                      first={index === 0}
+                      onOpenAlert={onOpenAlert}
+                    />
                   ))}
                 </Card>
               ) : null}
@@ -491,10 +409,7 @@ export function AlertDetailScreen({
   if (loading && view === null) return <LoadingView label={t('staff.alert.loading')} />;
   if (view === null) {
     return (
-      <ScreenBody>
-        <AppText role="title" accessibilityRole="header">
-          {t('staff.alert.title')}
-        </AppText>
+      <ScreenBody header={<ScreenHeader title={t('staff.alert.title')} />}>
         <StatusMessage level="critical">{error ?? t('staff.alert.notFound')}</StatusMessage>
         <Button variant="secondary" label={t('staff.alert.back')} onPress={onBack} />
       </ScreenBody>
@@ -511,10 +426,7 @@ export function AlertDetailScreen({
   let reviewSection: ReactNode = null;
   if (canReview && open) {
     reviewSection = (
-      <Card>
-        <AppText role="overline" tone="secondary" accessibilityRole="header">
-          {t('staff.alert.review')}
-        </AppText>
+      <Card title={t('staff.alert.review')}>
         {!online || view.source !== 'detail' ? (
           <StatusMessage level="warning">{t('staff.alert.reviewOffline')}</StatusMessage>
         ) : null}
@@ -555,17 +467,14 @@ export function AlertDetailScreen({
     );
   }
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {playerName ?? t('staff.alert.title')}
-      </AppText>
+    <ScreenBody header={<ScreenHeader title={playerName ?? t('staff.alert.title')} />}>
       <FreshnessLine freshness={freshness} />
       {view.source === 'board' ? (
         <StatusMessage level="warning">{t('staff.alert.fromBoard')}</StatusMessage>
       ) : null}
       {notice !== null ? <StatusMessage level={notice.level}>{notice.text}</StatusMessage> : null}
       <Card>
-        <StatusPill
+        <StatusChip
           level={severity}
           label={t(severity === 'critical' ? 'status.critical' : 'status.warning')}
         />
@@ -577,12 +486,12 @@ export function AlertDetailScreen({
           })}
         </AppText>
         {resolvedOn !== null ? (
-          <StatusPill
+          <StatusChip
             level="ok"
             label={t('staff.alert.resolvedOn', { date: formatLocalDate(resolvedOn) })}
           />
         ) : null}
-        <StatusPill
+        <StatusChip
           level={alert.status === 'open' ? 'warning' : 'ok'}
           label={t(`player.alerts.review.${alert.status}`)}
         />
@@ -593,19 +502,13 @@ export function AlertDetailScreen({
         ) : null}
       </Card>
       {suggestion !== null ? (
-        <Card>
-          <AppText role="overline" tone="secondary" accessibilityRole="header">
-            {t('staff.alert.suggestion')}
-          </AppText>
+        <Card title={t('staff.alert.suggestion')}>
           <AppText role="bodySmall">{suggestion}</AppText>
         </Card>
       ) : null}
       {reviewSection}
       {view.source === 'detail' && view.alert.events.length > 0 ? (
-        <Card>
-          <AppText role="overline" tone="secondary" accessibilityRole="header">
-            {t('staff.alert.history')}
-          </AppText>
+        <Card title={t('staff.alert.history')}>
           {view.alert.events.map((event) => (
             <View key={event.seq} style={{ gap: theme.spacing.xs }}>
               <AppText role="bodySmall">{eventLine(event, translator)}</AppText>
@@ -656,6 +559,7 @@ function PreferenceSwitch({
       disabled={disabled}
       onValueChange={onChange}
       trackColor={{ true: theme.colors.brand.solid, false: theme.colors.border.strong }}
+      thumbColor={theme.colors.text.primary}
     />
   );
 }
@@ -700,11 +604,14 @@ export function NotificationSettingsScreen({
     minHeight: theme.sizes.touchTarget,
   } as const;
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('staff.notifications.title')}
-      </AppText>
-      <AppText tone="secondary">{t('staff.notifications.privacy')}</AppText>
+    <ScreenBody
+      header={
+        <ScreenHeader
+          title={t('staff.notifications.title')}
+          subtitle={t('staff.notifications.privacy')}
+        />
+      }
+    >
       <Card>
         <View style={row}>
           <View style={{ flex: 1 }}>
@@ -742,10 +649,7 @@ export function NotificationSettingsScreen({
           />
         ) : null}
       </Card>
-      <Card>
-        <AppText role="overline" tone="secondary" accessibilityRole="header">
-          {t('staff.notifications.kinds')}
-        </AppText>
+      <Card title={t('staff.notifications.kinds')}>
         {!online && preferences !== null ? (
           <StatusMessage level="warning">{t('staff.notifications.offline')}</StatusMessage>
         ) : null}

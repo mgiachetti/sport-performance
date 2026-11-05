@@ -239,7 +239,13 @@ describe('PlayerTodayScreen: RPE, streak and next test day', () => {
       testCodes: ['sprint_40', 'cmj'],
     };
     renderToday({ streak: { days: 11, includesToday: false }, nextTestDay: next });
-    expect(screen.getByText(t('wellness.streak', { days: 11 }))).toBeDefined();
+    // The streak is a KPI tile: the figure and its unit apart, read as one sentence.
+    expect(
+      screen.getByLabelText(
+        `${t('playerApp.streak.title')}: ${t('wellness.streak', { days: 11 })}. ${t('playerApp.streak.keepAlive')}`,
+      ),
+    ).toBeDefined();
+    expect(screen.getByText(t('playerApp.streak.unit', { days: 11 }))).toBeDefined();
     expect(screen.getByText(t('playerApp.streak.keepAlive'))).toBeDefined();
     expect(screen.getByText('V4 · Cancha 2')).toBeDefined();
     expect(

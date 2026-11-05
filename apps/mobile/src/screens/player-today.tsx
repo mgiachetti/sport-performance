@@ -11,10 +11,11 @@ import {
 } from '@sport-performance/domain';
 import { formatLocalDateLong, formatTime } from '@sport-performance/i18n';
 import { useState, type ReactNode } from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import { rpeLabel, testLabel, wellnessItemLabel } from '../player/format.ts';
 import type { WellnessStreak } from '../player/streak.ts';
 import type { RpeSession, TodayWellness } from '../player/today.ts';
+import { KpiRow, KpiTile, ListRow, StatusChip } from '../ui/blocks.tsx';
 import { ChoiceButton, ChoiceGroup, Face } from '../ui/choices.tsx';
 import { useTranslator } from '../ui/i18n.tsx';
 import {
@@ -23,6 +24,7 @@ import {
   Card,
   LoadingView,
   ScreenBody,
+  ScreenHeader,
   StatusMessage,
   TextField,
 } from '../ui/primitives.tsx';
@@ -103,8 +105,8 @@ function ItemScale({
   const theme = useTheme();
   const name = wellnessItemLabel(t, item);
   return (
-    <View style={{ gap: theme.spacing.xs }}>
-      <AppText role="bodyStrong">{name}</AppText>
+    <View style={{ gap: theme.spacing.sm }}>
+      <AppText role="cardTitle">{name}</AppText>
       <ChoiceGroup label={name}>
         {LEVELS.map((level) => {
           const word = t(`playerApp.wellness.face.${String(level) as '1'}`);
@@ -117,10 +119,12 @@ function ItemScale({
                 onChange(level);
               }}
             >
-              <Face level={level} />
-              <AppText role="caption" tone="secondary">
-                {word}
-              </AppText>
+              {(ink: string) => (
+                <>
+                  <Face level={level} color={ink} />
+                  <Text style={[theme.text.caption, { color: ink }]}>{word}</Text>
+                </>
+              )}
             </ChoiceButton>
           ) : (
             <ChoiceButton
@@ -166,6 +170,7 @@ function WellnessCard({
   readonly actions: PlayerTodayActions;
 }) {
   const { t } = useTranslator();
+  const theme = useTheme();
   const [answers, setAnswers] = useState<Scores>({});
   const [correcting, setCorrecting] = useState(false);
   const [reason, setReason] = useState('');
@@ -174,10 +179,7 @@ function WellnessCard({
 
   if (section.kind === 'unavailable') {
     return (
-      <Card>
-        <AppText role="heading" accessibilityRole="header">
-          {t('wellness.title')}
-        </AppText>
+      <Card title={t('wellness.title')}>
         <StatusMessage level="warning">
           {t(
             section.reason === 'no_consent'
@@ -193,19 +195,32 @@ function WellnessCard({
 
   if (entry !== null && !correcting) {
     return (
-      <Card>
-        <AppText role="heading" accessibilityRole="header">
-          {t('playerApp.wellness.today')}
-        </AppText>
+      <Card title={t('playerApp.wellness.today')}>
         <StatusMessage level="ok">{t('wellness.submitted')}</StatusMessage>
-        {section.items.map((item) => (
-          <AppText key={item}>
-            {t('playerApp.wellness.answer', {
-              item: wellnessItemLabel(t, item),
-              score: entry.scores[item] ?? '—',
-            })}
-          </AppText>
-        ))}
+        <View>
+          {section.items.map((item, index) => (
+            <ListRow
+              key={item}
+              first={index === 0}
+              title={wellnessItemLabel(t, item)}
+              // Read as one sentence ("Sueño: 4 de 5"); the figure is drawn apart, at the right.
+              accessibilityLabel={t('playerApp.wellness.answer', {
+                item: wellnessItemLabel(t, item),
+                score: entry.scores[item] ?? '—',
+              })}
+              trailing={
+                <View
+                  style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.xs }}
+                >
+                  <AppText role="metricSmall">{String(entry.scores[item] ?? '—')}</AppText>
+                  <AppText role="unit" tone="secondary">
+                    {`/ ${String(WELLNESS_SCORE_MAX)}`}
+                  </AppText>
+                </View>
+              }
+            />
+          ))}
+        </View>
         <SentState pending={entry.pending} />
         {actions.onOpenPainReport ? (
           <Button
@@ -275,13 +290,11 @@ function WellnessCard({
   };
 
   return (
-    <Card>
-      <AppText role="heading" accessibilityRole="header">
-        {t('wellness.prompt')}
-      </AppText>
-      <AppText role="bodySmall" tone="secondary">
-        {t(faces ? 'playerApp.wellness.hintFaces' : 'playerApp.wellness.hintScale')}
-      </AppText>
+    <Card
+      variant="highlight"
+      title={t('wellness.prompt')}
+      subtitle={t(faces ? 'playerApp.wellness.hintFaces' : 'playerApp.wellness.hintScale')}
+    >
       {section.items.map((item) => (
         <ItemScale
           key={item}
@@ -303,6 +316,7 @@ function WellnessCard({
       ) : null}
       {problem !== null ? <StatusMessage level="critical">{problem}</StatusMessage> : null}
       <Button
+        size="lg"
         label={
           entry !== null ? t('playerApp.wellness.saveCorrection') : t('playerApp.wellness.send')
         }
@@ -361,7 +375,7 @@ function RpeScale({
         <AppText role="caption" tone="secondary">{`${t('rpe.scale.10')} · 10`}</AppText>
       </View>
       {value !== null ? (
-        <AppText role="bodyStrong" tone="accent">
+        <AppText role="cardTitle" tone="accent">
           {label === null
             ? t('playerApp.rpe.selected', { value })
             : t('playerApp.rpe.selectedLabelled', { value, label })}
@@ -438,7 +452,7 @@ function RpeSessionCard({
       <AppText role="bodyStrong">{title}</AppText>
       {item.rpe !== null && !editing ? (
         <>
-          <AppText role="metricSmall">{t('playerApp.rpe.value', { value: item.rpe })}</AppText>
+          <AppText role="metric">{t('playerApp.rpe.value', { value: item.rpe })}</AppText>
           {load !== null ? (
             <AppText tone="secondary">{t('rpe.sessionLoad', { load })}</AppText>
           ) : null}
@@ -459,6 +473,7 @@ function RpeSessionCard({
           ) : null}
           {problem !== null ? <StatusMessage level="critical">{problem}</StatusMessage> : null}
           <Button
+            size="lg"
             label={t('playerApp.rpe.send')}
             onPress={send}
             disabled={selected === null}
@@ -502,10 +517,7 @@ function RpeCard({
 }) {
   const { t } = useTranslator();
   return (
-    <Card>
-      <AppText role="heading" accessibilityRole="header">
-        {t('rpe.title')}
-      </AppText>
+    <Card title={t('rpe.title')}>
       {!data.rpe.allowed ? (
         <StatusMessage level="warning">{t('playerApp.rpe.noConsent')}</StatusMessage>
       ) : data.rpe.sessions.length === 0 ? (
@@ -524,39 +536,41 @@ function RpeCard({
   );
 }
 
-function StreakCard({ streak }: { readonly streak: WellnessStreak }) {
+function StreakTile({ streak }: { readonly streak: WellnessStreak }) {
   const { t } = useTranslator();
+  const title = t('playerApp.streak.title');
+  if (streak.days === 0) {
+    return <KpiTile label={title} value="0" caption={t('playerApp.streak.none')} />;
+  }
+  const caption = streak.includesToday ? null : t('playerApp.streak.keepAlive');
   return (
-    <Card>
-      <AppText role="overline" tone="secondary" accessibilityRole="header">
-        {t('playerApp.streak.title')}
-      </AppText>
-      {streak.days === 0 ? (
-        <AppText>{t('playerApp.streak.none')}</AppText>
-      ) : (
-        <>
-          <AppText role="metric">{t('wellness.streak', { days: streak.days })}</AppText>
-          {streak.includesToday ? null : (
-            <AppText tone="secondary">{t('playerApp.streak.keepAlive')}</AppText>
-          )}
-        </>
-      )}
-    </Card>
+    <KpiTile
+      label={title}
+      value={String(streak.days)}
+      unit={t('playerApp.streak.unit', { days: streak.days })}
+      caption={caption}
+      // The streak alive today is the reward: outlined in the club color, and said in the caption.
+      highlighted={streak.includesToday}
+      accessibilityLabel={[`${title}: ${t('wellness.streak', { days: streak.days })}`, caption]
+        .filter(Boolean)
+        .join('. ')}
+    />
   );
 }
 
 /** One upcoming test day: date, window and place, and the tests the battery schedules. */
 export function TestDaySummary({ day }: { readonly day: MyTestDay }) {
   const { t } = useTranslator();
+  const theme = useTheme();
   const where = [day.testWindow?.label, day.location].filter(
     (part): part is string => part !== null && part !== undefined,
   );
   return (
-    <View>
-      <AppText role="bodyStrong">{formatLocalDateLong(day.scheduledOn, { year: false })}</AppText>
+    <View style={{ gap: theme.spacing.xxs }}>
+      <AppText role="cardTitle">{formatLocalDateLong(day.scheduledOn, { year: false })}</AppText>
       {where.length > 0 ? <AppText tone="secondary">{where.join(' · ')}</AppText> : null}
       {day.status === 'in_progress' ? (
-        <StatusMessage level="warning">{t('playerApp.testDays.inProgress')}</StatusMessage>
+        <StatusChip level="warning" label={t('playerApp.testDays.inProgress')} />
       ) : null}
       <AppText role="bodySmall" tone="secondary">
         {day.testCodes.length === 0
@@ -591,10 +605,16 @@ export function PlayerTodayScreen({
   const { t } = useTranslator();
   if (state.status === 'loading') return <LoadingView label={t('common.loading')} />;
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {greeting}
-      </AppText>
+    <ScreenBody
+      header={
+        <ScreenHeader
+          title={greeting}
+          subtitle={
+            state.status === 'ready' ? formatLocalDateLong(state.data.today, { year: false }) : null
+          }
+        />
+      }
+    >
       {notice !== null ? <StatusMessage level="warning">{notice}</StatusMessage> : null}
       {sync}
       {state.status === 'error' ? (
@@ -606,11 +626,10 @@ export function PlayerTodayScreen({
         <>
           <WellnessCard section={state.data.wellness} actions={actions} />
           <RpeCard data={state.data} onSubmit={actions.onSubmitRpe} />
-          <StreakCard streak={state.data.streak} />
-          <Card>
-            <AppText role="overline" tone="secondary" accessibilityRole="header">
-              {t('playerApp.testDays.next')}
-            </AppText>
+          <KpiRow>
+            <StreakTile streak={state.data.streak} />
+          </KpiRow>
+          <Card title={t('playerApp.testDays.next')}>
             {state.data.nextTestDay === null ? (
               <AppText tone="secondary">{t('playerApp.testDays.none')}</AppText>
             ) : (
@@ -619,24 +638,24 @@ export function PlayerTodayScreen({
           </Card>
         </>
       )}
-      {actions.onOpenExternalLoad ? (
+      {actions.onOpenExternalLoad || actions.onOpenMenstrualCycle ? (
         <Card>
-          <AppText tone="secondary">{t('externalLoad.open.hint')}</AppText>
-          <Button
-            variant="secondary"
-            label={t('externalLoad.open')}
-            onPress={actions.onOpenExternalLoad}
-          />
-        </Card>
-      ) : null}
-      {actions.onOpenMenstrualCycle ? (
-        <Card>
-          <AppText tone="secondary">{t('cycle.open.hint')}</AppText>
-          <Button
-            variant="secondary"
-            label={t('cycle.title')}
-            onPress={actions.onOpenMenstrualCycle}
-          />
+          {actions.onOpenExternalLoad ? (
+            <ListRow
+              first
+              title={t('externalLoad.open')}
+              subtitle={t('externalLoad.open.hint')}
+              onPress={actions.onOpenExternalLoad}
+            />
+          ) : null}
+          {actions.onOpenMenstrualCycle ? (
+            <ListRow
+              first={!actions.onOpenExternalLoad}
+              title={t('cycle.title')}
+              subtitle={t('cycle.open.hint')}
+              onPress={actions.onOpenMenstrualCycle}
+            />
+          ) : null}
         </Card>
       ) : null}
       <AppText role="caption" tone="muted">

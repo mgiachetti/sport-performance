@@ -25,10 +25,10 @@ import {
 import { useApi, useServices, useSession, useSyncStatus } from '../../src/state/app-context.tsx';
 import { useTranslator } from '../../src/ui/i18n.tsx';
 import {
-  AppText,
   Button,
   LoadingView,
   ScreenBody,
+  ScreenHeader,
   StatusMessage,
 } from '../../src/ui/primitives.tsx';
 
@@ -169,10 +169,7 @@ export default function CmjVideo() {
   if (membership === null || userId === null) return null;
   if (!allowed) {
     return (
-      <ScreenBody>
-        <AppText role="title" accessibilityRole="header">
-          {t('cmjVideo.title')}
-        </AppText>
+      <ScreenBody header={<ScreenHeader title={t('cmjVideo.title')} />}>
         <StatusMessage level="warning">{t('cmjVideo.notAllowed')}</StatusMessage>
       </ScreenBody>
     );

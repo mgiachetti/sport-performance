@@ -170,10 +170,7 @@ function Viewers({
   const pending = status.candidates.filter((c) => !c.authorized);
   const full = status.viewers.length >= MENSTRUAL_CYCLE_VIEWERS_MAX;
   return (
-    <Card>
-      <AppText role="overline" tone="secondary" accessibilityRole="header">
-        {t('cycle.viewers.title')}
-      </AppText>
+    <Card title={t('cycle.viewers.title')}>
       {status.viewers.length === 0 ? (
         <AppText>{t('cycle.viewers.none')}</AppText>
       ) : (
@@ -223,10 +220,7 @@ function Summary({ days }: { readonly days: MenstrualCycleDays }) {
   const { summary } = days;
   const lengths = summary.cycleLengthsDays.slice(-3);
   return (
-    <Card>
-      <AppText role="overline" tone="secondary" accessibilityRole="header">
-        {t('cycle.summary.title')}
-      </AppText>
+    <Card title={t('cycle.summary.title')}>
       {summary.lastPeriodStart === null || summary.cycleDay === null ? (
         <AppText>{t('cycle.summary.noPeriod')}</AppText>
       ) : (

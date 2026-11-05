@@ -26,7 +26,7 @@ import {
   useSyncStatus,
 } from '../../src/state/app-context.tsx';
 import { useTranslator } from '../../src/ui/i18n.tsx';
-import { AppText, ScreenBody, StatusMessage } from '../../src/ui/primitives.tsx';
+import { ScreenBody, ScreenHeader, StatusMessage } from '../../src/ui/primitives.tsx';
 
 /**
  * The coach's sessions on the field (B-509, ADR 0080): today's and the
@@ -86,10 +86,7 @@ export default function Sessions() {
   if (scope === null) return null;
   if (!allowed) {
     return (
-      <ScreenBody>
-        <AppText role="title" accessibilityRole="header">
-          {t('coachSession.list.title')}
-        </AppText>
+      <ScreenBody header={<ScreenHeader title={t('coachSession.list.title')} />}>
         <StatusMessage level="warning">{t('coachSession.notAllowed')}</StatusMessage>
       </ScreenBody>
     );

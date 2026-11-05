@@ -6,3 +6,6 @@
 /ios/
 /android/
 expo-env.d.ts
+# The screen gallery's build and screenshots (ADR 0098): never committed.
+/.gallery/
+/.gallery-shots/

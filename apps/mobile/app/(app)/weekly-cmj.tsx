@@ -14,7 +14,7 @@ import {
   useSyncStatus,
 } from '../../src/state/app-context.tsx';
 import { useTranslator } from '../../src/ui/i18n.tsx';
-import { AppText, ScreenBody, StatusMessage } from '../../src/ui/primitives.tsx';
+import { ScreenBody, ScreenHeader, StatusMessage } from '../../src/ui/primitives.tsx';
 import {
   clubTimeZoneOf,
   loadWeeklyCmjRoster,
@@ -217,10 +217,7 @@ export default function WeeklyCmj() {
   if (membership === null || userId === null || scope === null) return null;
   if (!allowed) {
     return (
-      <ScreenBody>
-        <AppText role="title" accessibilityRole="header">
-          {t('weeklyCmj.title')}
-        </AppText>
+      <ScreenBody header={<ScreenHeader title={t('weeklyCmj.title')} />}>
         <StatusMessage level="warning">{t('weeklyCmj.notAllowed')}</StatusMessage>
       </ScreenBody>
     );

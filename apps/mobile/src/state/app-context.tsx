@@ -160,6 +160,11 @@ function BrandingProvider({ children }: { readonly children: ReactNode }) {
         setVariantState(next);
         void services.branding.setVariant(next);
       },
+      // The crest of the headers comes from the club's theme, never from the app (ADR 0014).
+      club:
+        clubTheme === null
+          ? null
+          : { name: clubTheme.name, shortName: clubTheme.shortName, logoUrl: clubTheme.logoUrl },
     }),
     [clubTheme, variant, services.branding],
   );

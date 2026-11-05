@@ -8,6 +8,7 @@ import {
   Card,
   LoadingView,
   ScreenBody,
+  ScreenHeader,
   StatusMessage,
 } from '../ui/primitives.tsx';
 
@@ -66,10 +67,7 @@ export function InvitationScreen({
   const pending = preview.status === 'pending';
 
   return (
-    <ScreenBody>
-      <AppText role="title" accessibilityRole="header">
-        {t('invitation.title', { clubName })}
-      </AppText>
+    <ScreenBody header={<ScreenHeader title={t('invitation.title', { clubName })} />}>
       <Card>
         <AppText>{t('invitation.asRole', { role: roleLabel(preview.role, translator) })}</AppText>
         <AppText tone="secondary" role="bodySmall">
