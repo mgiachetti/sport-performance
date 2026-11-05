@@ -404,6 +404,8 @@ export * from './wellness/index.js';
 export * from './kiosk.js';
 // Menstrual cycle tracking: opt-in, health data, read only by whom the player authorizes (B-806).
 export * from './menstrual-cycle/index.js';
+// Usage metrics: surfaces, clients, retention and adoption rates (B-707).
+export * from './usage.js';
 
 export {
   CLIENT_UPLOAD_FILE_KINDS,

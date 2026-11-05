@@ -54,6 +54,7 @@ import { registerMenstrualCycleRoutes } from './menstrual-cycle.js';
 import { registerExternalLoadRoutes } from './external-loads.js';
 import { registerAlertRoutes } from './alerts.js';
 import { registerPanelRoutes } from './panel.js';
+import { registerUsageRoutes } from './usage.js';
 import { registerAnthropometryRoutes } from './anthropometry.js';
 import { registerTestResultRoutes } from './test-results.js';
 import { registerTestDefinitionRoutes } from './test-definitions.js';
@@ -337,6 +338,7 @@ export const IMPLEMENTED_ENDPOINTS = [
   'updateDevice',
   'retireDevice',
   'restoreDevice',
+  'getUsageSummary',
 ] as const satisfies readonly (keyof ApiEndpoints)[];
 
 /** Declared in the contract but served by a later issue (`'#N (B-xxx): why'`). */
@@ -386,6 +388,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerExternalLoadRoutes(app);
   registerAlertRoutes(app);
   registerPanelRoutes(app);
+  registerUsageRoutes(app);
   registerTestSessionResultRoutes(app);
   registerTestSessionSheetRoutes(app);
   registerTestResultRoutes(app);

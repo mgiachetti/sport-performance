@@ -49,6 +49,8 @@ const DELETABLE = {
     'player_load_daily',
     'player_wellness_daily',
     'push_ticket',
+    // Per-member usage past its retention, once folded into the weekly counts (ADR 0093).
+    'usage_activity',
   ],
 };
 const IMMUTABLE_COLUMNS = ['id', 'club_id', 'created_at', 'created_by', 'client_uuid'];
@@ -266,6 +268,7 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
       'app.is_superadmin',
       'app.percentile_samples',
       'app.player_takes_access_codes',
+      'app.record_usage',
       'app.redeem_player_access',
       'app.register_push_token',
       'app.review_guardian',

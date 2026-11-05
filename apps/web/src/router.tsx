@@ -63,6 +63,7 @@ import { parseSessionsSearch } from './training/search';
 import { SessionDetailPage } from './training/SessionDetailPage';
 import { SessionsPage } from './training/SessionsPage';
 import { ClubSupportAccessPage } from './support-access/ClubSupportAccessPage';
+import { UsagePage } from './usage/UsagePage';
 import { TestDayPage } from './test-day/TestDayPage';
 import { TestDaysPage } from './test-day/TestDaysPage';
 import { parseTestDaySearch, testDaySheetQuery } from './test-day/queries';
@@ -101,6 +102,7 @@ export interface RouterContext {
  *         ├── /configuration  club configuration (B-409)
  *         ├── /admin          administration (B-411): one child per section
  *         ├── /support-access support accesses to the club (administration)
+ *         ├── /usage          usage metrics of the club (administration, B-707)
  *         ├── /help           protocols of the club's tests (B-415)
  *         ├── /help/guide     usage guide for the staff
  *         ├── /help/protocols/$testDefinitionId   one protocol, its images and videos
@@ -490,6 +492,12 @@ export const clubSupportAccessRoute = createRoute({
   component: ClubSupportAccessPage,
 });
 
+export const usageRoute = createRoute({
+  getParentRoute: () => clubRoute,
+  path: '/usage',
+  component: UsagePage,
+});
+
 export const helpRoute = createRoute({
   getParentRoute: () => clubRoute,
   path: '/help',
@@ -548,6 +556,7 @@ export const routeTree = rootRoute.addChildren([
       configurationRoute,
       adminRoute.addChildren(adminRoutes),
       clubSupportAccessRoute,
+      usageRoute,
       helpRoute,
       helpGuideRoute,
       protocolRoute,

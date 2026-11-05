@@ -38,3 +38,4 @@ export * from './sync.js';
 export * from './data-subject.js';
 export * from './reports.js';
 export * from './club-data-export.js';
+export * from './usage.js';

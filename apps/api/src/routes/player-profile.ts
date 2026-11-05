@@ -763,6 +763,7 @@ export function evolution(
 export function registerPlayerProfileRoutes(app: FastifyInstance): void {
   registerEndpoint(app, getPlayerDailyMonitoring, {
     transaction: true,
+    usage: 'player_profile',
     handler: async ({ params, query }, { db, permissions, auth: caller }) => {
       const { clubId } = caller.membership;
       const target = await requirePlayer(db, clubId, params.playerId);

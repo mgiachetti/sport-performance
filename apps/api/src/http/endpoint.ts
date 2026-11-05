@@ -4,6 +4,7 @@ import {
   type ValidationIssue,
 } from '@sport-performance/contracts';
 import type { FastifyBaseLogger, FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { UsageSurface } from '@sport-performance/domain';
 import type { z } from 'zod';
 import { tenantContextOf, type AuthContext, type Membership } from '../auth/context.js';
 import { tenantDatabase, type TenantDatabase, type TransactionClient } from '../db/database.js';
@@ -11,6 +12,7 @@ import type { TenantContext, TransactionSettings } from '../db/tenant-context.js
 import { endpointRouteClass, type RouteClass } from '../security/rate-limit.js';
 import { HttpError } from './errors.js';
 import { requestPermissions, type RequestPermissions, type RequestScope } from './permissions.js';
+import { recordUsage, usageClientOf } from './usage.js';
 
 /**
  * Body limit of a route class, below the global `BODY_LIMIT_BYTES`: the
@@ -109,6 +111,13 @@ export type EndpointRoute<E extends EndpointDefinition> = EndpointRouteLimits &
          * set as `app.change_reason` for the whole transaction.
          */
         changeReason?: (input: EndpointRequest<E>) => string | null | undefined;
+        /**
+         * The surface this route serves, for the usage metrics (B-707, ADR 0093): once
+         * the handler succeeds, the caller's use is recorded in the same transaction
+         * (`app.record_usage`, never failing the request). Only on `club` endpoints, and
+         * on one canonical read per surface.
+         */
+        usage?: UsageSurface;
         handler: (
           input: EndpointRequest<E>,
           ctx: TransactionalHandlerContext<E>,
@@ -302,6 +311,11 @@ export function registerEndpoint<E extends EndpointDefinition>(
   if (routes.has(endpoint)) {
     throw new Error(`${endpoint.method} ${endpoint.path} is already registered`);
   }
+  if (route.transaction && route.usage !== undefined && endpoint.auth !== 'club') {
+    throw new Error(
+      `${endpoint.method} ${endpoint.path}: usage is recorded only on club endpoints`,
+    );
+  }
   routes.set(endpoint, route as unknown as EndpointRoute<EndpointDefinition>);
   const routeClass = route.rateLimit ?? endpointRouteClass(endpoint);
   const bodyLimit = Math.min(
@@ -359,7 +373,11 @@ export function registerEndpoint<E extends EndpointDefinition>(
           async (tx) => {
             const db = tenantDatabase(tx);
             const permissions = requestPermissions(db, caller, scope);
-            return respond(await route.handler(input, { ...base, tx, db, permissions }));
+            const response = respond(await route.handler(input, { ...base, tx, db, permissions }));
+            if (route.usage !== undefined) {
+              await recordUsage(tx, route.usage, usageClientOf(request), request.log);
+            }
+            return response;
           },
           settings,
         );

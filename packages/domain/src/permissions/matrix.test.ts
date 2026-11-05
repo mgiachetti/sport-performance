@@ -29,6 +29,7 @@ club_registry.update     -                     -               -               -
 club.read                club                  club            club            club            club             club        club
 club.update              -                     -               -               -               -                club        club
 support_access.read      -                     -               -               -               -                club        club
+usage_metrics.read       -                     -               -               -               -                club        club
 membership.read          -                     -               -               -               -                club        club
 membership.invite        -                     -               -               -               -                club        club
 membership.update        -                     -               -               -               -                club        club

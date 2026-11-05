@@ -59,6 +59,9 @@ const APPEND_ONLY_TABLES = [
   'sync_change',
   'sync_mutation',
   'test_import',
+  // Usage: the API only records through app.record_usage; the worker folds (ADR 0093).
+  'usage_activity',
+  'usage_weekly',
 ];
 
 async function pgCode(promise: Promise<unknown>): Promise<string | undefined> {

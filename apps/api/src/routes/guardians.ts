@@ -616,6 +616,7 @@ export function registerGuardianRoutes(app: FastifyInstance, auth: AuthModule): 
 
   registerEndpoint(app, listMyChildren, {
     transaction: true,
+    usage: 'guardian_home',
     handler: async ({ query }, { db, permissions, auth: caller }) => {
       requireGuardianRole(caller);
       const { clubId } = caller.membership;

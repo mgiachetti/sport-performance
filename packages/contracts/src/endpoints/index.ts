@@ -1,6 +1,7 @@
 import type { EndpointCatalog } from '../endpoint.js';
 import { getAlert, listAlerts, reviewAlert } from './alerts.js';
 import { getWeeklyPanel } from './panel.js';
+import { getUsageSummary } from './usage.js';
 import {
   archiveGymProgram,
   correctGymSet,
@@ -363,6 +364,7 @@ export * from './panel.js';
 export * from './test-definitions.js';
 export * from './test-day-sheet.js';
 export * from './devices.js';
+export * from './usage.js';
 
 /**
  * Every endpoint of the API, keyed by operationId. The API registers its
@@ -638,6 +640,7 @@ export const apiEndpoints = {
   listGymSets,
   getGymSet,
   getPlayerGymSummary,
+  getUsageSummary,
 } as const satisfies EndpointCatalog;
 
 export type ApiEndpoints = typeof apiEndpoints;

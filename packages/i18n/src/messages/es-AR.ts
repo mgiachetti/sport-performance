@@ -25,6 +25,7 @@ import { anthropometryMessagesEsAR } from './anthropometry.js';
 import { menarcheMessagesEsAR } from './menarche.js';
 import { webGuardianMessagesEsAR } from './web-guardian.js';
 import { webConsoleMessagesEsAR } from './web-console.js';
+import { webUsageMessagesEsAR } from './web-usage.js';
 import { protocolMessagesEsAR } from './protocols.js';
 import { webHelpMessagesEsAR } from './web-help.js';
 import { webTestDayMessagesEsAR } from './web-test-day.js';
@@ -487,6 +488,7 @@ export const sourceMessageFiles = {
   'menarche.ts': menarcheMessagesEsAR,
   'web-guardian.ts': webGuardianMessagesEsAR,
   'web-console.ts': webConsoleMessagesEsAR,
+  'web-usage.ts': webUsageMessagesEsAR,
   'web-test-day.ts': webTestDayMessagesEsAR,
   'mobile.ts': mobileMessagesEsAR,
   'mobile-test-day.ts': mobileTestDayMessagesEsAR,
@@ -528,6 +530,8 @@ export const esAR = {
   ...menarcheMessagesEsAR,
   ...webGuardianMessagesEsAR,
   ...webConsoleMessagesEsAR,
+  // Usage metrics (B-707)
+  ...webUsageMessagesEsAR,
   ...webTestDayMessagesEsAR,
   ...mobileMessagesEsAR,
   ...mobileTestDayMessagesEsAR,

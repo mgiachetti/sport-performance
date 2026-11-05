@@ -310,7 +310,13 @@ describe('queues', () => {
     const refresh = QUEUE_DEFINITIONS.find((q) => q.name === QUEUES.refreshClub);
     expect(refresh).toMatchObject({ policy: 'stately', deadLetter: QUEUES.refreshClubDead });
     expect(QUEUE_DEFINITIONS[0]?.name).toBe(QUEUES.refreshClubDead);
-    expect(SCHEDULES.map((s) => s.queue).sort()).toEqual([QUEUES.daily, QUEUES.sweep].sort());
+    expect(SCHEDULES.map((s) => s.queue).sort()).toEqual(
+      [QUEUES.daily, QUEUES.sweep, QUEUES.usageDaily].sort(),
+    );
+    expect(QUEUE_DEFINITIONS.find((q) => q.name === QUEUES.usageFoldClub)).toMatchObject({
+      policy: 'stately',
+      deadLetter: QUEUES.usageFoldClubDead,
+    });
     expect(FILE_SCHEDULES.map((s) => s.queue)).toEqual([
       QUEUES.filesDaily,
       QUEUES.playerReportsSweep,

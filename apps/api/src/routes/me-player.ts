@@ -78,6 +78,7 @@ async function ownPlayer(
 export function registerMePlayerRoutes(app: FastifyInstance): void {
   registerEndpoint(app, getMyPlayer, {
     transaction: true,
+    usage: 'player_home',
     handler: async (_input, { db, permissions, auth: caller }): Promise<MyPlayer> => {
       const { clubId } = caller.membership;
       const { subject, loaded, row } = await ownPlayer(db, permissions, clubId);
