@@ -56,6 +56,26 @@
   color: var(--sp-color-text-muted);
   font-size: var(--sp-text-body-small-size);
 }
+/* Compact tiles: a row of totals inside a card (on the page background, metric-size figures) */
+.sp-kpis--compact {
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--sp-space-sm);
+}
+.sp-kpis--compact > .sp-kpi {
+  padding: var(--sp-space-md) var(--sp-space-lg);
+  border-radius: var(--sp-radius-md);
+  background: var(--sp-color-background);
+}
+.sp-kpis--compact .sp-kpi__figure {
+  font-size: var(--sp-text-metric-size);
+  line-height: var(--sp-text-metric-line-height);
+}
+/* A list of tiles (`<ul className="sp-kpis">` of `KpiTile as="li"`) */
+ul.sp-kpis {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
 
 /* Segmented control: native radios drawn as a pill group */
 .sp-segmented {
@@ -371,8 +391,13 @@
   }
 }
 
-/* Toolbar of a list: filters on the left, aligned to the bottom of their inputs */
-.sp-toolbar {
+/*
+ * Toolbar of a list: filters on the left, aligned to the bottom of their inputs.
+ * `.sp-filters` (the older name, still on the admin screens) is the same
+ * primitive with a top margin: migrate those to `.sp-toolbar`, do not add a third.
+ */
+.sp-toolbar,
+.sp-filters {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
@@ -380,6 +405,9 @@
   margin: 0;
   padding: 0;
   border: 0;
+}
+.sp-filters {
+  margin-top: var(--sp-space-lg);
 }
 .sp-toolbar > .sp-field {
   min-width: 14rem;
@@ -420,5 +448,21 @@
   .sp-kpi__figure {
     font-size: var(--sp-text-metric-size);
     line-height: var(--sp-text-metric-line-height);
+  }
+  /* Cards have less padding on a phone: the flush tables follow it. */
+  .sp-card--flush > * {
+    margin-inline: var(--sp-space-lg);
+  }
+  .sp-card--flush > .sp-table-wrap {
+    margin-inline: 0;
+  }
+  .sp-card--flush .sp-table :is(th, td):first-child {
+    padding-left: var(--sp-space-lg);
+  }
+  .sp-card--flush .sp-table :is(th, td):last-child {
+    padding-right: var(--sp-space-lg);
+  }
+  .sp-card--flush .sp-table__caption {
+    padding-inline: var(--sp-space-lg);
   }
 }

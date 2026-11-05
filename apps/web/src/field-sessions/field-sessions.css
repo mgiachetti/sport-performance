@@ -8,30 +8,11 @@
 .sp-fs-kpis-region {
   margin-top: var(--sp-space-lg);
 }
-.sp-fs-kpis {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
 
-/* The metric picker is the card's action: no header text on its left. */
-.sp-fs-chart > .sp-card__header {
-  justify-content: flex-end;
-}
-.sp-fs-chart .sp-card__heading {
-  display: none;
-}
 .sp-fs-chart .sp-field {
   min-width: 14rem;
 }
 
-/* The table's name (its sources) as a muted line above the headers. */
-.sp-fs-caption {
-  padding: 0 var(--sp-space-xl) var(--sp-space-sm);
-  color: var(--sp-color-text-secondary);
-  font-size: var(--sp-text-body-small-size);
-  text-align: start;
-}
 .sp-fs-table thead th {
   white-space: normal;
   vertical-align: bottom;

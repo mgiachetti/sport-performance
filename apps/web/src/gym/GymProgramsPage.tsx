@@ -103,7 +103,7 @@ export function GymProgramsPage() {
         <ErrorNotice error={programs.error} />
       ) : items.length === 0 ? (
         <Card>
-          <EmptyState icon="dumbbell" title={t('gym.web.list.empty')} />
+          <EmptyState role="status" icon="dumbbell" title={t('gym.web.list.empty')} />
         </Card>
       ) : (
         <Card variant="flush">

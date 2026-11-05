@@ -143,7 +143,7 @@ export function SeasonsSection(props: { today: LocalDate; onDone: (message: stri
       : null;
 
   return (
-    <section className="sp-card" aria-labelledby="calendar-seasons">
+    <section className="sp-card sp-cal__seasons" aria-labelledby="calendar-seasons">
       <header className="sp-cal__section-head">
         <h2 id="calendar-seasons" className="sp-card__title">
           {t('calendar.seasons.title')}

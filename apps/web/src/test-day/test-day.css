@@ -22,10 +22,6 @@
 }
 /* Same header as the shared data table (ADR 0097): condensed, muted, sentence case. */
 .sp-td-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: var(--sp-color-surface);
   color: var(--sp-color-text-muted);
   font-family: var(--sp-text-table-header-family);
   font-size: var(--sp-text-table-header-size);
@@ -130,23 +126,36 @@
   gap: var(--sp-space-xs);
 }
 .sp-td-sheet :is(th, td) {
-  padding-inline: var(--sp-space-sm);
+  padding-inline: var(--sp-space-xs);
 }
 .sp-td-scroll:has(> .sp-td-sheet) {
-  margin-inline: calc((var(--sp-space-xl) - var(--sp-space-sm)) * -1);
+  margin-inline: calc((var(--sp-space-xl) - var(--sp-space-xs)) * -1);
 }
 .sp-td-sheet select.sp-td-input,
 .sp-td-sheet select {
   width: auto;
-  max-width: 8.5rem;
+  max-width: 7.5rem;
 }
 .sp-td-sheet .sp-td-input {
   width: 3.25rem;
   padding: 0 var(--sp-space-xs);
 }
+/* Previous result and its method or protocol note: wide enough to keep each on two lines. */
 .sp-td-sheet td:has(.sp-td-previous) {
-  min-width: 10rem;
+  min-width: 12.5rem;
   font-size: var(--sp-text-caption-size);
+}
+.sp-td-previous .sp-td-msg {
+  align-items: flex-start;
+  font-size: inherit;
+}
+.sp-td-previous .sp-td-msg svg {
+  flex: none;
+  margin-top: var(--sp-space-xxs);
+}
+/* One line per player name ("Lima, Juan Cruz"): rows stay short. */
+.sp-td-sheet .sp-td-name {
+  white-space: nowrap;
 }
 .sp-td-cell {
   display: grid;

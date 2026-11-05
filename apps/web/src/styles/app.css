@@ -245,6 +245,8 @@ select {
   font: inherit;
 }
 select,
+/* A select with the input class keeps room for its chevron (the rule above is more specific). */
+select.sp-field__input,
 .sp-select {
   appearance: none;
   padding-right: calc(var(--sp-space-md) * 2 + 0.75rem);

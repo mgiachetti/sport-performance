@@ -70,12 +70,11 @@ export function FieldSessionsPage() {
       {sessions.isError ? <ErrorNotice error={sessions.error} /> : null}
       {sessions.isSuccess && items.length === 0 ? (
         <Card>
-          <div role="status">
-            <EmptyState
-              icon="field"
-              title={filtered ? t('fieldSession.list.emptyFiltered') : t('fieldSession.list.empty')}
-            />
-          </div>
+          <EmptyState
+            role="status"
+            icon="field"
+            title={filtered ? t('fieldSession.list.emptyFiltered') : t('fieldSession.list.empty')}
+          />
         </Card>
       ) : null}
       {items.length > 0 ? (

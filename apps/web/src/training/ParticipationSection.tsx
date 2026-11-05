@@ -10,12 +10,12 @@ import {
   PARTICIPATION_STATUSES,
   participationCarriesLoad,
 } from '@sport-performance/domain';
-import { formatNumber } from '@sport-performance/i18n';
+import { formatNumber, unitLabelEsAr } from '@sport-performance/i18n';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useServices } from '../app/services';
 import { useT } from '../i18n/i18n';
-import { Button, ErrorNotice, Loading, Notice } from '../ui/components';
+import { Button, ErrorNotice, KpiTile, Loading, Notice } from '../ui/components';
 import { StatusLabel, TextAreaField } from '../ui/fields';
 import { AVAILABILITY_LEVELS } from './labels';
 import {
@@ -168,41 +168,56 @@ export function ParticipationSection(props: { session: TrainingSessionDetail; ed
 
   return (
     <section className="sp-card" aria-labelledby="participation-title">
-      <h2 id="participation-title" className="sp-card__title">
-        {t('training.participation.title')}
-      </h2>
+      <header className="sp-card__header">
+        <div className="sp-card__heading">
+          <h2 id="participation-title" className="sp-card__title">
+            {t('training.participation.title')}
+          </h2>
+        </div>
+        {/* A bulk action of the sheet: up here, so the save bar stays one short row on a phone. */}
+        {props.editable && anyRecordable ? (
+          <div className="sp-card__actions">
+            <Button variant="secondary" disabled={save.isPending} onClick={fillAll}>
+              {session.plannedDurationMin === null
+                ? t('training.participation.fillPresentNoMinutes')
+                : t('training.participation.fillPresent', {
+                    minutes: session.plannedDurationMin,
+                  })}
+            </Button>
+          </div>
+        ) : null}
+      </header>
 
-      <dl className="sp-summary sp-summary--tiles" aria-label={t('training.summary.title')}>
-        <div>
-          <dt>{t('training.summary.present')}</dt>
-          <dd>{formatNumber(totals.present)}</dd>
-        </div>
-        <div>
-          <dt>{t('training.summary.absent')}</dt>
-          <dd>{formatNumber(totals.absent)}</dd>
-        </div>
-        <div>
-          <dt>{t('training.summary.unavailable')}</dt>
-          <dd>{formatNumber(totals.unavailable)}</dd>
-        </div>
-        <div>
-          <dt>{t('training.summary.minutes')}</dt>
-          <dd>{formatNumber(totals.minutes)}</dd>
-        </div>
-        <div>
-          <dt>{t('training.summary.rpe')}</dt>
-          <dd>
-            {t('training.summary.rpeValue', {
-              reported: formatNumber(totals.rpeReported),
-              present: formatNumber(totals.present),
-            })}
-          </dd>
-        </div>
-        <div>
-          <dt>{t('training.summary.load')}</dt>
-          <dd>{t('training.summary.loadValue', { value: formatNumber(totals.srpeAu) })}</dd>
-        </div>
-      </dl>
+      <ul className="sp-kpis sp-kpis--compact" aria-label={t('training.summary.title')}>
+        <KpiTile
+          as="li"
+          label={t('training.summary.present')}
+          value={formatNumber(totals.present)}
+        />
+        <KpiTile as="li" label={t('training.summary.absent')} value={formatNumber(totals.absent)} />
+        <KpiTile
+          as="li"
+          label={t('training.summary.unavailable')}
+          value={formatNumber(totals.unavailable)}
+        />
+        <KpiTile
+          as="li"
+          label={t('training.summary.minutes')}
+          value={formatNumber(totals.minutes)}
+        />
+        <KpiTile
+          as="li"
+          label={t('training.summary.rpe')}
+          value={formatNumber(totals.rpeReported)}
+          unit={t('training.summary.rpeOf', { present: formatNumber(totals.present) })}
+        />
+        <KpiTile
+          as="li"
+          label={t('training.summary.load')}
+          value={formatNumber(totals.srpeAu)}
+          unit={unitLabelEsAr('au')}
+        />
+      </ul>
 
       {props.editable && !anyRecordable && entries.length > 0 ? (
         <Notice level="info" role="status">
@@ -453,13 +468,6 @@ export function ParticipationSection(props: { session: TrainingSessionDetail; ed
             </Notice>
           )}
           <div className="sp-form__actions">
-            <Button variant="secondary" disabled={save.isPending} onClick={fillAll}>
-              {session.plannedDurationMin === null
-                ? t('training.participation.fillPresentNoMinutes')
-                : t('training.participation.fillPresent', {
-                    minutes: session.plannedDurationMin,
-                  })}
-            </Button>
             <Button disabled={save.isPending} onClick={submit}>
               {save.isPending ? t('common.loading') : t('training.participation.save')}
             </Button>

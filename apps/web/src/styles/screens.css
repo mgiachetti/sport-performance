@@ -10,14 +10,7 @@
 }
 
 /* Filters and form layout */
-.sp-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-space-md);
-  margin: var(--sp-space-lg) 0 0;
-  padding: 0;
-  border: 0;
-}
+/* `.sp-filters` itself is the toolbar primitive (styles/primitives.css). */
 .sp-filters > .sp-field {
   min-width: 12rem;
 }
@@ -144,24 +137,6 @@
   border-radius: 0 0 var(--sp-radius-lg) var(--sp-radius-lg);
   background: var(--sp-color-surface);
 }
-/* A summary as a row of figure tiles (participation totals). */
-.sp-summary--tiles {
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: var(--sp-space-sm);
-}
-.sp-summary--tiles > div {
-  display: grid;
-  gap: var(--sp-space-xxs);
-  padding: var(--sp-space-md) var(--sp-space-lg);
-  border: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
-  border-radius: var(--sp-radius-md);
-  background: var(--sp-color-background);
-}
-.sp-summary--tiles dd {
-  font-family: var(--sp-text-metric-family);
-  font-size: var(--sp-text-metric-size);
-  line-height: var(--sp-text-metric-line-height);
-}
 .sp-sheet__pending {
   color: var(--sp-color-text-secondary);
 }
@@ -242,29 +217,15 @@ fieldset.sp-form__grid.sp-card {
 }
 
 @media (max-width: 40rem) {
-  /* Cards have less padding on a phone: the save bar and the flush tables follow it. */
+  /* Cards have less padding on a phone: the save bar follows it. */
   .sp-sheet__footer {
+    gap: var(--sp-space-sm);
     margin-inline: calc(var(--sp-space-lg) * -1);
     margin-bottom: calc(var(--sp-space-lg) * -1);
-    padding-inline: var(--sp-space-lg);
+    padding: var(--sp-space-sm) var(--sp-space-lg);
   }
-  .sp-card--flush {
-    padding-inline: 0;
-  }
-  .sp-card--flush > * {
-    margin-inline: var(--sp-space-lg);
-  }
-  .sp-card--flush > .sp-table-wrap {
-    margin-inline: 0;
-  }
-  .sp-card--flush .sp-table :is(th, td):first-child {
-    padding-left: var(--sp-space-lg);
-  }
-  .sp-card--flush .sp-table :is(th, td):last-child {
-    padding-right: var(--sp-space-lg);
-  }
-  .sp-card--flush .sp-table__caption {
-    padding-inline: var(--sp-space-lg);
+  .sp-sheet__footer .sp-form__actions {
+    gap: var(--sp-space-xs) var(--sp-space-sm);
   }
   fieldset.sp-form__grid.sp-card,
   .sp-fieldset.sp-card {

@@ -18,7 +18,16 @@ import { useServices } from '../app/services';
 import { useActiveClub } from '../club/active-club';
 import { useT, useTranslator } from '../i18n/i18n';
 import { BackLink as Back } from '../ui/back-link';
-import { Card, EmptyState, ErrorNotice, Loading, Notice, Page, StatusChip } from '../ui/components';
+import {
+  Card,
+  EmptyState,
+  ErrorNotice,
+  KpiTile,
+  Loading,
+  Notice,
+  Page,
+  StatusChip,
+} from '../ui/components';
 import { SelectField } from '../ui/fields';
 import './field-sessions.css';
 import {
@@ -172,21 +181,19 @@ function Kpis(props: { view: FieldSession; columns: readonly ViewColumn[] }) {
       <h2 id="fs-kpis" className="sp-visually-hidden">
         {t('fieldSession.kpi.title')}
       </h2>
-      <ul className="sp-kpis sp-fs-kpis">
+      <ul className="sp-kpis">
         {kpis.map((kpi) => (
-          <li key={kpi.metricCode} className="sp-kpi">
-            <span className="sp-kpi__label">{t(`fieldSession.kpi.${kpi.metricCode}`)}</span>
-            <span className="sp-kpi__value">
-              <span className="sp-kpi__figure">{kpiValue(kpi)}</span>
-            </span>
-            <span className="sp-kpi__caption">
-              {kpi.leader === null
+          <KpiTile
+            key={kpi.metricCode}
+            as="li"
+            label={t(`fieldSession.kpi.${kpi.metricCode}`)}
+            value={kpiValue(kpi)}
+            caption={`${
+              kpi.leader === null
                 ? t('fieldSession.kpi.players', { count: kpi.count })
-                : t('fieldSession.kpi.bestOf', { name: playerName(kpi.leader) })}
-              {' · '}
-              {sourceLabel(t, kpi.column.source)}
-            </span>
-          </li>
+                : t('fieldSession.kpi.bestOf', { name: playerName(kpi.leader) })
+            } · ${sourceLabel(t, kpi.column.source)}`}
+          />
         ))}
       </ul>
     </section>
@@ -236,6 +243,8 @@ function MetricChart(props: { view: FieldSession; columns: readonly ViewColumn[]
   return (
     <Card
       className="sp-fs-chart"
+      title={t('fieldSession.chart.cardTitle')}
+      subtitle={t('fieldSession.chart.cardSubtitle')}
       actions={
         <SelectField
           label={t('fieldSession.chart.metric')}
@@ -295,7 +304,7 @@ function PlayerTable(props: { view: FieldSession; columns: readonly ViewColumn[]
       <div className="sp-table-wrap">
         <table className="sp-table sp-fs-table">
           {sources.length === 0 ? null : (
-            <caption className="sp-fs-caption">
+            <caption className="sp-table__caption">
               {t('fieldSession.sources', { sources: sourcesLabel(t, sources) })}
             </caption>
           )}

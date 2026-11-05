@@ -127,7 +127,11 @@ function RecentMeasurements(props: { category: Category; players: ReadonlyMap<st
   const skinfolds = items.some((item) => item.skinfoldsSumMm !== null);
 
   return (
-    <Card variant="flush" title={t('anthropometry.recent.title')}>
+    <Card
+      variant="flush"
+      title={t('anthropometry.recent.title')}
+      subtitle={t('anthropometry.recent.subtitle', { category: props.category.name })}
+    >
       {query.isPending ? (
         <Loading />
       ) : query.error !== null ? (
@@ -137,7 +141,7 @@ function RecentMeasurements(props: { category: Category; players: ReadonlyMap<st
       ) : (
         <div className="sp-table-wrap">
           <table className="sp-table">
-            <caption className="sp-table__caption sp-anthro__caption">
+            <caption className="sp-visually-hidden">
               {t('anthropometry.recent.caption', { category: props.category.name })}
             </caption>
             <thead>

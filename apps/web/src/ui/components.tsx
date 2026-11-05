@@ -268,16 +268,19 @@ export function KpiTile(props: {
   unit?: string | undefined;
   caption?: string | undefined;
   highlighted?: boolean;
+  /** `li`: one tile of a list of figures (`<ul className="sp-kpis">`). */
+  as?: 'div' | 'li';
 }) {
+  const Tile = props.as ?? 'div';
   return (
-    <div className={`sp-kpi${props.highlighted === true ? ' sp-kpi--highlighted' : ''}`}>
+    <Tile className={`sp-kpi${props.highlighted === true ? ' sp-kpi--highlighted' : ''}`}>
       <p className="sp-kpi__label">{props.label}</p>
       <p className="sp-kpi__value">
         <span className="sp-kpi__figure">{props.value}</span>
         {props.unit === undefined ? null : <span className="sp-kpi__unit"> {props.unit}</span>}
       </p>
       {props.caption === undefined ? null : <p className="sp-kpi__caption">{props.caption}</p>}
-    </div>
+    </Tile>
   );
 }
 
@@ -370,9 +373,11 @@ export function EmptyState(props: {
   title: string;
   children?: ReactNode;
   action?: ReactNode;
+  /** `status`: announce it politely when it appears (a list that turned out empty). */
+  role?: 'status';
 }) {
   return (
-    <div className="sp-empty">
+    <div className="sp-empty" role={props.role}>
       <span className="sp-empty__icon" aria-hidden="true">
         <Icon name={props.icon ?? 'info'} size={24} />
       </span>

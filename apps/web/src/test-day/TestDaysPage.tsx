@@ -85,7 +85,7 @@ function TestDaysSection(props: { when: 'upcoming' | 'past' }) {
             <tbody>
               {days.map((session) => (
                 <tr key={session.id}>
-                  <th scope="row" className="sp-td-date">
+                  <th scope="row">
                     <Link to="/test-days/$testSessionId" params={{ testSessionId: session.id }}>
                       {formatLocalDateLong(session.scheduledOn)}
                     </Link>

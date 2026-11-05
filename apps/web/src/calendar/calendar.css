@@ -108,6 +108,8 @@
 
 /* Month grid */
 .sp-cal__grid-wrap {
+  /* Positioned: the visually hidden texts of the days scroll with the grid, not the page. */
+  position: relative;
   margin-top: var(--sp-space-lg);
   overflow-x: auto;
 }
@@ -268,7 +270,12 @@
 .sp-cal__details dd {
   margin: 0;
 }
+/* One column no wider than the card: a season's table scrolls inside it on a phone. */
+.sp-cal__seasons {
+  grid-template-columns: minmax(0, 1fr);
+}
 .sp-cal__season {
+  min-width: 0;
   margin-top: var(--sp-space-lg);
   padding-top: var(--sp-space-lg);
   border-top: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
@@ -279,4 +286,12 @@
 .sp-cal__problems {
   margin: 0;
   padding-left: var(--sp-space-lg);
+}
+
+@media (max-width: 40rem) {
+  /* The window actions stack in their cell instead of widening the table. */
+  .sp-cal__season td .sp-form__actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

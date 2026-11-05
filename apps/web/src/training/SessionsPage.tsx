@@ -122,7 +122,7 @@ export function SessionsPage() {
       {sessions.isError ? <ErrorNotice error={sessions.error} /> : null}
       {sessions.isSuccess && items.length === 0 ? (
         <Card>
-          <EmptyState icon="clipboard" title={t('training.list.empty')} />
+          <EmptyState role="status" icon="clipboard" title={t('training.list.empty')} />
         </Card>
       ) : null}
       {items.length === 0 ? null : (
