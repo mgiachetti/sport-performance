@@ -36,7 +36,8 @@
 .sp-panel-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(20rem, 24rem);
-  align-items: start;
+  /* Chart and attention cards share the row height, as in the mockup (no dead zone). */
+  align-items: stretch;
   gap: var(--sp-space-md);
   margin-top: var(--sp-space-md);
 }
@@ -65,23 +66,27 @@
 }
 
 .sp-panel-attention__list {
-  margin: 0 calc(-1 * var(--sp-space-sm));
-  padding: 0 var(--sp-space-sm);
+  margin: 0;
+  padding: 0;
   list-style: none;
 }
-/* Local size (ADR 0097): about the 8 collapsed rows, so expanding does not grow the card. */
-.sp-panel-attention__list.is-expanded {
-  max-height: 40rem;
+.sp-panel-attention__scroll {
+  margin: 0 calc(-1 * var(--sp-space-sm));
+  padding: 0 var(--sp-space-sm);
+}
+/* Local size (ADR 0097): about the 5 collapsed rows, so expanding does not grow the card. */
+.sp-panel-attention__scroll.is-expanded {
+  max-height: 20rem;
   overflow-y: auto;
   border-radius: var(--sp-radius-sm);
 }
-.sp-panel-attention__list.is-expanded:focus-visible {
+.sp-panel-attention__scroll.is-expanded:focus-visible {
   outline: var(--sp-focus-ring-width) solid var(--sp-color-focus);
   outline-offset: var(--sp-focus-ring-offset);
 }
 .sp-panel-attention__item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--sp-space-md);
   padding: var(--sp-space-sm) 0;
   border-bottom: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
@@ -95,17 +100,25 @@
 }
 .sp-panel-attention__head {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-space-xxs) var(--sp-space-sm);
+  align-items: baseline;
+  gap: var(--sp-space-xs);
+  min-width: 0;
 }
 .sp-panel-attention__name {
+  overflow: hidden;
   font-weight: var(--sp-text-body-strong-weight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.sp-panel-attention__body .sp-panel-note {
+.sp-panel-attention__more {
+  flex: none;
+  color: var(--sp-color-text-secondary);
+  font-size: var(--sp-text-body-small-size);
+  white-space: nowrap;
+}
+.sp-panel-attention__metric {
   margin-top: var(--sp-space-xxs);
-  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
 }
 .sp-panel-attention__toggle {
   justify-self: start;

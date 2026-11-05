@@ -72,7 +72,10 @@ describe('alert texts (B-207)', () => {
       values?: MessageValues,
     ) => string;
     for (const alert of alerts) {
-      for (const key of [alert.messageKey, alert.suggestionKey]) {
+      // The short line of the panel's attention list uses the same values (B-416).
+      const shortKey = `panel.attention.short.${alert.kind}` as MessageKey;
+      expect(messageKeys, shortKey).toContain(shortKey);
+      for (const key of [alert.messageKey, alert.suggestionKey, shortKey]) {
         for (const name of extractArguments(esAR[key]).keys()) {
           expect(alert.values, `${key} → ${name}`).toHaveProperty(name);
         }

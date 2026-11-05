@@ -46,10 +46,10 @@ pnpm --filter @sport-performance/e2e screenshots
 
 Abre la sesión de cada cuenta del demo (el proyecto `setup`), recorre las secciones de la barra lateral y, desde cada una, el primer detalle de cada tipo (`/players/:id`), y guarda capturas de página completa a 1440 y 390 px, en oscuro y en claro alto contraste, en `<E2E_RUN_DIR>/screenshots/<ancho>-<variante>/<cuenta>-NN-<ruta>.png`. Al terminar `screenshots/index.ts` escribe `index.json`, `index.txt` (archivo y ruta) e `index.html` (hoja de contactos). `SCREENSHOTS_WORKERS` (2) y `SCREENSHOTS_MAX_PAGES` (40 por cuenta y vista) ajustan la carga. No es un test, no corre en CI y las capturas no se commitean (el directorio de la corrida está ignorado).
 
-Cada captura es un test titulado `<cuenta> at <ancho> px, <variante>` (las cuentas son las claves de `DEMO_ACCOUNTS` en `src/harness`), así que `--grep` elige qué capturar. El patrón es una expresión regular sobre el título: anclala con `^` para una sola cuenta (sin ancla, `admin` encuentra cualquier título que lo contenga):
+Cada captura es un test titulado `<cuenta> at <ancho> px, <variante>` (las cuentas son las claves de `DEMO_ACCOUNTS` en `src/harness`), así que `--grep` elige qué capturar (`screenshots/run.ts` le pasa a Playwright los argumentos y después escribe el índice). El patrón es una expresión regular sobre la ruta completa del test (proyecto, archivo y título separados por espacios, por eso `^` no sirve): para una sola cuenta empezalo con un espacio y terminalo en `at` (sin eso, `admin` también encuentra a `superadmin`):
 
 ```sh
-pnpm --filter @sport-performance/e2e screenshots --grep '^coachRugbySenior at 1440 px'
+pnpm --filter @sport-performance/e2e screenshots --grep ' coachRugbySenior at 1440 px'
 ```
 
 ## Escribir un escenario

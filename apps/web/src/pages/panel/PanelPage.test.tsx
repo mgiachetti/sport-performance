@@ -55,17 +55,10 @@ describe('weekly panel', () => {
     expect(items).toHaveLength(2);
     expect(items[0]).toHaveTextContent('Bianchi, Tomás');
     expect(items[1]).toHaveTextContent('Roldán, Felipe');
-    expect(
-      within(attention).getByText(
-        'Carga aguda alta respecto de la crónica: ACWR 1,46 (umbral 1,40).',
-      ),
-    ).toBeVisible();
-    expect(within(attention).getByText('Y 1 alerta más de este jugador')).toBeVisible();
-    expect(
-      within(attention).getByText(
-        'Crecimiento rápido: 9,4 cm/año (zona de pico desde 8,0 cm/año).',
-      ),
-    ).toBeVisible();
+    // One short line per player: the metric and its threshold, and how many alerts more.
+    expect(items[0]).toHaveTextContent('ACWR alto 1,46 · umbral 1,40');
+    expect(within(attention).getByText('+1 alerta')).toBeVisible();
+    expect(items[1]).toHaveTextContent('Crecimiento 9,4 cm/año · pico desde 8,0 cm/año');
 
     const bianchi = rowOf('Bianchi, Tomás');
     expect(within(bianchi).getByText('Hooker')).toBeVisible();
@@ -98,7 +91,7 @@ describe('weekly panel', () => {
     ).toBeVisible();
   });
 
-  it('shows the first eight who need attention, critical first, and the rest on demand', async () => {
+  it('shows the first five who need attention, critical first, and the rest on demand', async () => {
     const players = Array.from({ length: 11 }, (_, index) =>
       panelPlayer(index + 1, {
         alerts: [panelAlert({ severity: index >= 8 ? 'critical' : 'warning' })],
@@ -110,7 +103,7 @@ describe('weekly panel', () => {
     });
     const attention = await screen.findByRole('region', { name: 'Requieren atención' });
     const items = () => within(attention).getAllByRole('listitem');
-    expect(items()).toHaveLength(8);
+    expect(items()).toHaveLength(5);
     // The three critical ones (players 9 to 11) lead the list.
     expect(items()[0]).toHaveTextContent('Apellido 9, Jugador');
     expect(items()[2]).toHaveTextContent('Apellido 11, Jugador');
@@ -124,8 +117,11 @@ describe('weekly panel', () => {
     // Expanded, it scrolls inside the card as a named region the keyboard can reach.
     const list = within(attention).getByRole('region', { name: 'Lista completa: 11 jugadores' });
     expect(list).toHaveAttribute('tabindex', '0');
+    // The region wraps the list: the items keep their list parent (WCAG 1.3.1).
+    expect(within(list).getByRole('list')).toBeVisible();
+    expect(within(list).getAllByRole('listitem')).toHaveLength(11);
     await user.click(within(attention).getByRole('button', { name: 'Ver menos' }));
-    expect(items()).toHaveLength(8);
+    expect(items()).toHaveLength(5);
   });
 
   it('groups by maturity (bio-banding) and filters by group', async () => {

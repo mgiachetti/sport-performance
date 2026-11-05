@@ -145,6 +145,7 @@
 - **B-414 Consola de superadmin** (nuevo) · `area:web`. Alta de clubes, módulos activos por club, acceso de soporte con auditoría.
 - **B-415 Ayuda y protocolos** (nuevo) · `area:web` `area:mobile`. El protocolo de cada test con texto e imagen o video; guía de uso para el staff.
 - **B-416 Sistema de diseño de la web** (nuevo) · `area:web` `a11y`. Pasada de diseño con la identidad del club en runtime: escala tipográfica, tamaños, capas y rayas como tokens; primitivas de pantalla; shell como la maqueta (escudo, rayas, menú de usuario); el club demo con la marca y el escudo de ORC por el camino real; capturas de todas las pantallas. Fase 1 la base, inicio y panel; fase 2 el resto de las pantallas.
+- **B-417 Sistema de diseño de la web, fase 2** (nuevo) · `area:web` `a11y`. El resto de las pantallas con las primitivas de B-416: lista de jugadores (filas de 48 px con avatar y columna de estado, sin links subrayados), ficha del jugador sin columnas a medio ancho (Disponibilidad/Maduración, Percentiles/Carga, Historial de alertas), sesiones, días de test, configuración, administración y área de familia; la tabla del panel a 390 px; las barras de marca del gráfico en el claro de alto contraste sin perder el naranja; el demo con 28 días de historia antes de la ventana visible para que el ACWR tenga sentido; capturas de la app mobile por el token `button`.
 
 ## M5 · Mobile (Expo)
 

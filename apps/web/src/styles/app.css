@@ -1304,6 +1304,8 @@ select:hover {
 .sp-home-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  /* The scope card is as tall as its chips, not as the shortcuts next to it. */
+  align-items: start;
   gap: var(--sp-space-md);
   margin-top: var(--sp-space-lg);
 }

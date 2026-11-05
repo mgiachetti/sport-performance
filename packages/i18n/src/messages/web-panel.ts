@@ -64,8 +64,16 @@ export const webPanelMessagesEsAR = {
   'panel.attention.showFewer': 'Ver menos',
   'panel.attention.listLabel':
     '{count, plural, one {Lista completa: # jugador} other {Lista completa: # jugadores}}',
-  'panel.attention.more':
-    '{count, plural, one {Y # alerta más de este jugador} other {Y # alertas más de este jugador}}',
+  'panel.attention.more': '{count, plural, one {+# alerta} other {+# alertas}}',
+  // One short line per alert kind (arguments as in `alert.<kind>.message`): the full sentence
+  // is in the player's alert history.
+  'panel.attention.short.acwr_high': 'ACWR alto {acwrRatio} · umbral {thresholdRatio}',
+  'panel.attention.short.acwr_low': 'ACWR bajo {acwrRatio} · umbral {thresholdRatio}',
+  'panel.attention.short.wellness_low': 'Bienestar {wellnessScore} de 5 · umbral {thresholdScore}',
+  'panel.attention.short.wellness_zscore_low': 'Bienestar z {zScore} · umbral {thresholdZScore}',
+  'panel.attention.short.cmj_drop': 'CMJ {dropPct} bajo la base',
+  'panel.attention.short.growth_peak':
+    'Crecimiento {velocityCmYear} · pico desde {thresholdCmYear}',
 
   // Roster
   'panel.roster.title': 'Plantel',

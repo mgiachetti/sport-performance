@@ -16,6 +16,7 @@ import {
   type Sport,
 } from '@sport-performance/domain';
 import {
+  alertMessage,
   formatLocalDate,
   formatNumber,
   formatUnit,
@@ -398,8 +399,20 @@ function playerName(t: ReturnType<typeof useT>, player: PanelPlayer): string {
   return t('panel.roster.name', { firstName: player.firstName, lastName: player.lastName });
 }
 
-/** How many players the attention list shows before "see all". */
-export const ATTENTION_VISIBLE = 8;
+/** How many players the attention list shows before "see all" (about the chart's height). */
+export const ATTENTION_VISIBLE = 5;
+
+/**
+ * The short line of an alert in the attention list ("ACWR bajo 0,15 · umbral 0,80"); the full
+ * message when this build has no short text for the kind, a generic line when it has neither.
+ */
+function attentionLine(t: ReturnType<typeof useT>, alert: PanelPlayer['alerts'][number]): string {
+  return (
+    alertMessage(t, `panel.attention.short.${alert.kind}`, alert.values) ??
+    alertText(t, alert) ??
+    t('common.noData')
+  );
+}
 
 function Attention(props: { players: readonly PanelPlayer[] }) {
   const t = useT();
@@ -421,10 +434,10 @@ function Attention(props: { players: readonly PanelPlayer[] }) {
       ) : (
         <>
           {/* Collapsed, the first rows show in full; expanded, the whole list scrolls inside the
-              card as a focusable region, so the keyboard can scroll it too. */}
-          <ul
+              card in a focusable region (a wrapper, so the <ul> keeps its list role). */}
+          <div
             id={listId}
-            className={`sp-panel-attention__list${expanded ? ' is-expanded' : ''}`}
+            className={`sp-panel-attention__scroll${expanded ? ' is-expanded' : ''}`}
             {...(expanded
               ? {
                   tabIndex: 0,
@@ -433,28 +446,34 @@ function Attention(props: { players: readonly PanelPlayer[] }) {
                 }
               : {})}
           >
-            {shown.map((player) => {
-              const [first, ...rest] = player.alerts;
-              if (first === undefined) return null;
-              return (
-                <li key={player.playerId} className="sp-panel-attention__item">
-                  <Avatar label={initialsOf(`${player.firstName} ${player.lastName}`)} />
-                  <div className="sp-panel-attention__body">
-                    <div className="sp-panel-attention__head">
-                      <p className="sp-panel-attention__name">{playerName(t, player)}</p>
-                      <StatusBadge level={first.severity} />
-                    </div>
-                    <p className="sp-panel-note">{alertText(t, first) ?? t('common.noData')}</p>
-                    {rest.length === 0 ? null : (
-                      <p className="sp-panel-note">
-                        {t('panel.attention.more', { count: rest.length })}
+            <ul className="sp-panel-attention__list">
+              {shown.map((player) => {
+                const [first, ...rest] = player.alerts;
+                if (first === undefined) return null;
+                return (
+                  <li key={player.playerId} className="sp-panel-attention__item">
+                    <Avatar label={initialsOf(`${player.firstName} ${player.lastName}`)} />
+                    <div className="sp-panel-attention__body">
+                      <p className="sp-panel-attention__head">
+                        <span className="sp-panel-attention__name">{playerName(t, player)}</span>
+                        {rest.length === 0 ? null : (
+                          <span className="sp-panel-attention__more">
+                            {t('panel.attention.more', { count: rest.length })}
+                          </span>
+                        )}
                       </p>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                      {/* One short line (metric and threshold); the full sentence and the
+                          suggestion are in the player's alert history. */}
+                      <p className="sp-panel-note sp-panel-attention__metric">
+                        {attentionLine(t, first)}
+                      </p>
+                    </div>
+                    <StatusBadge level={first.severity} />
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
           {hidden > 0 ? (
             <Button
               variant="ghost"

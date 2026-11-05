@@ -172,6 +172,10 @@ const ALERT_MARGINS: Readonly<
 /**
  * How far past its threshold an alert is, relative to the threshold (0,53 against an ACWR floor
  * of 0,8 is further than 0,77). 0 when the kind or its values are unknown to this build.
+ *
+ * A display heuristic only (ADR 0097), not a severity scale: it puts margins of different kinds
+ * side by side (a z-score margin against an ACWR margin), which are not the same magnitude. The
+ * severity is the rule's own `severity`; this only orders the list within one.
  */
 export function alertMargin(alert: {
   readonly kind: string;
