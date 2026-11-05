@@ -102,6 +102,8 @@ export function MembersSection() {
       queryClient.invalidateQueries({ queryKey: adminKey(selection, 'assignments') }),
     ]);
 
+  const savedInList = saved !== null && items.some((m) => m.id === saved.from || m.id === saved.to);
+
   const search = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFilters((current) => ({ ...current, q: q.trim() }));
@@ -162,18 +164,27 @@ export function MembersSection() {
         </div>
       </form>
 
-      {/* Saved, and the list (a role filter) no longer shows the person: say it above it. */}
-      <div role="status" aria-live="polite" className="sp-admin__saved">
-        {saved !== null && !items.some((m) => m.id === saved.from || m.id === saved.to) ? (
+      {/*
+        The one live region of the section, always there: "Guardado" is said
+        here once. While the person's row is in the list (it shows the chip)
+        the notice is only heard; when a role filter no longer shows them it
+        is seen here too. Only its class changes, so it is not said twice.
+      */}
+      <div
+        role="status"
+        aria-live="polite"
+        className={savedInList ? 'sp-admin__saved sp-visually-hidden' : 'sp-admin__saved'}
+      >
+        {saved === null ? null : (
           <Notice level="ok">
             <p>
-              {t('admin.members.roleSavedOutside', {
+              {t('admin.members.roleSavedOf', {
                 name: saved.name,
                 role: t(`role.${saved.role}`),
               })}
             </p>
           </Notice>
-        ) : null}
+        )}
       </div>
       {members.isPending ? <Loading /> : null}
       {members.isError ? <ErrorNotice error={members.error} /> : null}
@@ -183,21 +194,39 @@ export function MembersSection() {
         </Notice>
       ) : null}
       {items.length === 0 ? null : (
-        <div className="sp-table-wrap">
-          <table className="sp-table">
+        // Explicit roles: under ~52rem of width the rows become cards (CSS),
+        // and a table restyled with `display` loses its semantics in some
+        // browsers without them.
+        <div className="sp-table-wrap sp-admin__members">
+          <table className="sp-table" role="table">
             <caption className="sp-visually-hidden">{t('admin.members.title')}</caption>
-            <thead>
-              <tr>
-                <th scope="col">{t('admin.members.person')}</th>
-                <th scope="col">{t('admin.members.role')}</th>
-                <th scope="col">{t('admin.members.status')}</th>
-                <th scope="col" className="sp-table__number">
+            <colgroup>
+              <col />
+              <col className="sp-admin__members-role" />
+              <col className="sp-admin__members-status" />
+              <col className="sp-admin__members-since" />
+              <col className="sp-admin__members-actions" />
+            </colgroup>
+            <thead role="rowgroup">
+              <tr role="row">
+                <th scope="col" role="columnheader">
+                  {t('admin.members.person')}
+                </th>
+                <th scope="col" role="columnheader">
+                  {t('admin.members.role')}
+                </th>
+                <th scope="col" role="columnheader">
+                  {t('admin.members.status')}
+                </th>
+                <th scope="col" role="columnheader" className="sp-table__number">
                   {t('admin.members.since')}
                 </th>
-                <th scope="col">{t('admin.members.actions')}</th>
+                <th scope="col" role="columnheader">
+                  {t('admin.members.actions')}
+                </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {items.map((member) => (
                 <MemberRow
                   key={member.id}
@@ -300,13 +329,20 @@ function MemberRow(props: {
       : null;
 
   return (
-    <tr>
-      <th scope="row">
-        <span className="sp-admin__name">{label}</span>
-        {name === '' ? null : <span className="sp-admin__meta">{member.user.email}</span>}
+    <tr role="row">
+      <th scope="row" role="rowheader" className="sp-admin__person">
+        <span className="sp-admin__name" title={label}>
+          {label}
+        </span>
+        {name === '' ? null : (
+          <span className="sp-admin__meta sp-admin__email" title={member.user.email}>
+            {member.user.email}
+          </span>
+        )}
         {own ? <span className="sp-admin__meta">{t('admin.members.you')}</span> : null}
       </th>
-      <td className={editable ? 'sp-admin__role-cell' : undefined}>
+      <td role="cell" className={editable ? 'sp-admin__role-cell' : undefined}>
+        <CellLabel>{t('admin.members.role')}</CellLabel>
         {editable ? (
           <div className="sp-admin__role">
             <div className="sp-admin__role-edit">
@@ -356,6 +392,10 @@ function MemberRow(props: {
                   </Button>
                 </div>
               ) : null}
+              {/* Visual cue only: the section's live region says it (one announcement). */}
+              {props.saved ? (
+                <StatusLabel level="ok">{t('admin.members.roleSaved')}</StatusLabel>
+              ) : null}
             </div>
             {changed && confirming ? (
               <ConfirmPanel
@@ -365,9 +405,12 @@ function MemberRow(props: {
                     <strong>
                       {t('admin.members.confirmRole', { name: label, role: t(`role.${role}`) })}
                     </strong>{' '}
-                    {accessChanges(member.role, role)
-                      .map((change) => t(`admin.members.confirmRole.${change}`))
-                      .join(' ')}
+                    {[
+                      ...accessChanges(member.role, role).map((change) =>
+                        t(`admin.members.confirmRole.${change}`),
+                      ),
+                      t('admin.members.confirmRole.consequence'),
+                    ].join(' ')}
                   </>
                 }
                 confirmLabel={t('admin.members.changeRole')}
@@ -382,11 +425,6 @@ function MemberRow(props: {
                 {reason}
               </span>
             )}
-            <span role="status" aria-live="polite" className="sp-admin__role-status">
-              {props.saved ? (
-                <StatusLabel level="ok">{t('admin.members.roleSaved')}</StatusLabel>
-              ) : null}
-            </span>
             <ActionError
               error={changeRole.error}
               conflictText={translate(
@@ -399,17 +437,28 @@ function MemberRow(props: {
           t(`role.${member.role}`)
         )}
       </td>
-      <td>
+      <td role="cell">
+        <CellLabel>{t('admin.members.status')}</CellLabel>
         {ended ? (
-          <StatusLabel level="info">
-            {t('admin.members.endedOn', { date: format.dateTime(member.endedAt) })}
-          </StatusLabel>
+          <>
+            <StatusLabel level="info">{t('admin.members.status.ended')}</StatusLabel>{' '}
+            <span className="sp-admin__meta">
+              <time dateTime={member.endedAt ?? undefined} title={format.dateTime(member.endedAt)}>
+                {t('admin.members.endedOn', { date: format.dayOf(member.endedAt) })}
+              </time>
+            </span>
+          </>
         ) : (
           <StatusLabel level="ok">{t('admin.members.status.active')}</StatusLabel>
         )}
       </td>
-      <td className="sp-table__number">{format.dateTime(member.startedAt)}</td>
-      <td>
+      <td role="cell" className="sp-table__number">
+        <CellLabel>{t('admin.members.since')}</CellLabel>
+        <time dateTime={member.startedAt} title={format.dateTime(member.startedAt)}>
+          {format.dayOf(member.startedAt)}
+        </time>
+      </td>
+      <td role="cell" className="sp-admin__members-end">
         {ended ? (
           <span className="sp-admin__meta">{t('common.notAvailable')}</span>
         ) : own ? null : (
@@ -437,5 +486,18 @@ function MemberRow(props: {
         />
       </td>
     </tr>
+  );
+}
+
+/**
+ * The column's name inside a cell, seen only where the rows are cards (the
+ * header row is hidden there). Hidden from assistive technology: the cell
+ * keeps its column header.
+ */
+function CellLabel(props: { children: string }) {
+  return (
+    <span className="sp-admin__cell-label" aria-hidden="true">
+      {props.children}
+    </span>
   );
 }

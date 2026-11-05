@@ -105,6 +105,26 @@ describe('administration: users and roles', () => {
     const row = await findRow('Pablo Gómez');
     expect(within(row).getByRole('combobox', { name: 'Rol de Pablo Gómez' })).toHaveValue('coach');
     expect(within(row).getByText('Vigente')).toBeVisible();
+    // The same table at every width (cards under 48rem are CSS): its headers stay.
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
+      'Persona',
+      'Rol',
+      'Estado',
+      'Desde',
+      'Acciones',
+    ]);
+    // A long email truncates: the whole of it stays in the text and in its title.
+    expect(within(row).getByText('pablo@example.com')).toHaveAttribute(
+      'title',
+      'pablo@example.com',
+    );
+    // "Desde" is the club's day; the time is in its title.
+    const since = within(row).getByText(/^\d{2}\/\d{2}\/\d{4}$/);
+    expect(since.tagName).toBe('TIME');
+    expect(since).toHaveAttribute(
+      'title',
+      expect.stringMatching(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/),
+    );
 
     // The own membership: its role disabled with the reason, no actions.
     const own = await findRow('Sos vos');
@@ -165,6 +185,8 @@ describe('administration: users and roles', () => {
       }),
     });
     const row = await findRow('Pablo Gómez');
+    // The section's live region is there before the save (a region mounted with its text is not announced).
+    const regions = screen.getAllByRole('status');
     await user.selectOptions(within(row).getByRole('combobox'), 'sc');
     await user.click(within(row).getByRole('button', { name: 'Guardar' }));
     await waitFor(() => {
@@ -174,10 +196,16 @@ describe('administration: users and roles', () => {
       params: { membershipId: coach.id },
       body: { version: coach.version, role: 'sc' },
     });
-    // The change opened another membership: its row says "Guardado" and has the focus.
+    // The change opened another membership: its row shows "Guardado" and has the focus;
+    // the section's one live region says it, once.
     const saved = await screen.findByText('Guardado');
     expect(saved).toBeVisible();
-    expect(saved.closest('[role="status"]')).toHaveAttribute('aria-live', 'polite');
+    expect(saved.closest('[role="status"]')).toBeNull();
+    const said = screen.getAllByText('Guardado: Pablo Gómez ahora es Preparador/a físico/a.');
+    expect(said).toHaveLength(1);
+    const region = said[0]?.closest('[role="status"]');
+    expect(region).toHaveAttribute('aria-live', 'polite');
+    expect(regions).toContain(region);
     await waitFor(() => {
       expect(screen.getByRole('combobox', { name: 'Rol de Pablo Gómez' })).toHaveValue('sc');
     });
@@ -204,9 +232,18 @@ describe('administration: users and roles', () => {
     const row = await findRow('Pablo Gómez');
     await user.selectOptions(within(row).getByRole('combobox'), 'sc');
     await user.click(within(row).getByRole('button', { name: 'Guardar' }));
+    const said = await screen.findByText('Guardado: Pablo Gómez ahora es Preparador/a físico/a.');
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('combobox', { name: 'Rol de Pablo Gómez' }),
+      ).not.toBeInTheDocument();
+    });
+    // Out of the list it is seen too: the same live region, no longer visually hidden.
+    expect(said).toBeVisible();
+    expect(said.closest('[role="status"]')).not.toHaveClass('sp-visually-hidden');
     expect(
-      await screen.findByText('Guardado: Pablo Gómez ahora es Preparador/a físico/a.'),
-    ).toBeVisible();
+      screen.getAllByText('Guardado: Pablo Gómez ahora es Preparador/a físico/a.'),
+    ).toHaveLength(1);
   });
 
   it('asks before giving or taking the administration or the health data', async () => {
@@ -227,6 +264,12 @@ describe('administration: users and roles', () => {
       name: '¿Pasar a Pablo Gómez a Administrador/a?',
     });
     expect(within(confirm).getByText(/Va a poder administrar todo el club/)).toBeVisible();
+    // What any role change does, besides the access it gives or takes.
+    expect(
+      within(confirm).getByText(
+        /Se cierran su membresía y sus asignaciones actuales, y tiene que volver a elegir el club al entrar\./,
+      ),
+    ).toBeVisible();
     expect(api.callsTo('changeMemberRole')).toHaveLength(0);
     // Escape backs out of the confirmation and restores the role.
     await user.keyboard('{Escape}');
@@ -298,6 +341,7 @@ describe('administration: users and roles', () => {
     });
     const row = await findRow('Pablo Gómez');
     expect(within(row).getByRole('cell', { name: 'Entrenador/a' })).toBeVisible();
+    expect(within(row).getByRole('cell', { name: 'Terminada el 01/10/2026' })).toBeVisible();
     expect(within(row).queryByRole('combobox')).not.toBeInTheDocument();
   });
 

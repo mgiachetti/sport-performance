@@ -52,12 +52,12 @@ export const webAdminMessagesEsAR = {
   'admin.members.actions': 'Acciones',
   'admin.members.you': 'Sos vos',
   'admin.members.ownHint': 'Tu propia membresía la cambia otra persona administradora.',
-  'admin.members.endedOn': 'Terminó el {date}',
+  'admin.members.endedOn': 'el {date}',
   'admin.members.roleOf': 'Rol de {name}',
   'admin.members.lastAdminHint':
     'Es la única persona administradora vigente: el club no puede quedarse sin una.',
   'admin.members.roleSaved': 'Guardado',
-  'admin.members.roleSavedOutside': 'Guardado: {name} ahora es {role}.',
+  'admin.members.roleSavedOf': 'Guardado: {name} ahora es {role}.',
   'admin.members.changeRole': 'Cambiar rol',
   'admin.members.confirmRole': '¿Pasar a {name} a {role}?',
   'admin.members.confirmRole.toAdmin':
@@ -68,6 +68,8 @@ export const webAdminMessagesEsAR = {
     'Va a ver y cargar los datos de salud (lesiones, conmociones) de jugadores menores de edad de sus categorías.',
   'admin.members.confirmRole.fromMedical':
     'Deja de ver los datos de salud (lesiones, conmociones) de los jugadores.',
+  'admin.members.confirmRole.consequence':
+    'Se cierran su membresía y sus asignaciones actuales, y tiene que volver a elegir el club al entrar.',
   'admin.members.end': 'Dar de baja',
   'admin.members.endQuestion':
     'Deja de tener acceso al club desde ahora y se terminan sus asignaciones. Si no tiene otro club, se cierran sus sesiones.',
