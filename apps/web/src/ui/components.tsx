@@ -292,6 +292,8 @@ export function SegmentedControl<V extends string>(props: {
   label: string;
   /** Keep the label for assistive technology only. */
   hideLabel?: boolean;
+  /** `inline`: the label beside the options, to line up in a row of controls. */
+  labelPlacement?: 'above' | 'inline';
   options: readonly SegmentOption<V>[];
   value: V;
   onChange: (value: V) => void;
@@ -306,6 +308,7 @@ export function SegmentedControl<V extends string>(props: {
       className={[
         'sp-segmented',
         props.layout === 'stack' ? 'sp-segmented--stack' : null,
+        props.labelPlacement === 'inline' ? 'sp-segmented--inline' : null,
         props.size === 'sm' ? 'sp-segmented--sm' : null,
       ]
         .filter(Boolean)

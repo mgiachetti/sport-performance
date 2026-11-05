@@ -69,9 +69,9 @@ describe('weekly panel', () => {
 
     const bianchi = rowOf('Bianchi, Tomás');
     expect(within(bianchi).getByText('Hooker')).toBeVisible();
-    expect(
-      within(bianchi).getByText('-0,4 años del PHV · 91,2 % de la talla adulta'),
-    ).toBeVisible();
+    // One fact per line: the offset, then the % of adult height.
+    expect(within(bianchi).getByText('-0,4 años del PHV')).toBeVisible();
+    expect(within(bianchi).getByText('91,2 % de la talla adulta')).toBeVisible();
     expect(within(bianchi).getByText('2,5 de 5')).toBeVisible();
     expect(within(bianchi).getByText('1.200 UA')).toBeVisible();
     expect(within(bianchi).getByText('1 RPE pendiente')).toBeVisible();
@@ -79,7 +79,10 @@ describe('weekly panel', () => {
     // Availability as a status with icon and text, never the cause.
     expect(within(bianchi).getByText('No disponible')).toBeVisible();
     // The detail is visible text, not a tooltip (screen readers and touch screens).
-    expect(within(bianchi).getByText('Entrenar: Limitado · Partido: No disponible')).toBeVisible();
+    expect(within(bianchi).getByText('Entrenar: Limitado')).toBeVisible();
+    expect(within(bianchi).getByText('Partido: No disponible')).toBeVisible();
+    // Available is plain text: the chips are for who is limited or out.
+    expect(within(rowOf('Paz, Bautista')).getByText('Disponible')).toBeVisible();
     expect(within(rowOf('Paz, Bautista')).queryByText(/Entrenar:/)).toBeNull();
     expect(within(bianchi).getByText('Crítico')).toBeVisible();
 
@@ -114,8 +117,13 @@ describe('weekly panel', () => {
 
     const toggle = within(attention).getByRole('button', { name: 'Ver todas (11)' });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    // Collapsed, the list does not scroll on its own (nothing hidden behind a scroll).
+    expect(within(attention).queryByRole('region')).toBeNull();
     await user.click(toggle);
     expect(items()).toHaveLength(11);
+    // Expanded, it scrolls inside the card as a named region the keyboard can reach.
+    const list = within(attention).getByRole('region', { name: 'Lista completa: 11 jugadores' });
+    expect(list).toHaveAttribute('tabindex', '0');
     await user.click(within(attention).getByRole('button', { name: 'Ver menos' }));
     expect(items()).toHaveLength(8);
   });
@@ -125,10 +133,10 @@ describe('weekly panel', () => {
       path: '/panel',
       handlers: { ...signedIn(), getWeeklyPanel: () => weeklyPanel(squad()) },
     });
-    await user.selectOptions(
-      await screen.findByLabelText('Agrupar por'),
-      'Maduración: años desde el pico de crecimiento',
-    );
+    const grouping = await screen.findByRole('radiogroup', { name: 'Agrupar por' });
+    // By category the top bar's scope filters: no group tabs on the page.
+    expect(screen.queryByRole('group', { name: 'Grupos' })).toBeNull();
+    await user.click(within(grouping).getByRole('radio', { name: 'Años desde el PHV' }));
     await waitFor(() => {
       expect(app.router.state.location.search).toMatchObject({ group: 'phv_offset' });
     });

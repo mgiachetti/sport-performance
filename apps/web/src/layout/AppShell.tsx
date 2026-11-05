@@ -1,5 +1,5 @@
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
-import { useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useServices } from '../app/services';
 import { useActiveClub } from '../club/active-club';
 import { useT } from '../i18n/i18n';
@@ -15,7 +15,9 @@ import { UserMenu } from './UserMenu';
  * and name with the jersey stripes, the navigation gated by the permission
  * matrix and, in its footer, the connection status and the user menu (theme,
  * club switch, sign out). The top bar keeps the sport/category scope. Under
- * 64rem the sidebar becomes a drawer opened from the top bar.
+ * 64rem the sidebar becomes a drawer opened from the top bar: opening it
+ * moves the focus into it and makes the page behind inert; Escape, the
+ * backdrop and its close button return the focus to the menu button.
  */
 export function AppShell(props: {
   navItems?: readonly NavItem[];
@@ -29,22 +31,42 @@ export function AppShell(props: {
   const items = visibleNavItems(props.navItems ?? NAV_ITEMS, active.subject, active.categories);
   const drawerId = useId();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  // Open on the page it was opened on: following a link closes it. So does Escape.
+  // Open on the page it was opened on: following a link closes it (the focus goes with the new
+  // page). Escape, the backdrop and the close button close it and give the focus back.
   const [openOn, setOpenOn] = useState<string | null>(null);
   const drawerOpen = openOn === pathname;
-  const setDrawerOpen = (open: boolean) => {
-    setOpenOn(open ? pathname : null);
-  };
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+  const closeDrawer = useCallback(() => {
+    setOpenOn(null);
+    // Out of inert first: an inert element cannot take the focus.
+    content.current?.removeAttribute('inert');
+    menuButton.current?.focus();
+  }, [setOpenOn]);
   useEffect(() => {
     if (!drawerOpen) return undefined;
+    closeButton.current?.focus();
+    // The page behind leaves the tab order and the accessibility tree while the drawer is open.
+    content.current?.setAttribute('inert', '');
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpenOn(null);
+      // An open menu inside the drawer (the user menu) takes its own Escape first.
+      if (event.key === 'Escape' && !event.defaultPrevented) closeDrawer();
+    };
+    // A wide screen shows the sidebar in place: the drawer and its inert page do not apply.
+    const wide = typeof window.matchMedia === 'function' ? window.matchMedia(WIDE_QUERY) : null;
+    const onWide = () => {
+      if (wide?.matches === true) setOpenOn(null);
     };
     document.addEventListener('keydown', onKey);
+    wide?.addEventListener('change', onWide);
+    const page = content.current;
     return () => {
+      page?.removeAttribute('inert');
       document.removeEventListener('keydown', onKey);
+      wide?.removeEventListener('change', onWide);
     };
-  }, [drawerOpen]);
+  }, [drawerOpen, closeDrawer]);
 
   return (
     <div className={`sp-shell${drawerOpen ? ' is-drawer-open' : ''}`}>
@@ -64,10 +86,9 @@ export function AppShell(props: {
           <button
             type="button"
             className="sp-icon-button sp-sidebar__close"
+            ref={closeButton}
             aria-label={t('nav.close')}
-            onClick={() => {
-              setDrawerOpen(false);
-            }}
+            onClick={closeDrawer}
           >
             <Icon name="close" size={20} />
           </button>
@@ -99,23 +120,22 @@ export function AppShell(props: {
         className="sp-shell__backdrop"
         tabIndex={-1}
         aria-hidden="true"
-        onClick={() => {
-          setDrawerOpen(false);
-        }}
+        onClick={closeDrawer}
       />
-      <div className="sp-shell__content">
+      <div ref={content} className="sp-shell__content">
         {active.selection.kind === 'support' ? (
           <SupportBanner clubName={active.club.name} reason={active.selection.reason} />
         ) : null}
         <header className="sp-topbar">
           <button
             type="button"
+            ref={menuButton}
             className="sp-icon-button sp-topbar__menu"
             aria-label={t('nav.open')}
             aria-expanded={drawerOpen}
             aria-controls={drawerId}
             onClick={() => {
-              setDrawerOpen(true);
+              setOpenOn(pathname);
             }}
           >
             <Icon name="menu" size={22} />
@@ -148,6 +168,9 @@ export function AppShell(props: {
     </div>
   );
 }
+
+/** Where the sidebar stops being a drawer (the `64rem` media query of app.css). */
+const WIDE_QUERY = '(min-width: 64.0625rem)';
 
 /** The crest served by the API (white-label theme), or the short name as a monogram. */
 function ClubMark() {

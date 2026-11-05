@@ -377,6 +377,38 @@ describe('club shell', () => {
     expect(account).toHaveFocus();
   });
 
+  it('moves the focus into the drawer, makes the page inert and gives the focus back', async () => {
+    const { user } = renderApp({ handlers: signedIn() });
+    const menu = await screen.findByRole('button', { name: 'Abrir el menú' });
+    const page = screen.getByRole('main').parentElement;
+    expect(menu).toHaveAttribute('aria-expanded', 'false');
+
+    await user.click(menu);
+    expect(menu).toHaveAttribute('aria-expanded', 'true');
+    const close = screen.getByRole('button', { name: 'Cerrar el menú', hidden: true });
+    expect(close).toHaveFocus();
+    expect(page).toHaveAttribute('inert');
+
+    await user.keyboard('{Escape}');
+    expect(menu).toHaveAttribute('aria-expanded', 'false');
+    expect(page).not.toHaveAttribute('inert');
+    expect(menu).toHaveFocus();
+
+    // Escape in the user menu closes only the user menu; the drawer stays open.
+    await user.click(menu);
+    const account = screen.getByRole('button', { name: /Tu cuenta/, hidden: true });
+    await user.click(account);
+    expect(account).toHaveAttribute('aria-expanded', 'true');
+    await user.keyboard('{Escape}');
+    expect(account).toHaveAttribute('aria-expanded', 'false');
+    expect(account).toHaveFocus();
+    expect(menu).toHaveAttribute('aria-expanded', 'true');
+
+    await user.click(close);
+    expect(menu).toHaveAttribute('aria-expanded', 'false');
+    expect(menu).toHaveFocus();
+  });
+
   it('ignores a shared link to a category the user does not see, and says so', async () => {
     const { app } = renderApp({
       path: `/?category=${fixtures.M17_RUGBY.id}`,

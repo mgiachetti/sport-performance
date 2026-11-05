@@ -18,8 +18,8 @@ export const webPanelMessagesEsAR = {
   // Grouping (bio-banding)
   'panel.group.label': 'Agrupar por',
   'panel.group.category': 'Categoría',
-  'panel.group.phv_offset': 'Maduración: años desde el pico de crecimiento',
-  'panel.group.pct_adult_height': 'Maduración: % de la talla adulta',
+  'panel.group.phv_offset': 'Años desde el PHV',
+  'panel.group.pct_adult_height': '% de la talla adulta',
   'panel.group.tabs': 'Grupos',
   'panel.group.all': 'Todos ({count})',
   'panel.group.option': '{name} ({count})',
@@ -62,6 +62,8 @@ export const webPanelMessagesEsAR = {
   'panel.attention.none': 'Nadie del grupo tiene alertas activas.',
   'panel.attention.showAll': 'Ver todas ({count})',
   'panel.attention.showFewer': 'Ver menos',
+  'panel.attention.listLabel':
+    '{count, plural, one {Lista completa: # jugador} other {Lista completa: # jugadores}}',
   'panel.attention.more':
     '{count, plural, one {Y # alerta más de este jugador} other {Y # alertas más de este jugador}}',
 
@@ -93,7 +95,8 @@ export const webPanelMessagesEsAR = {
 
   // Status and availability (always icon + text; never the cause)
   'panel.status.inRange': 'En rango',
-  'panel.availability.detail': 'Entrenar: {training} · Partido: {match}',
+  'panel.availability.training': 'Entrenar: {status}',
+  'panel.availability.match': 'Partido: {status}',
 
   // Empty states
   'panel.empty.noCategories':

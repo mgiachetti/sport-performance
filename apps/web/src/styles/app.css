@@ -556,8 +556,8 @@ select:hover {
   min-width: 0;
 }
 .sp-club-mark {
-  width: 2.75rem;
-  height: 2.75rem;
+  width: var(--sp-size-club-mark);
+  height: var(--sp-size-club-mark);
   flex: none;
   object-fit: contain;
 }
@@ -760,8 +760,8 @@ select:hover {
   font-weight: var(--sp-text-card-title-weight);
 }
 .sp-topbar__club .sp-club-mark {
-  width: 2rem;
-  height: 2rem;
+  width: var(--sp-size-club-mark-compact);
+  height: var(--sp-size-club-mark-compact);
 }
 .sp-scope {
   display: flex;
@@ -825,7 +825,7 @@ select:hover {
     z-index: 25;
     display: block;
     border: 0;
-    background: rgb(0 0 0 / 0.5);
+    background: var(--sp-elevation-scrim);
   }
   .sp-topbar {
     justify-content: flex-start;
@@ -1342,8 +1342,8 @@ select:hover {
 .sp-shortcut__icon {
   display: grid;
   place-items: center;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: var(--sp-size-icon-tile);
+  height: var(--sp-size-icon-tile);
   flex: none;
   border-radius: var(--sp-radius-md);
   background: var(--sp-color-brand-subtle);

@@ -4,7 +4,7 @@
 .sp-panel-controls {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   gap: var(--sp-space-md);
 }
 .sp-panel-groups {
@@ -31,33 +31,21 @@
 .sp-panel-kpis {
   margin-top: var(--sp-space-lg);
 }
-.sp-panel-controls__group {
-  min-width: 14rem;
-}
-.sp-panel-controls__group select {
-  width: 100%;
-}
 
-/* Chart wide, attention in a side column of the chart's height (its list scrolls inside). */
+/* Chart wide, attention in a side column; expanded, its list scrolls inside (a focusable region). */
 .sp-panel-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(20rem, 24rem);
+  align-items: start;
   gap: var(--sp-space-md);
   margin-top: var(--sp-space-md);
 }
 .sp-panel-grid > .sp-card {
   margin-top: 0;
 }
-.sp-panel-attention {
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  max-height: 32rem;
-}
 @media (max-width: 80rem) {
   .sp-panel-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .sp-panel-attention {
-    max-height: none;
   }
 }
 
@@ -77,11 +65,19 @@
 }
 
 .sp-panel-attention__list {
-  min-height: 0;
   margin: 0 calc(-1 * var(--sp-space-sm));
   padding: 0 var(--sp-space-sm);
-  overflow-y: auto;
   list-style: none;
+}
+/* Local size (ADR 0097): about the 8 collapsed rows, so expanding does not grow the card. */
+.sp-panel-attention__list.is-expanded {
+  max-height: 40rem;
+  overflow-y: auto;
+  border-radius: var(--sp-radius-sm);
+}
+.sp-panel-attention__list.is-expanded:focus-visible {
+  outline: var(--sp-focus-ring-width) solid var(--sp-color-focus);
+  outline-offset: var(--sp-focus-ring-offset);
 }
 .sp-panel-attention__item {
   display: flex;
@@ -115,7 +111,7 @@
   justify-self: start;
 }
 
-/* Roster: inline wellness bar (the value is the text next to it) */
+/* Roster: inline wellness bar (the value is the text next to it; local size, ADR 0097) */
 .sp-panel-roster .sp-panel-table-scroll {
   margin: 0 calc(-1 * var(--sp-space-md));
 }
@@ -150,10 +146,16 @@
 .sp-panel-table tbody td {
   vertical-align: middle;
 }
-.sp-panel-table tbody th .sp-table__cell-player {
+.sp-panel-table tbody th .sp-table__cell-player,
+.sp-panel-maturity,
+.sp-panel-nowrap {
   white-space: nowrap;
 }
-/* Narrow screens scroll the table sideways instead of squeezing its columns. */
+/* Narrow screens scroll the table sideways instead of squeezing its columns (local size, ADR 0097). */
 .sp-panel-table {
   min-width: 60rem;
+}
+/* A state in words in a number column ("Historia insuficiente") may wrap; the figures do not. */
+.sp-panel-table .is-number .sp-panel-muted {
+  white-space: normal;
 }

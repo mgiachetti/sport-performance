@@ -88,6 +88,10 @@ export function toCssVariables(theme: Theme): CssVariables {
         ? 'none'
         : `0 ${String(shadow.offsetYPx)}px ${String(shadow.blurPx)}px ${String(shadow.spreadPx)}px ${withAlpha(shadow.color, shadow.opacity)}`;
   }
+  // What dims the page under an overlay (the drawer): the overlay shadow's color and opacity.
+  const overlay = theme.elevation.overlay;
+  vars[cssVarName('elevation', 'scrim')] =
+    overlay === null ? 'transparent' : withAlpha(overlay.color, overlay.opacity);
   const [dash, gap] = theme.chartDash.reference;
   vars[cssVarName('chart', 'reference-dash')] = `${String(dash)} ${String(gap)}`;
 

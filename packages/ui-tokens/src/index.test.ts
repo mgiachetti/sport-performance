@@ -72,11 +72,14 @@ describe('CSS output', () => {
       'repeating-linear-gradient(90deg, #f1882a 0 12px, #050505 12px 24px)',
     );
     expect(vars['--sp-size-table-row']).toBe('3rem');
+    expect(vars['--sp-size-chip']).toBe('1.625rem');
+    expect(vars['--sp-size-icon-tile']).toBe('2.25rem');
   });
 
   it('emits elevation shadows, none for the flat level', () => {
     expect(vars['--sp-elevation-flat']).toBe('none');
     expect(vars['--sp-elevation-overlay']).toBe('0 12px 32px -4px rgba(0, 0, 0, 0.5)');
+    expect(vars['--sp-elevation-scrim']).toBe('rgba(0, 0, 0, 0.5)');
   });
 
   it('builds rules and a stylesheet with both variants', () => {

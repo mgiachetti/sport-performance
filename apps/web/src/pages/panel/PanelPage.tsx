@@ -42,6 +42,7 @@ import {
   Loading,
   Notice,
   Page,
+  SegmentedControl,
 } from '../../ui/components';
 import { Icon } from '../../ui/icons';
 import { initialsOf } from '../../lib/initials';
@@ -49,6 +50,7 @@ import {
   BIO_BAND_SCHEMES,
   isCurrentWeek,
   maturityValue,
+  PANEL_GROUPINGS,
   panelGroups,
   panelSummary,
   playersNeedingAttention,
@@ -182,36 +184,27 @@ function tooManyPlayers(error: unknown): boolean {
 function PanelControls(props: { panel: WeeklyPanel | undefined; grouping: PanelGrouping }) {
   const t = useT();
   const navigate = route.useNavigate();
-  const groupId = useId();
   const { panel } = props;
   const goToWeek = (week: LocalDate | undefined) => {
     void navigate({ search: (previous) => ({ ...previous, week }) });
   };
   return (
     <div className="sp-panel-controls">
-      <div className="sp-field sp-panel-controls__group">
-        <label htmlFor={groupId} className="sp-field__label">
-          {t('panel.group.label')}
-        </label>
-        <select
-          id={groupId}
-          className="sp-select--sm"
-          value={props.grouping}
-          onChange={(event) => {
-            const value = event.target.value as PanelGrouping;
-            void navigate({
-              search: (previous) => ({
-                ...previous,
-                group: value === 'category' ? undefined : value,
-              }),
-            });
-          }}
-        >
-          <option value="category">{t('panel.group.category')}</option>
-          <option value="phv_offset">{t('panel.group.phv_offset')}</option>
-          <option value="pct_adult_height">{t('panel.group.pct_adult_height')}</option>
-        </select>
-      </div>
+      <SegmentedControl
+        label={t('panel.group.label')}
+        labelPlacement="inline"
+        size="sm"
+        options={PANEL_GROUPINGS.map((value) => ({ value, label: t(`panel.group.${value}`) }))}
+        value={props.grouping}
+        onChange={(value) => {
+          void navigate({
+            search: (previous) => ({
+              ...previous,
+              group: value === 'category' ? undefined : value,
+            }),
+          });
+        }}
+      />
       <div className="sp-panel-week" role="group" aria-label={t('panel.week.label')}>
         <Button
           variant="secondary"
@@ -238,7 +231,7 @@ function PanelControls(props: { panel: WeeklyPanel | undefined; grouping: PanelG
           <Icon name="chevronRight" />
         </Button>
         <Button
-          variant="ghost"
+          variant="secondary"
           size="sm"
           disabled={panel === undefined || isCurrentWeek(panel)}
           onClick={() => {
@@ -263,7 +256,9 @@ function PanelBody(props: { panel: WeeklyPanel; grouping: PanelGrouping }) {
     [panel.players, grouping, active.categories],
   );
   const [selectedKey, setSelectedKey] = useState<string>(ALL_GROUP);
-  const selected = groups.find((group) => group.key === selectedKey);
+  // By category the scope of the top bar already filters: no second category selector here.
+  const byMaturity = grouping !== 'category';
+  const selected = byMaturity ? groups.find((group) => group.key === selectedKey) : undefined;
   const players = selected?.players ?? panel.players;
   const groupLabel = (group: PanelGroup) => {
     switch (group.label.kind) {
@@ -285,40 +280,42 @@ function PanelBody(props: { panel: WeeklyPanel; grouping: PanelGrouping }) {
           <p>{t('panel.week.pastRoster', { date: formatLocalDate(panel.referenceDate) })}</p>
         </Notice>
       )}
-      <div className="sp-panel-groups" role="group" aria-label={t('panel.group.tabs')}>
-        <Button
-          variant="secondary"
-          size="sm"
-          aria-pressed={selected === undefined}
-          onClick={() => {
-            setSelectedKey(ALL_GROUP);
-          }}
-        >
-          {t('panel.group.all', { count: panel.players.length })}
-        </Button>
-        {groups.map((group) => (
+      {byMaturity ? (
+        <div className="sp-panel-groups" role="group" aria-label={t('panel.group.tabs')}>
           <Button
-            key={group.key}
             variant="secondary"
             size="sm"
-            aria-pressed={selected?.key === group.key}
+            aria-pressed={selected === undefined}
             onClick={() => {
-              setSelectedKey(group.key);
+              setSelectedKey(ALL_GROUP);
             }}
           >
-            {t('panel.group.option', { name: groupLabel(group), count: group.players.length })}
+            {t('panel.group.all', { count: panel.players.length })}
           </Button>
-        ))}
-      </div>
-      {grouping === 'category' ? null : (
+          {groups.map((group) => (
+            <Button
+              key={group.key}
+              variant="secondary"
+              size="sm"
+              aria-pressed={selected?.key === group.key}
+              onClick={() => {
+                setSelectedKey(group.key);
+              }}
+            >
+              {t('panel.group.option', { name: groupLabel(group), count: group.players.length })}
+            </Button>
+          ))}
+        </div>
+      ) : null}
+      {byMaturity ? (
         <p className="sp-panel-note">
           {t('panel.group.maturityNote', { date: formatLocalDate(panel.referenceDate) })}
         </p>
-      )}
+      ) : null}
       <Kpis panel={panel} players={players} />
       <div className="sp-panel-grid">
         <LoadChart panel={panel} players={players} />
-        <Attention key={selectedKey} players={players} />
+        <Attention key={selected?.key ?? ALL_GROUP} players={players} />
       </div>
       <Roster panel={panel} players={players} grouping={grouping} />
     </>
@@ -423,7 +420,19 @@ function Attention(props: { players: readonly PanelPlayer[] }) {
         </Notice>
       ) : (
         <>
-          <ul id={listId} className="sp-panel-attention__list">
+          {/* Collapsed, the first rows show in full; expanded, the whole list scrolls inside the
+              card as a focusable region, so the keyboard can scroll it too. */}
+          <ul
+            id={listId}
+            className={`sp-panel-attention__list${expanded ? ' is-expanded' : ''}`}
+            {...(expanded
+              ? {
+                  tabIndex: 0,
+                  role: 'region',
+                  'aria-label': t('panel.attention.listLabel', { count: players.length }),
+                }
+              : {})}
+          >
             {shown.map((player) => {
               const [first, ...rest] = player.alerts;
               if (first === undefined) return null;
@@ -484,6 +493,10 @@ function Availability(props: { availability: PanelPlayer['availability'] }) {
     return <span className="sp-panel-muted">{t('panel.availability.unknown')}</span>;
   }
   const label = (status: AvailabilityStatus) => t(`panel.availability.${status}`);
+  // Available is the usual case: plain text, so the chips stand out where something is limited.
+  if (availability.overall === 'available') {
+    return <span className="sp-panel-muted">{label('available')}</span>;
+  }
   // The detail is visible text (not a tooltip) so screen readers and touch screens get it too.
   return (
     <span>
@@ -491,14 +504,12 @@ function Availability(props: { availability: PanelPlayer['availability'] }) {
         level={AVAILABILITY_LEVELS[availability.overall]}
         label={label(availability.overall)}
       />
-      {availability.overall === 'available' ? null : (
-        <span className="sp-panel-muted sp-panel-block">
-          {t('panel.availability.detail', {
-            training: label(availability.training),
-            match: label(availability.match),
-          })}
-        </span>
-      )}
+      <span className="sp-panel-muted sp-panel-block">
+        {t('panel.availability.training', { status: label(availability.training) })}
+      </span>
+      <span className="sp-panel-muted sp-panel-block">
+        {t('panel.availability.match', { status: label(availability.match) })}
+      </span>
     </span>
   );
 }
@@ -509,26 +520,32 @@ function Maturity(props: { player: PanelPlayer; grouping: PanelGrouping }) {
   if (maturity === null) {
     return <span className="sp-panel-muted">{t('panel.roster.noMaturity')}</span>;
   }
-  const parts: string[] = [];
-  if (maturity.phvOffsetYearsOnDate !== null) {
-    parts.push(
-      t('panel.roster.phvOffset', {
-        value: formatNumber(maturity.phvOffsetYearsOnDate, { decimals: 1, sign: 'always' }),
-      }),
-    );
-  }
-  if (maturity.adultHeightPct !== null) {
-    parts.push(
-      t('panel.roster.adultHeight', {
-        value: formatUnit(maturity.adultHeightPct, 'pct', { decimals: 1 }),
-      }),
-    );
-  }
+  const offset =
+    maturity.phvOffsetYearsOnDate === null
+      ? null
+      : t('panel.roster.phvOffset', {
+          value: formatNumber(maturity.phvOffsetYearsOnDate, { decimals: 1, sign: 'always' }),
+        });
+  const adultHeight =
+    maturity.adultHeightPct === null
+      ? null
+      : t('panel.roster.adultHeight', {
+          value: formatUnit(maturity.adultHeightPct, 'pct', { decimals: 1 }),
+        });
   const scheme = props.grouping === 'category' ? null : BIO_BAND_SCHEMES[props.grouping];
   const value = scheme === null ? null : maturityValue(props.player, scheme);
+  // One fact per line, the offset first and the % of adult height as secondary text.
   return (
-    <span title={t('panel.roster.measuredOn', { date: formatLocalDate(maturity.measuredOn) })}>
-      {parts.length === 0 ? t('panel.roster.noMaturity') : parts.join(' · ')}
+    <span
+      className="sp-panel-maturity"
+      title={t('panel.roster.measuredOn', { date: formatLocalDate(maturity.measuredOn) })}
+    >
+      <span className="sp-panel-block">
+        {offset ?? adultHeight ?? t('panel.roster.noMaturity')}
+      </span>
+      {offset === null || adultHeight === null ? null : (
+        <span className="sp-panel-muted sp-panel-block">{adultHeight}</span>
+      )}
       {scheme === null || value === null ? null : (
         <span className="sp-panel-muted sp-panel-block">{bandLabel(t, scheme, value)}</span>
       )}
@@ -619,7 +636,7 @@ function Roster(props: {
                         <span>{playerName(t, player)}</span>
                       </span>
                     </th>
-                    <td>{positionName(t, player)}</td>
+                    <td className="sp-panel-nowrap">{positionName(t, player)}</td>
                     <td>
                       <Maturity player={player} grouping={props.grouping} />
                     </td>

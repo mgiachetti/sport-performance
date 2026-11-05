@@ -34,7 +34,9 @@ export function UserMenu() {
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !event.defaultPrevented) {
+        // Handled here: the drawer around the menu (narrow screens) stays open.
+        event.preventDefault();
         setOpen(false);
         button.current?.focus();
       }
@@ -42,10 +44,11 @@ export function UserMenu() {
     const onPointer = (event: PointerEvent) => {
       if (root.current !== null && !root.current.contains(event.target as Node)) setOpen(false);
     };
-    document.addEventListener('keydown', onKey);
+    // Capture phase: it runs before the drawer's listener (bubble phase), which then sees it handled.
+    document.addEventListener('keydown', onKey, true);
     document.addEventListener('pointerdown', onPointer);
     return () => {
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('keydown', onKey, true);
       document.removeEventListener('pointerdown', onPointer);
     };
   }, [open]);

@@ -44,6 +44,14 @@ export const sizes = {
   tableRow: 48,
   /** Avatar of a player in lists and tables (jersey number or initials). */
   avatar: 32,
+  /** Height of a status chip (tinted pill, icon + text). */
+  chip: 26,
+  /** Square tile behind an icon (shortcuts); `iconTileLarge` for empty states. */
+  iconTile: 36,
+  iconTileLarge: 48,
+  /** The club's crest in the sidebar; `clubMarkCompact` in the top bar of narrow screens. */
+  clubMark: 44,
+  clubMarkCompact: 32,
   /** Width of the side navigation on wide screens. */
   sidebar: 256,
   /** Widest a page's content grows. */

@@ -120,6 +120,12 @@
   outline: var(--sp-focus-ring-width) solid var(--sp-color-focus);
   outline-offset: var(--sp-focus-ring-offset);
 }
+.sp-segmented--inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-space-sm);
+}
 .sp-segmented--stack {
   display: flex;
 }
@@ -144,7 +150,7 @@
   align-items: center;
   gap: var(--sp-space-xs);
   max-width: 100%;
-  min-height: 1.625rem;
+  min-height: var(--sp-size-chip);
   padding: 0 var(--sp-space-sm);
   border: var(--sp-border-width-hairline) solid var(--sp-color-border-strong);
   border-radius: var(--sp-radius-pill);
@@ -295,8 +301,8 @@
 .sp-empty__icon {
   display: grid;
   place-items: center;
-  width: 3rem;
-  height: 3rem;
+  width: var(--sp-size-icon-tile-large);
+  height: var(--sp-size-icon-tile-large);
   border-radius: var(--sp-radius-pill);
   background: var(--sp-color-surface-raised);
   color: var(--sp-color-brand-accent);
