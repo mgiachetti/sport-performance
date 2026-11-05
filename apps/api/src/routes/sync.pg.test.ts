@@ -9,7 +9,7 @@
 import { randomUUID } from 'node:crypto';
 import { formatHlc, type ClubId } from '@sport-performance/domain';
 import type { LightMyRequestResponse } from 'fastify';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   createMembership,
   createTestDatabase,
@@ -73,6 +73,11 @@ interface Mutation {
   target?: unknown;
   body?: unknown;
 }
+
+/** Longest wait for the pull horizon: a demo seed of another test file can hold it (see `settled`). */
+const SETTLE_TIMEOUT_MS = 240_000;
+// A test waits for the horizon once per pull, so its timeout leaves room for that wait.
+vi.setConfig({ testTimeout: SETTLE_TIMEOUT_MS + 60_000 });
 
 describeWithPostgres('offline sync (Postgres)', (serverUrl) => {
   let database: TestDatabase;
@@ -178,10 +183,13 @@ describeWithPostgres('offline sync (Postgres)', (serverUrl) => {
    * Waits until every change logged so far is below the pull horizon. The horizon is the
    * oldest transaction running on the server, and the other test files run their own
    * transactions on the same server (other databases): without this a pull right after a
-   * write could transiently return fewer changes.
+   * write could transiently return fewer changes. The longest of those is the demo seed
+   * (`packages/db` and the worker write the whole demo club in one transaction, over a
+   * minute on a loaded runner), so the wait covers it and so does the test timeout of
+   * this file.
    */
   async function settled(): Promise<void> {
-    const deadline = Date.now() + 30_000;
+    const deadline = Date.now() + SETTLE_TIMEOUT_MS;
     for (;;) {
       const { rows } = await database.admin.query<{ done: boolean }>(
         `select coalesce(max(txid) < pg_snapshot_xmin(pg_current_snapshot()), true) as done
