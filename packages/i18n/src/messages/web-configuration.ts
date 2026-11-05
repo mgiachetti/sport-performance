@@ -14,6 +14,7 @@ export const webConfigurationMessagesEsAR = {
   'configuration.section.alertRules': 'Reglas de alerta',
   'configuration.section.references': 'Referencias de primera',
   'configuration.pickSport': 'Elegí un deporte arriba para ver su configuración.',
+  'configuration.pickSport.title': 'La configuración es por deporte',
   'configuration.sex.label': 'Rama',
   'configuration.readOnly':
     'Podés ver la configuración del club. La cambian la preparación física y la administración.',

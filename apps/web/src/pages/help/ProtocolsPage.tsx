@@ -23,9 +23,11 @@ export function ProtocolsPage() {
   return (
     <Page title={t('help.title')} subtitle={t('help.subtitle')}>
       <HelpTabs current="protocols" />
-      <p className="sp-lead">{t('help.protocols.intro')}</p>
+      <p className="sp-lead-muted">{t('help.protocols.intro')}</p>
       {scope.sport === null || scope.sports.length <= 1 ? null : (
-        <p>{t('help.protocols.sportFilter', { sport: t(`sport.${scope.sport}`) })}</p>
+        <p className="sp-meta">
+          {t('help.protocols.sportFilter', { sport: t(`sport.${scope.sport}`) })}
+        </p>
       )}
       {definitions.isPending ? <Loading /> : null}
       {definitions.isError ? <ErrorNotice error={definitions.error} /> : null}
@@ -45,6 +47,7 @@ export function ProtocolsPage() {
                     to="/help/protocols/$testDefinitionId"
                     params={{ testDefinitionId: definition.id }}
                     aria-label={t('protocol.open', { test: name })}
+                    className="sp-protocol-list__link"
                   >
                     {name}
                   </Link>

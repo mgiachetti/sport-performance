@@ -4,7 +4,7 @@ import { formatDateTime, formatLocalDate } from '@sport-performance/i18n';
 import { useState, type ReactNode } from 'react';
 import { useActiveClub } from '../club/active-club';
 import { useT } from '../i18n/i18n';
-import { Button, ErrorNotice, Loading, Notice } from '../ui/components';
+import { Button, Card, ErrorNotice, Loading, Notice } from '../ui/components';
 
 /** `409`: someone changed it meanwhile, or a rule of the club forbids it (ADR 0032). */
 export function isConflict(error: unknown): boolean {
@@ -103,7 +103,11 @@ export function LoadMore(props: {
   );
 }
 
-/** A section of the administration: heading, intro and content. */
+/**
+ * A section of the administration: a `Card` (condensed title, the intro as
+ * its muted subtitle, actions on the right). `id` names the section for
+ * anchors; the region's name is its title.
+ */
 export function AdminSection(props: {
   id: string;
   title: string;
@@ -112,20 +116,15 @@ export function AdminSection(props: {
   children: ReactNode;
 }) {
   return (
-    <section className="sp-card sp-admin__section" aria-labelledby={props.id}>
-      <header className="sp-admin__section-head">
-        <div>
-          <h2 id={props.id} className="sp-card__title">
-            {props.title}
-          </h2>
-          {props.intro === undefined ? null : <p className="sp-admin__intro">{props.intro}</p>}
-        </div>
-        {props.actions === undefined ? null : (
-          <div className="sp-form__actions">{props.actions}</div>
-        )}
-      </header>
+    <Card
+      id={props.id}
+      className="sp-admin__section"
+      title={props.title}
+      subtitle={props.intro}
+      actions={props.actions}
+    >
       {props.children}
-    </section>
+    </Card>
   );
 }
 

@@ -213,6 +213,8 @@ export function Card(props: {
   /** `flush`: no inner padding below the header (tables that run edge to edge). */
   variant?: 'default' | 'flush' | 'highlight';
   className?: string;
+  /** An anchor for the card (`#id` links, skip targets). */
+  id?: string;
   children?: ReactNode;
 }) {
   const headingId = useId();
@@ -221,6 +223,7 @@ export function Card(props: {
     props.title !== undefined || props.subtitle !== undefined || props.actions !== undefined;
   return (
     <section
+      id={props.id}
       className={[
         'sp-card',
         props.variant === undefined || props.variant === 'default'

@@ -23,7 +23,7 @@ export function GuidePage() {
   return (
     <Page title={t('help.title')} subtitle={t('help.subtitle')}>
       <HelpTabs current="guide" />
-      <p className="sp-lead">{t('help.guide.intro')}</p>
+      <p className="sp-lead-muted">{t('help.guide.intro')}</p>
       <nav aria-label={t('help.tab.guide')}>
         <ul className="sp-tag-list">
           {GUIDE_SECTIONS.map((section) => (
@@ -35,19 +35,21 @@ export function GuidePage() {
           ))}
         </ul>
       </nav>
-      {GUIDE_SECTIONS.map((section) => (
-        <section
-          key={section.id}
-          id={`guide-${section.id}`}
-          className="sp-card"
-          aria-labelledby={`guide-${section.id}-title`}
-        >
-          <h2 id={`guide-${section.id}-title`} className="sp-card__title">
-            {t(section.title)}
-          </h2>
-          <p>{t(section.body)}</p>
-        </section>
-      ))}
+      <div className="sp-guide-grid">
+        {GUIDE_SECTIONS.map((section) => (
+          <section
+            key={section.id}
+            id={`guide-${section.id}`}
+            className="sp-card"
+            aria-labelledby={`guide-${section.id}-title`}
+          >
+            <h2 id={`guide-${section.id}-title`} className="sp-card__title">
+              {t(section.title)}
+            </h2>
+            <p>{t(section.body)}</p>
+          </section>
+        ))}
+      </div>
       <div className="sp-help__disclaimer">
         <Notice level="info">
           <p>{t('legal.notMedicalDevice')}</p>

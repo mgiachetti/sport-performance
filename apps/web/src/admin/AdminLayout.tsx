@@ -94,13 +94,13 @@ export function AdminLayout() {
         </Notice>
       ) : (
         <>
-          <nav className="sp-admin__tabs" aria-label={t('admin.tabs.label')}>
+          <nav className="sp-tabs" aria-label={t('admin.tabs.label')}>
             <ul>
               {tabs.map((tab) => (
                 <li key={tab.to}>
                   <Link
                     to={tab.to}
-                    className="sp-admin__tab"
+                    className="sp-tabs__link"
                     activeProps={{ 'aria-current': 'page', className: 'is-active' }}
                   >
                     {t(tab.labelKey)}

@@ -48,12 +48,15 @@ export interface SelectOption {
 /** A labelled `<select>` with its options. */
 export function SelectField({
   label,
+  hideLabel,
   help,
   error,
   options,
   ...select
 }: {
   label: string;
+  /** Keep the label for assistive technology only (a select inside a table row). */
+  hideLabel?: boolean;
   help?: string | undefined;
   error?: string | null | undefined;
   options: readonly SelectOption[];
@@ -61,7 +64,7 @@ export function SelectField({
   const id = useId();
   return (
     <div className="sp-field">
-      <label htmlFor={id} className="sp-field__label">
+      <label htmlFor={id} className={hideLabel === true ? 'sp-visually-hidden' : 'sp-field__label'}>
         {label}
       </label>
       <select

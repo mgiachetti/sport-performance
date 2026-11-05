@@ -120,7 +120,9 @@ export function MembersSection() {
                 <th scope="col">{t('admin.members.person')}</th>
                 <th scope="col">{t('admin.members.role')}</th>
                 <th scope="col">{t('admin.members.status')}</th>
-                <th scope="col">{t('admin.members.since')}</th>
+                <th scope="col" className="sp-table__number">
+                  {t('admin.members.since')}
+                </th>
                 <th scope="col">{t('admin.members.actions')}</th>
               </tr>
             </thead>
@@ -173,7 +175,7 @@ function MemberRow(props: { member: Member; onChanged: () => Promise<unknown> })
         {name === '' ? null : <span className="sp-admin__meta">{member.user.email}</span>}
         {own ? <span className="sp-admin__meta">{t('admin.members.you')}</span> : null}
       </th>
-      <td>{t(`role.${member.role}`)}</td>
+      <td className="sp-admin__nowrap">{t(`role.${member.role}`)}</td>
       <td>
         {ended ? (
           <StatusLabel level="info">
@@ -183,7 +185,7 @@ function MemberRow(props: { member: Member; onChanged: () => Promise<unknown> })
           <StatusLabel level="ok">{t('admin.members.status.active')}</StatusLabel>
         )}
       </td>
-      <td>{format.dateTime(member.startedAt)}</td>
+      <td className="sp-table__number">{format.dateTime(member.startedAt)}</td>
       <td>
         {ended || own ? (
           <span className="sp-admin__meta">
@@ -194,6 +196,7 @@ function MemberRow(props: { member: Member; onChanged: () => Promise<unknown> })
             {isStaffMemberRole(member.role) ? (
               <div className="sp-admin__inline">
                 <SelectField
+                  hideLabel
                   label={t('admin.members.newRole', {
                     name: name === '' ? member.user.email : name,
                   })}

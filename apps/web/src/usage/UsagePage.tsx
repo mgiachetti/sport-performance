@@ -13,7 +13,7 @@ import { useServices } from '../app/services';
 import { useActiveClub } from '../club/active-club';
 import { useT } from '../i18n/i18n';
 import { RequirePermission } from '../permissions/permissions';
-import { Button, ErrorNotice, Loading, Notice, Page } from '../ui/components';
+import { Button, ErrorNotice, KpiTile, Loading, Notice, Page } from '../ui/components';
 import { SelectField } from '../ui/fields';
 
 /**
@@ -179,6 +179,7 @@ export function UsageTables(props: { summary: UsageSummary }) {
           <p>{t('usage.retained', { date: formatLocalDate(summary.usageRetainedFrom) })}</p>
         </Notice>
       ) : null}
+      <UsageKpis summary={summary} />
       <Section
         title={t('usage.training.title')}
         help={t('usage.training.help')}
@@ -294,5 +295,51 @@ export function UsageTables(props: { summary: UsageSummary }) {
         }))}
       />
     </>
+  );
+}
+
+/** The period at a glance: sessions, how much of it got wellness and RPE, and test results. */
+function UsageKpis(props: { summary: UsageSummary }) {
+  const t = useT();
+  const { training, tests } = props.summary;
+  const sum = <R,>(rows: readonly R[], pick: (row: R) => number) =>
+    rows.reduce((total, row) => total + pick(row), 0);
+  const number = (value: number) => formatNumber(value, { decimals: 0 });
+  const share = (part: number, whole: number) => {
+    const rate = usageRate(part, whole);
+    return {
+      value: rate === null ? t('usage.share.none') : formatNumber(rate * 100, { decimals: 0 }),
+      unit: rate === null ? undefined : '%',
+      caption:
+        rate === null
+          ? t('usage.kpi.noneCaption')
+          : t('usage.kpi.shareCaption', { part: number(part), whole: number(whole) }),
+    };
+  };
+  const wellness = share(
+    sum(training, (r) => r.attendedPlayerDaysWithWellness),
+    sum(training, (r) => r.attendedPlayerDays),
+  );
+  const rpe = share(
+    sum(training, (r) => r.participationsWithRpe),
+    sum(training, (r) => r.attendedParticipations),
+  );
+  return (
+    <section className="sp-kpis sp-usage__kpis" aria-label={t('usage.kpi.label')}>
+      <KpiTile
+        label={t('usage.kpi.sessions')}
+        value={number(sum(training, (r) => r.sessions))}
+        caption={t('usage.kpi.sessionsCaption')}
+      />
+      <KpiTile label={t('usage.kpi.wellness')} {...wellness} />
+      <KpiTile label={t('usage.kpi.rpe')} {...rpe} />
+      <KpiTile
+        label={t('usage.kpi.results')}
+        value={number(sum(tests, (r) => r.results))}
+        caption={t('usage.kpi.resultsCaption', {
+          imported: number(sum(tests, (r) => r.importedResults)),
+        })}
+      />
+    </section>
   );
 }

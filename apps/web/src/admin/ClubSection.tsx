@@ -92,7 +92,7 @@ export function ClubSection() {
   const [saved, setSaved] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
   return (
-    <>
+    <div className="sp-admin__club-grid">
       <AdminSection id="admin-club" title={t('admin.club.title')} intro={t('admin.club.intro')}>
         {/* A new version (after a save or a conflict) starts the form again from it. */}
         <ClubForm
@@ -127,7 +127,7 @@ export function ClubSection() {
       >
         <LogoForm club={club} />
       </AdminSection>
-    </>
+    </div>
   );
 }
 
