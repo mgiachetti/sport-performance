@@ -12,8 +12,8 @@ import { clubQueryKey } from '../api/queries';
 import { useServices } from '../app/services';
 import { useActiveClub } from '../club/active-club';
 import { useT } from '../i18n/i18n';
-import { RequirePermission } from '../permissions/permissions';
-import { Button, ErrorNotice, Loading, Notice, Page } from '../ui/components';
+import { RequirePermission, useCan } from '../permissions/permissions';
+import { Button, ErrorNotice, KpiTile, Loading, Notice, Page } from '../ui/components';
 import { SelectField } from '../ui/fields';
 
 /**
@@ -27,48 +27,58 @@ const WEEK_OPTIONS = [4, 8, 12, 26] as const;
 export function UsagePage() {
   const t = useT();
   const active = useActiveClub();
+  const canRead = useCan('usage_metrics', 'read');
+  const [weeks, setWeeks] = useState<number>(USAGE_WEEKS_DEFAULT);
   return (
-    <Page title={t('usage.title')} subtitle={t('usage.subtitle', { clubName: active.club.name })}>
+    <Page
+      title={t('usage.title')}
+      subtitle={t('usage.subtitle', { clubName: active.club.name })}
+      // The period is the page's context: on the right of the header, like the weekly panel.
+      actions={
+        canRead ? (
+          <form
+            className="sp-usage__period"
+            onSubmit={(event) => {
+              event.preventDefault();
+            }}
+          >
+            <SelectField
+              label={t('usage.weeks.label')}
+              name="weeks"
+              value={String(weeks)}
+              options={WEEK_OPTIONS.map((n) => ({
+                value: String(n),
+                label: t('usage.weeks.option', { weeks: n }),
+              }))}
+              onChange={(event) => {
+                setWeeks(Number(event.target.value));
+              }}
+            />
+          </form>
+        ) : undefined
+      }
+    >
       <RequirePermission kind="usage_metrics" action="read">
-        <Usage />
+        <Usage weeks={weeks} />
       </RequirePermission>
     </Page>
   );
 }
 
-function Usage() {
+function Usage(props: { weeks: number }) {
   const t = useT();
   const { api } = useServices();
   const active = useActiveClub();
-  const [weeks, setWeeks] = useState<number>(USAGE_WEEKS_DEFAULT);
+  const { weeks } = props;
   const query = useQuery({
     queryKey: clubQueryKey(active.selection, 'usageSummary', weeks),
     queryFn: ({ signal }) => api.getUsageSummary({ query: { weeks } }, { signal }),
   });
   return (
     <>
-      <p className="sp-page__subtitle">
+      <p className="sp-page__subtitle sp-usage__privacy">
         {t('usage.privacy', { days: USAGE_ACTIVITY_RETENTION_DAYS })}
       </p>
-      <form
-        className="sp-filters"
-        onSubmit={(event) => {
-          event.preventDefault();
-        }}
-      >
-        <SelectField
-          label={t('usage.weeks.label')}
-          name="weeks"
-          value={String(weeks)}
-          options={WEEK_OPTIONS.map((n) => ({
-            value: String(n),
-            label: t('usage.weeks.option', { weeks: n }),
-          }))}
-          onChange={(event) => {
-            setWeeks(Number(event.target.value));
-          }}
-        />
-      </form>
       {query.isPending ? (
         <Loading />
       ) : query.isError ? (
@@ -179,6 +189,7 @@ export function UsageTables(props: { summary: UsageSummary }) {
           <p>{t('usage.retained', { date: formatLocalDate(summary.usageRetainedFrom) })}</p>
         </Notice>
       ) : null}
+      <UsageKpis summary={summary} />
       <Section
         title={t('usage.training.title')}
         help={t('usage.training.help')}
@@ -294,5 +305,51 @@ export function UsageTables(props: { summary: UsageSummary }) {
         }))}
       />
     </>
+  );
+}
+
+/** The period at a glance: sessions, how much of it got wellness and RPE, and test results. */
+function UsageKpis(props: { summary: UsageSummary }) {
+  const t = useT();
+  const { training, tests } = props.summary;
+  const sum = <R,>(rows: readonly R[], pick: (row: R) => number) =>
+    rows.reduce((total, row) => total + pick(row), 0);
+  const number = (value: number) => formatNumber(value, { decimals: 0 });
+  const share = (part: number, whole: number) => {
+    const rate = usageRate(part, whole);
+    return {
+      value: rate === null ? t('usage.share.none') : formatNumber(rate * 100, { decimals: 0 }),
+      unit: rate === null ? undefined : '%',
+      caption:
+        rate === null
+          ? t('usage.kpi.noneCaption')
+          : t('usage.kpi.shareCaption', { part: number(part), whole: number(whole) }),
+    };
+  };
+  const wellness = share(
+    sum(training, (r) => r.attendedPlayerDaysWithWellness),
+    sum(training, (r) => r.attendedPlayerDays),
+  );
+  const rpe = share(
+    sum(training, (r) => r.participationsWithRpe),
+    sum(training, (r) => r.attendedParticipations),
+  );
+  return (
+    <section className="sp-kpis sp-usage__kpis" aria-label={t('usage.kpi.label')}>
+      <KpiTile
+        label={t('usage.kpi.sessions')}
+        value={number(sum(training, (r) => r.sessions))}
+        caption={t('usage.kpi.sessionsCaption')}
+      />
+      <KpiTile label={t('usage.kpi.wellness')} {...wellness} />
+      <KpiTile label={t('usage.kpi.rpe')} {...rpe} />
+      <KpiTile
+        label={t('usage.kpi.results')}
+        value={number(sum(tests, (r) => r.results))}
+        caption={t('usage.kpi.resultsCaption', {
+          imported: number(sum(tests, (r) => r.importedResults)),
+        })}
+      />
+    </section>
   );
 }

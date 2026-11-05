@@ -68,8 +68,14 @@ img {
   }
 }
 
+/*
+ * Pinned to its containing block's corner: at its static position (the far
+ * end of a wide table or grid inside a scroller) it would widen the page.
+ */
 .sp-visually-hidden {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
   overflow: hidden;
@@ -245,9 +251,8 @@ select {
   font: inherit;
 }
 select,
-/* A select with the input class keeps room for its chevron (the rule above is more specific). */
-select.sp-field__input,
-.sp-select {
+.sp-select,
+select.sp-field__input {
   appearance: none;
   padding-right: calc(var(--sp-space-md) * 2 + 0.75rem);
   /* Chevron drawn with two gradients: no image, follows the text color. */
@@ -364,27 +369,95 @@ select:hover {
   }
 }
 
-/* Standalone screens (sign-in, club selector) */
+/*
+ * Standalone screens (sign-in, club selector, support, errors): a brand panel
+ * with the stripes beside the content on a wide screen, stacked on a narrow one.
+ */
 .sp-standalone {
+  display: grid;
+  grid-template-columns: minmax(20rem, 34rem) minmax(0, 1fr);
   min-height: 100vh;
+}
+.sp-standalone--compact {
+  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+}
+.sp-standalone__aside {
+  position: relative;
   display: flex;
   flex-direction: column;
+  gap: var(--sp-space-lg);
+  padding: var(--sp-space-xxl) var(--sp-space-xxl) 0 calc(var(--sp-space-xxl) + var(--sp-space-sm));
+  border-right: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+  background: var(--sp-color-surface);
+  overflow: hidden;
+}
+.sp-standalone__aside > .sp-stripes--rail {
+  position: absolute;
+  inset: 0 auto 0 0;
+}
+.sp-standalone__aside > .sp-stripes:last-child {
+  width: auto;
+  flex: none;
+  margin: auto calc(-1 * var(--sp-space-xxl)) 0
+    calc(-1 * (var(--sp-space-xxl) + var(--sp-space-sm)));
+}
+.sp-standalone__identity {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-md);
+}
+.sp-standalone__mark {
+  width: var(--sp-size-icon-tile-large);
+  height: var(--sp-size-icon-tile-large);
+}
+.sp-standalone__mark.sp-club-mark--monogram {
+  font-size: var(--sp-text-body-size);
+}
+.sp-standalone__app {
+  font-family: var(--sp-text-page-title-family);
+  font-size: var(--sp-text-card-title-size);
+  font-weight: var(--sp-text-page-title-weight);
+  line-height: var(--sp-text-card-title-line-height);
+}
+.sp-standalone__club {
+  color: var(--sp-color-text-secondary);
+  font-size: var(--sp-text-body-small-size);
+}
+.sp-standalone__tagline {
+  max-width: 26rem;
+  margin-top: var(--sp-space-xl);
+  font-family: var(--sp-text-page-title-family);
+  font-size: var(--sp-text-page-title-size);
+  font-weight: var(--sp-text-page-title-weight);
+  line-height: var(--sp-text-page-title-line-height);
+  letter-spacing: var(--sp-text-page-title-letter-spacing);
+}
+.sp-standalone__points {
+  display: grid;
+  gap: var(--sp-space-sm);
+  max-width: 26rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--sp-color-text-secondary);
+}
+.sp-standalone__points li {
+  display: flex;
+  gap: var(--sp-space-sm);
+}
+.sp-standalone__points li::before {
+  content: '';
+  flex: none;
+  width: var(--sp-space-md);
+  height: var(--sp-border-width-thick);
+  margin-top: 0.7em;
+  background: var(--sp-color-brand-accent);
 }
 .sp-standalone__main {
-  flex: 1;
   display: grid;
-  align-content: start;
+  align-content: center;
   justify-items: center;
-  gap: var(--sp-space-lg);
   padding: var(--sp-space-xxl) var(--sp-space-lg);
-}
-.sp-standalone__brand {
-  font-family: var(--sp-text-overline-family);
-  font-size: var(--sp-text-overline-size);
-  font-weight: var(--sp-text-overline-weight);
-  letter-spacing: var(--sp-text-overline-letter-spacing);
-  text-transform: var(--sp-text-overline-transform);
-  color: var(--sp-color-text-secondary);
 }
 .sp-standalone__panel {
   width: min(100%, 30rem);
@@ -392,6 +465,39 @@ select:hover {
   border: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
   border-radius: var(--sp-radius-lg);
   background: var(--sp-color-surface);
+}
+.sp-standalone__panel .sp-page__header {
+  margin-bottom: var(--sp-space-md);
+}
+@media (max-width: 64rem) {
+  .sp-standalone {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+  .sp-standalone__aside {
+    gap: var(--sp-space-md);
+    padding: var(--sp-space-lg) var(--sp-space-lg) 0;
+    border-right: 0;
+    border-bottom: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+  }
+  .sp-standalone__aside > .sp-stripes--rail,
+  .sp-standalone__tagline,
+  .sp-standalone__points {
+    display: none;
+  }
+  .sp-standalone__aside > .sp-stripes:last-child {
+    height: 1.25rem;
+    margin: 0 calc(-1 * var(--sp-space-lg));
+  }
+  .sp-standalone__main {
+    align-content: start;
+    padding: var(--sp-space-xl) var(--sp-space-md);
+  }
+}
+@media (max-width: 40rem) {
+  .sp-standalone__panel {
+    padding: var(--sp-space-lg);
+  }
 }
 
 .sp-choice-list {
@@ -417,7 +523,27 @@ select:hover {
   cursor: pointer;
 }
 .sp-choice:hover {
+  border-color: var(--sp-color-brand-border);
   background: var(--sp-color-brand-subtle);
+}
+.sp-choice__text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.sp-choice__title {
+  font-family: var(--sp-text-card-title-family);
+  font-size: var(--sp-text-card-title-size);
+  font-weight: var(--sp-text-card-title-weight);
+  line-height: var(--sp-text-card-title-line-height);
+}
+.sp-choice__meta {
+  color: var(--sp-color-text-secondary);
+  font-size: var(--sp-text-body-small-size);
+}
+.sp-choice__chevron {
+  flex: none;
+  color: var(--sp-color-text-muted);
 }
 
 /* Pages: big condensed H1, muted subtitle, context controls on the right */
@@ -856,6 +982,10 @@ select:hover {
     flex-wrap: nowrap;
     padding-bottom: var(--sp-space-xs);
   }
+  /* Each control keeps its width and the row scrolls: shrunk, the pills ran under the select. */
+  .sp-topbar .sp-scope > * {
+    flex: none;
+  }
   .sp-page__title {
     font-size: var(--sp-text-title-size);
   }
@@ -867,13 +997,56 @@ select:hover {
 /* Family area (ADR 0065) */
 .sp-child-list {
   display: grid;
-  gap: var(--sp-space-md);
-  margin: 0;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  gap: var(--sp-space-lg);
+  margin: var(--sp-space-lg) 0 0;
   padding: 0;
   list-style: none;
 }
+.sp-child-list .sp-card {
+  height: 100%;
+  margin-top: 0;
+}
+.sp-child-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-space-md);
+}
+.sp-child-card__head > div {
+  flex: 1;
+  min-width: 0;
+}
+.sp-child-card__chevron {
+  flex: none;
+  color: var(--sp-color-text-muted);
+}
+.sp-child-card--link {
+  position: relative;
+}
+.sp-child-card--link:hover {
+  border-color: var(--sp-color-brand-border);
+}
 .sp-child-card__link {
   color: inherit;
+  text-decoration: none;
+}
+/* The whole card opens the profile: the heading's link stretched over it. */
+.sp-child-card__link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--sp-radius-lg);
+}
+.sp-child-card__link:focus-visible {
+  outline: none;
+}
+.sp-child-card__link:focus-visible::after {
+  outline: var(--sp-focus-ring-width) solid var(--sp-color-focus);
+  outline-offset: var(--sp-focus-ring-offset);
+}
+.sp-lead-muted {
+  max-width: 48rem;
+  color: var(--sp-color-text-secondary);
 }
 .sp-child-card__meta,
 .sp-meta {
@@ -882,7 +1055,7 @@ select:hover {
 }
 .sp-facts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
   gap: var(--sp-space-md);
   margin: 0;
 }
@@ -892,6 +1065,9 @@ select:hover {
 }
 .sp-facts dd {
   margin: 0;
+  font-family: var(--sp-text-table-number-family);
+  font-size: var(--sp-text-card-title-size);
+  font-weight: var(--sp-text-table-number-weight);
   font-variant-numeric: tabular-nums;
 }
 .sp-row-list {
@@ -1037,7 +1213,8 @@ select:hover {
 .sp-console__brand {
   display: flex;
   align-items: center;
-  gap: var(--sp-space-sm);
+  gap: var(--sp-space-md);
+  font-size: var(--sp-text-card-title-size);
   font-family: var(--sp-text-title-family);
   font-weight: var(--sp-text-title-weight);
 }
@@ -1055,36 +1232,27 @@ select:hover {
   align-items: center;
   gap: var(--sp-space-sm);
 }
+.sp-console__brand .sp-club-mark {
+  width: var(--sp-size-club-mark-compact);
+  height: var(--sp-size-club-mark-compact);
+}
+.sp-console__reason {
+  max-width: 40rem;
+}
+.sp-console__reason .sp-form {
+  margin-top: 0;
+}
+.sp-console__nav .sp-nav__link.is-active {
+  background: var(--sp-color-surface-raised);
+  color: var(--sp-color-text-primary);
+}
 .sp-console__main {
   max-width: 72rem;
   margin: 0 auto;
   padding: var(--sp-space-xl);
 }
 
-/* Help and protocols (B-415) */
-.sp-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-space-sm);
-  margin-top: var(--sp-space-lg);
-  border-bottom: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
-}
-.sp-tabs__link {
-  display: flex;
-  align-items: center;
-  min-height: var(--sp-size-touch-target);
-  padding: 0 var(--sp-space-md);
-  color: var(--sp-color-text-secondary);
-  text-decoration: none;
-}
-.sp-tabs__link:hover {
-  color: var(--sp-color-text-primary);
-}
-.sp-tabs__link[aria-current='page'] {
-  color: var(--sp-color-text-primary);
-  box-shadow: inset 0 calc(-1 * var(--sp-border-width-thick)) 0 var(--sp-color-brand-accent);
-  font-weight: var(--sp-text-body-strong-weight);
-}
+/* Help and protocols (B-415). Section tabs: see primitives.css. */
 .sp-back-link {
   display: inline-flex;
   align-items: center;
@@ -1109,6 +1277,44 @@ select:hover {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+/* Protocols and guide sections as a grid of cards: the width is used, each card stays readable */
+.sp-protocol-list,
+.sp-guide-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  margin-top: var(--sp-space-lg);
+}
+.sp-guide-grid {
+  display: grid;
+  gap: var(--sp-space-lg);
+}
+.sp-protocol-list > .sp-card,
+.sp-guide-grid > .sp-card {
+  margin-top: 0;
+}
+.sp-protocol-list__item {
+  position: relative;
+}
+.sp-protocol-list__item:hover {
+  border-color: var(--sp-color-brand-border);
+}
+.sp-protocol-list__link {
+  color: inherit;
+  text-decoration: none;
+}
+/* The whole card opens the protocol: the title's link stretched over it. */
+.sp-protocol-list__link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--sp-radius-lg);
+}
+.sp-protocol-list__link:focus-visible {
+  outline: none;
+}
+.sp-protocol-list__link:focus-visible::after {
+  outline: var(--sp-focus-ring-width) solid var(--sp-color-focus);
+  outline-offset: var(--sp-focus-ring-offset);
 }
 .sp-protocol-list__meta,
 .sp-metric-list__derived {
@@ -1205,4 +1411,52 @@ select:hover {
 }
 .sp-shortcut__chevron {
   color: var(--sp-color-text-muted);
+}
+/* The child's consents beside the parents' heights on a wide screen */
+.sp-family__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: var(--sp-space-lg);
+  align-items: start;
+}
+@media (max-width: 75rem) {
+  .sp-family__grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+}
+
+/* Menstrual cycle shared with the staff (ADR 0092) */
+.sp-cycle__list > li {
+  min-height: var(--sp-size-table-row);
+  padding: var(--sp-space-sm) 0;
+  border-top: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+}
+.sp-cycle__list > li:first-child {
+  border-top: 0;
+}
+.sp-cycle__who {
+  display: grid;
+}
+.sp-cycle__name {
+  font-weight: var(--sp-text-body-strong-weight);
+}
+.sp-cycle__caption {
+  padding-bottom: var(--sp-space-sm);
+  font-family: var(--sp-text-table-header-family);
+  font-size: var(--sp-text-table-header-size);
+  text-align: left;
+}
+.sp-table .sp-cycle__date {
+  width: 8rem;
+  text-align: left;
+}
+.sp-usage__kpis {
+  margin-top: var(--sp-space-lg);
+}
+.sp-usage__period .sp-field {
+  min-width: 12rem;
+}
+.sp-usage__privacy {
+  margin-top: 0;
 }

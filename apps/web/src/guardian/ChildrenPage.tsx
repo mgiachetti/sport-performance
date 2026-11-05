@@ -2,7 +2,7 @@ import type { Child } from '@sport-performance/contracts';
 import { Link } from '@tanstack/react-router';
 import { useActiveClub } from '../club/active-club';
 import { useT } from '../i18n/i18n';
-import { Notice, Page } from '../ui/components';
+import { Avatar, Card, EmptyState, Notice, Page, StatusChip } from '../ui/components';
 import { Icon } from '../ui/icons';
 import { ageOn, clubToday, fullName, guardianSeesData } from './child';
 
@@ -21,11 +21,13 @@ export function ChildrenPage() {
       title={t('guardian.children.title')}
       subtitle={t('guardian.children.subtitle', { clubName: active.club.name })}
     >
-      <p>{t('guardian.children.intro')}</p>
+      <p className="sp-lead-muted">{t('guardian.children.intro')}</p>
       {active.children.length === 0 ? (
-        <Notice level="info">
-          <p>{t('guardian.children.none')}</p>
-        </Notice>
+        <Card>
+          <EmptyState icon="family" title={t('guardian.children.noneTitle')}>
+            <p>{t('guardian.children.none')}</p>
+          </EmptyState>
+        </Card>
       ) : (
         <ul className="sp-child-list">
           {active.children.map((child) => (
@@ -50,8 +52,13 @@ function ChildCard(props: { child: Child; age: number }) {
   if (!guardianSeesData(child)) {
     return (
       <article className="sp-card sp-child-card" aria-label={name}>
-        <h2 className="sp-card__title">{name}</h2>
-        <p className="sp-child-card__meta">{relationship}</p>
+        <div className="sp-child-card__head">
+          <Avatar label={initials(child)} />
+          <div>
+            <h2 className="sp-card__title">{name}</h2>
+            <p className="sp-child-card__meta">{relationship}</p>
+          </div>
+        </div>
         <Notice level="info">
           <p>{t('guardian.children.adultHidden')}</p>
         </Notice>
@@ -60,20 +67,26 @@ function ChildCard(props: { child: Child; age: number }) {
   }
 
   return (
-    <article className="sp-card sp-child-card" aria-label={name}>
-      <h2 className="sp-card__title">
-        <Link
-          to="/family/$playerId"
-          params={{ playerId: child.playerId }}
-          className="sp-child-card__link"
-          aria-label={t('guardian.children.open', { name })}
-        >
-          {name}
-        </Link>
-      </h2>
-      <p className="sp-child-card__meta">
-        {t('guardian.children.age', { age: props.age })} · {relationship}
-      </p>
+    <article className="sp-card sp-child-card sp-child-card--link" aria-label={name}>
+      <div className="sp-child-card__head">
+        <Avatar label={initials(child)} variant="brand" />
+        <div>
+          <h2 className="sp-card__title">
+            <Link
+              to="/family/$playerId"
+              params={{ playerId: child.playerId }}
+              className="sp-child-card__link"
+              aria-label={t('guardian.children.open', { name })}
+            >
+              {name}
+            </Link>
+          </h2>
+          <p className="sp-child-card__meta">
+            {t('guardian.children.age', { age: props.age })} · {relationship}
+          </p>
+        </div>
+        <Icon name="chevronRight" className="sp-child-card__chevron" />
+      </div>
       {child.categories.length === 0 ? (
         <p className="sp-child-card__meta">{t('guardian.children.noCategory')}</p>
       ) : (
@@ -85,13 +98,19 @@ function ChildCard(props: { child: Child; age: number }) {
           ))}
         </ul>
       )}
-      <p className="sp-child-card__meta">
-        <Icon name={child.hasAccount ? 'ok' : 'info'} />{' '}
-        {child.hasAccount ? t('guardian.children.hasAccount') : t('guardian.children.noAccount')}
+      <p>
+        <StatusChip level={child.hasAccount ? 'ok' : 'neutral'}>
+          {child.hasAccount ? t('guardian.children.hasAccount') : t('guardian.children.noAccount')}
+        </StatusChip>
       </p>
       {child.ofAge ? (
         <p className="sp-child-card__meta">{t('guardian.children.adultShared')}</p>
       ) : null}
     </article>
   );
+}
+
+/** "AE" for Antonella Etchegaray: the badge next to the name (decorative). */
+function initials(child: Child): string {
+  return `${child.firstName.charAt(0)}${child.lastName.charAt(0)}`.toUpperCase();
 }

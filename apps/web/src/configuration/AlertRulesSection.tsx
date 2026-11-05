@@ -24,6 +24,7 @@ import { translate, useT } from '../i18n/i18n';
 import { CheckboxField, CheckboxGroup } from '../ui/choice';
 import { Button, ErrorNotice, Loading, Notice, TextField } from '../ui/components';
 import { SelectField, StatusLabel } from '../ui/fields';
+import { Icon } from '../ui/icons';
 import { alertRulesQuery, invalidateConfiguration } from './queries';
 import { newClientUuid, parseDecimal, stageLabel } from './shared';
 
@@ -96,9 +97,26 @@ export function AlertRulesSection(props: { canEdit: boolean }) {
 
   return (
     <section className="sp-card" aria-labelledby="rules-title">
-      <h2 id="rules-title" className="sp-card__title">
-        {t('configuration.rules.title')}
-      </h2>
+      <header className="sp-card__header">
+        <div className="sp-card__heading">
+          <h2 id="rules-title" className="sp-card__title">
+            {t('configuration.rules.title')}
+          </h2>
+        </div>
+        {props.canEdit && editing === null ? (
+          <div className="sp-card__actions">
+            <Button
+              onClick={() => {
+                setSaved(false);
+                setEditing('new');
+              }}
+            >
+              <Icon name="plus" />
+              <span>{t('configuration.rules.new')}</span>
+            </Button>
+          </div>
+        ) : null}
+      </header>
       <Notice level="info">
         <p>{t('configuration.rules.disclaimer')}</p>
       </Notice>
@@ -137,13 +155,15 @@ export function AlertRulesSection(props: { canEdit: boolean }) {
                 return (
                   <tr key={rule.id}>
                     <th scope="row">
-                      <span>{kindLabel(t, rule.kind)}</span>
+                      <span className="sp-config__name">
+                        <span>{kindLabel(t, rule.kind)}</span>
+                        {rule.isDefault ? (
+                          <span className="sp-tag sp-matrix__tag">
+                            {t('configuration.rules.default')}
+                          </span>
+                        ) : null}
+                      </span>
                       <span className="sp-config__code">{rule.code}</span>
-                      {rule.isDefault ? (
-                        <span className="sp-tag sp-matrix__tag">
-                          {t('configuration.rules.default')}
-                        </span>
-                      ) : null}
                     </th>
                     <td>{scopeText(t, rule.appliesTo)}</td>
                     <td className="sp-num">
@@ -182,19 +202,6 @@ export function AlertRulesSection(props: { canEdit: boolean }) {
           </table>
         </div>
       )}
-      {props.canEdit && editing === null ? (
-        <div className="sp-form__actions sp-config__after-table">
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setSaved(false);
-              setEditing('new');
-            }}
-          >
-            {t('configuration.rules.new')}
-          </Button>
-        </div>
-      ) : null}
       {editing === null ? null : (
         <RuleEditor
           key={editing === 'new' ? 'new' : editing.id}

@@ -90,6 +90,40 @@ describe('usage metrics page', () => {
     expect(api.callsTo('getUsageSummary')[0]?.url.searchParams.get('weeks')).toBe('4');
   });
 
+  it('sums the period in the summary tiles: sessions, shares of wellness and RPE, results', async () => {
+    const extraWeek = {
+      ...SUMMARY.training[0],
+      weekStart: '2026-10-26',
+      sessions: 3,
+      attendedPlayerDays: 6,
+      attendedPlayerDaysWithWellness: 3,
+      attendedParticipations: 6,
+      participationsWithRpe: 6,
+    } as UsageSummary['training'][number];
+    renderApp({
+      path: '/usage',
+      handlers: asAdmin({
+        getUsageSummary: () => ({ ...SUMMARY, training: [...SUMMARY.training, extraWeek] }),
+      }),
+    });
+    const kpis = await screen.findByRole('region', { name: 'Resumen del período' });
+    expect(kpis).toHaveTextContent('Sesiones5');
+    // 3 + 3 of 4 + 6 attended days; 2 + 6 of 4 + 6 participations.
+    expect(kpis).toHaveTextContent('Bienestar en días de sesión60 %6 de 10');
+    expect(kpis).toHaveTextContent('RPE cargado80 %8 de 10');
+    expect(kpis).toHaveTextContent('Resultados de tests012 importados');
+  });
+
+  it('says there were no sessions instead of a share of nothing', async () => {
+    renderApp({
+      path: '/usage',
+      handlers: asAdmin({ getUsageSummary: () => ({ ...SUMMARY, training: [] }) }),
+    });
+    const kpis = await screen.findByRole('region', { name: 'Resumen del período' });
+    expect(kpis).toHaveTextContent('Sesiones0');
+    expect(within(kpis).getAllByText('Sin sesiones en el período')).toHaveLength(2);
+  });
+
   it('asks for the period chosen and warns about a demo club', async () => {
     const { user, api } = renderApp({
       path: '/usage',

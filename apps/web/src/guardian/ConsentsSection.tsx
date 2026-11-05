@@ -44,7 +44,9 @@ export function ConsentsSection(props: { child: Child; consents: UseQueryResult<
       <h2 id="child-consents" className="sp-card__title">
         {t('guardian.consents.title')}
       </h2>
-      <p>{t('guardian.consents.intro', { name: child.firstName })}</p>
+      <p className="sp-card__subtitle-text">
+        {t('guardian.consents.intro', { name: child.firstName })}
+      </p>
       {consents.isPending ? <Loading /> : null}
       {consents.isError ? <ErrorNotice error={consents.error} /> : null}
       {consents.data === undefined ? null : (
@@ -149,6 +151,7 @@ function ConsentRow(props: {
           {canRevoke ? (
             <Button
               variant="secondary"
+              size="sm"
               onClick={() => {
                 setDone(null);
                 revoke.reset();

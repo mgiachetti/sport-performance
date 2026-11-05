@@ -6,7 +6,8 @@ import type { ReactNode } from 'react';
 import { useServices } from '../app/services';
 import { useActiveClub } from '../club/active-club';
 import { useT } from '../i18n/i18n';
-import { ErrorNotice, Loading, Notice, Page } from '../ui/components';
+import { ErrorNotice, Loading, Notice, Page, buttonClass } from '../ui/components';
+import { Icon } from '../ui/icons';
 import { ageOn, clubToday, fullName, guardianSeesData } from './child';
 import { ConsentsSection } from './ConsentsSection';
 import { ParentHeightsSection } from './ParentHeightsSection';
@@ -26,8 +27,9 @@ export function ChildPage() {
   const child = active.children.find((candidate) => candidate.playerId === playerId);
 
   const back = (
-    <Link to="/family" className="sp-button sp-button--ghost">
-      {t('guardian.child.back')}
+    <Link to="/family" className={buttonClass('secondary')}>
+      <Icon name="chevronLeft" />
+      <span>{t('guardian.child.back')}</span>
     </Link>
   );
 
@@ -126,11 +128,12 @@ function VisibleChild(props: { child: Child; back: ReactNode }) {
         <p className="sp-meta">{t('guardian.summary.notMedical')}</p>
       </section>
 
-      <ConsentsSection child={child} consents={consents} />
-
-      {player.data === undefined ? null : (
-        <ParentHeightsSection child={child} player={player.data} consents={consents.data} />
-      )}
+      <div className="sp-family__grid">
+        <ConsentsSection child={child} consents={consents} />
+        {player.data === undefined ? null : (
+          <ParentHeightsSection child={child} player={player.data} consents={consents.data} />
+        )}
+      </div>
     </Page>
   );
 }

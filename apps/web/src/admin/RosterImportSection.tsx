@@ -16,8 +16,8 @@ import { useMemo, useState, type ChangeEvent } from 'react';
 import { useServices } from '../app/services';
 import { useActiveClub } from '../club/active-club';
 import { translate, useT } from '../i18n/i18n';
-import { Button, ErrorNotice, Loading, Notice, TextField } from '../ui/components';
-import { SelectField, StatusLabel } from '../ui/fields';
+import { Button, ErrorNotice, Loading, Notice } from '../ui/components';
+import { FileField, SelectField, StatusLabel } from '../ui/fields';
 import { ActionError, AdminSection, LoadMore, useClubFormat } from './parts';
 import { adminKey, branchesQuery, rosterImportsQuery } from './queries';
 import { ROSTER_FILE_MAX_BYTES, readRosterFile, type RosterFileProblem } from './roster-file';
@@ -97,11 +97,10 @@ export function RosterImportSection() {
           <p>{t('admin.roster.columnsOptional')}</p>
           <p>{t('admin.roster.columnsValues')}</p>
         </details>
-        <TextField
+        <FileField
           key={inputKey}
           label={t('admin.roster.file')}
           help={t('admin.roster.fileHelp')}
-          type="file"
           accept=".csv,.txt,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           onChange={(event) => void pick(event)}
         />

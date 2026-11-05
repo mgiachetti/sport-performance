@@ -220,6 +220,8 @@ export function Card(props: {
   /** `flush`: no inner padding below the header (tables that run edge to edge). */
   variant?: 'default' | 'flush' | 'highlight';
   className?: string;
+  /** An anchor for the card (`#id` links, skip targets). */
+  id?: string;
   children?: ReactNode;
 }) {
   const headingId = useId();
@@ -228,6 +230,7 @@ export function Card(props: {
     props.title !== undefined || props.subtitle !== undefined || props.actions !== undefined;
   return (
     <section
+      id={props.id}
       className={[
         'sp-card',
         props.variant === undefined || props.variant === 'default'
@@ -357,15 +360,22 @@ export function SegmentedControl<V extends string>(props: {
   );
 }
 
-const CHIP_ICONS: Record<StatusLevel | 'info', IconName> = {
+const CHIP_ICONS: Record<StatusLevel | 'info' | 'neutral', IconName> = {
   ok: 'ok',
   warning: 'warning',
   critical: 'critical',
   info: 'info',
+  neutral: 'info',
 };
 
-/** A status as a tinted pill: always icon + text, never color alone. */
-export function StatusChip(props: { level: StatusLevel | 'info'; children: ReactNode }) {
+/**
+ * A status as a tinted pill: always icon + text, never color alone.
+ * `neutral` is a plain fact with no tone (not good, not a warning).
+ */
+export function StatusChip(props: {
+  level: StatusLevel | 'info' | 'neutral';
+  children: ReactNode;
+}) {
   return (
     <span className={`sp-status sp-status--${props.level}`}>
       <Icon name={CHIP_ICONS[props.level]} />

@@ -10,6 +10,7 @@ import type { ReactNode } from 'react';
 import { useActiveClub } from '../club/active-club';
 import { useT } from '../i18n/i18n';
 import { Notice, Page } from '../ui/components';
+import { useActiveTabInView } from '../ui/use-active-tab';
 import './admin.css';
 
 type AdminPath =
@@ -86,6 +87,7 @@ export function AdminLayout() {
   const t = useT();
   const { club } = useActiveClub();
   const tabs = useAdminTabs();
+  const tabsRef = useActiveTabInView<HTMLElement>();
   return (
     <Page title={t('admin.title')} subtitle={t('admin.subtitle', { clubName: club.name })}>
       {tabs.length === 0 ? (
@@ -94,13 +96,13 @@ export function AdminLayout() {
         </Notice>
       ) : (
         <>
-          <nav className="sp-admin__tabs" aria-label={t('admin.tabs.label')}>
+          <nav ref={tabsRef} className="sp-tabs" aria-label={t('admin.tabs.label')}>
             <ul>
               {tabs.map((tab) => (
                 <li key={tab.to}>
                   <Link
                     to={tab.to}
-                    className="sp-admin__tab"
+                    className="sp-tabs__link"
                     activeProps={{ 'aria-current': 'page', className: 'is-active' }}
                   >
                     {t(tab.labelKey)}

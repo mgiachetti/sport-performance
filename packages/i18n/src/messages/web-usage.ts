@@ -66,4 +66,13 @@ export const webUsageMessagesEsAR = {
   'usage.surface.kiosk': 'Kiosco del club',
   'usage.client.web': 'Web',
   'usage.client.app': 'App',
+  'usage.kpi.label': 'Resumen del período',
+  'usage.kpi.sessions': 'Sesiones',
+  'usage.kpi.sessionsCaption': 'Entrenamientos del período',
+  'usage.kpi.wellness': 'Bienestar en días de sesión',
+  'usage.kpi.rpe': 'RPE cargado',
+  'usage.kpi.shareCaption': '{part} de {whole}',
+  'usage.kpi.noneCaption': 'Sin sesiones en el período',
+  'usage.kpi.results': 'Resultados de tests',
+  'usage.kpi.resultsCaption': '{imported} importados',
 } as const;

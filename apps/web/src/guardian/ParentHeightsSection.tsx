@@ -66,7 +66,9 @@ export function ParentHeightsSection(props: {
       <h2 id="child-heights" className="sp-card__title">
         {t('guardian.heights.title')}
       </h2>
-      <p>{t('guardian.heights.intro', { name: child.firstName })}</p>
+      <p className="sp-card__subtitle-text">
+        {t('guardian.heights.intro', { name: child.firstName })}
+      </p>
       {needsDataConsent ? (
         <Notice level="warning">
           <p>{t('guardian.heights.needsDataConsent')}</p>
@@ -133,6 +135,7 @@ function ParentHeightRow(props: {
         <div className="sp-row__actions">
           <Button
             variant="secondary"
+            size="sm"
             onClick={() => {
               setOutcome(null);
               setEditing(true);

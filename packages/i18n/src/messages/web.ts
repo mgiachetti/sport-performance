@@ -35,6 +35,19 @@ export const webMessagesEsAR = {
   'club.staffOnly.body':
     'Con tu rol en {clubName} ({role}) usás la app en el teléfono: ahí cargás el bienestar y el RPE y ves la ficha.',
 
+  // File picker (FileField): our own button and file name, in es-AR
+  'field.file.choose': 'Elegir archivo',
+  'field.file.none': 'Ningún archivo elegido',
+
+  // Standalone screens (sign-in, club selector, errors): the brand panel
+  'standalone.productMark': 'SP',
+  'standalone.tagline': 'El rendimiento de las juveniles, medido como en la primera.',
+  'standalone.point.metrics':
+    'Tests, carga, bienestar y maduración con las mismas métricas y definiciones que la primera.',
+  'standalone.point.load':
+    'Cada semana, quién necesita una mirada: carga, bienestar y crecimiento.',
+  'standalone.point.privacy': 'Datos de menores protegidos, con el consentimiento de las familias.',
+
   // Superadmin support (X-Support-Club-Id + X-Support-Reason, ADR 0032)
   'support.title': 'Modo soporte',
   'support.start': 'Entrar a un club como soporte',

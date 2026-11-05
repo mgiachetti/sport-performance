@@ -10,6 +10,7 @@ import { useActiveClub } from '../club/active-club';
 import { clubModulesQuery } from '../field-sessions/queries';
 import { useT } from '../i18n/i18n';
 import { Button, Card, EmptyState, ErrorNotice, Loading, Notice, Page } from '../ui/components';
+import { Icon } from '../ui/icons';
 
 /**
  * "Ciclo menstrual compartido con vos" (B-806, ADR 0092): the medical or S&C
@@ -48,7 +49,11 @@ export function cycleDaysQuery(
 function DaysTable({ days }: { readonly days: MenstrualCycleDays }) {
   const t = useT();
   if (days.days.length === 0) {
-    return <EmptyState icon="cycle" title={t('cycle.shared.noDays')} />;
+    return (
+      <EmptyState icon="calendar" title={t('cycle.shared.daysTitle')}>
+        <p>{t('cycle.shared.noDays')}</p>
+      </EmptyState>
+    );
   }
   const { summary } = days;
   return (
@@ -82,10 +87,12 @@ function DaysTable({ days }: { readonly days: MenstrualCycleDays }) {
       <p className="sp-notice__meta">{t('cycle.notMedical')}</p>
       <div className="sp-table-wrap">
         <table className="sp-table">
-          <caption className="sp-table__caption">{t('cycle.shared.daysTitle')}</caption>
+          <caption className="sp-cycle__caption">{t('cycle.shared.daysTitle')}</caption>
           <thead>
             <tr>
-              <th scope="col">{t('cycle.shared.column.date')}</th>
+              <th scope="col" className="sp-cycle__date">
+                {t('cycle.shared.column.date')}
+              </th>
               <th scope="col">{t('cycle.shared.column.flow')}</th>
               <th scope="col">{t('cycle.shared.column.symptoms')}</th>
               <th scope="col">{t('cycle.shared.column.note')}</th>
@@ -94,7 +101,9 @@ function DaysTable({ days }: { readonly days: MenstrualCycleDays }) {
           <tbody>
             {[...days.days].reverse().map((day) => (
               <tr key={day.id}>
-                <td className="is-date">{formatLocalDate(day.localDate)}</td>
+                <td className="sp-table__number sp-cycle__date">
+                  {formatLocalDate(day.localDate)}
+                </td>
                 <td>{t(`cycle.flow.${day.flow}`)}</td>
                 <td>{day.symptoms.map((s) => t(`cycle.symptom.${s}`)).join(', ') || '—'}</td>
                 <td>{day.note ?? '—'}</td>
@@ -123,8 +132,9 @@ function PlayerDays({
     <Card
       title={name}
       actions={
-        <Button variant="secondary" onClick={onBack}>
-          {t('cycle.shared.back')}
+        <Button variant="secondary" size="sm" onClick={onBack}>
+          <Icon name="chevronLeft" />
+          <span>{t('cycle.shared.back')}</span>
         </Button>
       }
     >
@@ -147,10 +157,13 @@ export function MenstrualCyclePage() {
   const modules = useQuery(clubModulesQuery(api, active.selection));
   const shared = useQuery(sharedWithMeQuery(api, selection.get()));
   const [open, setOpen] = useState<{ id: PlayerId; name: string } | null>(null);
+  const moduleOff = modules.data?.modules.menstrual_cycle === false;
+  const noneShared = shared.data?.items.length === 0;
 
   return (
     <Page title={t('cycle.shared.title')} subtitle={t('cycle.shared.intro')}>
-      {modules.data?.modules.menstrual_cycle === false ? (
+      {/* With the module off and nobody sharing, the empty state says it alone. */}
+      {moduleOff && !noneShared ? (
         <Notice level="info">
           <p>{t('cycle.unavailable.module_off')}</p>
         </Notice>
@@ -169,31 +182,39 @@ export function MenstrualCyclePage() {
         <ErrorNotice error={shared.error} />
       ) : shared.data.items.length === 0 ? (
         <Card>
-          <EmptyState icon="cycle" title={t('cycle.shared.none')} />
+          <EmptyState
+            icon="calendar"
+            title={moduleOff ? t('cycle.shared.moduleOffTitle') : t('cycle.shared.noneTitle')}
+          >
+            <p>{moduleOff ? t('cycle.unavailable.module_off') : t('cycle.shared.none')}</p>
+          </EmptyState>
         </Card>
       ) : (
         <Card>
-          <ul className="sp-plain-list">
+          <ul className="sp-plain-list sp-cycle__list">
             {shared.data.items.map((item) => {
               const name = `${item.lastName}, ${item.firstName}`;
               return (
-                <li key={item.playerId} className="sp-plain-list__item">
+                <li key={item.playerId}>
+                  <span className="sp-cycle__who">
+                    <span className="sp-cycle__name">{name}</span>
+                    <span className="sp-meta">
+                      {t('cycle.shared.since', {
+                        date: formatDate(new Date(item.authorizedAt), {
+                          timeZone: active.club.timeZone,
+                        }),
+                      })}
+                    </span>
+                  </span>
                   <Button
                     variant="secondary"
+                    size="sm"
                     onClick={() => {
                       setOpen({ id: item.playerId, name });
                     }}
                   >
                     {t('cycle.shared.open', { name })}
                   </Button>
-                  <span className="sp-cell-muted">
-                    {' '}
-                    {t('cycle.shared.since', {
-                      date: formatDate(new Date(item.authorizedAt), {
-                        timeZone: active.club.timeZone,
-                      }),
-                    })}
-                  </span>
                 </li>
               );
             })}

@@ -32,6 +32,15 @@
   padding: 0;
   border: 0;
 }
+/* The browser pads a legend 2px inline: it would sit off the labels below it.
+   A rendered legend is outside the fieldset's grid (no gap): its own margin
+   keeps the group heading apart from the first field label, and the primary
+   text color tells the two apart. */
+.sp-fieldset:not(.sp-fieldset--nested) > legend {
+  margin-bottom: var(--sp-space-sm);
+  padding: 0;
+  color: var(--sp-color-text-primary);
+}
 .sp-fieldset--nested {
   padding: var(--sp-space-md);
   border: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);

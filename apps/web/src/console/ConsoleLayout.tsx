@@ -4,7 +4,7 @@ import { SUPPORT_REASON_MAX_LENGTH } from '../api/club-selection';
 import { useServices, useStore } from '../app/services';
 import { useT } from '../i18n/i18n';
 import { useSignOut } from '../session/use-sign-out';
-import { Button, ErrorNotice, Notice, Page, Stripes, TextField } from '../ui/components';
+import { Button, Card, ErrorNotice, Notice, Page, Stripes, TextField } from '../ui/components';
 import { Icon } from '../ui/icons';
 
 /**
@@ -38,20 +38,30 @@ export function ConsoleLayout() {
       <Stripes size="sm" />
       <header className="sp-console__header">
         <p className="sp-console__brand">
-          <Icon name="support" />
+          <span className="sp-club-mark sp-club-mark--monogram" aria-hidden="true">
+            {t('standalone.productMark')}
+          </span>
           <span>{t('console.title')}</span>
         </p>
         {reason === null ? null : (
           <nav aria-label={t('console.nav.label')} className="sp-console__nav">
             <ul>
               <li>
-                <Link to="/console/clubs" className="sp-nav__link">
+                <Link
+                  to="/console/clubs"
+                  className="sp-nav__link"
+                  activeProps={{ 'aria-current': 'page', className: 'is-active' }}
+                >
                   <Icon name="club" />
                   <span>{t('console.nav.clubs')}</span>
                 </Link>
               </li>
               <li>
-                <Link to="/console/support-access" className="sp-nav__link">
+                <Link
+                  to="/console/support-access"
+                  className="sp-nav__link"
+                  activeProps={{ 'aria-current': 'page', className: 'is-active' }}
+                >
                   <Icon name="info" />
                   <span>{t('console.nav.supportAccess')}</span>
                 </Link>
@@ -116,21 +126,25 @@ function ConsoleReasonForm() {
   };
   return (
     <Page title={t('console.title')} subtitle={t('console.reason.intro')}>
-      <form className="sp-form sp-form--narrow" onSubmit={start} noValidate>
-        <TextField
-          label={t('console.reason.label')}
-          help={t('console.reason.help')}
-          name="reason"
-          required
-          maxLength={SUPPORT_REASON_MAX_LENGTH}
-          value={reason}
-          error={error}
-          onChange={(event) => {
-            setReason(event.target.value);
-          }}
-        />
-        <Button type="submit">{t('console.reason.submit')}</Button>
-      </form>
+      <Card className="sp-console__reason">
+        <form className="sp-form" onSubmit={start} noValidate>
+          <TextField
+            label={t('console.reason.label')}
+            help={t('console.reason.help')}
+            name="reason"
+            required
+            maxLength={SUPPORT_REASON_MAX_LENGTH}
+            value={reason}
+            error={error}
+            onChange={(event) => {
+              setReason(event.target.value);
+            }}
+          />
+          <div className="sp-form__actions">
+            <Button type="submit">{t('console.reason.submit')}</Button>
+          </div>
+        </form>
+      </Card>
     </Page>
   );
 }
