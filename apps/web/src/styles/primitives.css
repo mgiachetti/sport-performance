@@ -191,6 +191,9 @@
 .sp-status--info svg {
   color: var(--sp-color-brand-accent);
 }
+.sp-status--neutral {
+  color: var(--sp-color-text-secondary);
+}
 
 /* Data tables: sticky condensed headers, 48px rows, tabular right-aligned numbers */
 .sp-table-wrap,
@@ -343,6 +346,26 @@
   padding: 0;
   overflow-x: auto;
   border-bottom: var(--sp-border-width-hairline) solid var(--sp-color-border-subtle);
+  /* Edge shades when the strip scrolls: a shade sits on each edge (scroll)
+     and a cover in the page color scrolls with the content (local), hiding
+     the shade at the start and the end. Shows only that there is more. */
+  background:
+    linear-gradient(to right, var(--sp-color-background) 40%, transparent) left / 2rem 100%
+      no-repeat local,
+    linear-gradient(to left, var(--sp-color-background) 40%, transparent) right / 2rem 100%
+      no-repeat local,
+    radial-gradient(
+        farthest-side at 0 50%,
+        color-mix(in srgb, var(--sp-color-text-primary) 28%, transparent),
+        transparent
+      )
+      left / 0.875rem 100% no-repeat scroll,
+    radial-gradient(
+        farthest-side at 100% 50%,
+        color-mix(in srgb, var(--sp-color-text-primary) 28%, transparent),
+        transparent
+      )
+      right / 0.875rem 100% no-repeat scroll;
   scrollbar-width: thin;
 }
 .sp-tabs > ul {
@@ -397,17 +420,35 @@
   min-height: var(--sp-size-control-small);
 }
 
-/* File inputs: the picker button drawn like a secondary button, not the browser's grey one */
-.sp-field__input[type='file'] {
+/* File picker (FileField): the native input, transparent, over our own
+   button and file name, so the click, keyboard and focus stay the browser's
+   while the text is es-AR. */
+.sp-file {
+  position: relative;
   display: flex;
   align-items: center;
+  gap: var(--sp-space-md);
+  min-width: 0;
+  min-height: var(--sp-size-touch-target);
   padding: var(--sp-space-xs);
-  color: var(--sp-color-text-secondary);
+  border: var(--sp-border-width-hairline) solid var(--sp-color-border-strong);
+  border-radius: var(--sp-radius-md);
+  background-color: var(--sp-color-background);
+}
+.sp-file__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
   cursor: pointer;
 }
-.sp-field__input[type='file']::file-selector-button {
+.sp-file__button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
   min-height: var(--sp-size-control-small);
-  margin-right: var(--sp-space-md);
   padding: 0 var(--sp-space-md);
   border: var(--sp-border-width-hairline) solid var(--sp-color-border-strong);
   border-radius: calc(var(--sp-radius-md) - 0.125rem);
@@ -416,10 +457,29 @@
   font-family: var(--sp-text-button-family);
   font-size: var(--sp-text-body-size);
   font-weight: var(--sp-text-button-weight);
-  cursor: pointer;
 }
-.sp-field__input[type='file']:hover::file-selector-button {
+.sp-file__name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--sp-color-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sp-file:hover {
   border-color: var(--sp-color-brand-border);
+}
+.sp-file:hover .sp-file__button {
+  border-color: var(--sp-color-brand-border);
+}
+.sp-file:has(.sp-file__input:focus-visible) {
+  outline: var(--sp-focus-ring-width) solid var(--sp-color-focus);
+  outline-offset: var(--sp-focus-ring-offset);
+}
+.sp-file[data-invalid] {
+  border-color: var(--sp-color-status-critical-border);
+}
+.sp-file__input:disabled {
+  cursor: not-allowed;
 }
 
 /* A row of fields lines up by the top of its labels, whatever help text each one has */

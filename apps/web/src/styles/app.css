@@ -249,7 +249,8 @@ select {
   font: inherit;
 }
 select,
-.sp-select {
+.sp-select,
+select.sp-field__input {
   appearance: none;
   padding-right: calc(var(--sp-space-md) * 2 + 0.75rem);
   /* Chevron drawn with two gradients: no image, follows the text color. */

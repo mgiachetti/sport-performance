@@ -184,8 +184,10 @@ export function MenstrualCyclePage() {
         <Card>
           <EmptyState
             icon="calendar"
-            title={moduleOff ? t('cycle.unavailable.module_off') : t('cycle.shared.none')}
-          />
+            title={moduleOff ? t('cycle.shared.moduleOffTitle') : t('cycle.shared.noneTitle')}
+          >
+            <p>{moduleOff ? t('cycle.unavailable.module_off') : t('cycle.shared.none')}</p>
+          </EmptyState>
         </Card>
       ) : (
         <Card>

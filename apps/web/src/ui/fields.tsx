@@ -1,10 +1,14 @@
 import type { StatusLevel } from '@sport-performance/ui-tokens';
 import {
   useId,
+  useState,
+  type InputHTMLAttributes,
   type ReactNode,
+  type Ref,
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from 'react';
+import { useT } from '../i18n/i18n';
 import { StatusChip } from './components';
 import { Icon } from './icons';
 
@@ -109,6 +113,62 @@ export function TextAreaField({
         aria-describedby={describedBy(id, help, error)}
         {...textarea}
       />
+      <FieldFoot id={id} help={help} error={error ?? null} />
+    </div>
+  );
+}
+
+/**
+ * A labelled file picker in es-AR: the browser draws its own button and
+ * "no file" text in the browser's language, so the native input stays (same
+ * label, focus, keyboard and screen-reader announcement) but transparent, on
+ * top of our own button and file name, which are only visual.
+ * `fileName` shows the parent's chosen file when it clears the input itself;
+ * without it, the field shows what was last picked.
+ */
+export function FileField({
+  label,
+  help,
+  error,
+  fileName,
+  onChange,
+  ...input
+}: {
+  label: string;
+  help?: string | undefined;
+  error?: string | null | undefined;
+  fileName?: string | null | undefined;
+  ref?: Ref<HTMLInputElement> | undefined;
+} & Omit<InputHTMLAttributes<HTMLInputElement>, 'id' | 'type'>) {
+  const t = useT();
+  const id = useId();
+  const [picked, setPicked] = useState<string | null>(null);
+  const shown = fileName === undefined ? picked : fileName;
+  return (
+    <div className="sp-field">
+      <label htmlFor={id} className="sp-field__label">
+        {label}
+      </label>
+      <span className="sp-file" data-invalid={error ? true : undefined}>
+        <input
+          id={id}
+          type="file"
+          className="sp-file__input"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy(id, help, error)}
+          onChange={(event) => {
+            setPicked(event.target.files?.[0]?.name ?? null);
+            onChange?.(event);
+          }}
+          {...input}
+        />
+        <span className="sp-file__button" aria-hidden="true">
+          {t('field.file.choose')}
+        </span>
+        <span className="sp-file__name" aria-hidden="true">
+          {shown ?? t('field.file.none')}
+        </span>
+      </span>
       <FieldFoot id={id} help={help} error={error ?? null} />
     </div>
   );

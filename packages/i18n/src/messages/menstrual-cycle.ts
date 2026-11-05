@@ -86,6 +86,8 @@ export const menstrualCycleMessagesEsAR = {
   'cycle.shared.intro':
     'Jugadoras asignadas que te autorizaron a ver su registro del ciclo. Lo ves solo vos; cada acceso queda registrado. No lo compartas: si una jugadora te saca el acceso, deja de aparecer acá.',
   'cycle.shared.none': 'Ninguna jugadora te autorizó a ver su ciclo.',
+  'cycle.shared.noneTitle': 'Sin jugadoras autorizadas',
+  'cycle.shared.moduleOffTitle': 'Seguimiento no disponible',
   'cycle.shared.since': 'Te autorizó el {date}',
   'cycle.shared.open': 'Ver el registro de {name}',
   'cycle.shared.back': 'Volver a la lista',

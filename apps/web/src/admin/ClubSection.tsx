@@ -20,7 +20,7 @@ import { useServices } from '../app/services';
 import { useActiveClub } from '../club/active-club';
 import { useT } from '../i18n/i18n';
 import { Button, Notice, TextField } from '../ui/components';
-import { SelectField } from '../ui/fields';
+import { FileField, SelectField } from '../ui/fields';
 import { ActionError, AdminSection, ConfirmAction, isConflict } from './parts';
 import { UploadFailedError, uploadClubLogo } from './upload';
 
@@ -365,10 +365,9 @@ function LogoForm(props: { club: Club }) {
           <img src={theme.logoUrl} alt={t('admin.logo.current', { clubName: props.club.name })} />
         )}
       </div>
-      <TextField
+      <FileField
         label={t('admin.logo.file')}
         help={t('admin.logo.help')}
-        type="file"
         accept={policy.contentTypes.join(',')}
         error={fileError}
         onChange={pick}

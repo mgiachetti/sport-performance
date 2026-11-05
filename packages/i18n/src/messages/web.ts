@@ -35,6 +35,10 @@ export const webMessagesEsAR = {
   'club.staffOnly.body':
     'Con tu rol en {clubName} ({role}) usás la app en el teléfono: ahí cargás el bienestar y el RPE y ves la ficha.',
 
+  // File picker (FileField): our own button and file name, in es-AR
+  'field.file.choose': 'Elegir archivo',
+  'field.file.none': 'Ningún archivo elegido',
+
   // Standalone screens (sign-in, club selector, errors): the brand panel
   'standalone.productMark': 'SP',
   'standalone.tagline': 'El rendimiento de las juveniles, medido como en la primera.',

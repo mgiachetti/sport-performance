@@ -99,7 +99,7 @@ function ChildCard(props: { child: Child; age: number }) {
         </ul>
       )}
       <p>
-        <StatusChip level={child.hasAccount ? 'ok' : 'info'}>
+        <StatusChip level={child.hasAccount ? 'ok' : 'neutral'}>
           {child.hasAccount ? t('guardian.children.hasAccount') : t('guardian.children.noAccount')}
         </StatusChip>
       </p>
