@@ -4,7 +4,7 @@
   "private": true,
   "description": "Player and staff mobile app (Expo / React Native, offline-first).",
   "type": "module",
-  "main": "expo-router/entry",
+  "main": "index.ts",
   "scripts": {
     "postinstall": "node scripts/eas-postinstall.mjs",
     "start": "expo start --dev-client",

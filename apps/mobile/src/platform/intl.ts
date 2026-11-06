@@ -6,19 +6,21 @@
  * polyfill installs itself only where the engine's own is missing or
  * incomplete, so in Node (tests) and on a full engine it is a no-op.
  *
- * Imported first by the app entry (`app/_layout.tsx`), before any module that
- * formats. Order matters: each polyfill relies on the previous ones.
+ * Imported first by the app entry (`index.ts`, through `intl-native.ts`),
+ * before expo-router and any module that formats. Order matters: each polyfill relies on the previous ones.
  */
-import '@formatjs/intl-getcanonicallocales/polyfill.js';
+// Forced: its detection probes a private-use tag that an engine's own parser could throw on.
+import '@formatjs/intl-getcanonicallocales/polyfill-force.js';
 import '@formatjs/intl-locale/polyfill.js';
 import '@formatjs/intl-pluralrules/polyfill.js';
 import '@formatjs/intl-pluralrules/locale-data/es.js';
 import '@formatjs/intl-pluralrules/locale-data/en.js';
 import '@formatjs/intl-numberformat/polyfill.js';
-import '@formatjs/intl-numberformat/locale-data/es.js';
+// es-AR, not only es: CLDR es groups thousands from 5 digits (1234), es-AR from 4 (1.234).
+import '@formatjs/intl-numberformat/locale-data/es-AR.js';
 import '@formatjs/intl-numberformat/locale-data/en.js';
 import '@formatjs/intl-datetimeformat/polyfill.js';
-import '@formatjs/intl-datetimeformat/locale-data/es.js';
+import '@formatjs/intl-datetimeformat/locale-data/es-AR.js';
 import '@formatjs/intl-datetimeformat/locale-data/en.js';
 // Every IANA zone: a club can be in any of them.
 import '@formatjs/intl-datetimeformat/add-all-tz.js';

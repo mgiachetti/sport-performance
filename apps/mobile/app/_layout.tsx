@@ -1,5 +1,3 @@
-// First: the Intl polyfills Hermes needs, before any module that formats.
-import '../src/platform/intl-native.ts';
 import * as Sentry from '@sentry/react-native';
 import { focusManager } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
