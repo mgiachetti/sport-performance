@@ -8,25 +8,25 @@ import {
   loadSessions,
   olderDraftSessions,
   prefetchRosters,
-} from '../../src/coach-session/data.ts';
-import { useCoachClub, useCoachScope, useLocalRead } from '../../src/coach-session/hooks.ts';
+} from '../../../src/coach-session/data.ts';
+import { useCoachClub, useCoachScope, useLocalRead } from '../../../src/coach-session/hooks.ts';
 import {
   RECENT_SESSION_DAYS,
   canRecordParticipation,
   sessionLists,
-} from '../../src/coach-session/model.ts';
-import { sessionListItems } from '../../src/coach-session/view.ts';
-import { CoachSessionListScreen } from '../../src/screens/coach-session.tsx';
-import { SyncIndicator } from '../../src/screens/sync.tsx';
+} from '../../../src/coach-session/model.ts';
+import { sessionListItems } from '../../../src/coach-session/view.ts';
+import { CoachSessionListScreen } from '../../../src/screens/coach-session.tsx';
+import { SyncIndicator } from '../../../src/screens/sync.tsx';
 import {
   useApi,
   useNow,
   useServices,
   useSession,
   useSyncStatus,
-} from '../../src/state/app-context.tsx';
-import { useTranslator } from '../../src/ui/i18n.tsx';
-import { ScreenBody, ScreenHeader, StatusMessage } from '../../src/ui/primitives.tsx';
+} from '../../../src/state/app-context.tsx';
+import { useTranslator } from '../../../src/ui/i18n.tsx';
+import { ScreenBody, ScreenHeader, StatusMessage } from '../../../src/ui/primitives.tsx';
 
 /**
  * The coach's sessions on the field (B-509, ADR 0080): today's and the

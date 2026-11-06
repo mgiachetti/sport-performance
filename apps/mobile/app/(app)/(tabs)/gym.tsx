@@ -12,11 +12,11 @@ import {
   logSetInput,
   programsInForce,
   sessionSets,
-} from '../../src/gym/model.ts';
-import { GymScreen, type GymLoadState } from '../../src/screens/gym.tsx';
-import { SyncIndicator } from '../../src/screens/sync.tsx';
-import { useNow, useServices, useSession, useSyncStatus } from '../../src/state/app-context.tsx';
-import { useClubModules } from '../../src/state/club-modules.ts';
+} from '../../../src/gym/model.ts';
+import { GymScreen, type GymLoadState } from '../../../src/screens/gym.tsx';
+import { SyncIndicator } from '../../../src/screens/sync.tsx';
+import { useNow, useServices, useSession, useSyncStatus } from '../../../src/state/app-context.tsx';
+import { useClubModules } from '../../../src/state/club-modules.ts';
 
 /** The day of the device: the server dates each set by the club day it was recorded. */
 function deviceToday(nowMs: number): LocalDate {

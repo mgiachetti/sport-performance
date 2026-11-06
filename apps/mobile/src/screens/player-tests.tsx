@@ -5,7 +5,7 @@ import { View } from 'react-native';
 import { metricLabel, metricValue, testLabel, unitValue } from '../player/format.ts';
 import type { PersonalRecord } from '../player/records.ts';
 import { useTranslator } from '../ui/i18n.tsx';
-import { EmptyState } from '../ui/blocks.tsx';
+import { EmptyState, ListRow } from '../ui/blocks.tsx';
 import { AppText, Card, ScreenBody, ScreenHeader, StatusMessage } from '../ui/primitives.tsx';
 import { useTheme } from '../ui/theme.tsx';
 import { TestDaySummary } from './player-today.tsx';
@@ -256,6 +256,7 @@ export function PlayerTestsScreen({
   percentiles,
   history,
   testDays,
+  onOpenProtocols = null,
 }: {
   readonly notice: string | null;
   readonly records: readonly PersonalRecord[];
@@ -263,6 +264,8 @@ export function PlayerTestsScreen({
   readonly history: readonly TestResult[];
   /** `null` while loading for the first time. */
   readonly testDays: readonly MyTestDay[] | null;
+  /** How each test is done (B-415); `null` hides it. */
+  readonly onOpenProtocols?: (() => void) | null;
 }) {
   const { t } = useTranslator();
   return (
@@ -284,6 +287,16 @@ export function PlayerTestsScreen({
       <Records records={records} />
       <Percentiles section={percentiles} />
       <History results={history} />
+      {onOpenProtocols === null ? null : (
+        <Card>
+          <ListRow
+            first
+            title={t('protocols.open')}
+            subtitle={t('protocols.open.hint')}
+            onPress={onOpenProtocols}
+          />
+        </Card>
+      )}
     </ScreenBody>
   );
 }

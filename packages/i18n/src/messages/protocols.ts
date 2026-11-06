@@ -6,6 +6,8 @@
  */
 export const protocolMessagesEsAR = {
   'nav.protocols': 'Protocolos',
+  'protocols.open': 'Protocolos de los tests',
+  'protocols.open.hint': 'Cómo se hace cada test: intentos, pausas y materiales.',
 
   'protocol.version': 'Versión {version}',
   'protocol.validFrom': 'Vigente desde el {date}',

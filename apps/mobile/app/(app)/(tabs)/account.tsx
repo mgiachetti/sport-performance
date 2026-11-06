@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { versionLabel } from '../../src/platform/native.ts';
-import { AccountScreen } from '../../src/screens/app.tsx';
-import { SyncIndicator, SyncIssuesList } from '../../src/screens/sync.tsx';
+import { versionLabel } from '../../../src/platform/native.ts';
+import { AccountScreen } from '../../../src/screens/app.tsx';
+import { SyncIndicator, SyncIssuesList } from '../../../src/screens/sync.tsx';
 import {
   useClubTheme,
   useNow,
@@ -10,9 +10,9 @@ import {
   useSession,
   useSyncIssues,
   useSyncStatus,
-} from '../../src/state/app-context.tsx';
-import { useTranslator } from '../../src/ui/i18n.tsx';
-import { Button, Card } from '../../src/ui/primitives.tsx';
+} from '../../../src/state/app-context.tsx';
+import { useTranslator } from '../../../src/ui/i18n.tsx';
+import { Button, Card } from '../../../src/ui/primitives.tsx';
 
 export default function Account() {
   const services = useServices();

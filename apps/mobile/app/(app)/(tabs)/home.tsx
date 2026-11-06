@@ -1,21 +1,21 @@
 import { router } from 'expo-router';
-import { canRecordAnthropometry } from '../../src/anthropometry/data.ts';
-import { canReportExternalLoad } from '../../src/external-load/model.ts';
-import { canFilmCmj } from '../../src/cmj-video/attempt.ts';
-import { canRunIft3015 } from '../../src/ift/roster.ts';
-import { canRecordWeeklyCmj } from '../../src/weekly-cmj/model.ts';
-import { canOpenKiosk } from '../../src/kiosk/roster.ts';
-import { HomeScreen } from '../../src/screens/app.tsx';
-import { SyncIndicator } from '../../src/screens/sync.tsx';
-import { canFilmSprint } from '../../src/sprint-video/attempt.ts';
+import { canRecordAnthropometry } from '../../../src/anthropometry/data.ts';
+import { canReportExternalLoad } from '../../../src/external-load/model.ts';
+import { canFilmCmj } from '../../../src/cmj-video/attempt.ts';
+import { canRunIft3015 } from '../../../src/ift/roster.ts';
+import { canRecordWeeklyCmj } from '../../../src/weekly-cmj/model.ts';
+import { canOpenKiosk } from '../../../src/kiosk/roster.ts';
+import { HomeScreen } from '../../../src/screens/app.tsx';
+import { SyncIndicator } from '../../../src/screens/sync.tsx';
+import { canFilmSprint } from '../../../src/sprint-video/attempt.ts';
 import {
   useClubTheme,
   useNow,
   useServices,
   useSession,
   useSyncStatus,
-} from '../../src/state/app-context.tsx';
-import { PlayerToday } from '../../src/state/player-screens.tsx';
+} from '../../../src/state/app-context.tsx';
+import { PlayerToday } from '../../../src/state/player-screens.tsx';
 
 export default function Home() {
   const services = useServices();
@@ -112,6 +112,9 @@ export default function Home() {
             }
           : null
       }
+      onOpenProtocols={() => {
+        router.push('/protocols');
+      }}
     />
   );
 }

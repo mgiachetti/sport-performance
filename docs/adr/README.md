@@ -103,6 +103,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0097](0097-sistema-de-diseno-de-la-web.md) | Sistema de diseño de la web: escala tipográfica y de capas en los tokens, primitivas compartidas, shell con escudo y menú de usuario, y el escudo del club demo por el mismo camino que una subida | Aceptado |
 | [0098](0098-sistema-de-diseno-de-la-app.md) | Sistema de diseño de la app: primitivas en `apps/mobile/src/ui`, encabezado con escudo por el tema del club y galería de pantallas sobre `react-native-web` | Aceptado |
 | [0099](0099-intl-de-hermes-con-polyfills.md) | La app completa el `Intl` de Hermes con los polyfills de FormatJS | Aceptado |
+| [0100](0100-navegacion-de-la-app-pila-sobre-pestanas.md) | Navegación de la app: una pila alrededor de las pestañas, como mucho cinco pestañas | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla, que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR y que cada enlace de markdown a un ADR en el repo vaya a un archivo que existe, con el mismo número en el texto del enlace.
 

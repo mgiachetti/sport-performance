@@ -19,10 +19,13 @@ import { useClubModules } from './club-modules.ts';
 
 const VERSION = '1793586338688123';
 
-/** What the tab bar decides with the hook, as `app/(app)/_layout.tsx` does. */
+/**
+ * What the tab bar decides with the hook, as `app/(app)/(tabs)/_layout.tsx` does, for a
+ * player (the role with the tab) while signed in as a member of the club.
+ */
 function GymTab() {
   const session = useSession();
-  const role = session.status === 'signedIn' ? (session.activeMembership?.role ?? null) : null;
+  const role = session.status === 'signedIn' && session.activeMembership !== null ? 'player' : null;
   const { gym } = tabVisibility(role, useClubModules());
   return <Text>{gym ? 'gym-tab:shown' : 'gym-tab:hidden'}</Text>;
 }

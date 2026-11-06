@@ -294,7 +294,10 @@ export function PlayerToday({
 }
 
 /** "Mis tests": records, percentiles from M15, history and upcoming test days. */
-export function PlayerTests() {
+/** "Mis tests"; `onOpenProtocols` opens how each test is done (B-415). */
+export function PlayerTests({
+  onOpenProtocols = null,
+}: { readonly onOpenProtocols?: (() => void) | null } = {}) {
   const services = useServices();
   const api = useApi();
   const translator = useTranslator();
@@ -345,6 +348,7 @@ export function PlayerTests() {
             ? testDays.value.items
             : testDays.value.items.filter((item) => item.scheduledOn >= day.today)
       }
+      onOpenProtocols={onOpenProtocols}
     />
   );
 }
