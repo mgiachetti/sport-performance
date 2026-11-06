@@ -5,9 +5,9 @@ import { tabVisibility } from './tabs.ts';
 const GYM_OFF = { ...DEFAULT_CLUB_MODULES, gym: false };
 
 describe('tabVisibility', () => {
-  it('shows the gym to every role while the module is on', () => {
+  it('shows the gym to the player while the module is on, never to the staff', () => {
     for (const role of [...MEMBERSHIP_ROLES, null]) {
-      expect(tabVisibility(role, DEFAULT_CLUB_MODULES).gym, String(role)).toBe(true);
+      expect(tabVisibility(role, DEFAULT_CLUB_MODULES).gym, String(role)).toBe(role === 'player');
     }
   });
 
@@ -31,7 +31,7 @@ describe('tabVisibility', () => {
     });
     expect(tabVisibility(null, DEFAULT_CLUB_MODULES)).toEqual({
       tests: false,
-      gym: true,
+      gym: false,
       testDays: false,
       sessions: false,
       staff: false,

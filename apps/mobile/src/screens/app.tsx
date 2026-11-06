@@ -74,6 +74,7 @@ export function HomeScreen({
   onOpenAnthropometry = null,
   onOpenCmjVideo = null,
   onOpenKiosk = null,
+  onOpenProtocols = null,
 }: {
   readonly userName: string;
   readonly membership: MembershipSummary;
@@ -95,6 +96,8 @@ export function HomeScreen({
   readonly onOpenCmjVideo?: (() => void) | null;
   /** The club's kiosk mode (B-504), for whoever loads on it; `null` hides it. */
   readonly onOpenKiosk?: (() => void) | null;
+  /** How each test is done (B-415); `null` hides it. */
+  readonly onOpenProtocols?: (() => void) | null;
 }) {
   const translator = useTranslator();
   const { t } = translator;
@@ -136,6 +139,12 @@ export function HomeScreen({
       hint: t('cmjVideo.open.hint'),
       onPress: onOpenCmjVideo,
     },
+    {
+      key: 'protocols',
+      label: t('protocols.open'),
+      hint: t('protocols.open.hint'),
+      onPress: onOpenProtocols,
+    },
   ];
   const tools: HomeTool[] = offered.flatMap(({ onPress, ...tool }) =>
     onPress === null ? [] : [{ ...tool, onPress }],
@@ -153,9 +162,6 @@ export function HomeScreen({
     >
       {offline ? <StatusMessage level="warning">{t('sync.offline')}</StatusMessage> : null}
       {sync}
-      <Card>
-        <AppText tone="secondary">{t('home.next')}</AppText>
-      </Card>
       {tools.length > 0 ? (
         <Card title={t('home.tools')}>
           <View>

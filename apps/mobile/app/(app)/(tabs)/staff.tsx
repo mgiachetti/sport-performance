@@ -1,24 +1,24 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
-import { errorMessage } from '../../src/api/error-message.ts';
-import { StaffBoardScreen } from '../../src/screens/staff.tsx';
+import { errorMessage } from '../../../src/api/error-message.ts';
+import { StaffBoardScreen } from '../../../src/screens/staff.tsx';
 import {
   boardCategories,
   boardClubDay,
   boardOpeningKey,
   buildBoard,
   canSeeStaffBoard,
-} from '../../src/staff/board.ts';
-import { useKeyedState } from '../../src/state/keyed-state.ts';
-import { useNow, useServices, useSession } from '../../src/state/app-context.tsx';
+} from '../../../src/staff/board.ts';
+import { useKeyedState } from '../../../src/state/keyed-state.ts';
+import { useNow, useServices, useSession } from '../../../src/state/app-context.tsx';
 import {
   usePushState,
   useSessionCategory,
   useStaffCategories,
   useStaffPanel,
   useWellnessPlayersOn,
-} from '../../src/state/staff-data.ts';
-import { useTranslator } from '../../src/ui/i18n.tsx';
+} from '../../../src/state/staff-data.ts';
+import { useTranslator } from '../../../src/ui/i18n.tsx';
 
 /**
  * The staff's quick look before training (B-510): the panel of the API kept

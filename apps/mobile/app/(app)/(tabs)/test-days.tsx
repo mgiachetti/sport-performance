@@ -7,35 +7,35 @@ import {
 } from '@sport-performance/contracts';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { errorMessage } from '../../src/api/error-message.ts';
-import { SyncIndicator } from '../../src/screens/sync.tsx';
+import { errorMessage } from '../../../src/api/error-message.ts';
+import { SyncIndicator } from '../../../src/screens/sync.tsx';
 import {
   StationScreen,
   TestDayListScreen,
   TestDayScreen,
   type TestDayListState,
   type TestDayState,
-} from '../../src/screens/test-day.tsx';
+} from '../../../src/screens/test-day.tsx';
 import {
   useApi,
   useNow,
   useServices,
   useSession,
   useSyncStatus,
-} from '../../src/state/app-context.tsx';
-import { createTestDayController } from '../../src/test-day/controller.ts';
-import { canRunIft3015 } from '../../src/ift/roster.ts';
-import { iftRunForDay } from '../../src/test-day/ift.ts';
+} from '../../../src/state/app-context.tsx';
+import { createTestDayController } from '../../../src/test-day/controller.ts';
+import { canRunIft3015 } from '../../../src/ift/roster.ts';
+import { iftRunForDay } from '../../../src/test-day/ift.ts';
 import {
   SHEET_FRESH_MS,
   clubTimeZone,
   testDayLists,
   today,
   type ClubContext,
-} from '../../src/test-day/data.ts';
-import type { FieldResult, StationSettings } from '../../src/test-day/model.ts';
-import type { StationView } from '../../src/test-day/controller.ts';
-import { useTranslator } from '../../src/ui/i18n.tsx';
+} from '../../../src/test-day/data.ts';
+import type { FieldResult, StationSettings } from '../../../src/test-day/model.ts';
+import type { StationView } from '../../../src/test-day/controller.ts';
+import { useTranslator } from '../../../src/ui/i18n.tsx';
 
 /** Field test day tab (B-505): days, stations and loading, from the local database. */
 export default function TestDays() {
