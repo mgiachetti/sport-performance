@@ -11,6 +11,7 @@ import android.hardware.camera2.CameraConstrainedHighSpeedCaptureSession
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
+import android.hardware.camera2.TotalCaptureResult
 import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.camera2.params.SessionConfiguration
 import android.media.MediaCodec
@@ -22,6 +23,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Range
 import android.view.OrientationEventListener
 import android.view.Surface
@@ -75,10 +77,11 @@ private data class Desired(
  * The session holds two surfaces at the high-speed size (the most it accepts):
  * the preview (`SurfaceView` with a fixed buffer size) and a persistent input
  * surface (`MediaCodec.createPersistentInputSurface`) that each `MediaRecorder`
- * records from, so a new recording needs no new session. The preview and the
- * recording both run at the fixed `[fps, fps]` the high-speed session requires
- * for recording (also given as session parameters on API 28+), so starting a
- * recording does not switch the sensor mode. No audio.
+ * records from, so a new recording needs no new session. The recording runs at
+ * the fixed `[fps, fps]` the high-speed session requires (also given as session
+ * parameters on API 28+, a hint for the sensor mode); the preview runs at the
+ * widest variable range ending at `fps`, because Samsung's HAL aborts on a
+ * preview-only burst at the fixed range. No audio.
  *
  * Threads: props, surface and layout on the main thread; every camera and
  * recorder call on one camera thread, which reconciles what it runs with the
@@ -137,15 +140,18 @@ class HighSpeedCameraView(context: Context, appContext: AppContext) :
   private var recordedForRequest = false
 
   /**
-   * Preview frames delivered since the session started. A camera that fails
-   * before this reaches [STABLE_PREVIEW_FRAMES] failed with this configuration
-   * (the vendor HAL rejected it, as Samsung's does with some ranges): the error
-   * is a `configure_failed`, so the screen tries the next candidate.
+   * When the session was configured and when its first preview result arrived
+   * (`elapsedRealtime` ms, 0 = not yet), on the camera thread only. A camera
+   * that fails after the session was configured but before [STABLE_PREVIEW_MS]
+   * of preview, with no recording, failed with this configuration (the vendor
+   * HAL rejected it, as Samsung's does with some ranges): the error is a
+   * `configure_failed`, so the screen tries the next candidate.
    */
-  private val previewFrames = java.util.concurrent.atomic.AtomicInteger(0)
+  private var configuredAtMs = 0L
+  private var firstPreviewAtMs = 0L
   private val previewCounter = object : CameraCaptureSession.CaptureCallback() {
-    override fun onCaptureCompleted(s: CameraCaptureSession, r: CaptureRequest, t: android.hardware.camera2.TotalCaptureResult) {
-      previewFrames.incrementAndGet()
+    override fun onCaptureCompleted(s: CameraCaptureSession, r: CaptureRequest, t: TotalCaptureResult) {
+      if (firstPreviewAtMs == 0L) firstPreviewAtMs = SystemClock.elapsedRealtime()
     }
   }
 
@@ -339,6 +345,8 @@ class HighSpeedCameraView(context: Context, appContext: AppContext) :
       return
     }
     val opened = ++generation
+    configuredAtMs = 0L
+    firstPreviewAtMs = 0L
     openKey = desired.props.sessionKey
     openSurface = surface
     try {
@@ -357,6 +365,7 @@ class HighSpeedCameraView(context: Context, appContext: AppContext) :
           override fun onDisconnected(camera: CameraDevice) {
             camera.close()
             if (opened == generation) {
+              // A disconnect before the session exists is another app taking the camera.
               val unstable = startingUp()
               closeCamera(interrupted = true)
               if (unstable) emitError("configure_failed", "The camera dropped right after starting")
@@ -367,10 +376,17 @@ class HighSpeedCameraView(context: Context, appContext: AppContext) :
           override fun onError(camera: CameraDevice, error: Int) {
             camera.close()
             if (opened == generation) {
-              val unstable = startingUp()
+              // Only a device or service failure can be the configuration; a camera in use
+              // or disabled keeps its own code (the next candidate would fail the same way).
+              val unstable = startingUp() &&
+                (error == CameraDevice.StateCallback.ERROR_CAMERA_DEVICE || error == CameraDevice.StateCallback.ERROR_CAMERA_SERVICE)
               closeCamera(interrupted = true)
-              if (unstable) emitError("configure_failed", "Camera error $error right after starting")
-              else emitError("camera_error", "Camera error $error")
+              when {
+                unstable -> emitError("configure_failed", "Camera error $error right after starting")
+                error == CameraDevice.StateCallback.ERROR_CAMERA_IN_USE || error == CameraDevice.StateCallback.ERROR_MAX_CAMERAS_IN_USE ->
+                  emitError("camera_in_use", "Camera error $error")
+                else -> emitError("camera_error", "Camera error $error")
+              }
             }
           }
         },
@@ -408,9 +424,8 @@ class HighSpeedCameraView(context: Context, appContext: AppContext) :
           try {
             val highSpeed = configured as CameraConstrainedHighSpeedCaptureSession
             session = highSpeed
-            // The preview runs at the recording's fixed rate too: the sensor stays in its
-            // high-speed mode (no switch, no frames lost, same exposure) when recording starts.
-            val fixedRange = Range(props.fps, props.fps)
+            // The preview at a variable range ending at `fps` (a fixed one aborts Samsung's
+            // HAL); the recording at the fixed `[fps, fps]` the high-speed session requires.
             previewRequests = requests(
               highSpeed,
               CameraDevice.TEMPLATE_PREVIEW,
@@ -421,9 +436,10 @@ class HighSpeedCameraView(context: Context, appContext: AppContext) :
               highSpeed,
               CameraDevice.TEMPLATE_RECORD,
               listOf(preview, input),
-              fixedRange
+              Range(props.fps, props.fps)
             )
-            previewFrames.set(0)
+            configuredAtMs = SystemClock.elapsedRealtime()
+            firstPreviewAtMs = 0L
             highSpeed.setRepeatingBurst(previewRequests!!, previewCounter, cameraHandler)
             emit {
               onReady(mapOf("fps" to props.fps, "width" to props.width, "height" to props.height))
@@ -450,8 +466,9 @@ class HighSpeedCameraView(context: Context, appContext: AppContext) :
           cameraExecutor,
           callback
         )
-        // The recording request as session parameters: the HAL picks the high-frame-rate
-        // sensor mode when the session is created, not when the recording starts.
+        // The recording request as session parameters: a hint for the sensor mode at
+        // session creation. The preview's variable range may still make the HAL switch
+        // modes when recording starts (a few frames lost, see ADR 0102).
         val parameters = camera.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
         surfaces.forEach { parameters.addTarget(it) }
         parameters.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(props.fps, props.fps))
@@ -466,8 +483,16 @@ class HighSpeedCameraView(context: Context, appContext: AppContext) :
     }
   }
 
-  /** No recording yet and the preview has not run long enough to call the configuration stable. */
-  private fun startingUp(): Boolean = recorder == null && previewFrames.get() < STABLE_PREVIEW_FRAMES
+  /**
+   * The session was configured, nothing is recording, and the preview has not
+   * run [STABLE_PREVIEW_MS] since its first frame: too soon to call the
+   * configuration stable.
+   */
+  private fun startingUp(): Boolean {
+    if (recorder != null || configuredAtMs == 0L) return false
+    val first = firstPreviewAtMs
+    return first == 0L || SystemClock.elapsedRealtime() - first < STABLE_PREVIEW_MS
+  }
 
   /**
    * The preview's range: the widest one the camera lists for this size that
@@ -723,8 +748,8 @@ class HighSpeedCameraView(context: Context, appContext: AppContext) :
   }
 
   companion object {
-    /** About a second of preview (the HAL reports a result per burst at the preview rate). */
-    private const val STABLE_PREVIEW_FRAMES = 15
+    /** Preview time, from its first result, after which the configuration counts as stable. */
+    private const val STABLE_PREVIEW_MS = 1_000L
 
     private val live: MutableSet<HighSpeedCameraView> =
       Collections.newSetFromMap(WeakHashMap<HighSpeedCameraView, Boolean>())

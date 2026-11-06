@@ -32,9 +32,9 @@ export interface HighSpeedConfig {
   readonly width: number;
   readonly height: number;
   /**
-   * Fixed rate of the preview and the recording (`[fps, fps]`: a
-   * high-speed recording asks for a fixed range, and the preview keeps it so
-   * the sensor mode does not change when recording starts).
+   * Rate of the recording, at the fixed `[fps, fps]` a high-speed recording
+   * asks for. The preview runs at the widest variable range ending at it (a
+   * fixed preview range aborts Samsung's camera HAL; ADR 0102).
    */
   readonly fps: number;
 }
