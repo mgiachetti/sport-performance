@@ -112,8 +112,10 @@ describe('CmjVideoRecordScreen', () => {
       recording: false,
       maxDurationS: 8,
       attemptCount: 3,
+      importState: { status: 'idle' } as const,
       onStart,
       onStop: vi.fn(),
+      onImport: vi.fn(),
       onCancel: vi.fn(),
     };
     const { rerender } = renderScreen(
@@ -130,6 +132,76 @@ describe('CmjVideoRecordScreen', () => {
     expect(onStart).toHaveBeenCalled();
     rerender(<CmjVideoRecordScreen {...props} cameraState={{ status: 'unsupported' }} />);
     expect(screen.getByText(t('cmjVideo.record.unsupported'))).toBeTruthy();
+  });
+});
+
+describe('CmjVideoRecordScreen: a video from the gallery (ADR 0102)', () => {
+  const props = {
+    playerName: 'Díaz, Juan',
+    camera: null,
+    recording: false,
+    maxDurationS: 8,
+    attemptCount: 3,
+    cameraState: { status: 'unsupported' } as const,
+    onStart: vi.fn(),
+    onStop: vi.fn(),
+    onCancel: vi.fn(),
+  };
+
+  it('picks one even when the camera cannot film at high speed', () => {
+    const onImport = vi.fn();
+    renderScreen(
+      <CmjVideoRecordScreen {...props} importState={{ status: 'idle' }} onImport={onImport} />,
+    );
+    expect(screen.getByText(t('cmjVideo.record.unsupported'))).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: t('cmjVideo.import.pick') }));
+    expect(onImport).toHaveBeenCalled();
+  });
+
+  it('says why a video was refused, with the frame rate it has', () => {
+    const { rerender } = renderScreen(
+      <CmjVideoRecordScreen
+        {...props}
+        importState={{
+          status: 'rejected',
+          rejection: { reason: 'too_slow', fps: 30, minFps: 120 },
+        }}
+        onImport={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(t('cmjVideo.import.too_slow', { fps: 30, minFps: 120 }))).toBeTruthy();
+    rerender(
+      <CmjVideoRecordScreen
+        {...props}
+        importState={{ status: 'rejected', rejection: { reason: 'variable_rate' } }}
+        onImport={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(t('cmjVideo.import.variable_rate'))).toBeTruthy();
+    rerender(
+      <CmjVideoRecordScreen {...props} importState={{ status: 'failed' }} onImport={vi.fn()} />,
+    );
+    expect(screen.getByText(t('cmjVideo.import.failed'))).toBeTruthy();
+  });
+
+  it('does not pick another while one is read or while recording', () => {
+    const onImport = vi.fn();
+    const { rerender } = renderScreen(
+      <CmjVideoRecordScreen {...props} importState={{ status: 'reading' }} onImport={onImport} />,
+    );
+    expect(screen.getByText(t('cmjVideo.import.reading'))).toBeTruthy();
+    const pick = screen.getByRole('button', { name: t('cmjVideo.import.pick') });
+    expect(pick.getAttribute('aria-disabled')).toBe('true');
+    rerender(
+      <CmjVideoRecordScreen
+        {...props}
+        recording
+        importState={{ status: 'idle' }}
+        onImport={onImport}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: t('cmjVideo.import.pick') }));
+    expect(onImport).not.toHaveBeenCalled();
   });
 });
 

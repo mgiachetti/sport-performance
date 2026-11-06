@@ -1,4 +1,9 @@
-import { localDate, type LocalDate } from '@sport-performance/domain';
+import {
+  CMJ_VIDEO_MIN_FPS,
+  FILE_KIND_POLICIES,
+  localDate,
+  type LocalDate,
+} from '@sport-performance/domain';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useReducer, useState, useSyncExternalStore } from 'react';
@@ -12,8 +17,9 @@ import {
 } from '../../src/cmj-video/attempt.ts';
 import { CMJ_VIDEO_MAX_DURATION_S } from '../../src/cmj-video/camera.ts';
 import { frameTimeMs, initialMarking, markingReducer } from '../../src/cmj-video/marking.ts';
-import type { RecordedVideo } from '../../src/cmj-video/service.ts';
+import type { CmjVideoContentType } from '../../src/cmj-video/captures.ts';
 import { NativeCmjCamera, createNativeFrameSource } from '../../src/platform/cmj-video.tsx';
+import { discardPickedVideo, pickSlowMotionVideo } from '../../src/platform/video-import.ts';
 import {
   CmjVideoDaysScreen,
   CmjVideoMarkScreen,
@@ -21,6 +27,7 @@ import {
   CmjVideoRecordScreen,
   CmjVideoUploadsList,
   type CameraState,
+  type CmjVideo as VideoToMark,
 } from '../../src/screens/cmj-video.tsx';
 import { useApi, useServices, useSession, useSyncStatus } from '../../src/state/app-context.tsx';
 import { useTranslator } from '../../src/ui/i18n.tsx';
@@ -31,6 +38,19 @@ import {
   ScreenHeader,
   StatusMessage,
 } from '../../src/ui/primitives.tsx';
+import {
+  importStateOf,
+  importVideo,
+  type ImportLimits,
+  type VideoImportState,
+} from '../../src/video/imported.ts';
+
+/** What a video from the gallery must be to go up with the attempt (ADR 0102). */
+const IMPORT_LIMITS: ImportLimits = {
+  minFps: CMJ_VIDEO_MIN_FPS,
+  maxSizeBytes: FILE_KIND_POLICIES.cmj_video.maxSizeBytes,
+  contentTypes: FILE_KIND_POLICIES.cmj_video.contentTypes,
+};
 
 type Step =
   | { readonly kind: 'days' }
@@ -40,7 +60,7 @@ type Step =
       readonly kind: 'mark';
       readonly testSessionId: string;
       readonly playerId: string;
-      readonly video: RecordedVideo & { readonly frameRateFps: number };
+      readonly video: VideoToMark;
     };
 
 /**
@@ -289,10 +309,12 @@ function RecordStep({
 }: {
   readonly playerName: string;
   readonly attemptCount: number;
-  readonly onRecorded: (video: RecordedVideo & { readonly frameRateFps: number }) => void;
+  readonly onRecorded: (video: VideoToMark) => void;
   readonly onCancel: () => void;
 }) {
+  const services = useServices();
   const [cameraState, setCameraState] = useState<CameraState>({ status: 'preparing' });
+  const [importState, setImportState] = useState<VideoImportState>({ status: 'idle' });
   const [recording, setRecording] = useState(false);
   const onState = useCallback((state: CameraState) => {
     setCameraState(state);
@@ -321,6 +343,30 @@ function RecordStep({
       onStop={() => {
         setRecording(false);
       }}
+      importState={importState}
+      onImport={() => {
+        setImportState({ status: 'reading' });
+        importVideo(pickSlowMotionVideo, discardPickedVideo, IMPORT_LIMITS)
+          .then((outcome) => {
+            if (outcome.kind !== 'accepted') {
+              setImportState(importStateOf(outcome) ?? { status: 'idle' });
+              return;
+            }
+            setImportState({ status: 'idle' });
+            onRecorded({
+              path: outcome.path,
+              // Accepted only as one of the types the CMJ keeps (`IMPORT_LIMITS`).
+              contentType: outcome.contentType as CmjVideoContentType,
+              durationMs: outcome.timing.durationMs,
+              frameRateFps: outcome.timing.captureFps,
+              timelineScale: outcome.timing.timelineScale,
+            });
+          })
+          .catch((error: unknown) => {
+            services.reportError(error);
+            setImportState({ status: 'failed' });
+          });
+      }}
       onCancel={onCancel}
     />
   );
@@ -339,7 +385,7 @@ function MarkStep({
   readonly playerName: string;
   readonly sex: Parameters<typeof CmjVideoMarkScreen>[0]['sex'];
   readonly ageYears: Parameters<typeof CmjVideoMarkScreen>[0]['ageYears'];
-  readonly video: RecordedVideo & { readonly frameRateFps: number };
+  readonly video: VideoToMark;
   readonly gravityMs2: number;
   readonly attemptNumber: number;
   readonly onSave: (marks: { takeoffFrame: number; landingFrame: number }) => Promise<void>;
@@ -354,7 +400,8 @@ function MarkStep({
   const [loaded, setLoaded] = useState<{ frame: number; uri: string | null } | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
-  const timeMs = frameTimeMs(marking);
+  // Capture time on the file's timeline (stretched when the phone saved it for slow playback).
+  const timeMs = frameTimeMs(marking) * (video.timelineScale ?? 1);
 
   useEffect(
     () => () => {
