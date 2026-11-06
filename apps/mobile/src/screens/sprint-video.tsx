@@ -13,6 +13,7 @@ import {
   type SprintMark,
   type SprintMarkingState,
 } from '../sprint-video/marking.ts';
+import type { VideoImportState } from '../video/imported.ts';
 import { useTranslator } from '../ui/i18n.tsx';
 import {
   AppText,
@@ -35,8 +36,13 @@ import { useTheme } from '../ui/theme.tsx';
 export interface RecordedSprintVideo {
   readonly path: string;
   readonly durationMs: number;
-  /** The frame rate the camera session settled on. */
+  /** The capture rate (the camera session's, or the file's when taken from the gallery). */
   readonly frameRateFps: number;
+  /**
+   * Seconds of the file's timeline per capture second (ADR 0102): 1 for the
+   * app's own recordings, 8 for a 240 fps capture saved for 30 fps playback.
+   */
+  readonly timelineScale?: number;
 }
 
 /** What the camera reports to the screen. */
@@ -279,8 +285,10 @@ export function SprintVideoRecordScreen({
   recording,
   maxDurationS,
   camera,
+  importState,
   onStart,
   onStop,
+  onImport,
   onCancel,
 }: {
   readonly playerName: string;
@@ -289,8 +297,11 @@ export function SprintVideoRecordScreen({
   readonly maxDurationS: number;
   /** The camera preview (the native one on the phone). */
   readonly camera: ReactNode;
+  /** A slow-motion video taken from the gallery (ADR 0102). */
+  readonly importState: VideoImportState;
   readonly onStart: () => void;
   readonly onStop: () => void;
+  readonly onImport: () => void;
   readonly onCancel: () => void;
 }) {
   const { t } = useTranslator();
@@ -345,6 +356,29 @@ export function SprintVideoRecordScreen({
           onPress={onStart}
         />
       )}
+      <AppText tone="secondary">{t('sprintVideo.import.hint')}</AppText>
+      {importState.status === 'reading' ? (
+        <AppText tone="secondary">{t('sprintVideo.import.reading')}</AppText>
+      ) : null}
+      {importState.status === 'rejected' ? (
+        <StatusMessage level="warning">
+          {importState.rejection.reason === 'too_slow'
+            ? t('sprintVideo.import.too_slow', {
+                fps: importState.rejection.fps,
+                minFps: importState.rejection.minFps,
+              })
+            : t(`sprintVideo.import.${importState.rejection.reason}`)}
+        </StatusMessage>
+      ) : null}
+      {importState.status === 'failed' ? (
+        <StatusMessage level="critical">{t('sprintVideo.import.failed')}</StatusMessage>
+      ) : null}
+      <Button
+        variant="secondary"
+        label={t('sprintVideo.import.pick')}
+        disabled={recording || importState.status === 'reading'}
+        onPress={onImport}
+      />
       <Button variant="link" label={t('common.cancel')} disabled={recording} onPress={onCancel} />
     </ScreenBody>
   );

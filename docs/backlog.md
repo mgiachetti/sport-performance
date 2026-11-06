@@ -172,6 +172,7 @@
 - **B-607 Gimnasio** · `area:web` `area:mobile`. Programas por etapa, registro de series (peso × repeticiones × RIR), nota técnica, e1RM.
 - **B-608 Exportación CSV** · `area:api`. De todos los datos del club.
 - **B-609 Reporte de dolor en el bienestar (opcional)** (nuevo) · `area:api` `area:mobile` `privacy`. Pregunta "¿te duele algo?" con mapa del cuerpo. Requiere consentimiento de salud; va directo al staff médico (esquema `medical`) y el entrenador no lo ve. Módulo activable por club.
+- **B-610 Video de alta velocidad en Android e importación de la galería** (nuevo) · `area:mobile`. Módulo propio de sesión de alta velocidad de Camera2 (VisionCamera no la usa y Samsung no llega a 120 fps sin ella) y videos en cámara lenta del teléfono importados con su tasa de captura real (ADR 0102).
 
 ## M7 · Producción y piloto
 

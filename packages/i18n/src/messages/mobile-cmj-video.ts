@@ -39,8 +39,23 @@ export const mobileCmjVideoMessagesEsAR = {
   'cmjVideo.record.noPermission':
     'La app no tiene permiso para usar la cámara. Habilitalo en los ajustes del teléfono.',
   'cmjVideo.record.unsupported':
-    'La cámara de este teléfono no graba a 120 cuadros por segundo o más: el salto no se puede medir con precisión. Cargá el tiempo de vuelo a mano.',
+    'La app no puede filmar a 120 cuadros por segundo o más con este teléfono. Filmá el salto con la cámara lenta del teléfono y elegilo de la galería, o cargá el tiempo de vuelo a mano.',
   'cmjVideo.record.failed': 'No se pudo grabar. Probá de nuevo.',
+
+  // Import from the gallery (ADR 0102)
+  'cmjVideo.import.pick': 'Elegir un video en cámara lenta',
+  'cmjVideo.import.hint':
+    'También podés filmar el salto con la cámara lenta del teléfono y elegirlo de la galería: se mide con los cuadros por segundo reales del archivo.',
+  'cmjVideo.import.reading': 'Leyendo el video…',
+  'cmjVideo.import.too_slow':
+    'El video está a {fps} cuadros por segundo y hacen falta {minFps} o más. Si lo filmaste en cámara lenta, el teléfono lo guardó ralentizado sin la velocidad real: probá con otro modo de cámara lenta.',
+  'cmjVideo.import.variable_rate':
+    'El video mezcla tramos en cámara lenta y a velocidad normal: así no se puede medir. Filmalo con la cámara lenta en todo el video.',
+  'cmjVideo.import.unreadable': 'No se pudieron leer los cuadros del video. Probá con otro.',
+  'cmjVideo.import.too_large':
+    'El video es demasiado grande para guardarlo con el intento. Filmá solo el salto.',
+  'cmjVideo.import.format': 'El archivo no es un video MP4 o MOV.',
+  'cmjVideo.import.failed': 'No se pudo abrir el video. Probá de nuevo.',
 
   // Marking
   'cmjVideo.mark.title': 'Marcá el salto de {name}',

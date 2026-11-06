@@ -174,8 +174,10 @@ describe('SprintVideoRecordScreen', () => {
       recording: false,
       maxDurationS: 20,
       camera: null,
+      importState: { status: 'idle' } as const,
       onStart,
       onStop: vi.fn(),
+      onImport: vi.fn(),
       onCancel: vi.fn(),
     };
     const { unmount } = renderScreen(
@@ -193,6 +195,49 @@ describe('SprintVideoRecordScreen', () => {
     ).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: t('sprintVideo.record.start') }));
     expect(onStart).toHaveBeenCalled();
+  });
+});
+
+describe('SprintVideoRecordScreen: a video from the gallery (ADR 0102)', () => {
+  const props = {
+    playerName: 'Díaz, Juan',
+    recording: false,
+    maxDurationS: 20,
+    camera: null,
+    cameraState: { status: 'unsupported' } as const,
+    onStart: vi.fn(),
+    onStop: vi.fn(),
+    onCancel: vi.fn(),
+  };
+
+  it('picks one and says why it was refused', () => {
+    const onImport = vi.fn();
+    const { rerender } = renderScreen(
+      <SprintVideoRecordScreen {...props} importState={{ status: 'idle' }} onImport={onImport} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: t('sprintVideo.import.pick') }));
+    expect(onImport).toHaveBeenCalled();
+    rerender(
+      <SprintVideoRecordScreen
+        {...props}
+        importState={{
+          status: 'rejected',
+          rejection: { reason: 'too_slow', fps: 60, minFps: 120 },
+        }}
+        onImport={onImport}
+      />,
+    );
+    expect(
+      screen.getByText(t('sprintVideo.import.too_slow', { fps: 60, minFps: 120 })),
+    ).toBeTruthy();
+    rerender(
+      <SprintVideoRecordScreen
+        {...props}
+        importState={{ status: 'rejected', rejection: { reason: 'unreadable' } }}
+        onImport={onImport}
+      />,
+    );
+    expect(screen.getByText(t('sprintVideo.import.unreadable'))).toBeTruthy();
   });
 });
 

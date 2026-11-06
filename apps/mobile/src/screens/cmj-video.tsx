@@ -6,6 +6,7 @@ import { filmingBlock, type CmjVideoPlayer } from '../cmj-video/attempt.ts';
 import type { CmjVideoCapture } from '../cmj-video/captures.ts';
 import { heightPlausibility, markingResult, type MarkingState } from '../cmj-video/marking.ts';
 import type { RecordedVideo } from '../cmj-video/service.ts';
+import type { VideoImportState } from '../video/imported.ts';
 import { useTranslator } from '../ui/i18n.tsx';
 import {
   AppText,
@@ -35,9 +36,20 @@ export type CameraState =
 export interface CmjCameraProps {
   /** `true` to record, `false` to stop (the recording also stops alone). */
   readonly recording: boolean;
-  readonly onRecorded: (video: RecordedVideo & { readonly frameRateFps: number }) => void;
+  readonly onRecorded: (video: CmjVideo) => void;
   readonly onState: (state: CameraState) => void;
 }
+
+/** A video to mark: recorded by the app or taken from the gallery (ADR 0102). */
+export type CmjVideo = RecordedVideo & {
+  /** The capture rate: what the frames are counted at. */
+  readonly frameRateFps: number;
+  /**
+   * Seconds of the file's timeline per capture second: 1 for the app's own
+   * recordings, 8 for a 240 fps capture the phone saved for 30 fps playback.
+   */
+  readonly timelineScale?: number;
+};
 
 /** The image of each frame of a recording (`modules/cmj-frames` on the phone). */
 export interface FrameSource {
@@ -149,8 +161,10 @@ export function CmjVideoRecordScreen({
   recording,
   maxDurationS,
   attemptCount,
+  importState,
   onStart,
   onStop,
+  onImport,
   onCancel,
 }: {
   readonly playerName: string;
@@ -160,8 +174,11 @@ export function CmjVideoRecordScreen({
   readonly maxDurationS: number;
   /** Attempts of the protocol (from the test definition). */
   readonly attemptCount: number;
+  /** A slow-motion video taken from the gallery (ADR 0102). */
+  readonly importState: VideoImportState;
   readonly onStart: () => void;
   readonly onStop: () => void;
+  readonly onImport: () => void;
   readonly onCancel: () => void;
 }) {
   const { t } = useTranslator();
@@ -205,9 +222,50 @@ export function CmjVideoRecordScreen({
             onPress={onStart}
           />
         )}
+        <CmjVideoImport state={importState} disabled={recording} onImport={onImport} />
         <Button variant="link" label={t('common.cancel')} disabled={recording} onPress={onCancel} />
       </View>
     </View>
+  );
+}
+
+/** Picking a slow-motion video from the gallery, and why one was refused. */
+function CmjVideoImport({
+  state,
+  disabled,
+  onImport,
+}: {
+  readonly state: VideoImportState;
+  readonly disabled: boolean;
+  readonly onImport: () => void;
+}) {
+  const { t } = useTranslator();
+  return (
+    <>
+      <AppText tone="secondary">{t('cmjVideo.import.hint')}</AppText>
+      {state.status === 'reading' ? (
+        <AppText tone="secondary">{t('cmjVideo.import.reading')}</AppText>
+      ) : null}
+      {state.status === 'rejected' ? (
+        <StatusMessage level="warning">
+          {state.rejection.reason === 'too_slow'
+            ? t('cmjVideo.import.too_slow', {
+                fps: state.rejection.fps,
+                minFps: state.rejection.minFps,
+              })
+            : t(`cmjVideo.import.${state.rejection.reason}`)}
+        </StatusMessage>
+      ) : null}
+      {state.status === 'failed' ? (
+        <StatusMessage level="critical">{t('cmjVideo.import.failed')}</StatusMessage>
+      ) : null}
+      <Button
+        variant="secondary"
+        label={t('cmjVideo.import.pick')}
+        disabled={disabled || state.status === 'reading'}
+        onPress={onImport}
+      />
+    </>
   );
 }
 

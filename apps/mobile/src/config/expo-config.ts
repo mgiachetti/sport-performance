@@ -105,7 +105,15 @@ export function buildExpoConfig(env: BuildEnv): ExpoConfig {
       // Tests filmed in slow motion (B-605, ADR 0082; B-604, ADR 0085); no microphone: the
       // videos have no audio.
       permissions: ['android.permission.CAMERA'],
-      blockedPermissions: ['android.permission.RECORD_AUDIO'],
+      // No storage access either (ADR 0102): the videos live in the app's cache, and a video
+      // from the gallery comes through the Photo Picker (or the document picker where it is
+      // missing), which hand over the file without a permission. `expo-file-system` and
+      // `expo-image-picker` declare both up to Android 12.
+      blockedPermissions: [
+        'android.permission.RECORD_AUDIO',
+        'android.permission.READ_EXTERNAL_STORAGE',
+        'android.permission.WRITE_EXTERNAL_STORAGE',
+      ],
       softwareKeyboardLayoutMode: 'resize',
       ...(webHost !== null && {
         intentFilters: [
@@ -160,6 +168,17 @@ export function buildExpoConfig(env: BuildEnv): ExpoConfig {
         // and never the microphone.
         'expo-audio',
         { microphonePermission: false, recordAudioAndroid: false, enableBackgroundPlayback: true },
+      ],
+      [
+        // Slow-motion videos of the CMJ and the sprint taken from the gallery (ADR 0102): the
+        // system picker, never the microphone. On iOS, reading the library hands over the
+        // original slow-motion file instead of a version rendered for playback.
+        'expo-image-picker',
+        {
+          photosPermission:
+            'La app lee de la galería el video en cámara lenta que elijas (por ejemplo, de un salto o un sprint) para medirlo cuadro a cuadro.',
+          microphonePermission: false,
+        },
       ],
       [
         'expo-splash-screen',

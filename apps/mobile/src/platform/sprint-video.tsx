@@ -1,4 +1,8 @@
-import { isSprintVideoFrameRate } from '@sport-performance/domain';
+import {
+  SPRINT_VIDEO_MIN_FPS,
+  SPRINT_VIDEO_PREFERRED_FPS,
+  isSprintVideoFrameRate,
+} from '@sport-performance/domain';
 import { Directory, File, Paths } from 'expo-file-system';
 import { getThumbnailAsync } from 'expo-video-thumbnails';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -18,6 +22,7 @@ import {
   sprintCameraFrameRate,
 } from '../sprint-video/camera.ts';
 import type { SprintCameraProps, SprintFrameSource } from '../screens/sprint-video.tsx';
+import { HighSpeedOrVisionCamera } from './high-speed-camera.tsx';
 
 /**
  * The phone side of the sprint by video (B-605, ADR 0082): the high-speed
@@ -88,13 +93,44 @@ export function createNativeSprintFrameSource(): SprintFrameSource {
   };
 }
 
+/** What the sprint asks of a high-speed session: 240 fps (120 at least) at 1080p. */
+const SPRINT_HIGH_SPEED = {
+  minFps: SPRINT_VIDEO_MIN_FPS,
+  preferredFps: SPRINT_VIDEO_PREFERRED_FPS,
+  targetWidth: 1920,
+  targetHeight: 1080,
+} as const;
+
 /**
- * The high-speed camera: back camera, no audio, the frame rate of the
- * sprint (`sprintCameraFrameRate`, 120 fps at least), 1080p and the
- * orientation of the phone (it films lying sideways on its tripod). The
- * frame rate the session negotiated is the one stored with the attempt.
+ * The high-speed camera of the sprint. On Android, the app's own
+ * constrained high-speed session (ADR 0102) whenever
+ * the phone lists one that reaches 120 fps, with the fallbacks of
+ * `HighSpeedOrVisionCamera`; elsewhere VisionCamera.
  */
-export function NativeSprintCamera({ recording, onRecorded, onState }: SprintCameraProps) {
+export function NativeSprintCamera(props: SprintCameraProps) {
+  return (
+    <HighSpeedOrVisionCamera
+      request={SPRINT_HIGH_SPEED}
+      vision={<VisionSprintCamera {...props} />}
+      recording={props.recording}
+      maxDurationS={SPRINT_VIDEO_MAX_DURATION_S}
+      maxFileSizeBytes={SPRINT_VIDEO_MAX_SIZE_BYTES}
+      // The phone lies sideways on its tripod: the video follows it, the app stays upright.
+      orientation="device"
+      isEnough={isSprintVideoFrameRate}
+      onState={props.onState}
+      onRecorded={props.onRecorded}
+    />
+  );
+}
+
+/**
+ * VisionCamera: back camera, no audio, the frame rate of the sprint
+ * (`sprintCameraFrameRate`, 120 fps at least), 1080p and the orientation of
+ * the phone (it films lying sideways on its tripod). The frame rate the
+ * session negotiated is the one stored with the attempt.
+ */
+function VisionSprintCamera({ recording, onRecorded, onState }: SprintCameraProps) {
   const permission = useCameraPermission();
   const device = useCameraDevice('back');
   const frameRate = useMemo(

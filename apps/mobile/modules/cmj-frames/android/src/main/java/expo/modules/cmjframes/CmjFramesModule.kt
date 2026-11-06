@@ -1,6 +1,8 @@
 package expo.modules.cmjframes
 
 import android.graphics.Bitmap
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import expo.modules.kotlin.exception.CodedException
@@ -13,6 +15,9 @@ import java.util.UUID
 
 class CmjFrameException(message: String, cause: Throwable? = null) :
   CodedException(message, cause)
+
+/** Frame times `inspect` hands back at most (83 s at 240 fps); the samples are all counted. */
+private const val MAX_FRAME_TIMES = 20_000
 
 /**
  * Exact frames and duration of a CMJ recording (B-604, ADR 0085).
@@ -64,6 +69,25 @@ class CmjFramesModule : Module() {
     openPath = null
   }
 
+  /** `METADATA_KEY_CAPTURE_FRAMERATE`: the `com.android.capture.fps` the camera wrote, if any. */
+  private fun captureFrameRate(path: String): Double? {
+    val reader = MediaMetadataRetriever()
+    return try {
+      reader.setDataSource(path)
+      reader.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CAPTURE_FRAMERATE)
+        ?.toDoubleOrNull()
+        ?.takeIf { it > 0 }
+    } catch (e: Exception) {
+      null
+    } finally {
+      try {
+        reader.release()
+      } catch (e: Exception) {
+        // Released already.
+      }
+    }
+  }
+
   override fun definition() = ModuleDefinition {
     Name("CmjFrames")
 
@@ -93,6 +117,64 @@ class CmjFramesModule : Module() {
           bitmap.recycle()
         }
         Uri.fromFile(file).toString()
+      }
+    }
+
+    /**
+     * Timing of a video taken from the gallery (ADR 0102): the presentation time of
+     * its first video samples (up to [MAX_FRAME_TIMES], in decode order), how many
+     * samples the track has, its duration, the frame rate the container declares and
+     * the capture rate the camera wrote (`com.android.capture.fps`, which a file
+     * re-timed for slow playback keeps). Reads the demuxed samples: nothing is decoded.
+     */
+    AsyncFunction("inspect") { uri: String ->
+      val path = pathOf(uri)
+      val extractor = MediaExtractor()
+      try {
+        try {
+          extractor.setDataSource(path)
+        } catch (e: Exception) {
+          throw CmjFrameException("Unable to open the video", e)
+        }
+        val track = (0 until extractor.trackCount).firstOrNull { index ->
+          extractor.getTrackFormat(index).getString(MediaFormat.KEY_MIME)?.startsWith("video/") == true
+        } ?: throw CmjFrameException("The file has no video track")
+        val format = extractor.getTrackFormat(track)
+        extractor.selectTrack(track)
+        val times = ArrayList<Double>()
+        var count = 0
+        while (true) {
+          val time = extractor.sampleTime
+          if (time < 0) break
+          count++
+          if (times.size < MAX_FRAME_TIMES) times.add(time.toDouble())
+          if (!extractor.advance()) break
+        }
+        val nominalFps = if (format.containsKey(MediaFormat.KEY_FRAME_RATE)) {
+          try {
+            format.getInteger(MediaFormat.KEY_FRAME_RATE).toDouble()
+          } catch (e: ClassCastException) {
+            format.getFloat(MediaFormat.KEY_FRAME_RATE).toDouble()
+          }
+        } else {
+          null
+        }
+        val durationMs = if (format.containsKey(MediaFormat.KEY_DURATION)) {
+          format.getLong(MediaFormat.KEY_DURATION) / 1000.0
+        } else {
+          0.0
+        }
+        val result = mutableMapOf<String, Any>(
+          "frameTimesUs" to times,
+          "sampleCount" to count,
+          "durationMs" to durationMs,
+          "sizeBytes" to File(path).length().toDouble()
+        )
+        nominalFps?.let { result["nominalFps"] = it }
+        captureFrameRate(path)?.let { result["captureFps"] = it }
+        result
+      } finally {
+        extractor.release()
       }
     }
 
