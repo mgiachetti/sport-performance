@@ -187,7 +187,17 @@ describe('buildExpoConfig', () => {
     const config = buildExpoConfig({ ...productionEnv, SENTRY_ORG: 'org', SENTRY_PROJECT: 'app' });
     expect(config.plugins).toContainEqual([
       '@sentry/react-native',
-      { organization: 'org', project: 'app', disableAutoUpload: false },
+      {
+        organization: 'org',
+        project: 'app',
+        disableAutoUpload: false,
+        // The R8 mapping too, so native crashes read in Sentry (ADR 0101).
+        experimental_android: {
+          enableAndroidGradlePlugin: true,
+          includeProguardMapping: true,
+          autoUploadProguardMapping: true,
+        },
+      },
     ]);
   });
 
