@@ -18,6 +18,7 @@
     "e2e",
     "gallery",
     "app.config.ts",
+    "index.ts",
     "vitest.config.ts",
     "vitest.e2e.config.ts",
     "vitest.setup.ts"
