@@ -47,7 +47,6 @@ export const mobileTestDayMessagesEsAR = {
   'fieldTest.attempt.save': 'Guardar el intento {number}',
   'fieldTest.attempt.saveAnyway': 'Guardar igual',
   'fieldTest.attempt.saved': 'Intento {number} guardado en el teléfono.',
-  'fieldTest.attempt.pending': 'Sin enviar',
   'fieldTest.plausibility':
     '{field}: {value} está fuera del rango habitual ({min} a {max}). Revisalo; si está bien, tocá «Guardar igual».',
   'fieldTest.multipleResults':
@@ -55,8 +54,6 @@ export const mobileTestDayMessagesEsAR = {
 
   // Sync state of a player
   'fieldTest.sync.queued': 'Sin enviar: se manda cuando haya señal',
-  'fieldTest.sync.sent': 'Enviado, esperando la confirmación',
-  'fieldTest.sync.saved': 'Guardado en el servidor',
 
   // Not done, not applicable, corrections
   'fieldTest.notDone.open': 'No realizado',

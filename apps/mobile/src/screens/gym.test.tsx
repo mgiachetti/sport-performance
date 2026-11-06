@@ -21,7 +21,6 @@ function render(props: Partial<Parameters<typeof GymScreen>[0]> = {}) {
       moduleOn
       allowed
       state={{ status: 'ready', data: data() }}
-      offline={false}
       programId={null}
       dayKey={null}
       onPickProgram={vi.fn()}
@@ -113,7 +112,7 @@ describe('GymScreen', () => {
         }),
       },
     });
-    expect(screen.getByText(t('gym.mobile.set.pending'))).toBeDefined();
+    expect(screen.getByText(t('sync.item.pending'))).toBeDefined();
     expect(screen.getByRole('button', { name: t('gym.mobile.log', { number: 2 }) })).toBeDefined();
     expect(
       screen.getByText(/Peso muerto con barra hexagonal: 74,0\skg \(20\/10\/2026\)/),

@@ -26,9 +26,8 @@ export const mobileAnthropometryMessagesEsAR = {
   'anthropometry.field.save': 'Guardar medición',
   'anthropometry.field.saveA11y': 'Guardar la medición de {player}',
   'anthropometry.field.saveFailed': 'No se guardó en el teléfono. Probá de nuevo.',
-  'anthropometry.field.state.queued': 'Guardada en el teléfono, todavía sin subir.',
-  'anthropometry.field.state.pending': 'Corrección guardada en el teléfono, todavía sin subir.',
-  'anthropometry.field.state.synced': 'Sincronizada.',
+  'anthropometry.field.state.queued': 'Sin enviar: medición guardada en el teléfono',
+  'anthropometry.field.state.pending': 'Sin enviar: corrección guardada en el teléfono',
   'anthropometry.field.maturation.later':
     'La maduración se calcula cuando la medición llega al servidor.',
   'anthropometry.field.maturation.computing': 'Calculando la maduración…',

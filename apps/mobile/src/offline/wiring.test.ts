@@ -4,7 +4,7 @@ import { COACH_AT_ORC, USER } from '../test/fixtures.ts';
 import { runBackgroundSync } from './background.ts';
 import type { SyncEngine, SyncScopeRef, SyncStatus } from './engine.ts';
 import { syncRetryDelayMs } from './backoff.ts';
-import { bindSyncToSession } from './session-binding.ts';
+import { bindSyncToSession, refreshSessionAfterSync } from './session-binding.ts';
 import { FOREGROUND_SYNC_INTERVAL_MS, startSyncTriggers } from './triggers.ts';
 
 function fakeEngine() {
@@ -96,6 +96,54 @@ describe('sync and the session', () => {
     session.set({ status: 'signedOut', notice: null });
     await flush();
     expect(calls).toEqual(['scope:none']);
+  });
+});
+
+describe('a session left offline', () => {
+  function engineWithStatus(initial: SyncStatus) {
+    let status = initial;
+    const listeners = new Set<() => void>();
+    return {
+      getStatus: () => status,
+      subscribe: (listener: () => void) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      emit(next: Partial<SyncStatus>) {
+        status = { ...status, ...next };
+        for (const listener of listeners) listener();
+      },
+    };
+  }
+  const base: SyncStatus = {
+    membershipId: COACH_AT_ORC.id,
+    phase: 'offline',
+    pause: null,
+    pendingCount: 0,
+    issueCount: 0,
+    lastSyncedAt: 1_000,
+    nextAttemptAt: null,
+  };
+
+  it('is read again once a sync reaches the server, and only then', () => {
+    const engine = engineWithStatus(base);
+    let state: SessionState = { ...signedIn, offline: true };
+    const refresh = vi.fn(() => Promise.resolve());
+    const stop = refreshSessionAfterSync(
+      engine,
+      { getState: () => state, refresh },
+      () => undefined,
+    );
+    engine.emit({ phase: 'syncing' });
+    engine.emit({ phase: 'offline' });
+    expect(refresh).not.toHaveBeenCalled();
+    engine.emit({ phase: 'idle', lastSyncedAt: 2_000 });
+    expect(refresh).toHaveBeenCalledTimes(1);
+    // Online again: a later sync does not read the session.
+    state = signedIn;
+    engine.emit({ phase: 'idle', lastSyncedAt: 3_000 });
+    expect(refresh).toHaveBeenCalledTimes(1);
+    stop();
   });
 });
 

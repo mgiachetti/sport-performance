@@ -114,10 +114,10 @@ export default function Gym() {
       moduleOn={moduleOn}
       allowed={allowed}
       state={state}
-      offline={session.offline && syncStatus.phase !== 'offline'}
       sync={
         <SyncIndicator
           status={syncStatus}
+          offline={session.offline}
           nowMs={now}
           onSyncNow={() => {
             services.sync.requestSync({ force: true });

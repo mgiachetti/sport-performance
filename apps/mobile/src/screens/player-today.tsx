@@ -23,6 +23,7 @@ import {
   Button,
   Card,
   LoadingView,
+  PendingMark,
   ScreenBody,
   ScreenHeader,
   StatusMessage,
@@ -155,11 +156,8 @@ function ItemScale({
 
 function SentState({ pending }: { readonly pending: boolean }) {
   const { t } = useTranslator();
-  return pending ? (
-    <StatusMessage level="warning">{t('playerApp.pending')}</StatusMessage>
-  ) : (
-    <StatusMessage level="ok">{t('playerApp.sent')}</StatusMessage>
-  );
+  // Sent shows nothing: silence means the server has it (ADR 0103).
+  return pending ? <PendingMark accessibilityLabel={t('playerApp.pending')} /> : null;
 }
 
 function WellnessCard({

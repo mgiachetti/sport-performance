@@ -70,8 +70,15 @@ export const mobileMessagesEsAR = {
     '{count, plural, one {Sincronizado hace # hora} other {Sincronizado hace # horas}}',
   'sync.lastSyncedDays':
     '{count, plural, one {Sincronizado hace # día} other {Sincronizado hace # días}}',
-  'sync.idleSummary':
-    '{since, select, never {Este teléfono todavía no se sincronizó.} now {Todo sincronizado recién.} minutes {{count, plural, one {Todo sincronizado hace # minuto.} other {Todo sincronizado hace # minutos.}}} hours {{count, plural, one {Todo sincronizado hace # hora.} other {Todo sincronizado hace # horas.}}} other {{count, plural, one {Todo sincronizado hace # día.} other {Todo sincronizado hace # días.}}}}',
+  // The quiet sync line (ADR 0103): one short line, only when something is off
+  'sync.quiet.offline':
+    '{count, plural, =0 {Sin conexión} one {Sin conexión · # cambio sin enviar} other {Sin conexión · # cambios sin enviar}}',
+  'sync.quiet.offlineNever': 'Sin conexión · Este teléfono todavía no se sincronizó',
+  'sync.quiet.sending': '{count, plural, one {Enviando # cambio…} other {Enviando # cambios…}}',
+  'sync.quiet.failed':
+    '{count, plural, =0 {No pudimos sincronizar} other {No pudimos sincronizar · # sin enviar}}',
+  // The mark of an item that waits on the phone (a synced item shows nothing)
+  'sync.item.pending': 'Sin enviar',
   'sync.issues.title': 'Cambios que no se aplicaron',
   'sync.issues.summary':
     '{count, plural, one {# cambio no se pudo aplicar. Revisalo en Cuenta.} other {# cambios no se pudieron aplicar. Revisalos en Cuenta.}}',

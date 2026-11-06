@@ -52,3 +52,27 @@ export function bindSyncToSession(
   });
   return unsubscribe;
 }
+
+/**
+ * Clears a stale "offline" session once the engine reaches the server again
+ * (ADR 0103): `session.offline` only turns back with a session refresh, and
+ * the connection can come back without a launch or a foreground. When a cycle
+ * completes (a newer `lastSyncedAt`) while the session says offline, the
+ * session is read again. One place for the whole app. Returns the stop.
+ */
+export function refreshSessionAfterSync(
+  engine: Pick<SyncEngine, 'getStatus' | 'subscribe'>,
+  session: Pick<SessionController, 'getState' | 'refresh'>,
+  reportError: (error: unknown) => void,
+): () => void {
+  let lastSyncedAt = engine.getStatus().lastSyncedAt;
+  return engine.subscribe(() => {
+    const status = engine.getStatus();
+    const synced =
+      status.lastSyncedAt !== null && (lastSyncedAt === null || status.lastSyncedAt > lastSyncedAt);
+    lastSyncedAt = status.lastSyncedAt;
+    if (!synced) return;
+    const state = session.getState();
+    if (state.status === 'signedIn' && state.offline) session.refresh().catch(reportError);
+  });
+}

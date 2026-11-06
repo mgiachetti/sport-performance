@@ -54,6 +54,8 @@ export default function Account() {
         <>
           <SyncIndicator
             status={syncStatus}
+            offline={state.offline}
+            detailed
             nowMs={now}
             onSyncNow={() => {
               services.sync.requestSync({ force: true });

@@ -281,6 +281,7 @@ function TestDaysOf({
   const sync = (
     <SyncIndicator
       status={syncStatus}
+      offline={offline}
       nowMs={now}
       onSyncNow={() => {
         services.sync.requestSync({ force: true });
@@ -298,7 +299,6 @@ function TestDaysOf({
         windowName={windowName}
         savedSheets={saved}
         timeZone={timeZone}
-        offline={offline && syncStatus.phase !== 'offline'}
         sync={sync}
         onOpen={(id) => {
           setStationCode(null);

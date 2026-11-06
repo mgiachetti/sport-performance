@@ -9,7 +9,12 @@ import {
   type ExternalLoadActivity,
   type LocalDate,
 } from '@sport-performance/domain';
-import { formatLocalDate, formatNumber, isMessageKey } from '@sport-performance/i18n';
+import {
+  formatLocalDate,
+  formatNumber,
+  isMessageKey,
+  type MessageKey,
+} from '@sport-performance/i18n';
 import { useState, type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import {
@@ -29,6 +34,7 @@ import {
   AppText,
   Button,
   Card,
+  PendingMark,
   ScreenBody,
   ScreenHeader,
   StatusMessage,
@@ -128,10 +134,10 @@ function ChoiceGroup({
   );
 }
 
-const STATE_LEVEL: Readonly<Record<ExternalLoadItemState, 'ok' | 'warning'>> = {
-  local: 'warning',
-  pending: 'warning',
-  synced: 'ok',
+/** What a screen reader says of an item still on the phone (a synced one shows nothing). */
+const PENDING_LABEL: Readonly<Record<Exclude<ExternalLoadItemState, 'synced'>, MessageKey>> = {
+  local: 'externalLoad.item.state.local',
+  pending: 'externalLoad.item.state.pending',
 };
 
 export function ExternalLoadScreen({
@@ -409,9 +415,9 @@ export function ExternalLoadScreen({
                   rpe: String(item.rpe),
                 })}
               </AppText>
-              <StatusMessage level={STATE_LEVEL[item.state]}>
-                {t(`externalLoad.item.state.${item.state}`)}
-              </StatusMessage>
+              {item.state === 'synced' ? null : (
+                <PendingMark accessibilityLabel={t(PENDING_LABEL[item.state])} />
+              )}
               {confirmArchive === item.key ? (
                 <StatusMessage level="warning">{t('externalLoad.archive.confirm')}</StatusMessage>
               ) : null}

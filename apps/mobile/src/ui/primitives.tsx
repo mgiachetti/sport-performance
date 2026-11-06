@@ -431,6 +431,80 @@ export function StatusIcon({
 }
 
 /**
+ * A clock drawn with views (no font glyph to miss on a phone): what waits on
+ * the phone to be sent. Decorative next to its text.
+ */
+export function ClockIcon({ size, color }: { readonly size?: number; readonly color?: string }) {
+  const theme = useTheme();
+  const side = size ?? theme.sizes.statusIcon;
+  const ink = color ?? theme.colors.text.muted;
+  const stroke = Math.max(1, Math.round(side / 10));
+  const center = side / 2;
+  return (
+    <View
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+      accessibilityElementsHidden
+      style={{
+        width: side,
+        height: side,
+        borderRadius: side / 2,
+        borderWidth: stroke,
+        borderColor: ink,
+      }}
+    >
+      {/* The hands, from the center: up to twelve and right to three. */}
+      <View
+        style={{
+          position: 'absolute',
+          left: center - stroke * 1.5,
+          top: side * 0.22 - stroke,
+          width: stroke,
+          height: center - side * 0.22,
+          backgroundColor: ink,
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          left: center - stroke * 1.5,
+          top: center - stroke * 1.5,
+          width: side * 0.25,
+          height: stroke,
+          backgroundColor: ink,
+        }}
+      />
+    </View>
+  );
+}
+
+/**
+ * The quiet mark of an item that waits on the phone to be sent (ADR 0103):
+ * a small clock and a short text, muted, inline. A synced item shows nothing.
+ */
+export function PendingMark({ accessibilityLabel }: { readonly accessibilityLabel?: string }) {
+  const theme = useTheme();
+  const { t } = useTranslator();
+  const text = t('sync.item.pending');
+  return (
+    <View
+      accessible
+      accessibilityRole="text"
+      accessibilityLabel={accessibilityLabel ?? text}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        gap: theme.spacing.xs,
+      }}
+    >
+      <ClockIcon size={theme.sizes.statusIcon - theme.spacing.xxs} />
+      <Text style={[theme.text.caption, { color: theme.colors.text.muted }]}>{text}</Text>
+    </View>
+  );
+}
+
+/**
  * A status message: always an icon and a text, never color alone (CLAUDE.md).
  * Warnings and errors are announced to screen readers as they appear.
  */

@@ -27,6 +27,7 @@ export default function Home() {
   const sync = (
     <SyncIndicator
       status={syncStatus}
+      offline={state.offline}
       nowMs={now}
       onSyncNow={() => {
         services.sync.requestSync({ force: true });
@@ -60,8 +61,6 @@ export default function Home() {
       userName={state.user.name}
       membership={state.activeMembership}
       clubTheme={clubTheme}
-      // The indicator already says so when the sync got no answer.
-      offline={state.offline && syncStatus.phase !== 'offline'}
       sync={sync}
       onOpenIft3015={
         canRunIft3015(state.activeMembership.role)

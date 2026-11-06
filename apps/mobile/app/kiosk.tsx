@@ -2,7 +2,13 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { useEffect } from 'react';
 import { BackHandler } from 'react-native';
 import { SyncIndicator } from '../src/screens/sync.tsx';
-import { useKiosk, useNow, useServices, useSyncStatus } from '../src/state/app-context.tsx';
+import {
+  useKiosk,
+  useNow,
+  useServices,
+  useSession,
+  useSyncStatus,
+} from '../src/state/app-context.tsx';
 import { KioskMode } from '../src/state/kiosk-screens.tsx';
 
 /**
@@ -14,6 +20,7 @@ import { KioskMode } from '../src/state/kiosk-screens.tsx';
 export default function KioskRoute() {
   const services = useServices();
   const kiosk = useKiosk();
+  const session = useSession();
   const syncStatus = useSyncStatus();
   const now = useNow();
   useKeepAwake();
@@ -32,6 +39,7 @@ export default function KioskRoute() {
       sync={
         <SyncIndicator
           status={syncStatus}
+          offline={session.status === 'signedIn' && session.offline}
           nowMs={now}
           onSyncNow={() => {
             services.sync.requestSync({ force: true });

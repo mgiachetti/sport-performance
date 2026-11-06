@@ -16,8 +16,7 @@ export const mobilePlayerMessagesEsAR = {
     'La primera vez necesitamos conexión para traer tu ficha. Después funciona sin señal.',
   'playerApp.noPlayer':
     'Tu usuario no tiene una ficha de jugador/a en este club. Avisale al club para que lo arregle.',
-  'playerApp.pending': 'Guardado en el teléfono. Se envía cuando haya conexión.',
-  'playerApp.sent': 'Enviado.',
+  'playerApp.pending': 'Sin enviar: guardado en el teléfono, se envía cuando haya señal',
 
   // Wellness
   'playerApp.wellness.hintFaces': 'Tocá una carita en cada pregunta. Tarda menos de 20 segundos.',

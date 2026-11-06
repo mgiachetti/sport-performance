@@ -21,59 +21,69 @@ export function lastSyncedText(lastSyncedAt: number | null, nowMs: number, { t }
   return t('sync.lastSyncedDays', { count: Math.floor(age / DAY_MS) });
 }
 
-/**
- * The one line of an idle queue with nothing waiting (one ICU message, so it
- * never says "all synced" next to "never synced"): when it last synced, or
- * that this phone never did yet.
- */
-export function idleSummary(
-  lastSyncedAt: number | null,
-  nowMs: number,
-  { t }: Translator,
-): StatusLine {
-  if (lastSyncedAt === null) {
-    return { level: 'warning', text: t('sync.idleSummary', { since: 'never', count: 0 }) };
-  }
-  const age = Math.max(0, nowMs - lastSyncedAt);
-  const [since, count] =
-    age < MINUTE_MS
-      ? (['now', 0] as const)
-      : age < HOUR_MS
-        ? (['minutes', Math.floor(age / MINUTE_MS)] as const)
-        : age < DAY_MS
-          ? (['hours', Math.floor(age / HOUR_MS)] as const)
-          : (['days', Math.floor(age / DAY_MS)] as const);
-  return { level: 'ok', text: t('sync.idleSummary', { since, count }) };
+/** What the quiet sync line shows: drives its icon. */
+export type QuietSyncKind = 'offline' | 'failing' | 'sending' | 'pending';
+
+export interface QuietSyncLine {
+  readonly kind: QuietSyncKind;
+  readonly text: string;
 }
 
 /**
- * What the sync indicator says (ADR 0069), most important first: a pause,
- * no signal or a failing server, then what waits to be sent and what could
- * not be applied. Always text with the level's icon, never color alone.
+ * The status the indicator shows when the session could not reach the
+ * server (`session.offline`, ADR 0103). It says "no connection" only while
+ * the engine has no fresher answer: a cycle in flight, or idle without ever
+ * having synced. A failing server, a pause or a no-connection the engine
+ * found itself are never hidden, and an idle engine that synced already
+ * reached the server (the session is refreshed then, `refreshSessionAfterSync`).
  */
-export function syncStatusLines(
-  status: SyncStatus,
-  nowMs: number,
-  translator: Translator,
-): StatusLine[] {
-  const { t } = translator;
+export function withSessionOffline(status: SyncStatus, sessionOffline: boolean): SyncStatus {
+  if (!sessionOffline) return status;
+  const noAnswer =
+    status.phase === 'syncing' || (status.phase === 'idle' && status.lastSyncedAt === null);
+  return noAnswer ? { ...status, phase: 'offline' } : status;
+}
+
+/**
+ * The one quiet line of the sync indicator (ADR 0103), or `null` when all is
+ * well: idle with nothing waiting, or syncing with nothing waiting (a fresh
+ * login's first sync included). No signal or a failing server say so along
+ * with what waits; during a pause it says only what waits, since the pause
+ * has its own message. "Never synced" shows only without signal.
+ */
+export function quietSyncLine(status: SyncStatus, { t }: Translator): QuietSyncLine | null {
+  const count = status.pendingCount;
+  switch (status.phase) {
+    case 'offline':
+      return {
+        kind: 'offline',
+        text:
+          count === 0 && status.lastSyncedAt === null
+            ? t('sync.quiet.offlineNever')
+            : t('sync.quiet.offline', { count }),
+      };
+    case 'failing':
+      return { kind: 'failing', text: t('sync.quiet.failed', { count }) };
+    case 'syncing':
+      return count === 0 ? null : { kind: 'sending', text: t('sync.quiet.sending', { count }) };
+    case 'idle':
+    case 'paused':
+      return count === 0 ? null : { kind: 'pending', text: t('sync.pending', { count }) };
+  }
+}
+
+/**
+ * What needs the user to act, kept prominent (ADR 0103): a pause until an
+ * app update or a new sign-in, and the changes the server did not apply.
+ * Always text with the level's icon, never color alone.
+ */
+export function syncAlerts(status: SyncStatus, { t }: Translator): StatusLine[] {
   const lines: StatusLine[] = [];
   if (status.phase === 'paused') {
     lines.push({
       level: 'warning',
       text: status.pause === 'update' ? t('sync.pausedForUpdate') : t('sync.paused'),
     });
-  } else if (status.phase === 'offline') {
-    lines.push({ level: 'warning', text: t('sync.offline') });
-  } else if (status.phase === 'failing') {
-    lines.push({ level: 'warning', text: t('sync.failed') });
-  } else if (status.phase === 'syncing') {
-    lines.push({ level: 'ok', text: t('sync.syncing') });
-  }
-  if (status.pendingCount > 0) {
-    lines.push({ level: 'warning', text: t('sync.pending', { count: status.pendingCount }) });
-  } else if (status.phase === 'idle') {
-    lines.push(idleSummary(status.lastSyncedAt, nowMs, translator));
   }
   if (status.issueCount > 0) {
     lines.push({ level: 'critical', text: t('sync.issues.summary', { count: status.issueCount }) });

@@ -95,7 +95,6 @@ export const commonMessagesEsAR = {
   'sync.syncing': 'Sincronizando…',
   'sync.synced': 'Todo sincronizado',
   'sync.lastSynced': 'Última sincronización: {dateTime}',
-  'sync.failed': 'No pudimos sincronizar. Lo volvemos a intentar solos en unos minutos.',
   'sync.pausedForUpdate':
     'Sincronización en pausa hasta que actualices la app. Lo que cargues queda guardado en el teléfono.',
 

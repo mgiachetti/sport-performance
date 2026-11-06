@@ -104,6 +104,7 @@ export default function ExternalLoad() {
       sync={
         <SyncIndicator
           status={syncStatus}
+          offline={session.status === 'signedIn' && session.offline}
           nowMs={now}
           onSyncNow={() => {
             services.sync.requestSync({ force: true });

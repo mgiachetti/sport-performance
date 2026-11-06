@@ -447,7 +447,6 @@ export const SCENE_RENDERERS: Readonly<Record<string, Scene>> = {
       userName="Ana"
       membership={COACH}
       clubTheme={ORC_THEME}
-      offline={false}
       sync={<SyncIndicator status={idleSync} nowMs={NOW} onSyncNow={noop} />}
       onOpenIft3015={noop}
       onOpenReaction={noop}
@@ -574,7 +573,7 @@ export const SCENE_RENDERERS: Readonly<Record<string, Scene>> = {
       version="1.0.0 (12)"
       offline={false}
       signingOut={false}
-      sync={<SyncIndicator status={idleSync} nowMs={NOW} onSyncNow={noop} />}
+      sync={<SyncIndicator status={idleSync} nowMs={NOW} detailed onSyncNow={noop} />}
       onChangeClub={noop}
       onSignOut={noop}
       onOpenNotifications={noop}
@@ -591,7 +590,7 @@ export const SCENE_RENDERERS: Readonly<Record<string, Scene>> = {
       signingOut={false}
       pendingCount={2}
       confirmSignOut
-      sync={<SyncIndicator status={offlineSync} nowMs={NOW} onSyncNow={noop} />}
+      sync={<SyncIndicator status={offlineSync} nowMs={NOW} detailed onSyncNow={noop} />}
       onChangeClub={noop}
       onSignOut={noop}
     />
