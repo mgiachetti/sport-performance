@@ -8,6 +8,7 @@ import {
   Button,
   Card,
   LoadingView,
+  PendingMark,
   ScreenBody,
   StatusMessage,
   TextField,
@@ -439,8 +440,8 @@ function PlayerCard({
         {row.todayHeightCm === null
           ? t('weeklyCmj.today.none')
           : t('weeklyCmj.today', { height: height(row.todayHeightCm) })}
-        {row.sync === null ? '' : ` · ${t(`weeklyCmj.sync.${row.sync}`)}`}
       </AppText>
+      {row.sync === 'queued' ? <PendingMark /> : null}
       {row.today.length > 1 ? (
         <AppText role="caption" tone="secondary">
           {t('weeklyCmj.today.many', { count: row.today.length })}

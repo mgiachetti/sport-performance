@@ -74,7 +74,6 @@ describe('TestDayListScreen', () => {
         windowName={(id) => (id === null ? t('testDay.window.none') : 'V2')}
         savedSheets={new Map([[SESSION_ID, Date.UTC(2026, 3, 14, 12, 0)]])}
         timeZone={DEFAULT_CLUB_TIME_ZONE}
-        offline={false}
         onOpen={onOpen}
       />,
     );
@@ -163,7 +162,8 @@ describe('StationScreen', () => {
       screen.getByText(t('testDay.previous.otherMethod', { method: t('method.manual') })),
     ).toBeDefined();
     expect(screen.getByText(t('testDay.best.marker'))).toBeDefined();
-    expect(screen.getByText(t('fieldTest.sync.saved'))).toBeDefined();
+    // A result the server has carries no label: silence means it is saved.
+    expect(screen.queryByText(t('sync.item.pending'))).toBeNull();
   });
 
   it('adds an attempt, asking to confirm a value out of range first', async () => {

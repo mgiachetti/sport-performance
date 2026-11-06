@@ -125,7 +125,8 @@ describe('PlayerTodayScreen: wellness', () => {
         },
       },
     });
-    expect(screen.getByText(t('playerApp.pending'))).toBeDefined();
+    expect(screen.getByLabelText(t('playerApp.pending'))).toBeDefined();
+    expect(screen.getByText(t('sync.item.pending'))).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: t('playerApp.wellness.correct') }));
     fireEvent.click(screen.getByRole('radio', { name: 'Sueño: Bien' }));
     fireEvent.click(screen.getByRole('button', { name: t('playerApp.wellness.saveCorrection') }));

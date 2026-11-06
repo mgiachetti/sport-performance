@@ -16,6 +16,7 @@ import {
   Button,
   Card,
   LoadingView,
+  PendingMark,
   ScreenBody,
   ScreenHeader,
   StatusMessage,
@@ -530,6 +531,7 @@ function SeriesResult({
 
 function HistoryList({ items }: { readonly items: readonly ReactionHistoryItem[] }) {
   const { t } = useTranslator();
+  const theme = useTheme();
   if (items.length === 0) return null;
   return (
     <Card title={t('reaction.result.historyTitle')}>
@@ -537,9 +539,12 @@ function HistoryList({ items }: { readonly items: readonly ReactionHistoryItem[]
         {t('reaction.result.historyHint')}
       </AppText>
       {[...items].reverse().map((item) => (
-        <AppText key={item.key} role="tabular">
-          {`${formatLocalDate(item.measuredOn as LocalDate)} · ${t(`reaction.task.${item.task}`)} · ${ms(item.valueMs)}${item.pending ? ` · ${t('reaction.result.pending')}` : ''}`}
-        </AppText>
+        <View key={item.key} style={{ gap: theme.spacing.xxs }}>
+          <AppText role="tabular">
+            {`${formatLocalDate(item.measuredOn as LocalDate)} · ${t(`reaction.task.${item.task}`)} · ${ms(item.valueMs)}`}
+          </AppText>
+          {item.pending ? <PendingMark /> : null}
+        </View>
       ))}
     </Card>
   );

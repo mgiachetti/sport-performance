@@ -18,6 +18,7 @@ import {
   AppText,
   Button,
   Card,
+  PendingMark,
   ScreenBody,
   ScreenHeader,
   StatusMessage,
@@ -461,7 +462,7 @@ function PlayerCard({
       {player.edited ? (
         <Tag level="warning">{t('coachSession.player.edited')}</Tag>
       ) : player.unsent ? (
-        <Tag level="warning">{t('coachSession.player.unsent')}</Tag>
+        <PendingMark />
       ) : null}
     </Card>
   );

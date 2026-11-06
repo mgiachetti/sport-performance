@@ -25,6 +25,7 @@ import {
   Button,
   Card,
   LoadingView,
+  PendingMark,
   ScreenBody,
   ScreenHeader,
   StatusMessage,
@@ -169,9 +170,7 @@ function ExerciseCard({
           {mine.map((set) => (
             <View key={set.key} style={{ gap: theme.spacing.xs }}>
               <AppText>{setText(set, translator)}</AppText>
-              {set.pending ? (
-                <StatusMessage level="warning">{t('gym.mobile.set.pending')}</StatusMessage>
-              ) : null}
+              {set.pending ? <PendingMark /> : null}
               {set.warnings.map((warning) => (
                 <StatusMessage key={warning} level="warning">
                   {t(`gym.warning.${warning}`)}
@@ -217,7 +216,6 @@ export function GymScreen({
   moduleOn,
   allowed,
   state,
-  offline,
   sync,
   programId,
   dayKey,
@@ -229,7 +227,6 @@ export function GymScreen({
   readonly moduleOn: boolean;
   readonly allowed: boolean;
   readonly state: GymLoadState;
-  readonly offline: boolean;
   readonly sync?: ReactNode;
   readonly programId: string | null;
   readonly dayKey: string | null;
@@ -251,7 +248,6 @@ export function GymScreen({
       <AppText role="title" accessibilityRole="header">
         {t('gym.mobile.title')}
       </AppText>
-      {offline ? <StatusMessage level="warning">{t('sync.offline')}</StatusMessage> : null}
       {sync}
     </>
   );

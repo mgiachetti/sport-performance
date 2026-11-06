@@ -281,6 +281,7 @@ export default function CoachSession() {
       sync={
         <SyncIndicator
           status={syncStatus}
+          offline={offline}
           nowMs={now}
           onSyncNow={() => {
             services.sync.requestSync({ force: true });

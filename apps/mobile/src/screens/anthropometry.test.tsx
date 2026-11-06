@@ -164,8 +164,9 @@ describe('AnthropometrySheetScreen', () => {
         players: [squadPlayer(), squadPlayer({ id: OTHER_PLAYER_ID, name: 'Tomás Gómez' })],
       },
     });
-    expect(screen.getByText(t('anthropometry.field.state.synced'))).toBeTruthy();
-    expect(screen.getByText(t('anthropometry.field.state.queued'))).toBeTruthy();
+    // The synced measurement shows nothing; only the queued one is marked.
+    expect(screen.getAllByText(t('sync.item.pending'))).toHaveLength(1);
+    expect(screen.getByLabelText(t('anthropometry.field.state.queued'))).toBeTruthy();
     expect(screen.getByText(t('anthropometry.field.maturation.later'))).toBeTruthy();
     expect(
       screen.getByText(

@@ -75,7 +75,6 @@ export const mobileCoachSessionMessagesEsAR = {
   'coachSession.player.rpe': 'RPE {rpe} · {srpe} UA',
   'coachSession.player.rpeNoLoad': 'RPE {rpe}',
   'coachSession.player.rpePending': 'RPE pendiente',
-  'coachSession.player.unsent': 'Guardado en el teléfono, sin enviar',
   'coachSession.player.edited': 'Sin guardar',
   'coachSession.player.error.minutes': 'Minutos: de 0 a {max}.',
   'coachSession.player.error.contacts': 'Contactos: de 0 a {max}.',

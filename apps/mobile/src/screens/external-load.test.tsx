@@ -78,8 +78,9 @@ describe('ExternalLoadScreen', () => {
   it('lists the week with the state of each activity and its total', () => {
     renderIt({ items: [ITEM, { ...ITEM, key: 'r2', target: { id: 'r2' }, state: 'synced' }] });
     expect(screen.getByText(t('externalLoad.list.total', { count: 2, load: '720' }))).toBeDefined();
-    expect(screen.getByText(t('externalLoad.item.state.local'))).toBeDefined();
-    expect(screen.getByText(t('externalLoad.item.state.synced'))).toBeDefined();
+    // Only the activity still on the phone is marked; the synced one shows nothing.
+    expect(screen.getAllByText(t('sync.item.pending'))).toHaveLength(1);
+    expect(screen.getByLabelText(t('externalLoad.item.state.local'))).toBeDefined();
   });
 
   it('corrects an activity with a reason', async () => {

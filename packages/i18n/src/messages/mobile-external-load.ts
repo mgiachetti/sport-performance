@@ -40,9 +40,8 @@ export const mobileExternalLoadMessagesEsAR = {
   'externalLoad.list.total':
     '{count, plural, one {# actividad} other {# actividades}} · {load} UA en total',
   'externalLoad.item': '{activity} · {minutes} min · RPE {rpe}',
-  'externalLoad.item.state.local': 'Guardada en el teléfono, sin enviar',
-  'externalLoad.item.state.pending': 'Con un cambio sin enviar',
-  'externalLoad.item.state.synced': 'Enviada',
+  'externalLoad.item.state.local': 'Sin enviar: actividad guardada en el teléfono',
+  'externalLoad.item.state.pending': 'Sin enviar: cambio guardado en el teléfono',
   'externalLoad.correct': 'Corregir',
   'externalLoad.correct.title': 'Corregir actividad',
   'externalLoad.correct.for': 'Corregir {activity} del {day}',

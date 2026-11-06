@@ -19,7 +19,6 @@ export const mobileGymMessagesEsAR = {
   'gym.mobile.pickDay': 'Elegir el día {name}',
   'gym.mobile.prescription': 'Indicado: {text}',
   'gym.mobile.sets.none': 'Todavía no cargaste series de este ejercicio hoy.',
-  'gym.mobile.set.pending': 'Pendiente de sincronizar',
   'gym.mobile.set.e1rm': 'e1RM {value}',
   'gym.mobile.field.reps': 'Repeticiones',
   'gym.mobile.field.loadKg': 'Kilos',

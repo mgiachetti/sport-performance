@@ -50,7 +50,15 @@ import {
 } from '../test-day/model.ts';
 import type { IftRunForDay } from '../test-day/ift.ts';
 import { useTranslator } from '../ui/i18n.tsx';
-import { AppText, Button, Card, ScreenBody, StatusMessage, TextField } from '../ui/primitives.tsx';
+import {
+  AppText,
+  Button,
+  Card,
+  PendingMark,
+  ScreenBody,
+  StatusMessage,
+  TextField,
+} from '../ui/primitives.tsx';
 import { useTheme } from '../ui/theme.tsx';
 import { restLabel, testLabel } from './protocols.tsx';
 
@@ -220,7 +228,6 @@ export function TestDayListScreen({
   windowName,
   savedSheets,
   timeZone,
-  offline,
   sync,
   onOpen,
 }: {
@@ -231,7 +238,6 @@ export function TestDayListScreen({
   /** When the sheet of each day saved on the phone was downloaded (epoch ms), by day. */
   readonly savedSheets: ReadonlyMap<string, number>;
   readonly timeZone: TimeZone;
-  readonly offline: boolean;
   readonly sync?: ReactNode;
   readonly onOpen: (testSessionId: string) => void;
 }) {
@@ -267,7 +273,6 @@ export function TestDayListScreen({
         {t('testDay.list.title')}
       </AppText>
       <AppText tone="secondary">{t('fieldTest.list.intro')}</AppText>
-      {offline ? <StatusMessage level="warning">{t('sync.offline')}</StatusMessage> : null}
       {sync}
       {state.status === 'loading' ? (
         <AppText tone="secondary">{t('fieldTest.list.loading')}</AppText>
@@ -639,16 +644,11 @@ function Previous({
   );
 }
 
+/** Only a result still on the phone is marked: saved or sent, the server has it (ADR 0103). */
 function SyncState({ row }: { readonly row: PlayerStation }) {
   const { t } = useTranslator();
-  if (row.state === 'empty') return null;
-  return row.sync === 'saved' ? (
-    <StatusMessage level="ok">{t('fieldTest.sync.saved')}</StatusMessage>
-  ) : (
-    <StatusMessage level="warning">
-      {row.sync === 'queued' ? t('fieldTest.sync.queued') : t('fieldTest.sync.sent')}
-    </StatusMessage>
-  );
+  if (row.state === 'empty' || row.sync !== 'queued') return null;
+  return <PendingMark accessibilityLabel={t('fieldTest.sync.queued')} />;
 }
 
 function AttemptLine({
@@ -697,11 +697,7 @@ function AttemptLine({
           {t('testDay.entry.voided', { reason: attempt.voidReason ?? '' })}
         </AppText>
       ) : null}
-      {attempt.pending ? (
-        <AppText role="caption" tone="muted">
-          {t('fieldTest.attempt.pending')}
-        </AppText>
-      ) : null}
+      {attempt.pending ? <PendingMark /> : null}
       {issues.map((issue) => (
         <StatusMessage key={issue} level="warning">
           {t(`testDay.protocolIssue.${issue}`)}

@@ -149,16 +149,14 @@ describe('InvitationScreen', () => {
 });
 
 describe('app screens', () => {
-  it('greets the user in the club with its brand and offline notice', () => {
-    renderScreen(
-      <HomeScreen userName="Ana" membership={COACH_AT_ORC} clubTheme={ORC_THEME} offline />,
-    );
+  it('greets the user in the club with its brand and no sync box when all is well', () => {
+    renderScreen(<HomeScreen userName="Ana" membership={COACH_AT_ORC} clubTheme={ORC_THEME} />);
     expect(screen.getByText(t('home.greeting', { name: 'Ana' }))).toBeDefined();
     expect(
       screen.getByLabelText(t('club.logoAlt', { clubName: 'Olivos Rugby Club' })),
     ).toBeDefined();
     expect(screen.getByText('ORC')).toBeDefined();
-    expect(screen.getByText(t('sync.offline'))).toBeDefined();
+    expect(screen.queryByText(t('sync.offline'))).toBeNull();
   });
 
   it('lets the user change club, switch to high contrast and sign out', () => {
@@ -206,10 +204,7 @@ describe('app screens', () => {
   });
 
   it('renders in the high-contrast variant', () => {
-    renderScreen(
-      <HomeScreen userName="" membership={COACH_AT_ORC} clubTheme={null} offline={false} />,
-      'light-hc',
-    );
+    renderScreen(<HomeScreen userName="" membership={COACH_AT_ORC} clubTheme={null} />, 'light-hc');
     expect(screen.getByText(t('home.greetingAnonymous'))).toBeDefined();
   });
 });

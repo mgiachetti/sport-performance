@@ -26,6 +26,7 @@ import {
   Button,
   Card,
   LoadingView,
+  PendingMark,
   ScreenBody,
   ScreenHeader,
   StatusMessage,
@@ -427,7 +428,6 @@ function DraftFields({
 function SavedMeasurement({ measurement }: { readonly measurement: DayMeasurement }) {
   const { t } = useTranslator();
   const { maturation } = measurement;
-  const level = measurement.sync === 'synced' ? 'ok' : 'warning';
   return (
     <>
       {(Object.keys(FIELD_LABELS) as AnthroField[]).map((field) => {
@@ -442,9 +442,9 @@ function SavedMeasurement({ measurement }: { readonly measurement: DayMeasuremen
           </AppText>
         );
       })}
-      <StatusMessage level={level}>
-        {t(`anthropometry.field.state.${measurement.sync}`)}
-      </StatusMessage>
+      {measurement.sync === 'synced' ? null : (
+        <PendingMark accessibilityLabel={t(`anthropometry.field.state.${measurement.sync}`)} />
+      )}
       {maturation === null ? (
         <AppText role="bodySmall" tone="secondary">
           {t('anthropometry.field.maturation.later')}

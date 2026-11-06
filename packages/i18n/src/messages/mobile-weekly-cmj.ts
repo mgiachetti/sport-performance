@@ -65,10 +65,6 @@ export const mobileWeeklyCmjMessagesEsAR = {
     'Sin base para comparar ({samples} de {min, plural, one {# día} other {# días}} con este método).',
   'weeklyCmj.verdict.noRule': 'El club no tiene una regla de caída de CMJ para este jugador.',
 
-  'weeklyCmj.sync.queued': 'Sin enviar',
-  'weeklyCmj.sync.sent': 'Enviado',
-  'weeklyCmj.sync.saved': 'Guardado',
-
   'weeklyCmj.attempt.label': 'Intento {number}',
   'weeklyCmj.attempt.counts': 'Vale este',
   'weeklyCmj.attempt.voided': 'Anulado: {reason}',

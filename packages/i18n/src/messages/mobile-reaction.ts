@@ -88,7 +88,6 @@ export const mobileReactionMessagesEsAR = {
   'reaction.result.historyTitle': 'Sus resultados en este equipo',
   'reaction.result.historyHint':
     'Solo los suyos y en este mismo equipo: nunca contra otros jugadores.',
-  'reaction.result.pending': 'Sin enviar',
   'reaction.result.nothingToSave': 'Ninguna serie quedó completa: no hay nada para guardar.',
   'reaction.save': 'Guardar resultado',
   'reaction.saving': 'Guardando…',

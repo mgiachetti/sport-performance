@@ -65,7 +65,6 @@ export function HomeScreen({
   userName,
   membership,
   clubTheme,
-  offline,
   sync,
   onOpenIft3015 = null,
   onOpenReaction = null,
@@ -79,7 +78,6 @@ export function HomeScreen({
   readonly userName: string;
   readonly membership: MembershipSummary;
   readonly clubTheme: ClubTheme | null;
-  readonly offline: boolean;
   /** The sync indicator (`SyncIndicator`). */
   readonly sync?: ReactNode;
   /** Field tools of the staff who records tests (B-507); `null` hides them. */
@@ -160,7 +158,6 @@ export function HomeScreen({
         />
       }
     >
-      {offline ? <StatusMessage level="warning">{t('sync.offline')}</StatusMessage> : null}
       {sync}
       {tools.length > 0 ? (
         <Card title={t('home.tools')}>
