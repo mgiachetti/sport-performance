@@ -183,6 +183,15 @@ describe('buildExpoConfig', () => {
     ]);
   });
 
+  it('picks slow-motion videos from the gallery, never with the microphone (ADR 0102)', () => {
+    const config = buildExpoConfig(productionEnv);
+    expect(config.plugins).toContainEqual([
+      'expo-image-picker',
+      expect.objectContaining({ microphonePermission: false }),
+    ]);
+    expect(config.android?.blockedPermissions).toContain('android.permission.RECORD_AUDIO');
+  });
+
   it('turns the Sentry source map upload on with org and project', () => {
     const config = buildExpoConfig({ ...productionEnv, SENTRY_ORG: 'org', SENTRY_PROJECT: 'app' });
     expect(config.plugins).toContainEqual([

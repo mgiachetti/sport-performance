@@ -1,4 +1,9 @@
-import { localDate, type LocalDate, type SprintVideoLayout } from '@sport-performance/domain';
+import {
+  SPRINT_VIDEO_MIN_FPS,
+  localDate,
+  type LocalDate,
+  type SprintVideoLayout,
+} from '@sport-performance/domain';
 import { useQuery } from '@tanstack/react-query';
 import { randomUUID } from 'expo-crypto';
 import { useLocalSearchParams } from 'expo-router';
@@ -8,6 +13,7 @@ import {
   NativeSprintCamera,
   createNativeSprintFrameSource,
 } from '../../src/platform/sprint-video.tsx';
+import { discardPickedVideo, pickSlowMotionVideo } from '../../src/platform/video-import.ts';
 import {
   SprintVideoDaysScreen,
   SprintVideoMarkScreen,
@@ -48,6 +54,22 @@ import {
   ScreenHeader,
   StatusMessage,
 } from '../../src/ui/primitives.tsx';
+import {
+  importStateOf,
+  importVideo,
+  type ImportLimits,
+  type VideoImportState,
+} from '../../src/video/imported.ts';
+
+/**
+ * What a video from the gallery must be (ADR 0102): fast enough. It never
+ * leaves the phone, so any format the frame extractor reads will do.
+ */
+const IMPORT_LIMITS: ImportLimits = {
+  minFps: SPRINT_VIDEO_MIN_FPS,
+  maxSizeBytes: null,
+  contentTypes: null,
+};
 
 /** A recording taken into the directory of the sprint videos. */
 interface Recording extends RecordedSprintVideo {
@@ -346,7 +368,9 @@ function RecordStep({
   readonly onRecorded: (video: RecordedSprintVideo) => void;
   readonly onCancel: () => void;
 }) {
+  const services = useServices();
   const [cameraState, setCameraState] = useState<SprintCameraState>({ status: 'preparing' });
+  const [importState, setImportState] = useState<VideoImportState>({ status: 'idle' });
   const [recording, setRecording] = useState(false);
   const onState = useCallback((state: SprintCameraState) => {
     setCameraState(state);
@@ -373,6 +397,28 @@ function RecordStep({
       }}
       onStop={() => {
         setRecording(false);
+      }}
+      importState={importState}
+      onImport={() => {
+        setImportState({ status: 'reading' });
+        importVideo(pickSlowMotionVideo, discardPickedVideo, IMPORT_LIMITS)
+          .then((outcome) => {
+            if (outcome.kind !== 'accepted') {
+              setImportState(importStateOf(outcome) ?? { status: 'idle' });
+              return;
+            }
+            setImportState({ status: 'idle' });
+            onRecorded({
+              path: outcome.path,
+              durationMs: outcome.timing.durationMs,
+              frameRateFps: outcome.timing.captureFps,
+              timelineScale: outcome.timing.timelineScale,
+            });
+          })
+          .catch((error: unknown) => {
+            services.reportError(error);
+            setImportState({ status: 'failed' });
+          });
       }}
       onCancel={onCancel}
     />
@@ -401,7 +447,8 @@ function MarkStep({
   const [loaded, setLoaded] = useState<{ frame: number; uri: string | null } | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
-  const timeMs = frameTimeMs(marking);
+  // Capture time on the file's timeline (stretched when the phone saved it for slow playback).
+  const timeMs = frameTimeMs(marking) * (video.timelineScale ?? 1);
 
   useEffect(
     () => () => {

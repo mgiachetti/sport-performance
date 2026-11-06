@@ -134,6 +134,17 @@ export function buildExpoConfig(env: BuildEnv): ExpoConfig {
         { microphonePermission: false, recordAudioAndroid: false, enableBackgroundPlayback: true },
       ],
       [
+        // Slow-motion videos of the CMJ and the sprint taken from the gallery (ADR 0102): the
+        // system picker, never the microphone. On iOS, reading the library hands over the
+        // original slow-motion file instead of a version rendered for playback.
+        'expo-image-picker',
+        {
+          photosPermission:
+            'La app lee de la galería el video en cámara lenta que elijas (por ejemplo, de un salto o un sprint) para medirlo cuadro a cuadro.',
+          microphonePermission: false,
+        },
+      ],
+      [
         'expo-splash-screen',
         { backgroundColor: background, resizeMode: 'contain', imageWidth: 160 },
       ],
