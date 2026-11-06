@@ -293,8 +293,10 @@ export function PlayerToday({
   );
 }
 
-/** "Mis tests": records, percentiles from M15, history and upcoming test days. */
-/** "Mis tests"; `onOpenProtocols` opens how each test is done (B-415). */
+/**
+ * "Mis tests": records, percentiles from M15, history and upcoming test days;
+ * `onOpenProtocols` opens how each test is done (B-415).
+ */
 export function PlayerTests({
   onOpenProtocols = null,
 }: { readonly onOpenProtocols?: (() => void) | null } = {}) {

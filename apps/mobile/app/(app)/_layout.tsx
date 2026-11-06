@@ -27,7 +27,10 @@ export default function AppLayout() {
         ),
       }}
     >
-      <Stack.Screen name="(tabs)" options={{ headerShown: false, contentStyle: {} }} />
+      <Stack.Screen
+        name="(tabs)"
+        options={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background } }}
+      />
       {/* Opened from Inicio by the staff who records tests. */}
       <Stack.Screen name="ift-3015" />
       <Stack.Screen name="reaction" />
@@ -52,3 +55,6 @@ export default function AppLayout() {
     </Stack>
   );
 }
+
+// A screen of the stack opened cold (a link, a push) keeps the tabs under it.
+export const unstable_settings = { initialRouteName: '(tabs)' };

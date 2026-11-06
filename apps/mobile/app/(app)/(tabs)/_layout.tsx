@@ -46,7 +46,9 @@ export default function TabsLayout() {
         // The active tab also gets the brand tint behind its label: never told by color of text alone.
         tabBarActiveBackgroundColor: theme.colors.brand.subtle,
         // Condensed and in sentence case, as the buttons (ADR 0097); uppercase did not read as a tab.
-        tabBarLabelStyle: theme.text.tableHeader,
+        // Beside a hidden icon the label keeps no side margins: centered, and the whole width
+        // of the tab for the name on a narrow phone.
+        tabBarLabelStyle: { ...theme.text.tableHeader, marginStart: 0, marginEnd: 0 },
         // Labels only, always visible: the tab is never told by its icon or color alone. Beside
         // a hidden icon the label is centered in the bar, with no empty icon slot above it.
         tabBarIcon: () => null,

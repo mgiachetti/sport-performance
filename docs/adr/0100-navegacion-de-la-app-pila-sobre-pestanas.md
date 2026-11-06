@@ -26,5 +26,6 @@ La barra de pestañas medía 49 dp con el hueco del ícono vacío arriba de la e
 
 ## Consecuencias
 
-- Abrir una pantalla desde otra muestra la pantalla y vuelve con "atrás", en Android y en iOS.
+- Abrir una pantalla desde otra muestra la pantalla y vuelve con "atrás" (probado en Android; en iOS es el mismo `Stack` con el gesto de deslizar).
+- En las pantallas con pasos internos (el detalle de un protocolo, el marcado de un video), "‹ Volver" y el "atrás" del sistema salen de la pantalla entera, y el paso tiene su propio "Volver". Unificarlos queda como seguimiento, junto con la pregunta de descartar de la sesión ante el "atrás" de Android.
 - La navegación no la cubren los tests de componentes. Se revisa en un APK de staging, en el emulador de Android o en un teléfono.
