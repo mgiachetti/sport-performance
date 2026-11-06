@@ -206,6 +206,25 @@ describe('buildExpoConfig', () => {
     ]);
   });
 
+  it('packs a small arm64 APK for staging and every architecture for the store (ADR 0101)', () => {
+    const shrink = {
+      enableMinifyInReleaseBuilds: true,
+      enableShrinkResourcesInReleaseBuilds: true,
+    };
+    expect(buildExpoConfig({ ...productionEnv, APP_VARIANT: 'staging' }).plugins).toContainEqual([
+      'expo-build-properties',
+      { android: { ...shrink, buildArchs: ['arm64-v8a'], useLegacyPackaging: true } },
+    ]);
+    expect(buildExpoConfig(productionEnv).plugins).toContainEqual([
+      'expo-build-properties',
+      { android: shrink },
+    ]);
+    expect(buildExpoConfig({}).plugins).toContainEqual([
+      'expo-build-properties',
+      { android: shrink },
+    ]);
+  });
+
   it('encrypts the local database and registers the background sync (ADR 0069)', () => {
     const config = buildExpoConfig(productionEnv);
     expect(config.plugins).toContainEqual(['expo-sqlite', { useSQLCipher: true }]);

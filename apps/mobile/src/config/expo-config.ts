@@ -7,7 +7,7 @@ import {
   type BuildEnv,
   type RuntimeConfig,
 } from './runtime-config.ts';
-import { variantIdentity } from './variants.ts';
+import { type AppVariant, variantIdentity } from './variants.ts';
 
 /** Paths the web serves for links that must open the app (ADR 0028, ADR 0042). */
 export const APP_LINK_PATH_PREFIXES = ['/invite', '/player-access'] as const;
@@ -31,6 +31,27 @@ export const PUSH_ANDROID_CHANNEL_ID = 'default';
  * `app.config.ts` only calls this; keeping it a pure function lets the tests
  * pin what each variant ships (ids, scheme, links, update channel, plugins).
  */
+/**
+ * How the Android binary is packed, per variant (ADR 0101). Every release build
+ * shrinks its code and resources with R8. Staging is an APK installed by hand on
+ * the testers' phones: only `arm64-v8a` (every current phone; the emulators run
+ * it by translation) and compressed native libraries, so it downloads in a
+ * fraction. Production goes to the store as an AAB with every architecture: the
+ * store sends each phone only its own. Development keeps the defaults, for the
+ * x86_64 emulators and fast debug builds.
+ */
+export function androidBuildProperties(variant: AppVariant): {
+  readonly enableMinifyInReleaseBuilds: boolean;
+  readonly enableShrinkResourcesInReleaseBuilds: boolean;
+  readonly buildArchs?: readonly string[];
+  readonly useLegacyPackaging?: boolean;
+} {
+  const shrink = { enableMinifyInReleaseBuilds: true, enableShrinkResourcesInReleaseBuilds: true };
+  if (variant === 'staging')
+    return { ...shrink, buildArchs: ['arm64-v8a'], useLegacyPackaging: true };
+  return shrink;
+}
+
 export function buildExpoConfig(env: BuildEnv): ExpoConfig {
   const identity = variantIdentity(parseVariant(env.APP_VARIANT));
   const runtime = runtimeConfigFromEnv(env, identity.scheme);
@@ -109,6 +130,7 @@ export function buildExpoConfig(env: BuildEnv): ExpoConfig {
     experiments: { typedRoutes: false },
     plugins: [
       'expo-router',
+      ['expo-build-properties', { android: androidBuildProperties(identity.updateChannel) }],
       'expo-secure-store',
       'expo-localization',
       // The local database is encrypted with SQLCipher; its key lives in the secure storage (ADR 0069).
