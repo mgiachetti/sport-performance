@@ -48,7 +48,7 @@ export const mobileCmjVideoMessagesEsAR = {
     'También podés filmar el salto con la cámara lenta del teléfono y elegirlo de la galería: se mide con los cuadros por segundo reales del archivo.',
   'cmjVideo.import.reading': 'Leyendo el video…',
   'cmjVideo.import.too_slow':
-    'El video está a {fps} cuadros por segundo y hacen falta 120 o más. Si lo filmaste en cámara lenta, el teléfono lo guardó ralentizado sin la velocidad real: probá con otro modo de cámara lenta.',
+    'El video está a {fps} cuadros por segundo y hacen falta {minFps} o más. Si lo filmaste en cámara lenta, el teléfono lo guardó ralentizado sin la velocidad real: probá con otro modo de cámara lenta.',
   'cmjVideo.import.variable_rate':
     'El video mezcla tramos en cámara lenta y a velocidad normal: así no se puede medir. Filmalo con la cámara lenta en todo el video.',
   'cmjVideo.import.unreadable': 'No se pudieron leer los cuadros del video. Probá con otro.',

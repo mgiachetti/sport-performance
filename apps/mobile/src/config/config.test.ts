@@ -189,7 +189,13 @@ describe('buildExpoConfig', () => {
       'expo-image-picker',
       expect.objectContaining({ microphonePermission: false }),
     ]);
-    expect(config.android?.blockedPermissions).toContain('android.permission.RECORD_AUDIO');
+    expect(config.android?.blockedPermissions).toEqual(
+      expect.arrayContaining([
+        'android.permission.RECORD_AUDIO',
+        'android.permission.READ_EXTERNAL_STORAGE',
+        'android.permission.WRITE_EXTERNAL_STORAGE',
+      ]),
+    );
   });
 
   it('turns the Sentry source map upload on with org and project', () => {

@@ -101,7 +101,9 @@ export function videoTiming(info: VideoTimingInfo):
     timing: {
       captureFps,
       timelineFps,
-      timelineScale: captureFps / timelineFps,
+      // From the measured gap, not the rounded rate: over thousands of frames
+      // 30 vs 29,97 fps would drift by several frames.
+      timelineScale: (captureFps * usualGapUs) / 1_000_000,
       frameCount,
       durationMs: (frameCount * 1000) / captureFps,
     },
@@ -110,8 +112,8 @@ export function videoTiming(info: VideoTimingInfo):
 
 export type ImportRejection =
   | { readonly reason: VideoTimingProblem }
-  /** Captured under the minimum: `fps` says at how much. */
-  | { readonly reason: 'too_slow'; readonly fps: number }
+  /** Captured under the minimum: `fps` says at how much, `minFps` what the test needs. */
+  | { readonly reason: 'too_slow'; readonly fps: number; readonly minFps: number }
   | { readonly reason: 'too_large' }
   | { readonly reason: 'format' };
 
@@ -154,7 +156,11 @@ export function acceptImportedVideo(
   if (!(result.timing.captureFps >= limits.minFps)) {
     return {
       accepted: false,
-      rejection: { reason: 'too_slow', fps: Math.round(result.timing.captureFps) },
+      rejection: {
+        reason: 'too_slow',
+        fps: Math.round(result.timing.captureFps),
+        minFps: limits.minFps,
+      },
     };
   }
   return { accepted: true, timing: result.timing };

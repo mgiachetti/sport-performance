@@ -21,7 +21,7 @@ import { hexToBase64 } from '../cmj-video/digest.ts';
 import type { CmjVideoPlatform } from '../cmj-video/service.ts';
 import { CMJ_VIDEO_MAX_DURATION_S, cmjCameraFrameRate } from '../cmj-video/camera.ts';
 import type { CmjCameraProps, FrameSource } from '../screens/cmj-video.tsx';
-import { HighSpeedTestCamera, useHighSpeedPlan } from './high-speed-camera.tsx';
+import { HighSpeedOrVisionCamera } from './high-speed-camera.tsx';
 
 /**
  * The phone side of the CMJ by video (B-604, ADR 0085): the high-speed
@@ -166,32 +166,30 @@ const CMJ_HIGH_SPEED = {
 
 /**
  * The high-speed camera of the CMJ. On Android, the app's own constrained
- * high-speed session (`HighSpeedTestCamera`, ADR 0102) whenever the phone
+ * high-speed session (ADR 0102) whenever the phone
  * lists one that reaches 120 fps: it is the only way Android films at 120 or
- * 240 fps for an app. Elsewhere (iOS, or an Android phone without it),
- * VisionCamera, which says when the phone cannot.
+ * 240 fps for an app; a size or rate the phone refuses falls back to the
+ * next one, then to VisionCamera (`HighSpeedOrVisionCamera`). Elsewhere (iOS,
+ * or an Android phone without it), VisionCamera, which says when the phone
+ * cannot.
  */
 export function NativeCmjCamera(props: CmjCameraProps) {
-  const plan = useHighSpeedPlan(CMJ_HIGH_SPEED);
-  if (plan.status === 'checking') return <View style={{ flex: 1 }} />;
-  if (plan.config !== null) {
-    return (
-      <HighSpeedTestCamera
-        config={plan.config}
-        recording={props.recording}
-        maxDurationS={CMJ_VIDEO_MAX_DURATION_S}
-        maxFileSizeBytes={FILE_KIND_POLICIES.cmj_video.maxSizeBytes}
-        // As the app shows it (portrait): the phone stands still on its tripod.
-        orientation="interface"
-        isEnough={isCmjVideoFrameRate}
-        onState={props.onState}
-        onRecorded={(video) => {
-          props.onRecorded({ ...video, contentType: 'video/mp4' });
-        }}
-      />
-    );
-  }
-  return <VisionCmjCamera {...props} />;
+  return (
+    <HighSpeedOrVisionCamera
+      request={CMJ_HIGH_SPEED}
+      vision={<VisionCmjCamera {...props} />}
+      recording={props.recording}
+      maxDurationS={CMJ_VIDEO_MAX_DURATION_S}
+      maxFileSizeBytes={FILE_KIND_POLICIES.cmj_video.maxSizeBytes}
+      // As the app shows it (portrait): the phone stands still on its tripod.
+      orientation="interface"
+      isEnough={isCmjVideoFrameRate}
+      onState={props.onState}
+      onRecorded={(video) => {
+        props.onRecorded({ ...video, contentType: 'video/mp4' });
+      }}
+    />
+  );
 }
 
 /**

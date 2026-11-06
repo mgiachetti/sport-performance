@@ -162,11 +162,14 @@ describe('CmjVideoRecordScreen: a video from the gallery (ADR 0102)', () => {
     const { rerender } = renderScreen(
       <CmjVideoRecordScreen
         {...props}
-        importState={{ status: 'rejected', rejection: { reason: 'too_slow', fps: 30 } }}
+        importState={{
+          status: 'rejected',
+          rejection: { reason: 'too_slow', fps: 30, minFps: 120 },
+        }}
         onImport={vi.fn()}
       />,
     );
-    expect(screen.getByText(t('cmjVideo.import.too_slow', { fps: 30 }))).toBeTruthy();
+    expect(screen.getByText(t('cmjVideo.import.too_slow', { fps: 30, minFps: 120 }))).toBeTruthy();
     rerender(
       <CmjVideoRecordScreen
         {...props}

@@ -1,10 +1,11 @@
 import { requireNativeModule, requireNativeView } from 'expo';
 import { File } from 'expo-file-system';
-import { useEffect, useRef, useState, type ComponentType } from 'react';
+import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import { Platform, View, type NativeSyntheticEvent, type ViewProps } from 'react-native';
 import { useCameraPermission } from 'react-native-vision-camera';
 import {
-  chooseHighSpeedConfig,
+  highSpeedCandidates,
+  isConfigurationFailure,
   recordedFrameRate,
   type HighSpeedCamera,
   type HighSpeedConfig,
@@ -45,7 +46,6 @@ interface NativeProps extends ViewProps {
   readonly videoWidth: number;
   readonly videoHeight: number;
   readonly fps: number;
-  readonly previewMinFps: number;
   readonly maxDurationMs: number;
   readonly maxFileSizeBytes: number;
   readonly orientation: 'interface' | 'device';
@@ -91,18 +91,19 @@ export class HighSpeedCameraError extends Error {
 
 export type HighSpeedPlan =
   | { readonly status: 'checking' }
-  /** `config: null`: no high-speed session reaches the minimum (or not Android): VisionCamera films. */
-  | { readonly status: 'done'; readonly config: HighSpeedConfig | null };
+  /** No candidates: no high-speed session reaches the minimum (or not Android): VisionCamera films. */
+  | { readonly status: 'done'; readonly candidates: readonly HighSpeedConfig[] };
 
 /**
- * What the high-speed session films at on this phone: on Android, the
- * back camera, size and fixed rate of `chooseHighSpeedConfig`; elsewhere,
- * or when the phone lists no high-speed range that reaches the minimum,
- * `null` (VisionCamera films, and says when it cannot).
+ * What the high-speed session may film at on this phone, in order: on
+ * Android, the back cameras, sizes and fixed rates of `highSpeedCandidates`
+ * (the first, then the fallbacks); elsewhere, or when the phone lists no
+ * high-speed range that reaches the minimum, none (VisionCamera films, and
+ * says when it cannot).
  */
 export function useHighSpeedPlan(request: HighSpeedRequest): HighSpeedPlan {
   const [plan, setPlan] = useState<HighSpeedPlan>(
-    Platform.OS === 'android' ? { status: 'checking' } : { status: 'done', config: null },
+    Platform.OS === 'android' ? { status: 'checking' } : { status: 'done', candidates: [] },
   );
   const { minFps, preferredFps, targetWidth, targetHeight } = request;
   useEffect(() => {
@@ -119,11 +120,16 @@ export function useHighSpeedPlan(request: HighSpeedRequest): HighSpeedPlan {
         if (!current) return;
         setPlan({
           status: 'done',
-          config: chooseHighSpeedConfig(list, { minFps, preferredFps, targetWidth, targetHeight }),
+          candidates: highSpeedCandidates(list, {
+            minFps,
+            preferredFps,
+            targetWidth,
+            targetHeight,
+          }),
         });
       })
       .catch(() => {
-        if (current) setPlan({ status: 'done', config: null });
+        if (current) setPlan({ status: 'done', candidates: [] });
       });
     return () => {
       current = false;
@@ -143,6 +149,8 @@ export interface HighSpeedTestCameraProps {
   readonly isEnough: (fps: number) => boolean;
   readonly onRecorded: (video: HighSpeedRecording) => void;
   readonly onState: (state: HighSpeedCameraState) => void;
+  /** The session or the recorder refused this size or rate (`isConfigurationFailure`). */
+  readonly onConfigurationFailed?: (error: HighSpeedCameraError) => void;
 }
 
 /**
@@ -159,6 +167,7 @@ export function HighSpeedTestCamera({
   isEnough,
   onRecorded,
   onState,
+  onConfigurationFailed,
 }: HighSpeedTestCameraProps) {
   const { hasPermission, canRequestPermission, requestPermission } = useCameraPermission();
   const asked = useRef(false);
@@ -184,7 +193,6 @@ export function HighSpeedTestCamera({
       videoWidth={config.width}
       videoHeight={config.height}
       fps={config.fps}
-      previewMinFps={config.previewMinFps}
       maxDurationMs={maxDurationS * 1000}
       maxFileSizeBytes={maxFileSizeBytes}
       orientation={orientation}
@@ -207,11 +215,56 @@ export function HighSpeedTestCamera({
       }}
       onError={(event) => {
         const { code, message } = event.nativeEvent;
-        onState(
-          code === 'permission'
-            ? { status: 'no_permission' }
-            : { status: 'error', error: new HighSpeedCameraError(code, message) },
-        );
+        const error = new HighSpeedCameraError(code, message);
+        if (onConfigurationFailed !== undefined && isConfigurationFailure(code)) {
+          onConfigurationFailed(error);
+          return;
+        }
+        onState(code === 'permission' ? { status: 'no_permission' } : { status: 'error', error });
+      }}
+    />
+  );
+}
+
+export type HighSpeedOrVisionCameraProps = Omit<
+  HighSpeedTestCameraProps,
+  'config' | 'onConfigurationFailed'
+> & {
+  readonly request: HighSpeedRequest;
+  /** The VisionCamera of the test: when there is no candidate, or all of them failed. */
+  readonly vision: ReactNode;
+};
+
+/**
+ * The camera of a test on this phone (ADR 0102): the high-speed session
+ * with the first candidate; if the session or the recorder refuses it, the
+ * next one (a smaller size, then 120 fps), and VisionCamera when none is
+ * left. A failure while recording stops the recording (`error`, which the
+ * screen shows until the next candidate is ready); one while opening only
+ * keeps the camera preparing.
+ */
+export function HighSpeedOrVisionCamera({
+  request,
+  vision,
+  onState,
+  recording,
+  ...camera
+}: HighSpeedOrVisionCameraProps) {
+  const plan = useHighSpeedPlan(request);
+  const [index, setIndex] = useState(0);
+  if (plan.status === 'checking') return <View style={{ flex: 1 }} />;
+  const config = plan.candidates[index];
+  if (config === undefined) return vision;
+  return (
+    <HighSpeedTestCamera
+      key={`${config.cameraId}:${String(config.width)}x${String(config.height)}@${String(config.fps)}`}
+      {...camera}
+      config={config}
+      recording={recording}
+      onState={onState}
+      onConfigurationFailed={(error) => {
+        onState(recording ? { status: 'error', error } : { status: 'preparing' });
+        setIndex((current) => current + 1);
       }}
     />
   );

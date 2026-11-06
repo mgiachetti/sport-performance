@@ -22,7 +22,7 @@ import {
   sprintCameraFrameRate,
 } from '../sprint-video/camera.ts';
 import type { SprintCameraProps, SprintFrameSource } from '../screens/sprint-video.tsx';
-import { HighSpeedTestCamera, useHighSpeedPlan } from './high-speed-camera.tsx';
+import { HighSpeedOrVisionCamera } from './high-speed-camera.tsx';
 
 /**
  * The phone side of the sprint by video (B-605, ADR 0082): the high-speed
@@ -103,28 +103,25 @@ const SPRINT_HIGH_SPEED = {
 
 /**
  * The high-speed camera of the sprint. On Android, the app's own
- * constrained high-speed session (`HighSpeedTestCamera`, ADR 0102) whenever
- * the phone lists one that reaches 120 fps; elsewhere VisionCamera.
+ * constrained high-speed session (ADR 0102) whenever
+ * the phone lists one that reaches 120 fps, with the fallbacks of
+ * `HighSpeedOrVisionCamera`; elsewhere VisionCamera.
  */
 export function NativeSprintCamera(props: SprintCameraProps) {
-  const plan = useHighSpeedPlan(SPRINT_HIGH_SPEED);
-  if (plan.status === 'checking') return <View style={{ flex: 1 }} />;
-  if (plan.config !== null) {
-    return (
-      <HighSpeedTestCamera
-        config={plan.config}
-        recording={props.recording}
-        maxDurationS={SPRINT_VIDEO_MAX_DURATION_S}
-        maxFileSizeBytes={SPRINT_VIDEO_MAX_SIZE_BYTES}
-        // The phone lies sideways on its tripod: the video follows it, the app stays upright.
-        orientation="device"
-        isEnough={isSprintVideoFrameRate}
-        onState={props.onState}
-        onRecorded={props.onRecorded}
-      />
-    );
-  }
-  return <VisionSprintCamera {...props} />;
+  return (
+    <HighSpeedOrVisionCamera
+      request={SPRINT_HIGH_SPEED}
+      vision={<VisionSprintCamera {...props} />}
+      recording={props.recording}
+      maxDurationS={SPRINT_VIDEO_MAX_DURATION_S}
+      maxFileSizeBytes={SPRINT_VIDEO_MAX_SIZE_BYTES}
+      // The phone lies sideways on its tripod: the video follows it, the app stays upright.
+      orientation="device"
+      isEnough={isSprintVideoFrameRate}
+      onState={props.onState}
+      onRecorded={props.onRecorded}
+    />
+  );
 }
 
 /**

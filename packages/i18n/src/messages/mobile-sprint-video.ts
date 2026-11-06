@@ -83,7 +83,7 @@ export const mobileSprintVideoMessagesEsAR = {
     'También podés filmar el sprint con la cámara lenta del teléfono, desde el mismo lugar, y elegirlo de la galería: se mide con los cuadros por segundo reales del archivo.',
   'sprintVideo.import.reading': 'Leyendo el video…',
   'sprintVideo.import.too_slow':
-    'El video está a {fps} cuadros por segundo y hacen falta 120 o más. Si lo filmaste en cámara lenta, el teléfono lo guardó ralentizado sin la velocidad real: probá con otro modo de cámara lenta.',
+    'El video está a {fps} cuadros por segundo y hacen falta {minFps} o más. Si lo filmaste en cámara lenta, el teléfono lo guardó ralentizado sin la velocidad real: probá con otro modo de cámara lenta.',
   'sprintVideo.import.variable_rate':
     'El video mezcla tramos en cámara lenta y a velocidad normal: así no se puede medir. Filmalo con la cámara lenta en todo el video.',
   'sprintVideo.import.unreadable': 'No se pudieron leer los cuadros del video. Probá con otro.',

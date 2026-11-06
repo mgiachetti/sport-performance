@@ -2,6 +2,8 @@ import { CMJ_VIDEO_MIN_FPS, FILE_KIND_POLICIES } from '@sport-performance/domain
 import { describe, expect, it, vi } from 'vitest';
 import {
   chooseHighSpeedConfig,
+  highSpeedCandidates,
+  isConfigurationFailure,
   recordedFrameRate,
   snapFrameRate,
   type HighSpeedCamera,
@@ -53,7 +55,6 @@ describe('chooseHighSpeedConfig', () => {
       width: 1280,
       height: 720,
       fps: 240,
-      previewMinFps: 30,
     });
     expect(chooseHighSpeedConfig([SAMSUNG], SPRINT)).toMatchObject({
       width: 1920,
@@ -75,8 +76,6 @@ describe('chooseHighSpeedConfig', () => {
       width: 1920,
       height: 1080,
       fps: 120,
-      // No variable range ends at 120: the preview runs at the fixed one too.
-      previewMinFps: 120,
     });
   });
 
@@ -105,6 +104,35 @@ describe('chooseHighSpeedConfig', () => {
     };
     expect(chooseHighSpeedConfig([camera], CMJ)).toBeNull();
     expect(chooseHighSpeedConfig([], CMJ)).toBeNull();
+  });
+});
+
+describe('highSpeedCandidates', () => {
+  it('falls back to smaller sizes at the same rate, then to 120 fps, larger sizes last', () => {
+    const sizes = (c: readonly { width: number; height: number; fps: number }[]) =>
+      c.map(({ width, height, fps }) => `${String(width)}x${String(height)}@${String(fps)}`);
+    expect(sizes(highSpeedCandidates([SAMSUNG], SPRINT))).toEqual([
+      '1920x1080@240',
+      '1280x720@240',
+      '1920x1080@120',
+      '1280x720@120',
+      '3840x2160@120',
+    ]);
+    expect(sizes(highSpeedCandidates([SAMSUNG], CMJ))).toEqual([
+      '1280x720@240',
+      '1280x720@120',
+      '1920x1080@240',
+      '1920x1080@120',
+      '3840x2160@120',
+    ]);
+    expect(highSpeedCandidates([], CMJ)).toEqual([]);
+  });
+
+  it('tries the next one only when the size or the rate failed', () => {
+    expect(isConfigurationFailure('configure_failed')).toBe(true);
+    expect(isConfigurationFailure('recorder_failed')).toBe(true);
+    expect(isConfigurationFailure('interrupted')).toBe(false);
+    expect(isConfigurationFailure('camera_in_use')).toBe(false);
   });
 });
 
@@ -164,7 +192,7 @@ describe('videoTiming', () => {
       timing: {
         captureFps: 240,
         timelineFps: 240,
-        timelineScale: 1,
+        timelineScale: expect.closeTo(1, 3) as number,
         frameCount: 480,
         durationMs: 2000,
       },
@@ -179,10 +207,16 @@ describe('videoTiming', () => {
     expect(result.ok && result.timing).toEqual({
       captureFps: 240,
       timelineFps: 30,
-      timelineScale: 8,
+      timelineScale: expect.closeTo(8, 3) as number,
       frameCount: 480,
       durationMs: 2000,
     });
+    // NTSC playback (29,97 fps): the scale follows the real gap, not the rounded 30.
+    const ntsc = videoTiming(
+      info({ frameTimesUs: frames(480, 1_000_000 / 29.97), durationMs: 16_016, captureFps: 240 }),
+    );
+    expect(ntsc.ok && ntsc.timing.timelineFps).toBe(30);
+    expect(ntsc.ok && ntsc.timing.timelineScale).toBeCloseTo(240 / 29.97, 3);
   });
 
   it('counts every sample even when only the first frame times came', () => {
@@ -212,10 +246,10 @@ describe('acceptImportedVideo', () => {
   it('says why it refuses a file', () => {
     expect(
       acceptImportedVideo(info({ frameTimesUs: frames(90, 1_000_000 / 30) }), 'video/mp4', LIMITS),
-    ).toEqual({ accepted: false, rejection: { reason: 'too_slow', fps: 30 } });
+    ).toEqual({ accepted: false, rejection: { reason: 'too_slow', fps: 30, minFps: 120 } });
     expect(
       acceptImportedVideo(info({ frameTimesUs: frames(240, 1_000_000 / 60) }), 'video/mp4', LIMITS),
-    ).toEqual({ accepted: false, rejection: { reason: 'too_slow', fps: 60 } });
+    ).toEqual({ accepted: false, rejection: { reason: 'too_slow', fps: 60, minFps: 120 } });
     expect(acceptImportedVideo(info({}), 'video/webm', LIMITS)).toEqual({
       accepted: false,
       rejection: { reason: 'format' },
@@ -252,10 +286,13 @@ describe('importVideo', () => {
 
     const slow = { ...picked, info: info({ frameTimesUs: frames(60, 1_000_000 / 30) }) };
     const refused = await importVideo(() => Promise.resolve(slow), discard, LIMITS);
-    expect(refused).toEqual({ kind: 'rejected', rejection: { reason: 'too_slow', fps: 30 } });
+    expect(refused).toEqual({
+      kind: 'rejected',
+      rejection: { reason: 'too_slow', fps: 30, minFps: 120 },
+    });
     expect(importStateOf(refused)).toEqual({
       status: 'rejected',
-      rejection: { reason: 'too_slow', fps: 30 },
+      rejection: { reason: 'too_slow', fps: 30, minFps: 120 },
     });
     expect(discard).toHaveBeenCalledWith('/cache/a.mp4');
   });

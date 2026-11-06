@@ -363,7 +363,10 @@ export function SprintVideoRecordScreen({
       {importState.status === 'rejected' ? (
         <StatusMessage level="warning">
           {importState.rejection.reason === 'too_slow'
-            ? t('sprintVideo.import.too_slow', { fps: importState.rejection.fps })
+            ? t('sprintVideo.import.too_slow', {
+                fps: importState.rejection.fps,
+                minFps: importState.rejection.minFps,
+              })
             : t(`sprintVideo.import.${importState.rejection.reason}`)}
         </StatusMessage>
       ) : null}

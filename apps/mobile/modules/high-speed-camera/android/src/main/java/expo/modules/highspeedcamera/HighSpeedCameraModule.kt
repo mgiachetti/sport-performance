@@ -44,9 +44,6 @@ class HighSpeedCameraModule : Module() {
       Prop("fps") { view: HighSpeedCameraView, value: Int ->
         view.props = view.props.copy(fps = value)
       }
-      Prop("previewMinFps") { view: HighSpeedCameraView, value: Int ->
-        view.props = view.props.copy(previewMinFps = value)
-      }
       Prop("maxDurationMs") { view: HighSpeedCameraView, value: Int ->
         view.props = view.props.copy(maxDurationMs = value)
       }

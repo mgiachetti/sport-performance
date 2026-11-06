@@ -46,7 +46,6 @@ data class HighSpeedProps(
   val width: Int = 0,
   val height: Int = 0,
   val fps: Int = 0,
-  val previewMinFps: Int = 0,
   val maxDurationMs: Int = 0,
   val maxFileSizeBytes: Long = 0L,
   /** Orientation of the recording: the phone's (`true`) or the interface's. */
@@ -59,7 +58,7 @@ data class HighSpeedProps(
 
   /** What the session is opened with: a change reopens it. */
   val sessionKey: String
-    get() = "$cameraId:${width}x$height@$previewMinFps-$fps"
+    get() = "$cameraId:${width}x$height@$fps"
 }
 
 /** What the camera thread is asked to reach (taken on the main thread). */
@@ -76,9 +75,10 @@ private data class Desired(
  * The session holds two surfaces at the high-speed size (the most it accepts):
  * the preview (`SurfaceView` with a fixed buffer size) and a persistent input
  * surface (`MediaCodec.createPersistentInputSurface`) that each `MediaRecorder`
- * records from, so a new recording needs no new session. The preview runs with
- * `[previewMinFps, fps]` and a recording with the fixed `[fps, fps]` the
- * high-speed session requires for recording. No audio.
+ * records from, so a new recording needs no new session. The preview and the
+ * recording both run at the fixed `[fps, fps]` the high-speed session requires
+ * for recording (also given as session parameters on API 28+), so starting a
+ * recording does not switch the sensor mode. No audio.
  *
  * Threads: props, surface and layout on the main thread; every camera and
  * recorder call on one camera thread, which reconciles what it runs with the
@@ -369,16 +369,18 @@ class HighSpeedCameraView(context: Context, appContext: AppContext) :
   private fun createSession(camera: CameraDevice, preview: Surface, props: HighSpeedProps, opened: Int) {
     try {
       val input = MediaCodec.createPersistentInputSurface()
+      // Owned from here on: `closeCamera` releases it even if what follows throws.
+      recorderSurface = input
       // A recorder prepared once sets the buffers of the surface (size, rate) before the session.
       val probe = File(outputDirectory(), "probe-${UUID.randomUUID()}.mp4")
-      val probeRecorder = newRecorder(input, probe, props, orientationHint = 0, limits = false)
+      var probeRecorder: MediaRecorder? = null
       try {
+        probeRecorder = newRecorder(input, probe, props, orientationHint = 0, limits = false)
         probeRecorder.prepare()
       } finally {
-        probeRecorder.release()
+        probeRecorder?.release()
         probe.delete()
       }
-      recorderSurface = input
       val surfaces = listOf(preview, input)
       val callback = object : CameraCaptureSession.StateCallback() {
         override fun onConfigured(configured: CameraCaptureSession) {
@@ -389,13 +391,15 @@ class HighSpeedCameraView(context: Context, appContext: AppContext) :
           try {
             val highSpeed = configured as CameraConstrainedHighSpeedCaptureSession
             session = highSpeed
-            val previewRange = Range(min(props.previewMinFps.coerceAtLeast(1), props.fps), props.fps)
-            previewRequests = requests(highSpeed, CameraDevice.TEMPLATE_PREVIEW, listOf(preview), previewRange)
+            // The preview runs at the recording's fixed rate too: the sensor stays in its
+            // high-speed mode (no switch, no frames lost, same exposure) when recording starts.
+            val fixedRange = Range(props.fps, props.fps)
+            previewRequests = requests(highSpeed, CameraDevice.TEMPLATE_PREVIEW, listOf(preview), fixedRange)
             recordRequests = requests(
               highSpeed,
               CameraDevice.TEMPLATE_RECORD,
               listOf(preview, input),
-              Range(props.fps, props.fps)
+              fixedRange
             )
             highSpeed.setRepeatingBurst(previewRequests!!, null, cameraHandler)
             emit {
@@ -417,14 +421,19 @@ class HighSpeedCameraView(context: Context, appContext: AppContext) :
         }
       }
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        camera.createCaptureSession(
-          SessionConfiguration(
-            SessionConfiguration.SESSION_HIGH_SPEED,
-            surfaces.map { OutputConfiguration(it) },
-            cameraExecutor,
-            callback
-          )
+        val configuration = SessionConfiguration(
+          SessionConfiguration.SESSION_HIGH_SPEED,
+          surfaces.map { OutputConfiguration(it) },
+          cameraExecutor,
+          callback
         )
+        // The recording request as session parameters: the HAL picks the high-frame-rate
+        // sensor mode when the session is created, not when the recording starts.
+        val parameters = camera.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
+        surfaces.forEach { parameters.addTarget(it) }
+        parameters.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(props.fps, props.fps))
+        configuration.sessionParameters = parameters.build()
+        camera.createCaptureSession(configuration)
       } else {
         camera.createConstrainedHighSpeedCaptureSession(surfaces, callback, cameraHandler)
       }

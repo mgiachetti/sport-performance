@@ -249,7 +249,10 @@ function CmjVideoImport({
       {state.status === 'rejected' ? (
         <StatusMessage level="warning">
           {state.rejection.reason === 'too_slow'
-            ? t('cmjVideo.import.too_slow', { fps: state.rejection.fps })
+            ? t('cmjVideo.import.too_slow', {
+                fps: state.rejection.fps,
+                minFps: state.rejection.minFps,
+              })
             : t(`cmjVideo.import.${state.rejection.reason}`)}
         </StatusMessage>
       ) : null}

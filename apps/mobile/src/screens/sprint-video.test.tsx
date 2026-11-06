@@ -220,11 +220,16 @@ describe('SprintVideoRecordScreen: a video from the gallery (ADR 0102)', () => {
     rerender(
       <SprintVideoRecordScreen
         {...props}
-        importState={{ status: 'rejected', rejection: { reason: 'too_slow', fps: 60 } }}
+        importState={{
+          status: 'rejected',
+          rejection: { reason: 'too_slow', fps: 60, minFps: 120 },
+        }}
         onImport={onImport}
       />,
     );
-    expect(screen.getByText(t('sprintVideo.import.too_slow', { fps: 60 }))).toBeTruthy();
+    expect(
+      screen.getByText(t('sprintVideo.import.too_slow', { fps: 60, minFps: 120 })),
+    ).toBeTruthy();
     rerender(
       <SprintVideoRecordScreen
         {...props}

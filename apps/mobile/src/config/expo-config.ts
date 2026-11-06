@@ -105,7 +105,15 @@ export function buildExpoConfig(env: BuildEnv): ExpoConfig {
       // Tests filmed in slow motion (B-605, ADR 0082; B-604, ADR 0085); no microphone: the
       // videos have no audio.
       permissions: ['android.permission.CAMERA'],
-      blockedPermissions: ['android.permission.RECORD_AUDIO'],
+      // No storage access either (ADR 0102): the videos live in the app's cache, and a video
+      // from the gallery comes through the Photo Picker (or the document picker where it is
+      // missing), which hand over the file without a permission. `expo-file-system` and
+      // `expo-image-picker` declare both up to Android 12.
+      blockedPermissions: [
+        'android.permission.RECORD_AUDIO',
+        'android.permission.READ_EXTERNAL_STORAGE',
+        'android.permission.WRITE_EXTERNAL_STORAGE',
+      ],
       softwareKeyboardLayoutMode: 'resize',
       ...(webHost !== null && {
         intentFilters: [
