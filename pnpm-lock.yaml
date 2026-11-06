@@ -340,6 +340,21 @@ importers:
       '@expo-google-fonts/barlow-condensed':
         specifier: 0.4.1
         version: 0.4.1
+      '@formatjs/intl-datetimeformat':
+        specifier: 8.0.2
+        version: 8.0.2
+      '@formatjs/intl-getcanonicallocales':
+        specifier: 3.3.0
+        version: 3.3.0
+      '@formatjs/intl-locale':
+        specifier: 5.4.2
+        version: 5.4.2
+      '@formatjs/intl-numberformat':
+        specifier: 10.0.2
+        version: 10.0.2
+      '@formatjs/intl-pluralrules':
+        specifier: 7.0.2
+        version: 7.0.2
       '@react-native-async-storage/async-storage':
         specifier: 2.2.0
         version: 2.2.0(react-native@0.88.1(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.88.1(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))
@@ -2325,6 +2340,9 @@ packages:
   '@fontsource/barlow@5.3.0':
     resolution: {integrity: sha512-tGR0y6QObRtKv71MOth44222+mdNFM/ZWFWDV1VLzNbG4oK9PNRlyJzmkck4vHAi9ibHBXgt4SlY51amFP55CA==}
 
+  '@formatjs/bigdecimal@0.2.10':
+    resolution: {integrity: sha512-npIs6UARNOg5amJY5UOVsd6HUQQfzYjet0sa0SWIqzsnVhxLSpaIx2DjoIVrr/vqmjURjvroeW6dItjfy3Uf8A==}
+
   '@formatjs/fast-memoize@3.1.7':
     resolution: {integrity: sha512-zXfhLpvA6T7+efdt9JLbBwZ00tT7NsBMDVnDu8rpHeNNv8KfRZAMo2gkG0k9lK/Nzc//3kJ9pImsfuJxk3KhUA==}
 
@@ -2333,6 +2351,27 @@ packages:
 
   '@formatjs/icu-skeleton-parser@2.1.12':
     resolution: {integrity: sha512-ca7tZMLpfHX3sUD7hP6gE/qr6Iq89EDd3ZLeRhbsB7r0UD55DGJq+tmFLzrGrnx5StahUevQmQQVtbDRHsfDHA==}
+
+  '@formatjs/intl-datetimeformat@8.0.2':
+    resolution: {integrity: sha512-isKDo8jeQ8VoYvrweku92ajF/Z9fJ76DDnw2eCmKBTJTwZa5GeGl4u40RJiFYPbR6ROluvN0CsbNtGtnd2NyIQ==}
+
+  '@formatjs/intl-getcanonicallocales@3.3.0':
+    resolution: {integrity: sha512-ndj9jw/LHAftSe34D/A6+lj3Y7GHVfPEZ6FZP2wjd8/beYeh3d1sjlSpZSBlzegSKS3U3mUEIzLCpI0+jKNT6w==}
+
+  '@formatjs/intl-locale@5.4.2':
+    resolution: {integrity: sha512-2upVZtpzktEkLMffAk14T2HB62B7ytqrlppZuVX4StnbOHNc4qx5ovimMMMn8mkqvAwFlPX+UZygetny+quqIQ==}
+
+  '@formatjs/intl-localematcher@0.10.1':
+    resolution: {integrity: sha512-gBqglQK9rXuHsLmM8wzTMBy4Xo4d0jamirIVKuEL8F1rwbskWdpMA1kZarSkny+uvr5q/K6GSzE0Rcq1wZLl3g==}
+
+  '@formatjs/intl-numberformat@10.0.2':
+    resolution: {integrity: sha512-iLS3ly1lGZ/a/IVpcSUgC37RjQUZ2wN6zR9+Zbr2uXsxATfMLD+fBqggiXuFudLmZXpbPueCs4Mz3vDsaOVE9A==}
+
+  '@formatjs/intl-pluralrules@7.0.2':
+    resolution: {integrity: sha512-PJ4+ldlqXlo3csmP02u2HqyXw09TDB/fatYpDCyWryfEQeVWl2EbMzij9SBksPaW2U//+q69lXR3IMnCRQAmrw==}
+
+  '@formatjs/intl-supportedvaluesof@3.0.0':
+    resolution: {integrity: sha512-9rG37qcIBFyX+HSyPelJKpAatFaO+ElvnWYO/FFMERVZG9e9Wj51CWAvF7+ozYd7B1uKBL2ub6aLzrkWA0UBxA==}
 
   '@graphql-typed-document-node/core@3.2.0':
     resolution: {integrity: sha512-mB9oAsNCm9aM3/SOv4YtBMqZbYj10R7dkq8byBqxGY/ncFwhf2oQzMV+LCRlWoDSEBJ3COiR1yeDvMtsoOsuFQ==}
@@ -8379,6 +8418,8 @@ snapshots:
 
   '@fontsource/barlow@5.3.0': {}
 
+  '@formatjs/bigdecimal@0.2.10': {}
+
   '@formatjs/fast-memoize@3.1.7': {}
 
   '@formatjs/icu-messageformat-parser@3.5.22':
@@ -8386,6 +8427,36 @@ snapshots:
       '@formatjs/icu-skeleton-parser': 2.1.12
 
   '@formatjs/icu-skeleton-parser@2.1.12': {}
+
+  '@formatjs/intl-datetimeformat@8.0.2':
+    dependencies:
+      '@formatjs/bigdecimal': 0.2.10
+      '@formatjs/intl-localematcher': 0.10.1
+
+  '@formatjs/intl-getcanonicallocales@3.3.0': {}
+
+  '@formatjs/intl-locale@5.4.2':
+    dependencies:
+      '@formatjs/intl-getcanonicallocales': 3.3.0
+      '@formatjs/intl-supportedvaluesof': 3.0.0
+
+  '@formatjs/intl-localematcher@0.10.1':
+    dependencies:
+      '@formatjs/fast-memoize': 3.1.7
+
+  '@formatjs/intl-numberformat@10.0.2':
+    dependencies:
+      '@formatjs/bigdecimal': 0.2.10
+      '@formatjs/intl-localematcher': 0.10.1
+
+  '@formatjs/intl-pluralrules@7.0.2':
+    dependencies:
+      '@formatjs/bigdecimal': 0.2.10
+      '@formatjs/intl-localematcher': 0.10.1
+
+  '@formatjs/intl-supportedvaluesof@3.0.0':
+    dependencies:
+      '@formatjs/fast-memoize': 3.1.7
 
   '@graphql-typed-document-node/core@3.2.0(graphql@16.14.2)':
     dependencies:

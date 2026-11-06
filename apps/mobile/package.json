@@ -21,6 +21,11 @@
   "dependencies": {
     "@expo-google-fonts/barlow": "0.4.1",
     "@expo-google-fonts/barlow-condensed": "0.4.1",
+    "@formatjs/intl-datetimeformat": "8.0.2",
+    "@formatjs/intl-getcanonicallocales": "3.3.0",
+    "@formatjs/intl-locale": "5.4.2",
+    "@formatjs/intl-numberformat": "10.0.2",
+    "@formatjs/intl-pluralrules": "7.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@sentry/react-native": "8.28.0",
     "@sport-performance/contracts": "workspace:*",
