@@ -27,7 +27,11 @@ import { reopeningLocalDatabase, type LocalDatabase } from '../offline/db/databa
 import { syncTelemetryNotice, type AppNotice } from '../observability/sync-telemetry.ts';
 import { createSyncEngine, type SyncEngine, type SyncTelemetry } from '../offline/engine.ts';
 import { createReadCache, type ReadCache } from '../offline/read-cache.ts';
-import { bindSyncToSession, syncScopeOf } from '../offline/session-binding.ts';
+import {
+  bindSyncToSession,
+  refreshSessionAfterSync,
+  syncScopeOf,
+} from '../offline/session-binding.ts';
 import {
   createPushRegistrar,
   type PushDevice,
@@ -179,6 +183,8 @@ export function createAppServices(platform: Platform): AppServices {
     }),
   });
   const unbindSync = bindSyncToSession(sync, session, reportError);
+  // A sync that reaches the server clears a session left "offline" (ADR 0103).
+  const unbindRefresh = refreshSessionAfterSync(sync, session, reportError);
   const iftRunStore = createSecureIftRunStore(platform.secureStorage);
   const iftRunner = createIftRunner({
     // Monotonic for the signals; the wall clock only anchors a run restored
@@ -297,6 +303,7 @@ export function createAppServices(platform: Platform): AppServices {
       unsubscribe();
       unsubscribeSession();
       unbindSync();
+      unbindRefresh();
       sync.dispose();
       iftRunner.dispose();
       cmjVideos.dispose();

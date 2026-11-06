@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { AccessibilityInfo } from 'react-native';
 import { describe, expect, it, vi } from 'vitest';
+import { nativeThemeFor } from '../branding/club-branding.ts';
+import { TranslatorProvider } from '../ui/i18n.tsx';
+import { ThemeProvider } from '../ui/theme.tsx';
 import type { SyncIssue, SyncStatus } from '../offline/engine.ts';
 import { COACH_AT_ORC } from '../test/fixtures.ts';
 import { renderScreen, translator } from '../test/render.tsx';
@@ -81,20 +85,68 @@ describe('SyncIndicator', () => {
         onSyncNow={onSyncNow}
       />,
     );
-    expect(screen.getByText('Sin señal · 3 cambios sin enviar')).toBeDefined();
+    expect(screen.getByText('Sin conexión · 3 cambios sin enviar')).toBeDefined();
     // One quiet line: no status boxes and no separate button.
     expect(screen.queryAllByRole('alert')).toHaveLength(0);
     const line = screen.getByRole('button', {
-      name: `${t('status.warning')}: Sin señal · 3 cambios sin enviar`,
+      name: `${t('status.warning')}: Sin conexión · 3 cambios sin enviar`,
     });
     expect(screen.getAllByRole('button')).toHaveLength(1);
     fireEvent.click(line);
     expect(onSyncNow).toHaveBeenCalledTimes(1);
   });
 
-  it('treats a session without signal as no signal before the queue tries', () => {
-    renderScreen(<SyncIndicator status={idle} offline nowMs={NOW} onSyncNow={vi.fn()} />);
-    expect(screen.getByText(t('sync.quiet.offline', { count: 0 }))).toBeDefined();
+  it('says no connection for an offline session only while the engine has no fresher answer', () => {
+    renderScreen(
+      <SyncIndicator
+        status={{ ...idle, phase: 'syncing', pendingCount: 2 }}
+        offline
+        nowMs={NOW}
+        onSyncNow={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(t('sync.quiet.offline', { count: 2 }))).toBeDefined();
+    // Idle after a successful sync: the engine reached the server, so nothing shows.
+    const { container } = renderAgain(
+      <SyncIndicator status={idle} offline nowMs={NOW} onSyncNow={vi.fn()} />,
+    );
+    expect(container.textContent).toBe('');
+  });
+
+  it('never hides a pause or a failing server behind an offline session', () => {
+    renderScreen(
+      <SyncIndicator
+        status={{ ...idle, phase: 'paused', pause: 'session' }}
+        offline
+        nowMs={NOW}
+        onSyncNow={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(t('sync.paused'))).toBeDefined();
+    expect(screen.queryByText(/Sin conexión/)).toBeNull();
+    renderAgain(
+      <SyncIndicator
+        status={{ ...idle, phase: 'failing' }}
+        offline
+        nowMs={NOW}
+        onSyncNow={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('No pudimos sincronizar')).toBeDefined();
+    expect(screen.queryByText(/Sin conexión/)).toBeNull();
+  });
+
+  it('lets the user sync now while paused: a forced sync resumes the pause', () => {
+    const onSyncNow = vi.fn();
+    renderScreen(
+      <SyncIndicator
+        status={{ ...idle, phase: 'paused', pause: 'session', pendingCount: 2 }}
+        nowMs={NOW}
+        onSyncNow={onSyncNow}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: '2 cambios sin enviar' }));
+    expect(onSyncNow).toHaveBeenCalledTimes(1);
   });
 
   it('says what waits, what it is sending and that the server fails, each in one line', () => {
@@ -120,6 +172,39 @@ describe('SyncIndicator', () => {
       />,
     );
     expect(screen.getByText('No pudimos sincronizar · 3 sin enviar')).toBeDefined();
+    renderAgain(
+      <SyncIndicator status={{ ...idle, phase: 'failing' }} nowMs={NOW} onSyncNow={vi.fn()} />,
+    );
+    expect(screen.getByText('No pudimos sincronizar')).toBeDefined();
+  });
+
+  it('announces a new kind of line to screen readers, not the same one again', () => {
+    const announce = vi.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    announce.mockClear();
+    const offline: SyncStatus = { ...idle, phase: 'offline', pendingCount: 1 };
+    const wrap = (status: SyncStatus) => (
+      <TranslatorProvider translator={translator}>
+        <ThemeProvider
+          value={{
+            theme: nativeThemeFor(null, 'dark'),
+            variant: 'dark',
+            setVariant: () => undefined,
+          }}
+        >
+          <SyncIndicator status={status} nowMs={NOW} onSyncNow={vi.fn()} />
+        </ThemeProvider>
+      </TranslatorProvider>
+    );
+    // The same tree each time, so the indicator stays mounted and sees the change.
+    const { rerender } = render(wrap(idle));
+    expect(announce).not.toHaveBeenCalled();
+    rerender(wrap(offline));
+    expect(announce).toHaveBeenCalledWith(
+      `${t('status.warning')}: Sin conexión · 1 cambio sin enviar`,
+    );
+    rerender(wrap({ ...offline, pendingCount: 2 }));
+    expect(announce).toHaveBeenCalledTimes(1);
+    announce.mockRestore();
   });
 
   it('keeps prominent what needs the user: a pause and the changes not applied', () => {
@@ -139,6 +224,32 @@ describe('SyncIndicator', () => {
     const onSyncNow = vi.fn();
     renderScreen(<SyncIndicator status={idle} nowMs={NOW} detailed onSyncNow={onSyncNow} />);
     expect(screen.getByText(t('sync.lastSyncedMinutes', { count: 5 }))).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: t('sync.now') }));
+    expect(onSyncNow).toHaveBeenCalledTimes(1);
+  });
+
+  it('turns the account button off while it syncs and keeps it on while paused', () => {
+    renderScreen(
+      <SyncIndicator
+        status={{ ...idle, phase: 'syncing' }}
+        nowMs={NOW}
+        detailed
+        onSyncNow={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(t('sync.syncing'))).toBeDefined();
+    expect(screen.getByRole('button', { name: t('sync.now') }).getAttribute('aria-disabled')).toBe(
+      'true',
+    );
+    const onSyncNow = vi.fn();
+    renderAgain(
+      <SyncIndicator
+        status={{ ...idle, phase: 'paused', pause: 'session' }}
+        nowMs={NOW}
+        detailed
+        onSyncNow={onSyncNow}
+      />,
+    );
     fireEvent.click(screen.getByRole('button', { name: t('sync.now') }));
     expect(onSyncNow).toHaveBeenCalledTimes(1);
   });

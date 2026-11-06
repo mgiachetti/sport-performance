@@ -72,8 +72,8 @@ export const mobileMessagesEsAR = {
     '{count, plural, one {Sincronizado hace # día} other {Sincronizado hace # días}}',
   // The quiet sync line (ADR 0103): one short line, only when something is off
   'sync.quiet.offline':
-    '{count, plural, =0 {Sin señal} one {Sin señal · # cambio sin enviar} other {Sin señal · # cambios sin enviar}}',
-  'sync.quiet.offlineNever': 'Sin señal · Este teléfono todavía no se sincronizó',
+    '{count, plural, =0 {Sin conexión} one {Sin conexión · # cambio sin enviar} other {Sin conexión · # cambios sin enviar}}',
+  'sync.quiet.offlineNever': 'Sin conexión · Este teléfono todavía no se sincronizó',
   'sync.quiet.sending': '{count, plural, one {Enviando # cambio…} other {Enviando # cambios…}}',
   'sync.quiet.failed':
     '{count, plural, =0 {No pudimos sincronizar} other {No pudimos sincronizar · # sin enviar}}',

@@ -7,6 +7,7 @@ import { renderScreen, translator } from '../test/render.tsx';
 import { AccountScreen, HomeScreen, UpdateRequiredScreen } from './app.tsx';
 import { NoClubScreen, SelectClubScreen } from './clubs.tsx';
 import { InvitationScreen } from './invitation.tsx';
+import { SyncIndicator } from './sync.tsx';
 
 const { t } = translator;
 
@@ -150,13 +151,37 @@ describe('InvitationScreen', () => {
 
 describe('app screens', () => {
   it('greets the user in the club with its brand and no sync box when all is well', () => {
-    renderScreen(<HomeScreen userName="Ana" membership={COACH_AT_ORC} clubTheme={ORC_THEME} />);
+    const now = Date.UTC(2026, 10, 3, 12, 0, 0);
+    renderScreen(
+      <HomeScreen
+        userName="Ana"
+        membership={COACH_AT_ORC}
+        clubTheme={ORC_THEME}
+        sync={
+          <SyncIndicator
+            status={{
+              membershipId: COACH_AT_ORC.id,
+              phase: 'idle',
+              pause: null,
+              pendingCount: 0,
+              issueCount: 0,
+              lastSyncedAt: now - 60_000,
+              nextAttemptAt: null,
+            }}
+            nowMs={now}
+            onSyncNow={vi.fn()}
+          />
+        }
+      />,
+    );
     expect(screen.getByText(t('home.greeting', { name: 'Ana' }))).toBeDefined();
     expect(
       screen.getByLabelText(t('club.logoAlt', { clubName: 'Olivos Rugby Club' })),
     ).toBeDefined();
     expect(screen.getByText('ORC')).toBeDefined();
-    expect(screen.queryByText(t('sync.offline'))).toBeNull();
+    // The idle indicator draws nothing: no summary, no line, no button.
+    expect(screen.queryByLabelText(t('sync.title'))).toBeNull();
+    expect(screen.queryByRole('button', { name: /sincroniz|sin enviar|Sin conexión/i })).toBeNull();
   });
 
   it('lets the user change club, switch to high contrast and sign out', () => {

@@ -30,6 +30,21 @@ export interface QuietSyncLine {
 }
 
 /**
+ * The status the indicator shows when the session could not reach the
+ * server (`session.offline`, ADR 0103). It says "no connection" only while
+ * the engine has no fresher answer: a cycle in flight, or idle without ever
+ * having synced. A failing server, a pause or a no-connection the engine
+ * found itself are never hidden, and an idle engine that synced already
+ * reached the server (the session is refreshed then, `refreshSessionAfterSync`).
+ */
+export function withSessionOffline(status: SyncStatus, sessionOffline: boolean): SyncStatus {
+  if (!sessionOffline) return status;
+  const noAnswer =
+    status.phase === 'syncing' || (status.phase === 'idle' && status.lastSyncedAt === null);
+  return noAnswer ? { ...status, phase: 'offline' } : status;
+}
+
+/**
  * The one quiet line of the sync indicator (ADR 0103), or `null` when all is
  * well: idle with nothing waiting, or syncing with nothing waiting (a fresh
  * login's first sync included). No signal or a failing server say so along

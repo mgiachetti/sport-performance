@@ -1,11 +1,13 @@
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import type { Translator } from '@sport-performance/i18n';
+import { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, ActivityIndicator, Pressable, Text, View } from 'react-native';
 import type { SyncIssue, SyncStatus } from '../offline/engine.ts';
 import {
   lastSyncedText,
   quietSyncLine,
   syncAlerts,
   syncIssueText,
+  withSessionOffline,
   type QuietSyncLine,
 } from '../offline/presenter.ts';
 import { useTranslator } from '../ui/i18n.tsx';
@@ -31,7 +33,7 @@ export function SyncIndicator({
 }: {
   readonly status: SyncStatus;
   readonly nowMs: number;
-  /** The session could not reach the server: said as no signal even before the queue tries. */
+  /** The session could not reach the server: said as no connection while the engine has no fresher answer. */
   readonly offline?: boolean;
   readonly detailed?: boolean;
   /** Asks for a sync now; omitted on screens that only inform. */
@@ -40,13 +42,20 @@ export function SyncIndicator({
   const translator = useTranslator();
   const { t } = translator;
   const theme = useTheme();
-  const shown: SyncStatus =
-    offline && status.phase !== 'paused' && status.phase !== 'offline'
-      ? { ...status, phase: 'offline' }
-      : status;
+  const shown = withSessionOffline(status, offline);
   const alerts = syncAlerts(shown, translator);
   const line = quietSyncLine(shown, translator);
-  const canSync = onSyncNow !== undefined && shown.phase !== 'syncing' && shown.phase !== 'paused';
+  // A forced sync also resumes a pause (the engine's `requestSync({ force })`).
+  const canSync = onSyncNow !== undefined && shown.phase !== 'syncing';
+  // VoiceOver does not read live regions: say a new kind of line out loud.
+  const kind = line?.kind ?? null;
+  const spoken = line === null ? null : quietLineLabel(line, t);
+  const previousKind = useRef(kind);
+  useEffect(() => {
+    if (previousKind.current === kind) return;
+    previousKind.current = kind;
+    if (spoken !== null) AccessibilityInfo.announceForAccessibility(spoken);
+  }, [kind, spoken]);
   if (!detailed && alerts.length === 0 && line === null) return null;
   return (
     <View
@@ -84,6 +93,12 @@ export function SyncIndicator({
   );
 }
 
+/** What a screen reader says of the quiet line: "Atención:" before no connection or a failure. */
+function quietLineLabel(line: QuietSyncLine, t: Translator['t']): string {
+  const warns = line.kind === 'offline' || line.kind === 'failing';
+  return warns ? `${t('status.warning')}: ${line.text}` : line.text;
+}
+
 function QuietIcon({ kind }: { readonly kind: QuietSyncLine['kind'] }) {
   const theme = useTheme();
   const side = theme.sizes.statusIcon;
@@ -105,8 +120,7 @@ function QuietLine({
   const theme = useTheme();
   const { t } = useTranslator();
   const [focused, setFocused] = useState(false);
-  const warns = line.kind === 'offline' || line.kind === 'failing';
-  const label = warns ? `${t('status.warning')}: ${line.text}` : line.text;
+  const label = quietLineLabel(line, t);
   const content = (
     <>
       <QuietIcon kind={line.kind} />
