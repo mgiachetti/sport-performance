@@ -151,7 +151,8 @@ class HighSpeedCameraView(context: Context, appContext: AppContext) :
   private var firstPreviewAtMs = 0L
   private val previewCounter = object : CameraCaptureSession.CaptureCallback() {
     override fun onCaptureCompleted(s: CameraCaptureSession, r: CaptureRequest, t: TotalCaptureResult) {
-      if (firstPreviewAtMs == 0L) firstPreviewAtMs = SystemClock.elapsedRealtime()
+      // A late result of a session already closed does not count for the new one.
+      if (s === session && firstPreviewAtMs == 0L) firstPreviewAtMs = SystemClock.elapsedRealtime()
     }
   }
 
@@ -616,7 +617,7 @@ class HighSpeedCameraView(context: Context, appContext: AppContext) :
   private fun backToPreview() {
     val burst = previewRequests ?: return
     try {
-      session?.setRepeatingBurst(burst, null, cameraHandler)
+      session?.setRepeatingBurst(burst, previewCounter, cameraHandler)
     } catch (e: Exception) {
       // The session closed meanwhile: nothing left to show.
     }
