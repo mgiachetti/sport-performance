@@ -104,6 +104,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0098](0098-sistema-de-diseno-de-la-app.md) | Sistema de diseño de la app: primitivas en `apps/mobile/src/ui`, encabezado con escudo por el tema del club y galería de pantallas sobre `react-native-web` | Aceptado |
 | [0099](0099-intl-de-hermes-con-polyfills.md) | La app completa el `Intl` de Hermes con los polyfills de FormatJS | Aceptado |
 | [0100](0100-navegacion-de-la-app-pila-sobre-pestanas.md) | Navegación de la app: una pila alrededor de las pestañas, como mucho cinco pestañas | Aceptado |
+| [0101](0101-tamano-del-binario-android-por-variante.md) | Tamaño del binario de Android por variante: R8 en todo release, APK de staging solo arm64 | Aceptado |
 | [0102](0102-video-de-alta-velocidad-en-android-e-importacion-desde-la-galeria.md) | Video de alta velocidad en Android con un módulo propio, e importación de videos en cámara lenta desde la galería | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla, que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR y que cada enlace de markdown a un ADR en el repo vaya a un archivo que existe, con el mismo número en el texto del enlace.

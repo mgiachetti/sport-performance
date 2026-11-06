@@ -7,7 +7,7 @@ import {
   type BuildEnv,
   type RuntimeConfig,
 } from './runtime-config.ts';
-import { variantIdentity } from './variants.ts';
+import { type AppVariant, variantIdentity } from './variants.ts';
 
 /** Paths the web serves for links that must open the app (ADR 0028, ADR 0042). */
 export const APP_LINK_PATH_PREFIXES = ['/invite', '/player-access'] as const;
@@ -27,6 +27,28 @@ export interface AppExtra {
 export const PUSH_ANDROID_CHANNEL_ID = 'default';
 
 /**
+ * How the Android binary is packed, per variant (ADR 0101). Every release build
+ * shrinks its code and resources with R8. Staging is an APK installed by hand on
+ * the testers' phones: only `arm64-v8a` (every current phone; the emulators run
+ * it by translation) and compressed native libraries, so it downloads in a
+ * fraction. Production goes to the store as an AAB with every architecture: the
+ * store sends each phone only its own. Development gets the same flags, which
+ * only apply to release builds, and every architecture (its debug builds run on
+ * the x86_64 emulators).
+ */
+export function androidBuildProperties(variant: AppVariant): {
+  readonly enableMinifyInReleaseBuilds: boolean;
+  readonly enableShrinkResourcesInReleaseBuilds: boolean;
+  readonly buildArchs?: readonly string[];
+  readonly useLegacyPackaging?: boolean;
+} {
+  const shrink = { enableMinifyInReleaseBuilds: true, enableShrinkResourcesInReleaseBuilds: true };
+  if (variant === 'staging')
+    return { ...shrink, buildArchs: ['arm64-v8a'], useLegacyPackaging: true };
+  return shrink;
+}
+
+/**
  * The whole Expo config of the app, from the build environment (ADR 0058).
  * `app.config.ts` only calls this; keeping it a pure function lets the tests
  * pin what each variant ships (ids, scheme, links, update channel, plugins).
@@ -38,6 +60,11 @@ export function buildExpoConfig(env: BuildEnv): ExpoConfig {
   if (projectId !== '' && !EAS_PROJECT_ID_PATTERN.test(projectId)) {
     throw new Error('EAS_PROJECT_ID must be the UUID of the EAS project');
   }
+  const sentryUpload =
+    env.SENTRY_ORG !== undefined &&
+    env.SENTRY_ORG !== '' &&
+    env.SENTRY_PROJECT !== undefined &&
+    env.SENTRY_PROJECT !== '';
   const webHost = runtime.webAppUrl === null ? null : new URL(runtime.webAppUrl).host;
   const background = orcPalette.background;
 
@@ -109,6 +136,7 @@ export function buildExpoConfig(env: BuildEnv): ExpoConfig {
     experiments: { typedRoutes: false },
     plugins: [
       'expo-router',
+      ['expo-build-properties', { android: androidBuildProperties(identity.updateChannel) }],
       'expo-secure-store',
       'expo-localization',
       // The local database is encrypted with SQLCipher; its key lives in the secure storage (ADR 0069).
@@ -157,11 +185,16 @@ export function buildExpoConfig(env: BuildEnv): ExpoConfig {
             env.SENTRY_ORG !== '' && { organization: env.SENTRY_ORG }),
           ...(env.SENTRY_PROJECT !== undefined &&
             env.SENTRY_PROJECT !== '' && { project: env.SENTRY_PROJECT }),
-          disableAutoUpload:
-            env.SENTRY_ORG === undefined ||
-            env.SENTRY_ORG === '' ||
-            env.SENTRY_PROJECT === undefined ||
-            env.SENTRY_PROJECT === '',
+          disableAutoUpload: !sentryUpload,
+          // With R8 (ADR 0101) the Java/Kotlin frames of a native crash are obfuscated:
+          // the Sentry Gradle plugin uploads the R8 mapping with the same token.
+          ...(sentryUpload && {
+            experimental_android: {
+              enableAndroidGradlePlugin: true,
+              includeProguardMapping: true,
+              autoUploadProguardMapping: true,
+            },
+          }),
         },
       ],
     ],

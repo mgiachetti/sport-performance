@@ -196,7 +196,17 @@ describe('buildExpoConfig', () => {
     const config = buildExpoConfig({ ...productionEnv, SENTRY_ORG: 'org', SENTRY_PROJECT: 'app' });
     expect(config.plugins).toContainEqual([
       '@sentry/react-native',
-      { organization: 'org', project: 'app', disableAutoUpload: false },
+      {
+        organization: 'org',
+        project: 'app',
+        disableAutoUpload: false,
+        // The R8 mapping too, so native crashes read in Sentry (ADR 0101).
+        experimental_android: {
+          enableAndroidGradlePlugin: true,
+          includeProguardMapping: true,
+          autoUploadProguardMapping: true,
+        },
+      },
     ]);
   });
 
@@ -212,6 +222,25 @@ describe('buildExpoConfig', () => {
         defaultChannel: 'default',
         enableBackgroundRemoteNotifications: false,
       },
+    ]);
+  });
+
+  it('packs a small arm64 APK for staging and every architecture for the store (ADR 0101)', () => {
+    const shrink = {
+      enableMinifyInReleaseBuilds: true,
+      enableShrinkResourcesInReleaseBuilds: true,
+    };
+    expect(buildExpoConfig({ ...productionEnv, APP_VARIANT: 'staging' }).plugins).toContainEqual([
+      'expo-build-properties',
+      { android: { ...shrink, buildArchs: ['arm64-v8a'], useLegacyPackaging: true } },
+    ]);
+    expect(buildExpoConfig(productionEnv).plugins).toContainEqual([
+      'expo-build-properties',
+      { android: shrink },
+    ]);
+    expect(buildExpoConfig({}).plugins).toContainEqual([
+      'expo-build-properties',
+      { android: shrink },
     ]);
   });
 
