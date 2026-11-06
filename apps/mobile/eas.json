@@ -2,8 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/expo/eas-cli/main/packages/eas-json/schema/eas.schema.json",
   "cli": {
     "version": ">= 16.0.0",
-    "appVersionSource": "remote",
-    "promptToConfigureEnvironmentVariables": false
+    "appVersionSource": "remote"
   },
   "build": {
     "base": {
