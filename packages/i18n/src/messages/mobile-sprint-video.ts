@@ -4,7 +4,6 @@
  * `es-AR` source catalog; same rules as `es-AR.ts`.
  */
 export const mobileSprintVideoMessagesEsAR = {
-  'sprintVideo.open': 'Sprint por video',
   'sprintVideo.open.hint':
     'Tiempos de 10, 20 y 40 m filmando de costado en cámara lenta, sin conexión.',
   'sprintVideo.title': 'Sprint por video',

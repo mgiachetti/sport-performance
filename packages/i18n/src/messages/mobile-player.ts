@@ -88,6 +88,13 @@ export const mobilePlayerMessagesEsAR = {
   // The unit next to the streak's figure ("11 · días seguidos").
   'playerApp.streak.unit': '{days, plural, one {día seguido} other {días seguidos}}',
 
+  // Tabs of "Mis tests"
+  'playerApp.tabs.label': 'Secciones de mis tests',
+  'playerApp.tabs.records': 'Récords',
+  'playerApp.tabs.history': 'Historial',
+  'playerApp.tabs.upcoming': 'Próximos',
+  'playerApp.tabs.upcomingBadge': '{count, plural, one {# día de test} other {# días de test}}',
+
   // Test days
   'playerApp.testDays.title': 'Próximos días de test',
   'playerApp.testDays.next': 'Próximo día de test',

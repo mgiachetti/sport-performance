@@ -6,7 +6,6 @@
  */
 export const mobileCmjVideoMessagesEsAR = {
   'cmjVideo.title': 'CMJ por video',
-  'cmjVideo.open': 'CMJ por video',
   'cmjVideo.open.hint': 'Grabá el salto en cámara lenta y marcá el despegue y el aterrizaje.',
   'cmjVideo.notAllowed': 'El CMJ por video lo graban el preparador físico y la administración.',
 

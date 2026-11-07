@@ -306,6 +306,7 @@ export function PlayerTests({
   const now = useNow();
   const me = useMyPlayer();
   const testDays = useMyTestDays();
+  const { membershipId } = useSyncStatus();
   const playerId = me.value?.player.id ?? null;
   const canSeePercentiles = me.value?.permissions.readPercentiles === true;
   const percentiles = useOfflineRead({
@@ -351,6 +352,7 @@ export function PlayerTests({
             : testDays.value.items.filter((item) => item.scheduledOn >= day.today)
       }
       onOpenProtocols={onOpenProtocols}
+      segmentScope={membershipId}
     />
   );
 }

@@ -49,11 +49,11 @@ describe('HomeScreen', () => {
     const onOpenKiosk = vi.fn();
     const props = { userName: 'Ana', membership: COACH_AT_ORC, clubTheme: null, offline: false };
     const { unmount } = renderScreen(<HomeScreen {...props} onOpenKiosk={onOpenKiosk} />);
-    fireEvent.click(screen.getByRole('button', { name: t('kiosk.open') }));
+    fireEvent.click(screen.getByRole('button', { name: t('home.tile.kiosk') }));
     expect(onOpenKiosk).toHaveBeenCalled();
     unmount();
     renderScreen(<HomeScreen {...props} />);
-    expect(screen.queryByRole('button', { name: t('kiosk.open') })).toBeNull();
+    expect(screen.queryByRole('button', { name: t('home.tile.kiosk') })).toBeNull();
   });
 });
 

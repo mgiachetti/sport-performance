@@ -4,10 +4,11 @@ import { localDate, parseTimeZone } from '@sport-performance/domain';
 import { formatLocalDateLong } from '@sport-performance/i18n';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
-import { AccessibilityInfo } from 'react-native';
-import { describe, expect, it, vi } from 'vitest';
+import { AccessibilityInfo, Platform } from 'react-native';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RpeSession } from '../player/today.ts';
 import { renderScreen, translator } from '../test/render.tsx';
+import { forgetRememberedSegments } from '../ui/segmented-tabs.tsx';
 import { PlayerConsentsScreen } from './player-consents.tsx';
 import { PlayerTestsScreen } from './player-tests.tsx';
 import {
@@ -271,11 +272,7 @@ describe('PlayerTodayScreen: ordered by status', () => {
     expect(screen.queryByText(t('playerApp.today.allDone'))).toBeNull();
   });
 
-  it('announces a saved check-in as its form folds into a line, and then the RPE', async () => {
-    const announce = vi.spyOn(AccessibilityInfo, 'announceForAccessibility');
-    announce.mockClear();
-    renderScreen(<StatefulToday />);
-    expect(screen.queryByText(t('wellness.submitted'))).toBeNull();
+  async function sendCheckIn() {
     fireEvent.click(screen.getByRole('radio', { name: 'Sueño: Bien' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Fatiga: Normal' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Dolor muscular: Muy bien' }));
@@ -283,17 +280,62 @@ describe('PlayerTodayScreen: ordered by status', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: WELLNESS_LINE })).toBeDefined();
     });
-    expect(screen.queryByRole('button', { name: t('playerApp.wellness.send') })).toBeNull();
-    expect(screen.getByText(t('wellness.submitted'))).toBeDefined();
-    expect(announce).toHaveBeenCalledWith(t('wellness.submitted'));
+  }
 
+  it('says "¡Listo!" as a sent form folds into its line, until all is done', async () => {
+    const announce = vi.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    announce.mockClear();
+    renderScreen(<StatefulToday />);
+    expect(screen.queryByText(t('wellness.submitted'))).toBeNull();
+    await sendCheckIn();
+    expect(screen.queryByRole('button', { name: t('playerApp.wellness.send') })).toBeNull();
+    // A polite live region: Android (and the web) read it, nothing else is announced.
+    expect(screen.getByText(t('wellness.submitted'))).toBeDefined();
+    expect(announce).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('radio', { name: 'RPE 7: Muy duro' }));
+    fireEvent.click(screen.getByRole('button', { name: t('playerApp.rpe.send') }));
+    await waitFor(() => {
+      expect(screen.getByText(t('playerApp.today.allDone'))).toBeDefined();
+    });
+    // "Todo listo por hoy" says it: no "¡Listo!" stacked over it.
+    expect(screen.queryByText(t('playerApp.today.rpeSubmitted'))).toBeNull();
+    expect(screen.queryByText(t('wellness.submitted'))).toBeNull();
+    announce.mockRestore();
+  });
+
+  it('says "¡Listo!" for an RPE sent while the check-in is still pending', async () => {
+    renderScreen(<StatefulToday />);
     fireEvent.click(screen.getByRole('radio', { name: 'RPE 7: Muy duro' }));
     fireEvent.click(screen.getByRole('button', { name: t('playerApp.rpe.send') }));
     await waitFor(() => {
       expect(screen.getByText(t('playerApp.today.rpeSubmitted'))).toBeDefined();
     });
-    expect(announce).toHaveBeenCalledWith(t('playerApp.today.rpeSubmitted'));
-    expect(screen.getByText(t('playerApp.today.allDone'))).toBeDefined();
+  });
+
+  it('announces the save on iOS, where a live region is not read', async () => {
+    const announce = vi.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    announce.mockClear();
+    const os = Platform.OS;
+    Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
+    try {
+      renderScreen(<StatefulToday />);
+      await sendCheckIn();
+      expect(announce).toHaveBeenCalledWith(t('wellness.submitted'));
+    } finally {
+      Object.defineProperty(Platform, 'OS', { value: os, configurable: true });
+      announce.mockRestore();
+    }
+  });
+
+  it('says nothing for a check-in that arrives from elsewhere (a sync pull, a kiosk)', () => {
+    const announce = vi.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    announce.mockClear();
+    renderScreen(<StatefulToday />);
+    fireEvent.click(screen.getByRole('button', { name: 'pull' }));
+    expect(screen.getByRole('button', { name: WELLNESS_LINE })).toBeDefined();
+    expect(screen.queryByText(t('wellness.submitted'))).toBeNull();
+    expect(announce).not.toHaveBeenCalled();
     announce.mockRestore();
   });
 
@@ -365,12 +407,23 @@ function StatefulToday() {
     },
   };
   return (
-    <PlayerTodayScreen
-      greeting="Hola, Tomás"
-      state={{ status: 'ready', data: today }}
-      notice={null}
-      actions={handlers}
-    />
+    <>
+      {/* A check-in that lands without the form: a sync pull, or one loaded on a kiosk. */}
+      <button
+        type="button"
+        onClick={() => {
+          setToday((current) => ({ ...current, wellness: LOADED }));
+        }}
+      >
+        pull
+      </button>
+      <PlayerTodayScreen
+        greeting="Hola, Tomás"
+        state={{ status: 'ready', data: today }}
+        notice={null}
+        actions={handlers}
+      />
+    </>
   );
 }
 
@@ -460,7 +513,24 @@ const percentile: PlayerPercentile = {
   mixedMethods: false,
 };
 
+const testDay: MyTestDay = {
+  id: 'e1111111-1111-4111-8111-111111111111' as MyTestDay['id'],
+  scheduledOn: localDate(2026, 11, 10),
+  status: 'scheduled',
+  location: 'Cancha 2',
+  testWindow: {
+    id: 'f1111111-1111-4111-8111-111111111111' as never,
+    number: 4,
+    label: 'V4',
+  },
+  testCodes: ['sprint_40', 'cmj'],
+};
+
 describe('PlayerTestsScreen', () => {
+  beforeEach(() => {
+    forgetRememberedSegments();
+  });
+
   it('keeps percentiles away from M13/M14', () => {
     renderScreen(
       <PlayerTestsScreen
@@ -473,7 +543,67 @@ describe('PlayerTestsScreen', () => {
     );
     expect(screen.getByText(t('playerApp.percentiles.fromM15'))).toBeDefined();
     expect(screen.getByText(t('playerApp.records.none'))).toBeDefined();
+    // No upcoming days: no badge.
+    fireEvent.click(screen.getByRole('tab', { name: t('playerApp.tabs.upcoming') }));
     expect(screen.getByText(t('playerApp.testDays.none'))).toBeDefined();
+  });
+
+  it('splits records (with percentiles and protocols), history and upcoming days in tabs', () => {
+    const onOpenProtocols = vi.fn();
+    renderScreen(
+      <PlayerTestsScreen
+        notice="Sin conexión"
+        records={[]}
+        percentiles={{ kind: 'ready', items: [percentile] }}
+        history={[]}
+        testDays={[testDay]}
+        onOpenProtocols={onOpenProtocols}
+      />,
+    );
+    expect(screen.getByRole('tablist', { name: t('playerApp.tabs.label') })).toBeDefined();
+    expect(
+      screen.getByRole('tab', { name: t('playerApp.tabs.records'), selected: true }),
+    ).toBeDefined();
+    // The notice stays above the tabs, whichever is open.
+    expect(screen.getByText('Sin conexión')).toBeDefined();
+    expect(screen.getByText(t('playerApp.records.title'))).toBeDefined();
+    expect(screen.getByText(t('playerApp.percentiles.title'))).toBeDefined();
+    expect(screen.queryByText(t('playerApp.history.title'))).toBeNull();
+    expect(screen.queryByText(t('playerApp.testDays.title'))).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('protocols.open')) }));
+    expect(onOpenProtocols).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('tab', { name: t('playerApp.tabs.history') }));
+    expect(screen.getByText(t('playerApp.history.none'))).toBeDefined();
+    expect(screen.queryByText(t('playerApp.percentiles.title'))).toBeNull();
+    expect(screen.getByText('Sin conexión')).toBeDefined();
+
+    const upcoming = t('tabs.withBadge', {
+      label: t('playerApp.tabs.upcoming'),
+      badge: t('playerApp.tabs.upcomingBadge', { count: 1 }),
+    });
+    expect(upcoming).toBe('Próximos, 1 día de test');
+    fireEvent.click(screen.getByRole('tab', { name: upcoming }));
+    expect(screen.getByText(t('playerApp.testDays.title'))).toBeDefined();
+    expect(screen.getByText('Cancha 2', { exact: false })).toBeDefined();
+  });
+
+  it('comes back to the last tab in the same app session', () => {
+    const props = {
+      notice: null,
+      records: [],
+      percentiles: { kind: 'hidden' } as const,
+      history: [],
+      testDays: [],
+      segmentScope: 'm1',
+    };
+    const first = renderScreen(<PlayerTestsScreen {...props} />);
+    fireEvent.click(screen.getByRole('tab', { name: t('playerApp.tabs.history') }));
+    first.unmount();
+    renderScreen(<PlayerTestsScreen {...props} />);
+    expect(
+      screen.getByRole('tab', { name: t('playerApp.tabs.history'), selected: true }),
+    ).toBeDefined();
   });
 
   it('shows own percentiles as aggregates only, and records with their method', () => {

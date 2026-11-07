@@ -16,8 +16,8 @@ import {
   formatTime,
   type Translator,
 } from '@sport-performance/i18n';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { AccessibilityInfo, Pressable, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { AccessibilityInfo, Platform, Pressable, Text, View } from 'react-native';
 import { rpeLabel, testLabel, wellnessItemLabel } from '../player/format.ts';
 import type { WellnessStreak } from '../player/streak.ts';
 import {
@@ -177,18 +177,22 @@ function SentState({ pending }: { readonly pending: boolean }) {
 
 type WellnessForm = Extract<WellnessSection, { kind: 'form' }>;
 
+/** Whether the correction under a done line is open; stable, keyed by the line. */
+type EditingChange = (key: string, editing: boolean) => void;
+
 /** Tells the parent whether a correction is open (and that it closed, on unmount). */
 function useReportEditing(
   editing: boolean,
-  onEditingChange: ((editing: boolean) => void) | undefined,
+  editingKey: string | undefined,
+  onEditingChange: EditingChange | undefined,
 ): void {
   useEffect(() => {
-    if (onEditingChange === undefined) return;
-    onEditingChange(editing);
+    if (onEditingChange === undefined || editingKey === undefined) return;
+    onEditingChange(editingKey, editing);
     return () => {
-      onEditingChange(false);
+      onEditingChange(editingKey, false);
     };
-  }, [editing, onEditingChange]);
+  }, [editing, editingKey, onEditingChange]);
 }
 
 /**
@@ -200,17 +204,20 @@ function WellnessCard({
   section,
   actions,
   onEditingChange,
+  editingKey,
 }: {
   readonly section: WellnessForm;
   readonly actions: PlayerTodayActions;
   /** Whether a correction is open, so its line is not closed under the draft. */
-  readonly onEditingChange?: (editing: boolean) => void;
+  readonly onEditingChange?: EditingChange;
+  /** The done line this card opens under. */
+  readonly editingKey?: string;
 }) {
   const { t } = useTranslator();
   const theme = useTheme();
   const [answers, setAnswers] = useState<Scores>({});
   const [correcting, setCorrecting] = useState(false);
-  useReportEditing(correcting, onEditingChange);
+  useReportEditing(correcting, editingKey, onEditingChange);
   const [reason, setReason] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -430,19 +437,22 @@ function RpeSessionCard({
   onSubmit,
   inline = false,
   onEditingChange,
+  editingKey,
 }: {
   readonly item: RpeSession;
   readonly timeZone: TimeZone;
   readonly onSubmit: PlayerTodayActions['onSubmitRpe'];
   readonly inline?: boolean;
   /** Whether a correction is open, so its line is not closed under the draft. */
-  readonly onEditingChange?: (editing: boolean) => void;
+  readonly onEditingChange?: EditingChange;
+  /** The done line this card opens under. */
+  readonly editingKey?: string;
 }) {
   const { t } = useTranslator();
   const theme = useTheme();
   const [selected, setSelected] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
-  useReportEditing(editing, onEditingChange);
+  useReportEditing(editing, editingKey, onEditingChange);
   const [reason, setReason] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -682,7 +692,8 @@ function DoneCard({
   readonly data: PlayerTodayData;
   readonly actions: PlayerTodayActions;
   readonly onToggle: (key: string) => void;
-  readonly onEditingChange: (key: string, editing: boolean) => void;
+  /** Stable (a `useCallback` of the parent), so the cards' effect does not run on every render. */
+  readonly onEditingChange: EditingChange;
 }) {
   const { t } = useTranslator();
   const { wellness } = data;
@@ -728,9 +739,8 @@ function DoneCard({
                 <WellnessCard
                   section={wellness}
                   actions={actions}
-                  onEditingChange={(editing) => {
-                    onEditingChange(item.key, editing);
-                  }}
+                  editingKey={item.key}
+                  onEditingChange={onEditingChange}
                 />
               ) : null}
             </DoneRow>
@@ -756,9 +766,8 @@ function DoneCard({
                 timeZone={data.timeZone}
                 onSubmit={actions.onSubmitRpe}
                 inline
-                onEditingChange={(editing) => {
-                  onEditingChange(item.key, editing);
-                }}
+                editingKey={item.key}
+                onEditingChange={onEditingChange}
               />
             ) : null}
           </DoneRow>
@@ -922,10 +931,10 @@ function TodaySections({
   const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set());
   // Lines with a correction open: tapping them keeps them open, so the draft is not lost.
   const editing = useRef(new Set<string>());
-  const setEditing = (key: string, value: boolean) => {
+  const setEditing = useCallback((key: string, value: boolean) => {
     if (value) editing.current.add(key);
     else editing.current.delete(key);
-  };
+  }, []);
   const toggle = (key: string) => {
     if (editing.current.has(key)) return;
     setOpened((current) => {
@@ -961,23 +970,49 @@ function TodaySections({
     .flatMap((section) => (section.kind === 'done' ? section.items.map((item) => item.key) : []))
     .join('|');
   const previousPending = useRef(pendingKeys);
+  // Only what the player sent from these forms: a check-in that arrives with a
+  // sync pull (or loaded on a kiosk) never says "Gracias por cargar…".
+  const sentHere = useRef(new Set<string>());
   const [justSaved, setJustSaved] = useState<'wellness' | 'rpe' | null>(null);
   useEffect(() => {
     const before = previousPending.current;
     previousPending.current = pendingKeys;
     const done = new Set(doneKeys.split('|'));
-    const saved = before.split('|').filter((key) => key !== '' && done.has(key));
+    const saved = before
+      .split('|')
+      .filter((key) => key !== '' && done.has(key) && sentHere.current.has(key));
+    for (const key of saved) sentHere.current.delete(key);
     if (saved.length === 0) return;
     const kind = saved.includes(sectionKey({ kind: 'wellness' })) ? 'wellness' : 'rpe';
     setJustSaved(kind);
-    AccessibilityInfo.announceForAccessibility(
-      t(kind === 'wellness' ? 'wellness.submitted' : 'playerApp.today.rpeSubmitted'),
-    );
+    // iOS reads only what is announced; Android already reads the polite live region.
+    if (Platform.OS === 'ios') {
+      AccessibilityInfo.announceForAccessibility(
+        t(kind === 'wellness' ? 'wellness.submitted' : 'playerApp.today.rpeSubmitted'),
+      );
+    }
   }, [pendingKeys, doneKeys, t]);
+  const remember = (key: string, task: Promise<void>): Promise<void> => {
+    sentHere.current.add(key);
+    return task.catch((error: unknown) => {
+      sentHere.current.delete(key);
+      throw error;
+    });
+  };
+  // The pending forms send through these, so their save is the one said "¡Listo!".
+  const formActions: PlayerTodayActions = {
+    ...actions,
+    onSubmitWellness: (scores) =>
+      remember(sectionKey({ kind: 'wellness' }), actions.onSubmitWellness(scores)),
+    onSubmitRpe: (sessionId, rpe, reason) =>
+      remember(sectionKey({ kind: 'rpe', sessionId }), actions.onSubmitRpe(sessionId, rpe, reason)),
+  };
+  // With "Todo listo por hoy" on top, a "¡Listo!" over it says the same twice.
+  const allDone = sections.some((section) => section.kind === 'allDone');
 
   return (
     <>
-      {justSaved !== null ? (
+      {justSaved !== null && !allDone ? (
         <StatusMessage level="ok">
           {t(justSaved === 'wellness' ? 'wellness.submitted' : 'playerApp.today.rpeSubmitted')}
         </StatusMessage>
@@ -992,7 +1027,7 @@ function TodaySections({
             );
           case 'wellnessForm':
             return data.wellness.kind === 'form' ? (
-              <WellnessCard key="wellnessForm" section={data.wellness} actions={actions} />
+              <WellnessCard key="wellnessForm" section={data.wellness} actions={formActions} />
             ) : null;
           case 'rpeForm':
             return (
@@ -1004,7 +1039,7 @@ function TodaySections({
                       key={item.session.id}
                       item={item}
                       timeZone={data.timeZone}
-                      onSubmit={actions.onSubmitRpe}
+                      onSubmit={formActions.onSubmitRpe}
                     />
                   ))}
               </Card>

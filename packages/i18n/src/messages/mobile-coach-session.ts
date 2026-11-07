@@ -111,6 +111,14 @@ export const mobileCoachSessionMessagesEsAR = {
   'coachSession.fillPresent': 'Todos presentes ({minutes} min)',
   'coachSession.fillPresentNoMinutes': 'Todos presentes',
   'coachSession.summary.title': 'Resumen',
+  'coachSession.tabs.label': 'Qué cargar',
+  'coachSession.tabs.attendance': 'Asistencia',
+  'coachSession.tabs.minutes': 'Minutos',
+  'coachSession.tabs.contacts': 'Contactos',
+  'coachSession.tabs.noStatus': '{count} sin estado',
+  'coachSession.row.noLoad': '{status}: no suma carga',
+  'coachSession.tabs.errors':
+    '{count, plural, one {# jugador con error} other {# jugadores con error}}',
   'coachSession.summary.line':
     '{present} presentes · {absent} ausentes · {unavailable} no disponibles · {pending} sin cargar',
   'coachSession.summary.totals': '{minutes} min · {contacts} contactos',

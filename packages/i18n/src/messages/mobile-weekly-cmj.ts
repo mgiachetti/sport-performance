@@ -4,7 +4,6 @@
  * as `es-AR.ts` (vos, no key in more than one file).
  */
 export const mobileWeeklyCmjMessagesEsAR = {
-  'weeklyCmj.open': 'CMJ semanal',
   'weeklyCmj.open.hint': 'M17 y M19: tres saltos por jugador contra su base, sin conexión.',
   'weeklyCmj.title': 'CMJ semanal',
   'weeklyCmj.body':

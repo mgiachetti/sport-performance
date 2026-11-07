@@ -14,6 +14,7 @@ import {
   type StoredUser,
 } from '../auth/session-store.ts';
 import { resolveMembership, sortMemberships } from '../clubs/membership.ts';
+import { forgetRememberedSegments } from '../ui/segment-memory.ts';
 
 /** Why the user is on the sign-in screen, when it is not the first time. */
 export type SignedOutNotice = 'sessionExpired';
@@ -148,6 +149,8 @@ export function createSessionController(options: SessionControllerOptions): Sess
 
   async function signOutLocally(notice: SignedOutNotice | null): Promise<void> {
     generation += 1;
+    // The tabs each screen remembers (ADR 0104) belong to this user.
+    forgetRememberedSegments();
     try {
       await store.clear();
     } catch (error) {
