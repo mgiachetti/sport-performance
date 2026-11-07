@@ -8,7 +8,7 @@ Este documento acompaña al [ADR 0105](../adr/0105-pod-gnss-imu-con-telemetria-e
 
 | Parte | Elegida | Alternativa | Precio @100 | Fuente | Verificado |
 |---|---|---|---|---|---|
-| GNSS L1 + L5 | u-blox NEO-F10N-00B-20 (prototipo, salida cruda RAWX) | Quectel LC29H(AA), opción de costo | F10N-20: US$ 18,69–21,36. LC29H(AA): US$ 7,40 | [findchips NEO-F10N](https://www.findchips.com/search/NEO-F10N-00B) · [Ozdisan LC29H(AA)](https://www.ozdisan.com/en/p/gsm-and-gnss-modules-650/quectel-lc29haamd-1574222) | Sí (F10N por agregador) |
+| GNSS L1 + L5 | **Quectel LC29H(AA)** (principal; placa lista para la EA) | LC29H(EA) para RTK en vivo; u-blox NEO-F10N-00B-20 solo como comparación en el banco | F10N-20: US$ 18,69–21,36. LC29H(AA): US$ 7,40 | [findchips NEO-F10N](https://www.findchips.com/search/NEO-F10N-00B) · [Ozdisan LC29H(AA)](https://www.ozdisan.com/en/p/gsm-and-gnss-modules-650/quectel-lc29haamd-1574222) | Sí (F10N por agregador) |
 | GNSS, otras opciones | LC29H(DA) | Allystar TAU1201 | DA: €20,53. TAU1201: US$ 11–16 | [DigiKey LC29H(DA)](https://www.digikey.jp/en/products/detail/quectel/LC29HDAMD/21272459) · [ichome TAU1201](https://ichome.com/product-detail/allystar/tau1201-1216a00) | Sí |
 | GNSS, otras opciones | Unicore UM620N (UC6580A) | — | — | [manual UM620N](https://manuals.plus/unicorecomm/um620n-automotive-grade-dual-frequency-multi-gnss-positioning-module-manual-2) | **No verificado** (sin precio) |
 | Antena L1/L5 activa de 25 × 25 mm | Taoglas AGVLB.25B.07.0060A (LNA de 2 etapas) | Linx ANT-GNCP-C25L15100; Pulse ANT1825JB01BGNL5A (LCSC C3284896, sin precio) | €21,03 @120 / €19,87 @360 (DigiKey). Linx: precio **no verificado** | [DigiKey Taoglas](https://www.digikey.ie/en/products/detail/taoglas-limited/AGVLB-25B-07-0060A/21777673) · [DigiKey Linx](https://www.digikey.fi/en/products/detail/te-connectivity-linx/ANT-GNCP-C25L15100/15294130) | Precio sí. Que tenga SAW, **no verificado** |
@@ -41,7 +41,7 @@ Sin pasivos de detalle, chaleco ni banda de FC:
 | Gateway LoRa de 8 canales SX1302: RAK7268V2 (alternativa: RAK2287 + Raspberry Pi) | 1 por cancha | US$ 139; versión US915 sin LTE, US$ 169,99. RAK2287: US$ 84–99 | [hackster](https://hackster.io/products/buy/97716) · [RAK](https://store.rakwireless.com/products/wislink-concentrator-module-sx1302-rak2287-lorawan) |
 | Mástil de 3–5 m para el gateway | 1 por cancha | — | **No verificado** |
 | Bases de carga y descarga (pogo + USB) | ~5 de 20 lugares | Diseño propio: costo **no verificado** | — |
-| Base GNSS propia para el PPK (el mismo módulo grabando crudo) | 1 por cancha | Costo de un pod sin IMU ni LoRa | — |
+| Base de la cancha y referencia: **Quectel LG290P** (4 bandas, crudo a 10–20 Hz según el foro, **no verificado**) con antena L1/L2/L5 | 1 por cancha | Módulo US$ 67–107 en DigiKey; breakout de Waveshare unos US$ 90 | [DigiKey](https://www.digikey.bg/en/product-highlight/q/quectel/lg290p-03-gnss-module) · [CNX Software](https://www.cnx-software.com/2025/11/25/waveshare-low-cost-lg290p-gnss-rtk-breakout-board-rtc-battery-support/) |
 | Chalecos con bolsillo entre los omóplatos | 100 o más (talles) | **No verificado** | — |
 | Anclas UWB (solo donde haya deporte bajo techo) | unas 4–6 en una cancha cubierta de 40 × 20 m (**no verificado**) | US$ 50–150 cada una en diseño propio, más la sincronización: **no verificado** | — |
 | Tablet del staff | 1 por cancha | La del club | — |
@@ -83,6 +83,8 @@ Sin pasivos de detalle, chaleco ni banda de FC:
   - Solo la variante **-00B-20** da fase portadora (`UBX-RXM-RAWX`). La -00B-00, que es la de la placa de SparkFun, no ([u-blox](https://www.u-blox.com/en/technologies/gnss-raw-data)).
   - Navega a 10 Hz en multi-constelación, con 21–26 mA medidos en la placa ([SparkFun](https://docs.sparkfun.com/SparkFun_u-blox_NEO-F10N/hardware_overview)).
   - La tasa máxima de RAWX **no está verificada**.
+- **LG290P** ([especificación](https://www.quectel.com.cn/wp-content/uploads/2024/12/Quectel_LG290P系列_GNSS_模块产品规格书_V1.4.pdf)): 4 bandas (L1/L2/L5/E6), RTK, unos 98 mA. Según el [foro de Quectel](https://forums.quectel.com/t/lg290p-10-20-hz-raw-carrier-phase-observations-and-multi-receiver-synchronization/61346), saca pseudodistancia, fase portadora, Doppler y C/N0 a 10 o 20 Hz (**no verificado** contra la hoja de datos). Va como base y referencia, no en el pod.
+- **Placa lista para la EA:** las variantes del LC29H comparten el encapsulado de 12,2 × 16,0 × 2,5 mm ([V1.8](https://quectel.com.cn/wp-content/uploads/2021/08/Quectel_LC29H系列_GNSS_模块产品规格书_V1.8.pdf), [V1.2](https://quectel.com/content/uploads/sites/3/2022/06/Quectel_LC29H_GNSS_Specification_V1.2.pdf)). Los pines uno a uno están **no verificados**: hay que revisar el *LC29H Hardware Design* antes del diseño de la placa.
 - **TAU1201/1202:** Allystar los presenta como "standard precision". La salida cruda MSM figura para la TAU1303 ([GPS World](https://www.gpsworld.com/?p=70293)). Se descartan como opción con crudo.
 - **UM620N:** salida cruda y precio **no verificados**.
 
@@ -114,17 +116,18 @@ No se encontraron estudios de GNSS de doble banda de bajo costo en deportes. Lo 
 
 ## Plan de prototipos
 
-1. **Banco** (unos US$ 500–1000; 2–4 semanas):
-   - Placas de evaluación del NEO-F10N-00B-20 y del LC29H(AA), con las antenas Taoglas y una antena L1/L5 china, cada una sobre un RAK4631 (WisBlock) y una placa con el LSM6DSV320X.
+1. **Banco** (unos US$ 700–980 en origen; 2–4 semanas). La lista de compras y el protocolo están en [`banco-gnss.md`](banco-gnss.md):
+   - LC29H(AA) ×2, LC29H(EA), LG290P como base y referencia, y NEO-F10N para comparar, con las antenas Taoglas, un RAK4631 (WisBlock) y una placa con el LSM6DSV320X.
    - **Medir:**
+     - si el AA saca crudo, a qué tasa y si la configuración persiste;
+     - el RTK de la EA con el LG290P de base: % de "fixed" y bytes/s de RTCM;
      - hasta qué tasa sale RAWX en el F10N;
-     - si el modo base del LC29H persiste y no degrada la solución de navegación;
      - el consumo real (estimado en 40–50 mA) y la batería necesaria;
      - si transmitir LoRa satura la entrada del GNSS, con y sin el SAW.
 2. **Cancha, lado a lado** (en el club):
    - Un jugador de primera lleva **el Catapult y nuestro pod a la vez**, en sesiones de entrenamiento y en un partido.
    - Sprints con **fotocélulas**.
-   - Base GNSS propia al costado, y el RINEX de RAMSAC del mismo día.
+   - El LG290P como base al costado, y el RINEX de RAMSAC del mismo día como respaldo.
    - **Comparar:** distancia, HSR, Vmax, aceleraciones y desaceleraciones, y contactos (estos contra video).
    - Con esos datos se elige el GNSS y la antena, y el ADR 0105 se acepta o se reemplaza.
 3. **Placa propia: 2–3 vueltas en JLCPCB**, con 4 capas, carcasa MJF, base de carga y descarga, y el turno LoRa probado con 10–30 placas.
@@ -146,3 +149,5 @@ No se encontraron estudios de GNSS de doble banda de bajo costo en deportes. Lo 
 11. El packet forwarder del gateway tiene que dejar pasar tramas que no son LoRaWAN, con una sync word privada.
 12. **Privacidad:** son trazas de posición de menores. Van cifradas por el aire, sin nombres, la pantalla es solo para el staff, con consentimiento y retención definidos (ADR 0105).
 13. UWB: no se sabe si ENACOM permite UWB en los canales 5 y 9; el DW3110 estaba sin stock en LCSC y en RFMW y el QM33 no tiene precio relevado.
+14. La placa lista para la EA depende de que AA y EA tengan los mismos pines (**no verificado**).
+15. No se encontró una placa de prueba con la EA a la venta, ni el precio del módulo suelto.
