@@ -22,7 +22,7 @@
 | Multi-tenant | `club_id` en todas las tablas + RLS. La API hace `SET LOCAL app.club_id / app.user_id / app.role` por transacción; las políticas usan funciones propias (`app.current_club_id()`), nunca funciones de un proveedor |
 | Usuarios | Un usuario global con membresías por club (un preparador físico o un padre puede estar en más de un club) |
 | Datos de salud | Esquema `medical` separado, con políticas propias y log de auditoría de accesos |
-| Pod (Fase 3) | El crudo va a storage como archivo; a Postgres solo métricas derivadas. Sin TimescaleDB |
+| Pod (Fase 3) | El crudo va a storage como archivo; a Postgres solo métricas derivadas. Sin TimescaleDB. GNSS de doble banda L1/L5 + IMU con canal de impactos, LoRa en vivo a un gateway en la cancha, posprocesado después (ADR 0105) |
 | Multi-deporte y sexo | `sport` y `sex` en el modelo desde el día uno. Lo específico de hockey y femenino se implementa al final (M8) |
 | Observabilidad | Sentry (web, mobile, API, worker) + logs estructurados (pino) |
 
@@ -47,7 +47,7 @@
 | M7 · Producción y piloto | Deploy, monitoreo, tiendas, privacidad, piloto |
 | M8 · Hockey y femenino | Batería, posiciones, umbrales y módulos específicos |
 | F2 · Hardware compartido | Epic (se desglosa más adelante) |
-| F3 · Pod GNSS + IMU | Epic (se desglosa más adelante) |
+| F3 · Pod GNSS + IMU | Pod propio con telemetría en vivo (B-901 a B-910) |
 
 ---
 
@@ -202,7 +202,29 @@ Bandas de FC por BLE + TRIMP, fotocélulas ESP-NOW, luces de reacción, dinamóm
 
 ## F3 · Pod GNSS + IMU (epic)
 
-Prototipo con WisBlock (RAK4631 + RAK12500), firmware de registro y descarga por BLE, DFU, pipeline en el worker (filtrado, zonas, aceleraciones, carga acelerométrica, contactos), validación contra video y contra Catapult, placa propia y chalecos. Se desglosa más adelante.
+Arquitectura, partes y plan en el [ADR 0105](adr/0105-pod-gnss-imu-con-telemetria-en-vivo.md) y en `docs/hardware/pod-f3.md`. Son 100 pods con un objetivo de US$ 80 por pod en origen: GNSS de doble banda L1/L5, IMU con canal de impactos, LoRa en vivo a un gateway en la cancha y posprocesado (PPK) después de la sesión.
+
+- **B-901 Prototipo de banco del GNSS** · `area:hardware` `type:research`. Placas de evaluación del NEO-F10N-00B-20 y del LC29H(AA) con antenas L1/L5, sobre un RAK4631 y con el LSM6DSV320X. Se mide:
+  - la tasa de RAWX;
+  - la estabilidad del modo base del LC29H;
+  - el consumo y la autonomía;
+  - la saturación del GNSS cuando transmite LoRa.
+- **B-902 Validación en cancha contra Catapult y fotocélulas** · `area:hardware` `type:research` `blocked` (B-002, B-901). Un jugador de primera lleva los dos equipos a la vez, en entrenamiento y partido, con una base GNSS propia y el RINEX de RAMSAC. Se comparan distancia, HSR, Vmax, aceleraciones y desaceleraciones, y contactos (contra video). Con los resultados, el ADR 0105 se acepta o se reemplaza.
+- **B-903 Regulación ENACOM** · `type:legal` `type:research`. Potencia máxima en 915–928 MHz; homologación del equipo final según el RAMATEL (Res. 57/2026, el comodato cuenta como comercialización); si alcanzan los módulos certificados; costo y plazos de la agencia.
+- **B-904 Firmware del pod** · `area:firmware`. Registro en NAND a tasa completa (GNSS a 10 Hz, IMU y ráfagas de impacto, crudo a 1 Hz), resumen por segundo, hora del GNSS con el PPS, central BLE reservado para bandas de FC y DFU.
+- **B-905 Telemetría en vivo por LoRa** · `area:firmware` `area:mobile`. Protocolo propio con turnos (TDMA) por la hora del GNSS, solo en 915–928 MHz. Incluye el gateway SX1302 en la cancha, conectado a la tablet sin internet y con subida al servidor si hay conexión.
+- **B-906 Pantalla en vivo y señales de esfuerzo** · `area:domain` `area:mobile`. Funciones del dominio con tests, compartidas por la tablet y el worker:
+  - % del promedio propio por partido;
+  - metros/min de los últimos 5 min frente al pico;
+  - velocidad máxima reciente frente a la Vmax propia;
+  - esfuerzos repetidos (RHIE) con los contactos;
+  - "historia insuficiente" para jugadores sin promedio.
+
+  Son reglas declarativas por club con valores por defecto en seeds, y siempre se muestran con ícono y texto.
+- **B-907 Base de carga y descarga** · `area:hardware` `area:firmware`. Pines pogo y USB para unos 20 pods por base, con la subida del crudo a storage (ADR 0005).
+- **B-908 Pipeline del pod en el worker** · `area:worker`. Filtrado, PPK contra la base propia o RAMSAC, zonas, aceleraciones, `accel_load_au` y contactos. Lo procesado reemplaza al vivo y se guarda como otro método.
+- **B-909 Placa propia, carcasa y chalecos** · `area:hardware`. 2–3 vueltas en JLCPCB con 4 capas, carcasa MJF con junta y chaleco con bolsillo entre los omóplatos.
+- **B-910 Piloto de 10 pods y tanda de 100** · `area:hardware` `type:club` `blocked` (B-902, B-903). Piloto en vivo en una categoría y compra de los 100, con la importación revisada por un despachante.
 
 ## Fuera de alcance
 

@@ -1,0 +1,125 @@
+# 0105. Pod GNSS + IMU: doble banda L1/L5, telemetría en vivo por LoRa a un gateway en la cancha, cálculo en la tablet con el dominio y posprocesado después de la sesión
+
+- Estado: Propuesto
+- Fecha: 2026-11-07
+- Issue: #116 (B-901)
+
+## Contexto
+
+La Fase 3 es un pod por jugador con firmware propio sobre hardware genérico. Lo que guarda en storage y en Postgres ya está decidido en [ADR 0005](0005-pod-crudo-en-storage.md). El backlog proponía prototipar con WisBlock: el RAK4631 (nRF52840 + SX1262) y el RAK12500 (u-blox ZOE-M8Q, una sola banda L1), con descarga por BLE.
+
+Con el club se definieron estas condiciones:
+
+- **El GPS tiene que ser bueno en Argentina.** Satélites visibles hay de sobra: GPS, Galileo, GLONASS y BeiDou se ven bien. Los problemas son otros tres:
+  - **No hay SBAS en Sudamérica**: WAAS y EGNOS no cubren la región.
+  - **El retardo ionosférico** es alto: Buenos Aires está cerca de la Anomalía del Atlántico Sur y el ciclo solar viene de su pico. Un receptor de una sola banda no lo cancela.
+  - **El multicamino** de tribunas, árboles y el propio cuerpo del jugador.
+- **Datos en vivo.** El staff quiere ver durante el partido si un jugador se esforzó de más y hay que cambiarlo. Las bandas de frecuencia cardíaca quedan para el futuro: el esfuerzo se lee de las corridas, los sprints y los contactos.
+- **Cantidad y costo:** 100 pods, fabricados en China, a unos US$ 80 por pod o menos (precio en origen).
+
+El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está en [`docs/hardware/pod-f3.md`](../hardware/pod-f3.md). Los precios son de páginas cacheadas o agregadores. Lo que no se pudo confirmar dice "no verificado".
+
+## Decisión
+
+### Hardware del pod
+
+- **GNSS de doble banda L1 + L5** a 10 Hz, con las 4 constelaciones a la vez.
+  - **Por qué doble banda:** medir en dos frecuencias cancela el retardo ionosférico y rechaza mejor el multicamino. En L5 se ven desde acá Galileo E5a, GPS L5 y BeiDou B2a.
+  - **Por qué 10 Hz:** es la frecuencia de Catapult Vector. Subir a 18 o 25 Hz aporta poco frente a la precisión.
+  - **Prototipo con dos candidatos:**
+    - **u-blox NEO-F10N-00B-20, como opción principal.** Es la única variante del F10N con fase portadora (`UBX-RXM-RAWX`), con protocolo documentado y conversión a RINEX con RTKLIB. La -00B-00 no tiene salida cruda.
+    - **Quectel LC29H(AA), como opción de costo**, a unos US$ 7,40 contra unos US$ 19–21 del F10N-20. Posiciona a 10 Hz, pero la salida cruda es de 1 Hz, y en modo base la configuración tiene reportes de no persistir.
+  - **Primer test de banco:** medir hasta qué tasa sale RAWX en el F10N, y si el modo base del LC29H es estable y no degrada la solución de navegación (PVT).
+  - **Descartados:** Allystar TAU1201/1202, sin salida cruda confirmada. Unicore UM620N, sin precio ni salida cruda confirmados.
+- **Antena:**
+  - Patch cerámico **activo de doble banda L1/L5 de 25 × 25 mm**, con un plano de tierra suficiente.
+  - **Filtro SAW antes del LNA**, porque el pod transmite LoRa a centímetros del receptor.
+  - **Separación física** entre la antena GNSS (arriba, mirando al cielo) y la antena de LoRa.
+- **IMU:**
+  - **ST LSM6DSV320X:** en un solo chip, 6 ejes con un canal de ±2–16 g y otro canal de alto rango de ±32–320 g, independientes.
+  - El canal de alto rango es para los impactos: con ±16 g los tackles saturan. De esos impactos salen `contacts_n` y `scrums_n`.
+  - **Respaldo si no hay stock** (LCSC tenía 45 unidades): ICM-42688-P más ADXL372.
+- **MCU y radio:** nRF52840 (BLE) + SX1262 (LoRa).
+  - Prototipo con el **RAK4630**: integrado y con el ecosistema WisBlock, a unos US$ 18–24.
+  - Serie con **módulos Ebyte** (E73 + E22-900M22S), a unos US$ 10 los dos. Sus certificaciones FCC/CE no están verificadas.
+- **Memoria:** NAND SPI de **4 Gbit**. El cálculo está en `pod-f3.md`:
+  - Una sesión de 3 h son unos 24 MB sin las mediciones crudas del GNSS, y unos 46 MB con crudo a 1 Hz.
+  - Con 4 Gbit (512 MB) entran unas 11 sesiones con crudo.
+  - 2 Gbit es el mínimo, y obliga a descargar seguido.
+- **Batería:** LiPo de **unos 1000 mAh**, con objetivo de 4–5 h de sesión. Cargador BQ25180 y medidor de carga MAX17048.
+- **Ubicación:** en un chaleco, **entre los omóplatos**, con la antena hacia arriba. Es la misma ubicación de Catapult, así lo medido se compara con primera.
+- **Objetivo de costo: US$ 80 por pod en origen, para 100 unidades.**
+  - El relevamiento da unos **US$ 73** en el caso optimista (LC29H, módulos Ebyte, LSM6DSV320X, antena Taoglas).
+  - Da unos **US$ 118** en el caso pesimista (F10N-20, RAK4630, antena Linx).
+  - **Lo que más pesa es la antena GNSS de marca**, de US$ 19–24. Con el F10N, los US$ 80 solo se alcanzan con una antena L1/L5 activa china de unos US$ 4–8, cuyo precio no está verificado.
+
+### Telemetría en vivo
+
+- **Radio y banda:** LoRa en **915–928 MHz únicamente**. La Res. ENACOM 581/2018 declaró esa banda de uso compartido sin autorización para usarla. El tramo 902–915 MHz tiene otro régimen y no se usa. La potencia máxima en Argentina **no está verificada**: el pod se configura con la potencia que surja de la norma, no con la del plan AU915.
+- **Protocolo propio, no LoRaWAN, con turnos (TDMA)** sincronizados por la hora del GNSS: todos los pods la tienen al microsegundo con el PPS. Cada pod transmite en su turno, así los paquetes no chocan.
+- **Qué se transmite:** cada pod arma un resumen por segundo y manda unos **40 bytes cada 1–2 s**. El resumen incluye:
+  - metros recorridos;
+  - velocidad máxima;
+  - aceleraciones y desaceleraciones de más de 2 m/s²;
+  - impactos de la IMU;
+  - carga acelerométrica (`accel_load_au`);
+  - posición.
+  - Ejemplo de ocupación: 30 pods con un paquete cada 2 s en SF7 ocupan cerca del 10 % de cada canal de un gateway de 8 canales.
+- **Gateway de 8 canales SX1302** (RAK7268V2, unos US$ 139–170), en un **mástil de 3–5 m** al costado de la cancha, para quedar por encima de los jugadores.
+  - Se conecta a una **tablet del staff** por USB o por Wi-Fi local, y **funciona sin internet**.
+  - Si hay conexión, sube al servidor para que también lo vea quien no está en la cancha.
+- **El cálculo del vivo se hace en la tablet**, con **las mismas funciones de `packages/domain`** que usa el worker después. El pod solo resume y no decide nada. Así, cambiar una regla no exige actualizar el firmware de 100 pods, y el vivo y el informe calculan igual.
+- **Las señales de esfuerzo son reglas declarativas por club**, con valores por defecto en seeds, como el motor de alertas ([ADR 0022](0022-motor-de-reglas-de-alerta.md)):
+  - **Volumen del partido, como % del promedio propio por partido:**
+    - HSR absoluto (5,5 m/s en varones y 5,28 m/s en mujeres, o el umbral de primera);
+    - HSR relativo (más del 60 % de la Vmax del jugador);
+    - sprints, aceleraciones y desaceleraciones de más de 2 m/s²;
+    - `accel_load_au`.
+
+    Nunca se usa el nombre "PlayerLoad".
+  - **Caída de intensidad:** los metros/min de los últimos 5 min frente al pico del partido.
+  - **Velocidad máxima reciente frente a la Vmax propia**, que sale del `sprint_40` o del máximo de la temporada.
+  - **Esfuerzos repetidos sin recuperar** (RHIE): sprint, contacto de la IMU y sprint con poca pausa.
+  - **Jugador sin promedio propio todavía:** el estado es "historia insuficiente", como el ACWR con menos de 28 días, y se usan su Vmax y los umbrales absolutos.
+- **Es una heurística.** La pantalla dice "sugiere revisar", con ícono y texto. Correr menos puede ser táctico y no fatiga: **el cambio lo decide el entrenador**. No es un dispositivo médico (principio 7).
+
+### Después de la sesión
+
+- **El pod graba todo a tasa completa:** GNSS a 10 Hz, la IMU a 100 Hz o más y las ráfagas de impacto.
+- **Se descarga por una base con pines pogo o USB**, que también carga el pod. Por BLE, 25 MB son unos 3–5 min por pod: con 100 pods no es viable.
+- El crudo va a storage como dice [ADR 0005](0005-pod-crudo-en-storage.md).
+- **Posprocesado PPK en el worker**, con dos fuentes de corrección:
+  - una **base propia al costado de la cancha**: otro módulo igual grabando crudo, con la línea de base casi nula y las mismas señales;
+  - **o el RINEX de 1 s de RAMSAC** (IGN), de las estaciones IGM0/IGM1 de CABA, a unos 15 km de Munro según una estimación.
+
+  Que RAMSAC rastree L5/E5a y si el servicio tiene costo están **no verificados**.
+- **Lo procesado reemplaza al vivo** y se guarda como otro método: en vivo frente a procesado (principio 4). Nunca se comparan los dos sin avisar.
+- **Bandas de FC:** quedan diferidas, pero el firmware conserva el rol de central BLE para leer una banda estándar y retransmitirla por LoRa, sin cambiar el hardware.
+
+## Alternativas descartadas
+
+- **BLE, Wi-Fi o 2,4 GHz propietario para el vivo.** El cuerpo absorbe mucho los 2,4 GHz, así que con 30 jugadores en 100 × 70 m el alcance hasta el costado no es confiable. Wi-Fi además gasta mucha batería.
+- **4G en cada pod.** Tiene costo por jugador, consumo y depende de la cobertura de cada club.
+- **GNSS de una sola banda (L1)**, por ejemplo el RAK12500 / ZOE-M8Q del backlog. Ahorra unos US$ 5–10, pero no resuelve la ionosfera ni la falta de SBAS, que son el problema en Argentina.
+- **Sin acelerómetro de alto rango.** Ahorra unos US$ 2–4, pero en rugby los contactos saturan un acelerómetro de ±16 g.
+- **RTK en vivo**, con correcciones por el downlink de LoRa a 100 pods. Es marginal en ancho de banda, y obliga a receptores RTK más caros. El vivo no necesita centímetros, y el PPK de después da la precisión.
+- **Descarga solo por BLE.** No escala a 100 pods (ver arriba).
+
+## Consecuencias
+
+- **Homologación ante ENACOM.** El nuevo RAMATEL (Res. 57/2026, vigente desde el 01/12/2026 según la Res. 843/2026) define "comercializar" incluyendo **dar en comodato**. Si prestamos los pods a los clubes, el equipo final necesita **Homologación**, con certificado de una agencia reconocida y ensayo de laboratorio. El FCC/CE de los módulos probablemente no alcanza: lo que se registra es el equipo final.
+  - Para **uso propio** existe la Autorización por modelo, con una Declaración de Conformidad.
+  - Antes de la tanda de 100 hay que definir el modelo de entrega y presupuestar la homologación.
+- **El precio de US$ 80 es en origen.** Quedan afuera:
+  - la importación a Argentina, con impuestos y régimen de courier, a revisar con un despachante;
+  - los chalecos, las bases, el gateway y la base GNSS propia;
+  - las vueltas de prototipo y la homologación.
+- **Validación propia obligatoria.** No hay estudios publicados de GNSS de doble banda de bajo costo en deportes. El plan de prototipos compara en la cancha del club contra un Catapult puesto a la vez, y contra fotocélulas en el sprint (`pod-f3.md`).
+- **Riesgos de suministro:**
+  - el F10N-00B-20 tiene stock incierto (Avnet pide un mínimo de 500 unidades y 19 semanas);
+  - el LSM6DSV320X tiene stock bajo.
+
+  Los dos tienen respaldo definido.
+- **Firmware nuevo** (`firmware/`, en C): turnos LoRa sincronizados por el PPS, resumen por segundo, registro en NAND, descarga por la base y DFU.
+- **App:** tiene que recibir el gateway y mostrar la pantalla en vivo. Las métricas y señales del vivo son funciones nuevas del dominio, con tests, y las usan la tablet y el worker.
+- Este ADR queda **Propuesto** hasta que los tests de banco y de cancha confirmen el GNSS y la antena. Con esos datos se escribe un ADR que lo acepta o lo reemplaza.
