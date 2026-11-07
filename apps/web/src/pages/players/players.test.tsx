@@ -7,11 +7,12 @@ import {
   parseUuid,
   type LocalDate,
 } from '@sport-performance/domain';
-import { screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { cleanup, screen, within } from '@testing-library/react';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { apiError, type FakeHandlers } from '../../test/fake-api';
 import * as fixtures from '../../test/fixtures';
 import { renderApp, signedIn } from '../../test/render-app';
+import { forgetRememberedTabs } from '../../ui/tab-memory';
 import { alertMessageValues, formatAlertValue } from './format';
 
 const AT = '2026-11-01T12:00:00.000Z';
@@ -376,8 +377,12 @@ function profileHandlers(overrides: FakeHandlers = {}): FakeHandlers {
 const PROFILE_PATH = `/players/${PLAYER_ID}`;
 
 describe('player profile (B-404)', () => {
+  beforeEach(() => {
+    forgetRememberedTabs();
+  });
+
   it('shows every block of the profile to the S&C of the category', async () => {
-    const { api } = renderApp({
+    const { api, user } = renderApp({
       path: PROFILE_PATH,
       handlers: {
         ...signedIn({ memberships: [fixtures.membership('sc')] }),
@@ -408,27 +413,18 @@ describe('player profile (B-404)', () => {
     expect(within(maturationCard).getByText(/Etapa de desarrollo/)).toBeVisible();
     expect(await within(maturationCard).findByText(/En zona de pico de crecimiento/)).toBeVisible();
 
-    // Evolution: the chart of the first metric, its warning, and the metric selector.
-    const evolutionCard = screen.getByRole('region', { name: 'Evolución por ventana' });
-    expect(await within(evolutionCard).findByRole('figure', { name: /CMJ/ })).toBeVisible();
+    // Alerts: text interpolated in es-AR, severity and review status.
+    const alertsCard = screen.getByRole('region', { name: 'Historial de alertas' });
     expect(
-      within(evolutionCard).getByText(
-        'Ojo: la serie mezcla métodos de medición y puede no ser comparable.',
+      await within(alertsCard).findByText(
+        'Carga aguda alta respecto de la crónica: ACWR 1,45 (umbral 1,40).',
       ),
     ).toBeVisible();
-    expect(within(evolutionCard).getByRole('combobox', { name: 'Métrica' })).toHaveValue(
-      'cmj_height_cm|',
-    );
-
-    // Percentiles.
-    const percentilesCard = screen.getByRole('region', { name: 'Percentiles en su grupo' });
-    expect(await within(percentilesCard).findByText('Percentil 95')).toBeVisible();
-    expect(
-      within(percentilesCard).getByText('Muestra insuficiente: hacen falta al menos 10 jugadores.'),
-    ).toBeVisible();
+    expect(within(alertsCard).getByText('Bienestar bajo: 2,8 de 5 (umbral 3,0).')).toBeVisible();
+    expect(within(alertsCard).getByText('Vista')).toBeVisible();
 
     // Load: ACWR with the severity of its active alert, week load, wellness of today.
-    const loadCard = screen.getByRole('region', { name: 'Carga de los últimos 28 días' });
+    const loadCard = await screen.findByRole('region', { name: 'Carga de los últimos 28 días' });
     expect(await within(loadCard).findByText('1,45')).toBeVisible();
     expect(within(loadCard).getByText('Crítico')).toBeVisible();
     // Each tile reads its figure and unit together ("3,2 de 5").
@@ -440,15 +436,36 @@ describe('player profile (B-404)', () => {
     ).toBeVisible();
     expect(within(loadCard).getByRole('figure', { name: /sRPE del día/ })).toBeVisible();
 
-    // Alerts: text interpolated in es-AR, severity and review status.
-    const alertsCard = screen.getByRole('region', { name: 'Historial de alertas' });
+    // The long blocks are tabs below the status cards; load is the first.
+    const tabs = screen.getByRole('navigation', { name: 'Secciones de la ficha' });
+    expect(within(tabs).getByRole('link', { name: /^Carga,\s*Alerta$/ })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(screen.queryByRole('region', { name: 'Evolución por ventana' })).toBeNull();
+
+    // Evolution: the chart of the first metric, its warning, and the metric selector.
+    await user.click(within(tabs).getByRole('link', { name: 'Evolución' }));
+    const evolutionCard = await screen.findByRole('region', { name: 'Evolución por ventana' });
+    // The alerts stay in sight on every tab.
+    expect(screen.getByRole('region', { name: 'Historial de alertas' })).toBeVisible();
+    expect(await within(evolutionCard).findByRole('figure', { name: /CMJ/ })).toBeVisible();
     expect(
-      await within(alertsCard).findByText(
-        'Carga aguda alta respecto de la crónica: ACWR 1,45 (umbral 1,40).',
+      within(evolutionCard).getByText(
+        'Ojo: la serie mezcla métodos de medición y puede no ser comparable.',
       ),
     ).toBeVisible();
-    expect(within(alertsCard).getByText('Bienestar bajo: 2,8 de 5 (umbral 3,0).')).toBeVisible();
-    expect(within(alertsCard).getByText('Vista')).toBeVisible();
+    expect(within(evolutionCard).getByRole('combobox', { name: 'Métrica' })).toHaveValue(
+      'cmj_height_cm|',
+    );
+
+    // Percentiles.
+    await user.click(within(tabs).getByRole('link', { name: 'Percentiles' }));
+    const percentilesCard = await screen.findByRole('region', { name: 'Percentiles en su grupo' });
+    expect(await within(percentilesCard).findByText('Percentil 95')).toBeVisible();
+    expect(
+      within(percentilesCard).getByText('Muestra insuficiente: hacen falta al menos 10 jugadores.'),
+    ).toBeVisible();
 
     expect(api.callsTo('listAlerts')[0]?.url.searchParams.get('playerId')).toBe(PLAYER_ID);
     expect(api.unhandled).toEqual([]);
@@ -456,7 +473,7 @@ describe('player profile (B-404)', () => {
 
   it('switches the evolution chart to another metric', async () => {
     const { user } = renderApp({
-      path: PROFILE_PATH,
+      path: `${PROFILE_PATH}?tab=evolution`,
       handlers: {
         ...signedIn({ memberships: [fixtures.membership('sc')] }),
         ...profileHandlers(),
@@ -480,18 +497,48 @@ describe('player profile (B-404)', () => {
     expect(await within(availabilityCard).findByText('Partido: No disponible')).toBeVisible();
     expect(screen.queryByText(/diagn/i)).toBeNull();
     // Coach is staff: every block is in the matrix for an assigned category.
-    expect(api.callsTo('getPlayerPercentiles')).toHaveLength(1);
+    const tabs = screen.getByRole('navigation', { name: 'Secciones de la ficha' });
+    expect(within(tabs).getByRole('link', { name: 'Percentiles' })).toBeVisible();
+    // A block behind a tab loads only when it opens.
+    expect(api.callsTo('getPlayerPercentiles')).toHaveLength(0);
+  });
+
+  it('reopens the tab the user was on in the next profile, and links to each tab', async () => {
+    renderApp({
+      path: `${PROFILE_PATH}?tab=percentiles`,
+      handlers: {
+        ...signedIn({ memberships: [fixtures.membership('sc')] }),
+        ...profileHandlers(),
+      },
+    });
+    expect(await screen.findByRole('region', { name: 'Percentiles en su grupo' })).toBeVisible();
+    cleanup();
+
+    const { user } = renderApp({
+      path: PROFILE_PATH,
+      handlers: {
+        ...signedIn({ memberships: [fixtures.membership('sc')] }),
+        ...profileHandlers(),
+      },
+    });
+    expect(await screen.findByRole('region', { name: 'Percentiles en su grupo' })).toBeVisible();
+    const tabs = screen.getByRole('navigation', { name: 'Secciones de la ficha' });
+    const gym = within(tabs).getByRole('link', { name: 'Gimnasio' });
+    expect(gym.getAttribute('href')).toContain('tab=gym');
+    await user.click(gym);
+    expect(gym).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('region', { name: 'Percentiles en su grupo' })).toBeNull();
   });
 
   it('shows a block error without taking the rest of the profile down', async () => {
     renderApp({
-      path: PROFILE_PATH,
       handlers: {
         ...signedIn({ memberships: [fixtures.membership('sc')] }),
         ...profileHandlers({
           getPlayerPercentiles: () => apiError(503, 'service_unavailable', { requestId: 'req-1' }),
         }),
       },
+      path: `${PROFILE_PATH}?tab=percentiles`,
     });
     const percentilesCard = await screen.findByRole('region', { name: 'Percentiles en su grupo' });
     expect(await within(percentilesCard).findByRole('alert')).toBeVisible();
@@ -513,7 +560,7 @@ describe('player profile (B-404)', () => {
 
   it('explains missing maturation data and an empty history', async () => {
     renderApp({
-      path: PROFILE_PATH,
+      path: `${PROFILE_PATH}?tab=evolution`,
       handlers: {
         ...signedIn({ memberships: [fixtures.membership('sc')] }),
         ...profileHandlers({

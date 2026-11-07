@@ -37,6 +37,26 @@ Cada pantalla se resuelve con el patrón que corresponde a lo que se hace en ell
 - No se usan en los recorridos guiados: el día de test, la corrida del 30-15 ni la grabación de un video.
 - Una alerta nunca queda escondida detrás de una pestaña. Se ve sin tocar nada.
 
+### En la web del staff
+
+Las mismas reglas valen para la web. Las pestañas de la web son los enlaces de `.sp-tabs` que ya usan Administración y Configuración: un `<nav>` con un enlace por sección y `aria-current="page"` en la abierta. Como son enlaces y no un `tablist`, se recorren con Tab y no con las flechas. La sección abierta va en la URL (`?tab=`), así que se puede compartir y el botón Atrás vuelve a la anterior.
+
+- **Ficha del jugador (`/players/$playerId`):** antes eran siete bloques seguidos, cuatro de ellos a todo el ancho con gráficos y tablas. Ahora:
+  - Arriba, siempre a la vista, quedan la cabecera y las tres tarjetas cortas: disponibilidad, maduración (con el aviso de pico de crecimiento) e historial de alertas.
+  - Debajo van las pestañas "Carga · Evolución · Percentiles · Gimnasio".
+  - Solo aparecen las pestañas que el rol puede ver. Si puede ver una sola, no hay barra.
+  - Si hay una alerta de ACWR activa, Carga lleva la insignia "Alerta" (ícono + texto). La alerta también está en el historial, a la vista.
+  - Un bloque que está detrás de una pestaña no se pide hasta que se abre.
+- **Memoria:** si la URL no trae `?tab=`, se abre la última pestaña usada en esa pantalla, por club (`src/ui/tab-memory.ts`). Así, abrir otro jugador desde el plantel mantiene la pestaña. La memoria vive solo en la página abierta y se borra al cerrar sesión.
+- **Pantallas que quedan como están:**
+  - El detalle de una sesión ya pone sus datos y ejercicios en dos columnas, y la planilla de participación es lo principal.
+  - El panel semanal es un tablero: KPIs, atención y plantel se leen juntos, y "Atención" es una alerta.
+  - La sesión de cancha (KPIs, gráfico, tabla) es un informe que se lee de arriba abajo.
+  - La consola del club solo la usa el superadmin, y sus tarjetas son cortas.
+  - La ficha de familia tiene dos bloques.
+  - El calendario es una vista propia.
+  - Los editores (programa de gimnasio, día de test, estaciones) son recorridos, y en un recorrido no se usan pestañas.
+
 ## Consecuencias
 
 - El inicio del staff entra en una pantalla con todas las herramientas. Sumar una herramienta no agrega una fila ni una pestaña. Se suma su miembro a `HomeToolKey`, su entrada en `HOME_TOOLS` y en su grupo de `HOME_GROUPS` (`src/screens/app.tsx`), la prop `onOpen…` de `HomeScreen` que la ruta pasa según la matriz, y sus textos `home.tile.*` en `packages/i18n`.

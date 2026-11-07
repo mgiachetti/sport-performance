@@ -54,6 +54,7 @@ import { ProtocolsPage } from './pages/help/ProtocolsPage';
 import { LoginPage } from './pages/LoginPage';
 import { PanelPage } from './pages/panel/PanelPage';
 import { parsePanelSearch } from './pages/panel/panel-search';
+import { parsePlayerProfileSearch } from './pages/players/profile-tabs';
 import { PlayerProfilePage } from './pages/players/PlayerProfilePage';
 import { PlayersPage } from './pages/players/PlayersPage';
 import { SupportPage } from './pages/SupportPage';
@@ -267,6 +268,7 @@ export const playersRoute = createRoute({
 export const playerProfileRoute = createRoute({
   getParentRoute: () => clubRoute,
   path: '/players/$playerId',
+  validateSearch: parsePlayerProfileSearch,
   component: function PlayerProfileRoute() {
     const { playerId } = playerProfileRoute.useParams();
     return <PlayerProfilePage playerId={playerId} />;

@@ -271,7 +271,7 @@ describe('gym programs', () => {
 describe('gym block of the player profile', () => {
   it('shows the best e1RM per exercise, the warnings, and lets the S&C staff log and void', async () => {
     const { api, user } = renderApp({
-      path: `/players/${PLAYER_ID}`,
+      path: `/players/${PLAYER_ID}?tab=gym`,
       handlers: {
         ...sc(),
         getPlayer: () => ({
