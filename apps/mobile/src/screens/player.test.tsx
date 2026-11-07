@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import type { MyTestDay, PlayerConsents, PlayerPercentile } from '@sport-performance/contracts';
 import { localDate, parseTimeZone } from '@sport-performance/domain';
+import { formatLocalDateLong } from '@sport-performance/i18n';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
+import { AccessibilityInfo, Platform } from 'react-native';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RpeSession } from '../player/today.ts';
 import { renderScreen, translator } from '../test/render.tsx';
@@ -18,6 +21,23 @@ const { t } = translator;
 const TODAY = localDate(2026, 11, 3);
 const TIME_ZONE = parseTimeZone('America/Argentina/Buenos_Aires');
 const SESSION_ID = 'c1111111-1111-4111-8111-111111111111';
+/** The collapsed line of a loaded check-in, by the start of its accessible name. */
+const WELLNESS_LINE = new RegExp(`^${t('playerApp.today.wellnessDone')}`);
+const LOADED = {
+  kind: 'form' as const,
+  itemCount: 3 as const,
+  items: ['sleep', 'fatigue', 'soreness'] as const,
+  entry: {
+    scores: { sleep: 4, fatigue: 3, soreness: 4 },
+    target: { id: 'a1111111-1111-4111-8111-111111111111' },
+    pending: false,
+  },
+};
+
+/** Whether `a` is drawn before `b` on the screen. */
+function before(a: HTMLElement, b: HTMLElement): boolean {
+  return (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+}
 
 function actions() {
   return {
@@ -126,8 +146,12 @@ describe('PlayerTodayScreen: wellness', () => {
         },
       },
     });
+    // Loaded: one collapsed line with the pending mark, the form closed.
     expect(screen.getByLabelText(t('playerApp.pending'))).toBeDefined();
     expect(screen.getByText(t('sync.item.pending'))).toBeDefined();
+    expect(screen.queryByRole('radio', { name: 'Sueño: Bien' })).toBeNull();
+    expect(screen.queryByRole('button', { name: t('playerApp.wellness.correct') })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: WELLNESS_LINE }));
     fireEvent.click(screen.getByRole('button', { name: t('playerApp.wellness.correct') }));
     fireEvent.click(screen.getByRole('radio', { name: 'Sueño: Bien' }));
     fireEvent.click(screen.getByRole('button', { name: t('playerApp.wellness.saveCorrection') }));
@@ -201,6 +225,208 @@ describe('PlayerTodayScreen: wellness', () => {
   });
 });
 
+describe('PlayerTodayScreen: ordered by status', () => {
+  it('opens what is pending first and collapses what is done below it', () => {
+    renderToday({ rpe: { allowed: true, sessions: [{ ...rpeSession, rpe: 6 }] } });
+    const form = screen.getByRole('button', { name: t('playerApp.wellness.send') });
+    const done = screen.getByRole('button', {
+      name: new RegExp(`^${t('playerApp.today.rpeDone', { value: 6 })}`),
+    });
+    expect(before(form, done)).toBe(true);
+    expect(done.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByText(t('playerApp.today.allDone'))).toBeNull();
+  });
+
+  it('says "all done" on top when nothing is pending, and opens a line on tap', () => {
+    renderToday({
+      wellness: LOADED,
+      rpe: { allowed: true, sessions: [{ ...rpeSession, rpe: 6 }] },
+    });
+    const allDone = screen.getByText(t('playerApp.today.allDone'));
+    const line = screen.getByRole('button', { name: WELLNESS_LINE });
+    expect(before(allDone, line)).toBe(true);
+    expect(screen.queryByRole('button', { name: t('playerApp.wellness.send') })).toBeNull();
+    expect(screen.getByText(t('playerApp.today.wellnessMean', { mean: '3,7' }))).toBeDefined();
+    fireEvent.click(line);
+    expect(line.getAttribute('aria-expanded')).toBe('true');
+    expect(
+      screen.getByLabelText(t('playerApp.wellness.answer', { item: 'Sueño', score: 4 })),
+    ).toBeDefined();
+    expect(screen.getByRole('button', { name: t('playerApp.wellness.correct') })).toBeDefined();
+    fireEvent.click(line);
+    expect(screen.queryByRole('button', { name: t('playerApp.wellness.correct') })).toBeNull();
+  });
+
+  it('shows no RPE form without a session, only one muted line', () => {
+    renderToday({ wellness: LOADED, rpe: { allowed: true, sessions: [] } });
+    expect(screen.getByText(t('playerApp.today.allDone'))).toBeDefined();
+    expect(screen.getByText(t('playerApp.rpe.none'))).toBeDefined();
+    expect(screen.queryByRole('radiogroup', { name: t('rpe.prompt') })).toBeNull();
+  });
+
+  it('puts a pending RPE first and the done wellness line after it', () => {
+    renderToday({ wellness: LOADED });
+    const send = screen.getByRole('button', { name: t('playerApp.rpe.send') });
+    const line = screen.getByRole('button', { name: WELLNESS_LINE });
+    expect(before(send, line)).toBe(true);
+    expect(screen.queryByText(t('playerApp.today.allDone'))).toBeNull();
+  });
+
+  async function sendCheckIn() {
+    fireEvent.click(screen.getByRole('radio', { name: 'Sueño: Bien' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Fatiga: Normal' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Dolor muscular: Muy bien' }));
+    fireEvent.click(screen.getByRole('button', { name: t('playerApp.wellness.send') }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: WELLNESS_LINE })).toBeDefined();
+    });
+  }
+
+  it('says "¡Listo!" as a sent form folds into its line, until all is done', async () => {
+    const announce = vi.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    announce.mockClear();
+    renderScreen(<StatefulToday />);
+    expect(screen.queryByText(t('wellness.submitted'))).toBeNull();
+    await sendCheckIn();
+    expect(screen.queryByRole('button', { name: t('playerApp.wellness.send') })).toBeNull();
+    // A polite live region: Android (and the web) read it, nothing else is announced.
+    expect(screen.getByText(t('wellness.submitted'))).toBeDefined();
+    expect(announce).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('radio', { name: 'RPE 7: Muy duro' }));
+    fireEvent.click(screen.getByRole('button', { name: t('playerApp.rpe.send') }));
+    await waitFor(() => {
+      expect(screen.getByText(t('playerApp.today.allDone'))).toBeDefined();
+    });
+    // "Todo listo por hoy" says it: no "¡Listo!" stacked over it.
+    expect(screen.queryByText(t('playerApp.today.rpeSubmitted'))).toBeNull();
+    expect(screen.queryByText(t('wellness.submitted'))).toBeNull();
+    announce.mockRestore();
+  });
+
+  it('says "¡Listo!" for an RPE sent while the check-in is still pending', async () => {
+    renderScreen(<StatefulToday />);
+    fireEvent.click(screen.getByRole('radio', { name: 'RPE 7: Muy duro' }));
+    fireEvent.click(screen.getByRole('button', { name: t('playerApp.rpe.send') }));
+    await waitFor(() => {
+      expect(screen.getByText(t('playerApp.today.rpeSubmitted'))).toBeDefined();
+    });
+  });
+
+  it('announces the save on iOS, where a live region is not read', async () => {
+    const announce = vi.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    announce.mockClear();
+    const os = Platform.OS;
+    Object.defineProperty(Platform, 'OS', { value: 'ios', configurable: true });
+    try {
+      renderScreen(<StatefulToday />);
+      await sendCheckIn();
+      expect(announce).toHaveBeenCalledWith(t('wellness.submitted'));
+    } finally {
+      Object.defineProperty(Platform, 'OS', { value: os, configurable: true });
+      announce.mockRestore();
+    }
+  });
+
+  it('says nothing for a check-in that arrives from elsewhere (a sync pull, a kiosk)', () => {
+    const announce = vi.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    announce.mockClear();
+    renderScreen(<StatefulToday />);
+    fireEvent.click(screen.getByRole('button', { name: 'pull' }));
+    expect(screen.getByRole('button', { name: WELLNESS_LINE })).toBeDefined();
+    expect(screen.queryByText(t('wellness.submitted'))).toBeNull();
+    expect(announce).not.toHaveBeenCalled();
+    announce.mockRestore();
+  });
+
+  it('keeps an opened line open while its correction is in progress', () => {
+    renderToday({ wellness: LOADED, rpe: { allowed: true, sessions: [] } });
+    const line = screen.getByRole('button', { name: WELLNESS_LINE });
+    fireEvent.click(line);
+    fireEvent.click(screen.getByRole('button', { name: t('playerApp.wellness.correct') }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Sueño: Mal' }));
+    fireEvent.change(screen.getByLabelText(t('playerApp.reason.label')), {
+      target: { value: 'Toqué mal' },
+    });
+    fireEvent.click(line);
+    expect(line.getAttribute('aria-expanded')).toBe('true');
+    // The draft is still there: the reason typed before the tap.
+    expect(screen.getByLabelText<HTMLInputElement>(t('playerApp.reason.label')).value).toBe(
+      'Toqué mal',
+    );
+    fireEvent.click(screen.getByRole('button', { name: t('common.cancel') }));
+    fireEvent.click(line);
+    expect(line.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('draws no empty "Además" card', () => {
+    renderScreen(
+      <PlayerTodayScreen
+        greeting="Hola, Tomás"
+        state={{ status: 'error', message: 'Sin datos' }}
+        notice={null}
+        actions={actions()}
+      />,
+    );
+    expect(screen.queryByText(t('playerApp.today.more'))).toBeNull();
+  });
+});
+
+/** "Hoy" over its own state: what the player sends is laid over at once, as the queue does. */
+function StatefulToday() {
+  const [today, setToday] = useState(data());
+  const handlers: PlayerTodayActions = {
+    ...actions(),
+    onSubmitWellness: (scores) => {
+      setToday((current) => ({
+        ...current,
+        wellness: {
+          kind: 'form',
+          itemCount: 3,
+          items: ['sleep', 'fatigue', 'soreness'],
+          entry: {
+            scores,
+            target: { clientUuid: 'd9999999-9999-4999-8999-999999999999' },
+            pending: true,
+          },
+        },
+      }));
+      return Promise.resolve();
+    },
+    onSubmitRpe: (sessionId, rpe) => {
+      setToday((current) => ({
+        ...current,
+        rpe: {
+          allowed: true,
+          sessions: current.rpe.sessions.map((item) =>
+            item.session.id === sessionId ? { ...item, rpe, pending: true } : item,
+          ),
+        },
+      }));
+      return Promise.resolve();
+    },
+  };
+  return (
+    <>
+      {/* A check-in that lands without the form: a sync pull, or one loaded on a kiosk. */}
+      <button
+        type="button"
+        onClick={() => {
+          setToday((current) => ({ ...current, wellness: LOADED }));
+        }}
+      >
+        pull
+      </button>
+      <PlayerTodayScreen
+        greeting="Hola, Tomás"
+        state={{ status: 'ready', data: today }}
+        notice={null}
+        actions={handlers}
+      />
+    </>
+  );
+}
+
 describe('PlayerTodayScreen: RPE, streak and next test day', () => {
   it('sends the CR-10 RPE of a session', async () => {
     const handlers = renderToday();
@@ -212,9 +438,12 @@ describe('PlayerTodayScreen: RPE, streak and next test day', () => {
     });
   });
 
-  it('shows a sent RPE with the session load and corrects it with a reason', async () => {
+  it('shows a sent RPE in one line, with the session load and a correction under it', async () => {
     const handlers = renderToday({ rpe: { allowed: true, sessions: [{ ...rpeSession, rpe: 5 }] } });
-    expect(screen.getByText(t('playerApp.rpe.value', { value: 5 }))).toBeDefined();
+    const line = t('playerApp.today.rpeDone', { value: 5 });
+    expect(screen.getByText(line)).toBeDefined();
+    expect(screen.queryByText(t('rpe.sessionLoad', { load: '450' }))).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${line}`) }));
     expect(screen.getByText(t('rpe.sessionLoad', { load: '450' }))).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: t('playerApp.wellness.correct') }));
     fireEvent.click(screen.getByRole('radio', { name: 'RPE 6' }));
@@ -249,7 +478,11 @@ describe('PlayerTodayScreen: RPE, streak and next test day', () => {
     ).toBeDefined();
     expect(screen.getByText(t('playerApp.streak.unit', { days: 11 }))).toBeDefined();
     expect(screen.getByText(t('playerApp.streak.keepAlive'))).toBeDefined();
-    expect(screen.getByText('V4 · Cancha 2')).toBeDefined();
+    expect(
+      screen.getByText(
+        `${formatLocalDateLong(localDate(2026, 11, 10), { year: false })} · V4 · Cancha 2`,
+      ),
+    ).toBeDefined();
     expect(
       screen.getByText(
         t('playerApp.testDays.tests', {

@@ -18,6 +18,17 @@ export const mobilePlayerMessagesEsAR = {
     'Tu usuario no tiene una ficha de jugador/a en este club. Avisale al club para que lo arregle.',
   'playerApp.pending': 'Sin enviar: guardado en el teléfono, se envía cuando haya señal',
 
+  // "Hoy" by status: what is pending first, what is done in one line each
+  'playerApp.today.allDone': 'Todo listo por hoy',
+  'playerApp.today.wellnessDone': 'Bienestar cargado',
+  'playerApp.today.wellnessMean': 'Promedio {mean} de 5',
+  'playerApp.today.rpeDone': 'RPE cargado: {value}',
+  // Said and shown when the RPE form closes into its line (the wellness one reuses `wellness.submitted`).
+  'playerApp.today.rpeSubmitted': '¡Listo! Gracias por cargar tu RPE.',
+  'playerApp.today.openHint': 'Tocá para ver o corregir',
+  'playerApp.today.viewHint': 'Tocá para verlo',
+  'playerApp.today.more': 'Además',
+
   // Wellness
   'playerApp.wellness.hintFaces': 'Tocá una carita en cada pregunta. Tarda menos de 20 segundos.',
   'playerApp.wellness.hintScale':

@@ -21,6 +21,8 @@ export const SCENES: readonly SceneSpec[] = [
   },
   { name: 'player-today-scale' },
   { name: 'player-today-done' },
+  { name: 'player-today-done-open', press: ['Bienestar cargado. Promedio 3,6 de 5'] },
+  { name: 'player-today-rpe-pending' },
   { name: 'player-today-offline' },
   { name: 'player-tests' },
   { name: 'player-tests-history' },
