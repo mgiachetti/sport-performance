@@ -5,6 +5,9 @@
  * text and one set of arguments for both apps: no key lives in more than one file.
  */
 export const mobileMessagesEsAR = {
+  // Segmented tabs at the top of a screen (ADR 0104): the accessible name of a tab with its badge.
+  'tabs.withBadge': '{label}, {badge}',
+
   // Sign-in (email OTP, bearer session)
   'auth.email.placeholder': 'nombre@ejemplo.com',
   'auth.otp.title': 'Revisá tu correo',

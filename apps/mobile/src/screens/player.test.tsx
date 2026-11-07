@@ -2,9 +2,10 @@
 import type { MyTestDay, PlayerConsents, PlayerPercentile } from '@sport-performance/contracts';
 import { localDate, parseTimeZone } from '@sport-performance/domain';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RpeSession } from '../player/today.ts';
 import { renderScreen, translator } from '../test/render.tsx';
+import { forgetRememberedSegments } from '../ui/segmented-tabs.tsx';
 import { PlayerConsentsScreen } from './player-consents.tsx';
 import { PlayerTestsScreen } from './player-tests.tsx';
 import {
@@ -279,7 +280,24 @@ const percentile: PlayerPercentile = {
   mixedMethods: false,
 };
 
+const testDay: MyTestDay = {
+  id: 'e1111111-1111-4111-8111-111111111111' as MyTestDay['id'],
+  scheduledOn: localDate(2026, 11, 10),
+  status: 'scheduled',
+  location: 'Cancha 2',
+  testWindow: {
+    id: 'f1111111-1111-4111-8111-111111111111' as never,
+    number: 4,
+    label: 'V4',
+  },
+  testCodes: ['sprint_40', 'cmj'],
+};
+
 describe('PlayerTestsScreen', () => {
+  beforeEach(() => {
+    forgetRememberedSegments();
+  });
+
   it('keeps percentiles away from M13/M14', () => {
     renderScreen(
       <PlayerTestsScreen
@@ -292,7 +310,67 @@ describe('PlayerTestsScreen', () => {
     );
     expect(screen.getByText(t('playerApp.percentiles.fromM15'))).toBeDefined();
     expect(screen.getByText(t('playerApp.records.none'))).toBeDefined();
+    // No upcoming days: no badge.
+    fireEvent.click(screen.getByRole('tab', { name: t('playerApp.tabs.upcoming') }));
     expect(screen.getByText(t('playerApp.testDays.none'))).toBeDefined();
+  });
+
+  it('splits records (with percentiles and protocols), history and upcoming days in tabs', () => {
+    const onOpenProtocols = vi.fn();
+    renderScreen(
+      <PlayerTestsScreen
+        notice="Sin conexión"
+        records={[]}
+        percentiles={{ kind: 'ready', items: [percentile] }}
+        history={[]}
+        testDays={[testDay]}
+        onOpenProtocols={onOpenProtocols}
+      />,
+    );
+    expect(screen.getByRole('tablist', { name: t('playerApp.tabs.label') })).toBeDefined();
+    expect(
+      screen.getByRole('tab', { name: t('playerApp.tabs.records'), selected: true }),
+    ).toBeDefined();
+    // The notice stays above the tabs, whichever is open.
+    expect(screen.getByText('Sin conexión')).toBeDefined();
+    expect(screen.getByText(t('playerApp.records.title'))).toBeDefined();
+    expect(screen.getByText(t('playerApp.percentiles.title'))).toBeDefined();
+    expect(screen.queryByText(t('playerApp.history.title'))).toBeNull();
+    expect(screen.queryByText(t('playerApp.testDays.title'))).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(t('protocols.open')) }));
+    expect(onOpenProtocols).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('tab', { name: t('playerApp.tabs.history') }));
+    expect(screen.getByText(t('playerApp.history.none'))).toBeDefined();
+    expect(screen.queryByText(t('playerApp.percentiles.title'))).toBeNull();
+    expect(screen.getByText('Sin conexión')).toBeDefined();
+
+    const upcoming = t('tabs.withBadge', {
+      label: t('playerApp.tabs.upcoming'),
+      badge: t('playerApp.tabs.upcomingBadge', { count: 1 }),
+    });
+    expect(upcoming).toBe('Próximos, 1 día de test');
+    fireEvent.click(screen.getByRole('tab', { name: upcoming }));
+    expect(screen.getByText(t('playerApp.testDays.title'))).toBeDefined();
+    expect(screen.getByText('Cancha 2', { exact: false })).toBeDefined();
+  });
+
+  it('comes back to the last tab in the same app session', () => {
+    const props = {
+      notice: null,
+      records: [],
+      percentiles: { kind: 'hidden' } as const,
+      history: [],
+      testDays: [],
+      segmentScope: 'm1',
+    };
+    const first = renderScreen(<PlayerTestsScreen {...props} />);
+    fireEvent.click(screen.getByRole('tab', { name: t('playerApp.tabs.history') }));
+    first.unmount();
+    renderScreen(<PlayerTestsScreen {...props} />);
+    expect(
+      screen.getByRole('tab', { name: t('playerApp.tabs.history'), selected: true }),
+    ).toBeDefined();
   });
 
   it('shows own percentiles as aggregates only, and records with their method', () => {

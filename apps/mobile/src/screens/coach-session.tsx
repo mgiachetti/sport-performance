@@ -13,6 +13,12 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import type { SheetSummary } from '../coach-session/model.ts';
 import type { ClockView, SessionListItem, SheetPlayer } from '../coach-session/view.ts';
+import {
+  firstTabWithError,
+  sheetTabCounts,
+  sheetTabs,
+  type SheetTab,
+} from '../coach-session/tabs.ts';
 import { useTranslator } from '../ui/i18n.tsx';
 import {
   AppText,
@@ -24,6 +30,13 @@ import {
   StatusMessage,
   TextField,
 } from '../ui/primitives.tsx';
+import {
+  SegmentedTabs,
+  TabPanel,
+  segmentKey,
+  useRememberedSegment,
+  type TabSegment,
+} from '../ui/segmented-tabs.tsx';
 import { useTheme } from '../ui/theme.tsx';
 
 /**
@@ -276,51 +289,40 @@ export interface SheetFieldRules {
 
 const TOTALS: SheetFieldRules = { contacts: true, byPeriod: false };
 
-function PlayerCard({
-  player,
-  rules,
-  onStatus,
-  onMinutes,
-  onContacts,
-  onContactsText,
-  onToggleField,
-}: {
-  readonly player: SheetPlayer;
-  readonly rules: SheetFieldRules;
+interface PlayerRowHandlers {
   readonly onStatus: (playerId: string, status: ParticipationStatus) => void;
   readonly onMinutes: (playerId: string, text: string) => void;
   readonly onContacts: (playerId: string, delta: 1 | -1) => void;
   readonly onContactsText: (playerId: string, text: string) => void;
   readonly onToggleField: (playerId: string) => void;
-}) {
-  const theme = useTheme();
+}
+
+/**
+ * What the coach must know of a player in every tab: availability (without
+ * the cause) and the staff notes, playing while unavailable, why they cannot
+ * be loaded. Outside attendance a plain "available" is left out: only what
+ * warns.
+ */
+function PlayerWarnings({ player, tab }: { readonly player: SheetPlayer; readonly tab: SheetTab }) {
   const { t } = useTranslator();
-  const { row, name } = player;
-  const editable = player.readOnly === null;
-  const carriesLoad = row.status === '' || participationCarriesLoad(row.status);
   const availability = player.availability;
   return (
-    <Card>
-      <AppText role="bodyStrong" accessibilityRole="header">
-        {name}
-      </AppText>
-      {player.calledUp ? (
+    <>
+      {tab === 'attendance' && player.calledUp ? (
         <AppText role="bodySmall" tone="secondary">
           {t('coachSession.player.calledUp')}
         </AppText>
       ) : null}
-      {availability === null ? null : (
-        <>
-          <Tag level={AVAILABILITY_LEVEL[availability.status] ?? 'warning'}>
-            {t(`coachSession.player.availability.${availability.status}`)}
-          </Tag>
-          {availability.staffNotes.map((note, index) => (
-            <AppText key={index} role="bodySmall" tone="secondary">
-              {t('coachSession.player.staffNote', { note })}
-            </AppText>
-          ))}
-        </>
-      )}
+      {availability !== null && (tab === 'attendance' || availability.status !== 'available') ? (
+        <Tag level={AVAILABILITY_LEVEL[availability.status] ?? 'warning'}>
+          {t(`coachSession.player.availability.${availability.status}`)}
+        </Tag>
+      ) : null}
+      {availability?.staffNotes.map((note, index) => (
+        <AppText key={index} role="bodySmall" tone="secondary">
+          {t('coachSession.player.staffNote', { note })}
+        </AppText>
+      ))}
       {player.playsWhileUnavailable ? (
         <Tag level="critical">{t('coachSession.player.unavailablePlaying')}</Tag>
       ) : null}
@@ -333,118 +335,84 @@ function PlayerCard({
               : t('coachSession.player.notAllowed')}
         </Tag>
       )}
-      <StatusChoice
-        name={name}
-        value={row.status}
-        disabled={!editable}
-        onChange={(status) => {
-          onStatus(player.id, status);
+    </>
+  );
+}
+
+/** Minutes, the on/off-field button of the clock, the periods and the RPE the player reported. */
+function MinutesControls({
+  player,
+  onMinutes,
+  onToggleField,
+}: {
+  readonly player: SheetPlayer;
+  readonly onMinutes: PlayerRowHandlers['onMinutes'];
+  readonly onToggleField: PlayerRowHandlers['onToggleField'];
+}) {
+  const theme = useTheme();
+  const { t } = useTranslator();
+  const { row, name } = player;
+  const editable = player.readOnly === null;
+  return (
+    <>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'flex-end',
+          gap: theme.spacing.md,
+          flexWrap: 'wrap',
         }}
-      />
-      {player.field === null || !editable ? null : (
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: theme.spacing.md,
-            flexWrap: 'wrap',
-          }}
-        >
-          <View style={{ flex: 1, minWidth: 140 }}>
+      >
+        <View style={{ flex: 1, minWidth: 120 }}>
+          <TextField
+            label={t('coachSession.player.minutes')}
+            value={row.minutes}
+            onChangeText={(text) => {
+              onMinutes(player.id, text);
+            }}
+            error={
+              player.errors.includes('minutes')
+                ? t('coachSession.player.error.minutes', { max: PARTICIPATION_MINUTES_MAX })
+                : null
+            }
+            inputProps={{
+              keyboardType: 'number-pad',
+              editable,
+              accessibilityLabel: t('coachSession.player.minutesOf', { name }),
+            }}
+          />
+        </View>
+        {player.field === null || !editable ? null : (
+          <View style={{ flex: 1, minWidth: 140, gap: theme.spacing.xs }}>
             <Tag level={player.field.on ? 'ok' : 'warning'}>
               {player.field.on
                 ? t('coachSession.player.onField', { minutes: player.field.minutes })
                 : t('coachSession.player.offField', { minutes: player.field.minutes })}
             </Tag>
-          </View>
-          <Button
-            variant="secondary"
-            label={player.field.on ? t('coachSession.player.goOut') : t('coachSession.player.goIn')}
-            accessibilityLabel={
-              player.field.on
-                ? t('coachSession.player.goOutOf', { name })
-                : t('coachSession.player.goInOf', { name })
-            }
-            onPress={() => {
-              onToggleField(player.id);
-            }}
-          />
-        </View>
-      )}
-      {carriesLoad ? (
-        <View style={{ flexDirection: 'row', gap: theme.spacing.md, flexWrap: 'wrap' }}>
-          <View style={{ flex: 1, minWidth: 120 }}>
-            <TextField
-              label={t('coachSession.player.minutes')}
-              value={row.minutes}
-              onChangeText={(text) => {
-                onMinutes(player.id, text);
-              }}
-              error={
-                player.errors.includes('minutes')
-                  ? t('coachSession.player.error.minutes', { max: PARTICIPATION_MINUTES_MAX })
-                  : null
+            <Button
+              variant="secondary"
+              label={
+                player.field.on ? t('coachSession.player.goOut') : t('coachSession.player.goIn')
               }
-              inputProps={{
-                keyboardType: 'number-pad',
-                editable,
-                accessibilityLabel: t('coachSession.player.minutesOf', { name }),
+              accessibilityLabel={
+                player.field.on
+                  ? t('coachSession.player.goOutOf', { name })
+                  : t('coachSession.player.goInOf', { name })
+              }
+              onPress={() => {
+                onToggleField(player.id);
               }}
             />
-            {row.periods === undefined || row.periods === '' ? null : (
-              <AppText role="bodySmall" tone="secondary">
-                {t('coachSession.player.periods', {
-                  periods: row.periods.split(',').join(' · '),
-                })}
-              </AppText>
-            )}
           </View>
-          {!rules.contacts ? null : (
-            <View style={{ flex: 1, minWidth: 180, gap: theme.spacing.xs }}>
-              <TextField
-                label={t('coachSession.player.contacts')}
-                value={row.contacts}
-                onChangeText={(text) => {
-                  onContactsText(player.id, text);
-                }}
-                error={
-                  player.errors.includes('contacts')
-                    ? t('coachSession.player.error.contacts', { max: PARTICIPATION_CONTACTS_MAX })
-                    : null
-                }
-                inputProps={{
-                  keyboardType: 'number-pad',
-                  editable,
-                  accessibilityLabel: t('coachSession.player.contactsOf', { name }),
-                }}
-              />
-              <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-                <View style={{ flex: 1 }}>
-                  <Button
-                    variant="secondary"
-                    label={t('coachSession.player.contactRemove')}
-                    accessibilityLabel={t('coachSession.player.contactRemoveOf', { name })}
-                    disabled={!editable || row.contacts === '' || row.contacts === '0'}
-                    onPress={() => {
-                      onContacts(player.id, -1);
-                    }}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Button
-                    label={t('coachSession.player.contactAdd')}
-                    accessibilityLabel={t('coachSession.player.contactAddOf', { name })}
-                    disabled={!editable}
-                    onPress={() => {
-                      onContacts(player.id, 1);
-                    }}
-                  />
-                </View>
-              </View>
-            </View>
-          )}
-        </View>
-      ) : null}
+        )}
+      </View>
+      {row.periods === undefined || row.periods === '' ? null : (
+        <AppText role="bodySmall" tone="secondary">
+          {t('coachSession.player.periods', {
+            periods: row.periods.split(',').join(' · '),
+          })}
+        </AppText>
+      )}
       {player.rpe !== null ? (
         <AppText role="bodySmall" tone="secondary">
           {player.srpeAu !== null
@@ -459,12 +427,143 @@ function PlayerCard({
           {t('coachSession.player.rpePending')}
         </AppText>
       ) : null}
+    </>
+  );
+}
+
+/** The contacts field and the +1/−1 buttons, for a sport with contacts. */
+function ContactsControls({
+  player,
+  onContacts,
+  onContactsText,
+}: {
+  readonly player: SheetPlayer;
+  readonly onContacts: PlayerRowHandlers['onContacts'];
+  readonly onContactsText: PlayerRowHandlers['onContactsText'];
+}) {
+  const theme = useTheme();
+  const { t } = useTranslator();
+  const { row, name } = player;
+  const editable = player.readOnly === null;
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        gap: theme.spacing.sm,
+        flexWrap: 'wrap',
+      }}
+    >
+      <View style={{ flex: 1, minWidth: 120 }}>
+        <TextField
+          label={t('coachSession.player.contacts')}
+          value={row.contacts}
+          onChangeText={(text) => {
+            onContactsText(player.id, text);
+          }}
+          error={
+            player.errors.includes('contacts')
+              ? t('coachSession.player.error.contacts', { max: PARTICIPATION_CONTACTS_MAX })
+              : null
+          }
+          inputProps={{
+            keyboardType: 'number-pad',
+            editable,
+            accessibilityLabel: t('coachSession.player.contactsOf', { name }),
+          }}
+        />
+      </View>
+      <View style={{ flex: 1, minWidth: 140, flexDirection: 'row', gap: theme.spacing.sm }}>
+        <View style={{ flex: 1 }}>
+          <Button
+            variant="secondary"
+            label={t('coachSession.player.contactRemove')}
+            accessibilityLabel={t('coachSession.player.contactRemoveOf', { name })}
+            disabled={!editable || row.contacts === '' || row.contacts === '0'}
+            onPress={() => {
+              onContacts(player.id, -1);
+            }}
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Button
+            label={t('coachSession.player.contactAdd')}
+            accessibilityLabel={t('coachSession.player.contactAddOf', { name })}
+            disabled={!editable}
+            onPress={() => {
+              onContacts(player.id, 1);
+            }}
+          />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * A player in one tab of the sheet (ADR 0104): the name, the warnings that
+ * go with them in every tab, only that tab's controls, and whether the row
+ * is unsaved or not sent yet.
+ */
+function PlayerRow({
+  player,
+  tab,
+  first,
+  handlers,
+}: {
+  readonly player: SheetPlayer;
+  readonly tab: SheetTab;
+  readonly first: boolean;
+  readonly handlers: PlayerRowHandlers;
+}) {
+  const theme = useTheme();
+  const { t } = useTranslator();
+  const { row, name } = player;
+  return (
+    <View
+      style={{
+        gap: theme.spacing.sm,
+        paddingVertical: theme.spacing.md,
+        borderTopWidth: first ? 0 : theme.borderWidth.hairline,
+        borderTopColor: theme.colors.border.subtle,
+      }}
+    >
+      <AppText role="bodyStrong" accessibilityRole="header">
+        {name}
+      </AppText>
+      <PlayerWarnings player={player} tab={tab} />
+      {tab === 'attendance' ? (
+        <StatusChoice
+          name={name}
+          value={row.status}
+          disabled={player.readOnly !== null}
+          onChange={(status) => {
+            handlers.onStatus(player.id, status);
+          }}
+        />
+      ) : row.status !== '' && !participationCarriesLoad(row.status) ? (
+        <AppText role="bodySmall" tone="secondary">
+          {t('coachSession.row.noLoad', { status: t(`coachSession.status.${row.status}`) })}
+        </AppText>
+      ) : tab === 'minutes' ? (
+        <MinutesControls
+          player={player}
+          onMinutes={handlers.onMinutes}
+          onToggleField={handlers.onToggleField}
+        />
+      ) : (
+        <ContactsControls
+          player={player}
+          onContacts={handlers.onContacts}
+          onContactsText={handlers.onContactsText}
+        />
+      )}
       {player.edited ? (
         <Tag level="warning">{t('coachSession.player.edited')}</Tag>
       ) : player.unsent ? (
         <PendingMark />
       ) : null}
-    </Card>
+    </View>
   );
 }
 
@@ -580,6 +679,8 @@ export function CoachSessionSheetScreen({
   onSave,
   onDiscard,
   onCancelDiscard,
+  segmentScope = null,
+  initialTab = 'attendance',
 }: {
   readonly title: string;
   readonly when: string;
@@ -614,10 +715,50 @@ export function CoachSessionSheetScreen({
   readonly onSave: () => void;
   readonly onDiscard: () => void;
   readonly onCancelDiscard: () => void;
+  /** The membership whose last tab the sheet remembers (ADR 0104). */
+  readonly segmentScope?: string | null;
+  /** The tab before the coach picks one in this app session. */
+  readonly initialTab?: SheetTab;
 }) {
   const theme = useTheme();
   const { t } = useTranslator();
   const hasDraft = changeCount > 0 || clock.status !== 'off';
+  const tabs = sheetTabs(fieldRules);
+  const [tab, setTab] = useRememberedSegment(
+    segmentKey('coach-session-sheet', segmentScope),
+    tabs,
+    initialTab,
+  );
+  const players = roster.status === 'ready' ? roster.players : [];
+  const counts = sheetTabCounts(players);
+  const tabLabel = (value: SheetTab) => t(`coachSession.tabs.${value}`);
+  const segments = tabs.map((value): TabSegment<SheetTab> => {
+    const errors = counts.errors[value];
+    return {
+      value,
+      label: tabLabel(value),
+      badge:
+        errors > 0 && value !== tab
+          ? {
+              count: errors,
+              label: t('coachSession.tabs.errors', { count: errors }),
+              tone: 'critical',
+            }
+          : value === 'attendance' && counts.noStatus > 0
+            ? {
+                count: counts.noStatus,
+                label: t('coachSession.tabs.noStatus', { count: counts.noStatus }),
+              }
+            : null,
+    };
+  });
+  const handlers: PlayerRowHandlers = {
+    onStatus,
+    onMinutes,
+    onContacts,
+    onContactsText,
+    onToggleField,
+  };
   return (
     <ScreenBody>
       <Button variant="link" label={t('coachSession.back')} onPress={onBack} />
@@ -683,18 +824,27 @@ export function CoachSessionSheetScreen({
                       })}
                 </AppText>
               </Card>
-              {roster.players.map((player) => (
-                <PlayerCard
-                  key={player.id}
-                  player={player}
-                  rules={fieldRules}
-                  onStatus={onStatus}
-                  onMinutes={onMinutes}
-                  onContacts={onContacts}
-                  onContactsText={onContactsText}
-                  onToggleField={onToggleField}
-                />
-              ))}
+              <SegmentedTabs
+                label={t('coachSession.tabs.label')}
+                segments={segments}
+                value={tab}
+                onChange={setTab}
+              />
+              <TabPanel label={tabLabel(tab)}>
+                <Card variant="flush">
+                  <View style={{ paddingHorizontal: theme.spacing.lg }}>
+                    {roster.players.map((player, index) => (
+                      <PlayerRow
+                        key={player.id}
+                        player={player}
+                        tab={tab}
+                        first={index === 0}
+                        handlers={handlers}
+                      />
+                    ))}
+                  </View>
+                </Card>
+              </TabPanel>
               {needsReason ? (
                 <TextField
                   label={t('coachSession.reason.label')}
@@ -719,7 +869,12 @@ export function CoachSessionSheetScreen({
                 label={t('coachSession.save', { count: changeCount })}
                 busy={saving}
                 disabled={changeCount === 0}
-                onPress={onSave}
+                onPress={() => {
+                  // An invalid value in another tab: show it where it is fixed.
+                  const errorTab = firstTabWithError(players, tabs);
+                  if (errorTab !== null) setTab(errorTab);
+                  onSave();
+                }}
               />
               {hasDraft ? (
                 <View style={{ flexDirection: 'row', gap: theme.spacing.sm, flexWrap: 'wrap' }}>

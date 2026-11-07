@@ -264,6 +264,7 @@ export default function CoachSession() {
 
   return (
     <CoachSessionSheetScreen
+      segmentScope={membershipId}
       title={sessionTitle(sessionDto, categoryName(club, sessionDto.categoryId), translator)}
       when={sessionWhen(sessionDto, timeZone, translator)}
       plannedMinutes={sessionDto.plannedDurationMin}

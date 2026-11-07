@@ -23,6 +23,7 @@ async function press(page: Page, name: string): Promise<void> {
   const target = page
     .getByRole('radio', { name, exact: true })
     .or(page.getByRole('button', { name, exact: true }))
+    .or(page.getByRole('tab', { name, exact: true }))
     .first();
   await target.click();
 }
