@@ -9,6 +9,7 @@ import {
 } from '../auth/session-store.ts';
 import { IFT_RUN_STORAGE_KEY } from '../ift/run-store.ts';
 import { apiError } from '../test/fake-api.ts';
+import { rememberSegment, rememberedSegment, segmentKey } from '../ui/segment-memory.ts';
 import {
   COACH_AT_ORC,
   DEVICE_ID,
@@ -313,5 +314,14 @@ describe('session controller: clubs and sign-out', () => {
     expect(offline.secure.entries.has(SESSION_TOKEN_KEY)).toBe(false);
     expect(offline.secure.entries.has(SESSION_SNAPSHOT_KEY)).toBe(false);
     expect(offline.errors).toEqual([]);
+  });
+
+  it('forgets the tabs each screen remembered when signing out (ADR 0104)', async () => {
+    const { services, api } = await signedInWith([COACH_AT_ORC]);
+    rememberSegment(segmentKey('player-tests', COACH_AT_ORC.id), 'history');
+    api.on('POST /v1/auth/sign-out', { status: 204 });
+    await services.session.signOut();
+    expect(rememberedSegment(segmentKey('player-tests', COACH_AT_ORC.id))).toBeUndefined();
+    services.dispose();
   });
 });

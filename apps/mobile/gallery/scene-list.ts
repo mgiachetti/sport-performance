@@ -5,7 +5,7 @@
  */
 export interface SceneSpec {
   readonly name: string;
-  /** Accessible names of buttons or radios to press, in order. */
+  /** Accessible names of buttons, radios or tabs to press, in order. */
   readonly press?: readonly string[];
 }
 
@@ -23,9 +23,15 @@ export const SCENES: readonly SceneSpec[] = [
   { name: 'player-today-done' },
   { name: 'player-today-offline' },
   { name: 'player-tests' },
+  { name: 'player-tests-history' },
+  { name: 'player-tests-upcoming' },
   { name: 'player-tests-m13' },
   { name: 'player-consents' },
   { name: 'staff-home' },
+  { name: 'coach-session-attendance' },
+  { name: 'coach-session-minutes' },
+  { name: 'coach-session-contacts-error' },
+  { name: 'coach-session-hockey' },
   { name: 'staff-board' },
   { name: 'staff-board-cached' },
   { name: 'staff-alert' },

@@ -7,6 +7,12 @@ import type { PersonalRecord } from '../player/records.ts';
 import { useTranslator } from '../ui/i18n.tsx';
 import { EmptyState, ListRow } from '../ui/blocks.tsx';
 import { AppText, Card, ScreenBody, ScreenHeader, StatusMessage } from '../ui/primitives.tsx';
+import {
+  SegmentedTabs,
+  TabPanel,
+  segmentKey,
+  useRememberedSegment,
+} from '../ui/segmented-tabs.tsx';
 import { useTheme } from '../ui/theme.tsx';
 import { TestDaySummary } from './player-today.tsx';
 
@@ -245,10 +251,35 @@ function History({ results }: { readonly results: readonly TestResult[] }) {
   );
 }
 
+export type PlayerTestsTab = 'records' | 'history' | 'upcoming';
+
+const TABS: readonly PlayerTestsTab[] = ['records', 'history', 'upcoming'];
+
+function UpcomingTestDays({ testDays }: { readonly testDays: readonly MyTestDay[] | null }) {
+  const { t } = useTranslator();
+  return (
+    <Section title={t('playerApp.testDays.title')}>
+      {testDays === null ? (
+        <AppText tone="secondary">{t('common.loading')}</AppText>
+      ) : testDays.length === 0 ? (
+        <EmptyState mark="—" title={t('playerApp.testDays.none')} />
+      ) : (
+        testDays.map((day, index) => (
+          <Row key={day.id} first={index === 0}>
+            <TestDaySummary day={day} />
+          </Row>
+        ))
+      )}
+    </Section>
+  );
+}
+
 /**
  * "Mis tests" (B-503): own records, own percentiles from M15 (the group only
  * as aggregates: never names, never a ranking), the history of results and
- * the upcoming test days.
+ * the upcoming test days, split in tabs at the top (ADR 0104): records with
+ * the percentiles and the protocols under them, the history, and the
+ * upcoming days with their count.
  */
 export function PlayerTestsScreen({
   notice,
@@ -257,6 +288,8 @@ export function PlayerTestsScreen({
   history,
   testDays,
   onOpenProtocols = null,
+  segmentScope = null,
+  initialTab = 'records',
 }: {
   readonly notice: string | null;
   readonly records: readonly PersonalRecord[];
@@ -266,37 +299,57 @@ export function PlayerTestsScreen({
   readonly testDays: readonly MyTestDay[] | null;
   /** How each test is done (B-415); `null` hides it. */
   readonly onOpenProtocols?: (() => void) | null;
+  /** The membership whose last tab the screen remembers (ADR 0104). */
+  readonly segmentScope?: string | null;
+  /** The tab before the player picks one in this app session. */
+  readonly initialTab?: PlayerTestsTab;
 }) {
   const { t } = useTranslator();
+  const [tab, setTab] = useRememberedSegment(
+    segmentKey('player-tests', segmentScope),
+    TABS,
+    initialTab,
+  );
+  const upcoming = testDays?.length ?? 0;
+  const tabLabel = (value: PlayerTestsTab) => t(`playerApp.tabs.${value}`);
   return (
     <ScreenBody header={<ScreenHeader title={t('nav.myTests')} />}>
       {notice !== null ? <StatusMessage level="warning">{notice}</StatusMessage> : null}
-      <Section title={t('playerApp.testDays.title')}>
-        {testDays === null ? (
-          <AppText tone="secondary">{t('common.loading')}</AppText>
-        ) : testDays.length === 0 ? (
-          <EmptyState mark="—" title={t('playerApp.testDays.none')} />
+      <SegmentedTabs
+        label={t('playerApp.tabs.label')}
+        segments={TABS.map((value) => ({
+          value,
+          label: tabLabel(value),
+          badge:
+            value === 'upcoming' && upcoming > 0
+              ? { count: upcoming, label: t('playerApp.tabs.upcomingBadge', { count: upcoming }) }
+              : null,
+        }))}
+        value={tab}
+        onChange={setTab}
+      />
+      <TabPanel label={tabLabel(tab)}>
+        {tab === 'records' ? (
+          <>
+            <Records records={records} />
+            <Percentiles section={percentiles} />
+            {onOpenProtocols === null ? null : (
+              <Card>
+                <ListRow
+                  first
+                  title={t('protocols.open')}
+                  subtitle={t('protocols.open.hint')}
+                  onPress={onOpenProtocols}
+                />
+              </Card>
+            )}
+          </>
+        ) : tab === 'history' ? (
+          <History results={history} />
         ) : (
-          testDays.map((day, index) => (
-            <Row key={day.id} first={index === 0}>
-              <TestDaySummary day={day} />
-            </Row>
-          ))
+          <UpcomingTestDays testDays={testDays} />
         )}
-      </Section>
-      <Records records={records} />
-      <Percentiles section={percentiles} />
-      <History results={history} />
-      {onOpenProtocols === null ? null : (
-        <Card>
-          <ListRow
-            first
-            title={t('protocols.open')}
-            subtitle={t('protocols.open.hint')}
-            onPress={onOpenProtocols}
-          />
-        </Card>
-      )}
+      </TabPanel>
     </ScreenBody>
   );
 }

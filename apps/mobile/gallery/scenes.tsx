@@ -9,11 +9,13 @@ import {
 } from '@sport-performance/contracts';
 import { localDate, parseTimeZone } from '@sport-performance/domain';
 import type { ReactElement } from 'react';
+import type { SheetPlayer } from '../src/coach-session/view.ts';
 import type { KioskPlayer } from '../src/kiosk/roster.ts';
 import type { SyncStatus } from '../src/offline/engine.ts';
 import type { RpeSession } from '../src/player/today.ts';
 import { AccountScreen, HomeScreen } from '../src/screens/app.tsx';
 import { NoClubScreen, SelectClubScreen } from '../src/screens/clubs.tsx';
+import { CoachSessionSheetScreen } from '../src/screens/coach-session.tsx';
 import {
   KioskExitScreen,
   KioskPickScreen,
@@ -273,6 +275,99 @@ function kioskPlayer(overrides: Partial<KioskPlayer> = {}): KioskPlayer {
   };
 }
 
+function sheetPlayer(
+  overrides: Partial<SheetPlayer> & Pick<SheetPlayer, 'id' | 'name'>,
+): SheetPlayer {
+  return {
+    calledUp: false,
+    availability: { status: 'available', staffNotes: [] },
+    readOnly: null,
+    row: { status: 'full', minutes: '90', contacts: '6' },
+    errors: [],
+    edited: false,
+    unsent: false,
+    rpe: null,
+    srpeAu: null,
+    field: null,
+    playsWhileUnavailable: false,
+    ...overrides,
+  };
+}
+
+/** A rugby roster: pending statuses, a medical note, a player without consent, an edited row. */
+const SHEET_PLAYERS: readonly SheetPlayer[] = [
+  sheetPlayer({ id: 'p1', name: 'Acosta, Juan', rpe: 7, srpeAu: 630 }),
+  sheetPlayer({
+    id: 'p2',
+    name: 'Bianchi, Tomás',
+    availability: { status: 'limited', staffNotes: ['Sin contacto'] },
+    row: { status: 'partial', minutes: '40', contacts: '0' },
+    edited: true,
+  }),
+  sheetPlayer({ id: 'p3', name: 'Castro, Mateo', row: { status: '', minutes: '', contacts: '' } }),
+  sheetPlayer({
+    id: 'p4',
+    name: 'Díaz, Valentín',
+    availability: { status: 'unavailable', staffNotes: [] },
+    row: { status: 'unavailable', minutes: '', contacts: '' },
+    unsent: true,
+  }),
+  sheetPlayer({
+    id: 'p5',
+    name: 'Ferreyra, Lucas',
+    readOnly: 'noConsent',
+    availability: null,
+    row: { status: '', minutes: '', contacts: '' },
+  }),
+];
+
+const sheetSummaryOf = {
+  present: 2,
+  absent: 0,
+  unavailable: 1,
+  pending: 2,
+  minutes: 130,
+  contacts: 6,
+};
+
+function coachSheet(
+  overrides: Partial<Parameters<typeof CoachSessionSheetScreen>[0]> = {},
+): ReactElement {
+  return (
+    <CoachSessionSheetScreen
+      title="Entrenamiento M17"
+      when="Entrenamiento · 03/11/2026 18:00"
+      plannedMinutes={90}
+      roster={{ status: 'ready', players: SHEET_PLAYERS, staleSince: null }}
+      clock={{ status: 'off' }}
+      summary={sheetSummaryOf}
+      changeCount={1}
+      needsReason={false}
+      reason=""
+      reasonMissing={false}
+      saving={false}
+      notice={null}
+      confirmDiscard={false}
+      onBack={noop}
+      onRetryRoster={noop}
+      onStatus={noop}
+      onMinutes={noop}
+      onContacts={noop}
+      onContactsText={noop}
+      onToggleField={noop}
+      onStartClock={noop}
+      onPauseClock={noop}
+      onFinishClock={noop}
+      onFillPresent={noop}
+      onReason={noop}
+      onSave={noop}
+      onDiscard={noop}
+      onCancelDiscard={noop}
+      {...overrides}
+    />
+  );
+}
+
 const KIOSK_NAMES = ['Ana A.', 'Bruno C.', 'Juan P.', 'Lola M.', 'Tomás G.', 'Valentín R.'];
 
 const alertForDetail = panelAlert();
@@ -415,6 +510,72 @@ export const SCENE_RENDERERS: Readonly<Record<string, Scene>> = {
       testDays={[nextTestDay]}
     />
   )),
+  'player-tests-history': club(() => (
+    <PlayerTestsScreen
+      notice={null}
+      records={records}
+      percentiles={{ kind: 'ready', items: [percentile] }}
+      history={[]}
+      testDays={[nextTestDay]}
+      initialTab="history"
+    />
+  )),
+  'player-tests-upcoming': club(() => (
+    <PlayerTestsScreen
+      notice={null}
+      records={records}
+      percentiles={{ kind: 'ready', items: [percentile] }}
+      history={[]}
+      testDays={[nextTestDay]}
+      initialTab="upcoming"
+    />
+  )),
+  'coach-session-attendance': club(() => coachSheet()),
+  'coach-session-minutes': club(() =>
+    coachSheet({
+      initialTab: 'minutes',
+      clock: { status: 'running', elapsedS: 1520, onField: 2, periods: 0 },
+      roster: {
+        status: 'ready',
+        staleSince: null,
+        players: SHEET_PLAYERS.map((player) =>
+          player.readOnly === null
+            ? { ...player, field: { on: player.id !== 'p3', minutes: 25 } }
+            : player,
+        ),
+      },
+    }),
+  ),
+  'coach-session-contacts-error': club(() =>
+    coachSheet({
+      initialTab: 'attendance',
+      roster: {
+        status: 'ready',
+        staleSince: null,
+        players: SHEET_PLAYERS.map((player) =>
+          player.id === 'p1'
+            ? { ...player, row: { ...player.row, contacts: '999' }, errors: ['contacts'] }
+            : player,
+        ),
+      },
+    }),
+  ),
+  'coach-session-hockey': club(() =>
+    coachSheet({
+      initialTab: 'minutes',
+      fieldRules: { contacts: false, byPeriod: true },
+      clock: { status: 'paused', elapsedS: 1800, onField: 0, periods: 2 },
+      summary: { ...sheetSummaryOf, contacts: 0 },
+      roster: {
+        status: 'ready',
+        staleSince: null,
+        players: SHEET_PLAYERS.map((player) => ({
+          ...player,
+          row: { ...player.row, contacts: '', periods: player.row.minutes === '' ? '' : '15,15' },
+        })),
+      },
+    }),
+  ),
   'player-tests-m13': club(() => (
     <PlayerTestsScreen
       notice={null}
