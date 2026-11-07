@@ -36,11 +36,11 @@ describe('HomeScreen field tools', () => {
     const onOpen = vi.fn();
     const props = { userName: 'Ana', membership: COACH_AT_ORC, clubTheme: null, offline: false };
     const { unmount } = renderScreen(<HomeScreen {...props} onOpenIft3015={onOpen} />);
-    fireEvent.click(screen.getByRole('button', { name: t('ift.open') }));
+    fireEvent.click(screen.getByRole('button', { name: t('home.tile.ift') }));
     expect(onOpen).toHaveBeenCalled();
     unmount();
     renderScreen(<HomeScreen {...props} />);
-    expect(screen.queryByRole('button', { name: t('ift.open') })).toBeNull();
+    expect(screen.queryByRole('button', { name: t('home.tile.ift') })).toBeNull();
   });
 });
 

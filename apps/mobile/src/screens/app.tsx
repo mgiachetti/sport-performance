@@ -1,9 +1,9 @@
 import type { MembershipSummary } from '@sport-performance/contracts';
 import type { ClubTheme } from '@sport-performance/contracts';
+import type { MessageKey, Translator } from '@sport-performance/i18n';
 import type { ReactNode } from 'react';
 import { Switch, View } from 'react-native';
 import type { UpdatePrompt } from '../version/index.ts';
-import { ListRow } from '../ui/blocks.tsx';
 import { roleLabel, useTranslator } from '../ui/i18n.tsx';
 import {
   AppText,
@@ -15,6 +15,7 @@ import {
   StatusMessage,
 } from '../ui/primitives.tsx';
 import { useTheme, useThemeVariant, type ClubMark } from '../ui/theme.tsx';
+import { ToolGrid, type ToolTileGroup, type ToolTileItem } from '../ui/tiles.tsx';
 
 /** The crest and names of the club a screen shows (its theme, or the membership without one). */
 function clubMarkOf(membership: MembershipSummary, clubTheme: ClubTheme | null): ClubMark {
@@ -51,14 +52,6 @@ function ClubHeader({
       </View>
     </View>
   );
-}
-
-/** A field tool of the staff's home: the whole row opens it. */
-interface HomeTool {
-  readonly key: string;
-  readonly label: string;
-  readonly hint: string;
-  readonly onPress: () => void;
 }
 
 export function HomeScreen({
@@ -100,53 +93,6 @@ export function HomeScreen({
   const translator = useTranslator();
   const { t } = translator;
   const name = userName.trim();
-  const offered: {
-    readonly key: string;
-    readonly label: string;
-    readonly hint: string;
-    readonly onPress: (() => void) | null;
-  }[] = [
-    { key: 'ift', label: t('ift.open'), hint: t('ift.open.hint'), onPress: onOpenIft3015 },
-    {
-      key: 'reaction',
-      label: t('reaction.open'),
-      hint: t('reaction.open.hint'),
-      onPress: onOpenReaction,
-    },
-    {
-      key: 'weeklyCmj',
-      label: t('weeklyCmj.open'),
-      hint: t('weeklyCmj.open.hint'),
-      onPress: onOpenWeeklyCmj,
-    },
-    {
-      key: 'sprintVideo',
-      label: t('sprintVideo.open'),
-      hint: t('sprintVideo.open.hint'),
-      onPress: onOpenSprintVideo,
-    },
-    {
-      key: 'anthropometry',
-      label: t('anthropometry.field.open'),
-      hint: t('anthropometry.field.subtitle'),
-      onPress: onOpenAnthropometry,
-    },
-    {
-      key: 'cmjVideo',
-      label: t('cmjVideo.open'),
-      hint: t('cmjVideo.open.hint'),
-      onPress: onOpenCmjVideo,
-    },
-    {
-      key: 'protocols',
-      label: t('protocols.open'),
-      hint: t('protocols.open.hint'),
-      onPress: onOpenProtocols,
-    },
-  ];
-  const tools: HomeTool[] = offered.flatMap(({ onPress, ...tool }) =>
-    onPress === null ? [] : [{ ...tool, onPress }],
-  );
   return (
     <ScreenBody
       header={
@@ -159,31 +105,139 @@ export function HomeScreen({
       }
     >
       {sync}
-      {tools.length > 0 ? (
-        <Card title={t('home.tools')}>
-          <View>
-            {tools.map((tool, index) => (
-              <ListRow
-                key={tool.key}
-                first={index === 0}
-                title={tool.label}
-                subtitle={tool.hint}
-                onPress={tool.onPress}
-              />
-            ))}
-          </View>
-        </Card>
-      ) : null}
-      {onOpenKiosk === null ? null : (
-        <Card title={t('home.kiosk')} subtitle={t('kiosk.open.hint')}>
-          <Button variant="secondary" label={t('kiosk.open')} onPress={onOpenKiosk} />
-        </Card>
-      )}
+      <ToolGrid
+        groups={homeToolGroups(t, {
+          ift: onOpenIft3015,
+          reaction: onOpenReaction,
+          weeklyCmj: onOpenWeeklyCmj,
+          anthropometry: onOpenAnthropometry,
+          sprintVideo: onOpenSprintVideo,
+          cmjVideo: onOpenCmjVideo,
+          kiosk: onOpenKiosk,
+          protocols: onOpenProtocols,
+        })}
+      />
       <AppText role="caption" tone="muted">
         {t('legal.notMedicalDevice')}
       </AppText>
     </ScreenBody>
   );
+}
+
+type HomeToolKey =
+  | 'ift'
+  | 'reaction'
+  | 'weeklyCmj'
+  | 'anthropometry'
+  | 'sprintVideo'
+  | 'cmjVideo'
+  | 'kiosk'
+  | 'protocols';
+
+/** Each tool of the home: its short title and line, the full hint it had as a row, and its mark. */
+const HOME_TOOLS: Readonly<
+  Record<
+    HomeToolKey,
+    {
+      readonly title: MessageKey;
+      readonly hint: MessageKey;
+      readonly accessibilityHint: MessageKey;
+      readonly mark: string;
+    }
+  >
+> = {
+  ift: {
+    title: 'home.tile.ift',
+    hint: 'home.tile.ift.hint',
+    accessibilityHint: 'ift.open.hint',
+    mark: 'IFT',
+  },
+  reaction: {
+    title: 'home.tile.reaction',
+    hint: 'home.tile.reaction.hint',
+    accessibilityHint: 'reaction.open.hint',
+    mark: 'ms',
+  },
+  weeklyCmj: {
+    title: 'home.tile.weeklyCmj',
+    hint: 'home.tile.weeklyCmj.hint',
+    accessibilityHint: 'weeklyCmj.open.hint',
+    mark: 'CMJ',
+  },
+  anthropometry: {
+    title: 'home.tile.anthropometry',
+    hint: 'home.tile.anthropometry.hint',
+    accessibilityHint: 'anthropometry.field.subtitle',
+    mark: 'cm',
+  },
+  sprintVideo: {
+    title: 'home.tile.sprintVideo',
+    hint: 'home.tile.sprintVideo.hint',
+    accessibilityHint: 'sprintVideo.open.hint',
+    mark: '40',
+  },
+  cmjVideo: {
+    title: 'home.tile.cmjVideo',
+    hint: 'home.tile.cmjVideo.hint',
+    accessibilityHint: 'cmjVideo.open.hint',
+    mark: '▶',
+  },
+  kiosk: {
+    title: 'home.tile.kiosk',
+    hint: 'home.tile.kiosk.hint',
+    accessibilityHint: 'kiosk.open.hint',
+    mark: '#',
+  },
+  protocols: {
+    title: 'home.tile.protocols',
+    hint: 'home.tile.protocols.hint',
+    accessibilityHint: 'protocols.open.hint',
+    mark: '?',
+  },
+};
+
+/** The groups of the home and their tools, in order (ADR 0104). */
+const HOME_GROUPS: readonly {
+  readonly key: string;
+  readonly title: MessageKey;
+  readonly tools: readonly HomeToolKey[];
+}[] = [
+  {
+    key: 'field',
+    title: 'home.group.field',
+    tools: ['ift', 'reaction', 'weeklyCmj', 'anthropometry'],
+  },
+  { key: 'video', title: 'home.group.video', tools: ['sprintVideo', 'cmjVideo'] },
+  { key: 'more', title: 'home.group.more', tools: ['kiosk', 'protocols'] },
+];
+
+/**
+ * The tile groups of the staff's home: a tool whose route is `null` is not
+ * offered, and a group left without tools is dropped by the grid.
+ */
+export function homeToolGroups(
+  t: Translator['t'],
+  routes: Readonly<Record<HomeToolKey, (() => void) | null>>,
+): readonly ToolTileGroup[] {
+  return HOME_GROUPS.map((group) => ({
+    key: group.key,
+    title: t(group.title),
+    tools: group.tools.flatMap((key): ToolTileItem[] => {
+      const onPress = routes[key];
+      if (onPress === null) return [];
+      const tool = HOME_TOOLS[key];
+      return [
+        {
+          key,
+          title: t(tool.title),
+          hint: t(tool.hint),
+          accessibilityHint: t(tool.accessibilityHint),
+          mark: tool.mark,
+          onPress,
+        },
+      ];
+    }),
+  }));
 }
 
 export function AccountScreen({

@@ -40,8 +40,26 @@ export const mobileMessagesEsAR = {
 
   // Navigation and home
   'nav.account': 'Cuenta',
-  'home.tools': 'Herramientas de cancha',
-  'home.kiosk': 'Modo kiosco',
+  // Tool tiles of the staff's home (ADR 0104): short title and one visible line.
+  'home.group.field': 'Tests en cancha',
+  'home.group.video': 'Video',
+  'home.group.more': 'Más',
+  'home.tile.ift': '30-15 IFT',
+  'home.tile.ift.hint': 'Audio del test',
+  'home.tile.reaction': 'Reacción',
+  'home.tile.reaction.hint': 'Simple y go/no-go',
+  'home.tile.weeklyCmj': 'CMJ semanal',
+  'home.tile.weeklyCmj.hint': 'M17 y M19',
+  'home.tile.anthropometry': 'Antropometría',
+  'home.tile.anthropometry.hint': 'Talla y peso',
+  'home.tile.sprintVideo': 'Sprint',
+  'home.tile.sprintVideo.hint': '10, 20 y 40 m',
+  'home.tile.cmjVideo': 'CMJ',
+  'home.tile.cmjVideo.hint': 'En cámara lenta',
+  'home.tile.kiosk': 'Modo kiosco',
+  'home.tile.kiosk.hint': 'Teléfono compartido',
+  'home.tile.protocols': 'Protocolos',
+  'home.tile.protocols.hint': 'Cómo se hace cada test',
 
   // Account
   'account.title': 'Cuenta',
@@ -111,7 +129,6 @@ export const mobileMessagesEsAR = {
   'invitation.goToClub': 'Entrar al club',
   'invitation.signIn': 'Ingresar para aceptar',
   // 30-15 IFT signals (B-507, ADR 0070)
-  'ift.open': 'Audio del 30-15 IFT',
   'ift.open.hint': 'Señales del test generadas por la app, sin conexión.',
   'ift.title': '30-15 IFT',
   'ift.notAllowed':

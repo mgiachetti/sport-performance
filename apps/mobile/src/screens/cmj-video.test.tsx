@@ -58,11 +58,11 @@ describe('HomeScreen', () => {
     const onOpen = vi.fn();
     const props = { userName: 'Ana', membership: COACH_AT_ORC, clubTheme: null, offline: false };
     const { unmount } = renderScreen(<HomeScreen {...props} onOpenCmjVideo={onOpen} />);
-    fireEvent.click(screen.getByRole('button', { name: t('cmjVideo.open') }));
+    fireEvent.click(screen.getByRole('button', { name: t('home.tile.cmjVideo') }));
     expect(onOpen).toHaveBeenCalled();
     unmount();
     renderScreen(<HomeScreen {...props} />);
-    expect(screen.queryByRole('button', { name: t('cmjVideo.open') })).toBeNull();
+    expect(screen.queryByRole('button', { name: t('home.tile.cmjVideo') })).toBeNull();
   });
 });
 

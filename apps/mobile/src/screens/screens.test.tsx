@@ -4,10 +4,11 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { COACH_AT_ORC, ORC_THEME, PARENT_AT_ORC, PLAYER_AT_OTHER } from '../test/fixtures.ts';
 import { renderScreen, translator } from '../test/render.tsx';
-import { AccountScreen, HomeScreen, UpdateRequiredScreen } from './app.tsx';
+import { AccountScreen, HomeScreen, UpdateRequiredScreen, homeToolGroups } from './app.tsx';
 import { NoClubScreen, SelectClubScreen } from './clubs.tsx';
 import { InvitationScreen } from './invitation.tsx';
 import { SyncIndicator } from './sync.tsx';
+import { toolGridColumns } from '../ui/tiles.tsx';
 
 const { t } = translator;
 
@@ -150,6 +151,106 @@ describe('InvitationScreen', () => {
 });
 
 describe('app screens', () => {
+  it('groups the staff tools as tiles under their headings, with the full hint for a screen reader', () => {
+    const onOpenKiosk = vi.fn();
+    renderScreen(
+      <HomeScreen
+        userName="Ana"
+        membership={COACH_AT_ORC}
+        clubTheme={null}
+        onOpenIft3015={vi.fn()}
+        onOpenReaction={vi.fn()}
+        onOpenWeeklyCmj={vi.fn()}
+        onOpenAnthropometry={vi.fn()}
+        onOpenSprintVideo={vi.fn()}
+        onOpenCmjVideo={vi.fn()}
+        onOpenKiosk={onOpenKiosk}
+        onOpenProtocols={vi.fn()}
+      />,
+    );
+    const headings = screen.getAllByRole('heading').map((heading) => heading.textContent);
+    expect(headings).toEqual(
+      expect.arrayContaining([t('home.group.field'), t('home.group.video'), t('home.group.more')]),
+    );
+    const tiles = screen
+      .getAllByRole('button')
+      .map((button) => button.getAttribute('aria-label'))
+      .filter((label) => label?.startsWith('Hola') !== true);
+    expect(tiles).toEqual([
+      t('home.tile.ift'),
+      t('home.tile.reaction'),
+      t('home.tile.weeklyCmj'),
+      t('home.tile.anthropometry'),
+      t('home.tile.sprintVideo'),
+      t('home.tile.cmjVideo'),
+      t('home.tile.kiosk'),
+      t('home.tile.protocols'),
+    ]);
+    // The short line is visible under the title.
+    const kiosk = screen.getByRole('button', { name: t('home.tile.kiosk') });
+    expect(kiosk.textContent).toContain(t('home.tile.kiosk.hint'));
+    fireEvent.click(kiosk);
+    expect(onOpenKiosk).toHaveBeenCalled();
+    // The kiosk is a tile now, not a card of its own; the legal caption stays.
+    expect(screen.getByText(t('legal.notMedicalDevice'))).toBeDefined();
+  });
+
+  it('gives each tile its short title and the full hint it had as a row', () => {
+    const groups = homeToolGroups(t, {
+      ift: null,
+      reaction: null,
+      weeklyCmj: null,
+      anthropometry: vi.fn(),
+      sprintVideo: null,
+      cmjVideo: null,
+      kiosk: vi.fn(),
+      protocols: vi.fn(),
+    });
+    expect(groups.map((group) => group.tools.map((tool) => tool.key))).toEqual([
+      ['anthropometry'],
+      [],
+      ['kiosk', 'protocols'],
+    ]);
+    const [kiosk, protocols] = groups[2]?.tools ?? [];
+    expect(kiosk?.title).toBe(t('home.tile.kiosk'));
+    expect(kiosk?.accessibilityHint).toBe(t('kiosk.open.hint'));
+    expect(protocols?.accessibilityHint).toBe(t('protocols.open.hint'));
+    expect(groups[0]?.tools[0]?.accessibilityHint).toBe(t('anthropometry.field.subtitle'));
+  });
+
+  it('drops a group with no visible tools, heading included', () => {
+    renderScreen(
+      <HomeScreen
+        userName="Ana"
+        membership={COACH_AT_ORC}
+        clubTheme={null}
+        onOpenSprintVideo={vi.fn()}
+        onOpenProtocols={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('heading', { name: t('home.group.field') })).toBeNull();
+    expect(screen.getByRole('heading', { name: t('home.group.video') })).toBeDefined();
+    expect(screen.getByRole('heading', { name: t('home.group.more') })).toBeDefined();
+    expect(screen.queryByRole('button', { name: t('home.tile.cmjVideo') })).toBeNull();
+    expect(screen.queryByRole('button', { name: t('home.tile.kiosk') })).toBeNull();
+    expect(screen.getByRole('button', { name: t('home.tile.sprintVideo') })).toBeDefined();
+    expect(screen.getByRole('button', { name: t('home.tile.protocols') })).toBeDefined();
+  });
+
+  it('shows no tool heading at all when no tool is offered', () => {
+    renderScreen(<HomeScreen userName="Ana" membership={COACH_AT_ORC} clubTheme={null} />);
+    for (const group of ['home.group.field', 'home.group.video', 'home.group.more'] as const) {
+      expect(screen.queryByRole('heading', { name: t(group) })).toBeNull();
+    }
+  });
+
+  it('lays the tiles in two columns, one on a narrow screen or with a large font', () => {
+    expect(toolGridColumns(390, 1)).toBe(2);
+    expect(toolGridColumns(339, 1)).toBe(1);
+    expect(toolGridColumns(390, 1.3)).toBe(1);
+    expect(toolGridColumns(768, 2)).toBe(1);
+  });
+
   it('greets the user in the club with its brand and no sync box when all is well', () => {
     const now = Date.UTC(2026, 10, 3, 12, 0, 0);
     renderScreen(
