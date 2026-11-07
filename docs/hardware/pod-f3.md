@@ -23,6 +23,7 @@ Este documento acompaña al [ADR 0105](../adr/0105-pod-gnss-imu-con-telemetria-e
 | Pines pogo (4, magnéticos) | Xinyangze YZ103915020T (C6276862) | — | ~US$ 1 (estimado) | [LCSC](https://lcsc.com/product-detail/Pogo-Pin-Spring-Probe-Connector_Xinyangze-YZ103915020T-04025-02_C6276862.html) | **No verificado** |
 | PCB de 4 capas + armado | JLCPCB Standard | PCBWay | US$ 25 de setup por cara y US$ 1,5–3 por parte extendida: unos US$ 6–10 por placa | [JLCPCB](https://jlcpcb.com/help/article/40-pcb-assembly-price) | Tarifas sí. El total por placa es una **estimación** |
 | Carcasa | MJF PA12 en JLC3DP, con junta | — | US$ 0,275/g, unos US$ 6–10 con 20–35 g | [JLC3DP](https://jlc3dp.com/blog/drastic-material-price-cuts-and-adjusted-post-processing-service-fees) | Precio por gramo sí. Los gramos son **estimados** |
+| UWB opcional (sin montar en la primera tanda) | Qorvo DW3110 + antena chip + cristal | QM33110 (sucesor, sin precio); DW1000 descartado | Chip: US$ 6,64 @100 (LCSC; precio no confirmado en la revisión) / US$ 8,77 @100 (RFMW). Con antena, cristal, pasivos y armado: unos US$ 9–12 | [LCSC DW3110](https://www.lcsc.com/product-detail/C3040882.html) · [RFMW DW3110](https://www.rfmw.com/ProductDetail/DW3110-Qorvo/691974) · [Qorvo QM33110W](https://www.qorvo.com/products/p/QM33110W) | Chip sí. El resto, **no verificado** |
 
 ### Total por pod
 
@@ -31,6 +32,7 @@ Sin pasivos de detalle, chaleco ni banda de FC:
 - **Optimista, unos US$ 74–82:** LC29H(AA) + módulos Ebyte + LSM6DSV320X + antena Taoglas, con la **NAND de 2 Gbit** (la de 4 Gbit no tiene precio verificado). El rango va del PCB y la carcasa en su extremo bajo al alto. La antena se convirtió de € a US$ en forma aproximada.
 - **Pesimista, unos US$ 113 (los extremos altos de la tabla):** NEO-F10N-20 + RAK4630 + antena Linx, cuyo precio **no está verificado** (se tomó igual al de la Taoglas).
 - **Lo que más pesa es la antena GNSS de marca** (€19,87–21,03). Con el F10N, los US$ 80 se alcanzan solo con una antena L1/L5 activa china de US$ 4–8, cuyo precio no está verificado. Cambiar los Ebyte por el RAK4630 suma unos US$ 9–14.
+- **Con UWB montado** se suman unos US$ 9–12 por pod. Los totales de arriba son sin UWB.
 
 ## Equipo compartido
 
@@ -41,6 +43,7 @@ Sin pasivos de detalle, chaleco ni banda de FC:
 | Bases de carga y descarga (pogo + USB) | ~5 de 20 lugares | Diseño propio: costo **no verificado** | — |
 | Base GNSS propia para el PPK (el mismo módulo grabando crudo) | 1 por cancha | Costo de un pod sin IMU ni LoRa | — |
 | Chalecos con bolsillo entre los omóplatos | 100 o más (talles) | **No verificado** | — |
+| Anclas UWB (solo donde haya deporte bajo techo) | unas 4–6 en una cancha cubierta de 40 × 20 m (**no verificado**) | US$ 50–150 cada una en diseño propio, más la sincronización: **no verificado** | — |
 | Tablet del staff | 1 por cancha | La del club | — |
 
 **Quedan afuera del precio en origen:** la importación a Argentina (impuestos y régimen de courier, a revisar con un despachante), las vueltas de prototipo y la homologación ante ENACOM.
@@ -142,3 +145,4 @@ No se encontraron estudios de GNSS de doble banda de bajo costo en deportes. Lo 
 10. Los turnos en canales fijos podrían no cumplir las reglas de salto o permanencia de la norma.
 11. El packet forwarder del gateway tiene que dejar pasar tramas que no son LoRaWAN, con una sync word privada.
 12. **Privacidad:** son trazas de posición de menores. Van cifradas por el aire, sin nombres, la pantalla es solo para el staff, con consentimiento y retención definidos (ADR 0105).
+13. UWB: no se sabe si ENACOM permite UWB en los canales 5 y 9; el DW3110 estaba sin stock en LCSC y en RFMW y el QM33 no tiene precio relevado.

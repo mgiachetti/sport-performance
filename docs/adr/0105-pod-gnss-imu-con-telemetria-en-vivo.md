@@ -25,6 +25,7 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
 
 - **GNSS de doble banda L1 + L5** a 10 Hz, con las 4 constelaciones a la vez.
   - **Por qué doble banda:** medir en dos frecuencias cancela el retardo ionosférico y rechaza mejor el multicamino. En L5 se ven desde acá Galileo E5a, GPS L5 y BeiDou B2a. GLONASS aporta solo en L1.
+  - **Qué usa Catapult:** según las fotos internas de su presentación ante la FCC (2ADAL-S7401), que revisó el equipo, el Vector S7 lleva un **u-blox EVA-M8Q**, de una sola banda (L1), con 10 Hz en varias constelaciones o 18 Hz solo con GPS. Un receptor de doble banda puede igualarlo o superarlo en la medición cruda; lo que hay que alcanzar es su procesamiento.
   - **Por qué 10 Hz:** es la frecuencia de Catapult Vector. Subir a 18 o 25 Hz aporta poco frente a la precisión.
   - **Prototipo con dos candidatos:**
     - **u-blox NEO-F10N-00B-20, como opción principal.** Es la única variante del F10N con fase portadora (`UBX-RXM-RAWX`), con protocolo documentado y conversión a RINEX con RTKLIB. La -00B-00 no tiene salida cruda.
@@ -50,6 +51,17 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
   - El consumo estimado es de unos 40–50 mA: GNSS de 21–30 mA, nRF52840, LNA, IMU, NAND y unos pocos mA de promedio de LoRa.
   - Con 1000 mAh eso da unas 20 h, mucho más de lo necesario.
   - El banco mide el consumo real y decide: mantener 1000 mAh como margen (frío, envejecimiento, futura banda de FC) o bajar a unos 400–500 mAh para achicar el pod y el costo.
+- **UWB opcional para deportes bajo techo** (Qorvo DW3110 o su sucesor QM33, canales 5 y 9):
+  - La placa lleva **el lugar para el chip, su antena y su cristal**, sin montar en la tanda de 100. Montarlo después no obliga a rediseñar la placa **siempre que el lugar se haya probado**: algunos prototipos de B-909 lo llevan montado para validar el diseño de RF a 6,5–8 GHz.
+  - **Encapsulado:** el DW3110 es WLCSP, que puede exigir paso fino o vías en el pad en todas las placas aunque no se monte. Hay que comparar con el DW3210 o el QM33 en un encapsulado más simple antes de cerrar la placa (**no verificado**).
+  - **Para qué:** bajo techo (gimnasio, cancha cubierta, deportes indoor) no hay GNSS, y UWB da posición de 10–30 cm. Afuera, el GNSS de doble banda alcanza.
+  - **Costo estimado por pod si se monta:** unos US$ 9–12. El chip cuesta US$ 6,64 @100 en LCSC o US$ 8,77 @100 en RFMW, sin stock en ninguno de los dos al relevarlo; se suman antena chip, cristal, pasivos y el armado, cuyo costo **no está verificado**.
+  - **Modo TDoA:** el pod solo emite pulsos cortos y las anclas escuchan. El límite de potencia de UWB aplica a quien transmite, así que las anclas pueden usar antenas directivas de más ganancia **en recepción** y recuperar alcance. Si las anclas se sincronizan por el aire, esas tramas sí cuentan contra el límite. Las anclas van altas y alcanza con que cada pod vea al menos 4.
+  - **DW3000 y no DW1000, salvo que la prueba diga otra cosa:** consume cerca de un tercio, tiene seguridad 802.15.4z (STS), es más chico y es el producto vigente. El DW1000 tiene más alcance (modo de 110 kbps y canales bajos), pero esos canales tienen restricciones en varios países, y su ciclo de vida es un riesgo.
+    - Según las fotos internas de su presentación ante la FCC (2ADAL-S7401), que revisó el equipo, el Catapult Vector S7 usa un DW1000 con antena Taoglas. Es un diseño de 2019–2020, anterior al DW3000.
+    - B-911 compara los dos en el mismo lugar bajo techo, con el pod en la espalda de un jugador: alcance y proporción de paquetes recibidos.
+  - **Sin GNSS no hay hora para los turnos de LoRa.** Bajo techo, los pods toman la hora de una **baliza LoRa del gateway**: así el pod sigue solo emitiendo en UWB, sin el consumo de escuchar a las anclas.
+  - **Anclas e instalación** (unas 4–6 en una cancha cubierta de 40 × 20 m; **no verificado**) se compran solo para el lugar que las necesite. Quedan fuera del objetivo de US$ 80.
 - **Ubicación:** en un chaleco, **entre los omóplatos**, con la antena hacia arriba. Es la misma ubicación de Catapult, así lo medido se compara con primera.
 - **Objetivo de costo: US$ 80 por pod en origen, para 100 unidades.**
   - El relevamiento da unos **US$ 74–82** en el caso optimista: LC29H, módulos Ebyte, LSM6DSV320X, antena Taoglas y NAND de 2 Gbit, con el PCB y la carcasa en el extremo bajo o alto de su rango.
@@ -59,7 +71,7 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
 ### Telemetría en vivo
 
 - **Radio y banda:** LoRa en **915–928 MHz únicamente**. La Res. ENACOM 581/2018 declaró esa banda de uso compartido sin autorización para usarla (citada por la Res. 1132/2023). El tramo 902–915 MHz tiene otro régimen y no se usa. La potencia máxima en Argentina **no está verificada**: el pod se configura con la potencia que surja de la norma, no con la del plan AU915.
-- **Protocolo propio, no LoRaWAN, con turnos (TDMA)** sincronizados por la hora del GNSS: todos los pods la tienen al microsegundo con el PPS. Cada pod transmite en su turno, así los paquetes no chocan.
+- **Protocolo propio, no LoRaWAN, con turnos (TDMA)** sincronizados por la hora del GNSS: todos los pods la tienen al microsegundo con el PPS (bajo techo, con la baliza del gateway; ver UWB). Cada pod transmite en su turno, así los paquetes no chocan.
   - **Riesgo regulatorio:** canales fijos podrían no cumplir las reglas de salto de frecuencia o de tiempo de permanencia por canal de la norma Q2-63.03, parecidas a las de la FCC 15.247. La banda útil es de solo 13 MHz. Si la norma lo pide, cada trama cambia de canal siguiendo una secuencia conocida por todos. Es una pregunta explícita de B-903.
 - **Qué se transmite:** cada pod arma un resumen por segundo y manda **dos resúmenes juntos cada 2 s**, en unos 40 bytes. El resumen incluye:
   - metros recorridos;
@@ -111,9 +123,10 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
   Que RAMSAC rastree L5/E5a y si el servicio tiene costo están **no verificados**.
 - **Métodos:** el método es `pod` (CLAUDE.md, principio 4), con dos variantes que se guardan las dos:
   - `pod_live`: lo calculado en vivo con los resúmenes;
-  - `pod_ppk`: lo procesado después con el crudo y el PPK.
+  - `pod_ppk`: lo procesado después con el crudo y el PPK;
+  - `pod_uwb`: posición por UWB bajo techo, si se monta (B-911).
 
-  Los informes, el panel y las alertas usan `pod_ppk` cuando existe. Nunca se comparan las dos variantes, ni contra Catapult, sin avisar.
+  Los informes, el panel y las alertas usan `pod_ppk` cuando existe. Nunca se comparan las variantes entre sí, ni contra Catapult, sin avisar.
 - **Bandas de FC:** quedan diferidas, pero el firmware conserva el rol de central BLE para leer una banda estándar y retransmitirla por LoRa, sin cambiar el hardware.
 
 ## Alternativas descartadas
@@ -140,7 +153,7 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
   - el LSM6DSV320X tiene stock bajo.
 
   Los dos tienen respaldo definido.
-- **Firmware nuevo** (`firmware/`, en C): turnos LoRa sincronizados por el PPS, resumen por segundo, cifrado AES-CCM con contador, registro en NAND, descarga por la base y DFU.
+- **Firmware nuevo** (`firmware/`, en C): turnos LoRa sincronizados por el PPS (o por la baliza del gateway bajo techo), resumen por segundo, cifrado AES-CCM con contador, registro en NAND, descarga por la base y DFU.
 - **App:** tiene que recibir el gateway y mostrar la pantalla en vivo. Las métricas y señales del vivo son funciones nuevas del dominio, con tests, y las usan la tablet y el worker.
 - El ADR va asociado a B-901: `pnpm docs:check` exige un `B-xxx` en la línea del issue, y el epic #116 no tiene uno propio.
 - Este ADR queda **Propuesto** hasta que los tests de banco y de cancha confirmen el GNSS y la antena. Con esos datos se escribe un ADR que lo acepta o lo reemplaza.
