@@ -153,6 +153,17 @@ function today(overrides: Partial<PlayerTodayData> = {}): PlayerTodayData {
 
 const FIVE = ['sleep', 'fatigue', 'soreness', 'stress', 'mood'] as const;
 
+const doneWellness: PlayerTodayData['wellness'] = {
+  kind: 'form',
+  itemCount: 5,
+  items: FIVE,
+  entry: {
+    scores: { sleep: 4, fatigue: 3, soreness: 2, stress: 4, mood: 5 },
+    target: { clientUuid: 'd2222222-2222-4222-8222-222222222222' },
+    pending: false,
+  },
+};
+
 const percentile: PlayerPercentile = {
   metricCode: 'cmj_height_cm',
   testCode: 'cmj',
@@ -344,25 +355,45 @@ export const SCENE_RENDERERS: Readonly<Record<string, Scene>> = {
       actions={{ ...playerActions, onOpenMenstrualCycle: noop }}
     />
   )),
+  // Nothing pending: "Todo listo por hoy" on top, each entry in one collapsed line.
   'player-today-done': club(() => (
     <PlayerTodayScreen
       greeting="Hola, Tomás"
       state={{
         status: 'ready',
         data: today({
-          wellness: {
-            kind: 'form',
-            itemCount: 5,
-            items: FIVE,
-            entry: {
-              scores: { sleep: 4, fatigue: 3, soreness: 2, stress: 4, mood: 5 },
-              target: { clientUuid: 'd2222222-2222-4222-8222-222222222222' },
-              pending: false,
-            },
-          },
+          wellness: doneWellness,
           rpe: { allowed: true, sessions: [{ ...rpeSession, rpe: 6 }] },
           streak: { days: 12, includesToday: true },
         }),
+      }}
+      notice={null}
+      actions={playerActions}
+    />
+  )),
+  // The same day with the wellness line opened (pressed in `scene-list.ts`).
+  'player-today-done-open': club(() => (
+    <PlayerTodayScreen
+      greeting="Hola, Tomás"
+      state={{
+        status: 'ready',
+        data: today({
+          wellness: doneWellness,
+          rpe: { allowed: true, sessions: [{ ...rpeSession, rpe: 6 }] },
+          streak: { days: 12, includesToday: true },
+        }),
+      }}
+      notice={null}
+      actions={playerActions}
+    />
+  )),
+  // Wellness loaded, the RPE still to load: the RPE goes first and open.
+  'player-today-rpe-pending': club(() => (
+    <PlayerTodayScreen
+      greeting="Hola, Tomás"
+      state={{
+        status: 'ready',
+        data: today({ wellness: doneWellness, streak: { days: 12, includesToday: true } }),
       }}
       notice={null}
       actions={playerActions}

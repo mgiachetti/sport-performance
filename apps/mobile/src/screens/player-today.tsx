@@ -9,13 +9,24 @@ import {
   type TimeZone,
   type WellnessItem,
 } from '@sport-performance/domain';
-import { formatLocalDateLong, formatTime } from '@sport-performance/i18n';
+import {
+  formatLocalDateLong,
+  formatNumber,
+  formatTime,
+  type Translator,
+} from '@sport-performance/i18n';
 import { useState, type ReactNode } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { rpeLabel, testLabel, wellnessItemLabel } from '../player/format.ts';
 import type { WellnessStreak } from '../player/streak.ts';
+import {
+  todaySections,
+  wellnessMean,
+  type DoneItem,
+  type SecondaryRow,
+} from '../player/today-sections.ts';
 import type { RpeSession, TodayWellness } from '../player/today.ts';
-import { KpiRow, KpiTile, ListRow, StatusChip } from '../ui/blocks.tsx';
+import { ListRow, StatusChip } from '../ui/blocks.tsx';
 import { ChoiceButton, ChoiceGroup, Face } from '../ui/choices.tsx';
 import { useTranslator } from '../ui/i18n.tsx';
 import {
@@ -26,11 +37,13 @@ import {
   PendingMark,
   ScreenBody,
   ScreenHeader,
+  StatusIcon,
   StatusMessage,
   TextField,
 } from '../ui/primitives.tsx';
 import { useTheme } from '../ui/theme.tsx';
 
+type Translate = Translator['t'];
 type Scores = Partial<Record<WellnessItem, number | undefined>>;
 const LEVELS = [1, 2, 3, 4, 5] as const;
 const RPE_VALUES = Array.from(
@@ -160,11 +173,18 @@ function SentState({ pending }: { readonly pending: boolean }) {
   return pending ? <PendingMark accessibilityLabel={t('playerApp.pending')} /> : null;
 }
 
+type WellnessForm = Extract<WellnessSection, { kind: 'form' }>;
+
+/**
+ * Today's check-in: the open form while it is not loaded (the card the
+ * screen asks first); once loaded, the answers and "Corregir", shown under
+ * its collapsed line when the player opens it.
+ */
 function WellnessCard({
   section,
   actions,
 }: {
-  readonly section: WellnessSection;
+  readonly section: WellnessForm;
   readonly actions: PlayerTodayActions;
 }) {
   const { t } = useTranslator();
@@ -175,26 +195,13 @@ function WellnessCard({
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  if (section.kind === 'unavailable') {
-    return (
-      <Card title={t('wellness.title')}>
-        <StatusMessage level="warning">
-          {t(
-            section.reason === 'no_consent'
-              ? 'playerApp.wellness.noConsent'
-              : 'playerApp.wellness.noStage',
-          )}
-        </StatusMessage>
-      </Card>
-    );
-  }
   const faces = section.itemCount === 3;
   const { entry } = section;
 
   if (entry !== null && !correcting) {
+    // The pending mark and "¿Te duele algo?" live on the line and in the rows below.
     return (
-      <Card title={t('playerApp.wellness.today')}>
-        <StatusMessage level="ok">{t('wellness.submitted')}</StatusMessage>
+      <View style={{ gap: theme.spacing.md }}>
         <View>
           {section.items.map((item, index) => (
             <ListRow
@@ -219,14 +226,6 @@ function WellnessCard({
             />
           ))}
         </View>
-        <SentState pending={entry.pending} />
-        {actions.onOpenPainReport ? (
-          <Button
-            label={t('pain.title')}
-            accessibilityHint={t('pain.privacy')}
-            onPress={actions.onOpenPainReport}
-          />
-        ) : null}
         <Button
           variant="secondary"
           label={t('playerApp.wellness.correct')}
@@ -236,7 +235,7 @@ function WellnessCard({
             setProblem(null);
           }}
         />
-      </Card>
+      </View>
     );
   }
 
@@ -287,12 +286,8 @@ function WellnessCard({
       });
   };
 
-  return (
-    <Card
-      variant="highlight"
-      title={t('wellness.prompt')}
-      subtitle={t(faces ? 'playerApp.wellness.hintFaces' : 'playerApp.wellness.hintScale')}
-    >
+  const form = (
+    <>
       {section.items.map((item) => (
         <ItemScale
           key={item}
@@ -331,6 +326,18 @@ function WellnessCard({
           }}
         />
       ) : null}
+    </>
+  );
+  // A correction opens under its line, inside the card of what is done.
+  return entry !== null ? (
+    <View style={{ gap: theme.spacing.md }}>{form}</View>
+  ) : (
+    <Card
+      variant="highlight"
+      title={t('wellness.prompt')}
+      subtitle={t(faces ? 'playerApp.wellness.hintFaces' : 'playerApp.wellness.hintScale')}
+    >
+      {form}
     </Card>
   );
 }
@@ -383,14 +390,30 @@ function RpeScale({
   );
 }
 
+/** The session's name in the RPE card and on its collapsed line. */
+function rpeSessionTitle(t: Translate, item: RpeSession, timeZone: TimeZone): string {
+  return t('playerApp.rpe.session', {
+    kind: item.session.kind,
+    date: formatLocalDateLong(item.session.localDate, { year: false }),
+    time: formatTime(Date.parse(item.session.startsAt), { timeZone }),
+  });
+}
+
+/**
+ * One session to rate: the scale while it has no RPE; once rated, under its
+ * collapsed line (`inline`: the line already names it, says the RPE and
+ * whether it is sent), the load and "Corregir" while the window is open.
+ */
 function RpeSessionCard({
   item,
   timeZone,
   onSubmit,
+  inline = false,
 }: {
   readonly item: RpeSession;
   readonly timeZone: TimeZone;
   readonly onSubmit: PlayerTodayActions['onSubmitRpe'];
+  readonly inline?: boolean;
 }) {
   const { t } = useTranslator();
   const theme = useTheme();
@@ -399,11 +422,7 @@ function RpeSessionCard({
   const [reason, setReason] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const title = t('playerApp.rpe.session', {
-    kind: item.session.kind,
-    date: formatLocalDateLong(item.session.localDate, { year: false }),
-    time: formatTime(Date.parse(item.session.startsAt), { timeZone }),
-  });
+  const title = rpeSessionTitle(t, item, timeZone);
   const closes = {
     // The window closes at the end of a club day: name the day of the instant just before.
     date: formatLocalDateLong(localDateInTimeZone(Date.parse(item.closesAt) - 1, timeZone), {
@@ -440,21 +459,27 @@ function RpeSessionCard({
 
   return (
     <View
-      style={{
-        gap: theme.spacing.sm,
-        paddingTop: theme.spacing.sm,
-        borderTopWidth: theme.borderWidth.hairline,
-        borderTopColor: theme.colors.border.subtle,
-      }}
+      style={
+        inline
+          ? { gap: theme.spacing.sm }
+          : {
+              gap: theme.spacing.sm,
+              paddingTop: theme.spacing.sm,
+              borderTopWidth: theme.borderWidth.hairline,
+              borderTopColor: theme.colors.border.subtle,
+            }
+      }
     >
-      <AppText role="bodyStrong">{title}</AppText>
+      {inline ? null : <AppText role="bodyStrong">{title}</AppText>}
       {item.rpe !== null && !editing ? (
         <>
-          <AppText role="metric">{t('playerApp.rpe.value', { value: item.rpe })}</AppText>
+          {inline ? null : (
+            <AppText role="metric">{t('playerApp.rpe.value', { value: item.rpe })}</AppText>
+          )}
           {load !== null ? (
             <AppText tone="secondary">{t('rpe.sessionLoad', { load })}</AppText>
           ) : null}
-          <SentState pending={item.pending} />
+          {inline ? null : <SentState pending={item.pending} />}
         </>
       ) : null}
       {showScale ? (
@@ -506,56 +531,6 @@ function RpeSessionCard({
   );
 }
 
-function RpeCard({
-  data,
-  onSubmit,
-}: {
-  readonly data: PlayerTodayData;
-  readonly onSubmit: PlayerTodayActions['onSubmitRpe'];
-}) {
-  const { t } = useTranslator();
-  return (
-    <Card title={t('rpe.title')}>
-      {!data.rpe.allowed ? (
-        <StatusMessage level="warning">{t('playerApp.rpe.noConsent')}</StatusMessage>
-      ) : data.rpe.sessions.length === 0 ? (
-        <AppText tone="secondary">{t('playerApp.rpe.none')}</AppText>
-      ) : (
-        data.rpe.sessions.map((item) => (
-          <RpeSessionCard
-            key={item.session.id}
-            item={item}
-            timeZone={data.timeZone}
-            onSubmit={onSubmit}
-          />
-        ))
-      )}
-    </Card>
-  );
-}
-
-function StreakTile({ streak }: { readonly streak: WellnessStreak }) {
-  const { t } = useTranslator();
-  const title = t('playerApp.streak.title');
-  if (streak.days === 0) {
-    return <KpiTile label={title} value="0" caption={t('playerApp.streak.none')} />;
-  }
-  const caption = streak.includesToday ? null : t('playerApp.streak.keepAlive');
-  return (
-    <KpiTile
-      label={title}
-      value={String(streak.days)}
-      unit={t('playerApp.streak.unit', { days: streak.days })}
-      caption={caption}
-      // The streak alive today is the reward: outlined in the club color, and said in the caption.
-      highlighted={streak.includesToday}
-      accessibilityLabel={[`${title}: ${t('wellness.streak', { days: streak.days })}`, caption]
-        .filter(Boolean)
-        .join('. ')}
-    />
-  );
-}
-
 /** One upcoming test day: date, window and place, and the tests the battery schedules. */
 export function TestDaySummary({ day }: { readonly day: MyTestDay }) {
   const { t } = useTranslator();
@@ -582,9 +557,404 @@ export function TestDaySummary({ day }: { readonly day: MyTestDay }) {
 }
 
 /**
- * "Hoy" of the player (B-503): wellness and RPE on one screen, so both take
- * under 20 seconds; then the streak and the next test day. Everything here
- * reads the phone first and writes to the offline queue.
+ * What is done, in one line: the check icon and its text (never color alone),
+ * what was loaded, and the pending mark while it waits for signal. The line
+ * is a button that opens what is under it (to see or correct the entry).
+ */
+function DoneLine({
+  title,
+  subtitle,
+  pending,
+  expanded,
+  hint,
+  onToggle,
+}: {
+  readonly title: string;
+  readonly subtitle: string | null;
+  readonly pending: boolean;
+  readonly expanded: boolean;
+  readonly hint: string;
+  readonly onToggle: () => void;
+}) {
+  const { t } = useTranslator();
+  const theme = useTheme();
+  const [focused, setFocused] = useState(false);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      // Read as one sentence: a screen reader does not reach the texts inside a button.
+      accessibilityLabel={[title, subtitle, pending ? t('playerApp.pending') : null]
+        .filter(Boolean)
+        .join('. ')}
+      accessibilityHint={hint}
+      aria-expanded={expanded}
+      onPress={onToggle}
+      onFocus={() => {
+        setFocused(true);
+      }}
+      onBlur={() => {
+        setFocused(false);
+      }}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing.md,
+        minHeight: theme.sizes.touchTarget,
+        paddingVertical: theme.spacing.xs,
+        marginHorizontal: -theme.spacing.sm,
+        paddingHorizontal: theme.spacing.sm,
+        borderRadius: theme.radius.md,
+        borderWidth: theme.borderWidth.thick,
+        borderColor: focused ? theme.colors.focus : 'transparent',
+        backgroundColor: pressed ? theme.colors.brand.subtle : 'transparent',
+      })}
+    >
+      <StatusIcon level="ok" />
+      <View style={{ flex: 1, gap: theme.spacing.xxs }}>
+        <AppText role="bodyStrong">{title}</AppText>
+        {subtitle !== null ? (
+          <AppText role="bodySmall" tone="secondary">
+            {subtitle}
+          </AppText>
+        ) : null}
+        <SentState pending={pending} />
+      </View>
+      <Text
+        accessible={false}
+        importantForAccessibility="no"
+        style={[theme.text.title, { color: theme.colors.text.muted }]}
+      >
+        {expanded ? '−' : '+'}
+      </Text>
+    </Pressable>
+  );
+}
+
+/** A row of what is done, with its divider and, opened, what is under it. */
+function DoneRow({ first, children }: { readonly first: boolean; readonly children: ReactNode }) {
+  const theme = useTheme();
+  return (
+    <View
+      style={{
+        gap: theme.spacing.sm,
+        paddingTop: first ? 0 : theme.spacing.sm,
+        borderTopWidth: first ? 0 : theme.borderWidth.hairline,
+        borderTopColor: theme.colors.border.subtle,
+      }}
+    >
+      {children}
+    </View>
+  );
+}
+
+function DoneCard({
+  items,
+  data,
+  actions,
+  onToggle,
+}: {
+  readonly items: readonly DoneItem[];
+  readonly data: PlayerTodayData;
+  readonly actions: PlayerTodayActions;
+  readonly onToggle: (key: string) => void;
+}) {
+  const { t } = useTranslator();
+  const { wellness } = data;
+  return (
+    <Card>
+      {items.map((item, index) => {
+        const first = index === 0;
+        if (item.kind === 'rpeNone') {
+          return (
+            <DoneRow key={item.key} first={first}>
+              <AppText role="bodySmall" tone="muted">
+                {t('playerApp.rpe.none')}
+              </AppText>
+            </DoneRow>
+          );
+        }
+        if (item.kind === 'wellness') {
+          if (wellness.kind !== 'form' || wellness.entry === null) return null;
+          const mean = wellnessMean(wellness.items, wellness.entry.scores);
+          return (
+            <DoneRow key={item.key} first={first}>
+              <DoneLine
+                title={t('playerApp.today.wellnessDone')}
+                subtitle={
+                  mean === null
+                    ? null
+                    : t('playerApp.today.wellnessMean', {
+                        mean: formatNumber(mean, { maxDecimals: 1 }),
+                      })
+                }
+                pending={wellness.entry.pending}
+                expanded={item.expanded}
+                hint={t('playerApp.today.openHint')}
+                onToggle={() => {
+                  onToggle(item.key);
+                }}
+              />
+              {item.expanded ? <WellnessCard section={wellness} actions={actions} /> : null}
+            </DoneRow>
+          );
+        }
+        const session = data.rpe.sessions.find((entry) => entry.session.id === item.sessionId);
+        if (session === undefined || session.rpe === null) return null;
+        return (
+          <DoneRow key={item.key} first={first}>
+            <DoneLine
+              title={t('playerApp.today.rpeDone', { value: session.rpe })}
+              subtitle={rpeSessionTitle(t, session, data.timeZone)}
+              pending={session.pending}
+              expanded={item.expanded}
+              hint={t(session.canSubmit ? 'playerApp.today.openHint' : 'playerApp.today.viewHint')}
+              onToggle={() => {
+                onToggle(item.key);
+              }}
+            />
+            {item.expanded ? (
+              <RpeSessionCard
+                item={session}
+                timeZone={data.timeZone}
+                onSubmit={actions.onSubmitRpe}
+                inline
+              />
+            ) : null}
+          </DoneRow>
+        );
+      })}
+    </Card>
+  );
+}
+
+function StreakRow({
+  streak,
+  first,
+}: {
+  readonly streak: WellnessStreak;
+  readonly first: boolean;
+}) {
+  const { t } = useTranslator();
+  const theme = useTheme();
+  const title = t('playerApp.streak.title');
+  const caption =
+    streak.days === 0
+      ? t('playerApp.streak.none')
+      : streak.includesToday
+        ? null
+        : t('playerApp.streak.keepAlive');
+  return (
+    <ListRow
+      first={first}
+      title={title}
+      subtitle={caption}
+      accessibilityLabel={[`${title}: ${t('wellness.streak', { days: streak.days })}`, caption]
+        .filter(Boolean)
+        .join('. ')}
+      trailing={
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.xs }}>
+          {/* The streak alive today is the reward: its figure in the club accent. */}
+          <AppText role="metricSmall" tone={streak.includesToday ? 'accent' : 'primary'}>
+            {String(streak.days)}
+          </AppText>
+          <AppText role="unit" tone="secondary">
+            {t('playerApp.streak.unit', { days: streak.days })}
+          </AppText>
+        </View>
+      }
+    />
+  );
+}
+
+function NextTestDayRow({ day, first }: { readonly day: MyTestDay; readonly first: boolean }) {
+  const { t } = useTranslator();
+  const subtitle = [
+    formatLocalDateLong(day.scheduledOn, { year: false }),
+    day.testWindow?.label,
+    day.location,
+  ]
+    .filter((part): part is string => part !== null && part !== undefined)
+    .join(' · ');
+  return (
+    <ListRow first={first} title={t('playerApp.testDays.next')} subtitle={subtitle}>
+      {day.status === 'in_progress' ? (
+        <StatusChip level="warning" label={t('playerApp.testDays.inProgress')} />
+      ) : null}
+      <AppText role="bodySmall" tone="secondary">
+        {day.testCodes.length === 0
+          ? t('playerApp.testDays.noTests')
+          : t('playerApp.testDays.tests', {
+              tests: day.testCodes.map((code) => testLabel(t, code)).join(', '),
+            })}
+      </AppText>
+    </ListRow>
+  );
+}
+
+/** The secondary items, below what is pending and done: compact rows, not cards. */
+function SecondaryCard({
+  rows,
+  data,
+  actions,
+}: {
+  readonly rows: readonly SecondaryRow[];
+  readonly data: PlayerTodayData | null;
+  readonly actions: PlayerTodayActions;
+}) {
+  const { t } = useTranslator();
+  if (rows.length === 0) return null;
+  return (
+    <Card title={t('playerApp.today.more')}>
+      <View>
+        {rows.map((row, index) => {
+          const first = index === 0;
+          switch (row) {
+            case 'streak':
+              return data === null ? null : (
+                <StreakRow key={row} streak={data.streak} first={first} />
+              );
+            case 'nextTestDay':
+              return data?.nextTestDay ? (
+                <NextTestDayRow key={row} day={data.nextTestDay} first={first} />
+              ) : null;
+            case 'painReport':
+              return actions.onOpenPainReport ? (
+                <ListRow
+                  key={row}
+                  first={first}
+                  title={t('pain.title')}
+                  accessibilityHint={t('pain.privacy')}
+                  onPress={actions.onOpenPainReport}
+                />
+              ) : null;
+            case 'externalLoad':
+              return actions.onOpenExternalLoad ? (
+                <ListRow
+                  key={row}
+                  first={first}
+                  title={t('externalLoad.open')}
+                  subtitle={t('externalLoad.open.hint')}
+                  onPress={actions.onOpenExternalLoad}
+                />
+              ) : null;
+            case 'menstrualCycle':
+              return actions.onOpenMenstrualCycle ? (
+                <ListRow
+                  key={row}
+                  first={first}
+                  title={t('cycle.title')}
+                  subtitle={t('cycle.open.hint')}
+                  onPress={actions.onOpenMenstrualCycle}
+                />
+              ) : null;
+          }
+        })}
+      </View>
+    </Card>
+  );
+}
+
+/** The sections of a ready "Hoy", in the order `todaySections` gives. */
+function TodaySections({
+  data,
+  actions,
+}: {
+  readonly data: PlayerTodayData;
+  readonly actions: PlayerTodayActions;
+}) {
+  const { t } = useTranslator();
+  const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set());
+  const toggle = (key: string) => {
+    setOpened((current) => {
+      const next = new Set(current);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
+  };
+  const sections = todaySections({
+    wellness: data.wellness,
+    rpe: data.rpe,
+    hasNextTestDay: data.nextTestDay !== null,
+    offers: {
+      painReport: Boolean(actions.onOpenPainReport),
+      externalLoad: Boolean(actions.onOpenExternalLoad),
+      menstrualCycle: Boolean(actions.onOpenMenstrualCycle),
+    },
+    opened,
+  });
+  return (
+    <>
+      {sections.map((section) => {
+        switch (section.kind) {
+          case 'allDone':
+            return (
+              <StatusMessage key="allDone" level="ok">
+                {t('playerApp.today.allDone')}
+              </StatusMessage>
+            );
+          case 'wellnessForm':
+            return data.wellness.kind === 'form' ? (
+              <WellnessCard key="wellnessForm" section={data.wellness} actions={actions} />
+            ) : null;
+          case 'rpeForm':
+            return (
+              <Card key="rpeForm" variant="highlight" title={t('rpe.title')}>
+                {data.rpe.sessions
+                  .filter((item) => section.sessionIds.includes(item.session.id))
+                  .map((item) => (
+                    <RpeSessionCard
+                      key={item.session.id}
+                      item={item}
+                      timeZone={data.timeZone}
+                      onSubmit={actions.onSubmitRpe}
+                    />
+                  ))}
+              </Card>
+            );
+          case 'wellnessBlocked':
+            return (
+              <Card key="wellnessBlocked" title={t('wellness.title')}>
+                <StatusMessage level="warning">
+                  {t(
+                    section.reason === 'no_consent'
+                      ? 'playerApp.wellness.noConsent'
+                      : 'playerApp.wellness.noStage',
+                  )}
+                </StatusMessage>
+              </Card>
+            );
+          case 'rpeBlocked':
+            return (
+              <Card key="rpeBlocked" title={t('rpe.title')}>
+                <StatusMessage level="warning">{t('playerApp.rpe.noConsent')}</StatusMessage>
+              </Card>
+            );
+          case 'done':
+            return (
+              <DoneCard
+                key="done"
+                items={section.items}
+                data={data}
+                actions={actions}
+                onToggle={toggle}
+              />
+            );
+          case 'secondary':
+            return (
+              <SecondaryCard key="secondary" rows={section.rows} data={data} actions={actions} />
+            );
+        }
+      })}
+    </>
+  );
+}
+
+/**
+ * "Hoy" of the player (B-503), ordered by status (ADR 0104): what is pending
+ * today first and open, so wellness and RPE take under 20 seconds; what is
+ * done in one line each (tap to see or correct); the streak, the next test
+ * day and the entry points below as rows. Everything here reads the phone
+ * first and writes to the offline queue.
  */
 export function PlayerTodayScreen({
   greeting,
@@ -619,43 +989,19 @@ export function PlayerTodayScreen({
         <>
           <StatusMessage level="critical">{state.message}</StatusMessage>
           <Button variant="secondary" label={t('common.retry')} onPress={actions.onRetry} />
+          {/* What does not need today's data stays at hand. */}
+          <SecondaryCard
+            rows={[
+              ...(actions.onOpenExternalLoad ? (['externalLoad'] as const) : []),
+              ...(actions.onOpenMenstrualCycle ? (['menstrualCycle'] as const) : []),
+            ]}
+            data={null}
+            actions={actions}
+          />
         </>
       ) : (
-        <>
-          <WellnessCard section={state.data.wellness} actions={actions} />
-          <RpeCard data={state.data} onSubmit={actions.onSubmitRpe} />
-          <KpiRow>
-            <StreakTile streak={state.data.streak} />
-          </KpiRow>
-          <Card title={t('playerApp.testDays.next')}>
-            {state.data.nextTestDay === null ? (
-              <AppText tone="secondary">{t('playerApp.testDays.none')}</AppText>
-            ) : (
-              <TestDaySummary day={state.data.nextTestDay} />
-            )}
-          </Card>
-        </>
+        <TodaySections data={state.data} actions={actions} />
       )}
-      {actions.onOpenExternalLoad || actions.onOpenMenstrualCycle ? (
-        <Card>
-          {actions.onOpenExternalLoad ? (
-            <ListRow
-              first
-              title={t('externalLoad.open')}
-              subtitle={t('externalLoad.open.hint')}
-              onPress={actions.onOpenExternalLoad}
-            />
-          ) : null}
-          {actions.onOpenMenstrualCycle ? (
-            <ListRow
-              first={!actions.onOpenExternalLoad}
-              title={t('cycle.title')}
-              subtitle={t('cycle.open.hint')}
-              onPress={actions.onOpenMenstrualCycle}
-            />
-          ) : null}
-        </Card>
-      ) : null}
       <AppText role="caption" tone="muted">
         {t('legal.notMedicalDevice')}
       </AppText>
