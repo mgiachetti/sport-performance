@@ -190,6 +190,19 @@ describe('CoachSessionSheetScreen', () => {
     expect(props.onFillPresent).toHaveBeenCalled();
   });
 
+  it('says nothing of a plain available player, in any tab', () => {
+    sheet({
+      roster: {
+        status: 'ready',
+        staleSince: null,
+        players: [player({ availability: { status: 'available', staffNotes: [] } })],
+      },
+    });
+    expect(screen.queryByText(t('coachSession.player.availability.available'))).toBeNull();
+    openTab(t('coachSession.tabs.minutes'));
+    expect(screen.queryByText(t('coachSession.player.availability.available'))).toBeNull();
+  });
+
   it('shows availability without the cause, the staff notes, and read-only players', () => {
     sheet({
       roster: {

@@ -300,10 +300,10 @@ interface PlayerRowHandlers {
 /**
  * What the coach must know of a player in every tab: availability (without
  * the cause) and the staff notes, playing while unavailable, why they cannot
- * be loaded. Outside attendance a plain "available" is left out: only what
- * warns.
+ * be loaded. A plain "available" is left out in every tab: only what warns
+ * (ADR 0103).
  */
-function PlayerWarnings({ player, tab }: { readonly player: SheetPlayer; readonly tab: SheetTab }) {
+function PlayerWarnings({ player }: { readonly player: SheetPlayer }) {
   const { t } = useTranslator();
   const availability = player.availability;
   return (
@@ -313,7 +313,7 @@ function PlayerWarnings({ player, tab }: { readonly player: SheetPlayer; readonl
           {t('coachSession.player.calledUp')}
         </AppText>
       ) : null}
-      {availability !== null && (tab === 'attendance' || availability.status !== 'available') ? (
+      {availability !== null && availability.status !== 'available' ? (
         <Tag level={AVAILABILITY_LEVEL[availability.status] ?? 'warning'}>
           {t(`coachSession.player.availability.${availability.status}`)}
         </Tag>
@@ -550,7 +550,7 @@ function PlayerRow({
       <AppText role="bodyStrong" accessibilityRole="header">
         {name}
       </AppText>
-      <PlayerWarnings player={player} tab={tab} />
+      <PlayerWarnings player={player} />
       {tab === 'attendance' ? (
         <StatusChoice
           name={name}

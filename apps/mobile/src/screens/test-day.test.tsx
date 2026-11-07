@@ -64,28 +64,28 @@ function station(sheet: TestDaySheet, synced = [sprintResult(ANA_ID)]) {
 }
 
 describe('TestDayListScreen', () => {
-  it('lists the days, says which ones work without signal and opens one', () => {
+  it('lists the days, marks only an upcoming day not downloaded and opens one', () => {
     const onOpen = vi.fn();
     const later = testSession({ id: 'c2222222-2222-4222-8222-222222222222' as never });
     renderScreen(
       <TestDayListScreen
-        state={{ status: 'ready', upcoming: [testSession(), later], recent: [] }}
+        state={{
+          status: 'ready',
+          upcoming: [testSession(), later],
+          recent: [testSession({ id: 'd3333333-3333-4333-8333-333333333333' as never })],
+        }}
         categoryName={() => 'M15'}
         windowName={(id) => (id === null ? t('testDay.window.none') : 'V2')}
         savedSheets={new Map([[SESSION_ID, Date.UTC(2026, 3, 14, 12, 0)]])}
-        timeZone={DEFAULT_CLUB_TIME_ZONE}
         onOpen={onOpen}
       />,
     );
-    // The window of each day and when its saved sheet was last updated.
-    expect(
-      screen.getByText(t('fieldTest.day.offlineReadyAt', { date: '14/04/2026 09:00' })),
-    ).toBeDefined();
+    // A downloaded sheet and a past day say nothing; only the upcoming day without its sheet.
+    expect(screen.getAllByText(t('fieldTest.day.notDownloadedShort'))).toHaveLength(1);
+    expect(screen.getByLabelText(t('fieldTest.day.notDownloaded'))).toBeDefined();
     expect(screen.getAllByText(`V2 · ${t('testDay.status.in_progress')}`).length).toBeGreaterThan(
       0,
     );
-    expect(screen.getByText(t('fieldTest.day.notDownloaded'))).toBeDefined();
-    expect(screen.getByText(t('testDay.list.emptyPast'))).toBeDefined();
     fireEvent.click(
       must(
         screen.getAllByRole('button', {

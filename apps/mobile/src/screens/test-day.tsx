@@ -227,7 +227,6 @@ export function TestDayListScreen({
   categoryName,
   windowName,
   savedSheets,
-  timeZone,
   sync,
   onOpen,
 }: {
@@ -237,12 +236,13 @@ export function TestDayListScreen({
   readonly windowName: (testWindowId: string | null) => string;
   /** When the sheet of each day saved on the phone was downloaded (epoch ms), by day. */
   readonly savedSheets: ReadonlyMap<string, number>;
-  readonly timeZone: TimeZone;
   readonly sync?: ReactNode;
   readonly onOpen: (testSessionId: string) => void;
 }) {
   const { t } = useTranslator();
-  const day = (session: TestSession) => {
+  // Quiet like the sync status (ADR 0103): a saved sheet says nothing; only an
+  // upcoming day not downloaded yet gets a small mark, so it is opened with signal.
+  const day = (session: TestSession, upcoming: boolean) => {
     const category = categoryName(session.categoryId);
     const window = windowName(session.testWindowId);
     const date = formatLocalDate(session.scheduledOn);
@@ -257,13 +257,12 @@ export function TestDayListScreen({
           onOpen(session.id);
         }}
       >
-        <StatusMessage level={savedAt === undefined ? 'warning' : 'ok'}>
-          {savedAt === undefined
-            ? t('fieldTest.day.notDownloaded')
-            : t('fieldTest.day.offlineReadyAt', {
-                date: formatDateTime(savedAt, { timeZone }),
-              })}
-        </StatusMessage>
+        {upcoming && savedAt === undefined ? (
+          <PendingMark
+            text={t('fieldTest.day.notDownloadedShort')}
+            accessibilityLabel={t('fieldTest.day.notDownloaded')}
+          />
+        ) : null}
       </OpenRow>
     );
   };
@@ -284,7 +283,7 @@ export function TestDayListScreen({
           {state.upcoming.length === 0 ? (
             <AppText tone="secondary">{t('testDay.list.emptyUpcoming')}</AppText>
           ) : (
-            state.upcoming.map(day)
+            state.upcoming.map((session) => day(session, true))
           )}
           <AppText role="overline" tone="secondary" accessibilityRole="header">
             {t('testDay.list.past')}
@@ -292,7 +291,7 @@ export function TestDayListScreen({
           {state.recent.length === 0 ? (
             <AppText tone="secondary">{t('testDay.list.emptyPast')}</AppText>
           ) : (
-            state.recent.map(day)
+            state.recent.map((session) => day(session, false))
           )}
         </>
       )}

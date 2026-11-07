@@ -12,8 +12,8 @@ export const mobileTestDayMessagesEsAR = {
     'Elegí el día para cargar los tests en la cancha. Los días de hoy y de la semana se guardan en el teléfono para usarlos sin señal.',
   'fieldTest.list.loading': 'Cargando los días de test…',
   'fieldTest.day.open': 'Abrir el día de test del {date}, {category}, {window}',
-  'fieldTest.day.offlineReadyAt': 'Disponible sin señal · planilla actualizada el {date}',
-  'fieldTest.day.notDownloaded': 'Sin descargar: abrilo una vez con señal',
+  'fieldTest.day.notDownloaded': 'Sin descargar: abrilo una vez con conexión',
+  'fieldTest.day.notDownloadedShort': 'Sin descargar',
   'fieldTest.day.back': 'Volver a los días de test',
   'fieldTest.day.loading': 'Cargando la planilla del día…',
   'fieldTest.day.unavailableOffline':

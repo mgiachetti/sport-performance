@@ -486,10 +486,17 @@ export function ClockIcon({ size, color }: { readonly size?: number; readonly co
  * The quiet mark of an item that waits on the phone to be sent (ADR 0103):
  * a small clock and a short text, muted, inline. A synced item shows nothing.
  */
-export function PendingMark({ accessibilityLabel }: { readonly accessibilityLabel?: string }) {
+export function PendingMark({
+  accessibilityLabel,
+  text: shown,
+}: {
+  readonly accessibilityLabel?: string;
+  /** The visible text; "Sin enviar" by default. */
+  readonly text?: string;
+}) {
   const theme = useTheme();
   const { t } = useTranslator();
-  const text = t('sync.item.pending');
+  const text = shown ?? t('sync.item.pending');
   return (
     <View
       accessible

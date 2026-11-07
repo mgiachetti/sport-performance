@@ -58,7 +58,7 @@ export const mobileExternalLoadMessagesEsAR = {
     'Tocá Borrar de nuevo para confirmar. Deja de sumar a tu carga y no se puede deshacer.',
   'externalLoad.archived': 'Borrada: ya no suma a tu carga.',
   'externalLoad.timeZoneUnknown':
-    'Sin señal todavía no sabemos el horario del club: usamos el del teléfono para el día.',
+    'Sin conexión todavía no sabemos el horario del club: usamos el del teléfono para el día.',
   'sync.op.external_load.report': 'Actividad fuera del club',
   'sync.op.external_load.correct': 'Corrección de una actividad fuera del club',
   'sync.op.external_load.archive': 'Borrado de una actividad fuera del club',
