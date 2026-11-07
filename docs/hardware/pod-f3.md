@@ -29,8 +29,9 @@ Este documento acompaña al [ADR 0105](../adr/0105-pod-gnss-imu-con-telemetria-e
 
 Sin pasivos de detalle, chaleco ni banda de FC:
 
-- **Optimista, unos US$ 74–82:** LC29H(AA) + módulos Ebyte + LSM6DSV320X + antena Taoglas, con la **NAND de 2 Gbit** (la de 4 Gbit no tiene precio verificado). El rango va del PCB y la carcasa en su extremo bajo al alto. La antena se convirtió de € a US$ en forma aproximada.
-- **Pesimista, unos US$ 113 (los extremos altos de la tabla):** NEO-F10N-20 + RAK4630 + antena Linx, cuyo precio **no está verificado** (se tomó igual al de la Taoglas).
+- **Optimista y de la decisión, unos US$ 74–82:** LC29H(AA) + módulos Ebyte + LSM6DSV320X + antena Taoglas, con la **NAND de 2 Gbit** (la de 4 Gbit no tiene precio verificado). El rango va del PCB y la carcasa en su extremo bajo al alto. La antena se convirtió de € a US$ en forma aproximada.
+- **Con la EA:** se suma la diferencia con la AA, unos US$ 12–15 por pod (**no verificado**: la EA no tiene precio relevado, y la referencia es la DA a €20,53 @100).
+- **Pesimista, unos US$ 113 (los extremos altos de la tabla), solo como referencia:** NEO-F10N-20 + RAK4630 + antena Linx, cuyo precio **no está verificado** (se tomó igual al de la Taoglas).
 - **Lo que más pesa es la antena GNSS de marca** (€19,87–21,03). Con el F10N, los US$ 80 se alcanzan solo con una antena L1/L5 activa china de US$ 4–8, cuyo precio no está verificado. Cambiar los Ebyte por el RAK4630 suma unos US$ 9–14.
 - **Con UWB montado** se suman unos US$ 9–12 por pod. Los totales de arriba son sin UWB.
 
@@ -116,8 +117,8 @@ No se encontraron estudios de GNSS de doble banda de bajo costo en deportes. Lo 
 
 ## Plan de prototipos
 
-1. **Banco** (unos US$ 700–980 en origen; 2–4 semanas). La lista de compras y el protocolo están en [`banco-gnss.md`](banco-gnss.md):
-   - LC29H(AA) ×2, LC29H(EA), LG290P como base y referencia, y NEO-F10N para comparar, con las antenas Taoglas, un RAK4631 (WisBlock) y una placa con el LSM6DSV320X.
+1. **Banco** (unos US$ 810–1.090 en origen; 2–4 semanas). La lista de compras y el protocolo están en [`banco-gnss.md`](banco-gnss.md):
+   - LC29H(AA) ×2, LC29H(EA), dos LG290P (base en trípode y referencia en el chaleco), y NEO-F10N para comparar, con las antenas Taoglas, un RAK4631 (WisBlock) y una placa con el LSM6DSV320X.
    - **Medir:**
      - si el AA saca crudo, a qué tasa y si la configuración persiste;
      - el RTK de la EA con el LG290P de base: % de "fixed" y bytes/s de RTCM;
