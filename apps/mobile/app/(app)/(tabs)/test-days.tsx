@@ -298,7 +298,6 @@ function TestDaysOf({
         categoryName={categoryName}
         windowName={windowName}
         savedSheets={saved}
-        timeZone={timeZone}
         sync={sync}
         onOpen={(id) => {
           setStationCode(null);
