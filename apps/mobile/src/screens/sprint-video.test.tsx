@@ -41,11 +41,11 @@ describe('HomeScreen: sprint by video', () => {
     const onOpen = vi.fn();
     const props = { userName: 'Ana', membership: SC, clubTheme: null, offline: false };
     const { unmount } = renderScreen(<HomeScreen {...props} onOpenSprintVideo={onOpen} />);
-    fireEvent.click(screen.getByRole('button', { name: t('sprintVideo.open') }));
+    fireEvent.click(screen.getByRole('button', { name: t('sprintVideo.title') }));
     expect(onOpen).toHaveBeenCalled();
     unmount();
     renderScreen(<HomeScreen {...props} />);
-    expect(screen.queryByRole('button', { name: t('sprintVideo.open') })).toBeNull();
+    expect(screen.queryByRole('button', { name: t('sprintVideo.title') })).toBeNull();
   });
 });
 

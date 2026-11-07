@@ -45,11 +45,11 @@ describe('HomeScreen', () => {
     const onOpen = vi.fn();
     const props = { userName: 'Ana', membership: COACH_AT_ORC, clubTheme: null, offline: false };
     const { unmount } = renderScreen(<HomeScreen {...props} onOpenAnthropometry={onOpen} />);
-    fireEvent.click(screen.getByRole('button', { name: t('anthropometry.field.open') }));
+    fireEvent.click(screen.getByRole('button', { name: t('home.tile.anthropometry') }));
     expect(onOpen).toHaveBeenCalled();
     unmount();
     renderScreen(<HomeScreen {...props} />);
-    expect(screen.queryByRole('button', { name: t('anthropometry.field.open') })).toBeNull();
+    expect(screen.queryByRole('button', { name: t('home.tile.anthropometry') })).toBeNull();
   });
 });
 

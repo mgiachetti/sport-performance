@@ -54,11 +54,11 @@ describe('HomeScreen', () => {
     const onOpen = vi.fn();
     const props = { userName: 'Ana', membership: COACH_AT_ORC, clubTheme: null, offline: false };
     const { unmount } = renderScreen(<HomeScreen {...props} onOpenReaction={onOpen} />);
-    fireEvent.click(screen.getByRole('button', { name: t('reaction.open') }));
+    fireEvent.click(screen.getByRole('button', { name: t('home.tile.reaction') }));
     expect(onOpen).toHaveBeenCalled();
     unmount();
     renderScreen(<HomeScreen {...props} />);
-    expect(screen.queryByRole('button', { name: t('reaction.open') })).toBeNull();
+    expect(screen.queryByRole('button', { name: t('home.tile.reaction') })).toBeNull();
   });
 });
 

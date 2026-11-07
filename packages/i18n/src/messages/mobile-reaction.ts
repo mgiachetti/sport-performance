@@ -5,7 +5,6 @@
  * catalog; same rules as `es-AR.ts`.
  */
 export const mobileReactionMessagesEsAR = {
-  'reaction.open': 'Test de reacción',
   'reaction.open.hint': 'Simple y go/no-go en este teléfono, sin conexión.',
   'reaction.title': 'Test de reacción',
   'reaction.notAllowed':

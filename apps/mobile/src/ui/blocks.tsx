@@ -411,7 +411,7 @@ function Segment({
   );
 }
 
-/** A small label over a group inside a card ("Herramientas de cancha"). */
+/** A small label over a group of a screen or a card ("Tests en cancha"). */
 export function SectionLabel({ children }: { readonly children: string }) {
   return (
     <AppText role="tableHeader" tone="secondary" accessibilityRole="header">

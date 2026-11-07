@@ -455,6 +455,7 @@ export const SCENE_RENDERERS: Readonly<Record<string, Scene>> = {
       onOpenAnthropometry={noop}
       onOpenCmjVideo={noop}
       onOpenKiosk={noop}
+      onOpenProtocols={noop}
     />
   )),
   'staff-board': club(() => {

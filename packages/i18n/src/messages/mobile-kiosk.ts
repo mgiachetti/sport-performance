@@ -6,7 +6,6 @@
  */
 export const mobileKioskMessagesEsAR = {
   // Entry from Inicio (staff)
-  'kiosk.open': 'Abrir el modo kiosco',
   'kiosk.open.hint':
     'Para una tablet o un celular del club: los jugadores sin celular cargan su bienestar y su RPE, sin ver datos de nadie.',
 
