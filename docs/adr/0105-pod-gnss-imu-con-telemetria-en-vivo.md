@@ -25,6 +25,7 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
 
 - **GNSS de doble banda L1 + L5** a 10 Hz, con las 4 constelaciones a la vez.
   - **Por qué doble banda:** medir en dos frecuencias cancela el retardo ionosférico y rechaza mejor el multicamino. En L5 se ven desde acá Galileo E5a, GPS L5 y BeiDou B2a. GLONASS aporta solo en L1.
+  - **Qué usa Catapult:** según las fotos internas de su presentación ante la FCC (2ADAL-S7401), que revisó el equipo, el Vector S7 lleva un **u-blox EVA-M8Q**, de una sola banda (L1), con 10 Hz en varias constelaciones o 18 Hz solo con GPS. Un receptor de doble banda puede igualarlo o superarlo en la medición cruda; lo que hay que alcanzar es su procesamiento.
   - **Por qué 10 Hz:** es la frecuencia de Catapult Vector. Subir a 18 o 25 Hz aporta poco frente a la precisión.
   - **Prototipo con dos candidatos:**
     - **u-blox NEO-F10N-00B-20, como opción principal.** Es la única variante del F10N con fase portadora (`UBX-RXM-RAWX`), con protocolo documentado y conversión a RINEX con RTKLIB. La -00B-00 no tiene salida cruda.
