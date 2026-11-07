@@ -5,6 +5,7 @@ import {
   WELLNESS_SCORE_MAX,
   WELLNESS_SCORE_MIN,
   localDateInTimeZone,
+  wellnessMeanScore,
   type LocalDate,
   type TimeZone,
   type WellnessItem,
@@ -15,13 +16,13 @@ import {
   formatTime,
   type Translator,
 } from '@sport-performance/i18n';
-import { useState, type ReactNode } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { AccessibilityInfo, Pressable, Text, View } from 'react-native';
 import { rpeLabel, testLabel, wellnessItemLabel } from '../player/format.ts';
 import type { WellnessStreak } from '../player/streak.ts';
 import {
+  sectionKey,
   todaySections,
-  wellnessMean,
   type DoneItem,
   type SecondaryRow,
 } from '../player/today-sections.ts';
@@ -85,8 +86,9 @@ export interface PlayerTodayActions {
   readonly onSubmitRpe: (sessionId: string, rpe: number, reason: string | null) => Promise<void>;
   readonly onRetry: () => void;
   /**
-   * "¿Te duele algo?" after the check-in (B-609): only when the club asks it
-   * and the player has the health consent; `null` (or absent) hides it.
+   * "¿Te duele algo?" (B-609): a row of the secondary list once today's
+   * check-in is loaded, only when the club asks it and the player has the
+   * health consent; `null` (or absent) hides it.
    */
   readonly onOpenPainReport?: (() => void) | null;
   /** "Otra actividad" (B-511): a load outside the club, also offline; `null` hides it. */
@@ -175,6 +177,20 @@ function SentState({ pending }: { readonly pending: boolean }) {
 
 type WellnessForm = Extract<WellnessSection, { kind: 'form' }>;
 
+/** Tells the parent whether a correction is open (and that it closed, on unmount). */
+function useReportEditing(
+  editing: boolean,
+  onEditingChange: ((editing: boolean) => void) | undefined,
+): void {
+  useEffect(() => {
+    if (onEditingChange === undefined) return;
+    onEditingChange(editing);
+    return () => {
+      onEditingChange(false);
+    };
+  }, [editing, onEditingChange]);
+}
+
 /**
  * Today's check-in: the open form while it is not loaded (the card the
  * screen asks first); once loaded, the answers and "Corregir", shown under
@@ -183,14 +199,18 @@ type WellnessForm = Extract<WellnessSection, { kind: 'form' }>;
 function WellnessCard({
   section,
   actions,
+  onEditingChange,
 }: {
   readonly section: WellnessForm;
   readonly actions: PlayerTodayActions;
+  /** Whether a correction is open, so its line is not closed under the draft. */
+  readonly onEditingChange?: (editing: boolean) => void;
 }) {
   const { t } = useTranslator();
   const theme = useTheme();
   const [answers, setAnswers] = useState<Scores>({});
   const [correcting, setCorrecting] = useState(false);
+  useReportEditing(correcting, onEditingChange);
   const [reason, setReason] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -409,16 +429,20 @@ function RpeSessionCard({
   timeZone,
   onSubmit,
   inline = false,
+  onEditingChange,
 }: {
   readonly item: RpeSession;
   readonly timeZone: TimeZone;
   readonly onSubmit: PlayerTodayActions['onSubmitRpe'];
   readonly inline?: boolean;
+  /** Whether a correction is open, so its line is not closed under the draft. */
+  readonly onEditingChange?: (editing: boolean) => void;
 }) {
   const { t } = useTranslator();
   const theme = useTheme();
   const [selected, setSelected] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
+  useReportEditing(editing, onEditingChange);
   const [reason, setReason] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -652,11 +676,13 @@ function DoneCard({
   data,
   actions,
   onToggle,
+  onEditingChange,
 }: {
   readonly items: readonly DoneItem[];
   readonly data: PlayerTodayData;
   readonly actions: PlayerTodayActions;
   readonly onToggle: (key: string) => void;
+  readonly onEditingChange: (key: string, editing: boolean) => void;
 }) {
   const { t } = useTranslator();
   const { wellness } = data;
@@ -675,7 +701,11 @@ function DoneCard({
         }
         if (item.kind === 'wellness') {
           if (wellness.kind !== 'form' || wellness.entry === null) return null;
-          const mean = wellnessMean(wellness.items, wellness.entry.scores);
+          const { scores } = wellness.entry;
+          // The mean the alert rules evaluate; a check-in always has an answer, but never throw here.
+          const mean = wellness.items.some((entry) => scores[entry] !== undefined)
+            ? wellnessMeanScore(scores)
+            : null;
           return (
             <DoneRow key={item.key} first={first}>
               <DoneLine
@@ -694,7 +724,15 @@ function DoneCard({
                   onToggle(item.key);
                 }}
               />
-              {item.expanded ? <WellnessCard section={wellness} actions={actions} /> : null}
+              {item.expanded ? (
+                <WellnessCard
+                  section={wellness}
+                  actions={actions}
+                  onEditingChange={(editing) => {
+                    onEditingChange(item.key, editing);
+                  }}
+                />
+              ) : null}
             </DoneRow>
           );
         }
@@ -718,6 +756,9 @@ function DoneCard({
                 timeZone={data.timeZone}
                 onSubmit={actions.onSubmitRpe}
                 inline
+                onEditingChange={(editing) => {
+                  onEditingChange(item.key, editing);
+                }}
               />
             ) : null}
           </DoneRow>
@@ -802,11 +843,26 @@ function SecondaryCard({
   readonly actions: PlayerTodayActions;
 }) {
   const { t } = useTranslator();
-  if (rows.length === 0) return null;
+  // Only the rows that draw something: never an empty "Además" card.
+  const shown = rows.filter((row) => {
+    switch (row) {
+      case 'streak':
+        return data !== null;
+      case 'nextTestDay':
+        return Boolean(data?.nextTestDay);
+      case 'painReport':
+        return Boolean(actions.onOpenPainReport);
+      case 'externalLoad':
+        return Boolean(actions.onOpenExternalLoad);
+      case 'menstrualCycle':
+        return Boolean(actions.onOpenMenstrualCycle);
+    }
+  });
+  if (shown.length === 0) return null;
   return (
     <Card title={t('playerApp.today.more')}>
       <View>
-        {rows.map((row, index) => {
+        {shown.map((row, index) => {
           const first = index === 0;
           switch (row) {
             case 'streak':
@@ -864,7 +920,14 @@ function TodaySections({
 }) {
   const { t } = useTranslator();
   const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set());
+  // Lines with a correction open: tapping them keeps them open, so the draft is not lost.
+  const editing = useRef(new Set<string>());
+  const setEditing = (key: string, value: boolean) => {
+    if (value) editing.current.add(key);
+    else editing.current.delete(key);
+  };
   const toggle = (key: string) => {
+    if (editing.current.has(key)) return;
     setOpened((current) => {
       const next = new Set(current);
       if (!next.delete(key)) next.add(key);
@@ -882,8 +945,43 @@ function TodaySections({
     },
     opened,
   });
+
+  // A form that was pending and is now a done line unmounts (focus goes with
+  // it): say it was saved, out loud and on screen, as the old card did.
+  const pendingKeys = sections
+    .flatMap((section) =>
+      section.kind === 'wellnessForm'
+        ? [sectionKey({ kind: 'wellness' })]
+        : section.kind === 'rpeForm'
+          ? section.sessionIds.map((sessionId) => sectionKey({ kind: 'rpe', sessionId }))
+          : [],
+    )
+    .join('|');
+  const doneKeys = sections
+    .flatMap((section) => (section.kind === 'done' ? section.items.map((item) => item.key) : []))
+    .join('|');
+  const previousPending = useRef(pendingKeys);
+  const [justSaved, setJustSaved] = useState<'wellness' | 'rpe' | null>(null);
+  useEffect(() => {
+    const before = previousPending.current;
+    previousPending.current = pendingKeys;
+    const done = new Set(doneKeys.split('|'));
+    const saved = before.split('|').filter((key) => key !== '' && done.has(key));
+    if (saved.length === 0) return;
+    const kind = saved.includes(sectionKey({ kind: 'wellness' })) ? 'wellness' : 'rpe';
+    setJustSaved(kind);
+    AccessibilityInfo.announceForAccessibility(
+      t(kind === 'wellness' ? 'wellness.submitted' : 'playerApp.today.rpeSubmitted'),
+    );
+  }, [pendingKeys, doneKeys, t]);
+
   return (
     <>
+      {justSaved !== null ? (
+        <StatusMessage level="ok">
+          {t(justSaved === 'wellness' ? 'wellness.submitted' : 'playerApp.today.rpeSubmitted')}
+        </StatusMessage>
+      ) : null}
       {sections.map((section) => {
         switch (section.kind) {
           case 'allDone':
@@ -937,6 +1035,7 @@ function TodaySections({
                 data={data}
                 actions={actions}
                 onToggle={toggle}
+                onEditingChange={setEditing}
               />
             );
           case 'secondary':

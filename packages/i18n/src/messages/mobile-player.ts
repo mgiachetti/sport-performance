@@ -23,6 +23,8 @@ export const mobilePlayerMessagesEsAR = {
   'playerApp.today.wellnessDone': 'Bienestar cargado',
   'playerApp.today.wellnessMean': 'Promedio {mean} de 5',
   'playerApp.today.rpeDone': 'RPE cargado: {value}',
+  // Said and shown when the RPE form closes into its line (the wellness one reuses `wellness.submitted`).
+  'playerApp.today.rpeSubmitted': '¡Listo! Gracias por cargar tu RPE.',
   'playerApp.today.openHint': 'Tocá para ver o corregir',
   'playerApp.today.viewHint': 'Tocá para verlo',
   'playerApp.today.more': 'Además',

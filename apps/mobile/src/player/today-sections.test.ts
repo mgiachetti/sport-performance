@@ -1,7 +1,7 @@
 import { localDate } from '@sport-performance/domain';
 import { describe, expect, it } from 'vitest';
 import type { RpeSession } from './today.ts';
-import { todaySections, wellnessMean, type TodaySectionsInput } from './today-sections.ts';
+import { todaySections, type TodaySectionsInput } from './today-sections.ts';
 
 const ITEMS = ['sleep', 'fatigue', 'soreness'] as const;
 
@@ -176,13 +176,5 @@ describe('todaySections', () => {
       kind: 'secondary',
       rows: ['streak', 'nextTestDay', 'painReport', 'externalLoad', 'menstrualCycle'],
     });
-  });
-});
-
-describe('wellnessMean', () => {
-  it('averages the answered items', () => {
-    expect(wellnessMean(ITEMS, { sleep: 4, fatigue: 3, soreness: 2 })).toBe(3);
-    expect(wellnessMean(ITEMS, { sleep: 4 })).toBe(4);
-    expect(wellnessMean(ITEMS, {})).toBeNull();
   });
 });

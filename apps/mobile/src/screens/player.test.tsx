@@ -3,6 +3,8 @@ import type { MyTestDay, PlayerConsents, PlayerPercentile } from '@sport-perform
 import { localDate, parseTimeZone } from '@sport-performance/domain';
 import { formatLocalDateLong } from '@sport-performance/i18n';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
+import { AccessibilityInfo } from 'react-native';
 import { describe, expect, it, vi } from 'vitest';
 import type { RpeSession } from '../player/today.ts';
 import { renderScreen, translator } from '../test/render.tsx';
@@ -260,7 +262,117 @@ describe('PlayerTodayScreen: ordered by status', () => {
     expect(screen.getByText(t('playerApp.rpe.none'))).toBeDefined();
     expect(screen.queryByRole('radiogroup', { name: t('rpe.prompt') })).toBeNull();
   });
+
+  it('puts a pending RPE first and the done wellness line after it', () => {
+    renderToday({ wellness: LOADED });
+    const send = screen.getByRole('button', { name: t('playerApp.rpe.send') });
+    const line = screen.getByRole('button', { name: WELLNESS_LINE });
+    expect(before(send, line)).toBe(true);
+    expect(screen.queryByText(t('playerApp.today.allDone'))).toBeNull();
+  });
+
+  it('announces a saved check-in as its form folds into a line, and then the RPE', async () => {
+    const announce = vi.spyOn(AccessibilityInfo, 'announceForAccessibility');
+    announce.mockClear();
+    renderScreen(<StatefulToday />);
+    expect(screen.queryByText(t('wellness.submitted'))).toBeNull();
+    fireEvent.click(screen.getByRole('radio', { name: 'Sueño: Bien' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Fatiga: Normal' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Dolor muscular: Muy bien' }));
+    fireEvent.click(screen.getByRole('button', { name: t('playerApp.wellness.send') }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: WELLNESS_LINE })).toBeDefined();
+    });
+    expect(screen.queryByRole('button', { name: t('playerApp.wellness.send') })).toBeNull();
+    expect(screen.getByText(t('wellness.submitted'))).toBeDefined();
+    expect(announce).toHaveBeenCalledWith(t('wellness.submitted'));
+
+    fireEvent.click(screen.getByRole('radio', { name: 'RPE 7: Muy duro' }));
+    fireEvent.click(screen.getByRole('button', { name: t('playerApp.rpe.send') }));
+    await waitFor(() => {
+      expect(screen.getByText(t('playerApp.today.rpeSubmitted'))).toBeDefined();
+    });
+    expect(announce).toHaveBeenCalledWith(t('playerApp.today.rpeSubmitted'));
+    expect(screen.getByText(t('playerApp.today.allDone'))).toBeDefined();
+    announce.mockRestore();
+  });
+
+  it('keeps an opened line open while its correction is in progress', () => {
+    renderToday({ wellness: LOADED, rpe: { allowed: true, sessions: [] } });
+    const line = screen.getByRole('button', { name: WELLNESS_LINE });
+    fireEvent.click(line);
+    fireEvent.click(screen.getByRole('button', { name: t('playerApp.wellness.correct') }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Sueño: Mal' }));
+    fireEvent.change(screen.getByLabelText(t('playerApp.reason.label')), {
+      target: { value: 'Toqué mal' },
+    });
+    fireEvent.click(line);
+    expect(line.getAttribute('aria-expanded')).toBe('true');
+    // The draft is still there: the reason typed before the tap.
+    expect(screen.getByLabelText<HTMLInputElement>(t('playerApp.reason.label')).value).toBe(
+      'Toqué mal',
+    );
+    fireEvent.click(screen.getByRole('button', { name: t('common.cancel') }));
+    fireEvent.click(line);
+    expect(line.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('draws no empty "Además" card', () => {
+    renderScreen(
+      <PlayerTodayScreen
+        greeting="Hola, Tomás"
+        state={{ status: 'error', message: 'Sin datos' }}
+        notice={null}
+        actions={actions()}
+      />,
+    );
+    expect(screen.queryByText(t('playerApp.today.more'))).toBeNull();
+  });
 });
+
+/** "Hoy" over its own state: what the player sends is laid over at once, as the queue does. */
+function StatefulToday() {
+  const [today, setToday] = useState(data());
+  const handlers: PlayerTodayActions = {
+    ...actions(),
+    onSubmitWellness: (scores) => {
+      setToday((current) => ({
+        ...current,
+        wellness: {
+          kind: 'form',
+          itemCount: 3,
+          items: ['sleep', 'fatigue', 'soreness'],
+          entry: {
+            scores,
+            target: { clientUuid: 'd9999999-9999-4999-8999-999999999999' },
+            pending: true,
+          },
+        },
+      }));
+      return Promise.resolve();
+    },
+    onSubmitRpe: (sessionId, rpe) => {
+      setToday((current) => ({
+        ...current,
+        rpe: {
+          allowed: true,
+          sessions: current.rpe.sessions.map((item) =>
+            item.session.id === sessionId ? { ...item, rpe, pending: true } : item,
+          ),
+        },
+      }));
+      return Promise.resolve();
+    },
+  };
+  return (
+    <PlayerTodayScreen
+      greeting="Hola, Tomás"
+      state={{ status: 'ready', data: today }}
+      notice={null}
+      actions={handlers}
+    />
+  );
+}
 
 describe('PlayerTodayScreen: RPE, streak and next test day', () => {
   it('sends the CR-10 RPE of a session', async () => {

@@ -107,7 +107,7 @@ export function todaySections(input: TodaySectionsInput): TodaySection[] {
 
   const rows: SecondaryRow[] = ['streak'];
   if (input.hasNextTestDay) rows.push('nextTestDay');
-  // "¿Te duele algo?" follows the check-in (B-609): offered once it is loaded.
+  // "¿Te duele algo?" (B-609) follows the check-in: a row here once today's is loaded.
   if (input.offers.painReport && wellnessDone) rows.push('painReport');
   if (input.offers.externalLoad) rows.push('externalLoad');
   if (input.offers.menstrualCycle) rows.push('menstrualCycle');
@@ -121,16 +121,4 @@ export function todaySections(input: TodaySectionsInput): TodaySection[] {
   if (done.length > 0) sections.push({ kind: 'done', items: done });
   sections.push({ kind: 'secondary', rows });
   return sections;
-}
-
-/** The mean of today's answers, for the collapsed line ("promedio 3,7 de 5"). */
-export function wellnessMean(
-  items: readonly WellnessItem[],
-  scores: TodayWellness['scores'],
-): number | null {
-  const values = items
-    .map((item) => scores[item])
-    .filter((value): value is number => value !== undefined);
-  if (values.length === 0) return null;
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
