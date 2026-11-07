@@ -53,6 +53,7 @@ import {
 } from '../../src/coach-session/view.ts';
 import {
   CoachSessionSheetScreen,
+  sheetSegmentScope,
   type RosterState,
   type SaveNotice,
 } from '../../src/screens/coach-session.tsx';
@@ -264,7 +265,7 @@ export default function CoachSession() {
 
   return (
     <CoachSessionSheetScreen
-      segmentScope={membershipId}
+      segmentScope={sheetSegmentScope(membershipId, trainingSessionId)}
       title={sessionTitle(sessionDto, categoryName(club, sessionDto.categoryId), translator)}
       when={sessionWhen(sessionDto, timeZone, translator)}
       plannedMinutes={sessionDto.plannedDurationMin}

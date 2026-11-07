@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, screen } from '@testing-library/react';
+import { useState } from 'react';
+import { Pressable, Text } from 'react-native';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderScreen, translator } from '../test/render.tsx';
 import {
@@ -38,6 +40,24 @@ function Screen({
         onChange={setTab}
       />
       <TabPanel label={tab}>{`panel ${tab}`}</TabPanel>
+    </>
+  );
+}
+
+/** The same mounted screen changing its scope, as a club switch without a remount. */
+function Switcher() {
+  const [scope, setScope] = useState('m1');
+  return (
+    <>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => {
+          setScope('m2');
+        }}
+      >
+        <Text>Cambiar de club</Text>
+      </Pressable>
+      <Screen scope={scope} />
     </>
   );
 }
@@ -129,6 +149,16 @@ describe('useRememberedSegment', () => {
 
     renderScreen(<Screen scope="m1" values={['a', 'b']} />);
     expect(screen.getByRole('tab', { name: 'Récords', selected: true })).toBeDefined();
+  });
+
+  it('reads the value of a new key while the screen stays mounted (another club)', () => {
+    const first = renderScreen(<Screen scope="m2" />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Historial' }));
+    first.unmount();
+    renderScreen(<Switcher />);
+    fireEvent.click(screen.getByRole('tab', { name: /^Próximos/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar de club' }));
+    expect(screen.getByRole('tab', { name: 'Historial', selected: true })).toBeDefined();
   });
 
   it('keys a screen by its membership, or a placeholder before choosing a club', () => {

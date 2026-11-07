@@ -308,7 +308,7 @@ function PlayerWarnings({ player, tab }: { readonly player: SheetPlayer; readonl
   const availability = player.availability;
   return (
     <>
-      {tab === 'attendance' && player.calledUp ? (
+      {player.calledUp ? (
         <AppText role="bodySmall" tone="secondary">
           {t('coachSession.player.calledUp')}
         </AppText>
@@ -339,7 +339,11 @@ function PlayerWarnings({ player, tab }: { readonly player: SheetPlayer; readonl
   );
 }
 
-/** Minutes, the on/off-field button of the clock, the periods and the RPE the player reported. */
+/**
+ * The on/off-field button of the clock (whenever there is a clock: a player
+ * on the field marked absent must still be taken off), the minutes and their
+ * periods (only with a status that carries load) and the RPE they reported.
+ */
 function MinutesControls({
   player,
   onMinutes,
@@ -353,8 +357,11 @@ function MinutesControls({
   const { t } = useTranslator();
   const { row, name } = player;
   const editable = player.readOnly === null;
+  const noLoad = row.status !== '' && !participationCarriesLoad(row.status);
   return (
     <>
+      {/* While on the field the clock rewrites the status when it finishes: no "no load" then. */}
+      {noLoad && player.field?.on !== true ? <NoLoad status={row.status} /> : null}
       <View
         style={{
           flexDirection: 'row',
@@ -363,25 +370,27 @@ function MinutesControls({
           flexWrap: 'wrap',
         }}
       >
-        <View style={{ flex: 1, minWidth: 120 }}>
-          <TextField
-            label={t('coachSession.player.minutes')}
-            value={row.minutes}
-            onChangeText={(text) => {
-              onMinutes(player.id, text);
-            }}
-            error={
-              player.errors.includes('minutes')
-                ? t('coachSession.player.error.minutes', { max: PARTICIPATION_MINUTES_MAX })
-                : null
-            }
-            inputProps={{
-              keyboardType: 'number-pad',
-              editable,
-              accessibilityLabel: t('coachSession.player.minutesOf', { name }),
-            }}
-          />
-        </View>
+        {noLoad ? null : (
+          <View style={{ flex: 1, minWidth: 120 }}>
+            <TextField
+              label={t('coachSession.player.minutes')}
+              value={row.minutes}
+              onChangeText={(text) => {
+                onMinutes(player.id, text);
+              }}
+              error={
+                player.errors.includes('minutes')
+                  ? t('coachSession.player.error.minutes', { max: PARTICIPATION_MINUTES_MAX })
+                  : null
+              }
+              inputProps={{
+                keyboardType: 'number-pad',
+                editable,
+                accessibilityLabel: t('coachSession.player.minutesOf', { name }),
+              }}
+            />
+          </View>
+        )}
         {player.field === null || !editable ? null : (
           <View style={{ flex: 1, minWidth: 140, gap: theme.spacing.xs }}>
             <Tag level={player.field.on ? 'ok' : 'warning'}>
@@ -406,7 +415,7 @@ function MinutesControls({
           </View>
         )}
       </View>
-      {row.periods === undefined || row.periods === '' ? null : (
+      {noLoad || row.periods === undefined || row.periods === '' ? null : (
         <AppText role="bodySmall" tone="secondary">
           {t('coachSession.player.periods', {
             periods: row.periods.split(',').join(' · '),
@@ -428,6 +437,16 @@ function MinutesControls({
         </AppText>
       ) : null}
     </>
+  );
+}
+
+/** A status without load (absent, unavailable): nothing to load in minutes or contacts. */
+function NoLoad({ status }: { readonly status: ParticipationStatus }) {
+  const { t } = useTranslator();
+  return (
+    <AppText role="bodySmall" tone="secondary">
+      {t('coachSession.row.noLoad', { status: t(`coachSession.status.${status}`) })}
+    </AppText>
   );
 }
 
@@ -541,16 +560,14 @@ function PlayerRow({
             handlers.onStatus(player.id, status);
           }}
         />
-      ) : row.status !== '' && !participationCarriesLoad(row.status) ? (
-        <AppText role="bodySmall" tone="secondary">
-          {t('coachSession.row.noLoad', { status: t(`coachSession.status.${row.status}`) })}
-        </AppText>
       ) : tab === 'minutes' ? (
         <MinutesControls
           player={player}
           onMinutes={handlers.onMinutes}
           onToggleField={handlers.onToggleField}
         />
+      ) : row.status !== '' && !participationCarriesLoad(row.status) ? (
+        <NoLoad status={row.status} />
       ) : (
         <ContactsControls
           player={player}
@@ -629,6 +646,11 @@ function ClockCard({
       )}
     </Card>
   );
+}
+
+/** The scope of the remembered tab of one session's sheet in one membership. */
+export function sheetSegmentScope(membershipId: string | null, sessionId: string): string | null {
+  return membershipId === null ? null : `${membershipId}/${sessionId}`;
 }
 
 export type RosterState =
@@ -715,7 +737,10 @@ export function CoachSessionSheetScreen({
   readonly onSave: () => void;
   readonly onDiscard: () => void;
   readonly onCancelDiscard: () => void;
-  /** The membership whose last tab the sheet remembers (ADR 0104). */
+  /**
+   * Where the sheet remembers its last tab (ADR 0104): the membership and the
+   * session (`sheetSegmentScope`), so a new session opens on attendance.
+   */
   readonly segmentScope?: string | null;
   /** The tab before the coach picks one in this app session. */
   readonly initialTab?: SheetTab;

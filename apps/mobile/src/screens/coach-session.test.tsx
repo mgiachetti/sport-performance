@@ -5,7 +5,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SheetPlayer } from '../coach-session/view.ts';
 import { renderScreen, translator } from '../test/render.tsx';
 import { forgetRememberedSegments } from '../ui/segmented-tabs.tsx';
-import { CoachSessionListScreen, CoachSessionSheetScreen } from './coach-session.tsx';
+import {
+  CoachSessionListScreen,
+  CoachSessionSheetScreen,
+  sheetSegmentScope,
+} from './coach-session.tsx';
 
 const { t } = translator;
 
@@ -432,6 +436,61 @@ describe('CoachSessionSheetScreen', () => {
     expect(
       screen.getByRole('tab', { name: t('coachSession.tabs.minutes'), selected: true }),
     ).toBeTruthy();
+  });
+
+  it('opens another session on attendance', () => {
+    const first = renderScreen(
+      <CoachSessionSheetScreen {...sheetProps()} segmentScope={sheetSegmentScope('m1', 's1')} />,
+    );
+    openTab(t('coachSession.tabs.minutes'));
+    first.unmount();
+    renderScreen(
+      <CoachSessionSheetScreen {...sheetProps()} segmentScope={sheetSegmentScope('m1', 's2')} />,
+    );
+    expect(
+      screen.getByRole('tab', { name: t('coachSession.tabs.attendance'), selected: true }),
+    ).toBeTruthy();
+  });
+
+  it('takes off the field a player on it marked absent', () => {
+    const props = sheet({
+      clock: { status: 'running', elapsedS: 600, onField: 1, periods: 0 },
+      roster: {
+        status: 'ready',
+        staleSince: null,
+        players: [
+          player({
+            row: { status: 'absent', minutes: '', contacts: '' },
+            field: { on: true, minutes: 10 },
+          }),
+        ],
+      },
+    });
+    openTab(t('coachSession.tabs.minutes'));
+    expect(screen.getByText(t('coachSession.player.onField', { minutes: 10 }))).toBeTruthy();
+    // On the field, the clock rewrites the status when it finishes: no "no load" yet.
+    expect(
+      screen.queryByText(t('coachSession.row.noLoad', { status: t('coachSession.status.absent') })),
+    ).toBeNull();
+    expect(
+      screen.queryByLabelText(t('coachSession.player.minutesOf', { name: 'Pérez, Juan' })),
+    ).toBeNull();
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: t('coachSession.player.goOutOf', { name: 'Pérez, Juan' }),
+      }),
+    );
+    expect(props.onToggleField).toHaveBeenCalledWith('a');
+  });
+
+  it('says who is called up from another category in every tab', () => {
+    sheet({
+      roster: { status: 'ready', staleSince: null, players: [player({ calledUp: true })] },
+    });
+    for (const tab of ['attendance', 'minutes', 'contacts'] as const) {
+      openTab(t(`coachSession.tabs.${tab}`));
+      expect(screen.getByText(t('coachSession.player.calledUp')), tab).toBeTruthy();
+    }
   });
 
   it('says the roster is not on the phone instead of an empty sheet', () => {

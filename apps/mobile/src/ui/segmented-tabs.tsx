@@ -1,6 +1,7 @@
 import { useCallback, useState, type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useTranslator } from './i18n.tsx';
+import { rememberSegment, rememberedSegment } from './segment-memory.ts';
 import { useTheme } from './theme.tsx';
 
 /**
@@ -22,45 +23,36 @@ export interface TabSegment<T extends string> {
   readonly badge?: TabBadge | null;
 }
 
-/**
- * The selected segment of each screen for the app session (ADR 0104): leaving
- * "Mis tests" on "Historial" and coming back finds it there. In memory only,
- * keyed by the screen and the membership, so another club starts fresh.
- */
-const remembered = new Map<string, string>();
+export { forgetRememberedSegments, segmentKey } from './segment-memory.ts';
 
-/** The key of a screen's tabs in one membership (`null` before choosing a club). */
-export function segmentKey(screen: string, membershipId: string | null | undefined): string {
-  return `${membershipId ?? '-'}:${screen}`;
-}
-
-/** Forgets every remembered segment (tests; a sign-out could call it too). */
-export function forgetRememberedSegments(): void {
-  remembered.clear();
+function storedOr<T extends string>(key: string, values: readonly T[], initial: T): T {
+  const stored = rememberedSegment(key);
+  if (stored !== undefined && (values as readonly string[]).includes(stored)) return stored as T;
+  return values.includes(initial) ? initial : (values[0] ?? initial);
 }
 
 /**
- * The selected segment of a screen, kept for the app session under `key`.
- * A remembered value that the screen no longer offers (the contacts tab of a
- * sport without contacts) falls back to `initial`.
+ * The selected segment of a screen, kept for the app session under `key`
+ * (`segmentKey`). A remembered value that the screen no longer offers (the
+ * contacts tab of a sport without contacts) falls back to `initial`. A new
+ * key (another club, another session) reads its own value even when the
+ * screen stays mounted.
  */
 export function useRememberedSegment<T extends string>(
   key: string,
   values: readonly T[],
   initial: T,
 ): readonly [T, (value: T) => void] {
-  const [state, setState] = useState<T>(() => {
-    const stored = remembered.get(key);
-    return stored !== undefined && (values as readonly string[]).includes(stored)
-      ? (stored as T)
-      : initial;
-  });
-  const fallback = values.includes(initial) ? initial : (values[0] ?? initial);
-  const value = values.includes(state) ? state : fallback;
+  const [state, setState] = useState<{ readonly key: string; readonly value: T }>(() => ({
+    key,
+    value: storedOr(key, values, initial),
+  }));
+  const chosen = state.key === key ? state.value : storedOr(key, values, initial);
+  const value = values.includes(chosen) ? chosen : storedOr(key, values, initial);
   const select = useCallback(
     (next: T) => {
-      remembered.set(key, next);
-      setState(next);
+      rememberSegment(key, next);
+      setState({ key, value: next });
     },
     [key],
   );
@@ -156,7 +148,9 @@ function Tab<T extends string>({
         // 48 dp, the Android minimum (over the 44 pt of iOS): a thumb on the field.
         minHeight: theme.sizes.touchTarget + theme.spacing.xs,
         minWidth: theme.sizes.touchTarget,
+        flexWrap: 'wrap',
         paddingHorizontal: theme.spacing.sm,
+        paddingVertical: theme.spacing.xs,
         alignItems: 'center',
         justifyContent: 'center',
         gap: theme.spacing.xs,
@@ -174,7 +168,8 @@ function Tab<T extends string>({
             : 'transparent',
       })}
     >
-      <Text numberOfLines={1} style={[theme.text.button, { color: ink, flexShrink: 1 }]}>
+      {/* Wraps instead of truncating at large font scales. */}
+      <Text style={[theme.text.button, { color: ink, flexShrink: 1, textAlign: 'center' }]}>
         {selected ? `✓ ${segment.label}` : segment.label}
       </Text>
       {badge !== null ? <Badge badge={badge} selected={selected} /> : null}
@@ -202,7 +197,7 @@ function Badge({ badge, selected }: { readonly badge: TabBadge; readonly selecte
       accessibilityElementsHidden
       style={{
         minWidth: theme.sizes.statusIcon + theme.spacing.xs,
-        height: theme.sizes.statusIcon + theme.spacing.xs,
+        minHeight: theme.sizes.statusIcon + theme.spacing.xs,
         paddingHorizontal: theme.spacing.xs,
         borderRadius: theme.radius.pill,
         alignItems: 'center',
@@ -210,7 +205,7 @@ function Badge({ badge, selected }: { readonly badge: TabBadge; readonly selecte
         backgroundColor: background,
       }}
     >
-      <Text style={[theme.text.caption, { color: ink, fontWeight: '700' }]}>
+      <Text style={[theme.text.tableHeader, { color: ink }]}>
         {critical ? `! ${String(badge.count)}` : String(badge.count)}
       </Text>
     </View>
