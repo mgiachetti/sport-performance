@@ -50,6 +50,14 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
   - El consumo estimado es de unos 40–50 mA: GNSS de 21–30 mA, nRF52840, LNA, IMU, NAND y unos pocos mA de promedio de LoRa.
   - Con 1000 mAh eso da unas 20 h, mucho más de lo necesario.
   - El banco mide el consumo real y decide: mantener 1000 mAh como margen (frío, envejecimiento, futura banda de FC) o bajar a unos 400–500 mAh para achicar el pod y el costo.
+- **UWB opcional para deportes bajo techo** (Qorvo DW3110 o su sucesor QM33, canales 5 y 9):
+  - La placa lleva **el lugar para el chip, su antena y su cristal**, sin montar en la primera tanda. Montarlo en una tanda posterior no obliga a rediseñar la placa.
+  - **Para qué:** bajo techo (gimnasio, cancha cubierta, deportes indoor) no hay GNSS, y UWB da posición de 10–30 cm. Afuera, el GNSS de doble banda alcanza.
+  - **Costo estimado por pod si se monta:** unos US$ 9–12. El chip cuesta US$ 6,64 @100 en LCSC (sin stock al relevarlo) o US$ 8,77 @100 en RFMW; se suman antena chip, cristal, pasivos y el armado, cuyo costo **no está verificado**.
+  - **Modo TDoA:** el pod solo emite pulsos cortos y las anclas escuchan. El límite de potencia de UWB aplica a quien transmite, así que las anclas pueden usar antenas directivas de más ganancia y recuperar alcance. Las anclas van altas y alcanza con que cada pod vea al menos 4.
+  - **DW3000 y no DW1000:** consume cerca de un tercio, tiene seguridad 802.15.4z (STS), es más chico y es el producto vigente. El DW1000 tiene más alcance (modo de 110 kbps y canales bajos), pero esos canales tienen restricciones en varios países, y su ciclo de vida es un riesgo.
+  - **Sin GNSS no hay hora para los turnos de LoRa.** Bajo techo, los pods se sincronizan con la red de anclas UWB o con una baliza del gateway.
+  - **Anclas e instalación** (8–12 en una cancha de 100 × 70 m, menos en una cancha cubierta) se compran solo para el lugar que las necesite. Quedan fuera del objetivo de US$ 80.
 - **Ubicación:** en un chaleco, **entre los omóplatos**, con la antena hacia arriba. Es la misma ubicación de Catapult, así lo medido se compara con primera.
 - **Objetivo de costo: US$ 80 por pod en origen, para 100 unidades.**
   - El relevamiento da unos **US$ 74–82** en el caso optimista: LC29H, módulos Ebyte, LSM6DSV320X, antena Taoglas y NAND de 2 Gbit, con el PCB y la carcasa en el extremo bajo o alto de su rango.

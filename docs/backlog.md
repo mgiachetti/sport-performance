@@ -47,7 +47,7 @@
 | M7 · Producción y piloto | Deploy, monitoreo, tiendas, privacidad, piloto |
 | M8 · Hockey y femenino | Batería, posiciones, umbrales y módulos específicos |
 | F2 · Hardware compartido | Epic (se desglosa más adelante) |
-| F3 · Pod GNSS + IMU | Pod propio con telemetría en vivo (B-901 a B-910) |
+| F3 · Pod GNSS + IMU | Pod propio con telemetría en vivo (B-901 a B-911) |
 
 ---
 
@@ -227,6 +227,7 @@ Arquitectura, partes y plan en el [ADR 0105](adr/0105-pod-gnss-imu-con-telemetri
 - **B-908 Pipeline del pod en el worker** · `area:worker`. Filtrado, PPK contra la base propia o RAMSAC, zonas, aceleraciones, `accel_load_au` y contactos. Se guardan las dos variantes del método `pod`, `pod_live` y `pod_ppk`, y los informes usan `pod_ppk`. Las trazas de posición tienen su retención propia y las cubren los derechos del titular. Contactos y scrums solo en rugby.
 - **B-909 Placa propia, carcasa y chalecos** · `area:hardware`. 2–3 vueltas en JLCPCB con 4 capas, carcasa MJF con junta y chaleco con bolsillo entre los omóplatos.
 - **B-910 Piloto de 10 pods y tanda de 100** · `area:hardware` `type:club` `blocked` (B-902, B-903). Piloto en vivo en una categoría y compra de los 100, con la importación revisada por un despachante.
+- **B-911 UWB para deportes bajo techo** · `area:hardware` `area:firmware` `type:research`. La placa deja el lugar para el DW3110 o el QM33, sin montar. Cuando haya un deporte bajo techo: verificar si ENACOM permite UWB en los canales 5 y 9, probar TDoA con anclas propias, sincronizar los turnos de LoRa sin GNSS y montar el chip en esa tanda (unos US$ 9–12 por pod).
 
 ## Fuera de alcance
 
