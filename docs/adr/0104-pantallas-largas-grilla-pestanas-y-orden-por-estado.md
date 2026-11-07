@@ -45,9 +45,11 @@ Las mismas reglas valen para la web. Las pestañas de la web son los enlaces de 
   - Arriba, siempre a la vista, quedan la cabecera y las tres tarjetas cortas: disponibilidad, maduración (con el aviso de pico de crecimiento) e historial de alertas.
   - Debajo van las pestañas "Carga · Evolución · Percentiles · Gimnasio".
   - Solo aparecen las pestañas que el rol puede ver. Si puede ver una sola, no hay barra.
-  - Si hay una alerta de ACWR activa, Carga lleva la insignia "Alerta" (ícono + texto). La alerta también está en el historial, a la vista.
+  - Una pestaña lleva la insignia de estado de la peor alerta abierta cuyos datos muestra. La insignia es la misma del resto de la web: ícono + "Atención" o "Crítico", según la severidad. Carga la lleva por ACWR y por bienestar; Evolución, por la caída del CMJ. Esas alertas también están en el historial, a la vista.
+  - En el panel semanal, el nombre de un jugador con una alerta abre la ficha en la pestaña de esa alerta.
   - Un bloque que está detrás de una pestaña no se pide hasta que se abre.
-- **Memoria:** si la URL no trae `?tab=`, se abre la última pestaña usada en esa pantalla, por club (`src/ui/tab-memory.ts`). Así, abrir otro jugador desde el plantel mantiene la pestaña. La memoria vive solo en la página abierta y se borra al cerrar sesión.
+- **Historial:** si la URL llega sin `?tab=`, o con una pestaña que el rol no ve, la ficha reemplaza esa entrada del historial por la pestaña que muestra. Así cada entrada lleva su pestaña y Atrás vuelve a la anterior.
+- **Memoria:** si la URL no trae `?tab=`, se abre la última pestaña que el usuario eligió en esa pantalla, por club (`src/ui/tab-memory.ts`). Cuenta como elegida la que tocó, la de un enlace compartido o la que abrió con Atrás. La pestaña a la que la ficha cae porque el rol no ve la elegida no se recuerda. Así, abrir otro jugador desde el plantel mantiene la pestaña. La memoria vive solo en la página abierta y se borra al cerrar sesión.
 - **Pantallas que quedan como están:**
   - El detalle de una sesión ya pone sus datos y ejercicios en dos columnas, y la planilla de participación es lo principal.
   - El panel semanal es un tablero: KPIs, atención y plantel se leen juntos, y "Atención" es una alerta.

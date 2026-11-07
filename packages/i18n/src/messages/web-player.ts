@@ -45,7 +45,6 @@ export const webPlayerMessagesEsAR = {
   'player.tab.evolution': 'Evolución',
   'player.tab.percentiles': 'Percentiles',
   'player.tab.gym': 'Gimnasio',
-  'player.tab.alert': 'Alerta',
   'player.refreshPending': 'Hay datos nuevos que se están recalculando. Volvé a mirar en un rato.',
 
   // Stages

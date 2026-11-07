@@ -10,7 +10,7 @@ import {
 } from '@sport-performance/domain';
 import { formatLocalDate, formatNumber, formatUnit } from '@sport-performance/i18n';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link, getRouteApi } from '@tanstack/react-router';
 import { useServices } from '../../app/services';
 import { useActiveClub } from '../../club/active-club';
@@ -38,7 +38,13 @@ import {
   MaturationSection,
   PercentilesSection,
 } from './sections';
-import { currentProfileTab, PROFILE_TABS, type ProfileTab } from './profile-tabs';
+import {
+  alertSeverityByTab,
+  currentProfileTab,
+  type ProfileTab,
+  visibleProfileTabs,
+} from './profile-tabs';
+import { StatusBadge } from '@sport-performance/charts/web';
 import { rememberedTab, rememberTab } from '../../ui/tab-memory';
 import { useActiveTabInView } from '../../ui/use-active-tab';
 
@@ -129,6 +135,7 @@ function Profile(props: { playerId: PlayerId }) {
 function ProfileBody(props: { player: Player }) {
   const t = useT();
   const search = route.useSearch();
+  const navigate = route.useNavigate();
   const tabsRef = useActiveTabInView<HTMLElement>();
   const { api } = useServices();
   const active = useActiveClub();
@@ -195,13 +202,24 @@ function ProfileBody(props: { player: Player }) {
     percentiles: can.percentiles,
     gym: can.gym,
   };
-  const tabs = PROFILE_TABS.filter((candidate) => allowedTab[candidate]);
+  const { tabs, bar } = visibleProfileTabs(allowedTab);
   const tab = currentProfileTab(tabs, search.tab, rememberedTab(active.selection, TAB_SCREEN));
   const acwrAlert = activeAlert(['acwr_high', 'acwr_low']);
-  // Whatever tab is open (clicked, or from a shared link) is the one the next profile reopens.
+  const badges = alertSeverityByTab(alerts ?? []);
+  // A URL without its tab (the roster's link, a tab the role cannot see) gets the tab it shows,
+  // replacing the entry: every entry of the history carries its tab, so Back shows the previous
+  // one. Only a tab the user chose (a click, a shared link, Back) is remembered for the next
+  // profile, never this fallback.
+  const resolved = useRef<ProfileTab | null>(null);
   useEffect(() => {
-    if (tab !== null) rememberTab(active.selection, TAB_SCREEN, tab);
-  }, [active.selection, tab]);
+    if (tab === null) return;
+    if (search.tab !== tab) {
+      resolved.current = tab;
+      void navigate({ search: (prev) => ({ ...prev, tab }), replace: true });
+    } else if (tab !== resolved.current) {
+      rememberTab(active.selection, TAB_SCREEN, tab);
+    }
+  }, [active.selection, navigate, search.tab, tab]);
 
   return (
     <Page title={name} subtitle={t('player.subtitle')} actions={<BackLink />}>
@@ -275,7 +293,7 @@ function ProfileBody(props: { player: Player }) {
       </div>
       {tab === null ? null : (
         <>
-          {tabs.length > 1 ? (
+          {bar ? (
             <nav
               ref={tabsRef}
               aria-label={t('player.tabs.label')}
@@ -283,7 +301,7 @@ function ProfileBody(props: { player: Player }) {
             >
               <ul>
                 {tabs.map((candidate) => {
-                  const flagged = candidate === 'load' && acwrAlert !== null;
+                  const badge = badges[candidate];
                   return (
                     <li key={candidate}>
                       <Link
@@ -292,15 +310,17 @@ function ProfileBody(props: { player: Player }) {
                         search={(prev) => ({ ...prev, tab: candidate })}
                         className="sp-tabs__link"
                         aria-current={candidate === tab ? 'page' : undefined}
+                        onClick={() => {
+                          rememberTab(active.selection, TAB_SCREEN, candidate);
+                        }}
                       >
                         {t(TAB_LABELS[candidate])}
-                        {flagged ? (
+                        {badge === undefined ? null : (
                           <span className="sp-tabs__badge">
-                            <Icon name="warning" size={14} aria-hidden="true" />
                             <span className="sp-visually-hidden">, </span>
-                            <span>{t('player.tab.alert')}</span>
+                            <StatusBadge level={badge} />
                           </span>
-                        ) : null}
+                        )}
                       </Link>
                     </li>
                   );

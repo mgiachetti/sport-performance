@@ -5,6 +5,7 @@ import {
   type WeeklyPanel,
 } from '@sport-performance/contracts';
 import { BarChart, StatusBadge } from '@sport-performance/charts/web';
+import { tabOfAlert } from '../players/profile-tabs';
 import type { BarChartSpec } from '@sport-performance/charts';
 import {
   addDays,
@@ -778,13 +779,20 @@ function Roster(props: {
   );
 }
 
-/** The player's name as the way into the profile (each block of the profile checks its access). */
+/**
+ * The player's name as the way into the profile (each block of the profile checks its access).
+ * With an alert, it opens the profile's tab where that alert's data lives (ADR 0104).
+ */
 function PlayerLink(props: { player: PanelPlayer }) {
   const t = useT();
+  const tab = props.player.alerts
+    .map((alert) => tabOfAlert(alert.kind))
+    .find((candidate) => candidate !== undefined);
   return (
     <Link
       to="/players/$playerId"
       params={{ playerId: props.player.playerId }}
+      search={(prev) => ({ ...prev, ...(tab === undefined ? {} : { tab }) })}
       className="sp-table__link"
     >
       {playerName(t, props.player)}

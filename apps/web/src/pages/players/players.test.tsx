@@ -438,7 +438,7 @@ describe('player profile (B-404)', () => {
 
     // The long blocks are tabs below the status cards; load is the first.
     const tabs = screen.getByRole('navigation', { name: 'Secciones de la ficha' });
-    expect(within(tabs).getByRole('link', { name: /^Carga,\s*Alerta$/ })).toHaveAttribute(
+    expect(within(tabs).getByRole('link', { name: /^Carga,\s*Crítico$/ })).toHaveAttribute(
       'aria-current',
       'page',
     );
@@ -514,7 +514,7 @@ describe('player profile (B-404)', () => {
     expect(await screen.findByRole('region', { name: 'Percentiles en su grupo' })).toBeVisible();
     cleanup();
 
-    const { user } = renderApp({
+    const { user, api } = renderApp({
       path: PROFILE_PATH,
       handlers: {
         ...signedIn({ memberships: [fixtures.membership('sc')] }),
@@ -525,9 +525,84 @@ describe('player profile (B-404)', () => {
     const tabs = screen.getByRole('navigation', { name: 'Secciones de la ficha' });
     const gym = within(tabs).getByRole('link', { name: 'Gimnasio' });
     expect(gym.getAttribute('href')).toContain('tab=gym');
+    expect(api.callsTo('getPlayerGymSummary')).toHaveLength(0);
     await user.click(gym);
+    expect(await screen.findByRole('region', { name: 'Gimnasio' })).toBeVisible();
     expect(gym).toHaveAttribute('aria-current', 'page');
+    expect(api.callsTo('getPlayerGymSummary')).toHaveLength(1);
     expect(screen.queryByRole('region', { name: 'Percentiles en su grupo' })).toBeNull();
+  });
+
+  it('goes back to the previous tab, also from a link without a tab', async () => {
+    const { user, app } = renderApp({
+      path: PROFILE_PATH,
+      handlers: {
+        ...signedIn({ memberships: [fixtures.membership('sc')] }),
+        ...profileHandlers(),
+      },
+    });
+    expect(
+      await screen.findByRole('region', { name: 'Carga de los últimos 28 días' }),
+    ).toBeVisible();
+    const tabs = screen.getByRole('navigation', { name: 'Secciones de la ficha' });
+    await user.click(within(tabs).getByRole('link', { name: 'Evolución' }));
+    expect(await screen.findByRole('region', { name: 'Evolución por ventana' })).toBeVisible();
+
+    app.router.history.back();
+    expect(
+      await screen.findByRole('region', { name: 'Carga de los últimos 28 días' }),
+    ).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'Evolución por ventana' })).toBeNull();
+  });
+
+  it('does not remember the tab it falls back to when the role cannot see the chosen one', async () => {
+    // The S&C chooses the gym; the medical staff (same membership here) cannot read it.
+    const first = renderApp({
+      path: PROFILE_PATH,
+      handlers: {
+        ...signedIn({ memberships: [fixtures.membership('sc')] }),
+        ...profileHandlers(),
+      },
+    });
+    const tabs = await screen.findByRole('navigation', { name: 'Secciones de la ficha' });
+    await first.user.click(within(tabs).getByRole('link', { name: 'Gimnasio' }));
+    expect(await screen.findByRole('region', { name: 'Gimnasio' })).toBeVisible();
+    cleanup();
+
+    renderApp({
+      path: PROFILE_PATH,
+      handlers: {
+        ...signedIn({ memberships: [fixtures.membership('medical')] }),
+        ...profileHandlers(),
+      },
+    });
+    expect(
+      await screen.findByRole('region', { name: 'Carga de los últimos 28 días' }),
+    ).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Gimnasio' })).toBeNull();
+    cleanup();
+
+    renderApp({
+      path: PROFILE_PATH,
+      handlers: {
+        ...signedIn({ memberships: [fixtures.membership('sc')] }),
+        ...profileHandlers(),
+      },
+    });
+    expect(await screen.findByRole('region', { name: 'Gimnasio' })).toBeVisible();
+  });
+
+  it('shows no tab bar to staff who see none of the long blocks', async () => {
+    renderApp({
+      path: PROFILE_PATH,
+      handlers: {
+        ...signedIn({ memberships: [fixtures.membership('coach')], assignedTo: [] }),
+        ...profileHandlers(),
+      },
+    });
+    expect(await screen.findByRole('heading', { level: 1, name: 'Tomás Pérez' })).toBeVisible();
+    expect(screen.queryByRole('navigation', { name: 'Secciones de la ficha' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Carga de los últimos 28 días' })).toBeNull();
   });
 
   it('shows a block error without taking the rest of the profile down', async () => {
