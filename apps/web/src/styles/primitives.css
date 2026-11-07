@@ -569,6 +569,12 @@ ul.sp-kpis {
   color: var(--sp-color-text-primary);
   box-shadow: inset 0 calc(-1 * var(--sp-border-width-thick)) 0 var(--sp-color-brand-accent);
 }
+/* Something to look at inside a tab: its status badge (icon + text, never color alone). */
+.sp-tabs__badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--sp-space-xs);
+}
 @media (forced-colors: active) {
   .sp-tabs__link[aria-current='page'],
   .sp-tabs__link.is-active {

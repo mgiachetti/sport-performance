@@ -39,6 +39,12 @@ export const webPlayerMessagesEsAR = {
   'player.fact.measure': 'Talla y peso',
   'player.notFound': 'No encontramos a este jugador en lo que ves.',
   'player.section.unavailable': 'No tenés permiso para ver esta sección de la ficha.',
+  // Tabs of the long blocks (ADR 0104); the status cards stay above them.
+  'player.tabs.label': 'Secciones de la ficha',
+  'player.tab.load': 'Carga',
+  'player.tab.evolution': 'Evolución',
+  'player.tab.percentiles': 'Percentiles',
+  'player.tab.gym': 'Gimnasio',
   'player.refreshPending': 'Hay datos nuevos que se están recalculando. Volvé a mirar en un rato.',
 
   // Stages

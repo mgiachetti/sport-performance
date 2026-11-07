@@ -194,10 +194,10 @@ describe('weekly panel', () => {
       const acwrTerm = within(bianchi).getByText('ACWR', { selector: 'dt' });
       expect(acwrTerm).toBeVisible();
       expect(acwrTerm.nextElementSibling).toHaveTextContent(/^1,46$/);
-      // The name opens the player's profile.
+      // The name opens the player's profile, on the tab of their alert (ACWR → load).
       expect(within(bianchi).getByRole('link', { name: 'Bianchi, Tomás' })).toHaveAttribute(
         'href',
-        expect.stringMatching(/^\/players\/[^/]+$/) as string,
+        expect.stringMatching(/^\/players\/[^/?]+\?tab=load$/) as string,
       );
       expect(within(bianchi).getByText('Entrenar: Limitado')).toBeVisible();
     } finally {
