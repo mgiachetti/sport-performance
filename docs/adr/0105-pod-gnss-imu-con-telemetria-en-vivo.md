@@ -53,7 +53,7 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
 - **Ubicación:** en un chaleco, **entre los omóplatos**, con la antena hacia arriba. Es la misma ubicación de Catapult, así lo medido se compara con primera.
 - **Objetivo de costo: US$ 80 por pod en origen, para 100 unidades.**
   - El relevamiento da unos **US$ 74–82** en el caso optimista: LC29H, módulos Ebyte, LSM6DSV320X, antena Taoglas y NAND de 2 Gbit, con el PCB y la carcasa en el extremo bajo o alto de su rango.
-  - Da unos **US$ 118** en el caso pesimista: F10N-20, RAK4630 y antena Linx, cuyo precio está **no verificado**.
+  - Da unos **US$ 113** en el caso pesimista (los extremos altos de la tabla): F10N-20, RAK4630 y antena Linx, cuyo precio está **no verificado**.
   - **Lo que más pesa es la antena GNSS de marca**, de €19,87–21,03 la Taoglas en DigiKey. Hasta con la opción barata, los US$ 80 quedan justos. Con el F10N, los US$ 80 solo se alcanzan con una antena L1/L5 activa china de unos US$ 4–8, cuyo precio no está verificado.
 
 ### Telemetría en vivo
