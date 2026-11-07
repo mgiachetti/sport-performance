@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { ApiError, type InvitationPreview } from '@sport-performance/contracts';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { COACH_AT_ORC, ORC_THEME, PARENT_AT_ORC, PLAYER_AT_OTHER } from '../test/fixtures.ts';
 import { renderScreen, translator } from '../test/render.tsx';
@@ -8,7 +8,7 @@ import { AccountScreen, HomeScreen, UpdateRequiredScreen, homeToolGroups } from 
 import { NoClubScreen, SelectClubScreen } from './clubs.tsx';
 import { InvitationScreen } from './invitation.tsx';
 import { SyncIndicator } from './sync.tsx';
-import { toolGridColumns } from '../ui/tiles.tsx';
+import { ToolGrid, toolGridColumns, type ToolTileGroup } from '../ui/tiles.tsx';
 
 const { t } = translator;
 
@@ -153,6 +153,7 @@ describe('InvitationScreen', () => {
 describe('app screens', () => {
   it('groups the staff tools as tiles under their headings, with the full hint for a screen reader', () => {
     const onOpenKiosk = vi.fn();
+    const onOpenProtocols = vi.fn();
     renderScreen(
       <HomeScreen
         userName="Ana"
@@ -165,24 +166,24 @@ describe('app screens', () => {
         onOpenSprintVideo={vi.fn()}
         onOpenCmjVideo={vi.fn()}
         onOpenKiosk={onOpenKiosk}
-        onOpenProtocols={vi.fn()}
+        onOpenProtocols={onOpenProtocols}
       />,
     );
     const headings = screen.getAllByRole('heading').map((heading) => heading.textContent);
     expect(headings).toEqual(
       expect.arrayContaining([t('home.group.field'), t('home.group.video'), t('home.group.more')]),
     );
-    const tiles = screen
+    const tiles = within(screen.getByTestId('tool-grid'))
       .getAllByRole('button')
-      .map((button) => button.getAttribute('aria-label'))
-      .filter((label) => label?.startsWith('Hola') !== true);
+      .map((button) => button.getAttribute('aria-label'));
     expect(tiles).toEqual([
       t('home.tile.ift'),
       t('home.tile.reaction'),
       t('home.tile.weeklyCmj'),
       t('home.tile.anthropometry'),
-      t('home.tile.sprintVideo'),
-      t('home.tile.cmjVideo'),
+      // Out of their group the video tiles keep their full names (not "CMJ" next to "CMJ semanal").
+      t('sprintVideo.title'),
+      t('cmjVideo.title'),
       t('home.tile.kiosk'),
       t('home.tile.protocols'),
     ]);
@@ -191,6 +192,12 @@ describe('app screens', () => {
     expect(kiosk.textContent).toContain(t('home.tile.kiosk.hint'));
     fireEvent.click(kiosk);
     expect(onOpenKiosk).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: t('home.tile.protocols') }));
+    expect(onOpenProtocols).toHaveBeenCalled();
+    // The CMJ by video tile still shows its short title.
+    expect(screen.getByRole('button', { name: t('cmjVideo.title') }).textContent).toContain(
+      t('home.tile.cmjVideo'),
+    );
     // The kiosk is a tile now, not a card of its own; the legal caption stays.
     expect(screen.getByText(t('legal.notMedicalDevice'))).toBeDefined();
   });
@@ -231,9 +238,9 @@ describe('app screens', () => {
     expect(screen.queryByRole('heading', { name: t('home.group.field') })).toBeNull();
     expect(screen.getByRole('heading', { name: t('home.group.video') })).toBeDefined();
     expect(screen.getByRole('heading', { name: t('home.group.more') })).toBeDefined();
-    expect(screen.queryByRole('button', { name: t('home.tile.cmjVideo') })).toBeNull();
+    expect(screen.queryByRole('button', { name: t('cmjVideo.title') })).toBeNull();
     expect(screen.queryByRole('button', { name: t('home.tile.kiosk') })).toBeNull();
-    expect(screen.getByRole('button', { name: t('home.tile.sprintVideo') })).toBeDefined();
+    expect(screen.getByRole('button', { name: t('sprintVideo.title') })).toBeDefined();
     expect(screen.getByRole('button', { name: t('home.tile.protocols') })).toBeDefined();
   });
 
@@ -242,6 +249,37 @@ describe('app screens', () => {
     for (const group of ['home.group.field', 'home.group.video', 'home.group.more'] as const) {
       expect(screen.queryByRole('heading', { name: t(group) })).toBeNull();
     }
+  });
+
+  it('renders the tiles in rows of two with a filler after an odd last tile, or one per row', () => {
+    const tool = (key: string) => ({
+      key,
+      title: key,
+      hint: null,
+      accessibilityHint: key,
+      mark: key,
+      onPress: vi.fn(),
+    });
+    const groups: ToolTileGroup[] = [
+      { key: 'a', title: 'A', tools: [tool('one'), tool('two'), tool('three')] },
+      { key: 'b', title: 'B', tools: [] },
+    ];
+    const { unmount } = renderScreen(<ToolGrid groups={groups} columns={2} />);
+    const rows = screen.getAllByTestId('tool-grid-row');
+    expect(rows.map((row) => within(row).getAllByRole('button').length)).toEqual([2, 1]);
+    const lastRow = rows.at(-1);
+    if (lastRow === undefined) throw new Error('the grid drew no rows');
+    expect(within(lastRow).getByTestId('tool-grid-filler')).toBeDefined();
+    expect(screen.getAllByTestId('tool-grid-filler')).toHaveLength(1);
+    expect(screen.queryByRole('heading', { name: 'B' })).toBeNull();
+    unmount();
+    renderScreen(<ToolGrid groups={groups} columns={1} />);
+    expect(
+      screen
+        .getAllByTestId('tool-grid-row')
+        .map((row) => within(row).getAllByRole('button').length),
+    ).toEqual([1, 1, 1]);
+    expect(screen.queryByTestId('tool-grid-filler')).toBeNull();
   });
 
   it('lays the tiles in two columns, one on a narrow screen or with a large font', () => {

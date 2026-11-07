@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Pressable, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, useWindowDimensions, View } from 'react-native';
 import { IconTile, SectionLabel } from './blocks.tsx';
+import { AppText } from './primitives.tsx';
 import { useTheme } from './theme.tsx';
 
 /**
@@ -12,8 +13,10 @@ import { useTheme } from './theme.tsx';
 
 export interface ToolTileItem {
   readonly key: string;
-  /** Short title: what the tile says and its accessibility label. */
+  /** Short title: what the tile says and, without `accessibilityLabel`, its name. */
   readonly title: string;
+  /** The name a screen reader says when the short title is ambiguous ("CMJ por video"). */
+  readonly accessibilityLabel?: string;
   /** One visible line under the title; `null` draws none. */
   readonly hint: string | null;
   /** The full explanation a screen reader reads as the hint. */
@@ -55,25 +58,33 @@ function rowsOf<T>(items: readonly T[], columns: number): readonly (readonly T[]
   return rows;
 }
 
-export function ToolGrid({ groups }: { readonly groups: readonly ToolTileGroup[] }) {
+export function ToolGrid({
+  groups,
+  columns: fixedColumns,
+}: {
+  readonly groups: readonly ToolTileGroup[];
+  /** Fixes the columns instead of reading the window (tests, the gallery). */
+  readonly columns?: 1 | 2;
+}) {
   const theme = useTheme();
   const { width, fontScale } = useWindowDimensions();
-  const columns = toolGridColumns(width, fontScale);
+  const columns = fixedColumns ?? toolGridColumns(width, fontScale);
   return (
-    <View style={{ gap: theme.spacing.lg }}>
+    <View testID="tool-grid" style={{ gap: theme.spacing.lg }}>
       {visibleToolGroups(groups).map((group) => (
         <View key={group.key} style={{ gap: theme.spacing.sm }}>
           <SectionLabel>{group.title}</SectionLabel>
           {rowsOf(group.tools, columns).map((row) => (
             <View
               key={row.map((tool) => tool.key).join('|')}
+              testID="tool-grid-row"
               style={{ flexDirection: 'row', gap: theme.spacing.sm }}
             >
               {row.map((tool) => (
                 <ToolTile key={tool.key} tool={tool} />
               ))}
               {/* An odd last tile keeps its half width. */}
-              {row.length < columns ? <View style={{ flex: 1 }} /> : null}
+              {row.length < columns ? <View testID="tool-grid-filler" style={{ flex: 1 }} /> : null}
             </View>
           ))}
         </View>
@@ -88,7 +99,7 @@ function ToolTile({ tool }: { readonly tool: ToolTileItem }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={tool.title}
+      accessibilityLabel={tool.accessibilityLabel ?? tool.title}
       accessibilityHint={tool.accessibilityHint}
       onPress={tool.onPress}
       onFocus={() => {
@@ -109,16 +120,11 @@ function ToolTile({ tool }: { readonly tool: ToolTileItem }) {
       })}
     >
       <IconTile mark={tool.mark} />
-      <Text style={[theme.text.bodyStrong, { color: theme.colors.text.primary }]}>
-        {tool.title}
-      </Text>
+      <AppText role="bodyStrong">{tool.title}</AppText>
       {tool.hint === null ? null : (
-        <Text
-          numberOfLines={1}
-          style={[theme.text.bodySmall, { color: theme.colors.text.secondary }]}
-        >
+        <AppText role="bodySmall" tone="secondary" numberOfLines={1}>
           {tool.hint}
-        </Text>
+        </AppText>
       )}
     </Pressable>
   );

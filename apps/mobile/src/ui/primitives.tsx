@@ -32,6 +32,7 @@ export function AppText({
   accessibilityRole,
   accessibilityLabel,
   nativeID,
+  numberOfLines,
 }: {
   readonly role?: TextStyleRole;
   readonly tone?: Tone;
@@ -41,6 +42,8 @@ export function AppText({
   /** What a screen reader says instead of the text (a figure with its unit spelled out). */
   readonly accessibilityLabel?: string;
   readonly nativeID?: string;
+  /** Cuts the text at this many lines with an ellipsis. */
+  readonly numberOfLines?: number;
 }) {
   const theme = useTheme();
   const color = tone === 'accent' ? theme.colors.brand.accent : theme.colors.text[tone];
@@ -50,6 +53,7 @@ export function AppText({
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
       nativeID={nativeID}
+      numberOfLines={numberOfLines}
     >
       {children}
     </Text>

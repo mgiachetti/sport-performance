@@ -142,6 +142,8 @@ const HOME_TOOLS: Readonly<
       readonly title: MessageKey;
       readonly hint: MessageKey;
       readonly accessibilityHint: MessageKey;
+      /** The full name when the short title is ambiguous out of its group. */
+      readonly accessibilityLabel?: MessageKey;
       readonly mark: string;
     }
   >
@@ -174,13 +176,15 @@ const HOME_TOOLS: Readonly<
     title: 'home.tile.sprintVideo',
     hint: 'home.tile.sprintVideo.hint',
     accessibilityHint: 'sprintVideo.open.hint',
+    accessibilityLabel: 'sprintVideo.title',
     mark: '40',
   },
   cmjVideo: {
     title: 'home.tile.cmjVideo',
     hint: 'home.tile.cmjVideo.hint',
     accessibilityHint: 'cmjVideo.open.hint',
-    mark: '▶',
+    accessibilityLabel: 'cmjVideo.title',
+    mark: 'VID',
   },
   kiosk: {
     title: 'home.tile.kiosk',
@@ -232,6 +236,9 @@ export function homeToolGroups(
           title: t(tool.title),
           hint: t(tool.hint),
           accessibilityHint: t(tool.accessibilityHint),
+          ...(tool.accessibilityLabel === undefined
+            ? {}
+            : { accessibilityLabel: t(tool.accessibilityLabel) }),
           mark: tool.mark,
           onPress,
         },
