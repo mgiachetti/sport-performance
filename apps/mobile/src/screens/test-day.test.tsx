@@ -71,7 +71,15 @@ describe('TestDayListScreen', () => {
       <TestDayListScreen
         state={{
           status: 'ready',
-          upcoming: [testSession(), later],
+          upcoming: [
+            testSession(),
+            later,
+            testSession({
+              id: 'e4444444-4444-4444-8444-444444444444' as never,
+              status: 'cancelled',
+            }),
+          ],
+          // A past day without its sheet either: it stays silent too.
           recent: [testSession({ id: 'd3333333-3333-4333-8333-333333333333' as never })],
         }}
         categoryName={() => 'M15'}
@@ -80,9 +88,13 @@ describe('TestDayListScreen', () => {
         onOpen={onOpen}
       />,
     );
-    // A downloaded sheet and a past day say nothing; only the upcoming day without its sheet.
+    // A downloaded sheet, a cancelled day and a past day say nothing; only the
+    // upcoming day without its sheet, also in the row's label (one element on a phone).
     expect(screen.getAllByText(t('fieldTest.day.notDownloadedShort'))).toHaveLength(1);
-    expect(screen.getByLabelText(t('fieldTest.day.notDownloaded'))).toBeDefined();
+    const open = t('fieldTest.day.open', { date: '14/04/2026', category: 'M15', window: 'V2' });
+    expect(
+      screen.getAllByRole('button', { name: `${open}. ${t('fieldTest.day.notDownloaded')}` }),
+    ).toHaveLength(1);
     expect(screen.getAllByText(`V2 · ${t('testDay.status.in_progress')}`).length).toBeGreaterThan(
       0,
     );

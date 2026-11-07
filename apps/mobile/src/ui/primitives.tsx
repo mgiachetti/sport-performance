@@ -483,12 +483,14 @@ export function ClockIcon({ size, color }: { readonly size?: number; readonly co
 }
 
 /**
- * The quiet mark of an item that waits on the phone to be sent (ADR 0103):
- * a small clock and a short text, muted, inline. A synced item shows nothing.
+ * The quiet mark of something still missing on the phone (ADR 0103): an item
+ * waiting to be sent ("Sin enviar", the default) or a sheet not downloaded yet
+ * (`text`). A small clock and a short text, muted, inline; when all is well
+ * nothing shows.
  */
 export function PendingMark({
   accessibilityLabel,
-  text: shown,
+  text,
 }: {
   readonly accessibilityLabel?: string;
   /** The visible text; "Sin enviar" by default. */
@@ -496,12 +498,12 @@ export function PendingMark({
 }) {
   const theme = useTheme();
   const { t } = useTranslator();
-  const text = shown ?? t('sync.item.pending');
+  const visible = text ?? t('sync.item.pending');
   return (
     <View
       accessible
       accessibilityRole="text"
-      accessibilityLabel={accessibilityLabel ?? text}
+      accessibilityLabel={accessibilityLabel ?? visible}
       style={{
         flexDirection: 'row',
         alignItems: 'center',
@@ -510,7 +512,7 @@ export function PendingMark({
       }}
     >
       <ClockIcon size={theme.sizes.statusIcon - theme.spacing.xxs} />
-      <Text style={[theme.text.caption, { color: theme.colors.text.muted }]}>{text}</Text>
+      <Text style={[theme.text.caption, { color: theme.colors.text.muted }]}>{visible}</Text>
     </View>
   );
 }

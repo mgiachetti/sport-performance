@@ -246,23 +246,22 @@ export function TestDayListScreen({
     const category = categoryName(session.categoryId);
     const window = windowName(session.testWindowId);
     const date = formatLocalDate(session.scheduledOn);
-    const savedAt = savedSheets.get(session.id);
+    // A cancelled day is never prefetched: it would carry the mark forever.
+    const notDownloaded =
+      upcoming && session.status !== 'cancelled' && savedSheets.get(session.id) === undefined;
+    const open = t('fieldTest.day.open', { date, category, window });
     return (
       <OpenRow
         key={session.id}
-        label={t('fieldTest.day.open', { date, category, window })}
+        // The row is one element for a screen reader: the mark goes in its label.
+        label={notDownloaded ? `${open}. ${t('fieldTest.day.notDownloaded')}` : open}
         title={`${date} · ${category}`}
         detail={`${window} · ${t(`testDay.status.${session.status}`)}`}
         onPress={() => {
           onOpen(session.id);
         }}
       >
-        {upcoming && savedAt === undefined ? (
-          <PendingMark
-            text={t('fieldTest.day.notDownloadedShort')}
-            accessibilityLabel={t('fieldTest.day.notDownloaded')}
-          />
-        ) : null}
+        {notDownloaded ? <PendingMark text={t('fieldTest.day.notDownloadedShort')} /> : null}
       </OpenRow>
     );
   };

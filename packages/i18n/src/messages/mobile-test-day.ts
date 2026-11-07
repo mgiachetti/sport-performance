@@ -9,7 +9,7 @@ export const mobileTestDayMessagesEsAR = {
 
   // Days
   'fieldTest.list.intro':
-    'Elegí el día para cargar los tests en la cancha. Los días de hoy y de la semana se guardan en el teléfono para usarlos sin señal.',
+    'Elegí el día para cargar los tests en la cancha. Los días de hoy y de la semana se guardan en el teléfono para usarlos sin conexión.',
   'fieldTest.list.loading': 'Cargando los días de test…',
   'fieldTest.day.open': 'Abrir el día de test del {date}, {category}, {window}',
   'fieldTest.day.notDownloaded': 'Sin descargar: abrilo una vez con conexión',
