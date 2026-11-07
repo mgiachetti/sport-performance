@@ -210,19 +210,21 @@ Arquitectura, partes y plan en el [ADR 0105](adr/0105-pod-gnss-imu-con-telemetri
   - el consumo y la autonomía;
   - la saturación del GNSS cuando transmite LoRa.
 - **B-902 Validación en cancha contra Catapult y fotocélulas** · `area:hardware` `type:research` `blocked` (B-002, B-901). Un jugador de primera lleva los dos equipos a la vez, en entrenamiento y partido, con una base GNSS propia y el RINEX de RAMSAC. Se comparan distancia, HSR, Vmax, aceleraciones y desaceleraciones, y contactos (contra video). Con los resultados, el ADR 0105 se acepta o se reemplaza.
-- **B-903 Regulación ENACOM** · `type:legal` `type:research`. Potencia máxima en 915–928 MHz; homologación del equipo final según el RAMATEL (Res. 57/2026, el comodato cuenta como comercialización); si alcanzan los módulos certificados; costo y plazos de la agencia.
-- **B-904 Firmware del pod** · `area:firmware`. Registro en NAND a tasa completa (GNSS a 10 Hz, IMU y ráfagas de impacto, crudo a 1 Hz), resumen por segundo, hora del GNSS con el PPS, central BLE reservado para bandas de FC y DFU.
-- **B-905 Telemetría en vivo por LoRa** · `area:firmware` `area:mobile`. Protocolo propio con turnos (TDMA) por la hora del GNSS, solo en 915–928 MHz. Incluye el gateway SX1302 en la cancha, conectado a la tablet sin internet y con subida al servidor si hay conexión.
+- **B-903 Regulación ENACOM** · `type:legal` `type:research`. Potencia máxima en 915–928 MHz; homologación del equipo final según el RAMATEL (Res. 57/2026, el comodato cuenta como comercialización); si alcanzan los módulos certificados; costo y plazos de la agencia. **Pregunta explícita:** ¿se pueden usar turnos en canales fijos, o la norma Q2-63.03 (parecida a la FCC 15.247) obliga a saltar de canal o limita el tiempo de permanencia en 13 MHz?
+- **B-904 Firmware del pod** · `area:firmware`. Registro en NAND a tasa completa (GNSS a 10 Hz, IMU y ráfagas de impacto, crudo a 1 Hz), resumen por segundo, hora del GNSS con el PPS, central BLE reservado para bandas de FC y DFU. Paquetes cifrados y autenticados con AES-CCM, con la clave del club grabada en la base y un contador contra la repetición. Solo llevan el id del pod.
+- **B-905 Telemetría en vivo por LoRa** · `area:firmware` `area:mobile`. Protocolo propio con turnos (TDMA) por la hora del GNSS, solo en 915–928 MHz. Incluye el gateway SX1302 en la cancha, conectado a la tablet por Ethernet o Wi-Fi local con un packet forwarder, sin internet. Hay que verificar que el forwarder deje pasar tramas que no son LoRaWAN, con una sync word privada. La subida al servidor va solo si hay conexión al exterior. Cadencia de 2 s, con capacidad para unos 160 pods en 8 canales.
 - **B-906 Pantalla en vivo y señales de esfuerzo** · `area:domain` `area:mobile`. Funciones del dominio con tests, compartidas por la tablet y el worker:
   - % del promedio propio por partido;
   - metros/min de los últimos 5 min frente al pico;
   - velocidad máxima reciente frente a la Vmax propia;
-  - esfuerzos repetidos (RHIE) con los contactos;
+  - esfuerzos repetidos: RHIE con contactos en rugby, y solo corridas en hockey;
   - "historia insuficiente" para jugadores sin promedio.
 
   Son reglas declarativas por club con valores por defecto en seeds, y siempre se muestran con ícono y texto.
+
+  La pantalla es **solo para el staff** según la matriz: el pod se asigna al jugador en la app y solo si tiene el consentimiento de datos que cubre la ubicación (versión nueva del texto si hace falta). Ningún jugador ve nombres de otros.
 - **B-907 Base de carga y descarga** · `area:hardware` `area:firmware`. Pines pogo y USB para unos 20 pods por base, con la subida del crudo a storage (ADR 0005).
-- **B-908 Pipeline del pod en el worker** · `area:worker`. Filtrado, PPK contra la base propia o RAMSAC, zonas, aceleraciones, `accel_load_au` y contactos. Lo procesado reemplaza al vivo y se guarda como otro método.
+- **B-908 Pipeline del pod en el worker** · `area:worker`. Filtrado, PPK contra la base propia o RAMSAC, zonas, aceleraciones, `accel_load_au` y contactos. Se guardan las dos variantes del método `pod`, `pod_live` y `pod_ppk`, y los informes usan `pod_ppk`. Las trazas de posición tienen su retención propia y las cubren los derechos del titular. Contactos y scrums solo en rugby.
 - **B-909 Placa propia, carcasa y chalecos** · `area:hardware`. 2–3 vueltas en JLCPCB con 4 capas, carcasa MJF con junta y chaleco con bolsillo entre los omóplatos.
 - **B-910 Piloto de 10 pods y tanda de 100** · `area:hardware` `type:club` `blocked` (B-902, B-903). Piloto en vivo en una categoría y compra de los 100, con la importación revisada por un despachante.
 

@@ -11,7 +11,7 @@ Este documento acompaña al [ADR 0105](../adr/0105-pod-gnss-imu-con-telemetria-e
 | GNSS L1 + L5 | u-blox NEO-F10N-00B-20 (prototipo, salida cruda RAWX) | Quectel LC29H(AA), opción de costo | F10N-20: US$ 18,69–21,36. LC29H(AA): US$ 7,40 | [findchips NEO-F10N](https://www.findchips.com/search/NEO-F10N-00B) · [Ozdisan LC29H(AA)](https://www.ozdisan.com/en/p/gsm-and-gnss-modules-650/quectel-lc29haamd-1574222) | Sí (F10N por agregador) |
 | GNSS, otras opciones | LC29H(DA) | Allystar TAU1201 | DA: €20,53. TAU1201: US$ 11–16 | [DigiKey LC29H(DA)](https://www.digikey.jp/en/products/detail/quectel/LC29HDAMD/21272459) · [ichome TAU1201](https://ichome.com/product-detail/allystar/tau1201-1216a00) | Sí |
 | GNSS, otras opciones | Unicore UM620N (UC6580A) | — | — | [manual UM620N](https://manuals.plus/unicorecomm/um620n-automotive-grade-dual-frequency-multi-gnss-positioning-module-manual-2) | **No verificado** (sin precio) |
-| Antena L1/L5 activa de 25 × 25 mm | Taoglas AGVLB.25B.07.0060A (LNA de 2 etapas) | Linx ANT-GNCP-C25L15100; Pulse ANT1825JB01BGNL5A (LCSC C3284896, sin precio) | €18,94 @120 / €24,26 @250 | [DigiKey Taoglas](https://www.digikey.ie/en/products/detail/taoglas-limited/AGVLB-25B-07-0060A/21777673) · [DigiKey Linx](https://www.digikey.fi/en/products/detail/te-connectivity-linx/ANT-GNCP-C25L15100/15294130) | Precio sí. Que tenga SAW, **no verificado** |
+| Antena L1/L5 activa de 25 × 25 mm | Taoglas AGVLB.25B.07.0060A (LNA de 2 etapas) | Linx ANT-GNCP-C25L15100; Pulse ANT1825JB01BGNL5A (LCSC C3284896, sin precio) | €21,03 @120 / €19,87 @360 (DigiKey). Linx: precio **no verificado** | [DigiKey Taoglas](https://www.digikey.ie/en/products/detail/taoglas-limited/AGVLB-25B-07-0060A/21777673) · [DigiKey Linx](https://www.digikey.fi/en/products/detail/te-connectivity-linx/ANT-GNCP-C25L15100/15294130) | Precio sí. Que tenga SAW, **no verificado** |
 | Antena L1/L5 activa china | — | — | US$ 4–8 | — | **No verificado**. Define si se llega a US$ 80 con el F10N |
 | MCU + BLE + LoRa | RAK4630 (prototipo) | Ebyte E73-2G4M08S1C (nRF52840) + E22-900M22S (SX1262) (serie) | RAK4630: US$ 18,62 @10 (LCSC), US$ 23,95 @260 (DigiKey). Ebyte: US$ 5,52 + desde US$ 4,63 ≈ US$ 10 | [LCSC E73](https://lcsc.com/product-detail/C356849.html) · [LCSC E22](https://www.lcsc.com/product-detail/C411293.html) · [LCSC RAK4630](https://www.lcsc.com/product-image/C33033533.html) | Precios sí. Certificaciones FCC/CE de los Ebyte y del RAK4630, **no verificadas** |
 | IMU con alto rango | ST LSM6DSV320X (±2–16 g y ±32–320 g, canales independientes) | ICM-42688-P + ADXL372 | US$ 7,25 (LCSC C26633007). Alternativa: ICM US$ 2,1–3,4 (datos contradictorios) + ADXL372 US$ 11,65 | [ST](https://estore.st.com/en/lsm6dsv320xtr-cpn.html) · [LCSC LSM6DSV320X](https://www.lcsc.com/product-image/C26633007.html) · [LCSC ADXL372](https://www.lcsc.com/product-detail/C579465.html) | Sí. Stock bajo (45 en LCSC) |
@@ -28,9 +28,9 @@ Este documento acompaña al [ADR 0105](../adr/0105-pod-gnss-imu-con-telemetria-e
 
 Sin pasivos de detalle, chaleco ni banda de FC:
 
-- **Optimista, unos US$ 73:** LC29H(AA) + módulos Ebyte + LSM6DSV320X + antena Taoglas.
-- **Pesimista, unos US$ 118:** NEO-F10N-20 + RAK4630 + antena Linx.
-- **Lo que más pesa es la antena GNSS de marca** (US$ 19–24). Con el F10N, los US$ 80 se alcanzan solo con una antena L1/L5 activa china de US$ 4–8, cuyo precio no está verificado. Cambiar los Ebyte por el RAK4630 suma unos US$ 9–14.
+- **Optimista, unos US$ 74–82:** LC29H(AA) + módulos Ebyte + LSM6DSV320X + antena Taoglas, con la **NAND de 2 Gbit** (la de 4 Gbit no tiene precio verificado). El rango va del PCB y la carcasa en su extremo bajo al alto. La antena se convirtió de € a US$ en forma aproximada.
+- **Pesimista, unos US$ 118:** NEO-F10N-20 + RAK4630 + antena Linx, cuyo precio **no está verificado** (se tomó igual al de la Taoglas).
+- **Lo que más pesa es la antena GNSS de marca** (€19,87–21,03). Con el F10N, los US$ 80 se alcanzan solo con una antena L1/L5 activa china de US$ 4–8, cuyo precio no está verificado. Cambiar los Ebyte por el RAK4630 suma unos US$ 9–14.
 
 ## Equipo compartido
 
@@ -56,9 +56,13 @@ Sin pasivos de detalle, chaleco ni banda de FC:
 | Crudo GNSS (RAWX a 1 Hz, unos 30 satélites × 2 frecuencias × unos 32 B) | ≈ 2 kB por época | ≈ 2 kB/s |
 | **Con crudo a 1 Hz** | | **≈ 4,2 kB/s → unos 46 MB en 3 h** |
 
-- **Memoria:** con 4 Gbit (512 MB) entran unas 11 sesiones con crudo, y con 2 Gbit unas 5. Crudo a 10 Hz serían unos 20 kB/s: no entra en la memoria ni vale la pena, porque el PPK corrige la trayectoria y la velocidad sale del Doppler a 10 Hz.
+- **Memoria:** con 4 Gbit (512 MB) entran unas 11 sesiones con crudo, y con 2 Gbit unas 5. Crudo a 10 Hz serían unos 20 kB/s, unos 216 MB por sesión: impráctico, y además no vale la pena, porque el PPK corrige la trayectoria y la velocidad sale del Doppler a 10 Hz.
 - **Descarga:** 46 MB por BLE, a unos 100 kB/s en la práctica, son unos 8 min por pod. Por eso la descarga va por la base.
-- **Telemetría en vivo:** un resumen por segundo de unos 20 B, que se manda de a 2 (unos 40 B cada 2 s). 30 pods en SF7 ocupan cerca del 10 % de cada canal de un gateway de 8 canales.
+- **Telemetría en vivo:**
+  - Un resumen por segundo de unos 20 B, que se manda de a 2: unos 40 B cada 2 s.
+  - 40 B en SF7 / 125 kHz ocupan unos 82 ms en el aire. Con turnos de unos 100 ms (con tiempo de guarda), una trama de 2 s tiene 20 turnos por canal: **unos 160 pods en 8 canales**.
+  - 30 pods ocupan cerca del 15 % de cada canal. Cada 1 s sería el 31 %, con capacidad para unos 80 pods.
+- **Batería:** el consumo estimado es de unos 40–50 mA. Con 1000 mAh son unas 20 h para un objetivo de 4–5 h. El banco decide entre dejar ese margen o bajar a unos 400–500 mAh.
 
 ## GNSS: qué se sabe de la salida cruda
 
@@ -70,8 +74,8 @@ Sin pasivos de detalle, chaleco ni banda de FC:
     - DA: RTK a 1 Hz como rover, 30 mA.
     - EA: RTK a 1–10 Hz y heading con dos módulos, 30 mA.
     - BS: base.
-  - Todas posicionan a 10 Hz, pero **la salida cruda es de 1 Hz**. Personal de Quectel confirmó en el foro que la salida RTCM solo sale a 1 Hz.
-  - El camino práctico es el modo base (`$PQTMCFGRCVRMODE,W,2`) con MSM7 (`$PAIR432,1`). Hay reportes de que la configuración no persiste o vuelve a MSM4 ([foro de Quectel](https://forums.quectel.com/t/lc29h-ea-rtcm3-out/33710)).
+  - Todas posicionan a 10 Hz. La salida cruda de 1 Hz figura **para la serie**: personal de Quectel confirmó en el foro que la salida RTCM solo sale a 1 Hz.
+  - **Para la AA, no verificado:** el hilo del foro es sobre la EA. Ahí el camino es el modo base (`$PQTMCFGRCVRMODE,W,2`) con MSM7 (`$PAIR432,1`). Hay reportes de que la configuración no persiste o vuelve a MSM4 ([foro de Quectel](https://forums.quectel.com/t/lc29h-ea-rtcm3-out/33710)).
 - **NEO-F10N:**
   - Solo la variante **-00B-20** da fase portadora (`UBX-RXM-RAWX`). La -00B-00, que es la de la placa de SparkFun, no ([u-blox](https://www.u-blox.com/en/technologies/gnss-raw-data)).
   - Navega a 10 Hz en multi-constelación, con 21–26 mA medidos en la placa ([SparkFun](https://docs.sparkfun.com/SparkFun_u-blox_NEO-F10N/hardware_overview)).
@@ -81,11 +85,12 @@ Sin pasivos de detalle, chaleco ni banda de FC:
 
 ## Argentina: regulación y RAMSAC
 
-- **Banda:** la [Res. 581/2018](https://www.boletinoficial.gob.ar/detalleAviso/primera/292414/20230818) declaró **915–928 MHz de uso compartido, sin autorización**. 902–915 MHz tiene otro régimen. Que Argentina use el plan AU915 lo dice una fuente de terceros (Meshtastic), no la LoRa Alliance. Igual el pod no usa LoRaWAN, sino canales propios dentro de 915–928.
+- **Banda:** la Res. 581/2018, citada en la [Res. 1132/2023](https://www.boletinoficial.gob.ar/detalleAviso/primera/292414/20230818), declaró **915–928 MHz de uso compartido, sin autorización**. 902–915 MHz tiene otro régimen. Que Argentina use el plan AU915 lo dice una fuente de terceros (Meshtastic), no la LoRa Alliance. Igual el pod no usa LoRaWAN, sino canales propios dentro de 915–928.
 - **Normas técnicas:**
   - ENACOM-Q2-60.14 para baja potencia (Res. 551/2021; la V21.1 reemplaza a la V20.1 según Eleos);
   - Q2-63.03 V23.1 para salto de frecuencia (Res. 1132/2023).
-  - **La potencia máxima no está verificada.** Los +30 dBm EIRP de AU915 que cita Actility no son el límite argentino.
+  - **La potencia máxima no está verificada.**
+  - **Tampoco está verificado si se pueden usar canales fijos.** Las reglas de salto de frecuencia o de tiempo de permanencia por canal (Q2-63.03, parecidas a la FCC 15.247) podrían obligar a cambiar de canal en cada trama. La banda útil es de solo 13 MHz. Los +30 dBm EIRP de AU915 que cita Actility no son el límite argentino.
 - **Homologación: nuevo RAMATEL** (Res. 57/2026, vigente desde el 01/12/2026 según la Res. 843/2026; [anexo](https://servicios.infoleg.gob.ar/infolegInternet/anexos/420000-424999/423392/res57-1.pdf)):
   - **Comercializar**, que incluye "dar en comodato", exige **Homologación**: certificado de una agencia reconocida (Clase A) con ensayo de laboratorio.
   - El **uso propio** sin comercializar tiene la **Autorización** por modelo o familia, con la Declaración de Conformidad del fabricante.
@@ -111,7 +116,7 @@ No se encontraron estudios de GNSS de doble banda de bajo costo en deportes. Lo 
    - **Medir:**
      - hasta qué tasa sale RAWX en el F10N;
      - si el modo base del LC29H persiste y no degrada la solución de navegación;
-     - el consumo real y la autonomía con 1000 mAh;
+     - el consumo real (estimado en 40–50 mA) y la batería necesaria;
      - si transmitir LoRa satura la entrada del GNSS, con y sin el SAW.
 2. **Cancha, lado a lado** (en el club):
    - Un jugador de primera lleva **el Catapult y nuestro pod a la vez**, en sesiones de entrenamiento y en un partido.
@@ -125,7 +130,7 @@ No se encontraron estudios de GNSS de doble banda de bajo costo en deportes. Lo 
 
 ## Riesgos abiertos
 
-1. El crudo del LC29H está limitado a 1 Hz, con una configuración que no es estable entre firmwares.
+1. El crudo del LC29H está limitado a 1 Hz (dato de la serie). Para la AA, el crudo en modo base no está verificado, y en la EA la configuración no es estable entre firmwares.
 2. La tasa de RAWX del F10N no está confirmada, y el stock de la variante -20 es incierto (Avnet: mínimo de 500 unidades y 19 semanas).
 3. El costo de la antena L1/L5 define si se cumple el objetivo de US$ 80.
 4. El LSM6DSV320X tiene stock bajo; el respaldo es el ICM-42688-P + ADXL372.
@@ -134,3 +139,6 @@ No se encontraron estudios de GNSS de doble banda de bajo costo en deportes. Lo 
 7. La potencia máxima en 915–928 MHz no está confirmada.
 8. No se sabe si RAMSAC rastrea L5.
 9. La validación propia es obligatoria.
+10. Los turnos en canales fijos podrían no cumplir las reglas de salto o permanencia de la norma.
+11. El packet forwarder del gateway tiene que dejar pasar tramas que no son LoRaWAN, con una sync word privada.
+12. **Privacidad:** son trazas de posición de menores. Van cifradas por el aire, sin nombres, la pantalla es solo para el staff, con consentimiento y retención definidos (ADR 0105).
