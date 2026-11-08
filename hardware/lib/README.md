@@ -9,7 +9,8 @@
 | Parte | Origen previsto | Número LCSC o fuente | Comando | Verificado contra la hoja |
 |---|---|---|---|---|
 | Quectel LC29H (AA/EA) | Footprint de Quectel (lo entrega con el Hardware Design) | Sin número LCSC encontrado | — (pedirlo a Quectel o a un distribuidor) | no |
-| Ebyte E73-2G4M08S1C | easyeda2kicad | C356849 | `easyeda2kicad --full --lcsc_id=C356849 --output hardware/lib/pod` | no |
+| Raytac MDBT50Q-P1MV2 (nRF52840) | easyeda2kicad | C5119772 (JLC; la -1MV2 es C5118826) | `easyeda2kicad --full --lcsc_id=C5119772 --output hardware/lib/pod` | no |
+| XINGLIGHT XL-1615RGBC-RF (LED RGB) | easyeda2kicad | C965840 | `easyeda2kicad --full --lcsc_id=C965840 --output hardware/lib/pod` | no |
 | Ebyte E22-900M22S | easyeda2kicad | C411293 | `easyeda2kicad --full --lcsc_id=C411293 --output hardware/lib/pod` | no |
 | ST LSM6DSV320X | easyeda2kicad | C26633007 | `easyeda2kicad --full --lcsc_id=C26633007 --output hardware/lib/pod` | no |
 | Bosch BMP581 | easyeda2kicad | C5362283 | `easyeda2kicad --full --lcsc_id=C5362283 --output hardware/lib/pod` | no |

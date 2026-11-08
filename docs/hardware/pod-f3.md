@@ -13,7 +13,8 @@ Este documento acompaña al [ADR 0105](../adr/0105-pod-gnss-imu-con-telemetria-e
 | GNSS, otras opciones | Unicore UM620N (UC6580A) | — | — | [manual UM620N](https://manuals.plus/unicorecomm/um620n-automotive-grade-dual-frequency-multi-gnss-positioning-module-manual-2) | **No verificado** (sin precio) |
 | Antena L1/L5 activa de 25 × 25 mm | Taoglas AGVLB.25B.07.0060A (LNA de 2 etapas) | Linx ANT-GNCP-C25L15100; Pulse ANT1825JB01BGNL5A (LCSC C3284896, sin precio) | €21,03 @120 / €19,87 @360 (DigiKey). Linx: precio **no verificado** | [DigiKey Taoglas](https://www.digikey.ie/en/products/detail/taoglas-limited/AGVLB-25B-07-0060A/21777673) · [DigiKey Linx](https://www.digikey.fi/en/products/detail/te-connectivity-linx/ANT-GNCP-C25L15100/15294130) | Precio sí. Que tenga SAW, **no verificado** |
 | Antena L1/L5 activa china | — | — | US$ 4–8 | — | **No verificado**. Define si se llega a US$ 80 con el F10N |
-| MCU + BLE + LoRa | RAK4630 (prototipo) | Ebyte E73-2G4M08S1C (nRF52840) + E22-900M22S (SX1262) (serie) | RAK4630: US$ 18,62 @10 (LCSC), US$ 23,95 @260 (DigiKey). Ebyte: US$ 5,52 + desde US$ 4,63 ≈ US$ 10 | [LCSC E73](https://lcsc.com/product-detail/C356849.html) · [LCSC E22](https://www.lcsc.com/product-detail/C411293.html) · [LCSC RAK4630](https://www.lcsc.com/product-image/C33033533.html) | Precios sí. Certificaciones FCC/CE de los Ebyte y del RAK4630, **no verificadas** |
+| MCU + BLE + LoRa | Raytac MDBT50Q-P1MV2 (nRF52840, 48 GPIO) + Ebyte E22-900M22S (SX1262) | Ebyte E73-2G4M08S1C (descartado: 31 GPIO); RAK4630 (otro encapsulado) | MDBT50Q: desde US$ 6,65 (LCSC, -1MV2) a US$ 8,50 @25 (SparkFun); la -P1MV2, precio **no verificado**. E22: desde US$ 4,63. Juntos, unos US$ 11–13, uno a tres dólares más que con el E73 (US$ 5,52) | [LCSC MDBT50Q-1MV2](https://www.lcsc.com/product-detail/C5118826.html) · [JLC MDBT50Q-P1MV2](https://jlcpcb.com/partdetail/RAYTAC-MDBT50QP1MV2/C5119772) · [SparkFun](https://www.sparkfun.com/nordic-nrf52840-ble-module-mdbt50q-1mv2.html) · [LCSC E22](https://www.lcsc.com/product-detail/C411293.html) · [LCSC E73](https://lcsc.com/product-detail/C356849.html) | Precios de la -1MV2, del E22 y del E73 sí. Certificaciones del MDBT50Q -P1MV2 y de los Ebyte, **no verificadas** |
+| LED de estado | XINGLIGHT XL-1615RGBC-RF (RGB) + 3 NMOS + 3 resistencias 0402 | Segundo LED y buzzer sin montar | LED: US$ 0,012–0,016 (LCSC); con los NMOS y las resistencias, unos US$ 0,10–0,20 (**no verificado**) | [LCSC C965840](https://www.lcsc.com/product-detail/C965840.html) | Precio del LED sí; el resto, **no verificado** |
 | IMU con alto rango | ST LSM6DSV320X (±2–16 g y ±32–320 g, canales independientes) | ICM-42688-P + ADXL372 | US$ 7,25 (LCSC C26633007). Alternativa: ICM US$ 2,1–3,4 (datos contradictorios) + ADXL372 US$ 11,65 | [ST](https://estore.st.com/en/lsm6dsv320xtr-cpn.html) · [LCSC LSM6DSV320X](https://www.lcsc.com/product-image/C26633007.html) · [LCSC ADXL372](https://www.lcsc.com/product-detail/C579465.html) | Sí. Stock bajo (45 en LCSC) |
 | Barómetro | Bosch BMP581 | Infineon DPS368; BMP390 | US$ 1,23 (LCSC C5362283). DPS368: US$ 2,59 (C3232508) | [LCSC C5362283](https://www.lcsc.com/product-image/C5362283.html) · [LCSC DPS368 C3232508](https://www.lcsc.com/product-image/C3232508.html) | Precio sí; la hoja vigente de Bosch, **no verificada** |
 | Memoria NAND SPI | Winbond W25N02KVZEIR (2 Gbit) | W25N04 (4 Gbit, la recomendada) o GigaDevice | US$ 4,72–6,14 (C3010298) | [LCSC W25N02](https://www.lcsc.com/product-image/C3010298.html) | 2 Gbit sí. 4 Gbit y GigaDevice, **no verificados** |
@@ -30,10 +31,10 @@ Este documento acompaña al [ADR 0105](../adr/0105-pod-gnss-imu-con-telemetria-e
 
 Sin pasivos de detalle, chaleco ni banda de FC:
 
-- **Optimista y de la decisión, unos US$ 74–82:** LC29H(AA) + módulos Ebyte + LSM6DSV320X + antena Taoglas, con la **NAND de 2 Gbit** (la de 4 Gbit no tiene precio verificado). El rango va del PCB y la carcasa en su extremo bajo al alto. La antena se convirtió de € a US$ en forma aproximada.
+- **Optimista y de la decisión, unos US$ 75–85:** LC29H(AA) + MDBT50Q + E22 + LSM6DSV320X + antena Taoglas, con la **NAND de 2 Gbit** (la de 4 Gbit no tiene precio verificado). El rango va del PCB y la carcasa en su extremo bajo al alto. La antena se convirtió de € a US$ en forma aproximada. El MDBT50Q en lugar del E73 suma unos US$ 1–3, y el LED con sus NMOS unos centavos.
 - **Con la EA:** se suma la diferencia con la AA, unos US$ 12–15 por pod (**no verificado**: la EA no tiene precio relevado, y la referencia es la DA a €20,53 @100).
 - **Pesimista, unos US$ 113 (los extremos altos de la tabla), solo como referencia:** NEO-F10N-20 + RAK4630 + antena Linx, cuyo precio **no está verificado** (se tomó igual al de la Taoglas).
-- **Lo que más pesa es la antena GNSS de marca** (€19,87–21,03). Con el F10N, los US$ 80 se alcanzan solo con una antena L1/L5 activa china de US$ 4–8, cuyo precio no está verificado. Cambiar los Ebyte por el RAK4630 suma unos US$ 9–14.
+- **Lo que más pesa es la antena GNSS de marca** (€19,87–21,03). Con el F10N, los US$ 80 se alcanzan solo con una antena L1/L5 activa china de US$ 4–8, cuyo precio no está verificado. Cambiar el MDBT50Q + E22 por el RAK4630 suma unos US$ 6–12.
 - **Con UWB montado** se suman unos US$ 9–12 por pod. Los totales de arriba son sin UWB.
 
 ## Equipo compartido
@@ -143,7 +144,7 @@ No se encontraron estudios de GNSS de doble banda de bajo costo en deportes. Lo 
 2. La tasa de RAWX del F10N no está confirmada, y el stock de la variante -20 es incierto (Avnet: mínimo de 500 unidades y 19 semanas).
 3. El costo de la antena L1/L5 define si se cumple el objetivo de US$ 80.
 4. El LSM6DSV320X tiene stock bajo; el respaldo es el ICM-42688-P + ADXL372.
-5. Las certificaciones de los módulos Ebyte no están verificadas.
+5. Las certificaciones del E22 y de la variante -P1MV2 del MDBT50Q no están verificadas.
 6. La homologación ante ENACOM del equipo final, si se presta o se vende.
 7. La potencia máxima en 915–928 MHz no está confirmada.
 8. No se sabe si RAMSAC rastrea L5.

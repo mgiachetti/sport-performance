@@ -55,7 +55,8 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
     - Allystar TAU1201/1202, sin salida cruda confirmada. Unicore UM620N, sin precio ni salida cruda confirmados.
   - **El banco** ([`banco-gnss.md`](../hardware/banco-gnss.md)) se reduce a lo mínimo: un LC29H(AA) en placa para saber si tiene crudo y velocidad Doppler, y los dos LG290P (base y referencia). El RTK de la EA, el consumo y la convivencia con LoRa se miden en la v0.
 - **Prototipo: directo a la placa v0 con módulos** ([`pod-v0.md`](../hardware/pod-v0.md)), sin placa intermedia de desarrollo.
-  - Solo módulos (E73 con nRF52840, E22-900M22S con SX1262, LC29H), ningún chip de radio soldado directo: el RF de cada módulo ya viene resuelto.
+  - Solo módulos (Raytac MDBT50Q-P1MV2 con nRF52840, E22-900M22S con SX1262, LC29H), ningún chip de radio soldado directo: el RF de cada módulo ya viene resuelto. El MDBT50Q expone los 48 GPIO del nRF52840, así que el LoRa va en su propio bus SPI, la IMU y el UWB en otro, la NAND en el SPIM3, y queda margen.
+  - **LED RGB de estado** con guía de luz en el borde de la nuca: arranque, GNSS, enlace, grabación, batería, base, DFU y "buscar mi pod", siempre con color y patrón; el club elige apagarlo durante el juego. Buzzer opcional sin montar.
   - **Lugares de rescate** para corregir en la mesa sin otra vuelta: 0 Ω y componentes sin montar en la cadena RF del GNSS (SAW, LNA, red pi, bias-T), una antena GNSS alternativa para soldar, IMU de respaldo, puentes en cada riel y el UART del GNSS a un conector para hablar con QGNSS.
   - Las E/S del LC29H son de 2,8 V: hace falta traductor de niveles con el nRF52840, que corre a unos 3,45 V del riel del sistema (Hardware Design del LC29H, tabla 10). V_BCKP lleva su propio LDO de 3,0 V desde la batería, habilitado por SYS (se corta en modo envío), y el VCC del GNSS sale de un LDO fijo de 3,2 V con un load switch.
   - Se fabrica en PCBWay (compra las partes que no están en LCSC): 10 placas, 5 armadas.
@@ -69,8 +70,9 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
   - **Respaldo si no hay stock** (LCSC tenía 45 unidades): ICM-42688-P más ADXL372.
 - **Barómetro: Bosch BMP581** (respaldo: Infineon DPS368) en el bus I2C, para la altura del pod fusionada con la IMU: la levantada en el line, los saltos y el apoyo a `time_to_feet_s`. Cuesta unos US$ 1,23 y usa el pin que quedaba libre. Necesita una **ventilación con membrana de ePTFE** en la carcasa. Una métrica de altura nueva se define con el club en el diccionario de métricas antes de usarla (`pod-v0.md`).
 - **MCU y radio:** nRF52840 (BLE) + SX1262 (LoRa).
-  - Prototipo con el **RAK4630**: integrado y con el ecosistema WisBlock, a unos US$ 18–24.
-  - Serie con **módulos Ebyte** (E73 + E22-900M22S), a unos US$ 10 los dos. Sus certificaciones FCC/CE no están verificadas.
+  - **nRF52840 en el módulo Raytac MDBT50Q-P1MV2** (antena PCB, los 48 GPIO, cristal de 32 MHz y bobina del DC/DC adentro), unos US$ 6,65–8,50: uno a tres dólares más que el Ebyte E73, que se descartó porque saca solo 31 GPIO y la v0 los usaba todos. FCC ID SH6MDBT50Q; que cubra la -P1MV2, y CE e IC, **no verificados**. La -U1MV2 (U.FL) es el rescate si el cuerpo tapa el BLE.
+  - **LoRa con el Ebyte E22-900M22S**, unos US$ 4,63. Sus certificaciones FCC/CE no están verificadas.
+  - Por qué nRF52840 y no un STM32: BLE en el mismo chip, USB, AES en hardware, PPI para capturar el PPS sin la CPU, bajo consumo y drivers en Zephyr para el SX126x, la IMU y el barómetro. El procesamiento pesado va en la tablet y el worker, no en el pod. El RAK4630 no entra en la v0 (otro encapsulado).
 - **Memoria:** NAND SPI de **4 Gbit**. El cálculo está en `pod-f3.md`:
   - Una sesión de 3 h son unos 27 MB sin las mediciones crudas del GNSS, y unos 49 MB con crudo a 1 Hz (con el barómetro).
   - Con 4 Gbit (512 MB) entran unas 10 sesiones con crudo.
@@ -92,7 +94,7 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
   - **Anclas e instalación** (unas 4–6 en una cancha cubierta de 40 × 20 m; **no verificado**) se compran solo para el lugar que las necesite. Quedan fuera del objetivo de US$ 80.
 - **Ubicación:** en un chaleco, **entre los omóplatos**, con la antena hacia arriba. Es la misma ubicación de Catapult, así lo medido se compara con primera.
 - **Objetivo de costo: US$ 80 por pod en origen, para 100 unidades.**
-  - El relevamiento da unos **US$ 74–82** en el caso optimista, que es el de la decisión: LC29H(AA), módulos Ebyte, LSM6DSV320X, antena Taoglas y NAND de 2 Gbit, con el PCB y la carcasa en el extremo bajo o alto de su rango.
+  - El relevamiento da unos **US$ 75–85** en el caso optimista, que es el de la decisión: LC29H(AA), MDBT50Q + E22, LSM6DSV320X, antena Taoglas y NAND de 2 Gbit, con el PCB y la carcasa en el extremo bajo o alto de su rango.
   - **Con la EA**, se suma la diferencia de precio con la AA. La EA no tiene precio relevado; como referencia, la DA cuesta €20,53 @100 contra US$ 7,40 de la AA. La diferencia de unos US$ 12–15 por pod está **no verificada**.
   - Da unos **US$ 113** en el caso pesimista (los extremos altos de la tabla): F10N-20, RAK4630 y antena Linx, cuyo precio está **no verificado**. Queda como referencia, porque el F10N ya no es el GNSS del pod.
   - **Lo que más pesa es la antena GNSS de marca**, de €19,87–21,03 la Taoglas en DigiKey. Hasta con la opción barata, los US$ 80 quedan justos. Con el F10N, los US$ 80 solo se alcanzan con una antena L1/L5 activa china de unos US$ 4–8, cuyo precio no está verificado.

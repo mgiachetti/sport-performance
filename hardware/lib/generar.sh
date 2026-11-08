@@ -16,7 +16,8 @@ python3 -m venv "$tmp/venv"
 "$tmp/venv/bin/pip" install --quiet "easyeda2kicad==${EASYEDA2KICAD_VERSION}"
 
 parts=(
-  C356849   # Ebyte E73-2G4M08S1C (nRF52840)
+  C5119772  # Raytac MDBT50Q-P1MV2 (nRF52840, antena PCB)
+  C965840   # XINGLIGHT XL-1615RGBC-RF (LED RGB)
   C411293   # Ebyte E22-900M22S (SX1262)
   C26633007 # ST LSM6DSV320X
   C5362283  # Bosch BMP581
