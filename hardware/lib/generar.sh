@@ -25,6 +25,7 @@ parts=(
   C3010298  # Winbond W25N02KVZEIR (la W25N04KV del diseño usa el mismo footprint WSON-8; su número LCSC no se encontró)
   C3682423  # TI BQ25180
   C2682616  # Analog Devices MAX17048G+T10
+  C2655033  # TI DRV5032FBDBZR (Hall del chaleco)
 )
 
 for part in "${parts[@]}"; do
