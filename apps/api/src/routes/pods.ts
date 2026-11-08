@@ -648,6 +648,16 @@ async function releasePodAssignments(
     .where(and(live, or(isNull(podAssignment.endsAt), sql`${podAssignment.endsAt} > now()`)));
 }
 
+/** The database's clock (the instant `now()` of the transaction), the one the checks compare with. */
+async function databaseNow(db: TenantDatabase): Promise<Date> {
+  const { rows } = await db.execute<{ ms: string }>(
+    sql`select floor(extract(epoch from now()) * 1000)::bigint::text as ms`,
+  );
+  const value = rows[0]?.ms;
+  if (value === undefined) throw new Error('now() returned no row');
+  return new Date(Number(value));
+}
+
 // ─── Routes ──────────────────────────────────────────────────────────────────────────
 
 export function registerPodRoutes(app: FastifyInstance): void {
@@ -1217,7 +1227,9 @@ export function registerPodRoutes(app: FastifyInstance): void {
         categoryIds = session.categoryId === null ? [] : [session.categoryId];
       }
       const startsAt =
-        body.startsAt === undefined ? (recordedAt ?? new Date()) : new Date(body.startsAt);
+        body.startsAt === undefined
+          ? (recordedAt ?? (await databaseNow(db)))
+          : new Date(body.startsAt);
       const endsAt = body.endsAt === undefined ? null : new Date(body.endsAt);
       await lockAssignmentKeys(db, current.id, body.playerId);
       const problem = podAssignmentProblem({
@@ -1270,7 +1282,8 @@ export function registerPodRoutes(app: FastifyInstance): void {
       if (row.archivedAt !== null || row.endsAt !== null) {
         throw new HttpError('conflict', 'The assignment already ended or was voided');
       }
-      const endsAt = body.endsAt === undefined ? (recordedAt ?? new Date()) : new Date(body.endsAt);
+      const endsAt =
+        body.endsAt === undefined ? (recordedAt ?? (await databaseNow(db))) : new Date(body.endsAt);
       if (endsAt.getTime() <= row.startsAt.getTime()) {
         throw assignmentProblemError({ code: 'ends_before_start' });
       }

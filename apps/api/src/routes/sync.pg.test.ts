@@ -943,6 +943,8 @@ describeWithPostgres('offline sync (Postgres)', (serverUrl) => {
         'gym_set',
         'anthro_measurement',
         'external_load',
+        // The player reads their own pod assignments (B-912).
+        'pod_assignment',
       ]);
 
       const coach = await pullAll(coachM15);

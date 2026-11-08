@@ -227,13 +227,14 @@ export function podAssignmentProblem(
   if (!candidate.categoryPodsEnabled) return { code: 'category_not_enabled' };
   const missing = POD_ASSIGNMENT_CONSENTS.filter((type) => !candidate.consents.includes(type));
   if (missing.length > 0) return { code: 'consent_required', missing };
-  for (const other of candidate.existing) {
-    if (other.id === candidate.ignoreId || !podAssignmentRangesOverlap(candidate, other)) continue;
-    if (other.podId === candidate.podId) return { code: 'pod_overlap', assignmentId: other.id };
-    if (other.playerId === candidate.playerId) {
-      return { code: 'player_overlap', assignmentId: other.id };
-    }
-  }
+  const clashes = candidate.existing.filter(
+    (other) => other.id !== candidate.ignoreId && podAssignmentRangesOverlap(candidate, other),
+  );
+  // The pod first: the vest is what the staff is handing out.
+  const pod = clashes.find((other) => other.podId === candidate.podId);
+  if (pod !== undefined) return { code: 'pod_overlap', assignmentId: pod.id };
+  const player = clashes.find((other) => other.playerId === candidate.playerId);
+  if (player !== undefined) return { code: 'player_overlap', assignmentId: player.id };
   return null;
 }
 
