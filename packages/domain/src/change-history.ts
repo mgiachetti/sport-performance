@@ -27,6 +27,10 @@ export const CHANGE_TRACKED_TABLES = [
   'external_load',
   // The summary of an erasure of position data (B-913, ADR 0106): never the traces.
   'location_erasure',
+  // The pod fleet and who wore each pod when (B-912, ADR 0106).
+  'pod',
+  'pod_loan',
+  'pod_assignment',
 ] as const;
 export type ChangeTrackedTable = (typeof CHANGE_TRACKED_TABLES)[number];
 

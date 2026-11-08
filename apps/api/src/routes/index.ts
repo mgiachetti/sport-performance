@@ -21,6 +21,7 @@ import { registerConsentRoutes } from './consents.js';
 import { registerFileRoutes } from './files.js';
 import { registerClubDataExportRoutes } from './club-data-exports.js';
 import { registerDeviceRoutes } from './devices.js';
+import { registerPodRoutes } from './pods.js';
 import {
   registerAccountDeletionRoute,
   registerDataSubjectRightsRoutes,
@@ -338,6 +339,32 @@ export const IMPLEMENTED_ENDPOINTS = [
   'updateDevice',
   'retireDevice',
   'restoreDevice',
+  'listPodDevices',
+  'registerPodDevice',
+  'updatePodDevice',
+  'listPods',
+  'getPod',
+  'registerPod',
+  'updatePod',
+  'markPodMissing',
+  'recoverPod',
+  'retirePod',
+  'listPodCategories',
+  'setPodCategory',
+  'listPodLoans',
+  'lendPod',
+  'endPodLoan',
+  'listIncomingPodLoans',
+  'acceptPodLoan',
+  'declinePodLoan',
+  'returnPodLoan',
+  'listPodAssignments',
+  'getPodAssignment',
+  'createPodAssignment',
+  'endPodAssignment',
+  'correctPodAssignment',
+  'voidPodAssignment',
+  'getSessionPods',
   'getUsageSummary',
 ] as const satisfies readonly (keyof ApiEndpoints)[];
 
@@ -394,6 +421,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerTestResultRoutes(app);
   registerTestImportRoutes(app);
   registerDeviceRoutes(app);
+  registerPodRoutes(app);
   registerAnthropometryRoutes(app);
   registerTestDefinitionRoutes(app);
   registerReferenceValueRoutes(app);

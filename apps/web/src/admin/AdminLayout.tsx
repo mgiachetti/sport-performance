@@ -20,7 +20,8 @@ type AdminPath =
   | '/admin/club'
   | '/admin/categories'
   | '/admin/seasons'
-  | '/admin/roster';
+  | '/admin/roster'
+  | '/admin/pods';
 
 interface AdminTab {
   readonly to: AdminPath;
@@ -71,6 +72,8 @@ export const ADMIN_TABS: readonly AdminTab[] = [
     labelKey: 'admin.tab.roster',
     permissions: [permission('data_import', 'run'), permission('player_profile', 'create')],
   },
+  // The pod fleet (B-912, ADR 0106): S&C and the administration.
+  { to: '/admin/pods', labelKey: 'admin.tab.pods', permissions: [permission('pod', 'manage')] },
 ];
 
 /** The sections whose every permission the subject holds. */

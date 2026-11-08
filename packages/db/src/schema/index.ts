@@ -40,3 +40,4 @@ export * from './reports.js';
 export * from './club-data-export.js';
 export * from './usage.js';
 export * from './location.js';
+export * from './pods.js';

@@ -28,6 +28,8 @@ const GLOBAL_TABLES = [
   'known_device',
   'push_token',
   'club',
+  // The registry of pod devices (B-912, ADR 0106): a device exists before any club has it.
+  'pod_device',
 ];
 /** Append-only audit logs: club scoped, but not club tables in the ADR 0023 sense. */
 const LOG_TABLES = ['medical.access_log'];
@@ -88,6 +90,10 @@ describe('schema conventions', () => {
         'player_report',
         'player_stage',
         'player_wellness_daily',
+        'pod',
+        'pod_assignment',
+        'pod_device',
+        'pod_loan',
         'position',
         'push_ticket',
         'push_token',

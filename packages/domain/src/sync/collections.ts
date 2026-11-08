@@ -15,6 +15,8 @@ export const SYNC_COLLECTIONS = [
   'gym_set',
   'anthro_measurement',
   'external_load',
+  // Which pod each player wears (B-912, ADR 0106): the staff's tablet knows it offline.
+  'pod_assignment',
 ] as const;
 export type SyncCollection = (typeof SYNC_COLLECTIONS)[number];
 
@@ -96,6 +98,10 @@ export const SYNC_OPERATIONS = [
   // Create only (B-806, ADR 0092): a day of the menstrual cycle, to `medical`. Like the pain
   // report, never pulled back and forgotten by the device once applied.
   'menstrual_cycle.log',
+  // Pod assignments (B-912, ADR 0106): never "last writer wins". A create that overlaps one
+  // the server already has is rejected with its `409`, and the staff corrects it online.
+  'pod_assignment.create',
+  'pod_assignment.end',
 ] as const;
 export type SyncOperation = (typeof SYNC_OPERATIONS)[number];
 

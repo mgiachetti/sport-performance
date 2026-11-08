@@ -17,6 +17,7 @@ import { MembersSection } from './admin/MembersSection';
 import { RosterImportSection } from './admin/RosterImportSection';
 import { SeasonRolloverPage } from './admin/SeasonRolloverPage';
 import { SeasonsSection } from './admin/SeasonsSection';
+import { PodsSection } from './pods/PodsSection';
 import { isSessionExpired } from './api/errors';
 import { ensureQuery, meQuery } from './api/queries';
 import { CalendarPage } from './calendar/CalendarPage';
@@ -443,6 +444,16 @@ const adminRosterRoute = createRoute({
   ),
 });
 
+const adminPodsRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: 'pods',
+  component: () => (
+    <AdminGuard to="/admin/pods">
+      <PodsSection />
+    </AdminGuard>
+  ),
+});
+
 const adminSeasonRolloverRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: 'seasons/$seasonId',
@@ -463,6 +474,7 @@ const adminRoutes = [
   adminSeasonsRoute,
   adminSeasonRolloverRoute,
   adminRosterRoute,
+  adminPodsRoute,
 ];
 
 export const anthropometryRoute = createRoute({

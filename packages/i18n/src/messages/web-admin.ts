@@ -16,6 +16,7 @@ export const webAdminMessagesEsAR = {
   'admin.tab.categories': 'Categorías',
   'admin.tab.seasons': 'Temporadas',
   'admin.tab.roster': 'Importar padrón',
+  'admin.tab.pods': 'Pods',
 
   // Shared
   'admin.conflict':

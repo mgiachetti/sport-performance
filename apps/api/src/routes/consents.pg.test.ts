@@ -672,6 +672,19 @@ describeWithPostgres('consents (Postgres)', (serverUrl) => {
         )
       ).rows;
 
+    it('is not asked outside a category with pods (B-912, ADR 0107)', async () => {
+      await setGps(true);
+      await database.admin.query(`update category set pods_enabled = false where club_id = $1`, [
+        clubA,
+      ]);
+      expect(await stateOf(adultPlayer.headers, adult, 'location')).toBeUndefined();
+      // The M15 of this club has pods for the rest of the suite.
+      await database.admin.query(`update category set pods_enabled = true where club_id = $1`, [
+        clubA,
+      ]);
+      await setGps(false);
+    });
+
     it('is asked and signed only with the gps module on', async () => {
       const v1 = await publish(adminA.headers, {
         type: 'location',

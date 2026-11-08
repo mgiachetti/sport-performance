@@ -94,20 +94,24 @@ interface Route {
 
 const ROUTES: readonly Route[] = (
   Object.entries(apiEndpoints) as [OperationId, ApiEndpoints[OperationId]][]
-).map(([operationId, endpoint]) => {
-  const paramNames: string[] = [];
-  const source = endpoint.path.replace(/\{([^}]+)\}/g, (_match, name: string) => {
-    paramNames.push(name);
-    return '([^/]+)';
-  });
-  return {
-    operationId,
-    method: endpoint.method,
-    pattern: new RegExp(`^${source}$`),
-    paramNames,
-    successStatus: endpoint.response.status,
-  };
-});
+)
+  .map(([operationId, endpoint]) => {
+    const paramNames: string[] = [];
+    const source = endpoint.path.replace(/\{([^}]+)\}/g, (_match, name: string) => {
+      paramNames.push(name);
+      return '([^/]+)';
+    });
+    return {
+      operationId,
+      method: endpoint.method,
+      pattern: new RegExp(`^${source}$`),
+      paramNames,
+      successStatus: endpoint.response.status,
+    };
+  })
+  // Static segments win over parameters, as in the API's router (`/v1/pods/categories`
+  // before `/v1/pods/{podId}`): routes with fewer parameters are matched first.
+  .sort((a, b) => a.paramNames.length - b.paramNames.length);
 
 function respond(
   status: number,

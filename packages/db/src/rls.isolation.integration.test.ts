@@ -56,6 +56,8 @@ const APPEND_ONLY_TABLES = [
   // The API only inserts reports; the worker completes them (ADR 0071).
   'player_report',
   'player_wellness_daily',
+  // Loans are written only by app.lend_pod and app.end_pod_loan, which write both clubs (ADR 0106).
+  'pod_loan',
   'push_ticket',
   'roster_import',
   'sync_change',

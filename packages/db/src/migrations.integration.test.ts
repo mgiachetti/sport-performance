@@ -59,6 +59,7 @@ const GLOBAL_TABLES = [
   'known_device',
   'push_token',
   'club',
+  'pod_device',
 ];
 
 describe.skipIf(!hasDatabase)('migrations (Postgres 16)', () => {

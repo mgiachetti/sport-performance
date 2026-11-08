@@ -50,6 +50,7 @@ import { logMenstrualCycleDay } from './menstrual-cycle.js';
 import { submitPainReport } from './pain-reports.js';
 import { submitWellness, wellnessSchema, wellnessScoresInputSchema } from './wellness.js';
 import { correctGymSet, gymProgramSchema, gymSetSchema, logGymSets, voidGymSet } from './gym.js';
+import { createPodAssignment, endPodAssignment, podAssignmentSchema } from './pods.js';
 
 /**
  * Offline sync (B-323, ADR 0015, ADR 0050): the device pushes its queue of
@@ -60,7 +61,7 @@ import { correctGymSet, gymProgramSchema, gymSetSchema, logGymSets, voidGymSet }
 export const syncCollectionSchema = z.enum(SYNC_COLLECTIONS).meta({
   id: 'SyncCollection',
   description:
-    'Colección sincronizable: `wellness`, `participation`, `training_session`, `test_session`, `test_result` (con sus intentos), `gym_program` (solo lectura), `gym_set`, `anthro_measurement` (con la maduración que deriva el worker) o `external_load` (actividades fuera del club que informa el jugador).',
+    'Colección sincronizable: `wellness`, `participation`, `training_session`, `test_session`, `test_result` (con sus intentos), `gym_program` (solo lectura), `gym_set`, `anthro_measurement` (con la maduración que deriva el worker) `external_load` (actividades fuera del club que informa el jugador) o `pod_assignment` (qué pod lleva cada jugador; para el staff).',
 });
 
 export const syncOperationSchema = z.enum(SYNC_OPERATIONS).meta({
@@ -169,6 +170,8 @@ export const SYNC_OPERATION_INPUTS = {
   }),
   'external_load.archive': z.strictObject({ target: syncTargetSchema }),
   'menstrual_cycle.log': z.strictObject({ body: logMenstrualCycleDay.body }),
+  'pod_assignment.create': z.strictObject({ body: createPodAssignment.body }),
+  'pod_assignment.end': z.strictObject({ target: syncTargetSchema, body: endPodAssignment.body }),
 } as const satisfies Record<SyncOperation, z.ZodType>;
 
 export type SyncOperationInput<Op extends SyncOperation> = z.output<
@@ -250,7 +253,7 @@ export const pushSyncMutations = defineEndpoint({
   method: 'POST',
   path: '/v1/sync/push',
   summary: 'Sincronizar la cola de mutaciones',
-  description: `Hasta ${String(SYNC_PUSH_MAX)} mutaciones, en el orden de la cola. Cada una corre el mismo handler que su endpoint en línea (contrato, permisos, consentimientos, RLS) en su propio savepoint: una rechazada vuelve con su error y no frena las siguientes; un error del servidor hace fallar todo el pedido (reintentar), y un choque con un push concurrente (deadlock) es un \`503\` con \`Retry-After\` para reintentar el pedido entero. Idempotente por \`mutationId\`. Las ediciones se resuelven por campo: gana el reloj (HLC) mayor.`,
+  description: `Hasta ${String(SYNC_PUSH_MAX)} mutaciones, en el orden de la cola. Cada una corre el mismo handler que su endpoint en línea (contrato, permisos, consentimientos, RLS) en su propio savepoint: una rechazada vuelve con su error y no frena las siguientes; un error del servidor hace fallar todo el pedido (reintentar), y un choque con un push concurrente (deadlock) es un \`503\` con \`Retry-After\` para reintentar el pedido entero. Idempotente por \`mutationId\`. Las ediciones se resuelven por campo: gana el reloj (HLC) mayor. Las asignaciones de pods no: un alta que se superpone con una que el servidor ya tiene se rechaza con su \`conflict\` (nunca gana el último).`,
   tags: ['sync'],
   auth: 'club',
   body: z.strictObject({
@@ -336,6 +339,12 @@ const upsertChange = z
       op: z.literal('upsert'),
       ...changeBase,
       data: externalLoadSchema,
+    }),
+    z.object({
+      collection: z.literal('pod_assignment'),
+      op: z.literal('upsert'),
+      ...changeBase,
+      data: podAssignmentSchema,
     }),
   ])
   .meta({ id: 'SyncUpsert' });

@@ -9,6 +9,8 @@ import {
   recordTestSessionResults,
   reportExternalLoad,
   logMenstrualCycleDay,
+  createPodAssignment,
+  endPodAssignment,
   submitPainReport,
   submitSessionRpe,
   submitWellness,
@@ -28,6 +30,7 @@ import {
   externalLoad,
   gymSet,
   participation,
+  podAssignment,
   syncChange,
   testResult,
   wellness,
@@ -152,7 +155,8 @@ type EditedTable =
   | typeof testResult
   | typeof gymSet
   | typeof anthroMeasurement
-  | typeof externalLoad;
+  | typeof externalLoad
+  | typeof podAssignment;
 
 /**
  * The id of the row a mutation edits, visible to the caller (RLS): by `id`
@@ -951,6 +955,22 @@ const externalLoadArchive: Resolver<'external_load.archive'> = async ({ target }
   return create({ endpoint: archiveExternalLoad, params: { externalLoadId: id } });
 };
 
+// ─── Pod assignments (B-912, ADR 0106) ───────────────────────────────────────────────
+// Never "last writer wins": the online handler checks the overlaps and answers `409` for one
+// that overlaps what the server already has (the first one to arrive stays); the device shows
+// the conflict and the staff corrects it online, with a reason.
+
+const podAssignmentCreate: Resolver<'pod_assignment.create'> = async ({ body }, ctx) => {
+  requireClientUuid(body, [...ctx.path, 'body']);
+  return Promise.resolve(create({ endpoint: createPodAssignment, body }));
+};
+
+const podAssignmentEnd: Resolver<'pod_assignment.end'> = async ({ target, body }, ctx) => {
+  const id = await targetId(ctx.db, podAssignment, ctx.clubId, target, 'Pod assignment');
+  // No clock: an assignment ends once; ending one already ended is the handler's `409`.
+  return create({ endpoint: endPodAssignment, params: { podAssignmentId: id }, body });
+};
+
 /** The resolver of each operation. */
 export const SYNC_RESOLVERS: { readonly [Op in SyncOperation]: Resolver<Op> } = {
   'wellness.submit': wellnessSubmit,
@@ -973,6 +993,8 @@ export const SYNC_RESOLVERS: { readonly [Op in SyncOperation]: Resolver<Op> } = 
   'external_load.report': externalLoadReport,
   'external_load.correct': externalLoadCorrect,
   'external_load.archive': externalLoadArchive,
+  'pod_assignment.create': podAssignmentCreate,
+  'pod_assignment.end': podAssignmentEnd,
 };
 
 /** Every endpoint a sync operation may call (all must be registered transactional routes). */
@@ -997,4 +1019,6 @@ export const SYNC_ENDPOINTS: readonly EndpointDefinition[] = [
   correctExternalLoad,
   archiveExternalLoad,
   logMenstrualCycleDay,
+  createPodAssignment,
+  endPodAssignment,
 ];

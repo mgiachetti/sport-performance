@@ -279,18 +279,19 @@ export function menstrualCycleUnavailableReason(
  *
  * - `menstrual_cycle`: the club's module on and a female player (ADR 0092);
  * - `location` (B-913, ADR 0106): the club's `gps` module on, the module of
- *   field metrics that the pod belongs to. Which categories get a pod (M19
- *   and the first team by default) is the club's per-category setting of
- *   B-912; until it exists every player of a club with `gps` is asked.
+ *   field metrics that the pod belongs to, and the player in a category with
+ *   pods today (`podsOffered`: `category.pods_enabled`, M19 and the first team
+ *   by default, B-912).
  */
 export function consentTypesAskedFor(
   modules: Pick<ClubModules, 'menstrual_cycle' | 'gps'>,
   sex: Sex,
   signedTypes: readonly ConsentType[],
+  podsOffered = true,
 ): ConsentType[] {
   const cycleOffered =
     (modules.menstrual_cycle && sex === 'female') || signedTypes.includes('menstrual_cycle');
-  const locationOffered = modules.gps || signedTypes.includes('location');
+  const locationOffered = (modules.gps && podsOffered) || signedTypes.includes('location');
   return CONSENT_TYPES.filter((type) => {
     if (type === 'menstrual_cycle') return cycleOffered;
     if (type === 'location') return locationOffered;
@@ -302,15 +303,16 @@ export function consentTypesAskedFor(
  * Whether a new `type` consent can be signed for this player: only what is
  * offered today, so a `menstrual_cycle` consent is never signed for a male
  * player or with the club's module off, nor a `location` one with the `gps`
- * module off (one signed before can still be revoked:
+ * module off or outside a category with pods (one signed before can still be revoked:
  * {@link consentTypesAskedFor} keeps showing it).
  */
 export function consentTypeSignable(
   modules: Pick<ClubModules, 'menstrual_cycle' | 'gps'>,
   sex: Sex,
   type: ConsentType,
+  podsOffered = true,
 ): boolean {
-  return consentTypesAskedFor(modules, sex, []).includes(type);
+  return consentTypesAskedFor(modules, sex, [], podsOffered).includes(type);
 }
 
 /**

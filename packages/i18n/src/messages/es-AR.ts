@@ -21,6 +21,7 @@ import { webPanelMessagesEsAR } from './web-panel.js';
 import { webPlayerMessagesEsAR } from './web-player.js';
 import { webCalendarMessagesEsAR } from './web-calendar.js';
 import { webAdminMessagesEsAR } from './web-admin.js';
+import { webPodsMessagesEsAR } from './web-pods.js';
 import { anthropometryMessagesEsAR } from './anthropometry.js';
 import { menarcheMessagesEsAR } from './menarche.js';
 import { webGuardianMessagesEsAR } from './web-guardian.js';
@@ -483,6 +484,7 @@ export const sourceMessageFiles = {
   'web-calendar.ts': webCalendarMessagesEsAR,
   'web-configuration.ts': webConfigurationMessagesEsAR,
   'web-admin.ts': webAdminMessagesEsAR,
+  'web-pods.ts': webPodsMessagesEsAR,
   'anthropometry.ts': anthropometryMessagesEsAR,
   'menarche.ts': menarcheMessagesEsAR,
   'web-guardian.ts': webGuardianMessagesEsAR,
@@ -523,6 +525,8 @@ export const esAR = {
   ...webCalendarMessagesEsAR,
   ...webConfigurationMessagesEsAR,
   ...webAdminMessagesEsAR,
+  // The pod fleet and its assignment on a session (B-912)
+  ...webPodsMessagesEsAR,
   // Anthropometry, shared by the web and the field sheet of the app (B-412, B-508)
   ...anthropometryMessagesEsAR,
   // Menarche, health data of the player, her guardian and the medical staff (B-805)
