@@ -32,6 +32,21 @@ for part in "${parts[@]}"; do
   "$tmp/venv/bin/easyeda2kicad" --full --lcsc_id="$part" --output hardware/lib/pod --overwrite
 done
 
+# Solo el modelo 3D: el footprint sale de la hoja del fabricante (../tools/footprints_hoja.py) y
+# referencia estos modelos.
+model_parts=(
+  C22403415 # Quectel LC29HAAMD
+  C2680319  # TI TPS22916CYFPR (DSBGA-4)
+  C3662799  # TI TPS259470ARPWR (VQFN-HR-10)
+  C1518762  # TI TPS63900DSKR (WSON-10)
+  C579465   # Analog Devices ADXL372BCCZ-RL7 (LGA-16)
+  C5556161  # Qualcomm RF360 B39162B8389P810 (SAW L1 + L5, candidato)
+  C18337445 # Infineon BGA525N6 (LNA L1/L2/L5, candidato)
+)
+for part in "${model_parts[@]}"; do
+  "$tmp/venv/bin/easyeda2kicad" --3d --lcsc_id="$part" --output hardware/lib/pod --overwrite
+done
+
 # easyeda2kicad guarda la ruta absoluta de cada modelo 3D. Se reemplaza por una ruta
 # relativa al proyecto, para que funcione en cualquier máquina y en el CI.
 # Según cómo se le pase --output, la ruta sale absoluta o relativa a la raíz del repo:

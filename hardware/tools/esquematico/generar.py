@@ -614,6 +614,25 @@ def file_uuid(path: Path) -> str:
     return str(uuid.uuid5(NAMESPACE, path.name))
 
 
+def check_own_footprints() -> list:
+    """Every part on a footprint of hardware/lib/pod.pretty: the file exists and has a pad for each pin."""
+    errors = []
+    lib = REPO / "hardware" / "lib" / "pod.pretty"
+    for sheet in diseno.SHEETS:
+        for p in (p for g in sheet.groups for p in g.parts if p.kind == "part"):
+            if not p.footprint.startswith(diseno.POD):
+                continue
+            path = lib / (p.footprint[len(diseno.POD):] + ".kicad_mod")
+            if not path.exists():
+                errors.append(f"{sheet.name} {p.value}: falta {path.relative_to(REPO)}")
+                continue
+            pads = {str(pad[1]) for pad in find_all(parse(path.read_text(encoding="utf-8")), "pad")}
+            missing = sorted((pin for pin in p.nets if pin not in pads), key=natural)
+            if missing:
+                errors.append(f"{sheet.name} {p.value}: pines sin pad en {path.name}: {', '.join(missing)}")
+    return errors
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--check", action="store_true", help="no escribe: falla si algún archivo cambiaría")
@@ -622,6 +641,9 @@ def main() -> int:
     lib_node, symbols = build_library()
     design = Design(diseno.SHEETS, symbols)
     design.check()
+    fp_errors = check_own_footprints()
+    if fp_errors:
+        raise SystemExit("Footprints propios:\n  " + "\n  ".join(fp_errors))
     root_uuid, sheet_uuids = root_info()
 
     outputs = {LIB_PATH: dump(lib_node) + "\n"}
