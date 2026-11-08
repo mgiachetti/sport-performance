@@ -33,12 +33,13 @@ POD = Path(__file__).resolve().parents[1] / "pod-v0"
 NS = uuid.UUID("2f1c5a0e-6b1d-4c39-9a57-1f4b8f3c0a11")
 
 NETS = ["GND", "/gnss_rf/GNSS_RF_A", "/power/BB_LX1", "USB_D_P", "USB_D_N", "SYS", "GNSS_PPS",
-        "/mcu_radio/LED_R", "/mcu_radio/LED_G", "/gnss_rf/GNSS_RF_B", "/gnss_rf/GNSS_ANT_PATCH"]
+        "/mcu_radio/LED_R", "/mcu_radio/LED_G", "/gnss_rf/GNSS_RF_B", "/gnss_rf/GNSS_ANT_PATCH", "VREG"]
 
 # Coordinates in mm on the 45 x 65 mm outline (100..145, 100..165). Zones: BLE_ANTENA x 100-103.5,
-# y 137-148; GNSS_ANTENA x 107.5-137.5, y 101-131; LORA_ANTENA x 125-145, y 150-165.
+# y 137-148; GNSS_ANTENA x 107.5-137.5, y 101-131; PATCH_FEED (In2.Cu) x 111-127, y 110-114;
+# LORA_ANTENA x 125-145, y 150-165.
 # Track: (net, layer, x0, y0, x1, y1, width). Via: (net, x, y). Footprint: (ref, x, y, side, pads),
-# pad: (number, dx, dy, width, height, net or None).
+# pad: (number, dx, dy, width, height, net or None). Zone: (net, layer, [(x, y), ...]), outline only.
 PAD = (("1", 0, 0, 0.8, 0.8, None),)
 R0402 = lambda a, b: (("1", -0.48, 0, 0.56, 0.62, a), ("2", 0.48, 0, 0.56, 0.62, b))  # noqa: E731
 
@@ -60,8 +61,11 @@ BAD = {
         ("/mcu_radio/LED_R", "F.Cu", 110, 110, 120, 110, 0.2),  # inside GNSS_ANTENA on L1
         ("/mcu_radio/LED_R", "F.Cu", 101, 140, 104, 140, 0.2),  # inside BLE_ANTENA
         ("/gnss_rf/GNSS_RF_A", "F.Cu", 128, 140.5, 138, 140.5, 0.33),  # 0.3 mm from the pad of J1
+        ("VREG", "In2.Cu", 113, 112, 118, 112, 0.3),  # not GND on L3 under the patch feed
+        ("/gnss_rf/GNSS_ANT_PATCH", "In2.Cu", 128, 146, 138, 146, 0.33),  # patch feed on L3: still forbidden
     ],
     "vias": [("/gnss_rf/GNSS_RF_A", 120, 140)],  # via on an RF net
+    "zones": [],
     "footprints": [
         ("R1", 125, 125, "F", PAD),  # top-side part under the GNSS antenna
         ("J1", 133, 139.5, "F", (("1", 0, 0, 0.8, 0.8, "/mcu_radio/LED_G"),)),  # other net near RF
@@ -85,7 +89,10 @@ EXPECTED = [
     "GNSS_SENSITIVE: fuera de la zona de LoRa",
     "GNSS_ANTENA: solo GND y RF en L1",
     "GNSS_ANTENA: sin componentes debajo de la antena",
+    "PATCH_FEED: L3 solo GND debajo de la alimentación del patch",
 ]
+# The GNSS_ANT_PATCH exception covers L4 and its via only: the inner-layer rule must still flag it.
+PATCH_INNER = ("RF_50: solo en L1 (internas)", "GNSS_ANT_PATCH")
 # The native keep-out of BLE_ANTENA is reported without its name ("Local override"): look for
 # an items_not_allowed violation at the track placed inside it.
 BLE_KEEPOUT_AT = "@(101.0000 mm, 140.0000 mm)"
@@ -107,6 +114,7 @@ OK = {
     ],
     "vias": [("GND", 120, 125),  # stitching via inside the GNSS zone
              ("/gnss_rf/GNSS_ANT_PATCH", 120, 112)],  # the patch feed's RF via
+    "zones": [("GND", "In2.Cu", [(112, 110.5), (119, 110.5), (119, 113.5), (112, 113.5)])],  # GND island on L3
     "footprints": [
         ("AE201", 115, 130, "F", PAD),  # the patch may sit in the GNSS zone
         ("R2", 130, 125, "B", PAD),  # bottom-side part under the GNSS zone
@@ -152,6 +160,11 @@ def write_board(out: Path, stem: str, spec: dict) -> None:
     for i, (net, x, y) in enumerate(spec["vias"]):
         items += (f'\t(via (at {x} {y}) (size 0.6) (drill 0.3) (layers "F.Cu" "B.Cu") '
                   f'(net {code[net]}) (uuid "{uid(stem, "via", i)}"))\n')
+    for i, (net, layer, pts) in enumerate(spec["zones"]):
+        xy = " ".join(f"(xy {x} {y})" for x, y in pts)
+        items += (f'\t(zone (net {code[net]}) (net_name "{net}") (layer "{layer}") (uuid "{uid(stem, "zone", i)}") '
+                  f'(hatch edge 0.5) (connect_pads (clearance 0.2)) (min_thickness 0.2) (filled_areas_thickness no) '
+                  f'(fill (thermal_gap 0.5) (thermal_bridge_width 0.5)) (polygon (pts {xy})))\n')
     end = board.rstrip().rfind(")")
     (out / f"{stem}.kicad_pcb").write_text(board[:end] + items + ")\n", encoding="utf-8")
     shutil.copyfile(POD / "pod-v0.kicad_pro", out / f"{stem}.kicad_pro")
@@ -176,6 +189,7 @@ def verify(report: Path) -> int:
     found = {name: name in text for name in EXPECTED}
     found["BLE_ANTENA (keep-out nativo)"] = any(
         b.startswith("[items_not_allowed]") and BLE_KEEPOUT_AT in b for b in blocks)
+    found["GNSS_ANT_PATCH sigue prohibida en capas internas"] = any(all(t in b for t in PATCH_INNER) for b in blocks)
     for name, ok in found.items():
         print(("ok    " if ok else "FALTA ") + name)
     missing = [name for name, ok in found.items() if not ok]

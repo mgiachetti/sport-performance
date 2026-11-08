@@ -122,3 +122,12 @@
 	(layer "F.Cu")
 	(condition "A.intersectsArea('GNSS_ANTENA') && A.Reference != 'AE201'")
 	(constraint disallow footprint))
+
+# --- Alimentación del patch por L4 (zona PATCH_FEED, sobre el tramo de L4 y su vía de RF) ---
+# El tramo de L4 se refiere a L3: ahí L3 tiene que ser una isla de GND maciza, cosida a L2 con
+# vías de GND. Ninguna pista ni zona de otra red en In2.Cu dentro de la zona (las rule areas, sin
+# red, no cuentan). La zona es provisoria: se mueve con la ubicación del patch.
+(rule "PATCH_FEED: L3 solo GND debajo de la alimentación del patch"
+	(layer "In2.Cu")
+	(condition "A.intersectsArea('PATCH_FEED') && A.NetName != 'GND' && A.NetName != ''")
+	(constraint disallow track zone))
