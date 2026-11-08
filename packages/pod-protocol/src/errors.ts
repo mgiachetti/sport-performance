@@ -15,6 +15,14 @@ export const POD_PROTOCOL_ERROR_CODES = [
   'counter_jump',
   'boot_counter_exhausted',
   'invalid_key',
+  // NAND log (ADR 0106, "Log en la NAND").
+  'not_a_log_page',
+  'crc_mismatch',
+  'mac_mismatch',
+  'unknown_key_epoch',
+  'malformed_record',
+  'invalid_container',
+  'manifest_mismatch',
 ] as const;
 
 export type PodProtocolErrorCode = (typeof POD_PROTOCOL_ERROR_CODES)[number];

@@ -26,15 +26,17 @@ regexes = [
 ]
 
 [[allowlists]]
-description = "Public test vectors of the pod protocol (B-914), not secrets"
-# The golden vectors of the pod-protocol package (fixtures/v1/vectors.json) publish the AES-128 keys derived
-# with HKDF from the fixed test master key 000102…1f (link, storage and beacon keys
-# of epoch 2), so the firmware can check its KDF and AES-CCM byte for byte. No club
-# ever uses them. Only these three exact derived values, and only in that file.
+description = "Public test vectors of the pod protocol (B-914, B-916), not secrets"
+# The golden vectors of the pod-protocol package (fixtures/v1/vectors.json and
+# fixtures/v1/log-vectors.json) publish the AES-128 keys derived with HKDF from the
+# fixed test master key 000102…1f (link, storage and beacon keys of epoch 2, and the
+# storage key of epoch 3 for the NAND log), so the firmware can check its KDF,
+# AES-CCM, AES-CTR and CMAC byte for byte. No club ever uses them. Only these exact
+# derived values, and only in those files.
 condition = "AND"
 paths = [
-  '''(^|/)fixtures/v1/vectors\.json$''',
+  '''(^|/)fixtures/v1/(log-)?vectors\.json$''',
 ]
 regexes = [
-  '''^(6f96c831eabe814d457fd53b18bb258c|1c41d318a9e89cb33af85e4d4036d65f|eab7326d66d93e14a8f5d01095541722)$''',
+  '''^(6f96c831eabe814d457fd53b18bb258c|1c41d318a9e89cb33af85e4d4036d65f|eab7326d66d93e14a8f5d01095541722|d10c148671e90a90d92aacd32f6c0936)$''',
 ]

@@ -5,6 +5,7 @@ export * from './counters.js';
 export * from './crypto.js';
 export * from './downlink.js';
 export * from './errors.js';
+export * from './log/index.js';
 export * from './nonce.js';
 export * from './replay.js';
 export * from './uplink.js';

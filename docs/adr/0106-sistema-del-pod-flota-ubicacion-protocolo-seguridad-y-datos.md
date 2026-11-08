@@ -214,6 +214,19 @@ El formato byte a byte normativo está en el README de [`packages/pod-protocol`]
 - **Tipo de archivo nuevo `pod_raw`** con estado pendiente y retención propia configurable por club; las trazas de posición derivadas siguen la misma retención y el consentimiento `location`.
 - **La base** guarda localmente y reintenta: 100 pods son unos 5 GB por día y un club puede tener poca subida.
 
+### Formato v1 del log
+
+El formato byte a byte normativo está en el README de [`packages/pod-protocol`](../../packages/pod-protocol/README.md) ("Log en la NAND"), con archivos de ejemplo (`fixtures/v1/log-vectors.json` y `fixtures/v1/pod-raw-sample.bin`) para el firmware. Lo que este ADR no fijaba y quedó decidido ahí:
+
+- **Página de 2048 B**: 40 B de encabezado en claro y autenticado (magia `SPLG`, versión, época de la clave, banderas, DEVICEID, contador de arranques como época de tiempo, tramo, secuencia de página, posición en el flujo, largo, primer registro y cantidad), 1996 B de carga útil con AES-128-CTR, el CMAC de 8 B sobre encabezado y texto cifrado, y el CRC-32 al final. El área de repuesto queda para el ECC y la marca de fábrica. Little-endian, como la radio.
+- **IV** = época (u8) ‖ secuencia de página (u32) ‖ ceros ‖ contador de bloque. La secuencia es **monótona por pod en toda su vida**, no por época: el pod guarda una reserva en la NVS y arranca por encima de ella y de lo que hay en la memoria. Así un IV nunca se repite con la misma clave, aunque la época cambie a mitad de un tramo.
+- **El CRC va aparte del CMAC** para que la base, que no tiene claves, y el escaneo del pod detecten páginas cortadas o dañadas.
+- **Registros TLV** (tipo, largo, tick u48 del RTC) en un **flujo continuo por tramo** que cruza páginas. La posición en el flujo y la del primer registro de cada página miden exactamente lo perdido y permiten resincronizar. Un tipo nuevo se suma sin cambiar la versión: el decodificador saltea por el largo lo que no conoce.
+- **El tramo de grabación es la unidad de subida y de borrado** y empieza siempre en un bloque borrado, así borrar un tramo nunca toca a otro. Los intervalos de uso (chaleco, movimiento, aperturas y cierres del staff) son marcadores dentro del tramo.
+- **Base de tiempo** lineal por tramos entre anclas, por arranque, con prioridad PPS > baliza > base y rechazo de anclas a más de 500 ppm; se extrapola hacia atrás antes del primer fix. La IMU se ubica por sus marcas de la FIFO correlacionadas en cada PPS.
+- **`pod_raw`** = las páginas cifradas tal cual, con su dirección física y el estado del ECC de la lectura, más un manifiesto (DEVICEID, número de serie, tramo, rango de páginas y bloques, épocas, rango de tiempo, tamaño y SHA-256). El SHA-256 del archivo es el que confirma el servidor antes de que el pod borre.
+- **Tamaño**: con los registros v1, unos 2,9 kB/s (4,9 kB/s con crudo a 1 Hz), es decir 16 sesiones de 3 h en 4 Gbit (9 con crudo).
+
 ### Variantes del método y precedencia
 
 - El método sigue siendo `pod` (principio 4), con una **variante** guardada con cada valor:
