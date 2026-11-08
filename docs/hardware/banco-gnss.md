@@ -10,7 +10,23 @@ Dos **LG290P**: uno como base fija en trípode y otro en el chaleco como referen
 
 Los precios son de listados de tiendas y agregadores, con fechas distintas y sin envío ni impuestos. Las conversiones a US$ son aproximadas. Lo que no se pudo confirmar dice "no verificado". Antes de comprar se cotiza en vivo.
 
-## Lista de compras
+## Compra reducida (decisión: directo a la v0)
+
+Se decidió ir directo a la placa v0 con módulos ([`pod-v0.md`](pod-v0.md)). El banco se reduce a lo que hace falta **antes de cerrar el esquemático** y a la referencia de la cancha:
+
+| Cant. | Qué | Para qué | ≈ US$ |
+|---|---|---|---|
+| 1 | LC29H(AA) GPS HAT de Waveshare | Si la AA saca crudo y si da velocidad Doppler a 10 Hz | 50 |
+| 2 | LG290P | Base en trípode y referencia en el chaleco | 180 |
+| 1 | Antena Taoglas AGVLB.25B.07.0060A + pigtail | La antena del pod, para el HAT | 33 |
+| 1 | Dipolo liviano multibanda | Antena del LG290P del chaleco | 77 |
+| 2 | Adaptadores USB-serie | Leer los GNSS desde la notebook | 10 |
+| 1 | Medidor USB FNB58 | Consumo | 48 |
+| 1 | Trípode + soporte de antena | Base al costado | 20 |
+
+**Total: unos US$ 420**, sin envío ni impuestos (precios y fuentes en la tabla de abajo). La EA, el RTK, el consumo del pod y la convivencia con LoRa se prueban en la v0. El NEO-F10N, los RAK y la placa de la IMU quedan opcionales: se compran solo si la AA decepciona o si se quiere adelantar firmware antes de que llegue la v0.
+
+## Lista de compras completa (referencia)
 
 | Cant. | Qué | Para qué | Precio | Fuente | Verificado |
 |---|---|---|---|---|---|
