@@ -131,7 +131,7 @@ describe.skipIf(!hasDatabase || !hasBucket)('pod log ingestion (Postgres 16 + Mi
     const checksum = createHash('sha256').update(file.bytes).digest('base64');
     const { rows: files } = await owner.query<{ id: string }>(
       `insert into file (club_id, kind, status, content_type, size_bytes, checksum_sha256, uploaded_at, expires_at)
-       values ($1, 'pod_raw', 'ready', 'application/octet-stream', $2, $3, $4, $4 + interval '8 days')
+       values ($1, 'pod_raw', 'ready', 'application/octet-stream', $2, $3, $4::timestamptz, $4::timestamptz + interval '8 days')
        returning id`,
       [clubId, file.bytes.length, checksum, new Date(confirmedAt)],
     );
@@ -149,7 +149,7 @@ describe.skipIf(!hasDatabase || !hasBucket)('pod log ingestion (Postgres 16 + Mi
          segment_closed, declared_start_at, declared_end_at, size_bytes, sha256_hex, file_id, state,
          confirmed_at, pending_until)
        select $1, p.id, p.device_id, $20, $3, $6, $4, $5, $7, $8, $9, $10, $11, $12,
-              $13, $14, $15, $16, $17, $18, 'pending', $19, $19 + interval '7 days'
+              $13, $14, $15, $16, $17, $18, 'pending', $19::timestamptz, $19::timestamptz + interval '7 days'
          from pod p where p.club_id = $1 and p.id = $2
        returning id`,
       [
