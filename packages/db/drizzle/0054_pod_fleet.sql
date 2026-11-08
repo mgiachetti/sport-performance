@@ -466,3 +466,54 @@ $$;
 REVOKE ALL ON FUNCTION "app"."end_pod_loan"(uuid) FROM PUBLIC;
 --> statement-breakpoint
 GRANT EXECUTE ON FUNCTION "app"."end_pod_loan"(uuid) TO "sport_performance_app";
+--> statement-breakpoint
+
+-- A pod that leaves the fleet now (lost, stolen, retired): its live assignments, whoever
+-- wears it. S&C and the administration run the fleet for the whole club (pod.manage) but see
+-- only the players of their assignments (RLS), so this reaches the rest. With `dry_run`, only
+-- counts them (retiring refuses a pod in use). Otherwise ends the one being worn now and voids
+-- those that had not started (flagged for reprocessing), with `reason` in the change history.
+-- Returns how many. P0002 when the pod is not of the club.
+CREATE FUNCTION "app"."release_pod_assignments"(target_pod uuid, reason text, dry_run boolean)
+RETURNS integer
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp AS $$
+DECLARE
+  club constant uuid := "app"."current_club_id"();
+  me constant text := (SELECT u.id FROM "public"."user" u WHERE u.id = "app"."current_user_id"());
+  previous_reason constant text := pg_catalog.current_setting('app.change_reason', true);
+  live integer;
+  voided integer;
+  ended integer;
+BEGIN
+  IF club IS NULL OR coalesce("app"."current_role"() IN ('sc', 'admin', 'superadmin'), false) IS NOT TRUE THEN
+    RAISE EXCEPTION 'release_pod_assignments needs S&C or the administration of the club' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM "public"."pod" p WHERE p.club_id = club AND p.id = target_pod) THEN
+    RAISE EXCEPTION 'Pod not found' USING ERRCODE = 'no_data_found';
+  END IF;
+  SELECT count(*) INTO live FROM "public"."pod_assignment" a
+   WHERE a.club_id = club AND a.pod_id = target_pod AND a.archived_at IS NULL
+     AND (a.ends_at IS NULL OR a.ends_at > pg_catalog.now());
+  IF dry_run OR live = 0 THEN
+    RETURN live;
+  END IF;
+  PERFORM pg_catalog.set_config('app.change_reason', reason, true);
+  UPDATE "public"."pod_assignment" a
+     SET archived_at = pg_catalog.now(), reprocess_requested_at = pg_catalog.now(), updated_by = me
+   WHERE a.club_id = club AND a.pod_id = target_pod AND a.archived_at IS NULL
+     AND a.starts_at >= pg_catalog.now();
+  GET DIAGNOSTICS voided = ROW_COUNT;
+  UPDATE "public"."pod_assignment" a
+     SET ends_at = pg_catalog.now(), updated_by = me
+   WHERE a.club_id = club AND a.pod_id = target_pod AND a.archived_at IS NULL
+     AND (a.ends_at IS NULL OR a.ends_at > pg_catalog.now());
+  GET DIAGNOSTICS ended = ROW_COUNT;
+  PERFORM pg_catalog.set_config('app.change_reason', coalesce(previous_reason, ''), true);
+  RETURN voided + ended;
+END;
+$$;
+--> statement-breakpoint
+REVOKE ALL ON FUNCTION "app"."release_pod_assignments"(uuid, text, boolean) FROM PUBLIC;
+--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION "app"."release_pod_assignments"(uuid, text, boolean) TO "sport_performance_app";

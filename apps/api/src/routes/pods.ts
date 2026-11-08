@@ -311,21 +311,15 @@ function podConflict(error: unknown): HttpError | undefined {
   });
 }
 
-/** Whether the pod is worn now or later (a live assignment that has not ended). */
-async function podInUse(db: TenantDatabase, clubId: ClubId, podId: string): Promise<boolean> {
-  const rows = await db
-    .select({ id: podAssignment.id })
-    .from(podAssignment)
-    .where(
-      and(
-        eq(podAssignment.clubId, clubId),
-        eq(podAssignment.podId, podId),
-        isNull(podAssignment.archivedAt),
-        or(isNull(podAssignment.endsAt), sql`${podAssignment.endsAt} > now()`),
-      ),
-    )
-    .limit(1);
-  return rows.length > 0;
+/**
+ * Whether the pod is worn now or later, by anyone (`app.release_pod_assignments` sees the
+ * whole club: S&C runs the fleet but only sees the players of its assignments).
+ */
+async function podInUse(db: TenantDatabase, podId: string): Promise<boolean> {
+  const { rows } = await db.execute<{ n: number }>(
+    sql`select app.release_pod_assignments(${podId}::uuid, '', true) as n`,
+  );
+  return (rows[0]?.n ?? 0) > 0;
 }
 
 // ─── Loans ───────────────────────────────────────────────────────────────────────────
@@ -614,38 +608,17 @@ async function categoryHasPods(
   return rows.length > 0;
 }
 
-/** Sets the reason of the changes the handler makes itself (a lost pod ends its assignments). */
-async function setChangeReason(db: TenantDatabase, reason: string): Promise<void> {
-  await db.execute(sql`select set_config('app.change_reason', ${reason}, true)`);
-}
-
 /**
- * Ends what a pod that leaves the fleet now was assigned to: the live
- * assignment ends now and those that had not started are voided (flagged
- * for reprocessing). The reason is the event.
+ * Ends what a pod that leaves the fleet now was assigned to, whoever wore it: the live
+ * assignment ends now and those that had not started are voided (flagged for
+ * reprocessing). The reason is the event.
  */
 async function releasePodAssignments(
   db: TenantDatabase,
-  clubId: ClubId,
   podId: string,
-  userId: string,
   reason: string,
 ): Promise<void> {
-  if (!(await podInUse(db, clubId, podId))) return;
-  await setChangeReason(db, reason);
-  const live = and(
-    eq(podAssignment.clubId, clubId),
-    eq(podAssignment.podId, podId),
-    isNull(podAssignment.archivedAt),
-  );
-  await db
-    .update(podAssignment)
-    .set({ archivedAt: sql`now()`, reprocessRequestedAt: sql`now()`, updatedBy: userId })
-    .where(and(live, sql`${podAssignment.startsAt} >= now()`));
-  await db
-    .update(podAssignment)
-    .set({ endsAt: sql`now()`, updatedBy: userId })
-    .where(and(live, or(isNull(podAssignment.endsAt), sql`${podAssignment.endsAt} > now()`)));
+  await db.execute(sql`select app.release_pod_assignments(${podId}::uuid, ${reason}, false)`);
 }
 
 /** The database's clock (the instant `now()` of the transaction), the one the checks compare with. */
@@ -935,13 +908,7 @@ export function registerPodRoutes(app: FastifyInstance): void {
       if (!canChangePodStatus(current.status, body.status)) {
         throw new HttpError('conflict', `A ${current.status} pod is not marked ${body.status}`);
       }
-      await releasePodAssignments(
-        db,
-        clubId,
-        current.id,
-        caller.userId,
-        `pod marked ${body.status}`,
-      );
+      await releasePodAssignments(db, current.id, `pod marked ${body.status}`);
       // Its keys are revoked (ADR 0106): the base stops accepting it and rotates the beacon
       // keys of the club's gateways on its next connection.
       await db
@@ -992,7 +959,7 @@ export function registerPodRoutes(app: FastifyInstance): void {
       if (current.status === 'lent' || current.borrowedFromClubId !== null) {
         throw new HttpError('conflict', 'A pod of a loan is retired by ending the loan');
       }
-      if (await podInUse(db, clubId, current.id)) {
+      if (await podInUse(db, current.id)) {
         throw new HttpError('conflict', 'The pod is assigned now or later: end it first');
       }
       await db

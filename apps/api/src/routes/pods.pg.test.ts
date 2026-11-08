@@ -300,7 +300,7 @@ describeWithPostgres('pods (Postgres)', (serverUrl) => {
       }
     });
 
-    it('lost: keys revoked and its assignment ended; recovered with the next key epoch', async () => {
+    it('lost: keys revoked and its assignment ended, also of players S&C does not see; recovered with the next key epoch', async () => {
       const pod = await newPod();
       const created = await assign(coach, { podId: pod.id, playerId: second });
       expect(created.statusCode, created.body).toBe(201);
@@ -379,8 +379,10 @@ describeWithPostgres('pods (Postgres)', (serverUrl) => {
       expect(noLocation.statusCode, noLocation.body).toBe(403);
       expect(noLocation.json<ErrorBody>().error.code).toBe('consent_required');
       // The medical staff and the guardian never assign nor read.
+      // (A player they do not see is not found; one they see is forbidden.)
       for (const caller of [medical, parent]) {
-        expect((await assign(caller, { podId: other.id, playerId: second })).statusCode).toBe(403);
+        const denied = await assign(caller, { podId: other.id, playerId: second });
+        expect([403, 404]).toContain(denied.statusCode);
       }
       const ended = await request(coach, 'POST', `/v1/pod-assignments/${assignment.id}/end`, {});
       expect(ended.statusCode, ended.body).toBe(200);
@@ -481,7 +483,18 @@ describeWithPostgres('pods (Postgres)', (serverUrl) => {
       expect(results[1]?.error?.code).toBe('conflict');
       const replay = await push([first]);
       expect(replay.json<{ results: { status: string }[] }>().results[0]?.status).toBe('replayed');
-      // The tablet pulls it.
+      // The tablet pulls it, once the pull horizon (the oldest running transaction of the
+      // server, shared by every test database) is past the push.
+      const deadline = Date.now() + 120_000;
+      for (;;) {
+        const { rows } = await database.admin.query<{ done: boolean }>(
+          `select coalesce(max(txid) < pg_snapshot_xmin(pg_current_snapshot()), true) as done
+             from sync_change`,
+        );
+        if (rows[0]?.done === true) break;
+        if (Date.now() > deadline) throw new Error('the pull horizon did not move');
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
       const pulled = await request(coach, 'GET', '/v1/sync/changes?collections=pod_assignment');
       expect(pulled.statusCode, pulled.body).toBe(200);
       const items = pulled.json<{
@@ -490,7 +503,7 @@ describeWithPostgres('pods (Postgres)', (serverUrl) => {
       expect(items.some((i) => i.collection === 'pod_assignment' && i.data?.podId === pod.id)).toBe(
         true,
       );
-    });
+    }, 180_000);
   });
 
   describe('loans', () => {

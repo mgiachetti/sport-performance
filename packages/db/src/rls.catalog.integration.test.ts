@@ -276,6 +276,7 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
       'app.record_usage',
       'app.redeem_player_access',
       'app.register_push_token',
+      'app.release_pod_assignments',
       'app.review_guardian',
       'app.support_access_entries',
       'app.sync_epoch',
