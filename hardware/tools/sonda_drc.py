@@ -8,7 +8,8 @@ This script builds two probe boards from the pod-v0 board, its project and its r
   name every rule.
 - sonda_ok.kicad_pcb (negative control): a compliant layout (CPWG with GND exactly at the coplanar
   gap, other nets at the required distance, the USB pair at its geometry, a 1.5 mm inner 1 A rail,
-  a GND via and the patch inside the GNSS zone, a bottom-side part under it). Its report must have no
+  a GND via and the patch inside the GNSS zone, the patch feed on L4 with its RF via, a bottom-side
+  part under it). Its report must have no
   rule violations, only the ones a probe board always has (dangling tracks, unconnected items,
   footprints that are not in a library).
 
@@ -32,10 +33,10 @@ POD = Path(__file__).resolve().parents[1] / "pod-v0"
 NS = uuid.UUID("2f1c5a0e-6b1d-4c39-9a57-1f4b8f3c0a11")
 
 NETS = ["GND", "/gnss_rf/GNSS_RF_A", "/power/BB_LX1", "USB_D_P", "USB_D_N", "SYS", "GNSS_PPS",
-        "/mcu_radio/LED_R", "/mcu_radio/LED_G", "/gnss_rf/GNSS_RF_B"]
+        "/mcu_radio/LED_R", "/mcu_radio/LED_G", "/gnss_rf/GNSS_RF_B", "/gnss_rf/GNSS_ANT_PATCH"]
 
 # Coordinates in mm on the 45 x 65 mm outline (100..145, 100..165). Zones: BLE_ANTENA x 100-103.5,
-# y 137-148; GNSS_ANTENA x 105-140, y 101-136; LORA_ANTENA x 125-145, y 150-165.
+# y 137-148; GNSS_ANTENA x 107.5-137.5, y 101-131; LORA_ANTENA x 125-145, y 150-165.
 # Track: (net, layer, x0, y0, x1, y1, width). Via: (net, x, y). Footprint: (ref, x, y, side, pads),
 # pad: (number, dx, dy, width, height, net or None).
 PAD = (("1", 0, 0, 0.8, 0.8, None),)
@@ -101,8 +102,11 @@ OK = {
         ("/mcu_radio/LED_G", "F.Cu", 108, 158.5, 118, 158.5, 0.2),  # 0.3 mm from PPS
         ("/power/BB_LX1", "F.Cu", 128, 145, 138, 145, 0.4),  # switch node far from RF and zones
         ("/gnss_rf/GNSS_RF_A", "F.Cu", 115, 120, 125, 120, 0.33),  # RF inside the GNSS zone
+        ("/gnss_rf/GNSS_ANT_PATCH", "B.Cu", 112, 112, 120, 112, 0.33),  # patch feed on L4 (the one exception)
+        ("/gnss_rf/GNSS_ANT_PATCH", "F.Cu", 120, 112, 126, 112, 0.33),  # and back on L1 after its via
     ],
-    "vias": [("GND", 120, 125)],  # stitching via inside the GNSS zone
+    "vias": [("GND", 120, 125),  # stitching via inside the GNSS zone
+             ("/gnss_rf/GNSS_ANT_PATCH", 120, 112)],  # the patch feed's RF via
     "footprints": [
         ("AE201", 115, 130, "F", PAD),  # the patch may sit in the GNSS zone
         ("R2", 130, 125, "B", PAD),  # bottom-side part under the GNSS zone

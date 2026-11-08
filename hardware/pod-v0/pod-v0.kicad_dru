@@ -57,13 +57,16 @@
 	(layer inner)
 	(condition "A.NetClass == 'RF_50'")
 	(constraint disallow track))
+# Excepción: la alimentación del patch pasivo (GNSS_ANT_PATCH) sale por L4 desde el pad de 2,2 mm
+# del pin (la cerámica tapa L1 y su tierra) y sube a L1 por una vía de RF, con vías de GND alrededor
+# y L3 en GND debajo del tramo de L4 (eso no se puede escribir como regla: se revisa a mano).
 (rule "RF_50: solo en L1 (L4)"
 	(layer "B.Cu")
-	(condition "A.NetClass == 'RF_50'")
+	(condition "A.NetClass == 'RF_50' && A.NetName != '/gnss_rf/GNSS_ANT_PATCH'")
 	(constraint disallow track))
-# Sin vías en la RF: las únicas vías cerca son las de cerco, que son de GND.
+# Sin vías en la RF: las únicas vías cerca son las de cerco, que son de GND (salvo la del patch).
 (rule "RF_50: sin vías"
-	(condition "A.Type == 'Via' && A.NetClass == 'RF_50'")
+	(condition "A.Type == 'Via' && A.NetClass == 'RF_50' && A.NetName != '/gnss_rf/GNSS_ANT_PATCH'")
 	(constraint disallow via))
 # La ranura coplanar: gana sobre los 0,5 mm de la clase, así la zona de GND de L1 se rellena
 # a 0,20 mm de la RF.
@@ -107,7 +110,7 @@
 	(condition "A.NetClass == 'GNSS_SENSITIVE' && A.intersectsArea('LORA_ANTENA')")
 	(constraint disallow track via))
 
-# --- Zona de la antena GNSS (Taoglas pegada o patch en la placa) ---
+# --- Zona de la antena GNSS (patch pasivo en la placa; la Taoglas va por U.FL) ---
 # Tierra continua en L1 (y en L2, por "L2 solo GND"): en L1 solo GND y la RF. Las vías pasan
 # por L1, así que adentro solo hay vías de GND; L3 y L4 pueden pasar por debajo sin cambiar de
 # capa. Ningún componente en la cara de arriba, salvo el patch en la placa (AE201, sin montar).

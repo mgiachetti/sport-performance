@@ -4111,7 +4111,9 @@
 		(property "LCSC" "" (at 251.46 127 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Fabricante" "" (at 251.46 127 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Verificado" "no" (at 251.46 127 0) (effects (font (size 1.27 1.27)) hide))
-		(property "Nota" "GNSS directo de VREG" (at 251.46 127 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Nota" "GNSS directo de VREG. Ojo: pone el LNA BGA525N6 en 3,4 V, sobre su máximo de operación de 3,3 V (3,6 V absoluto)" (at 251.46 127 0)
+			(effects (font (size 1.27 1.27)) hide)
+		)
 		(pin "1" (uuid "62d0e321-0e36-5cc4-9ccf-df8b7d2b82d5"))
 		(pin "2" (uuid "f2eb8a18-702f-5373-9ec4-7042a1de6805"))
 		(instances
