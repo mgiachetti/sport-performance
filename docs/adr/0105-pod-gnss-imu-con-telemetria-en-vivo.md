@@ -114,7 +114,7 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
   - posición.
 - **Capacidad:**
   - Un paquete de 40 B en SF7 / 125 kHz ocupa unos 82 ms en el aire.
-  - Con turnos de unos 100 ms (paquete más tiempo de guarda), una trama de 2 s tiene 20 turnos por canal: **unos 160 pods en 8 canales**. Con el paquete completo (encabezado, estado y MIC) y la bajada, la capacidad baja a **unos 128 pods**: ver [ADR 0106](0106-sistema-del-pod-flota-ubicacion-protocolo-seguridad-y-datos.md). Alcanza para entrenar una categoría entera a la vez.
+  - Con turnos de unos 100 ms (paquete más tiempo de guarda), una trama de 2 s tiene 20 turnos por canal: **unos 160 pods en 8 canales**. Con el paquete completo (encabezado, estado y MIC) y la bajada, la capacidad baja a **unos 120 pods sin RTK**: ver [ADR 0106](0106-sistema-del-pod-flota-ubicacion-protocolo-seguridad-y-datos.md). Alcanza para entrenar una categoría entera a la vez.
   - 30 pods ocupan cerca del 15 % de cada canal. Cada 1 s sería el 31 %, con capacidad para unos 80 pods: por eso la cadencia es de 2 s.
 - **Gateway de 8 canales SX1302** (RAK7268V2, unos US$ 139–170), en un **mástil de 3–5 m** al costado de la cancha, para quedar por encima de los jugadores.
   - Se conecta a la **tablet del staff** por Ethernet o por Wi-Fi local, con un packet forwarder, y **funciona sin internet**.
