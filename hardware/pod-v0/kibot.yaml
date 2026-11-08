@@ -1,0 +1,66 @@
+# Salidas de fabricación del pod v0 (B-909). Se corre a mano por ahora:
+#   kibot -c kibot.yaml -e pod-v0.kicad_sch -b pod-v0.kicad_pcb -d salidas
+# El CI (.github/workflows/hardware.yml) solo corre ERC y DRC con kicad-cli.
+# Las salidas van a salidas/, que está en .gitignore: no se commitean.
+kibot:
+  version: 1
+
+preflight:
+  erc: true
+  drc: true
+  # La lista de materiales necesita valores y campos completos.
+  check_fields: false
+
+global:
+  # Campos propios de cada símbolo: MPN y LCSC (número C). Los "sin montar" usan el
+  # atributo DNP nativo de KiCad.
+  field_lcsc_part: LCSC
+
+outputs:
+  - name: esquematico_pdf
+    comment: Esquemático completo en PDF
+    type: pdf_sch_print
+    dir: esquematico
+
+  - name: bom_completa
+    comment: Lista de materiales con MPN, LCSC y DNP
+    type: bom
+    dir: bom
+    options:
+      format: CSV
+      columns:
+        - References
+        - Value
+        - Footprint
+        - MPN
+        - LCSC
+        - field: DNP
+          name: Sin montar
+        - Quantity Per PCB
+
+  - name: gerbers
+    comment: Gerbers para PCBWay (4 capas)
+    type: gerber
+    dir: fabricacion/gerbers
+    layers:
+      - copper
+      - F.SilkS
+      - B.SilkS
+      - F.Mask
+      - B.Mask
+      - F.Paste
+      - B.Paste
+      - Edge.Cuts
+
+  - name: taladros
+    comment: Archivos de taladrado
+    type: excellon
+    dir: fabricacion/gerbers
+
+  - name: posiciones
+    comment: Pick and place para el armado
+    type: position
+    dir: fabricacion
+    options:
+      format: CSV
+      only_smd: false

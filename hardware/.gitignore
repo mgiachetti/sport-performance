@@ -1,0 +1,9 @@
+# Salidas generadas por KiBot / kicad-cli: no se commitean.
+salidas/
+# Archivos locales de KiCad.
+*.kicad_prl
+*-backups/
+fp-info-cache
+_autosave-*
+~*.lck
+*.bak

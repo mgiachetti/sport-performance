@@ -1,0 +1,13 @@
+(version 1)
+# Mínimos estándar de PCBWay para 4 capas (no verificados contra su página de capacidades;
+# ajustar antes de pedir). Las reglas de RF (50 ohm, cercos) están en docs/hardware/pod-v0.md.
+(rule "PCBWay: ancho mínimo de pista"
+	(constraint track_width (min 0.1mm)))
+(rule "PCBWay: separación mínima de cobre"
+	(constraint clearance (min 0.1mm)))
+(rule "PCBWay: anillo mínimo"
+	(constraint annular_width (min 0.15mm)))
+(rule "PCBWay: agujero mínimo"
+	(constraint hole_size (min 0.2mm)))
+(rule "PCBWay: cobre al borde"
+	(constraint edge_clearance (min 0.3mm)))

@@ -1,0 +1,16 @@
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(generator_version "8.0")
+	(uuid "9cda431b-5b30-40d1-b831-4ad2e33247e5")
+	(paper "A4")
+	(title_block
+		(title "Pod v0: uwb")
+		(date "2026-11-07")
+		(rev "v0")
+		(company "Sport Performance")
+		(comment 1 "DWM3000 sin montar (B-911)")
+		(comment 2 "Spec: docs/hardware/pod-v0.md")
+	)
+	(lib_symbols)
+)

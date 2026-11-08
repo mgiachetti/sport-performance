@@ -1,0 +1,80 @@
+# Hardware checks (B-909): ERC of the schematic and DRC of the board of the pod v0,
+# with the official KiCad image pinned by digest. Runs only when hardware/ changes.
+name: hardware
+
+on:
+  pull_request:
+    paths:
+      - 'hardware/**'
+      - '.github/workflows/hardware.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'hardware/**'
+      - '.github/workflows/hardware.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hardware-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  erc-drc:
+    name: hardware (ERC/DRC)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      # kicad/kicad:10.0.8 (multi-arch index digest, Docker Hub, 2026-10-30).
+      KICAD_IMAGE: kicad/kicad:10.0.8@sha256:3f4a01786dfbe803a65f345c3342b765db9add913f5e9448f8356793714ddc34
+      PROJECT_DIR: hardware/pod-v0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Pull KiCad image
+        run: docker pull "$KICAD_IMAGE"
+
+      # The container runs as the runner's user so the reports are writable; HOME points
+      # to /tmp because kicad-cli writes its configuration there.
+      - name: ERC
+        run: |
+          set -euo pipefail
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+            -v "$GITHUB_WORKSPACE:/work" -v "$RUNNER_TEMP:/out" \
+            -w "/work/$PROJECT_DIR" "$KICAD_IMAGE" \
+            kicad-cli sch erc --exit-code-violations --severity-all \
+              --output /out/erc.rpt pod-v0.kicad_sch
+
+      - name: DRC
+        run: |
+          set -euo pipefail
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+            -v "$GITHUB_WORKSPACE:/work" -v "$RUNNER_TEMP:/out" \
+            -w "/work/$PROJECT_DIR" "$KICAD_IMAGE" \
+            kicad-cli pcb drc --exit-code-violations --severity-all \
+              --output /out/drc.rpt pod-v0.kicad_pcb
+
+      - name: Show reports
+        if: always()
+        run: |
+          for report in "$RUNNER_TEMP/erc.rpt" "$RUNNER_TEMP/drc.rpt"; do
+            if [ -f "$report" ]; then
+              echo "::group::$(basename "$report")"
+              cat "$report"
+              echo "::endgroup::"
+            fi
+          done
+
+      - name: Upload reports
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: hardware-reports
+          path: |
+            ${{ runner.temp }}/erc.rpt
+            ${{ runner.temp }}/drc.rpt
+          retention-days: 7

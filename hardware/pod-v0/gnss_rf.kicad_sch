@@ -1,0 +1,16 @@
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(generator_version "8.0")
+	(uuid "135332e2-24aa-4671-91c0-36b4ec644783")
+	(paper "A4")
+	(title_block
+		(title "Pod v0: gnss_rf")
+		(date "2026-11-07")
+		(rev "v0")
+		(company "Sport Performance")
+		(comment 1 "GNSS: LC29H (AA/EA), cadena RF L1+L5, traductor de niveles, conector QGNSS")
+		(comment 2 "Spec: docs/hardware/pod-v0.md")
+	)
+	(lib_symbols)
+)

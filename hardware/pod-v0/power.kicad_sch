@@ -1,0 +1,16 @@
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(generator_version "8.0")
+	(uuid "041e050e-9ae6-41eb-b652-e702375079d5")
+	(paper "A4")
+	(title_block
+		(title "Pod v0: power")
+		(date "2026-11-07")
+		(rev "v0")
+		(company "Sport Performance")
+		(comment 1 "Alimentación: BQ25180, buck-boost VREG 3,45 V, LDO 3,2 V del GNSS, LDO de V_BCKP, MAX17048")
+		(comment 2 "Spec: docs/hardware/pod-v0.md")
+	)
+	(lib_symbols)
+)

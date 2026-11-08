@@ -1,0 +1,16 @@
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(generator_version "8.0")
+	(uuid "2f2d9bf8-0996-453e-9e1e-e0d00ca1b3f0")
+	(paper "A4")
+	(title_block
+		(title "Pod v0: mcu_radio")
+		(date "2026-11-07")
+		(rev "v0")
+		(company "Sport Performance")
+		(comment 1 "E73 (nRF52840) y E22-900M22S (SX1262), antena LoRa")
+		(comment 2 "Spec: docs/hardware/pod-v0.md")
+	)
+	(lib_symbols)
+)
