@@ -334,7 +334,7 @@ Un **LED RGB discreto** que da devolución sin abrir la app: en la base, al arra
 
 1. **Primer encendido con fuente de laboratorio con límite de corriente** (en lugar de la batería), sin módulos habilitados. Sin la batería y su NTC, poner **10 kΩ en TS** para que el BQ25180 no vea una falla de temperatura. Medir cada riel (SYS, VREG, 3,2 V del GNSS, V_BCKP) y su corriente por los 0 Ω.
 2. SWD: leer el nRF52840, grabar un firmware mínimo. Ver que arranque el cristal de 32,768 kHz.
-3. **LED**: con el nRF en reset y durante la DFU, que el LED y el buzzer queden apagados (pull-down de los gates); después, cada color con el PWM a distintos brillos; repetir con la fuente en 3,4 V (batería casi vacía) y ver que el azul todavía se distinga. Ajustar las resistencias 0402.
+3. **LED**: con el nRF en reset y durante la DFU, que el LED y el buzzer queden apagados (pull-down de los gates); después, cada color con el PWM a distintos brillos; repetir con la fuente en 3,0–3,2 V (batería casi vacía) y ver que el azul todavía se distinga. Ajustar las resistencias 0402.
 4. I2C: leer el BQ25180 y el MAX17048 (IDs y direcciones).
 5. **Carga**: por USB-C y por los pines pogo, con la batería real y su NTC; ver el /INT.
 6. **Modo envío**: entrar por I2C y salir conectando VBUS (y por TS/MR, si se montó el diodo).
