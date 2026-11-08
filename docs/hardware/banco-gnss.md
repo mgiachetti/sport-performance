@@ -82,13 +82,23 @@ Cada etapa decide si se sigue con la siguiente. Los datos se guardan como se des
    - Registrar 30 min con el cielo despejado.
    - Contar las épocas perdidas: el objetivo es menos del 0,1 %.
    - Ver qué satélites usa en L5: GPS L5, Galileo E5a y BeiDou B2a.
-2. **Crudo del LC29H(AA):**
-   - ¿Hay alguna salida cruda? Probar el modo base (`$PQTMCFGRCVRMODE,W,2`) con MSM7 (`$PAIR432,1`), y preguntar a Quectel por firmware.
-   - ¿A qué tasa sale?
-   - ¿La posición sigue a 10 Hz mientras sale el crudo?
+2. **Crudo del LC29H(AA):** la especificación de protocolo V1.5 dice que **sí sale, como RTCM3 MSM4/MSM7 más efemérides, sin modo base**. En la AA el modo base no existe: `$PQTMCFGRCVRMODE` es solo de BA, CA, DA y EA. Se prende con:
+   - `$PAIR432,1` (MSM7);
+   - `$PAIR436,1` (efemérides);
+   - la salida RTCM3 en el UART (`$PQTMCFGPROT,W,1,1,1,5`).
+
+   No hay crudo propio de Quectel. Detalle y citas en [`lc29h-protocolo.md`](lc29h-protocolo.md). Lo que la especificación no dice y mide el banco:
+   - ¿A qué tasa salen los MSM a 10 Hz de posición? La página del producto dice "GNSS raw data 1 Hz".
+   - ¿Traen L5, E5a y B2a?
+   - ¿La posición sigue a 10 Hz sin épocas perdidas mientras sale el crudo?
    - ¿La configuración sobrevive a un corte de energía?
-   - Si no hay crudo, el AA sigue en carrera solo por el Doppler, y la corrección de su traza con el PPK no es posible.
-3. **Velocidad por Doppler del LC29H:** se supone que sale del Doppler. El banco lo confirma, y mide el filtrado que aplica el módulo y la latencia de la velocidad frente a la posición.
+   - ¿RTKLIB lo convierte (`convbin`) y da PPK contra el LG290P?
+
+   Si el crudo no anda en la práctica, el AA sigue en carrera solo por el Doppler, y la corrección de su traza con el PPK no es posible.
+3. **Velocidad por Doppler del LC29H:** la especificación da la velocidad en `$PQTMPVT` y `$PQTMVEL` (norte, este y abajo, más la precisión estimada), pero no dice que salga del Doppler. El banco:
+   - lo confirma contra el Doppler de los MSM7;
+   - mide el filtrado que aplica el módulo y la latencia de la velocidad frente a la posición;
+   - compara el modo de navegación normal (`$PAIR080,0`) con el de fitness (`$PAIR080,1`) en los sprints.
 4. **Crudo del F10N:** que la placa tenga la -00B-20 y hasta qué tasa sale `UBX-RXM-RAWX`.
 5. **RTK con la EA:**
    - El LG290P como base, con la posición fija promediada 30 min, manda RTCM a la EA. Primero por cable serie, después por un RAK4631 de 915 MHz como enlace.

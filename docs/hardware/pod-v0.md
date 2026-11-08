@@ -281,7 +281,7 @@ Un **LED RGB discreto** que da devolución sin abrir la app: en la base, al arra
 
 **Backup del GNSS** (Espera y System OFF), según la sección 3.3.3 del Hardware Design:
 
-1. Para entrar: mandar el comando de software de backup y después cortar VCC (GNSS_EN abajo: el LDO baja la salida con su descarga activa), con V_BCKP prendido.
+1. Para entrar: mandar el comando de software de backup (`$PAIR650,0*25` y esperar `$PAIR001,650,0`; o `$PQTMBKP`, solo en la AA; ver [`lc29h-protocolo.md`](lc29h-protocolo.md)) y después cortar VCC (GNSS_EN abajo: el LDO baja la salida con su descarga activa), con V_BCKP prendido.
 2. Para salir: volver a dar VCC (GNSS_EN arriba) y poner **WAKEUP en alto al menos 10 ms**; si no, el UART no vuelve a sacar datos.
 
 Cortar VCC **sin** el comando deja al módulo en un estado indefinido y con más consumo (nota 4 de esa sección). Para un **ciclo de alimentación completo** (recuperar un GNSS colgado), VCC queda **por debajo de 100 mV al menos 1 s**, con subida y bajada en menos de 50 ms (sección 3.5): el firmware espera ese segundo antes de volver a prender.
@@ -480,7 +480,7 @@ Al prender: subir LORA_EN y esperar la subida del riel; **recién entonces** dev
 8. **Base y protección**: que la base dé VBUS solo con DETECT a GND (pod asentado); que girado no haga contacto (llaves e imanes); que el switch de entrada corte un VBUS de 6 V; prueba de precompatibilidad de ESD (±8 kV por contacto y ±15 kV por aire) en los pads pogo.
 9. BLE: anunciar y conectar desde un celular.
 10. Encender el GNSS (EN del LDO): ver VDD_EXT a 2,8 V (**solo existe con el GNSS encendido**) y la corriente del riel. **Backup**: comando, corte de VCC, vuelta con WAKEUP en alto ≥ 10 ms, y ver que el UART siga sacando datos. **Ciclo completo**: VCC por debajo de 100 mV durante 1 s (con la descarga activa) y que vuelva limpio.
-11. GNSS por el conector de 4 pines con **QGNSS**: que arranque, que dé posición a 10 Hz, y si la AA saca crudo.
+11. GNSS por el conector de 4 pines con **QGNSS**: que arranque, que dé posición a 10 Hz y que salga el crudo RTCM3 MSM7 (`$PAIR432,1`, sin modo base; ver [`lc29h-protocolo.md`](lc29h-protocolo.md)), a qué tasa y sin perder épocas de PVT. Probar la secuencia de arranque de ese documento.
 12. PPS: ver el pulso en el pad y la captura del TIMER por PPI; medir el desvío del reloj del nRF contra el GNSS durante unos minutos.
 13. GNSS por el nRF (con el traductor): NMEA o binario sin errores a la tasa elegida (ver el margen del BAUDRATE).
 14. IMU: leer ID, configurar alto rango, ver el canal de ±320 g.
@@ -503,7 +503,7 @@ Al prender: subir LORA_EN y esperar la subida del riel; **recién entonces** dev
 
 ## Compra mínima de banco que se mantiene
 
-Antes de cerrar el esquemático hace falta saber si la AA saca crudo y si su velocidad es Doppler a 10 Hz. Para eso, y para la validación posterior, se mantiene de [`banco-gnss.md`](banco-gnss.md):
+Antes de cerrar el esquemático hace falta confirmar en la práctica el crudo de la AA (la especificación de protocolo dice que sale como RTCM3 MSM, ver [`lc29h-protocolo.md`](lc29h-protocolo.md)) y si su velocidad es Doppler a 10 Hz. Para eso, y para la validación posterior, se mantiene de [`banco-gnss.md`](banco-gnss.md):
 
 - **1 LC29H(AA)** en placa (el HAT de Waveshare): responde lo del crudo y el Doppler en días.
 - **2 LG290P**: base en trípode y referencia en el chaleco.
@@ -525,7 +525,7 @@ Antes de cerrar el esquemático hace falta saber si la AA saca crudo y si su vel
 12. **Patch pasivo L1 + L5**: ganancia y ajuste del GVLB208.A sobre la tierra de la placa (y si Taoglas ofrece ajustarlo), dirección del pin leída del dibujo, stock y precio; medidas, bandas y footprint de la opción de 25 × 25 × 8 mm (Quectel YFGC000WWAM u otra). Partes de las bobinas de 5,1 nH y 10–12 nH (Murata LQW15/LQG15).
 13. Stock y precio de la LC29H(EA) suelta.
 14. Que la tabla de pines del Hardware Design V1.0 siga igual en la versión vigente para AA y EA.
-15. Si la AA saca crudo y si da velocidad Doppler sin filtrado de más (banco con el HAT).
+15. Crudo de la AA: según la especificación de protocolo V1.5 **sí sale, como RTCM3 MSM4/MSM7 y efemérides, sin modo base** ([`lc29h-protocolo.md`](lc29h-protocolo.md)). Falta medir la tasa real (la página dice 1 Hz), si trae L5 y si el PVT sigue a 10 Hz. Además, si da velocidad Doppler sin filtrado de más (banco con el HAT).
 16. Hoja vigente de Bosch del BMP581 (dirección I2C, rango de VDD y VDDIO, CSB para elegir I2C, INT de drenador abierto, tasa y ruido por modo), la parte de ventilación con membrana para la carcasa, y si el BMP390 entra en el mismo lugar.
 17. **Energía**: que el despertar por VBUS del nRF52840 funcione en el banco y que el pulso de 128 µs del /INT alcance para el DETECT; consumo del MAX17048 en sleep y si entra solo con SDA y SCL en bajo; bajo consumo profundo de la W25N04KV y su reposo; corriente de bajo consumo del LSM6DSV320X con la interrupción de movimiento (cifras del 320X, no del LSM6DSV); reposo del BMP581 y del DWM3000; hibernación del MAX17048; fuga entre P0.09 y P0.10 como GPIO; DRV5032FB (consumo a 5 Hz, umbral exacto de la FB, campo del imán a través de carcasa y tela, que los imanes de la base y del conector no lo disparen); imán del chaleco (tamaño, fuerza, recubrimiento que aguante el lavado); tiempos de subida del TPS22916C; tiempos de arranque del TCXO del E22 y de calibración del SX1262; autodescarga de la celda y fuga de su PCM.
 18. **Contactos y base**: patrón asimétrico de los 5 pads, su acabado (oro duro electrolítico selectivo de ≥ 0,5 µm, a cotizar con PCBWay), el valor de la resistencia de DETECT, los resortes de la base, los imanes y su polaridad, y que la base solo admita una posición.
