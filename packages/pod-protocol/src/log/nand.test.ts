@@ -12,6 +12,12 @@ import {
 import { decodeLog } from './decoder.js';
 import { LOG_PAGE_CRC_OFFSET, W25N04KV } from './constants.js';
 import {
+  canStartSegment,
+  DEFAULT_RESERVE_BLOCKS,
+  mayAppend,
+  planRecoveryPage,
+  remainingSegmentPages,
+  segmentNeedsRecovery,
   decodeEraseCommand,
   encodeEraseCommand,
   eraseDecision,
@@ -26,7 +32,8 @@ import {
   type EraseDecision,
 } from './nand.js';
 import { writePageCrc } from './page.js';
-import { sealRecoveryPage } from './writer.js';
+import { LogWriter, sealRecoveryPage } from './writer.js';
+import { deriveLogPageKeys } from './integrity.js';
 import {
   buildPodRawFile,
   podRawIngestKey,
@@ -414,6 +421,177 @@ describe('erase rules', () => {
     const scan = scanNand({ pages: nand.dump(), geometry: nand.geometry, badBlocks: [10] });
     expect(planErase(scan, new Map())).toEqual([]);
     expect(planErase(scan, new Map(), { eraseOrphanBlocks: true })).toEqual([25]);
+  });
+});
+
+describe('memory full: a page always stays for the close', () => {
+  /**
+   * Records a long session the way the pod does: before each record it checks
+   * that a page stays for the close (blocks 8 and 9 usable, block 10 kept as
+   * the reserve), stops when it would not, and closes the segment.
+   */
+  function recordUntilFull() {
+    const nand = new NandSimulator({ ...new NandSimulator().geometry, blocks: 11 });
+    const scan0 = scanNand({ pages: nand.dump(), geometry: nand.geometry });
+    expect(canStartSegment(scan0)).toBe(true);
+    const free = [...scan0.freeBlocks];
+    let block = nextWritableBlock(scan0) ?? -1;
+    free.splice(free.indexOf(block), 1);
+    let used = 0;
+    const physical: number[] = [];
+    const program = (data: Uint8Array): void => {
+      if (used === 64) {
+        expect(free.length).toBeGreaterThan(DEFAULT_RESERVE_BLOCKS);
+        block = free.shift() ?? -1;
+        used = 0;
+      }
+      const at = block * 64 + used;
+      nand.pages.set(at, { physicalPage: at, data, ecc: 'ok' });
+      physical.push(at);
+      used += 1;
+    };
+    const writer = new LogWriter({
+      deviceId: TEST_DEVICE_ID,
+      bootCounter: 70_000,
+      segmentId: 5,
+      firstPageSeq: 100,
+      keyEpoch: 2,
+      storageKey: testStorageKey(2),
+    });
+    let stopped = false;
+    for (const record of syntheticSession({ durationS: 200, rawGnss: true })) {
+      const remainingPages = remainingSegmentPages({
+        pagesUsedInBlock: used,
+        pagesPerBlock: 64,
+        freeBlocksN: free.length,
+      });
+      if (!mayAppend({ pagesSealed: writer.pagesSealedBy(record), remainingPages })) {
+        stopped = true;
+        break;
+      }
+      writer.append(record).forEach(program);
+    }
+    writer.close().forEach(program);
+    return { nand, physical, stopped };
+  }
+
+  it('recording stops with the close in the last usable page; the reserve block stays free', () => {
+    const { nand, stopped } = recordUntilFull();
+    expect(stopped).toBe(true);
+    const scan = scanNand({ pages: nand.dump(), geometry: nand.geometry });
+    expect(scan.segments).toHaveLength(1);
+    expect(scan.segments[0]).toMatchObject({ closed: true, blocks: [8, 9], fullyRead: true });
+    expect(scan.freeBlocks).toEqual([10]);
+    expect(canStartSegment(scan)).toBe(false);
+    expect(nextWritableBlock(scan)).toBeNull();
+    const close = scan.segments[0]?.closePhysicalPage ?? -1;
+    expect(
+      segmentNeedsRecovery({
+        segment:
+          scan.segments[0] ??
+          (() => {
+            throw new Error('no segment');
+          })(),
+        closePage: nand.pages.get(close)?.data ?? null,
+        keys: deriveLogPageKeys(testStorageKey(2)),
+      }),
+    ).toBe(false);
+  });
+
+  it('a power cut on the close: recovered in the segment’s own block if a page is left, else in the reserve', () => {
+    const { nand, physical } = recordUntilFull();
+    const closeAt = physical.at(-1) ?? -1;
+    const torn = (nand.pages.get(closeAt)?.data ?? new Uint8Array()).slice().fill(0xff, 1000);
+    nand.pages.set(closeAt, { physicalPage: closeAt, data: torn, ecc: 'ok' });
+    const keys = deriveLogPageKeys(testStorageKey(2));
+
+    const recover = (n: NandSimulator) => {
+      const dump = n.dump();
+      const scan = scanNand({ pages: dump, geometry: n.geometry });
+      const [segment] = scan.segments;
+      if (!segment) throw new Error('no segment');
+      expect(
+        segmentNeedsRecovery({
+          segment,
+          closePage:
+            segment.closePhysicalPage === null
+              ? null
+              : (n.pages.get(segment.closePhysicalPage)?.data ?? null),
+          keys,
+        }),
+      ).toBe(true);
+      const place = planRecoveryPage({ scan, segment, pages: dump });
+      if (!place) throw new Error('no page for the recovery close');
+      const page = sealRecoveryPage({
+        deviceId: TEST_DEVICE_ID,
+        bootCounter: segment.bootCounter,
+        segmentId: segment.segmentId,
+        streamOffset: segment.streamBytes,
+        pageSeq: 9_000,
+        keyEpoch: 2,
+        storageKey: testStorageKey(2),
+      });
+      n.pages.set(place.physicalPage, { physicalPage: place.physicalPage, data: page, ecc: 'ok' });
+      const after = scanNand({ pages: n.dump(), geometry: n.geometry });
+      return { place, after };
+    };
+
+    // (a) The close was cut before the end of block 9: the next page of block 9.
+    if (closeAt % 64 < 63) {
+      const own = new NandSimulator(nand.geometry);
+      nand.pages.forEach((v, k) => own.pages.set(k, v));
+      const { place, after } = recover(own);
+      expect(place).toEqual({ physicalPage: closeAt + 1, inFreeBlock: false });
+      expect(after.segments[0]).toMatchObject({ closed: true, recovered: true, blocks: [8, 9] });
+      expect(after.freeBlocks).toEqual([10]);
+    }
+
+    // (b) Block 9 full (the cut page was its last one): the reserve block takes the close.
+    for (let p = (closeAt % 64) + 1; p < 64; p += 1) {
+      const at = 9 * 64 + p;
+      nand.pages.set(at, { physicalPage: at, data: torn, ecc: 'ok' });
+    }
+    const { place, after } = recover(nand);
+    expect(place).toEqual({ physicalPage: 10 * 64, inFreeBlock: true });
+    expect(after.segments[0]).toMatchObject({ closed: true, recovered: true, blocks: [8, 9, 10] });
+    expect(after.freeBlocks).toEqual([]);
+    expect(canStartSegment(after)).toBe(false);
+    // Confirmed like any closed segment; erasing it frees the whole chip again.
+    const [segment] = after.segments;
+    if (!segment) throw new Error('no segment');
+    const dump = nand.dump();
+    const file = buildPodRawFile({
+      segment,
+      pages: dump.filter(
+        (p) =>
+          segment.blocks.includes(Math.floor(p.physicalPage / 64)) &&
+          !p.data.every((x) => x === 0xff),
+      ),
+      podSerial: 'ORC-0001',
+      startUnixMs: null,
+      endUnixMs: null,
+    });
+    const read = readPodRawFile(file.bytes, file.manifest);
+    const verified = verifyUploadForErase({
+      manifest: file.manifest,
+      pages: read.pages,
+      decoded: decodeLog({ pages: read.pages, deviceId: TEST_DEVICE_ID, keyForEpoch: keysFor(2) }),
+    });
+    if (!verified.ok) throw new Error(verified.reason);
+    const decision = eraseDecision({
+      segment,
+      recording: false,
+      endedAtUnixMs: null,
+      overlapsSession: true,
+      uploadedSha256Hex: file.manifest.sha256Hex,
+      eraseCommand: verified.command,
+      nowUnixMs: 0,
+      offSessionRetentionDays: 7,
+    });
+    const blocks = planErase(after, new Map([[segmentKeyOf(segment), decision]]));
+    expect(blocks).toEqual([8, 9, 10]);
+    for (const b of blocks) nand.eraseBlock(b);
+    expect(canStartSegment(scanNand({ pages: nand.dump(), geometry: nand.geometry }))).toBe(true);
   });
 });
 

@@ -80,6 +80,14 @@ export class LogWriter {
     this.keys = deriveLogPageKeys(storageKey);
   }
 
+  /**
+   * Pages that appending `record` would seal (programmed right away). The pod
+   * checks it against `mayAppend` so a page always stays free for the close.
+   */
+  pagesSealedBy(record: LogRecord): number {
+    return Math.floor((this.length + encodeRecord(record).length) / LOG_PAGE_PAYLOAD_CAPACITY);
+  }
+
   /** Appends one record; returns the pages it completed. */
   append(record: LogRecord): Uint8Array[] {
     this.assertOpen();

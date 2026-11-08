@@ -131,6 +131,7 @@ function summarise(decoded: DecodedLog) {
       bootCounter: b.bootCounter,
       source: b.source,
       points: b.points,
+      steps: b.steps,
       rejected: b.rejected,
     })),
   };
@@ -396,7 +397,13 @@ function buildVectors() {
     lcgState = (Math.imul(lcgState, 1_664_525) + 1_013_904_223) >>> 0;
     return lcgState / 0x1_0000_0000;
   };
-  const consensusCase = (name: string, why: string, offsetsMs: number[]) => {
+  const consensusCase = (
+    name: string,
+    why: string,
+    offsetsMs: number[],
+    /** Offset of the true GPS time at second s (0 except after a step). */
+    truthMs: (s: number) => number = () => 0,
+  ) => {
     const pairs = offsetsMs.map((offset, s) => [
       50_000 + s * 32_768,
       1_446_000_000_000 + s * 1000 + offset,
@@ -418,10 +425,13 @@ function buildVectors() {
       /** [tick, gnssTimeMs] per anchor. */
       anchors: pairs,
       keptN: b.points.length,
+      stretchesN: b.stretches.length,
+      steps: b.steps,
       rejectedTicks: b.rejected.map((r) => r.tick),
-      queries: [50_000, 50_000 + 300 * 32_768].map((tick) => ({
-        tick,
-        gnssTimeMs: tickToGnssMs(b, tick),
+      queries: [0, 300, 900].map((second) => ({
+        tick: 50_000 + second * 32_768,
+        gnssTimeMs: tickToGnssMs(b, 50_000 + second * 32_768),
+        trueGnssTimeMs: 1_446_000_000_000 + second * 1000 + truthMs(second),
       })),
     };
   };
@@ -446,6 +456,12 @@ function buildVectors() {
       'short_bad_burst',
       '20 good, 3 consistent anchors +1 s, 10 good',
       Array.from({ length: 33 }, (_, s) => (s >= 20 && s < 23 ? 1_000 : 0)),
+    ),
+    consensusCase(
+      'gnss_time_step',
+      '600 good, then 600 anchors 5 s ahead (a GNSS time step): two stretches and a step, never interpolated across',
+      Array.from({ length: 1_200 }, (_, s) => (s >= 600 ? 5_000 : 0)),
+      (s) => (s >= 600 ? 5_000 : 0),
     ),
   ];
   const timeline = {
@@ -701,14 +717,12 @@ describe('golden log fixtures v1', () => {
         })),
       );
       expect(base.points.length).toBe(c.keptN);
+      expect(base.stretches.length).toBe(c.stretchesN);
+      expect(base.steps).toEqual(c.steps);
       expect(base.rejected.map((r) => r.tick)).toEqual(c.rejectedTicks);
       for (const q of c.queries) {
         expect(tickToGnssMs(base, q.tick)).toBe(q.gnssTimeMs);
-        // The good anchors are on GPS time: so is every query.
-        expect(q.gnssTimeMs).toBeCloseTo(
-          1_446_000_000_000 + ((q.tick - 50_000) / 32_768) * 1000,
-          3,
-        );
+        expect(q.gnssTimeMs ?? 0).toBeCloseTo(q.trueGnssTimeMs, 3);
       }
     },
   );
@@ -719,7 +733,11 @@ describe('golden log fixtures v1', () => {
       ['periodic_bad', 400],
       ['alternating_random_bad', 300],
       ['short_bad_burst', 30],
+      ['gnss_time_step', 1_200],
     ]);
+    const step = vectors.timeline.consensus.find((c) => c.name === 'gnss_time_step');
+    expect(step?.stretchesN).toBe(2);
+    expect(step?.steps[0]?.stepMs).toBeCloseTo(5_000, 3);
   });
 
   it('page keys derive from the storage keys', () => {

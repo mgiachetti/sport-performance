@@ -163,6 +163,44 @@ describe('time base', () => {
     expect(tickToGnssMs(base, START_TICK)).toBeCloseTo(START_GNSS_MS, 3);
   });
 
+  it('a GNSS time step splits the boot into two stretches instead of bridging it', () => {
+    const anchors = Array.from({ length: 21_600 }, (_, s) =>
+      anchor(START_TICK + s * RTC_TICK_HZ, START_GNSS_MS + s * 1000 + (s >= 10_800 ? 5_000 : 0)),
+    );
+    const base = buildTimeBase(1, anchors);
+    expect(base.stretches.map((st) => st.points.length)).toEqual([10_800, 10_800]);
+    expect(base.rejected).toEqual([]);
+    expect(base.steps).toHaveLength(1);
+    expect(base.steps[0]?.stepMs).toBeCloseTo(5_000, 3);
+    for (const s of [0, 3_000, 6_000, 9_000, 10_799]) {
+      expect(tickToGnssMs(base, START_TICK + s * RTC_TICK_HZ)).toBeCloseTo(
+        START_GNSS_MS + s * 1000,
+        3,
+      );
+    }
+    for (const s of [10_800, 15_000, 21_599]) {
+      expect(tickToGnssMs(base, START_TICK + s * RTC_TICK_HZ)).toBeCloseTo(
+        START_GNSS_MS + s * 1000 + 5_000,
+        3,
+      );
+    }
+  });
+
+  it('30 000 inconsistent anchors are handled in bounded time (O(n · K))', () => {
+    let state = 99;
+    const random = (): number => {
+      state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+      return state / 0x1_0000_0000;
+    };
+    const anchors = Array.from({ length: 30_000 }, (_, s) =>
+      anchor(START_TICK + s * RTC_TICK_HZ, START_GNSS_MS + Math.round(random() * 1e9)),
+    );
+    const started = performance.now();
+    const base = buildTimeBase(1, anchors);
+    expect(performance.now() - started).toBeLessThan(2_000);
+    expect(base.points.length + base.rejected.length).toBe(30_000);
+  });
+
   it('a short burst of consistent bad anchors does not outvote a long good tail', () => {
     const good = (s: number) => anchor(START_TICK + s * RTC_TICK_HZ, START_GNSS_MS + s * 1000);
     const anchors = [

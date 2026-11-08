@@ -1,5 +1,7 @@
 import {
+  ANCHOR_LOOKBACK,
   ANCHOR_MAX_RATE_ERROR_PPM,
+  ANCHOR_STRETCH_MIN,
   DEFAULT_GPS_UTC_OFFSET_S,
   GPS_EPOCH_UNIX_MS,
   RTC_TICK_HZ,
@@ -16,8 +18,9 @@ import type {
  * Time base of the log (ADR 0106, "Base de tiempo"): records carry RTC ticks
  * (32,768 Hz since the boot); anchors pair a tick with GPS time (PPS, gateway
  * beacon or dock). The mapping is piecewise linear through the kept anchors,
- * so it is monotonic, follows the crystal drift and places what was recorded
- * before the first fix backwards from the anchors.
+ * so it is monotonic inside a stretch, follows the crystal drift and places
+ * what was recorded before the first fix backwards from the anchors. A step in
+ * the GNSS time splits the boot into stretches, each with its own anchors.
  */
 
 const NS_PER_TICK = 1e9 / RTC_TICK_HZ;
@@ -44,10 +47,27 @@ export interface TimeAnchorPoint {
 
 export type RejectedAnchorReason = 'covered_by_better_source' | 'rate_out_of_range';
 
+/** Anchors consistent among themselves, with no step between them. */
+export interface TimeStretch {
+  points: TimeAnchorPoint[];
+}
+
+/** A jump of the GNSS time between two stretches. */
+export interface TimeStep {
+  /** Last anchor of the earlier stretch and first of the later one (ticks). */
+  afterTick: number;
+  beforeTick: number;
+  /** GPS time of the later stretch minus the earlier one extrapolated to its first anchor. */
+  stepMs: number;
+}
+
 export interface TimeBase {
   bootCounter: number;
-  /** Kept anchors, sorted by tick. */
+  /** Kept anchors of every stretch, sorted by tick. */
   points: TimeAnchorPoint[];
+  /** One per stretch without a step, in tick order. */
+  stretches: TimeStretch[];
+  steps: TimeStep[];
   rejected: (TimeAnchorPoint & { reason: RejectedAnchorReason })[];
   /** Best source among the kept anchors; `none` = no absolute time for this boot. */
   source: TimeAnchorSource | 'none';
@@ -64,6 +84,7 @@ export function anchorPoint(anchor: TimeAnchorRecord): TimeAnchorPoint {
   };
 }
 
+/** Two anchors agree if their rate is within 100 ppm of nominal, beyond both uncertainties. */
 function rateConsistent(a: TimeAnchorPoint, b: TimeAnchorPoint): boolean {
   const nominalMs = (b.tick - a.tick) * MS_PER_TICK;
   const actualMs = b.gnssTimeMs - a.gnssTimeMs;
@@ -101,15 +122,119 @@ function segmentIndex(n: number, upper: number): number {
 }
 
 /**
+ * Best chain of `anchors` (sorted by tick): the longest sequence in which each
+ * consecutive pair is consistent and each link skips at most `ANCHOR_LOOKBACK`
+ * anchors (a gap with no anchors is still bridged), ties broken by the better
+ * sources. Dynamic programming in O(n · K).
+ */
+function bestChain(anchors: readonly TimeAnchorPoint[]): number[] {
+  const n = anchors.length;
+  const count = new Int32Array(n);
+  const prioritySum = new Float64Array(n);
+  const previous = new Int32Array(n).fill(-1);
+  let bestEnd = -1;
+  for (let j = 0; j < n; j += 1) {
+    const pj = anchors[j];
+    if (!pj) {
+      continue;
+    }
+    const priorityJ = SOURCE_PRIORITY[pj.source];
+    count[j] = 1;
+    prioritySum[j] = priorityJ;
+    const stop = Math.max(0, j - 1 - ANCHOR_LOOKBACK);
+    for (let i = j - 1; i >= stop; i -= 1) {
+      const pi = anchors[i];
+      if (!pi || !rateConsistent(pi, pj)) {
+        continue;
+      }
+      const c = (count[i] ?? 0) + 1;
+      const p = (prioritySum[i] ?? 0) + priorityJ;
+      if (c > (count[j] ?? 0) || (c === count[j] && p > (prioritySum[j] ?? 0))) {
+        count[j] = c;
+        prioritySum[j] = p;
+        previous[j] = i;
+      }
+    }
+    if (
+      bestEnd < 0 ||
+      (count[j] ?? 0) > (count[bestEnd] ?? 0) ||
+      (count[j] === count[bestEnd] && (prioritySum[j] ?? 0) > (prioritySum[bestEnd] ?? 0))
+    ) {
+      bestEnd = j;
+    }
+  }
+  const chain: number[] = [];
+  for (let k = bestEnd; k >= 0; k = previous[k] ?? -1) {
+    chain.push(k);
+  }
+  return chain.reverse();
+}
+
+/**
+ * Splits `anchors` into stretches: the best chain is one stretch; the anchors
+ * inside its span that are not in it are rejected; the ones before and after
+ * it are split again (a stretch there needs at least `ANCHOR_STRETCH_MIN`
+ * anchors, unless it is the only one of the boot).
+ */
+function buildStretches(
+  anchors: readonly TimeAnchorPoint[],
+  rejected: TimeBase['rejected'],
+  top: boolean,
+): TimeStretch[] {
+  if (anchors.length === 0) {
+    return [];
+  }
+  const chain = bestChain(anchors);
+  const first = chain[0] ?? 0;
+  const last = chain.at(-1) ?? 0;
+  if (!top && chain.length < ANCHOR_STRETCH_MIN) {
+    for (const p of anchors) {
+      rejected.push({ ...p, reason: 'rate_out_of_range' });
+    }
+    return [];
+  }
+  const inChain = new Set(chain);
+  for (let k = first; k <= last; k += 1) {
+    const p = anchors[k];
+    if (p && !inChain.has(k)) {
+      rejected.push({ ...p, reason: 'rate_out_of_range' });
+    }
+  }
+  const points = chain.map((k) => anchors[k]).filter((p): p is TimeAnchorPoint => !!p);
+  return [
+    ...buildStretches(anchors.slice(0, first), rejected, false),
+    { points },
+    ...buildStretches(anchors.slice(last + 1), rejected, false),
+  ];
+}
+
+function mapInPoints(points: readonly TimeAnchorPoint[], tick: number): number | null {
+  const first = points[0];
+  if (!first) {
+    return null;
+  }
+  if (points.length < 2) {
+    return first.gnssTimeMs + (tick - first.tick) * MS_PER_TICK;
+  }
+  const i = segmentIndex(points.length, upperBound(points, tick));
+  const a = points[i - 1];
+  const b = points[i];
+  if (!a || !b) {
+    return null;
+  }
+  return a.gnssTimeMs + ((tick - a.tick) * (b.gnssTimeMs - a.gnssTimeMs)) / (b.tick - a.tick);
+}
+
+/**
  * Builds the time base of one boot from its anchors:
  * 1. better sources first: an anchor of a lower-priority source between two
  *    kept better anchors less than 60 s apart is dropped;
- * 2. global consensus: the kept anchors are the **largest chain** in tick
- *    order in which every consecutive pair is consistent (rate within 500 ppm
- *    of nominal, beyond both uncertainties), found by dynamic programming over
- *    all anchors; between chains of the same length, the one with the better
- *    sources wins. Bad anchors, however many, early or periodic, lose to the
- *    good ones as long as the good ones are more; the rest are rejected.
+ * 2. consensus: the longest chain of anchors in which each consecutive pair
+ *    agrees within 100 ppm of nominal (beyond both uncertainties), skipping at
+ *    most 64 anchors per link, ties broken by the better sources;
+ * 3. steps: anchors before or after that chain that agree among themselves
+ *    (3 or more) form their own stretch, and the jump between stretches is
+ *    reported. Times are never interpolated across a step.
  */
 export function buildTimeBase(bootCounter: number, anchors: readonly TimeAnchorRecord[]): TimeBase {
   const all = anchors.map(anchorPoint);
@@ -131,57 +256,22 @@ export function buildTimeBase(bootCounter: number, anchors: readonly TimeAnchorR
     kept = [...kept, ...accepted].sort((a, b) => a.tick - b.tick);
   }
 
-  // Longest consistent chain: count[j] / prioritySum[j] of the best chain ending at j.
-  const n = kept.length;
-  const count = new Int32Array(n);
-  const prioritySum = new Float64Array(n);
-  const previous = new Int32Array(n).fill(-1);
-  let bestEnd = -1;
-  for (let j = 0; j < n; j += 1) {
-    const pj = kept[j];
-    if (!pj) {
-      continue;
-    }
-    const priorityJ = SOURCE_PRIORITY[pj.source];
-    count[j] = 1;
-    prioritySum[j] = priorityJ;
-    for (let i = j - 1; i >= 0; i -= 1) {
-      // A chain ending at i has at most i + 1 anchors: nothing earlier can tie.
-      if ((count[j] ?? 0) > i + 2) {
-        break;
-      }
-      const pi = kept[i];
-      if (!pi || !rateConsistent(pi, pj)) {
-        continue;
-      }
-      const c = (count[i] ?? 0) + 1;
-      const p = (prioritySum[i] ?? 0) + priorityJ;
-      if (c > (count[j] ?? 0) || (c === count[j] && p > (prioritySum[j] ?? 0))) {
-        count[j] = c;
-        prioritySum[j] = p;
-        previous[j] = i;
-      }
-    }
-    if (
-      bestEnd < 0 ||
-      (count[j] ?? 0) > (count[bestEnd] ?? 0) ||
-      (count[j] === count[bestEnd] && (prioritySum[j] ?? 0) > (prioritySum[bestEnd] ?? 0))
-    ) {
-      bestEnd = j;
+  const stretches = buildStretches(kept, rejected, true);
+  const steps: TimeStep[] = [];
+  for (let k = 1; k < stretches.length; k += 1) {
+    const a = stretches[k - 1]?.points ?? [];
+    const b = stretches[k]?.points ?? [];
+    const lastA = a.at(-1);
+    const firstB = b[0];
+    if (lastA && firstB) {
+      steps.push({
+        afterTick: lastA.tick,
+        beforeTick: firstB.tick,
+        stepMs: firstB.gnssTimeMs - (mapInPoints(a, firstB.tick) ?? firstB.gnssTimeMs),
+      });
     }
   }
-  const inChain = new Set<number>();
-  for (let k = bestEnd; k >= 0; k = previous[k] ?? -1) {
-    inChain.add(k);
-  }
-  const points: TimeAnchorPoint[] = [];
-  kept.forEach((p, k) => {
-    if (inChain.has(k)) {
-      points.push(p);
-    } else {
-      rejected.push({ ...p, reason: 'rate_out_of_range' });
-    }
-  });
+  const points = stretches.flatMap((s) => s.points);
 
   const best = points.reduce<TimeAnchorSource | 'none'>(
     (acc, p) =>
@@ -192,42 +282,63 @@ export function buildTimeBase(bootCounter: number, anchors: readonly TimeAnchorR
   return {
     bootCounter,
     points,
+    stretches,
+    steps,
     rejected: rejected.sort((a, b) => a.tick - b.tick),
     source: best,
     gpsUtcOffsetS: offsets.at(-1) ?? DEFAULT_GPS_UTC_OFFSET_S,
   };
 }
 
-function segmentFor(base: TimeBase, tick: number): [TimeAnchorPoint, TimeAnchorPoint] | null {
-  const { points } = base;
-  if (points.length < 2) {
-    return null;
+/** The stretch that times `tick`: the one that contains it, else the nearest by tick. */
+function stretchFor(base: TimeBase, tick: number): TimeStretch | null {
+  let best: TimeStretch | null = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const stretch of base.stretches) {
+    const first = stretch.points[0];
+    const last = stretch.points.at(-1);
+    if (!first || !last) {
+      continue;
+    }
+    const distance =
+      tick < first.tick ? first.tick - tick : tick > last.tick ? tick - last.tick : 0;
+    if (distance < bestDistance) {
+      best = stretch;
+      bestDistance = distance;
+    }
   }
-  const i = segmentIndex(points.length, upperBound(points, tick));
-  const a = points[i - 1];
-  const b = points[i];
-  return a && b ? [a, b] : null;
+  return best;
 }
 
 /** GPS time (ms) of a fractional RTC tick, or `null` if the boot has no anchor. */
 export function tickToGnssMs(base: TimeBase, tick: number): number | null {
-  const first = base.points[0];
-  if (!first) {
-    return null;
-  }
-  const pair = segmentFor(base, tick);
-  if (!pair) {
-    return first.gnssTimeMs + (tick - first.tick) * MS_PER_TICK;
-  }
-  const [a, b] = pair;
-  return a.gnssTimeMs + ((tick - a.tick) * (b.gnssTimeMs - a.gnssTimeMs)) / (b.tick - a.tick);
+  const stretch = stretchFor(base, tick);
+  return stretch ? mapInPoints(stretch.points, tick) : null;
 }
 
-/** Inverse of `tickToGnssMs`. */
+/** Inverse of `tickToGnssMs` (in the stretch whose GPS times contain it, else the nearest). */
 export function gnssMsToTick(base: TimeBase, gnssTimeMs: number): number | null {
-  const { points } = base;
-  const first = points[0];
-  if (!first) {
+  let points: TimeAnchorPoint[] | null = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const stretch of base.stretches) {
+    const first = stretch.points[0];
+    const last = stretch.points.at(-1);
+    if (!first || !last) {
+      continue;
+    }
+    const distance =
+      gnssTimeMs < first.gnssTimeMs
+        ? first.gnssTimeMs - gnssTimeMs
+        : gnssTimeMs > last.gnssTimeMs
+          ? gnssTimeMs - last.gnssTimeMs
+          : 0;
+    if (distance < bestDistance) {
+      points = stretch.points;
+      bestDistance = distance;
+    }
+  }
+  const first = points?.[0];
+  if (!points || !first) {
     return null;
   }
   if (points.length < 2) {
@@ -250,9 +361,10 @@ export function gnssMsToTick(base: TimeBase, gnssTimeMs: number): number | null 
  * uncertainty plus the crystal tolerance (±20 ppm) over the distance to it.
  */
 export function tickUncertaintyMs(base: TimeBase, tick: number): number | null {
-  const i = upperBound(base.points, tick);
+  const points = stretchFor(base, tick)?.points ?? [];
+  const i = upperBound(points, tick);
   let best: number | null = null;
-  for (const point of [base.points[i - 1], base.points[i]]) {
+  for (const point of [points[i - 1], points[i]]) {
     if (point) {
       const value =
         point.uncertaintyUs / 1000 +

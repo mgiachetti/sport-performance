@@ -88,8 +88,17 @@ export const W25N02KV: NandGeometry = {
 export const RTC_TICK_HZ = 32_768;
 /** Crystal tolerance used to bound drift and reject bad anchors (ADR 0106: ±20 ppm). */
 export const RTC_TOLERANCE_PPM = 20;
-/** Anchors implying a rate farther than this from nominal are rejected as outliers. */
-export const ANCHOR_MAX_RATE_ERROR_PPM = 500;
+/**
+ * Two anchors agree if the rate between them is within this of nominal
+ * (beyond both uncertainties). The crystal is ±20 ppm; 100 ppm leaves room for
+ * temperature and ageing while a GNSS time step of 1 s is caught between
+ * anchors up to 10 000 s apart.
+ */
+export const ANCHOR_MAX_RATE_ERROR_PPM = 100;
+/** A link of the consensus chain skips at most this many anchors (cost O(n · K)). */
+export const ANCHOR_LOOKBACK = 64;
+/** Anchors needed for a stretch after a step (a lone anchor before or after is rejected). */
+export const ANCHOR_STRETCH_MIN = 3;
 
 /** GPS epoch (06/01/1980 00:00:00 UTC) in Unix milliseconds. */
 export const GPS_EPOCH_UNIX_MS = 315_964_800_000;

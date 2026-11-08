@@ -10,7 +10,8 @@ import {
 import { fail } from '../errors.js';
 import { W25N04KV, type NandGeometry } from './constants.js';
 import type { NandPageRead } from './decoder.js';
-import { inspectLogPage } from './page.js';
+import type { LogPageKeys } from './integrity.js';
+import { inspectLogPage, openLogPage } from './page.js';
 
 /**
  * Keyless scan of the NAND and the storage rules of ADR 0106 ("Log en la NAND",
@@ -45,6 +46,11 @@ export interface SegmentSummary {
   closed: boolean;
   /** The segment-end page is a recovery close (`sealRecoveryPage`). */
   recovered: boolean;
+  /**
+   * Physical page of the segment-end page (by its header; the pod checks its
+   * CMAC with `segmentNeedsRecovery` before trusting it), `null` if none.
+   */
+  closePhysicalPage: number | null;
   /** End of the stream according to the last valid page. */
   streamBytes: number;
   /**
@@ -164,6 +170,7 @@ export function scanNand(input: {
         blocks: [block],
         closed: header.segmentEnd,
         recovered: header.recovered,
+        closePhysicalPage: header.segmentEnd ? read.physicalPage : null,
         streamBytes: end,
         fullyRead: false,
       });
@@ -178,6 +185,9 @@ export function scanNand(input: {
         existing.blocks.push(block);
       }
       existing.closed ||= header.segmentEnd;
+      if (header.segmentEnd) {
+        existing.closePhysicalPage = read.physicalPage;
+      }
       existing.recovered ||= header.recovered;
       existing.streamBytes = Math.max(existing.streamBytes, end);
     }
@@ -240,8 +250,114 @@ export function scanNand(input: {
  * `null` = memory full: the pod stops recording, shows it on the LED and the
  * app tells the staff.
  */
-export function nextWritableBlock(scan: NandScan, afterBlock = -1): number | null {
+export function nextWritableBlock(
+  scan: NandScan,
+  afterBlock = -1,
+  reserveBlocks = DEFAULT_RESERVE_BLOCKS,
+): number | null {
+  if (scan.freeBlocks.length <= reserveBlocks) {
+    return null;
+  }
   return scan.freeBlocks.find((b) => b > afterBlock) ?? scan.freeBlocks[0] ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Memory full: a page always stays for the close
+// ---------------------------------------------------------------------------
+
+/**
+ * Erased blocks kept back for recovery closes (a power cut while writing the
+ * close of a segment whose last block is full). Recording never uses them.
+ */
+export const DEFAULT_RESERVE_BLOCKS = 1;
+
+/** A new segment starts only with a free block beyond the reserve. */
+export function canStartSegment(scan: NandScan, reserveBlocks = DEFAULT_RESERVE_BLOCKS): boolean {
+  return scan.freeBlocks.length > reserveBlocks;
+}
+
+/**
+ * Pages the segment being recorded can still use: what is left of its current
+ * block plus the free blocks beyond the reserve.
+ */
+export function remainingSegmentPages(input: {
+  pagesUsedInBlock: number;
+  pagesPerBlock: number;
+  freeBlocksN: number;
+  reserveBlocks?: number;
+}): number {
+  const reserve = input.reserveBlocks ?? DEFAULT_RESERVE_BLOCKS;
+  return (
+    Math.max(0, input.pagesPerBlock - input.pagesUsedInBlock) +
+    Math.max(0, input.freeBlocksN - reserve) * input.pagesPerBlock
+  );
+}
+
+/**
+ * Whether the pod may append a record that seals `pagesSealed` pages
+ * (`LogWriter.pagesSealedBy`): one page always stays for the close. Otherwise
+ * the pod stops recording (memory full), closes the segment in that page, lights
+ * the LED and the app tells the staff.
+ */
+export function mayAppend(input: { pagesSealed: number; remainingPages: number }): boolean {
+  return input.pagesSealed <= input.remainingPages - 1;
+}
+
+/**
+ * Where the recovery close of a segment left open goes: the next page after
+ * the last programmed one of the segment's own last block (pages are
+ * programmed in order); only if that block is full, the first page of a free
+ * block (the reserve exists for this; it costs a whole block per power cut, so
+ * it is the fallback). `pages` must cover the segment's last block.
+ */
+export function planRecoveryPage(input: {
+  scan: NandScan;
+  segment: SegmentSummary;
+  pages: readonly NandPageRead[];
+}): { physicalPage: number; inFreeBlock: boolean } | null {
+  const { pagesPerBlock } = input.scan.geometry;
+  const lastBlock = Math.max(...input.segment.blocks);
+  let highest = -1;
+  for (const read of input.pages) {
+    if (Math.floor(read.physicalPage / pagesPerBlock) !== lastBlock) {
+      continue;
+    }
+    const programmed =
+      read.ecc === 'uncorrectable' || inspectLogPage(read.data).status !== 'erased';
+    if (programmed) {
+      highest = Math.max(highest, read.physicalPage % pagesPerBlock);
+    }
+  }
+  if (highest < pagesPerBlock - 1) {
+    return { physicalPage: lastBlock * pagesPerBlock + highest + 1, inFreeBlock: false };
+  }
+  const free = input.scan.freeBlocks[0];
+  return free === undefined ? null : { physicalPage: free * pagesPerBlock, inFreeBlock: true };
+}
+
+/**
+ * Whether the pod must write a recovery close at boot: the segment has no
+ * segment-end page, or the one the keyless scan found does not pass the CMAC
+ * with the pod's key (a CRC-valid header alone is never trusted).
+ */
+export function segmentNeedsRecovery(input: {
+  segment: SegmentSummary;
+  closePage: Uint8Array | null;
+  keys: LogPageKeys;
+}): boolean {
+  if (!input.segment.closed || !input.closePage) {
+    return true;
+  }
+  const inspection = inspectLogPage(input.closePage);
+  if (inspection.status !== 'valid' || !inspection.header.segmentEnd) {
+    return true;
+  }
+  try {
+    openLogPage({ page: input.closePage, header: inspection.header, keys: input.keys });
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 // ---------------------------------------------------------------------------
