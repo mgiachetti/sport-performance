@@ -72,6 +72,7 @@ describe('schema conventions', () => {
         'gym_set',
         'invitation',
         'invitation_category',
+        'location_erasure',
         'membership',
         'metric_definition',
         'notification',

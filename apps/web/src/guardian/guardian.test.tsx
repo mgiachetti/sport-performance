@@ -158,9 +158,76 @@ function consentRow(type: ConsentType) {
     image: 'Imágenes y videos',
     health: 'Datos de salud',
     menstrual_cycle: 'Seguimiento del ciclo menstrual',
+    location: 'Ubicación con el pod',
   } as const;
   return screen.findByRole('article', { name: titles[type] });
 }
+
+describe('family area: location consent (B-913)', () => {
+  const withLocation = (state: Parameters<typeof family.typeStatus>[1], handlers = {}) =>
+    asGuardian({
+      getPlayerConsents: () =>
+        family.playerConsents([
+          family.typeStatus('data', 'granted'),
+          family.typeStatus('image', 'missing'),
+          family.typeStatus('health', 'missing'),
+          family.typeStatus('location', state),
+        ]),
+      ...handlers,
+    });
+
+  it('says what it covers and that the guardian never sees the position', async () => {
+    renderApp({ path: childPath, handlers: withLocation('missing') });
+    const location = await consentRow('location');
+    expect(within(location).getByText('Sin firmar')).toBeVisible();
+    expect(within(location).getByText(/Sin este no recibe pod/)).toBeVisible();
+    expect(within(location).getByText(/vos no ves la ubicación/)).toBeVisible();
+    expect(within(location).getByRole('button', { name: 'Leer y firmar' })).toBeVisible();
+  });
+
+  it('an older text no longer counts: asks to sign the new version', async () => {
+    renderApp({ path: childPath, handlers: withLocation('outdated') });
+    const location = await consentRow('location');
+    expect(within(location).getByText(/lo firmado antes ya no vale/)).toBeVisible();
+    expect(within(location).queryByText(/Lo firmado sigue valiendo/)).toBeNull();
+    expect(
+      within(location).getByRole('button', { name: 'Leer y firmar la versión nueva' }),
+    ).toBeVisible();
+    // Unlike data, an outdated location consent is not a fact of the matrix.
+    const facts = childFacts(
+      family.child(),
+      family.player(),
+      family.playerConsents([
+        family.typeStatus('data', 'outdated'),
+        family.typeStatus('location', 'outdated'),
+      ]),
+    );
+    expect(facts.consents).toEqual(['data']);
+  });
+
+  it('revoking warns that the traces are deleted', async () => {
+    const { user, api } = renderApp({
+      path: childPath,
+      handlers: withLocation('granted', {
+        revokeConsent: () => family.typeStatus('location', 'revoked'),
+      }),
+    });
+    const location = await consentRow('location');
+    await user.click(within(location).getByRole('button', { name: 'Revocar' }));
+    expect(within(location).getByText(/se borran sus trazas de posición/)).toBeVisible();
+    expect(within(location).getByText(/El borrado no se deshace/)).toBeVisible();
+    await user.click(within(location).getByRole('button', { name: 'Sí, revocar' }));
+    expect(
+      await within(location).findByText(
+        'Listo: quedó revocado. El club está borrando sus trazas de posición.',
+      ),
+    ).toBeVisible();
+    expect(api.callsTo('revokeConsent')[0]?.params).toEqual({
+      playerId: family.SOFIA_ID,
+      type: 'location',
+    });
+  });
+});
 
 describe('family area: consents', () => {
   it('shows the state of each type with icon and text', async () => {

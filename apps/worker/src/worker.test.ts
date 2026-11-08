@@ -311,7 +311,16 @@ describe('queues', () => {
     expect(refresh).toMatchObject({ policy: 'stately', deadLetter: QUEUES.refreshClubDead });
     expect(QUEUE_DEFINITIONS[0]?.name).toBe(QUEUES.refreshClubDead);
     expect(SCHEDULES.map((s) => s.queue).sort()).toEqual(
-      [QUEUES.daily, QUEUES.sweep, QUEUES.usageDaily].sort(),
+      [QUEUES.daily, QUEUES.sweep, QUEUES.usageDaily, QUEUES.locationErasureSweep].sort(),
+    );
+    // The erasure of position data (B-913) runs with or without a bucket.
+    expect(QUEUE_DEFINITIONS.find((q) => q.name === QUEUES.locationErasureClub)).toMatchObject({
+      policy: 'stately',
+      deadLetter: QUEUES.locationErasureClubDead,
+    });
+    const names2 = QUEUE_DEFINITIONS.map((q) => q.name);
+    expect(names2.indexOf(QUEUES.locationErasureClubDead)).toBeLessThan(
+      names2.indexOf(QUEUES.locationErasureClub),
     );
     expect(QUEUE_DEFINITIONS.find((q) => q.name === QUEUES.usageFoldClub)).toMatchObject({
       policy: 'stately',

@@ -141,5 +141,11 @@ export const mobilePlayerMessagesEsAR = {
   'playerApp.consents.accept': 'Leí el texto y doy mi consentimiento.',
   'playerApp.consents.revokeConfirm':
     'Si lo revocás, desde ahora el club no puede cargar {type, select, data {tus datos personales ni de entrenamiento} image {tus imágenes ni videos} other {tus datos de salud}}. Lo cargado antes queda en tu historia. ¿Lo revocás?',
+  'playerApp.consents.revokeConfirmLocation':
+    'Si lo revocás, no recibís más pod y se borran tus trazas de posición y los registros del pod. Las métricas que no son ubicación (distancia, velocidad, aceleraciones) quedan. El borrado no se deshace. ¿Lo revocás?',
+  'playerApp.consents.outdatedLocation':
+    'El club publicó una versión nueva del texto. Para la ubicación lo firmado antes ya no vale: hasta que firmes la nueva, no recibís pod.',
+  'playerApp.consents.adultLocation':
+    'Ya sos mayor de edad: para la ubicación la firma de tu tutor/a no vale, la tenés que firmar vos.',
   'playerApp.consents.needsConnection': 'Para firmar o revocar necesitás conexión.',
 } as const;

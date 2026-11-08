@@ -37,6 +37,7 @@ import {
   membership,
   metricDefinition,
   notification,
+  locationErasure,
   notificationPreference,
   participation,
   player,
@@ -344,6 +345,21 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         signedBy: users.parent,
       })
       .returning({ id: consent.id }),
+  );
+  // A completed erasure of position data (B-913, ADR 0106): the summary, never the data.
+  rows.location_erasure = await id(
+    db
+      .insert(locationErasure)
+      .values({
+        ...base,
+        playerId: assigned,
+        reason: 'consent_revoked',
+        status: 'completed',
+        requestedBy: users.parent,
+        completedAt: new Date('2026-03-12T12:00:00Z'),
+        deletedRows: {},
+      })
+      .returning({ id: locationErasure.id }),
   );
   rows.player_stage = await id(
     db

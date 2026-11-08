@@ -100,7 +100,31 @@ const recordHealthNote = defineEndpoint({
   errors: ['not_found'],
 });
 
+const assignPod = defineEndpoint({
+  method: 'POST',
+  path: '/v1/test/players/{playerId}/pod-assignment',
+  summary: 'Assigns a pod (test double of B-912)',
+  tags: ['system'],
+  auth: 'club',
+  params: z.strictObject({ playerId: z.uuid() }),
+  response: { status: 200, description: 'Assigned', schema: z.object({ ok: z.literal(true) }) },
+  errors: ['not_found'],
+});
+
 function registerGuardedRoutes(app: FastifyInstance): void {
+  // With the matrix: `pod_assignment.assign` needs `data` and a granted `location` (B-913).
+  registerEndpoint(app, assignPod, {
+    transaction: true,
+    handler: async ({ params }, { db, permissions, auth }) => {
+      const { facts } = await requirePlayerFacts(
+        db,
+        auth.membership.clubId,
+        params.playerId as PlayerId,
+      );
+      await permissions.authorize('pod_assignment', 'assign', { player: facts });
+      return { ok: true as const };
+    },
+  });
   // With the matrix: `media.upload` needs an image consent.
   registerEndpoint(app, uploadCmjVideo, {
     transaction: true,
@@ -622,6 +646,111 @@ describeWithPostgres('consents (Postgres)', (serverUrl) => {
         ).toBe(201);
       }
       expect((await healthNote(adminA.headers, adult)).statusCode).toBe(200);
+    });
+  });
+
+  describe('location consent of the pod (B-913, ADR 0106)', () => {
+    const pod = (caller: Record<string, string>, playerId: string) =>
+      t.app.inject({
+        method: 'POST',
+        url: `/v1/test/players/${playerId}/pod-assignment`,
+        headers: caller,
+      });
+    const setGps = (on: boolean) =>
+      database.admin.query(
+        `update club set settings = jsonb_set(coalesce(settings, '{}'::jsonb), '{modules}',
+                coalesce(settings -> 'modules', '{}'::jsonb) || jsonb_build_object('gps', $2::boolean))
+          where id = $1`,
+        [clubA, on],
+      );
+    const erasures = async (playerId: string) =>
+      (
+        await database.admin.query<{ status: string; requested_by: string | null }>(
+          `select status::text, requested_by from location_erasure where player_id = $1
+            order by created_at`,
+          [playerId],
+        )
+      ).rows;
+
+    it('is asked and signed only with the gps module on', async () => {
+      const v1 = await publish(adminA.headers, {
+        type: 'location',
+        version: '2026-11',
+        title: 'Ubicación con el pod',
+        body: 'Autorizo registrar la ubicación con el pod durante las sesiones.',
+      });
+      expect(v1.statusCode, v1.body).toBe(201);
+      documents.location = v1.json<DocumentBody>();
+      expect(await stateOf(adultPlayer.headers, adult, 'location')).toBeUndefined();
+      const refused = await sign(adultPlayer.headers, adult, { documentId: documents.location.id });
+      expect(refused.statusCode, refused.body).toBe(409);
+      await setGps(true);
+      expect(await stateOf(adultPlayer.headers, adult, 'location')).toMatchObject({
+        state: 'missing',
+        actions: ['sign', 'revoke'],
+      });
+      // The staff sees whether it is signed (it decides who gets a pod), without actions.
+      expect(await stateOf(coachA.headers, adult, 'location')).toMatchObject({
+        state: 'missing',
+        actions: [],
+      });
+      expect(await stateOf(parentA.headers, minor, 'location')).toMatchObject({
+        state: 'missing',
+        actions: ['sign', 'revoke'],
+      });
+    });
+
+    it('a pod is assigned only with it granted: never on an older text', async () => {
+      expect(errorOf(await pod(adminA.headers, adult))).toMatchObject({
+        code: 'consent_required',
+        details: [{ path: ['consents', 'location'], code: 'consent_required' }],
+      });
+      const signed = await sign(adultPlayer.headers, adult, {
+        documentId: documents.location?.id,
+      });
+      expect(signed.statusCode, signed.body).toBe(201);
+      expect((await stateOf(adultPlayer.headers, adult, 'location'))?.state).toBe('granted');
+      expect((await pod(adminA.headers, adult)).statusCode).toBe(200);
+      expect((await pod(coachA.headers, adult)).statusCode).toBe(200);
+
+      const v2 = await publish(adminA.headers, {
+        type: 'location',
+        version: '2026-12',
+        title: 'Ubicación con el pod',
+        body: 'Versión revisada del texto de ubicación.',
+      });
+      expect(v2.statusCode).toBe(201);
+      documents.location2 = v2.json<DocumentBody>();
+      expect((await stateOf(adultPlayer.headers, adult, 'location'))?.state).toBe('outdated');
+      expect(errorOf(await pod(adminA.headers, adult))).toMatchObject({
+        code: 'consent_required',
+        details: [{ path: ['consents', 'location'], code: 'consent_required' }],
+      });
+      expect(
+        (await sign(adultPlayer.headers, adult, { documentId: documents.location2.id })).statusCode,
+      ).toBe(201);
+      expect((await pod(adminA.headers, adult)).statusCode).toBe(200);
+    });
+
+    it('revoking it queues the erasure of the position data, once', async () => {
+      expect(await erasures(adult)).toEqual([]);
+      const response = await revoke(adultPlayer.headers, adult, 'location');
+      expect(response.statusCode, response.body).toBe(200);
+      expect(response.json<TypeStatusBody>()).toMatchObject({ type: 'location', state: 'revoked' });
+      expect(await erasures(adult)).toEqual([
+        { status: 'pending', requested_by: adultPlayer.userId },
+      ]);
+      expect(errorOf(await pod(adminA.headers, adult)).code).toBe('consent_required');
+      // Revoking again is idempotent and queues nothing more.
+      expect((await revoke(adultPlayer.headers, adult, 'location')).statusCode).toBe(200);
+      expect(await erasures(adult)).toHaveLength(1);
+      // Still shown with the module off, so a signed one can be revoked; never signed again.
+      await setGps(false);
+      expect((await stateOf(adultPlayer.headers, adult, 'location'))?.state).toBe('revoked');
+      expect(
+        (await sign(adultPlayer.headers, adult, { documentId: documents.location2?.id }))
+          .statusCode,
+      ).toBe(409);
     });
   });
 });

@@ -7,6 +7,7 @@ import type { Logger } from 'pino';
 import { refreshClub, type RefreshDependencies } from './derived/refresh.js';
 import { listExportClubs, runClubExports } from './exports/process.js';
 import { purgeClubFiles } from './files.js';
+import { listLocationErasureClubs, runClubLocationErasures } from './location-erasure.js';
 import { runClubNotifications, type DeliveryDependencies } from './notifications/index.js';
 import { createOpsMonitor } from './ops/monitor.js';
 import { runClubReports } from './reports/job.js';
@@ -164,6 +165,31 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
     }
   });
 
+  // Erasure of position data when the location consent is revoked (B-913, ADR 0106).
+  await boss.work(
+    QUEUES.locationErasureClub,
+    { localConcurrency: options.clubConcurrency, pollingIntervalSeconds },
+    async ([job]: Job<unknown>[]) => {
+      if (job === undefined) return;
+      const { clubId } = parseRefreshClubJob(job.data);
+      try {
+        const report = await runClubLocationErasures({ pool: options.pool, logger }, clubId, {
+          jobId: job.id,
+        });
+        if (report.more) await enqueueClubJob(boss, QUEUES.locationErasureClub, clubId);
+      } catch (error) {
+        logger.error({ err: error, clubId, jobId: job.id }, 'location erasure failed');
+        reporter.capture(error, { job: QUEUES.locationErasureClub, jobId: job.id, clubId });
+        throw error;
+      }
+    },
+  );
+  await boss.work(QUEUES.locationErasureSweep, { pollingIntervalSeconds }, async () => {
+    for (const clubId of await listLocationErasureClubs(options.pool)) {
+      await enqueueClubJob(boss, QUEUES.locationErasureClub, clubId);
+    }
+  });
+
   const storage = options.storage;
   if (storage !== null) {
     await boss.work(
@@ -307,6 +333,9 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
     onClub: async (clubId: ClubId) => {
       await enqueueClubRefresh(boss, clubId);
     },
+    onLocationErasureClub: async (clubId: ClubId) => {
+      await enqueueClubJob(boss, QUEUES.locationErasureClub, clubId);
+    },
     ...(storage !== null && {
       onReportClub: async (clubId: ClubId) => {
         await enqueueClubJob(boss, QUEUES.playerReportsClub, clubId);
@@ -320,6 +349,9 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
   await listener.ready;
   // Catch up at start: marks written while the worker was down.
   for (const clubId of await listClubs(options.pool, true)) await enqueueClubRefresh(boss, clubId);
+  for (const clubId of await listLocationErasureClubs(options.pool)) {
+    await enqueueClubJob(boss, QUEUES.locationErasureClub, clubId);
+  }
   if (storage !== null) {
     for (const clubId of await listReportClubs(options.pool)) {
       await enqueueClubJob(boss, QUEUES.playerReportsClub, clubId);

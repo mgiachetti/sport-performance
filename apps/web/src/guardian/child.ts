@@ -1,6 +1,7 @@
 import type { Child, Player, PlayerConsents } from '@sport-performance/contracts';
 import {
   ageInCompletedYears,
+  consentStateCounts,
   localDateInTimeZone,
   type LocalDate,
   type PlayerFacts,
@@ -52,8 +53,9 @@ export function childFacts(
     ...(consents === undefined
       ? {}
       : {
+          // The types that count: a signature on an older text does not for location (B-913).
           consents: consents.types
-            .filter((status) => status.consent !== null)
+            .filter((status) => consentStateCounts(status.type, status.state))
             .map((status) => status.type),
         }),
   };

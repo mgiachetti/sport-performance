@@ -3,14 +3,31 @@ import { addDays, compareLocalDates, localDate, localDateParts, type LocalDate }
 
 /**
  * Kinds of consent (Ley 25.326, B-312): personal data, image (CMJ videos,
- * photos), health and, on its own, menstrual cycle tracking (B-806, ADR 0092:
- * a specific consent for an optional module, never implied by `health`). Without a current consent of a type, data of that type
+ * photos), health and, on their own, menstrual cycle tracking (B-806, ADR 0092:
+ * a specific consent for an optional module, never implied by `health`) and the
+ * position of the pod (B-913, ADR 0106: GNSS traces and raw pod logs, never
+ * implied by `data`). Without a current consent of a type, data of that type
  * is not collected, and images are neither shown nor uploaded (permission
  * matrix, B-303, ADR 0025). `packages/db` builds the `consent_type` enum from
  * this constant, so a value is never renamed.
  */
-export const CONSENT_TYPES = ['data', 'image', 'health', 'menstrual_cycle'] as const;
+export const CONSENT_TYPES = ['data', 'image', 'health', 'menstrual_cycle', 'location'] as const;
 export type ConsentType = (typeof CONSENT_TYPES)[number];
+
+/**
+ * Types that count only while `granted` (B-913, ADR 0106): a signature on an
+ * older version of the text (`outdated`) or only a guardian's signature of an
+ * adult within the grace period (`adult_signature_required`) does not count
+ * for them. A new version of the location text asks to sign again, and until
+ * then the player gets no pod and nothing of theirs is ingested or shown live.
+ * `app.current_consent_types` in the database applies the same rule.
+ */
+export const GRANTED_ONLY_CONSENT_TYPES = ['location'] as const satisfies readonly ConsentType[];
+
+/** Whether a consent of `type` counts only while its state is `granted`. */
+export function countsOnlyWhenGranted(type: ConsentType): boolean {
+  return (GRANTED_ONLY_CONSENT_TYPES as readonly ConsentType[]).includes(type);
+}
 
 export const isConsentType = memberGuard(CONSENT_TYPES);
 export const parseConsentType = memberParser(CONSENT_TYPES, 'invalid_argument', 'consent type');
@@ -100,11 +117,13 @@ export function consentSignerOfRole(role: string): ConsentSigner | null {
  * - `granted`: a current consent on the current version of the text.
  * - `outdated`: a current consent, but on an older version of the text. It
  *   still counts (data of the type may be collected) until it is revoked;
- *   the UI asks to sign the current version.
+ *   the UI asks to sign the current version. For
+ *   {@link GRANTED_ONLY_CONSENT_TYPES} (`location`) it does not count.
  * - `adult_signature_required` (B-311): the player is of age and only a
  *   guardian's signature counts, within the grace period
  *   ({@link ADULT_CONSENT_GRACE_DAYS}). It still counts; the adult has to
- *   sign their own before it lapses.
+ *   sign their own before it lapses. For {@link GRANTED_ONLY_CONSENT_TYPES}
+ *   it does not count: the adult signs location themselves.
  * - `lapsed` (B-311): the only signatures left are a guardian's, past the
  *   grace period. They do not count: the adult has to sign.
  * - `revoked`: every consent of the type was revoked.
@@ -220,13 +239,51 @@ export function consentStates<R extends ConsentRecord>(
   });
 }
 
-/** Types of the current consents among `consents` (in {@link CONSENT_TYPES} order). */
+/**
+ * Whether a consent type in `state` counts, that is, lets data of the type be
+ * collected: `granted`, and also `outdated` and `adult_signature_required`
+ * except for {@link GRANTED_ONLY_CONSENT_TYPES} (B-913).
+ */
+export function consentStateCounts(type: ConsentType, state: ConsentState): boolean {
+  if (state === 'granted') return true;
+  if (countsOnlyWhenGranted(type)) return false;
+  return state === 'outdated' || state === 'adult_signature_required';
+}
+
+/**
+ * Types of the consents that count among `consents` (in {@link CONSENT_TYPES}
+ * order): current ({@link isCurrentConsent}) and, for
+ * {@link GRANTED_ONLY_CONSENT_TYPES}, `granted` on the current text in
+ * `currentDocuments`. Without the current text a granted-only type never
+ * counts (fail closed). Same definition as `app.current_consent_types`.
+ */
 export function currentConsentTypes(
   consents: readonly ConsentRecord[],
   now: Date,
   holder: ConsentHolder = MINOR_HOLDER,
+  currentDocuments: Readonly<Partial<Record<ConsentType, CurrentConsentDocument>>> = {},
 ): ConsentType[] {
-  return CONSENT_TYPES.filter((type) =>
-    consents.some((c) => c.type === type && isCurrentConsent(c, now, holder)),
-  );
+  return consentStates(consents, currentDocuments, now, holder)
+    .filter((s) => consentStateCounts(s.type, s.state))
+    .map((s) => s.type);
+}
+
+/**
+ * Whether the pod may collect the player's position (B-913, ADR 0106): assign
+ * them a pod, ingest its data and show them live. Only with a `granted`
+ * location consent: never on an older text, never with only a guardian's
+ * signature of an adult, never revoked or lapsed. Takes the player's state of
+ * `location`, or all their states.
+ */
+export function canCollectLocation(
+  states: ConsentTypeState | readonly ConsentTypeState[],
+): boolean {
+  const list: readonly ConsentTypeState[] = isStateList(states) ? states : [states];
+  return list.some((s) => s.type === 'location' && consentStateCounts(s.type, s.state));
+}
+
+function isStateList(
+  states: ConsentTypeState | readonly ConsentTypeState[],
+): states is readonly ConsentTypeState[] {
+  return Array.isArray(states);
 }

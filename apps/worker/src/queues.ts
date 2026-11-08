@@ -43,6 +43,11 @@ export const QUEUES = {
   usageDaily: 'usage-daily',
   /** Every minute: the operational checks of the platform (B-703, ADR 0095). */
   opsMonitor: 'ops-monitor',
+  /** Erase the position data of the players who revoked `location` (B-913, ADR 0106). */
+  locationErasureClub: 'location-erasure-club',
+  locationErasureClubDead: 'location-erasure-club-dead',
+  /** Every minute: the clubs with a pending erasure (in case a notification was lost). */
+  locationErasureSweep: 'location-erasure-sweep',
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -185,6 +190,26 @@ export const QUEUE_DEFINITIONS: readonly Queue[] = [
     expireInSeconds: 10 * MINUTE,
     deleteAfterSeconds: 7 * DAY,
   },
+  { name: QUEUES.locationErasureClubDead, policy: 'standard', deleteAfterSeconds: 30 * DAY },
+  {
+    // A revocation erases soon: retries a minute apart, then a person looks at it.
+    name: QUEUES.locationErasureClub,
+    policy: 'stately',
+    retryLimit: 5,
+    retryDelay: 60,
+    retryBackoff: true,
+    retryDelayMax: 60 * MINUTE,
+    expireInSeconds: 10 * MINUTE,
+    deleteAfterSeconds: 7 * DAY,
+    deadLetter: QUEUES.locationErasureClubDead,
+  },
+  {
+    name: QUEUES.locationErasureSweep,
+    policy: 'stately',
+    retryLimit: 0,
+    expireInSeconds: 2 * MINUTE,
+    deleteAfterSeconds: DAY,
+  },
   {
     // A missed pass is the heartbeat the API and Sentry Crons watch: no retry, the next
     // minute measures again.
@@ -207,6 +232,8 @@ export const SCHEDULES = [
   { queue: QUEUES.daily, cron: '5 * * * *' },
   // Usage retention (B-707): once a day; each club folds by its own today.
   { queue: QUEUES.usageDaily, cron: '41 5 * * *' },
+  // Erasures of position data (B-913): a revocation lost by the listener, within a minute.
+  { queue: QUEUES.locationErasureSweep, cron: '* * * * *' },
 ] as const;
 
 /** Notifications: every minute, when the worker sends them (B-328). */

@@ -232,6 +232,21 @@ describe('consentTypesAskedFor', () => {
       'menstrual_cycle',
     );
   });
+
+  it('asks for the location consent only with the gps module on, or once signed (B-913)', () => {
+    const gps = { ...DEFAULT_CLUB_MODULES, gps: true };
+    expect(consentTypesAskedFor(DEFAULT_CLUB_MODULES, 'male', [])).not.toContain('location');
+    expect(consentTypesAskedFor(gps, 'male', [])).toEqual(['data', 'image', 'health', 'location']);
+    expect(consentTypesAskedFor(gps, 'female', [])).toContain('location');
+    expect(consentTypesAskedFor(DEFAULT_CLUB_MODULES, 'male', ['location'])).toContain('location');
+    expect(consentTypesAskedFor({ ...ON, gps: true }, 'female', [])).toEqual([
+      'data',
+      'image',
+      'health',
+      'menstrual_cycle',
+      'location',
+    ]);
+  });
 });
 
 describe('consentTypeSignable', () => {
@@ -240,6 +255,13 @@ describe('consentTypeSignable', () => {
     expect(consentTypeSignable(ON, 'male', 'menstrual_cycle')).toBe(false);
     expect(consentTypeSignable(DEFAULT_CLUB_MODULES, 'female', 'menstrual_cycle')).toBe(false);
     expect(consentTypeSignable(DEFAULT_CLUB_MODULES, 'male', 'health')).toBe(true);
+  });
+
+  it('signs the location consent only with the gps module on, for both sexes', () => {
+    const gps = { ...DEFAULT_CLUB_MODULES, gps: true };
+    expect(consentTypeSignable(gps, 'male', 'location')).toBe(true);
+    expect(consentTypeSignable(gps, 'female', 'location')).toBe(true);
+    expect(consentTypeSignable(DEFAULT_CLUB_MODULES, 'male', 'location')).toBe(false);
   });
 });
 

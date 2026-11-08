@@ -3,7 +3,7 @@ import type {
   ConsentTypeStatus,
   PlayerConsents,
 } from '@sport-performance/contracts';
-import type { TimeZone } from '@sport-performance/domain';
+import { countsOnlyWhenGranted, type TimeZone } from '@sport-performance/domain';
 import { formatDate } from '@sport-performance/i18n';
 import type { StatusLevel } from '@sport-performance/ui-tokens';
 import { useState } from 'react';
@@ -63,6 +63,8 @@ function TypeCard({
 }) {
   const { t } = useTranslator();
   const [confirmRevoke, setConfirmRevoke] = useState(false);
+  // Location counts only while granted, and revoking it erases the traces (ADR 0106).
+  const grantedOnly = countsOnlyWhenGranted(status.type);
   const canSign =
     status.actions.includes('sign') &&
     status.currentDocument !== null &&
@@ -89,7 +91,16 @@ function TypeCard({
       ) : null}
       {status.state === 'outdated' ? (
         <AppText role="bodySmall" tone="secondary">
-          {t('guardian.consents.stateHelp.outdated')}
+          {t(
+            grantedOnly
+              ? 'playerApp.consents.outdatedLocation'
+              : 'guardian.consents.stateHelp.outdated',
+          )}
+        </AppText>
+      ) : null}
+      {status.state === 'adult_signature_required' && grantedOnly ? (
+        <AppText role="bodySmall" tone="secondary">
+          {t('playerApp.consents.adultLocation')}
         </AppText>
       ) : null}
       {canSign || canRevoke ? (
@@ -123,7 +134,9 @@ function TypeCard({
             {confirmRevoke ? (
               <>
                 <StatusMessage level="warning">
-                  {t('playerApp.consents.revokeConfirm', { type: status.type })}
+                  {status.type === 'location'
+                    ? t('playerApp.consents.revokeConfirmLocation')
+                    : t('playerApp.consents.revokeConfirm', { type: status.type })}
                 </StatusMessage>
                 <Button
                   variant="secondary"

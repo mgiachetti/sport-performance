@@ -23,7 +23,7 @@ export const CONSENT_DOCUMENT_BODY_MAX_LENGTH = 50_000;
 export const consentTypeSchema = z.enum(CONSENT_TYPES).meta({
   id: 'ConsentType',
   description:
-    'Tipo de consentimiento: `data` (datos personales), `image` (videos del CMJ, fotos) o `health` (datos de salud).',
+    'Tipo de consentimiento: `data` (datos personales), `image` (videos del CMJ, fotos), `health` (datos de salud), `menstrual_cycle` (seguimiento del ciclo menstrual, ADR 0092) o `location` (ubicación del pod: trazas de posición; vale solo `granted` y revocarlo borra las trazas, ADR 0106).',
 });
 
 export const consentSignerSchema = z.enum(CONSENT_SIGNERS).meta({
@@ -35,7 +35,7 @@ export const consentSignerSchema = z.enum(CONSENT_SIGNERS).meta({
 export const consentStateSchema = z.enum(CONSENT_STATES).meta({
   id: 'ConsentState',
   description:
-    '`granted`: vigente sobre el texto actual. `outdated`: vigente, pero sobre una versión anterior del texto (sigue valiendo hasta que se revoque; conviene firmar la actual). `adult_signature_required`: el jugador/a ya es mayor y solo vale la firma de su tutor, que sigue valiendo hasta `guardianSignaturesLapseOn`; tiene que firmar el propio jugador/a (B-311). `lapsed`: solo queda la firma del tutor y ya pasó ese día: no vale. `revoked`: revocado. `missing`: nunca firmado.',
+    '`granted`: vigente sobre el texto actual. `outdated`: vigente, pero sobre una versión anterior del texto (sigue valiendo hasta que se revoque; conviene firmar la actual). `adult_signature_required`: el jugador/a ya es mayor y solo vale la firma de su tutor, que sigue valiendo hasta `guardianSignaturesLapseOn`; tiene que firmar el propio jugador/a (B-311). `lapsed`: solo queda la firma del tutor y ya pasó ese día: no vale. `revoked`: revocado. `missing`: nunca firmado. Para `location` solo vale `granted`: ni `outdated` ni `adult_signature_required` dejan asignar un pod (B-913).',
 });
 
 export const consentDocumentIdSchema = idOf('texto de consentimiento');
