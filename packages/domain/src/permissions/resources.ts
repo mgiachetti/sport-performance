@@ -165,6 +165,31 @@ export const PERMISSION_RESOURCES = {
     actions: ['read', 'enroll', 'log', 'share', 'withdraw'],
   },
   /**
+   * The club's pod fleet (B-912, ADR 0106): register, retire, mark lost, lend
+   * and read the health of each pod (`manage`). `read` lists the pods (the
+   * staff that assigns them); `locate` shows the last known position of a
+   * lost pod, which may be a player's, so only to whom runs the fleet.
+   */
+  pod: { target: 'club', medical: false, actions: ['read', 'manage', 'locate'] },
+  /**
+   * Which pod a player wears, with its time range (`pod_assignment`, ADR
+   * 0106). `assign` creates and corrects one, and needs the player's
+   * `location` consent `granted`: never on an older text (B-913).
+   */
+  pod_assignment: { target: 'player', medical: false, actions: ['read', 'assign'] },
+  /**
+   * The live screen of the pods of a category (ADR 0106): approximate, sorted
+   * by vest number where there are no named rankings; never on the kiosk.
+   * Each player appears only with a `granted` location consent (B-913).
+   */
+  pod_live: { target: 'category', medical: false, actions: ['read'] },
+  /**
+   * Position traces and heat maps of a player from the pod (B-913, ADR
+   * 0106). The player reads their own; the guardian never (the family's
+   * summary has no position). Revoking `location` deletes them.
+   */
+  position_trace: { target: 'player', medical: false, actions: ['read'] },
+  /**
    * Export of a player's data outside the club: the holder's right of access
    * (Ley 25.326, art. 14) or sharing with a third party.
    */

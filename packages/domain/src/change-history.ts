@@ -25,6 +25,8 @@ export const CHANGE_TRACKED_TABLES = [
   'external_metric',
   'gym_set',
   'external_load',
+  // The summary of an erasure of position data (B-913, ADR 0106): never the traces.
+  'location_erasure',
 ] as const;
 export type ChangeTrackedTable = (typeof CHANGE_TRACKED_TABLES)[number];
 

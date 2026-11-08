@@ -720,4 +720,69 @@ describe('PlayerConsentsScreen', () => {
     expect(screen.getByText(t('playerApp.consents.needsConnection'))).toBeDefined();
     expect(screen.queryByRole('button', { name: t('guardian.consents.read') })).toBeNull();
   });
+
+  describe('location consent (B-913)', () => {
+    function withLocation(state: 'granted' | 'outdated' | 'adult_signature_required') {
+      const base = consents(true, ['sign', 'revoke']);
+      const data = base.types[0];
+      if (data === undefined) throw new Error('no data status');
+      const document = data.currentDocument;
+      if (document === null) throw new Error('no document');
+      return {
+        ...base,
+        types: [
+          {
+            type: 'location',
+            state,
+            consent: {
+              id: 'c9999999-1111-4111-8111-111111111111',
+              playerId: base.playerId,
+              type: 'location',
+              documentId: 'a8888888-1111-4111-8111-111111111111',
+              documentVersion: '2026-10',
+              signerKind: state === 'adult_signature_required' ? 'guardian' : 'player',
+              signedBy: 'user-1',
+              signedAt: '2026-10-01T12:00:00.000Z',
+              revokedAt: null,
+              revokedBy: null,
+            },
+            currentDocument: { ...document, type: 'location', title: 'Ubicación con el pod' },
+            actions: ['sign', 'revoke'],
+          },
+        ],
+      } as PlayerConsents;
+    }
+
+    it('shows the location consent with its own name and help', () => {
+      renderConsents(withLocation('granted'));
+      expect(screen.getByText(t('guardian.consents.type.location'))).toBeDefined();
+      expect(screen.getByText(t('playerApp.consents.typeHelpLocation'))).toBeDefined();
+      expect(screen.getByText(/la administración del club/)).toBeDefined();
+      expect(screen.getByText(t('guardian.consents.state.granted'))).toBeDefined();
+    });
+
+    it('an older text no longer counts: never "lo firmado sigue valiendo"', () => {
+      renderConsents(withLocation('outdated'));
+      expect(screen.getByText(t('playerApp.consents.outdatedLocation'))).toBeDefined();
+      expect(screen.getByText(t('guardian.consents.state.outdatedGrantedOnly'))).toBeDefined();
+      expect(screen.queryByText(t('guardian.consents.state.outdated'))).toBeNull();
+      expect(screen.queryByText(t('guardian.consents.stateHelp.outdated'))).toBeNull();
+      expect(screen.getByRole('button', { name: t('guardian.consents.readNew') })).toBeDefined();
+    });
+
+    it("an adult signs it: the guardian's signature does not count", () => {
+      renderConsents(withLocation('adult_signature_required'));
+      expect(screen.getByText(t('playerApp.consents.adultLocation'))).toBeDefined();
+    });
+
+    it('revoking warns that the traces are deleted', () => {
+      const handlers = renderConsents(withLocation('granted'));
+      fireEvent.click(screen.getByRole('button', { name: t('guardian.consents.revoke') }));
+      expect(screen.getByText(t('playerApp.consents.revokeConfirmLocation'))).toBeDefined();
+      fireEvent.click(
+        screen.getByRole('button', { name: t('guardian.consents.revokeConfirmAction') }),
+      );
+      expect(handlers.onRevoke).toHaveBeenCalledWith('location');
+    });
+  });
 });

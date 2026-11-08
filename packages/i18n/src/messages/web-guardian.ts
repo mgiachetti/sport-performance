@@ -59,12 +59,15 @@ export const webGuardianMessagesEsAR = {
   'guardian.consents.type.image': 'Imágenes y videos',
   'guardian.consents.type.health': 'Datos de salud',
   'guardian.consents.type.menstrual_cycle': 'Seguimiento del ciclo menstrual',
+  'guardian.consents.type.location': 'Ubicación con el pod',
   'guardian.consents.typeHelp.data':
     'Tests físicos, bienestar, carga de entrenamiento y medidas. Sin este no se carga nada.',
   'guardian.consents.typeHelp.image': 'Videos del salto (CMJ) y fotos para analizar la técnica.',
   'guardian.consents.typeHelp.health': 'Lesiones y altas, que gestiona el staff médico.',
   'guardian.consents.typeHelp.menstrual_cycle':
     'Opcional, solo para jugadoras: lo activa ella si quiere y lo ve solo a quien ella elija. Quien firma no ve sus registros.',
+  'guardian.consents.typeHelp.location':
+    'Trazas de posición y mapas de calor del pod GPS durante las sesiones del club. Sin este no recibe pod. Las ven el jugador o la jugadora, los entrenadores y preparadores físicos de su categoría y la administración del club; vos, el staff médico y el soporte no ven la ubicación.',
   'guardian.consents.state.granted': 'Vigente',
   'guardian.consents.state.outdated': 'Vigente sobre un texto anterior',
   'guardian.consents.state.adult_signature_required': 'Falta la firma del jugador/a',
@@ -75,6 +78,11 @@ export const webGuardianMessagesEsAR = {
     'El club publicó una versión nueva del texto. Lo firmado sigue valiendo, pero conviene firmar la nueva.',
   'guardian.consents.stateHelp.adult_signature_required':
     'Ya es mayor de edad: tu firma vale hasta el {date} y después tiene que firmar él o ella.',
+  'guardian.consents.state.outdatedGrantedOnly': 'No vale: hay un texto nuevo',
+  'guardian.consents.stateHelp.outdatedLocation':
+    'El club publicó una versión nueva del texto. Para la ubicación lo firmado antes ya no vale: hasta que se firme la nueva, no recibe pod.',
+  'guardian.consents.stateHelp.adultLocation':
+    'Ya es mayor de edad: para la ubicación tu firma ya no vale y la tiene que firmar él o ella.',
   'guardian.consents.signedBy':
     '{signer, select, guardian {Firmado por un tutor/a} other {Firmado por el jugador/a}} el {date} (versión {version}).',
   'guardian.consents.noDocument':
@@ -90,9 +98,13 @@ export const webGuardianMessagesEsAR = {
   'guardian.consents.revoke': 'Revocar',
   'guardian.consents.revokeConfirm':
     'Si lo revocás, desde ahora el club no puede cargar {type, select, data {datos personales ni de entrenamiento} image {imágenes ni videos} other {datos de salud}} de {name}. Lo cargado antes queda en su historia. ¿Lo revocás?',
+  'guardian.consents.revokeConfirmLocation':
+    'Si lo revocás, {name} no recibe más pod y se borran sus trazas de posición y los registros del pod. Las métricas que no son ubicación (distancia, velocidad, aceleraciones) quedan. El borrado no se deshace. ¿Lo revocás?',
   'guardian.consents.revokeConfirmAction': 'Sí, revocar',
   'guardian.consents.revoking': 'Revocando…',
   'guardian.consents.revoked': 'Listo: quedó revocado.',
+  'guardian.consents.revokedLocation':
+    'Listo: quedó revocado. El club está borrando sus trazas de posición.',
   'guardian.consents.history.title': 'Historial de firmas',
   'guardian.consents.history.none': 'Todavía no hay firmas.',
   'guardian.consents.history.item':

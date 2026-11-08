@@ -20,7 +20,8 @@ import { pageOf, pageQuerySchema } from '../primitives/pagination.js';
 
 export const changeTrackedTableSchema = z.enum(CHANGE_TRACKED_TABLES).meta({
   id: 'ChangeTrackedTable',
-  description: 'Tabla cuyos cambios se registran (resultados, sesiones y mediciones).',
+  description:
+    'Tabla cuyos cambios se registran (resultados, sesiones y mediciones; `location_erasure`: el resumen del borrado de las trazas de posición, sin los datos).',
 });
 
 export const changeOperationSchema = z.enum(CHANGE_OPERATIONS).meta({

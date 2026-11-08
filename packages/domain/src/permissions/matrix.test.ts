@@ -18,7 +18,7 @@ import type { PermissionResource, PermissionSubject, PlayerFacts } from './subje
  * One line per `kind.action`, one token per role in the order of the header
  * (which must be `ROLES`). A token is `-` (denied) or `scope[+requirement…]`, with scopes `platform`,
  * `club`, `assigned`, `self`, `guardian` and requirements `data`, `image`,
- * `health`, `menstrual_cycle` (consents) and `own_percentiles`, `named_rankings`, `minor`,
+ * `health`, `menstrual_cycle`, `location` (consents) and `own_percentiles`, `named_rankings`, `minor`,
  * `adult` (player conditions).
  */
 const SPEC_GRID = `
@@ -112,6 +112,13 @@ menstrual_cycle.enroll   self+data+health+menstrual_cycle -     -               
 menstrual_cycle.log      self+data+health+menstrual_cycle -     -               -               -                -           -
 menstrual_cycle.share    self+data+health+menstrual_cycle -     -               -               -                -           -
 menstrual_cycle.withdraw self                  -               -               -               -                -           -
+pod.read                 -                     -               club            club            -                club        club
+pod.manage               -                     -               -               club            -                club        club
+pod.locate               -                     -               -               club            -                club        -
+pod_assignment.read      self                  -               assigned        assigned        -                club        club
+pod_assignment.assign    -                     -               assigned+data+location assigned+data+location - club+data+location -
+pod_live.read            -                     -               assigned        assigned        -                club        -
+position_trace.read      self                  -               assigned+location assigned+location -           club+location -
 data_export.export       self+adult            guardian+minor  -               -               -                club+data   -
 player_report.read       self                  guardian        assigned        assigned        assigned         club        club
 player_report.generate   -                     -               -               assigned        -                club        club
@@ -687,6 +694,43 @@ describe('privacy invariants (independent of the specification)', () => {
     }
   });
 
+  it('the guardian, the medical staff and support never see a position (B-913, ADR 0106)', () => {
+    for (const kind of ['pod_assignment', 'pod_live', 'position_trace'] as const) {
+      for (const cell of cells.filter((c) => c.kind === kind)) {
+        if (cell.role === 'parent' || cell.role === 'medical') {
+          expect(cell.rule.effect, `${kind}.${cell.action} × ${cell.role}`).toBe('deny');
+        }
+      }
+    }
+    for (const kind of ['pod_live', 'position_trace'] as const) {
+      expect(PERMISSION_MATRIX[kind].read.superadmin.effect, kind).toBe('deny');
+    }
+    expect(PERMISSION_MATRIX.pod.locate.superadmin.effect).toBe('deny');
+    expect(PERMISSION_MATRIX.pod.locate.parent.effect).toBe('deny');
+    expect(PERMISSION_MATRIX.pod.locate.coach.effect).toBe('deny');
+  });
+
+  it("the staff reads a player's position and assigns a pod only with the location consent", () => {
+    for (const cell of allowedCells.filter(
+      (c) =>
+        (c.kind === 'position_trace' || (c.kind === 'pod_assignment' && c.action === 'assign')) &&
+        c.role !== 'player',
+    )) {
+      expect(
+        cell.rule.effect === 'allow' && cell.rule.consents,
+        `${cell.kind} × ${cell.role}`,
+      ).toContain('location');
+    }
+  });
+
+  it('only S&C and the administration run the fleet', () => {
+    for (const action of ['manage', 'locate'] as const) {
+      const rules = PERMISSION_MATRIX.pod[action];
+      const allowedRoles = ROLES.filter((r) => rules[r].effect === 'allow');
+      expect(allowedRoles.filter((r) => r !== 'superadmin')).toEqual(['sc', 'admin']);
+    }
+  });
+
   it('a player sees named rankings and own percentiles only through the stage conditions', () => {
     const rule = PERMISSION_MATRIX.named_ranking.read.player;
     expect(rule.effect === 'allow' && rule.conditions).toContain('named_rankings');
@@ -780,6 +824,7 @@ describe('privacy invariants (independent of the specification)', () => {
       'menarche.report',
       'menstrual_cycle.enroll',
       'menstrual_cycle.log',
+      'pod_assignment.assign',
     ];
     const required: Readonly<Record<string, ConsentType>> = {
       'media.upload': 'image',
@@ -789,6 +834,7 @@ describe('privacy invariants (independent of the specification)', () => {
       'menarche.report': 'health',
       'menstrual_cycle.enroll': 'menstrual_cycle',
       'menstrual_cycle.log': 'menstrual_cycle',
+      'pod_assignment.assign': 'location',
     };
     for (const cell of allowedCells) {
       const key = `${cell.kind}.${cell.action}`;

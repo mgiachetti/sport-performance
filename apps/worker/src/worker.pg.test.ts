@@ -673,6 +673,7 @@ describe.skipIf(!hasDatabase)('worker and derived values (Postgres 16)', () => {
         'derived-daily',
         'derived-sweep',
         'files-daily',
+        'location-erasure-sweep',
         'ops-monitor',
         'player-reports-sweep',
         'usage-daily',

@@ -4,7 +4,7 @@ import type {
   ConsentTypeStatus,
   PlayerConsents,
 } from '@sport-performance/contracts';
-import type { ConsentState, TimeZone } from '@sport-performance/domain';
+import { countsOnlyWhenGranted, type ConsentState, type TimeZone } from '@sport-performance/domain';
 import { formatDate, formatLocalDate } from '@sport-performance/i18n';
 import type { StatusLevel } from '@sport-performance/ui-tokens';
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
@@ -99,6 +99,8 @@ function ConsentRow(props: {
   const canSign = status.actions.includes('sign') && status.state !== 'granted';
   const canRevoke = status.actions.includes('revoke') && status.consent !== null;
   const typeLabel = t(`guardian.consents.type.${status.type}`);
+  // Location counts only while granted, and revoking it erases the traces (ADR 0106).
+  const grantedOnly = countsOnlyWhenGranted(status.type);
 
   return (
     <article className="sp-row" aria-labelledby={titleId}>
@@ -106,9 +108,16 @@ function ConsentRow(props: {
         <h3 id={titleId} className="sp-row__title">
           {typeLabel}
         </h3>
-        <StatusLabel level={CONSENT_STATE_LEVELS[status.state]}>
-          {t(`guardian.consents.state.${status.state}`)}
-        </StatusLabel>
+        {grantedOnly && status.state === 'outdated' ? (
+          // An older text does not count for location: never "vigente" (ADR 0106).
+          <StatusLabel level="critical">
+            {t('guardian.consents.state.outdatedGrantedOnly')}
+          </StatusLabel>
+        ) : (
+          <StatusLabel level={CONSENT_STATE_LEVELS[status.state]}>
+            {t(`guardian.consents.state.${status.state}`)}
+          </StatusLabel>
+        )}
       </div>
       <p className="sp-meta">{t(`guardian.consents.typeHelp.${status.type}`)}</p>
       {status.consent === null ? null : (
@@ -120,12 +129,22 @@ function ConsentRow(props: {
           })}
         </p>
       )}
-      {status.state === 'outdated' ? <p>{t('guardian.consents.stateHelp.outdated')}</p> : null}
+      {status.state === 'outdated' ? (
+        <p>
+          {t(
+            grantedOnly
+              ? 'guardian.consents.stateHelp.outdatedLocation'
+              : 'guardian.consents.stateHelp.outdated',
+          )}
+        </p>
+      ) : null}
       {status.state === 'adult_signature_required' ? (
         <p>
-          {t('guardian.consents.stateHelp.adult_signature_required', {
-            date: formatLocalDate(props.playerConsents.guardianSignaturesLapseOn),
-          })}
+          {grantedOnly
+            ? t('guardian.consents.stateHelp.adultLocation')
+            : t('guardian.consents.stateHelp.adult_signature_required', {
+                date: formatLocalDate(props.playerConsents.guardianSignaturesLapseOn),
+              })}
         </p>
       ) : null}
       {canSign && document === null ? (
@@ -185,7 +204,12 @@ function ConsentRow(props: {
         <div className="sp-form" role="group" aria-label={t('guardian.consents.revoke')}>
           <Notice level="warning">
             <p>
-              {t('guardian.consents.revokeConfirm', { type: status.type, name: child.firstName })}
+              {status.type === 'location'
+                ? t('guardian.consents.revokeConfirmLocation', { name: child.firstName })
+                : t('guardian.consents.revokeConfirm', {
+                    type: status.type,
+                    name: child.firstName,
+                  })}
             </p>
           </Notice>
           {revoke.isError ? <ErrorNotice error={revoke.error} /> : null}
@@ -216,7 +240,11 @@ function ConsentRow(props: {
       <div role="status">
         {done === null ? null : (
           <StatusLabel level="ok">
-            {done === 'signed' ? t('guardian.consents.signed') : t('guardian.consents.revoked')}
+            {done === 'signed'
+              ? t('guardian.consents.signed')
+              : status.type === 'location'
+                ? t('guardian.consents.revokedLocation')
+                : t('guardian.consents.revoked')}
           </StatusLabel>
         )}
       </div>

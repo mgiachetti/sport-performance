@@ -273,28 +273,40 @@ export function menstrualCycleUnavailableReason(
 }
 
 /**
- * The consent types a player is asked for: every type but `menstrual_cycle`,
- * which is asked only when the module is offered to her (the club's module on
- * and a female player) or when one was ever signed (so it can be revoked).
+ * The consent types a player is asked for: every type but the optional ones,
+ * each asked only where it is offered or once one was ever signed (so it can
+ * be revoked):
+ *
+ * - `menstrual_cycle`: the club's module on and a female player (ADR 0092);
+ * - `location` (B-913, ADR 0106): the club's `gps` module on, the module of
+ *   field metrics that the pod belongs to. Which categories get a pod (M19
+ *   and the first team by default) is the club's per-category setting of
+ *   B-912; until it exists every player of a club with `gps` is asked.
  */
 export function consentTypesAskedFor(
-  modules: Pick<ClubModules, 'menstrual_cycle'>,
+  modules: Pick<ClubModules, 'menstrual_cycle' | 'gps'>,
   sex: Sex,
   signedTypes: readonly ConsentType[],
 ): ConsentType[] {
   const cycleOffered =
     (modules.menstrual_cycle && sex === 'female') || signedTypes.includes('menstrual_cycle');
-  return CONSENT_TYPES.filter((type) => type !== 'menstrual_cycle' || cycleOffered);
+  const locationOffered = modules.gps || signedTypes.includes('location');
+  return CONSENT_TYPES.filter((type) => {
+    if (type === 'menstrual_cycle') return cycleOffered;
+    if (type === 'location') return locationOffered;
+    return true;
+  });
 }
 
 /**
  * Whether a new `type` consent can be signed for this player: only what is
- * offered to her today, so a `menstrual_cycle` consent is never signed for a
- * male player or with the club's module off (one signed before can still be
- * revoked: {@link consentTypesAskedFor} keeps showing it).
+ * offered today, so a `menstrual_cycle` consent is never signed for a male
+ * player or with the club's module off, nor a `location` one with the `gps`
+ * module off (one signed before can still be revoked:
+ * {@link consentTypesAskedFor} keeps showing it).
  */
 export function consentTypeSignable(
-  modules: Pick<ClubModules, 'menstrual_cycle'>,
+  modules: Pick<ClubModules, 'menstrual_cycle' | 'gps'>,
   sex: Sex,
   type: ConsentType,
 ): boolean {

@@ -2,8 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   ADULT_CONSENT_GRACE_DAYS,
   CONSENT_STATES,
+  CONSENT_TYPES,
+  GRANTED_ONLY_CONSENT_TYPES,
+  canCollectLocation,
   consentSignerOfRole,
+  consentStateCounts,
   consentStates,
+  countsOnlyWhenGranted,
   currentConsentTypes,
   guardianConsentsLapseOn,
   guardianConsentsLapsed,
@@ -11,6 +16,7 @@ import {
   majorityDate,
   requiredConsentSigner,
   type ConsentRecord,
+  type ConsentTypeState,
 } from './consent.js';
 import { ROLES } from './role.js';
 import { isOfAge } from './permissions/subject.js';
@@ -106,10 +112,12 @@ describe('consentStates', () => {
       ['image', 'granted'],
       ['health', 'revoked'],
       ['menstrual_cycle', 'missing'],
+      ['location', 'missing'],
     ]);
     expect(states[0]?.current).toBe(data);
     expect(states[2]?.current).toBeNull();
     expect(consentStates([], documents, NOW).map((s) => s.state)).toEqual([
+      'missing',
       'missing',
       'missing',
       'missing',
@@ -230,5 +238,87 @@ describe('consent states once the player is of age (B-311)', () => {
 
   it('a player signature never lapses', () => {
     expect(isCurrentConsent(record({ signerKind: 'player' }), NOW, adultLapsed)).toBe(true);
+  });
+});
+
+describe('location consent (B-913, ADR 0106)', () => {
+  const locationDocuments = {
+    ...documents,
+    location: { id: 'doc-location-2', version: '2026-12' },
+  };
+  const onCurrent = {
+    type: 'location' as const,
+    documentId: 'doc-location-2',
+    documentVersion: '2026-12',
+  };
+  const onOlder = {
+    type: 'location' as const,
+    documentId: 'doc-location-1',
+    documentVersion: '2026-11',
+  };
+  const adultInGrace = { ofAge: true, guardianConsentsLapsed: false };
+  const adultLapsed = { ofAge: true, guardianConsentsLapsed: true };
+  const locationState = (states: readonly ConsentTypeState[]) =>
+    states.find((s) => s.type === 'location');
+
+  it('is its own type, the only one that counts only while granted', () => {
+    expect(CONSENT_TYPES).toContain('location');
+    expect(GRANTED_ONLY_CONSENT_TYPES).toEqual(['location']);
+    expect(CONSENT_TYPES.filter(countsOnlyWhenGranted)).toEqual(['location']);
+  });
+
+  it('counts only granted; outdated and adult_signature_required count for the other types', () => {
+    for (const state of CONSENT_STATES) {
+      expect(consentStateCounts('location', state), state).toBe(state === 'granted');
+      expect(consentStateCounts('data', state), state).toBe(
+        ['granted', 'outdated', 'adult_signature_required'].includes(state),
+      );
+    }
+  });
+
+  it("a guardian's signature of a minor on the current text allows collecting", () => {
+    const states = consentStates([record(onCurrent)], locationDocuments, NOW);
+    expect(locationState(states)?.state).toBe('granted');
+    expect(canCollectLocation(states)).toBe(true);
+    expect(currentConsentTypes([record(onCurrent)], NOW, undefined, locationDocuments)).toEqual([
+      'location',
+    ]);
+  });
+
+  it('a signature on an older text does not (unlike data)', () => {
+    const consents = [record(onOlder), record({ type: 'data' })];
+    const states = consentStates(consents, locationDocuments, NOW);
+    expect(locationState(states)?.state).toBe('outdated');
+    expect(states[0]?.state).toBe('outdated');
+    expect(canCollectLocation(states)).toBe(false);
+    expect(currentConsentTypes(consents, NOW, undefined, locationDocuments)).toEqual(['data']);
+  });
+
+  it("an adult with only a guardian's signature does not: the adult signs it", () => {
+    const states = consentStates([record(onCurrent)], locationDocuments, NOW, adultInGrace);
+    const location = locationState(states);
+    expect(location?.state).toBe('adult_signature_required');
+    expect(location !== undefined && canCollectLocation(location)).toBe(false);
+    const own = record({ ...onCurrent, signerKind: 'player' });
+    expect(canCollectLocation(consentStates([own], locationDocuments, NOW, adultInGrace))).toBe(
+      true,
+    );
+  });
+
+  it('revoked, lapsed, missing or without the current text: never', () => {
+    const revoked = record({ ...onCurrent, revokedAt: at('2026-10-01T00:00:00Z') });
+    expect(canCollectLocation(consentStates([revoked], locationDocuments, NOW))).toBe(false);
+    expect(
+      canCollectLocation(consentStates([record(onCurrent)], locationDocuments, NOW, adultLapsed)),
+    ).toBe(false);
+    expect(canCollectLocation(consentStates([], locationDocuments, NOW))).toBe(false);
+    expect(canCollectLocation([])).toBe(false);
+    // Without the current text it cannot be granted: fail closed.
+    expect(currentConsentTypes([record(onCurrent)], NOW)).toEqual([]);
+  });
+
+  it('only the location state decides, never a granted state of another type', () => {
+    const data = record({ type: 'data', documentId: 'doc-data-2' });
+    expect(canCollectLocation(consentStates([data], locationDocuments, NOW))).toBe(false);
   });
 });

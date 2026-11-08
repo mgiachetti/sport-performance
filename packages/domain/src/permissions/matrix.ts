@@ -89,7 +89,8 @@ const kioskSubmit: RoleRules = {
  *
  * Collecting data of a player (wellness, RPE, external load, results, measurements,
  * participation, parents' heights) needs a current `data` consent; images
- * need `image` to be uploaded or shown; health records need `health`.
+ * need `image` to be uploaded or shown; health records need `health`; the
+ * position of the pod needs `location`, granted on the current text (B-913).
  */
 export const PERMISSION_MATRIX: PermissionMatrix = {
   club_registry: {
@@ -388,6 +389,38 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
     log: { ...nobody, player: allow('self', 'data', 'health', 'menstrual_cycle') },
     share: { ...nobody, player: allow('self', 'data', 'health', 'menstrual_cycle') },
     withdraw: { ...nobody, player: self },
+  },
+  // The pod (B-912, B-913, ADR 0106). The fleet is run by S&C and the administration; the
+  // staff of the category assigns pods, opens the live screen and reads the traces. Every
+  // position of a player needs their `location` consent, which counts only while granted
+  // (never on an older text): the database's `app.current_consent_types` leaves it out of
+  // the facts otherwise. The player reads their own traces; the guardian never sees a
+  // position, and neither do the medical staff nor the superadmin's support access.
+  pod: {
+    read: { ...administration, coach: club, sc: club },
+    manage: { ...administration, sc: club },
+    locate: { ...nobody, sc: club, admin: club },
+  },
+  pod_assignment: {
+    read: { ...administration, player: self, coach: assigned, sc: assigned },
+    assign: {
+      ...nobody,
+      coach: allow('assigned', 'data', 'location'),
+      sc: allow('assigned', 'data', 'location'),
+      admin: allow('club', 'data', 'location'),
+    },
+  },
+  pod_live: {
+    read: { ...nobody, coach: assigned, sc: assigned, admin: club },
+  },
+  position_trace: {
+    read: {
+      ...nobody,
+      player: self,
+      coach: allow('assigned', 'location'),
+      sc: allow('assigned', 'location'),
+      admin: allow('club', 'location'),
+    },
   },
   data_export: {
     export: {

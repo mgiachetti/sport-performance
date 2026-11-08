@@ -48,6 +48,8 @@ const APPEND_ONLY_TABLES = [
   'change_history',
   'consent_document',
   'derived_refresh',
+  // Queued by the revocation of a location consent, completed by the worker (ADR 0106).
+  'location_erasure',
   'notification',
   'player_alert_evaluation',
   'player_load_daily',

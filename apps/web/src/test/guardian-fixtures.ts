@@ -85,6 +85,7 @@ const DOCUMENT_IDS: Record<ConsentType, string> = {
   image: '0192e7a0-6666-7000-8000-000000000002',
   health: '0192e7a0-6666-7000-8000-000000000003',
   menstrual_cycle: '0192e7a0-6666-7000-8000-000000000004',
+  location: '0192e7a0-6666-7000-8000-000000000005',
 };
 
 export function consentDocument(type: ConsentType, version = '2026-03'): ConsentDocument {

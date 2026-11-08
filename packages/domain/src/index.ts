@@ -331,8 +331,12 @@ export {
   CONSENT_SIGNERS,
   CONSENT_STATES,
   CONSENT_TYPES,
+  GRANTED_ONLY_CONSENT_TYPES,
+  canCollectLocation,
   consentSignerOfRole,
+  consentStateCounts,
   consentStates,
+  countsOnlyWhenGranted,
   currentConsentTypes,
   guardianConsentsLapseOn,
   guardianConsentsLapsed,
@@ -404,6 +408,8 @@ export * from './wellness/index.js';
 export * from './kiosk.js';
 // Menstrual cycle tracking: opt-in, health data, read only by whom the player authorizes (B-806).
 export * from './menstrual-cycle/index.js';
+// Erasure of the position data when the location consent is revoked (B-913, ADR 0106).
+export * from './location-erasure.js';
 // Usage metrics: surfaces, clients, retention and adoption rates (B-707).
 export * from './usage.js';
 

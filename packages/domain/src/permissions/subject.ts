@@ -58,7 +58,12 @@ export interface PlayerFacts {
   readonly ageBand?: Pick<AgeBand, 'ownPercentilesForPlayers' | 'namedRankingsForPlayers'>;
   /** Whether the player is of age. Needed by `minor`, `adult` and guardian access. */
   readonly ofAge?: boolean;
-  /** Types of the player's current (signed, not revoked) consents. Needed by consent requirements. */
+  /**
+   * Types of the player's consents that count (signed, not revoked; for
+   * `location` only granted on the current text, B-913): the answer of
+   * `app.current_consent_types`, or the domain's `currentConsentTypes`.
+   * Needed by consent requirements.
+   */
   readonly consents?: readonly ConsentType[];
 }
 

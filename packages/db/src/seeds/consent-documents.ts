@@ -81,6 +81,19 @@ const BODIES: Readonly<Record<ConsentType, (clubName: string) => { title: string
         rights(clubName),
       ].join('\n\n'),
     }),
+    location: (clubName) => ({
+      title: 'Consentimiento para registrar la ubicación con el pod',
+      body: [
+        `${clubName} usa un pod (un dispositivo con GPS y sensores de movimiento que va en el chaleco) para medir la carga en la cancha: distancia, velocidad, aceleraciones y, con este consentimiento, la ubicación del jugador o la jugadora durante la sesión (trazas de posición y mapas de calor).`,
+        'El pod graba cuando está puesto y en movimiento, en cualquier lugar. Pero solo se vuelve dato lo que cae dentro de una sesión del staff (un entrenamiento o un partido) y de la asignación del pod a ese jugador o jugadora. Lo grabado fuera de una sesión no se sube y se borra del pod a los pocos días; lo subido se recorta a la sesión y se borra el resto.',
+        `Las trazas y la ubicación en vivo las ven solo: el jugador o la jugadora (las suyas), los entrenadores y preparadores físicos del club asignados a su categoría, para planificar el entrenamiento, y la administración de ${clubName}. Nunca las ven la madre, el padre o el tutor/a, el personal médico, el soporte de la plataforma ni otros jugadores, y no se ceden a terceros ni se usan con fines comerciales.`,
+        'Este consentimiento es aparte del de datos personales. Sin él no se le asigna un pod ni se muestra su ubicación en vivo. Si el club publica una versión nueva de este texto, hay que volver a firmarla: hasta entonces no recibe pod.',
+        'Lo firma el jugador o la jugadora si es mayor de edad, o su madre, padre o tutor/a mientras sea menor de edad. Al cumplir 18 años, la firma del tutor/a deja de valer para la ubicación: la firma él o ella.',
+        `Podés pedir en cualquier momento acceder a estos datos, rectificarlos o suprimirlos (Ley 25.326, artículos 14 a 16), escribiéndole a ${clubName} o desde la app. El acceso es gratuito a intervalos no inferiores a seis meses, salvo un interés legítimo.`,
+        'La Agencia de Acceso a la Información Pública, órgano de control de la Ley 25.326, atiende las denuncias y reclamos de quienes resulten afectados en sus derechos por incumplimiento de las normas vigentes en materia de protección de datos personales.',
+        'Este consentimiento se puede revocar en cualquier momento desde la app. A diferencia de los otros, revocarlo borra las trazas de posición y los registros del pod de este jugador o jugadora; las métricas que no son ubicación (distancia total, velocidad, aceleraciones) siguen la regla del consentimiento de datos. Queda constancia de que se borraron, sin los datos.',
+      ].join('\n\n'),
+    }),
   };
 
 /** The default texts for a club, with its name as the data controller. */
