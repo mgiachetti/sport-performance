@@ -38,7 +38,7 @@ El CAD se hace **antes** de diseñar la placa, junto con el bolsillo del chaleco
 - **Una sola interfaz externa: contactos (pads) para la base de pogo.** Sin USB-C ni agujeros para botón. La guía de luz del LED va sellada (pieza transparente sobremoldeada o pegada con adhesivo estanco).
 - **El MJF PA12 es poroso**: se sella con alisado por vapor o con un recubrimiento, o se pasa a un sobremoldeo cuando haya serie. Sin sellar no cumple IP67.
 - **Ventilación del barómetro**: membrana de ePTFE con canal sellado hasta el sensor, **protegida de aplastamiento** por el bolsillo (rejilla o rebaje). El protector solar y los aceites ensucian la membrana y le hacen perder la clasificación: se prueba con sudor artificial.
-- **Contactos del pod: pads planos chapados en oro**, al ras de la carcasa, con junta alrededor. **Los resortes (pogo) van en la base, no en el pod**: un resorte en algo que se usa en el cuerpo junta suciedad y se rompe (la referencia de `pod-f3.md` a pines pogo en el pod se corrige en otro PR). El VBUS del pod solo tiene tensión en la base (ver sección 5), así nunca queda energizado con sudor.
+- **Contactos del pod: pads planos chapados en oro**, al ras de la carcasa, con junta alrededor. **Los resortes (pogo) van en la base, no en el pod**: un resorte en algo que se usa en el cuerpo junta suciedad y se rompe (`pod-f3.md` y `pod-v0.md` ya lo reflejan). El VBUS del pod solo tiene tensión en la base (ver sección 5), así nunca queda energizado con sudor.
 - **Prueba de estanqueidad en producción**: caída de presión de cada pod cerrado, **con la ventilación tapada** (la membrana de ePTFE respira y haría fallar la prueba) o antes de montar la membrana, que se prueba aparte con su propia junta.
 
 **Especificación ambiental** (se prueba con la carcasa antes de comprometer la electrónica):
@@ -87,11 +87,11 @@ Una celda de hobby no sirve: sin informes, el courier no la acepta y la polarida
 Una base de **20 lugares**.
 
 - **Contactos**: pogo con **clave mecánica** (patrón de pads asimétrico) y **imanes con polaridad**, para que un pod girado no entre. Sin esa clave, un pod al revés pone 5 V en un pin de datos.
-- **Por lugar**: load switch con límite de corriente, y VBUS habilitado **solo con un pod detectado**, así el contacto expuesto nunca queda energizado solo. La detección usa un **quinto pad, DETECT**: el pod lo ata a GND (o a una resistencia que identifica la revisión) y la base habilita VBUS solo cuando lo ve. El pad se agrega en `pod-v0.md` en otro PR.
+- **Por lugar**: load switch con límite de corriente, y VBUS habilitado **solo con un pod detectado**, así el contacto expuesto nunca queda energizado solo. La detección usa un **quinto pad, DETECT**: el pod lo ata a GND (o a una resistencia que identifica la revisión) y la base habilita VBUS solo cuando lo ve. El pad está en `pod-v0.md`.
 - **USB**: el nRF52840 es full-speed (12 Mbps). 20 pods × 49 MB son cerca de 1 GB: con un hub de un solo TT se comparte un canal de 12 Mbps (más de 15 min). Hacen falta **hubs multi-TT**, respetando la cantidad de niveles.
 - **Fuente**: 20 pods a unos 300 mA son 6 A a 5 V, más los hubs y el host: fuente de unos 50 W con margen.
 - **Host**: una mini-PC o Raspberry Pi por base, con **cola de subida local** y reintentos (100 pods suben unos 5 GB por día; con la subida de un club puede llevar horas).
-- **Recuperación**: el watchdog del BQ25180 es un **tiempo límite de I2C** con un reinicio de hardware opcional (corta y vuelve a dar SYS) si el firmware no le habla después de conectar VIN. Así un pod colgado se recupera al ponerlo en la base (**no verificado** el detalle; se agrega a `pod-v0.md` en otro PR).
+- **Recuperación**: el watchdog del BQ25180 (`WATCHDOG_15S_ENABLE`, bit 1 de SYS_REG, 0x0A; hoja SLUSE99C) hace un reset por hardware (corta y vuelve a dar SYS) si no hay I2C dentro de los 15 s después de conectar VIN. Viene en 0: el firmware lo habilita en cada arranque. Así un pod colgado se recupera al ponerlo en la base (`pod-v0.md`).
 - Costo y lista de partes propios (sección 10).
 
 ## 6. Prueba de fin de línea y plantilla
