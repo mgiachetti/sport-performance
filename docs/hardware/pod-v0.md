@@ -65,7 +65,7 @@ Tamaño estimado: unos 45 × 65 mm (**no verificado**: sale del ruteo). Vista de
 
 - **GNSS arriba**, en el borde superior y al centro, con el plano de tierra más grande posible debajo del patch. El patch Taoglas va pegado sobre la cara de arriba (o en la tapa de la carcasa, justo encima) y se conecta por su cable de 60 mm al U.FL.
 - **LoRa en el borde opuesto** (abajo a la derecha), con el U.FL y la antena FPC lejos del GNSS. En una placa de unos 45 × 65 mm, **los ≥ 40 mm de separación entre antenas solo se logran con la FPC pegada en la carcasa**, del lado opuesto al patch.
-- **Raytac MDBT50Q-P1MV2 en el borde izquierdo**, con su antena PCB en el borde y sin cobre en ninguna capa debajo ni alrededor, según la figura de la sección 7.2 de su hoja (medidas **no verificadas**, ver "Pines").
+- **Raytac MDBT50Q-P1MV2 en el borde izquierdo**, con su antena PCB en el borde y según la sección 2.3 de su hoja ("RF Layout Suggestion (Keep-Out Area)"): sin cobre ni plano de tierra debajo de la antena en ninguna capa, el módulo en el borde con la punta de la antena hacia afuera, idealmente en una esquina (las medidas están en una figura: **no verificadas**, ver "Pines").
 - **LED RGB en el borde superior** (la nuca, con el chaleco puesto), debajo de una **guía de luz** de la carcasa; el segundo LED, sin montar, en el borde de los pogo.
 - **IMU cerca del centro**, para que las aceleraciones no sumen rotación por estar lejos del centro del pod.
 - **Batería debajo**, sin tapar ninguna antena.
@@ -83,8 +83,8 @@ Tamaño estimado: unos 45 × 65 mm (**no verificado**: sale del ruteo). Vista de
 | LoRa | Ebyte **E22-900M22S** (SX1262, 14 × 20 mm) | — | RXEN pin 6 y TXEN pin 7 (activos en alto; TXEN puede ir a DIO2), DIO1 pin 13, BUSY pin 14. DIO2 pin 8, VCC pin 9 y NRST pin 15 según un foro | [Manual del E22-900M22S](https://hubtronics.in/docs/E22-900M22S.pdf) (no se pudo descargar; datos del índice de búsqueda) · [foro de Mischianti](https://mischianti.org/forums/topic/e22-900m22s-wiring-dio1-dio2-and-busy/) | Parcial: RXEN, TXEN, DIO1 y BUSY sí; DIO2, VCC, NRST, los pines SPI, el rango de VCC y el TCXO, **no verificados** |
 | MCU + LoRa juntos | — | **RAK4630 no es alternativa en la v0**: integra nRF52840 + SX1262 en otro encapsulado y otros pines, no entra en el lugar del MDBT50Q ni del E22. Haría falta su propio lugar y no hay espacio | — | — | — |
 | Cristal de 32,768 kHz | Montado en XL1/XL2 | Sin montar, con el RC calibrado del nRF | Mejor reloj de baja frecuencia para BLE y menos consumo que calibrar el RC | — | Parte **no verificada** |
-| LED de estado | **XINGLIGHT XL-1615RGBC-RF** (RGB, 1,6 × 1,5 mm, ánodo común), 3 NMOS de nivel lógico y 3 resistencias 0402 | Segundo LED igual, sin montar; ánodo desde VREG por 0 Ω | Ánodo desde SYS; PWM0 en P0.27, P0.05 y P1.08 (ver "LED de estado") | [LCSC C965840](https://www.lcsc.com/product-detail/C965840.html) | Precio sí (LCSC). Ánodo común, caídas por color, NMOS y resistencias, **no verificados** |
-| Buzzer | Sin montar: buzzer SMD con NMOS en P0.11 (PWM1) | — | Para "buscar mi pod" con sonido; opcional | — | Parte **no verificada** |
+| LED de estado | **XINGLIGHT XL-1615RGBC-RF** (RGB, 1,6 × 1,5 mm, ánodo común), 3 NMOS de nivel lógico, 3 resistencias 0402 y **3 pull-down de 100 kΩ en los gates** | Segundo LED igual, sin montar; ánodo desde VREG por 0 Ω | Ánodo desde SYS; PWM0 en P0.27, P0.05 y P1.08 (ver "LED de estado") | [LCSC C965840](https://www.lcsc.com/product-detail/C965840.html) | Precio sí (LCSC). Ánodo común, caídas por color, NMOS y resistencias, **no verificados** |
+| Buzzer | Sin montar: buzzer SMD con NMOS en P0.11 (PWM1) y pull-down de 100 kΩ en el gate | — | Para "buscar mi pod" con sonido; opcional | — | Parte **no verificada** |
 | IMU | **LSM6DSV320X** (LGA-14, 3 × 2,5 mm) | **ICM-42688-P + ADXL372** en lugares propios sin montar (mismo bus, otros CS) | VDD 1,71–3,6 V; VDDIO hasta 3,6 V con SPI. INT1 pin 4, INT2 pin 9, VDD pin 8, VDDIO pin 5 | [RS](https://my.rs-online.com/web/p/motion-sensor-ics/0396400) · [Future Electronics](https://www.futureelectronics.com/resources/featured-products/stmicroelectronics-lsm6dsv320x-6-axis-inertial-measurement-unit) | Parcial: datos de distribuidores; la hoja de ST, **no verificada** |
 | Memoria | **W25N04KV** (4 Gbit) | **W25N02KV** (2 Gbit) en el mismo lugar | Los dos: WSON-8 de 8 × 6 mm, 2,7–3,6 V | [DigiKey W25N04KVZEIR](https://www.digikey.fi/en/products/detail/winbond-electronics/W25N04KVZEIR/15182086) · [DigiKey W25N02KVZEIR](https://www.digikey.ie/en/products/detail/winbond-electronics/W25N02KVZEIR/14560446) | Encapsulado y tensión sí. Que los pines sean idénticos, **no verificado** (es el patrón estándar de Winbond) |
 | Cargador | **BQ25180** (I2C, salida SYS, modo envío) | — | DSBGA de 8 bolas, 1,6 × 1,1 mm: A1 /INT, A2 IN, B1 SCL, B2 SYS, C1 SDA, C2 BAT, **D1 TS/MR** (NTC y reset manual en el mismo pin), D2 GND | [Hoja de TI (pines TS/MR)](https://ti.com/document-viewer/ja-jp/BQ25180/datasheet/GUID-56076AC1-C090-40FA-9076-7A93BDD85026) · [mapa de bolas en Flux](https://www.flux.ai/adrian95/bq25180ybgr~vng.md) · [LCSC](https://www.lcsc.com/product-detail/C3682423.html) | TS/MR y encapsulado sí (TI). El resto del mapa, de una librería de terceros. Si /INT es de drenador abierto y la dirección I2C (se cita 0x6A), **no verificados** |
@@ -129,7 +129,8 @@ En orden, desde la antena hasta el módulo:
 - **USB**: D− pad 34, D+ pad 35. Con el USB deshabilitado, D± quedan sin conectar (sección 8.5).
 - **Reset y depuración**: P0.18 (pad 40) es nRESET. SWDIO pad 51, SWDCLK pad 53.
 - **Masa**: pads 1, 2, 15, 33 y 55.
-- **Antena PCB (-P1MV2) al borde**, sin cobre en ninguna capa debajo ni alrededor según la figura de la sección 7.2 (la figura es una imagen: sus medidas, **no verificadas** hasta leerla en la hoja impresa). La **-U1MV2** (con U.FL para antena externa) es el rescate si el cuerpo tapa demasiado el BLE en el chaleco; que tenga el mismo footprint, **no verificado**.
+- **Antena PCB (-P1MV2)** según la sección 2.3 de su hoja ("RF Layout Suggestion (Keep-Out Area)"): sin cobre ni plano de tierra debajo de la antena en ninguna capa, el módulo en el borde con la punta de la antena hacia afuera, idealmente en una esquina. Las medidas del área están en una figura (imagen): **no verificadas** hasta leerla en la hoja impresa. La **-U1MV2** (con U.FL para antena externa) es el rescate si el cuerpo tapa demasiado el BLE en el chaleco, pero **la hoja Ver.K no la cubre** (es de la -1MV2 y la -P1MV2): su footprint y sus datos, **no verificados**.
+- **Etiquetas de QSPI de la tabla de Raytac**: parecen corridas (marca P0.18 como "QSPI/CSN" y P1.00 como QSPI). La v0 sigue la asignación de Nordic (CSN en P0.17, SCK en P0.19, IO0–IO3 en P0.20–P0.23) a propósito; P0.18 queda como reset.
 - **Certificaciones**: la hoja trae una sección de certificado FCC (9.2, "BLE 1 Mbps y 2 Mbps, IEEE 802.15.4 aprobados"); el FCC ID **SH6MDBT50Q** aparece en [fcc.report](https://fcc.report/FCC-ID/SH6MDBT50Q/3937502.pdf). Que cubra la variante -P1MV2, y CE, IC u otras, **no verificados** (están en páginas de imagen de la hoja). Para Argentina vale lo de ENACOM (ADR 0105): se homologa el equipo final.
 - **Tamaño y precio**: 10,5 × 15,5 × 2,05 mm, 0,64 g la -P1MV2. La -1MV2 (antena chip) está en LCSC desde US$ 6,65 ([C5118826](https://www.lcsc.com/product-detail/C5118826.html)); la -P1MV2 en JLC ([C5119772](https://jlcpcb.com/partdetail/RAYTAC-MDBT50QP1MV2/C5119772)), con precio **no verificado**. SparkFun la vende a US$ 8,50 desde 25 unidades ([SparkFun](https://www.sparkfun.com/nordic-nrf52840-ble-module-mdbt50q-1mv2.html)).
 
@@ -144,7 +145,7 @@ En orden, desde la antena hasta el módulo:
   - A 32 MHz: pines con **alta corriente de salida (H0H1)** y ajustar **RXDELAY**.
 - **UART del GNSS**: con el registro estándar, 921600 bps da en realidad unos 941176 bps (≈ 2 % arriba, [foro de Nordic](https://devzone.nordicsemi.com/f/nordic-q-a/43280/technical-question-regarding-uart-baud-rate-generator-baudrate-register-offset-0x524/557385)). Se usa un valor propio de BAUDRATE (el foro da 0x0EBEE000 para el nRF52832; para el nRF52840, **no verificado**) o se mide el margen en el banco; si no alcanza, 460800 bps.
 
-**¿NAND por QSPI o por SPIM3? SPIM3.** El periférico QSPI del nRF52840 está hecho para memorias NOR: lectura y escritura con códigos y direcciones de 24 o 32 bits fijos, e instrucciones propias de hasta 8 bytes de datos. La W25N es NAND por SPI: cada lectura es "página a la caché" (0x13) y después "leer de la caché" con una dirección de columna de 16 bits y un byte de espera; cada escritura es "cargar la caché" (0x02, columna de 16 bits) y después "ejecutar el programa" (0x10). Eso no entra en las operaciones del QSPI sin trucos frágiles, y no hay driver de Zephyr para NAND por la QSPI del nRF. **SPIM3 a 32 MHz** da unos 3–4 MB/s, de sobra para registrar unos 4,5 kB/s y para descargar por USB (unos 1 MB/s). Igual la NAND va en los **pines recomendados de QSPI** (P0.17, P0.19, P0.20, P0.21), que son de alta velocidad y dejan abierta una memoria QSPI en una placa futura. **Rescate**: SPIM3 a 8 MHz si las erratas molestan, que también alcanza.
+**¿NAND por QSPI o por SPIM3? SPIM3.** El periférico QSPI del nRF52840 está hecho para memorias NOR: lectura y escritura con códigos y direcciones de 24 o 32 bits fijos, e instrucciones propias de hasta 8 bytes de datos. La W25N es NAND por SPI: cada lectura es "página a la caché" (0x13) y después "leer de la caché" con una dirección de columna de 16 bits y un byte de espera; cada escritura es "cargar la caché" (0x02, columna de 16 bits) y después "ejecutar el programa" (0x10). Eso no entra en las operaciones del QSPI sin trucos frágiles, y no hay driver de Zephyr para NAND por la QSPI del nRF. **SPIM3 a 32 MHz** da unos 3–4 MB/s, de sobra para registrar unos 4,5 kB/s y para descargar por USB (unos 1 MB/s). Igual la NAND va en los **pines recomendados de QSPI** (P0.17, P0.19, P0.20, P0.21), que son de alta velocidad. Una memoria QSPI en una placa futura necesitaría además IO2 e IO3 en P0.22 y P0.23, que en la v0 son la consola UARTE1: no queda armada, solo es posible. **Rescate**: SPIM3 a 8 MHz si las erratas molestan, que también alcanza.
 
 **Asignación:**
 
@@ -201,7 +202,7 @@ En orden, desde la antena hasta el módulo:
 **Margen de pines:** la v0 usa **46 de los 48** (contando XL1/XL2 con el cristal y P0.18 como reset). **Libres sin condiciones: P0.09 y P0.10** (NFC, baja frecuencia). **Libres según cómo se arme:** P0.11 sin buzzer; P1.01 sin el WAKEUP del GNSS; P0.26 y P1.03 sin ADXL372; P0.04, P1.02, P1.05 y P1.07 sin UWB. Los **rápidos libres** son pocos (P0.11 sin buzzer, P0.26 y P0.04 sin ADXL ni UWB): si hace falta otro bus, se sacan de ahí.
 
 **Notas para el firmware:**
-- **PPS por PPI**: el flanco del PPS en P1.10 dispara un evento de GPIOTE que, por PPI, captura un TIMER que corre con el reloj de 32 MHz del cristal del módulo, sin pasar por la CPU. Con eso cada segundo se conoce el desvío del reloj del nRF contra el GNSS, y de ahí salen los turnos de LoRa (ADR 0105) y la hora de las muestras de la IMU y el barómetro. Bajo techo, la misma captura toma la baliza del gateway (B-911).
+- **PPS por PPI**: el flanco del PPS en P1.10 dispara un evento de GPIOTE que, por PPI, captura un TIMER, sin pasar por la CPU. El TIMER corre a **16 MHz como máximo**, derivados del cristal de 32 MHz del módulo (HFXO), y el **HFXO tiene que quedar encendido** mientras se captura: eso cuesta corriente (unos cientos de µA, **no verificado**), que se mide en el banco. Con eso cada segundo se conoce el desvío del reloj del nRF contra el GNSS, y de ahí salen los turnos de LoRa (ADR 0105) y la hora de las muestras de la IMU y el barómetro. Bajo techo, la misma captura toma la baliza del gateway (B-911).
 - **LED por PWM0** (tres canales): patrones y brillo por software (tabla del LED más abajo). El brillo y el apagado durante el juego son configuración del club.
 - Con TXEN en DIO2, el firmware pone **RXEN en bajo antes de transmitir** y en alto para recibir.
 - Si el E22 usa TCXO, se configura con `SetDIO3AsTCXOCtrl` (tensión y tiempo según el módulo, **no verificados**).
@@ -215,29 +216,31 @@ En orden, desde la antena hasta el módulo:
 Un **LED RGB discreto** que da devolución sin abrir la app: en la base, al arrancar, antes de entrar a la cancha y para encontrar un pod.
 
 - **Parte**: XINGLIGHT **XL-1615RGBC-RF** (1,6 × 1,5 mm, ánodo común según LCSC, US$ 0,012–0,016) ([LCSC C965840](https://www.lcsc.com/product-detail/C965840.html)). Que sea de ánodo común y su caída por color, **no verificados** contra la hoja.
-- **Excitación**: ánodo común desde **SYS** (3,4–4,6 V) y cada cátodo por su **resistencia 0402** a un **NMOS de nivel lógico** (Vgs(th) de alrededor de 1 V) manejado por un canal de PWM. **Por qué no directo del nRF desde VREG**: con 3,45 V, el azul y el verde (caída de unos 2,8–3,2 V) quedan casi sin margen y su brillo cambiaría con cada placa; con SYS hay margen y los pines del nRF nunca ven una tensión mayor a VREG. Con batería muy baja el azul brilla menos: por eso el aviso de batería baja es rojo.
+- **Excitación**: ánodo común desde **SYS** (con batería, unos 3,0–4,2 V; con USB, hasta 4,6 V) y cada cátodo por su **resistencia 0402** a un **NMOS de nivel lógico** (Vgs(th) de alrededor de 1 V) manejado por un canal de PWM. **Por qué no directo del nRF desde VREG**: con 3,45 V, el azul y el verde (caída de unos 2,8–3,2 V) quedan casi sin margen y su brillo cambiaría con cada placa; con SYS hay margen y los pines del nRF nunca ven una tensión mayor a VREG. Con batería muy baja el azul brilla menos: por eso el aviso de batería baja es rojo.
+- **Pull-down de unos 100 kΩ en el gate de cada NMOS** (los tres del LED y el del buzzer): durante el reset, el arranque y la DFU los pines del nRF quedan flotando, y sin pull-down el LED o el buzzer se prenderían solos.
+- **El brillo depende de la batería**: la corriente de cada color cambia con SYS (unos 3,0–4,2 V con batería). El firmware **escala el PWM según VBAT** leído del MAX17048, para que el brillo se vea parejo (B-904).
 - **Brillo**: las resistencias se ajustan en el banco (empezar por unos 1 kΩ, **no verificado**) para unos 1–2 mA por color; el PWM baja el resto. Consumo despreciable frente al GNSS.
 - **Guía de luz** (light pipe) en el **borde de la nuca** (el borde superior con el chaleco puesto), para que se vea por encima del chaleco sin abrir la carcasa. La carcasa (B-909) lleva el agujero y la guía.
 - **Rescates**: 0 Ω para tomar el ánodo de VREG en lugar de SYS; un **segundo LED sin montar** en paralelo, en el borde de los pogo, para verlo con el pod en la base; un **buzzer SMD sin montar** con su NMOS en P0.11, para "buscar mi pod" con sonido.
 
-**Estados** (siempre **color + patrón**, nunca solo color, para que se distingan también con daltonismo):
+**Estados.** **Cada estado tiene un patrón que no se repite**: se distinguen sin ver el color (daltonismo, sol de frente). El color refuerza, no define.
 
-| Estado | Color | Patrón |
+| Estado | Patrón (único) | Color |
 |---|---|---|
-| Arranque y autotest | Blanco (R + G + B) | Fijo 1 s |
-| Error de un periférico en el autotest | Rojo | N destellos, pausa, se repite (N = periférico) |
-| Buscando posición GNSS | Amarillo (R + G) | Parpadeo lento, 1 Hz |
-| Listo: posición GNSS y enlace con el gateway | Verde | Destello corto cada 3 s |
-| Grabando sesión | Verde | Destello corto cada 5 s, o **apagado** si el club elige el modo partido |
-| Grabando sin enlace con el gateway | Azul | Doble destello cada 5 s |
-| Batería baja (< 20 %) | Rojo | Destello cada 5 s |
-| Batería crítica (< 5 %) | Rojo | Parpadeo rápido 5 s y se apaga |
-| En la base: cargando | Ámbar (R + poco G) | Fijo tenue |
-| En la base: carga completa | Verde | Fijo tenue |
-| En la base: descargando datos | Azul | "Respira" (sube y baja) |
-| En la base: error de descarga | Rojo | Fijo |
-| Actualización de firmware (DFU) | Violeta (R + B) | "Respira" |
-| "Buscar mi pod" (desde la app por BLE) | Blanco | Parpadeo rápido, más el buzzer si está montado |
+| Arranque y autotest | Fijo 1 s y se apaga | Blanco (R + G + B) |
+| Error de un periférico en el autotest | Código: N destellos, pausa de 2 s, se repite (N = periférico) | Rojo |
+| Buscando posición GNSS | Parpadeo continuo a 1 Hz | Amarillo (R + G) |
+| Listo: posición GNSS y enlace con el gateway | Destello simple cada 2 s | Verde |
+| Grabando sesión | Triple destello cada 10 s, o **apagado** si el club elige el modo partido | Verde |
+| Grabando sin enlace con el gateway | Destello largo (1 s) cada 5 s | Azul |
+| Batería baja (< 20 %) | Dos destellos largos cada 10 s | Rojo |
+| Batería crítica (< 5 %) | Parpadeo rápido a 4 Hz durante 5 s y se apaga | Rojo |
+| En la base: cargando | Respiración lenta (ciclo de 4 s) | Ámbar (R + poco G) |
+| En la base: carga completa | Fijo | Verde |
+| En la base: descargando datos | Doble destello continuo (cada 1 s) | Azul |
+| En la base: error de descarga | Fijo con un corte cada 2 s | Rojo |
+| Actualización de firmware (DFU) | Respiración rápida (ciclo de 1 s) | Violeta (R + B) |
+| "Buscar mi pod" (desde la app por BLE) | Ráfaga de 10 destellos rápidos, pausa de 1 s, se repite (más el buzzer si está montado) | Blanco |
 
 - **Modo partido** (configuración del club): durante la sesión, el LED se apaga o queda al mínimo, para no distraer ni encandilar; los estados de error y de batería crítica se pueden dejar visibles.
 - Los porcentajes de batería y los tiempos son valores de partida: se ajustan con el firmware (B-904).
@@ -261,7 +264,7 @@ Un **LED RGB discreto** que da devolución sin abrir la app: en la base, al arra
 - **RF del GNSS**: de la antena a RF_IN lo más corto posible, sin vías, todo en L1 sobre la tierra de L2. Vías de cerco a los dos lados cada 2 mm o menos (cerca del UWB, cada 1 mm: λ/20 a 8 GHz es ≈ 1,0 mm).
 - **Plano de tierra del patch**: un patch de 25 mm rinde mejor con un plano grande. El tamaño que pide la Taoglas está **no verificado**; la placa deja toda la zona de arriba como tierra continua en L1 y L2.
 - **Separación GNSS ↔ LoRa**: antenas en bordes opuestos; los ≥ 40 mm solo con la FPC pegada en la carcasa (ver ubicación). SAW antes del módulo y pruebas con LoRa transmitiendo (ver arranque).
-- **Antenas de módulos**: sin cobre en ninguna capa debajo de la antena del MDBT50Q (figura 7.2 de su hoja) ni de la del DWM3000.
+- **Antenas de módulos**: sin cobre ni plano de tierra en ninguna capa debajo de la antena del MDBT50Q (sección 2.3 de su hoja, con el módulo en el borde o en una esquina y la antena hacia afuera) ni de la del DWM3000.
 - **Alimentación**: el buck-boost lejos de la zona GNSS, con su nodo de conmutación chico. El LDO del GNSS al lado del módulo. Sin cortes en la tierra de L2 debajo de las señales rápidas ni de la RF: no hace falta tierra en estrella, sí caminos de retorno continuos.
 - **Lugar para una tapa blindada** sobre el GNSS y su cadena RF, sin montar.
 - **Térmica**: el pod consume unos 40–50 mA; lo único que calienta es el cargador al cargar. Va lejos de la IMU.
@@ -315,6 +318,7 @@ Un **LED RGB discreto** que da devolución sin abrir la app: en la base, al arra
 **LED y sonido**
 - [ ] Ánodo del LED desde SYS (montado) o desde VREG por 0 Ω.
 - [ ] Resistencia 0402 por color para ajustar el brillo.
+- [ ] **Pull-down de 100 kΩ en el gate de cada NMOS** (LED y buzzer), montadas: que nada se prenda durante el reset, el arranque o la DFU.
 - [ ] Segundo LED RGB sin montar, en el borde de los pogo, en paralelo con el primero.
 - [ ] Buzzer SMD con su NMOS en P0.11, sin montar.
 
@@ -330,7 +334,7 @@ Un **LED RGB discreto** que da devolución sin abrir la app: en la base, al arra
 
 1. **Primer encendido con fuente de laboratorio con límite de corriente** (en lugar de la batería), sin módulos habilitados. Sin la batería y su NTC, poner **10 kΩ en TS** para que el BQ25180 no vea una falla de temperatura. Medir cada riel (SYS, VREG, 3,2 V del GNSS, V_BCKP) y su corriente por los 0 Ω.
 2. SWD: leer el nRF52840, grabar un firmware mínimo. Ver que arranque el cristal de 32,768 kHz.
-3. **LED**: cada color con el PWM a distintos brillos; repetir con la fuente en 3,4 V (batería casi vacía) y ver que el azul todavía se distinga. Ajustar las resistencias 0402.
+3. **LED**: con el nRF en reset y durante la DFU, que el LED y el buzzer queden apagados (pull-down de los gates); después, cada color con el PWM a distintos brillos; repetir con la fuente en 3,4 V (batería casi vacía) y ver que el azul todavía se distinga. Ajustar las resistencias 0402.
 4. I2C: leer el BQ25180 y el MAX17048 (IDs y direcciones).
 5. **Carga**: por USB-C y por los pines pogo, con la batería real y su NTC; ver el /INT.
 6. **Modo envío**: entrar por I2C y salir conectando VBUS (y por TS/MR, si se montó el diodo).
@@ -364,7 +368,7 @@ Antes de cerrar el esquemático hace falta saber si la AA saca crudo y si su vel
 4. BQ25180: mapa de bolas completo en la hoja de TI, si /INT es de drenador abierto, dirección I2C, y si el NTC y el botón conviven en TS/MR (pausa de carga en cada toque, reset por hardware con pulsación larga, fuga y caída del diodo frente al umbral de MR). Dirección del MAX17048.
 5. Pines idénticos entre W25N02KV y W25N04KV.
 6. Si el SPIM3 necesita pines dedicados para 32 MHz; que los workarounds de las erratas 195 y 198 alcancen.
-7. Raytac MDBT50Q: medidas del keep-out de la antena PCB (figura 7.2), que el FCC ID SH6MDBT50Q cubra la -P1MV2, CE e IC, precio y stock de la -P1MV2, y que la -U1MV2 use el mismo footprint.
+7. Raytac MDBT50Q: medidas del keep-out de la antena PCB (sección 2.3), que el FCC ID SH6MDBT50Q cubra la -P1MV2, CE e IC, precio y stock de la -P1MV2, y la hoja de la -U1MV2 (no la cubre la Ver.K): footprint y datos.
 8. LED: que el XL-1615RGBC-RF sea de ánodo común y sus caídas por color; NMOS de nivel lógico y resistencias 0402; parte del buzzer si se monta; guía de luz de la carcasa.
 9. Valor de BAUDRATE propio para 921600 bps en el nRF52840.
 10. Partes de alimentación: buck-boost ajustable a 3,45 V con ±1,5 % y su sobrepico con el escalón de TX, LDO del GNSS de 3,2 V, LDO de V_BCKP con EN por divisor; traductor de niveles (y que aísle con un lado apagado), load switch, SAW y LNA de doble banda, puente USB-UART, conector de batería y celda con PCM y NTC.

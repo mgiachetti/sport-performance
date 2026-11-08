@@ -34,7 +34,7 @@ Sin pasivos de detalle, chaleco ni banda de FC:
 - **Optimista y de la decisión, unos US$ 75–85:** LC29H(AA) + MDBT50Q + E22 + LSM6DSV320X + antena Taoglas, con la **NAND de 2 Gbit** (la de 4 Gbit no tiene precio verificado). El rango va del PCB y la carcasa en su extremo bajo al alto. La antena se convirtió de € a US$ en forma aproximada. El MDBT50Q en lugar del E73 suma unos US$ 1–3, y el LED con sus NMOS unos centavos.
 - **Con la EA:** se suma la diferencia con la AA, unos US$ 12–15 por pod (**no verificado**: la EA no tiene precio relevado, y la referencia es la DA a €20,53 @100).
 - **Pesimista, unos US$ 113 (los extremos altos de la tabla), solo como referencia:** NEO-F10N-20 + RAK4630 + antena Linx, cuyo precio **no está verificado** (se tomó igual al de la Taoglas).
-- **Lo que más pesa es la antena GNSS de marca** (€19,87–21,03). Con el F10N, los US$ 80 se alcanzan solo con una antena L1/L5 activa china de US$ 4–8, cuyo precio no está verificado. Cambiar los Ebyte por el RAK4630 suma unos US$ 9–14.
+- **Lo que más pesa es la antena GNSS de marca** (€19,87–21,03). Con el F10N, los US$ 80 se alcanzan solo con una antena L1/L5 activa china de US$ 4–8, cuyo precio no está verificado. Cambiar el MDBT50Q + E22 por el RAK4630 suma unos US$ 6–12.
 - **Con UWB montado** se suman unos US$ 9–12 por pod. Los totales de arriba son sin UWB.
 
 ## Equipo compartido
