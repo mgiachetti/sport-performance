@@ -19,9 +19,30 @@ Los símbolos y footprints no se dibujan a mano a partir de una tabla de pines i
 | MAX17048G+T10 (C2682616) | `TDFN-8_L2.0-W2.0-P0.50-BL-EP1.2` | 9 | Pad expuesto. |
 | DRV5032FBDBZR (C2655033) | `SOT-23_L2.9-W1.3-P1.90-LS2.4-BR` | 3 | — |
 
-**Antes de rutear, además de la tabla:** el courtyard de cada footprint es el contorno del cuerpo y en algunos (por ejemplo el LSM6DSV320X, con pads a ±1,60 mm contra un borde de ±1,50) queda más chico que los pads: agrandarlo. Los pines de los símbolos tienen tipo eléctrico "unspecified": poner al menos los de alimentación como power_in para que el ERC sirva. El tamaño de las bolas del BQ25180 (0,184 mm) se compara con el land pattern recomendado de TI. Los footprints están en el formato de KiCad 5; `kicad-cli fp upgrade` los pasa al actual.
+**Antes de rutear, además de la tabla:** el courtyard de cada footprint es el contorno del cuerpo y en algunos (por ejemplo el LSM6DSV320X, con pads a ±1,60 mm contra un borde de ±1,50) queda más chico que los pads: agrandarlo. easyeda2kicad deja todos los pines con tipo eléctrico "unspecified": el generador del esquemático (`../tools/esquematico/generar.py`) les pone el tipo (`simbolos.EASYEDA_PIN_TYPES`) para que el ERC sirva, así que después de `generar.sh` hay que correrlo. El tamaño de las bolas del BQ25180 (0,184 mm) se compara con el land pattern recomendado de TI. Los footprints están en el formato de KiCad 5; `kicad-cli fp upgrade` los pasa al actual.
 
 Los modelos 3D (`.wrl` y `.step`, unos 17 MB) se commitean: los `.step` hacen falta para la envolvente mecánica en CAD.
+
+## Símbolos que agrega el generador
+
+Además de las 10 partes de easyeda2kicad, `pod.kicad_sym` tiene los símbolos que escribe `../tools/esquematico/simbolos.py` (llevan el campo `Generador`):
+
+- **Genéricos**: R, C, L, D, D_TVS, D_ESD, cristal, puente de soldadura, pulsador, buzzer, pad de prueba, antena, tapa blindada, fiducial, agujero, MOSFET N y P (SOT-23: 1 G, 2 S, 3 D), U.FL, conectores (batería, 4 pines, pads de la base, TC2030-NL) y los de alimentación con `PWR_FLAG`. Los pasivos de dos pines están dibujados horizontales, con el pin 1 a la izquierda.
+- **Integrados y módulos**, con la fuente de su tabla de pines:
+
+| Símbolo | Tabla de pines | Verificado |
+|---|---|---|
+| LC29H | Hardware Design V1.0 de Quectel, tabla 5 (copiada en `docs/hardware/pod-v0.md`) | Sí, según esa versión |
+| TPS63900 | Hoja de TI SLVSET3D, tabla 5-1 (DSK) | Sí (leída de la hoja) |
+| TPS259470 | Hoja de TI SLVSFC9C, tabla 5-1 (RPW) | Sí (leída de la hoja) |
+| TPS7A20_DBV, TPS7A02_DBV | Hojas de TI, tablas de pines del SOT-23-5 (1 IN, 2 GND, 3 EN, 4 NC, 5 OUT) | Sí (leída de la hoja) |
+| TPS22916 | Hoja de TI SLVSDO5F, tabla 5-1 (YFP) | Sí (leída de la hoja) |
+| SN74LVC1T45 | Hoja de TI SCES515N, tabla 4-1 | Sí (leída de la hoja) |
+| USBLC6-2SC6 | Numeración del símbolo oficial de KiCad (`Power_Protection:USBLC6-2P6`) | No contra la hoja de ST |
+| DWM3000 | Símbolo oficial de KiCad `RF_Module:DWM3000` (extiende DWM1000); el pin 5 cambia entre los dos | **No** |
+| ICM-42688-P | De memoria de la familia: **no verificada** | **No** |
+| ADXL372 | Supuesta igual a la familia ADXL362: **no verificada** | **No** |
+| SAW_L1L5, LNA_L1L5 | Genéricos: la parte no está elegida | — |
 
 ## Partes y de dónde sale cada una
 
