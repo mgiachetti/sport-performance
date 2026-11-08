@@ -9,7 +9,7 @@
 		(date "2026-11-07")
 		(rev "v0")
 		(company "Sport Performance")
-		(comment 1 "E73 (nRF52840) y E22-900M22S (SX1262), antena LoRa")
+		(comment 1 "MDBT50Q-P1MV2 (nRF52840), E22-900M22S (SX1262), antena LoRa y LED RGB")
 		(comment 2 "Spec: docs/hardware/pod-v0.md")
 	)
 	(lib_symbols)
