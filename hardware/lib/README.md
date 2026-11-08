@@ -22,6 +22,8 @@
 | Taoglas AGVLB.25B.07.0060A | No lleva footprint: es una antena con cable que entra por un U.FL | [DigiKey](https://www.digikey.ie/en/products/detail/taoglas-limited/AGVLB-25B-07-0060A/21777673) | — | no |
 | U.FL (Hirose U.FL-R-SMT-1) | Librería oficial de KiCad: `Connector_Coaxial:U.FL_Hirose_U.FL-R-SMT-1_Vertical` y el símbolo `Connector:Conn_Coaxial` | Librería oficial | — | no |
 | Qorvo DWM3000 (sin montar) | Footprint de Qorvo (paquete de diseño del módulo) | Número LCSC no encontrado | — | no |
+| TI TPS22916C (load switch del GNSS, del E22 y de la NAND sin montar) | easyeda2kicad cuando se confirme el número, o la librería oficial de KiCad (encapsulado DSBGA de 4 bolas) | Número LCSC por buscar | — | no |
+| TI DRV5032 (Hall, sin montar) | easyeda2kicad cuando se confirme la variante y el número | Número LCSC por buscar | — | no |
 
 Los números LCSC salen del relevamiento de `docs/hardware/pod-f3.md` y de `docs/hardware/pod-v0.md`.
 
