@@ -119,6 +119,7 @@ pod_device.read          -                     -               -               -
 pod_device.manage        -                     -               -               -               -                -           platform
 pod_assignment.read      self                  -               assigned        assigned        -                club        club
 pod_assignment.assign    -                     -               assigned+data+location assigned+data+location - club+data+location -
+pod_assignment.manage    -                     -               assigned        assigned        -                club        -
 pod_live.read            -                     -               assigned        assigned        -                club        -
 position_trace.read      self                  -               assigned+location assigned+location -           club+location -
 data_export.export       self+adult            guardian+minor  -               -               -                club+data   -

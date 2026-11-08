@@ -79,6 +79,17 @@ En la matriz ([ADR 0025](0025-matriz-de-permisos.md)), con RLS como última barr
 - **Pod perdido o robado**: se marca `lost`, se revocan sus claves (ver seguridad) y se muestra la última posición conocida (último paquete en vivo o última base) a quien administra la flota.
 - **Salud de cada pod**: ciclos y capacidad estimada de la batería (MAX17048), bloques malos de la NAND, última vez visto, versiones. La base la informa en cada conexión.
 
+#### Implementación de la flota (B-912)
+
+Al implementarla se precisaron estas cosas, sin cambiar la decisión:
+
+- **La tabla global se llama `pod_device`**: `device` ya es el catálogo de equipos de medición de cada club ([ADR 0077](0077-test-de-reaccion-en-la-app.md)). No guarda una clave por dispositivo: las claves salen de la maestra del club y del `DEVICEID` (ver seguridad). Solo la lee y escribe el superadmin en el registro (sin club); un club ve sus dispositivos por `app.club_pod_devices()`.
+- **Estados del pod**: `active`, `lent`, `lost`, `stolen` y `retired`. Perdido o robado revoca las claves (`keys_revoked_at`) y termina la asignación en curso (las que no empezaron se anulan); recuperarlo sube la época de claves (`key_epoch`) y hay que aprovisionarlo de nuevo. El número del chaleco y el id corto de la red son únicos entre los pods del club que no están retirados; cambiarlos pide motivo.
+- **Préstamo**: lo hacen `app.lend_pod` y `app.end_pod_loan` (escriben los dos clubes); el club que presta nombra al otro por su slug. Al terminar, el pod del otro club se retira y el propio vuelve con la época siguiente.
+- **Categorías con pods**: una columna `category.pods_enabled` (M19 por defecto en la migración y en el alta de club); primera se suma con su franja (B-920).
+- **Asignación**: rango semiabierto `[starts_at, ends_at)` con dos restricciones de exclusión (por pod y por jugador). Crear pide `pod_assignment.assign` (con `data` y `location`, también como política restrictiva de la base); terminar, corregir y anular piden una acción nueva de la matriz, `pod_assignment.manage`, sin consentimiento: un consentimiento revocado nunca deja un pod asignado. Corregir el rango pide motivo y marca `reprocess_requested_at`, que leerá el reproceso de la ingesta.
+- **Sin conexión**: `pod_assignment` es una colección de la sincronización y las operaciones son `pod_assignment.create` y `pod_assignment.end`, sin relojes por campo: el handler en línea responde `409` a la que se superpone.
+
 ### Protocolo LoRa
 
 - **Identificador de red** de 16 bits por gateway, en claro en el encabezado, para filtrar.

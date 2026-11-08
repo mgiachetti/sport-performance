@@ -52,6 +52,7 @@ function detailHandlers(overrides: Parameters<typeof sessionDetail>[0] = {}) {
         }),
       ]),
     listTrainingSessionRoster: () => fixtures.page(roster()),
+    getSessionPods: () => ({ podsEnabled: false, players: [] }),
   } as const;
 }
 

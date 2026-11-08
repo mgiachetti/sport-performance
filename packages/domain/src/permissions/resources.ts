@@ -181,9 +181,11 @@ export const PERMISSION_RESOURCES = {
   /**
    * Which pod a player wears, with its time range (`pod_assignment`, ADR
    * 0106). `assign` creates and corrects one, and needs the player's
-   * `location` consent `granted`: never on an older text (B-913).
+   * `location` consent `granted`: never on an older text (B-913). `manage`
+   * ends, corrects and voids one, without the consents: a revoked consent
+   * must never keep a pod assigned (B-912).
    */
-  pod_assignment: { target: 'player', medical: false, actions: ['read', 'assign'] },
+  pod_assignment: { target: 'player', medical: false, actions: ['read', 'assign', 'manage'] },
   /**
    * The live screen of the pods of a category (ADR 0106): approximate, sorted
    * by vest number where there are no named rankings; never on the kiosk.

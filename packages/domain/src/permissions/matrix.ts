@@ -413,6 +413,7 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
       sc: allow('assigned', 'data', 'location'),
       admin: allow('club', 'data', 'location'),
     },
+    manage: { ...nobody, coach: assigned, sc: assigned, admin: club },
   },
   pod_live: {
     read: { ...nobody, coach: assigned, sc: assigned, admin: club },

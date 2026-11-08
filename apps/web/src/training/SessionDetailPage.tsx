@@ -17,6 +17,7 @@ import { TextAreaField } from '../ui/fields';
 import { DrillsSection } from './DrillsSection';
 import { categoryName, sessionName } from './labels';
 import { ParticipationSection } from './ParticipationSection';
+import { SessionPodsSection, canReadSessionPods } from '../pods/SessionPodsSection';
 import { canManageSession, manageableCategories } from './permissions';
 import { trainingKey, trainingSessionQuery } from './queries';
 import { SessionFields } from './SessionFields';
@@ -328,6 +329,9 @@ export function SessionDetailPage() {
         />
       </div>
       <ParticipationSection session={session} editable={!archived} />
+      {canReadSessionPods(active, session) ? (
+        <SessionPodsSection session={session} editable={!archived} />
+      ) : null}
     </Page>
   );
 }

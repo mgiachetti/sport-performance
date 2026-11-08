@@ -4,6 +4,7 @@ import type {
   AnthroMeasurement,
   ExternalLoad,
   Participation,
+  PodAssignment,
   SyncChange,
   SyncOperationInput,
   TestResult,
@@ -29,6 +30,7 @@ export interface CollectionData {
   readonly gym_set: GymSet;
   readonly anthro_measurement: AnthroMeasurement;
   readonly external_load: ExternalLoad;
+  readonly pod_assignment: PodAssignment;
 }
 
 interface IndexColumns {
@@ -93,6 +95,12 @@ const INDEX_COLUMNS: { readonly [C in SyncCollection]: (data: CollectionData[C])
       parentId: null,
       categoryId: null,
       localDate: row.localDate,
+    }),
+    pod_assignment: (row) => ({
+      playerId: row.playerId,
+      parentId: row.trainingSessionId,
+      categoryId: null,
+      localDate: null,
     }),
   };
 

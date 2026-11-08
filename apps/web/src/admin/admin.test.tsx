@@ -57,6 +57,7 @@ describe('administration: access', () => {
       'Categorías',
       'Temporadas',
       'Importar padrón',
+      'Pods',
     ]);
     expect(within(tabs).getByRole('link', { name: 'Usuarios y roles' })).toHaveAttribute(
       'aria-current',

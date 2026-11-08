@@ -264,6 +264,23 @@ export const OPERATION_SPECS: { readonly [Op in SyncOperation]: OperationSpec<Op
     targets: ({ target }) => [toTarget('external_load', target)],
     clientUuidPaths: none,
   },
+  // Pod assignments (B-912, ADR 0106): never "last writer wins". The server rejects an
+  // offline create that overlaps one it already has (409); ending one happens once.
+  'pod_assignment.create': {
+    kind: 'create',
+    targets: ({ body }) => [
+      {
+        collection: 'pod_assignment',
+        ...(body.clientUuid !== undefined && { clientUuid: body.clientUuid }),
+      },
+    ],
+    clientUuidPaths: ({ body }) => [{ path: ['body', 'clientUuid'], value: body.clientUuid }],
+  },
+  'pod_assignment.end': {
+    kind: 'append',
+    targets: ({ target }) => [toTarget('pod_assignment', target)],
+    clientUuidPaths: none,
+  },
 };
 
 /** Whether a mutation of `op` leaves the queue as soon as the server applied it. */
