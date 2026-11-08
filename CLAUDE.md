@@ -4,7 +4,7 @@ Plataforma de rendimiento para deportes juveniles (desde M13 hasta M19), "estilo
 
 - **Modelo:** white-label multi-tenant. Una sola app y una sola web para todos los clubes; la marca (logo, colores) se aplica en runtime por club.
 - **Primer tenant:** Olivos Rugby Club (ORC), Munro, Buenos Aires. Arranca con **rugby masculino y hockey femenino**. El modelo soporta deporte y sexo desde el día uno; lo específico de hockey y femenino está en el milestone M8.
-- **Fases:** Fase 1 software sin hardware. Fase 2 hardware compartido (bandas de FC BLE, fotocélulas, luces de reacción, dinamómetro). Fase 3 pod GNSS + IMU por jugador con firmware propio sobre hardware genérico (RAK WisBlock).
+- **Fases:** Fase 1 software sin hardware. Fase 2 hardware compartido (bandas de FC BLE, fotocélulas, luces de reacción, dinamómetro). Fase 3 pod GNSS + IMU por jugador con firmware propio sobre módulos genéricos (nRF52840 en un Raytac, GNSS Quectel LC29H, LoRa SX1262; ADR 0105 y 0106).
 - **Backlog:** `docs/backlog.md` (IDs `B-xxx`) ↔ issues de GitHub en `mgiachetti/sport-performance` (cada issue dice su `B-xxx`). ADRs en `docs/adr/`.
 - **Maqueta:** `mockups/orc-performance.html` es un boceto básico para ver la idea (pantallas, paleta, tono). Sirve de referencia de intención, **no** de diseño final ni de código a copiar.
 
