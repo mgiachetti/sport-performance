@@ -176,7 +176,7 @@ gnss_rf = Sheet("gnss_rf", "Pod v0: gnss_rf",
 # ---------------------------------------------------------------------------
 NRF_PINS = {
     "1": "GND", "2": "GND", "15": "GND", "33": "GND", "55": "GND",
-    "28": "VREG", "30": "VREG", "31": NC, "32": "VBUS", "34": "USB_DM", "35": "USB_DP",
+    "28": "VREG", "30": "VREG", "31": NC, "32": "VBUS", "34": "USB_D_N", "35": "USB_D_P",
     "3": "GNSS_PPS", "4": "CHG_INT", "5": "BARO_INT", "6": "GNSS_EN", "7": "FG_ALRT", "8": "BTN",
     "9": "GNSS_RST", "10": "LORA_DIO1", "11": "LORA_BUSY", "12": "LORA_NRST", "13": "VBAT_ADC", "14": "LORA_RXEN",
     "16": "UWB_CS", "17": "XL1", "18": "XL2", "19": "HG_CS", "20": "BUZZER", "21": "LED_G", "22": "GNSS_TX",
@@ -387,13 +387,13 @@ uwb = Sheet("uwb", "Pod v0: uwb", "UWB DWM3000 sin montar, en el bus de sensores
 # ---------------------------------------------------------------------------
 usb_dock = Sheet("usb_dock", "Pod v0: usb_dock", "Pads de la base (VBUS, D+, D−, GND, DETECT), switch de entrada con OVP y ESD", 600, [
     Group("Pads de la base", [
-        part("Pads_Base", "Pads de la base", {"1": "VBUS_PAD", "2": "DOCK_DP", "3": "DOCK_DM", "4": "GND", "5": "DOCK_DET"},
+        part("Pads_Base", "Pads de la base", {"1": "VBUS_PAD", "2": "DOCK_D_P", "3": "DOCK_D_N", "4": "GND", "5": "DOCK_DET"},
              note="5 pads planos dorados con llave; patrón asimétrico a dibujar con la base"),
         R("10k", "DOCK_DET", "GND", note="DETECT a GND: la base habilita VBUS solo con un pod asentado (valor a definir)"),
         D("SMF12A", "GND", "VBUS_PAD", SOD123F, symbol="D_TVS", mpn="SMF12A",
           note="TVS de 12–13 V de stand-off (clase SMF12A o SMAJ12A, engrape de unos 20 V con 8/20 µs); aguas abajo protege el OVLO"),
         ESD("ESD 5 V", "DOCK_DET", note="ESD de DETECT (parte por elegir)"),
-        part("USBLC6-2SC6", "USBLC6-2SC6", {"1": "DOCK_DP", "6": "DOCK_DP", "3": "DOCK_DM", "4": "DOCK_DM", "5": "VBUS", "2": "GND"},
+        part("USBLC6-2SC6", "USBLC6-2SC6", {"1": "DOCK_D_P", "6": "DOCK_D_P", "3": "DOCK_D_N", "4": "DOCK_D_N", "5": "VBUS", "2": "GND"},
              SOT23_6, mpn="USBLC6-2SC6", manufacturer="STMicroelectronics", note="ESD de baja capacidad en D+/D−"),
         FLAG("VBUS_PAD"),
     ], ["Objetivo IEC 61000-4-2: ±8 kV por contacto y ±15 kV por aire en los pads"]),
@@ -413,8 +413,8 @@ usb_dock = Sheet("usb_dock", "Pod v0: usb_dock", "Pads de la base (VBUS, D+, D�
         TP("VBUS"),
     ]),
     Group("USB D+/D−", [
-        R0("DOCK_DP", "USB_DP", note="D+ al nRF"),
-        R0("DOCK_DM", "USB_DM", note="D− al nRF"),
+        R0("DOCK_D_P", "USB_D_P", note="D+ al nRF"),
+        R0("DOCK_D_N", "USB_D_N", note="D− al nRF"),
     ]),
 ])
 
