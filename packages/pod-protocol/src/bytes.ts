@@ -76,9 +76,26 @@ export class ByteWriter {
     return this;
   }
 
+  /** 48-bit unsigned (exact in a JS number): ticks and milliseconds of the NAND log. */
+  u48(value: number): this {
+    const low = value % 0x1_0000_0000;
+    this.u32(low);
+    return this.u16(Math.floor(value / 0x1_0000_0000));
+  }
+
+  /** Two's complement 8-bit. */
+  i8(value: number): this {
+    return this.u8(value < 0 ? value + 0x100 : value);
+  }
+
   /** Two's complement 16-bit. */
   i16(value: number): this {
     return this.u16(value < 0 ? value + 0x10000 : value);
+  }
+
+  /** Two's complement 32-bit. */
+  i32(value: number): this {
+    return this.u32(value < 0 ? value + 0x1_0000_0000 : value);
   }
 
   raw(value: Uint8Array): this {
@@ -106,6 +123,10 @@ export class ByteReader {
 
   get remaining(): number {
     return this.bytes.length - this.offset;
+  }
+
+  get position(): number {
+    return this.offset;
   }
 
   private take(length: number): number {
@@ -143,9 +164,23 @@ export class ByteReader {
     );
   }
 
+  u48(): number {
+    const low = this.u32();
+    return low + this.u16() * 0x1_0000_0000;
+  }
+
+  i8(): number {
+    const value = this.u8();
+    return value >= 0x80 ? value - 0x100 : value;
+  }
+
   i16(): number {
     const value = this.u16();
     return value >= 0x8000 ? value - 0x10000 : value;
+  }
+
+  i32(): number {
+    return this.u32() | 0;
   }
 
   raw(length: number): Uint8Array {

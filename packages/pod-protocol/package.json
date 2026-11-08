@@ -2,7 +2,7 @@
   "name": "@sport-performance/pod-protocol",
   "version": "0.0.0",
   "private": true,
-  "description": "Pod LoRa protocol (ADR 0106): byte-level codecs for the live uplink and the beacon/downlink, nonces, AES-CCM sealing, key derivation, anti-replay and airtime. Platform-agnostic; golden fixtures shared with the firmware.",
+  "description": "Pod protocol (ADR 0106): byte-level codecs for the live LoRa uplink and the beacon/downlink, nonces, AES-CCM sealing, key derivation, anti-replay and airtime, and the NAND log (pages with AES-CTR + CMAC, records, time base, decoder, pod_raw files). Platform-agnostic; golden fixtures shared with the firmware.",
   "type": "module",
   "sideEffects": false,
   "exports": {
@@ -10,7 +10,9 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./fixtures/v1/vectors.json": "./fixtures/v1/vectors.json"
+    "./fixtures/v1/vectors.json": "./fixtures/v1/vectors.json",
+    "./fixtures/v1/log-vectors.json": "./fixtures/v1/log-vectors.json",
+    "./fixtures/v1/pod-raw-sample.bin": "./fixtures/v1/pod-raw-sample.bin"
   },
   "files": [
     "dist",
@@ -22,7 +24,7 @@
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "fixtures:update": "POD_PROTOCOL_UPDATE_FIXTURES=1 vitest run src/fixtures.test.ts && prettier --write fixtures"
+    "fixtures:update": "POD_PROTOCOL_UPDATE_FIXTURES=1 vitest run src/fixtures.test.ts src/log/fixtures.test.ts && prettier --write fixtures"
   },
   "dependencies": {
     "@noble/ciphers": "2.4.0",
