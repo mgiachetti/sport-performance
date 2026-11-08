@@ -9,7 +9,7 @@
 		(date "2026-11-07")
 		(rev "v0")
 		(company "Sport Performance")
-		(comment 1 "Hojas jerárquicas vacías: el esquemático se dibuja en KiCad (B-909)")
+		(comment 1 "Hojas generadas por hardware/tools/esquematico/generar.py (B-909)")
 		(comment 2 "Spec: docs/hardware/pod-v0.md")
 	)
 	(lib_symbols)

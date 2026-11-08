@@ -35,6 +35,11 @@ jobs:
         with:
           persist-credentials: false
 
+      # The sheets and pod.kicad_sym come from hardware/tools/esquematico (standard library only):
+      # fail if they differ from what the generator writes.
+      - name: Schematic generator up to date
+        run: python3 hardware/tools/esquematico/generar.py --check
+
       - name: Pull KiCad image
         run: docker pull "$KICAD_IMAGE"
 
