@@ -56,8 +56,8 @@ jobs:
           docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
             -v "$GITHUB_WORKSPACE:/work" -v "$RUNNER_TEMP:/out" -w /work/hardware/lib "$KICAD_IMAGE" \
             kicad-cli fp export svg --output /out/fp_svg pod.pretty
-          files=$(ls hardware/lib/pod.pretty/*.kicad_mod | wc -l)
-          svgs=$(ls "$RUNNER_TEMP"/fp_svg/*.svg | wc -l)
+          files=$(find hardware/lib/pod.pretty -name "*.kicad_mod" | wc -l)
+          svgs=$(find "$RUNNER_TEMP/fp_svg" -name "*.svg" | wc -l)
           echo "footprints: $files, exportados: $svgs"
           test "$files" -eq "$svgs"
 
