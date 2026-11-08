@@ -128,6 +128,41 @@ describe('time base', () => {
     expect(tickToGnssMs(base, START_TICK)).toBeCloseTo(START_GNSS_MS, 3);
   });
 
+  it('periodic bad anchors (b g g, all +1 s and consistent among themselves) lose to the good ones', () => {
+    const anchors = Array.from({ length: 600 }, (_, s) =>
+      anchor(START_TICK + s * RTC_TICK_HZ, START_GNSS_MS + s * 1000 + (s % 3 === 0 ? 1000 : 0)),
+    );
+    const base = buildTimeBase(1, anchors);
+    expect(base.points).toHaveLength(400);
+    expect(base.points.every((p) => (p.tick - START_TICK) / RTC_TICK_HZ !== 0)).toBe(true);
+    for (const s of [0, 1, 150, 599]) {
+      expect(tickToGnssMs(base, START_TICK + s * RTC_TICK_HZ)).toBeCloseTo(
+        START_GNSS_MS + s * 1000,
+        3,
+      );
+    }
+  });
+
+  it('alternating random bad and good anchors, bad first: the good half is kept', () => {
+    let state = 12_345;
+    const random = (): number => {
+      state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+      return state / 0x1_0000_0000;
+    };
+    const anchors = Array.from({ length: 600 }, (_, s) =>
+      anchor(
+        START_TICK + s * RTC_TICK_HZ,
+        START_GNSS_MS +
+          s * 1000 +
+          (s % 2 === 0 ? Math.round((random() - 0.5) * 20_000) + 3_000 : 0),
+      ),
+    );
+    const base = buildTimeBase(1, anchors);
+    expect(base.points).toHaveLength(300);
+    expect(base.rejected).toHaveLength(300);
+    expect(tickToGnssMs(base, START_TICK)).toBeCloseTo(START_GNSS_MS, 3);
+  });
+
   it('a short burst of consistent bad anchors does not outvote a long good tail', () => {
     const good = (s: number) => anchor(START_TICK + s * RTC_TICK_HZ, START_GNSS_MS + s * 1000);
     const anchors = [

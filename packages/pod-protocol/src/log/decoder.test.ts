@@ -11,6 +11,7 @@ import {
 } from '../testing/log-samples.js';
 import { LOG_PAGE_CRC_OFFSET, LOG_PAGE_PAYLOAD_CAPACITY, LOG_PAGE_SIZE } from './constants.js';
 import { decodeLog, pagesFromDump, type NandPageRead } from './decoder.js';
+import { deriveLogPageKeys } from './integrity.js';
 import { inspectLogPage, openLogPage, sealLogPage, writePageCrc } from './page.js';
 import { encodeRecord, type LogRecord } from './records.js';
 import { LogWriter } from './writer.js';
@@ -334,7 +335,7 @@ describe('decodeLog', () => {
     const payload = openLogPage({
       page: item(PAGES, 1),
       header: second,
-      storageKey: testStorageKey(2),
+      keys: deriveLogPageKeys(testStorageKey(2)),
     });
     const overlapping = sealLogPage({
       header: {
@@ -343,7 +344,7 @@ describe('decodeLog', () => {
         streamOffset: second.streamOffset + 100,
       },
       payload,
-      storageKey: testStorageKey(2),
+      keys: deriveLogPageKeys(testStorageKey(2)),
     });
     const decoded = decodeLog({
       pages: [...asReads(PAGES), { physicalPage: 77 * 64, data: overlapping }],
@@ -368,12 +369,12 @@ describe('decodeLog', () => {
     const payload = openLogPage({
       page: item(PAGES, 4),
       header: copy,
-      storageKey: testStorageKey(2),
+      keys: deriveLogPageKeys(testStorageKey(2)),
     });
     const rewrite = sealLogPage({
       header: { ...copy, pageSeq: copy.pageSeq + 1_000 },
       payload,
-      storageKey: testStorageKey(2),
+      keys: deriveLogPageKeys(testStorageKey(2)),
     });
     // The failed program still reads, the rewrite has a later sequence.
     const decoded = decodeLog({

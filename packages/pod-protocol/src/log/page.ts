@@ -14,13 +14,7 @@ import {
   PAGE_FLAGS,
   PAGE_FLAGS_RESERVED_MASK,
 } from './constants.js';
-import {
-  crc32,
-  logPageCtr,
-  logPageMac,
-  resolveLogPageKeys,
-  type LogPageKeys,
-} from './integrity.js';
+import { crc32, logPageCtr, logPageMac, type LogPageKeys } from './integrity.js';
 
 /**
  * Clear header of a log page (40 B, authenticated by the CMAC, not encrypted):
@@ -29,7 +23,8 @@ import {
  * 0..3    magic "SPLG"
  * 4       format version (1)
  * 5       key epoch (id of the storage key)
- * 6       flags: segment start [0], segment end [1], last record continues [2], reserved [7..3] = 0
+ * 6       flags: segment start [0], segment end [1], last record continues [2],
+ *         recovery close [3], reserved [7..4] = 0
  * 7       reserved = 0
  * 8..15   DEVICEID (FICR, 8 B as in memory)
  * 16..19  boot counter (u32): the time epoch of the RTC ticks of the records
@@ -51,6 +46,8 @@ export interface LogPageHeader {
   segmentStart: boolean;
   segmentEnd: boolean;
   continues: boolean;
+  /** Closing page written at the next boot for a segment a power loss left open. */
+  recovered: boolean;
   deviceId: Uint8Array;
   bootCounter: number;
   segmentId: number;
@@ -84,7 +81,11 @@ export function encodeLogPageHeader(header: LogPageHeader): Uint8Array {
   const flags =
     (header.segmentStart ? PAGE_FLAGS.segmentStart : 0) |
     (header.segmentEnd ? PAGE_FLAGS.segmentEnd : 0) |
-    (header.continues ? PAGE_FLAGS.continues : 0);
+    (header.continues ? PAGE_FLAGS.continues : 0) |
+    (header.recovered ? PAGE_FLAGS.recovered : 0);
+  if (header.recovered && (!header.segmentEnd || header.payloadLength !== 0)) {
+    fail('field_out_of_range', 'a recovery close is an empty segment-end page');
+  }
   return new ByteWriter(LOG_PAGE_HEADER_LENGTH)
     .raw(LOG_PAGE_MAGIC)
     .u8(header.formatVersion)
@@ -142,12 +143,19 @@ export function decodeLogPageHeader(page: Uint8Array): LogPageHeader {
   if ((first === NO_RECORD_START) !== (recordCount === 0)) {
     fail('invalid_length', 'record count and first record offset disagree');
   }
+  if (
+    (flags & PAGE_FLAGS.recovered) !== 0 &&
+    ((flags & PAGE_FLAGS.segmentEnd) === 0 || payloadLength !== 0)
+  ) {
+    fail('reserved_bits_set', 'a recovery close is an empty segment-end page');
+  }
   return {
     formatVersion,
     keyEpoch,
     segmentStart: (flags & PAGE_FLAGS.segmentStart) !== 0,
     segmentEnd: (flags & PAGE_FLAGS.segmentEnd) !== 0,
     continues: (flags & PAGE_FLAGS.continues) !== 0,
+    recovered: (flags & PAGE_FLAGS.recovered) !== 0,
     deviceId,
     bootCounter,
     segmentId,
@@ -168,10 +176,10 @@ export function decodeLogPageHeader(page: Uint8Array): LogPageHeader {
 export function sealLogPage(input: {
   header: LogPageHeader;
   payload: Uint8Array;
-  /** The storage key of the epoch, or the page keys derived from it. */
-  storageKey: Uint8Array | LogPageKeys;
+  /** Page keys of the epoch (`deriveLogPageKeys`). */
+  keys: LogPageKeys;
 }): Uint8Array {
-  const keys = resolveLogPageKeys(input.storageKey);
+  const { keys } = input;
   if (input.payload.length !== input.header.payloadLength) {
     fail('invalid_length', 'payload length differs from the header');
   }
@@ -249,10 +257,10 @@ export function inspectLogPage(page: Uint8Array): PageInspection {
 export function openLogPage(input: {
   page: Uint8Array;
   header: LogPageHeader;
-  /** The storage key of the epoch, or the page keys derived from it. */
-  storageKey: Uint8Array | LogPageKeys;
+  /** Page keys of the epoch (`deriveLogPageKeys`). */
+  keys: LogPageKeys;
 }): Uint8Array {
-  const keys = resolveLogPageKeys(input.storageKey);
+  const { keys } = input;
   const authenticated = input.page.subarray(0, LOG_PAGE_MAC_OFFSET);
   const mac = logPageMac(keys.macKey, authenticated);
   if (!equalBytes(mac, input.page.subarray(LOG_PAGE_MAC_OFFSET, LOG_PAGE_CRC_OFFSET))) {

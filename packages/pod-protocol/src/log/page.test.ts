@@ -10,6 +10,7 @@ import {
   LOG_PAGE_PAYLOAD_CAPACITY,
   LOG_PAGE_SIZE,
 } from './constants.js';
+import { deriveLogPageKeys } from './integrity.js';
 import {
   decodeLogPageHeader,
   inspectLogPage,
@@ -27,6 +28,7 @@ const header: LogPageHeader = {
   segmentStart: true,
   segmentEnd: false,
   continues: true,
+  recovered: false,
   deviceId: TEST_DEVICE_ID,
   bootCounter: 70_000,
   segmentId: 5,
@@ -38,7 +40,7 @@ const header: LogPageHeader = {
 };
 
 describe('log page', () => {
-  const page = sealLogPage({ header, payload, storageKey: key });
+  const page = sealLogPage({ header, payload, keys: deriveLogPageKeys(key) });
 
   it('is 2048 B: 40 B header, 1996 B payload, 8 B CMAC, 4 B CRC', () => {
     expect(page.length).toBe(LOG_PAGE_SIZE);
@@ -71,9 +73,9 @@ describe('log page', () => {
     expect(inspection.status).toBe('valid');
     if (inspection.status !== 'valid') return;
     expect(inspection.header).toEqual(header);
-    expect(toHex(openLogPage({ page, header: inspection.header, storageKey: key }))).toBe(
-      toHex(payload),
-    );
+    expect(
+      toHex(openLogPage({ page, header: inspection.header, keys: deriveLogPageKeys(key) })),
+    ).toBe(toHex(payload));
   });
 
   it('erased, torn and corrupted pages are told apart without a key', () => {
@@ -93,10 +95,10 @@ describe('log page', () => {
     const inspection = inspectLogPage(tampered);
     if (inspection.status !== 'valid') throw new Error('expected a valid CRC');
     expect(() =>
-      openLogPage({ page: tampered, header: inspection.header, storageKey: key }),
+      openLogPage({ page: tampered, header: inspection.header, keys: deriveLogPageKeys(key) }),
     ).toThrow(PodProtocolError);
     expect(() =>
-      openLogPage({ page, header: inspection.header, storageKey: testStorageKey(3) }),
+      openLogPage({ page, header: inspection.header, keys: deriveLogPageKeys(testStorageKey(3)) }),
     ).toThrow(/page 4096/);
   });
 
@@ -107,7 +109,7 @@ describe('log page', () => {
     const inspection = inspectLogPage(moved);
     if (inspection.status !== 'valid') throw new Error('expected a valid CRC');
     expect(() =>
-      openLogPage({ page: moved, header: inspection.header, storageKey: key }),
+      openLogPage({ page: moved, header: inspection.header, keys: deriveLogPageKeys(key) }),
     ).toThrow();
   });
 
@@ -131,7 +133,7 @@ describe('log page', () => {
     const continuation = sealLogPage({
       header: { ...header, segmentStart: false, firstRecordOffset: null, recordCount: 0 },
       payload,
-      storageKey: key,
+      keys: deriveLogPageKeys(key),
     });
     expect(toHex(continuation.subarray(34, 38))).toBe('ffff0000');
   });

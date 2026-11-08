@@ -106,6 +106,9 @@ export function buildPodRawFile(input: {
   endUnixMs: number | null;
 }): { bytes: Uint8Array; manifest: PodRawManifest } {
   const { segment } = input;
+  if (!segment.fullyRead) {
+    fail('field_out_of_range', 'the segment was not read entirely: scan every page of its blocks');
+  }
   const deviceId = fromHex(segment.deviceIdHex);
   if (deviceId.length !== DEVICE_ID_LENGTH) {
     fail('field_out_of_range', 'deviceIdHex must be 8 B');
@@ -256,6 +259,7 @@ export type UploadVerification =
         | 'segment_missing'
         | 'more_than_one_segment'
         | 'page_range_mismatch'
+        | 'blocks_mismatch'
         | 'pages_not_authentic'
         | 'segment_not_closed';
     };
@@ -265,18 +269,22 @@ export type UploadVerification =
  * `readPodRawFile(bytes, manifest)` and `decodeLog` **with the storage keys**
  * on that file: the file holds exactly the manifest's segment, every page the
  * pod's scan counted as valid also passed the CMAC (`authenticPagesN`), the
- * page range matches, and the segment is closed — or it belongs to an earlier
- * boot than the pod's current one (cut by a power loss: it will never close).
+ * page range matches, the physical pages of the file are in the manifest's
+ * blocks, and the segment is closed (by its last page or, after a power loss,
+ * by the recovery close the pod writes at the next boot): never on the dock's
+ * word.
  * The command it returns names the segment exactly; the pod erases only if its
  * own scan still matches (`eraseDecision`).
  */
 export function verifyUploadForErase(input: {
   manifest: PodRawManifest;
+  /** The pages of the file (`readPodRawFile`): their physical addresses must be the manifest's blocks. */
+  pages: readonly NandPageRead[];
   decoded: DecodedLog;
-  /** Boot counter the pod reported at the dock; `null` if unknown. */
-  podCurrentBootCounter: number | null;
+  pagesPerBlock?: number;
 }): UploadVerification {
   const { manifest, decoded } = input;
+  const pagesPerBlock = input.pagesPerBlock ?? 64;
   if (decoded.segments.length > 1) {
     return { ok: false, reason: 'more_than_one_segment' };
   }
@@ -300,9 +308,18 @@ export function verifyUploadForErase(input: {
   ) {
     return { ok: false, reason: 'pages_not_authentic' };
   }
-  const cutEarlierBoot =
-    input.podCurrentBootCounter !== null && input.podCurrentBootCounter > segment.bootCounter;
-  if (!segment.closed && !cutEarlierBoot) {
+  const fileBlocks = [
+    ...new Set(input.pages.map((p) => Math.floor(p.physicalPage / pagesPerBlock))),
+  ].sort((a, b) => a - b);
+  const manifestBlocks = [...manifest.blocks].sort((a, b) => a - b);
+  if (
+    fileBlocks.length !== manifestBlocks.length ||
+    fileBlocks.some((b, i) => b !== manifestBlocks[i])
+  ) {
+    return { ok: false, reason: 'blocks_mismatch' };
+  }
+  // Closed by its own last page or by the pod's recovery close (both under the CMAC).
+  if (!segment.closed) {
     return { ok: false, reason: 'segment_not_closed' };
   }
   return {

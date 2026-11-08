@@ -167,6 +167,8 @@ export interface DecodedSegment {
   authenticPagesN: number;
   /** The closing page (segment-end flag) was read. */
   closed: boolean;
+  /** Closed by a recovery page the pod wrote at the next boot (a power loss cut it). */
+  recovered: boolean;
   /** Closed and without any stream gap. */
   complete: boolean;
   streamBytes: number;
@@ -315,7 +317,7 @@ function openPages(input: DecodeLogInput): {
       continue;
     }
     try {
-      const payload = openLogPage({ page: read.data, header, storageKey: key });
+      const payload = openLogPage({ page: read.data, header, keys: key });
       opened.push({ physicalPage: read.physicalPage, header, payload });
       stats.pagesValid += 1;
     } catch (error) {
@@ -795,6 +797,7 @@ export function decodeLog(input: DecodeLogInput): DecodedLog {
         pagesN: pages.length,
         authenticPagesN: list.length,
         closed,
+        recovered: closed && last.header.recovered,
         complete: closed && gaps.length === 0 && first.header.streamOffset === 0,
         streamBytes: last.header.streamOffset + last.header.payloadLength,
         tickRange: tickRangeOf(records),

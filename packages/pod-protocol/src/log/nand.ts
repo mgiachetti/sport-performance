@@ -43,8 +43,15 @@ export interface SegmentSummary {
   blocks: number[];
   /** A page with the segment-end flag was found. */
   closed: boolean;
+  /** The segment-end page is a recovery close (`sealRecoveryPage`). */
+  recovered: boolean;
   /** End of the stream according to the last valid page. */
   streamBytes: number;
+  /**
+   * Every page of every block of the segment was read in this scan. Only a
+   * fully read segment may be uploaded (`buildPodRawFile`) or erased.
+   */
+  fullyRead: boolean;
 }
 
 export interface NandScan {
@@ -54,8 +61,8 @@ export interface NandScan {
   /** Usable blocks whose every page was read and is erased: the only ones a pod may write. */
   freeBlocks: number[];
   /**
-   * Usable blocks with no programmed page among those read but not every page
-   * read: their state is unknown, so they are neither free nor erasable.
+   * Usable blocks not every page of which was read (programmed or not): their
+   * state is unknown, so they are neither free nor erasable.
    */
   unknownBlocks: number[];
   /** Blocks with programmed pages none of which is a valid log page (debris of a cut write). */
@@ -97,6 +104,8 @@ export function scanNand(input: {
   const programmedBlocks = new Set<number>();
   /** Distinct pages read erased, per block. */
   const erasedPages = new Map<number, Set<number>>();
+  /** Distinct pages read (any status), per block. */
+  const readPages = new Map<number, Set<number>>();
   const blocksWithValid = new Map<number, Set<string>>();
   const segments = new Map<string, SegmentSummary>();
   let highestPageSeq: number | null = null;
@@ -107,6 +116,9 @@ export function scanNand(input: {
     if (bad.has(block) || block < geometry.reservedBlocks) {
       continue;
     }
+    const seen = readPages.get(block) ?? new Set<number>();
+    seen.add(read.physicalPage);
+    readPages.set(block, seen);
     if (read.ecc === 'uncorrectable') {
       counts.uncorrectable_ecc += 1;
       programmedBlocks.add(block);
@@ -151,7 +163,9 @@ export function scanNand(input: {
         pagesN: 1,
         blocks: [block],
         closed: header.segmentEnd,
+        recovered: header.recovered,
         streamBytes: end,
+        fullyRead: false,
       });
     } else {
       existing.pagesN += 1;
@@ -164,6 +178,7 @@ export function scanNand(input: {
         existing.blocks.push(block);
       }
       existing.closed ||= header.segmentEnd;
+      existing.recovered ||= header.recovered;
       existing.streamBytes = Math.max(existing.streamBytes, end);
     }
   }
@@ -178,11 +193,14 @@ export function scanNand(input: {
     if (bad.has(block)) {
       continue;
     }
+    if ((readPages.get(block)?.size ?? 0) !== geometry.pagesPerBlock) {
+      // Not every page read: never free, never erased, whatever was seen.
+      unknownBlocks.push(block);
+      continue;
+    }
     if (!programmedBlocks.has(block)) {
       if ((erasedPages.get(block)?.size ?? 0) === geometry.pagesPerBlock) {
         freeBlocks.push(block);
-      } else {
-        unknownBlocks.push(block);
       }
       continue;
     }
@@ -198,6 +216,7 @@ export function scanNand(input: {
       ...s,
       keyEpochs: [...s.keyEpochs].sort((a, b) => a - b),
       blocks: [...s.blocks].sort((a, b) => a - b),
+      fullyRead: s.blocks.every((b) => (readPages.get(b)?.size ?? 0) === geometry.pagesPerBlock),
     }))
     .sort((a, b) => a.firstPageSeq - b.firstPageSeq);
   return {
@@ -378,6 +397,7 @@ export type EraseDecision =
       erase: false;
       reason:
         | 'recording'
+        | 'segment_not_fully_read'
         | 'awaiting_upload'
         | 'awaiting_confirmation'
         | 'sha_mismatch'
@@ -401,6 +421,10 @@ export function eraseDecision(
 ): EraseDecision {
   if (input.recording) {
     return { erase: false, reason: 'recording' };
+  }
+  if (!input.segment.fullyRead) {
+    // A page not read may hold data never uploaded.
+    return { erase: false, reason: 'segment_not_fully_read' };
   }
   const command = input.eraseCommand;
   if (command !== null) {

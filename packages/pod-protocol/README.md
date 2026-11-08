@@ -203,7 +203,7 @@ El pod graba todo en la W25N04KV (4 Gbit; la W25N02KV de 2 Gbit tiene la misma g
 | 0–3 | Magia `SPLG` (`53 50 4c 47`) |
 | 4 | Versión del formato (1; la 0 no vale) |
 | 5 | Época de la clave de almacenamiento (id de clave) |
-| 6 | Banderas: comienzo del tramo [0], fin del tramo [1], el último registro sigue en la página siguiente [2], reservados [7..3] = 0 |
+| 6 | Banderas: comienzo del tramo [0], fin del tramo [1], el último registro sigue en la página siguiente [2], cierre de recuperación [3] (página vacía con fin del tramo), reservados [7..4] = 0 |
 | 7 | Reservado = 0 |
 | 8–15 | DEVICEID (FICR, 8 B como en memoria) |
 | 16–19 | Contador de arranques (u32): la época de tiempo de los ticks |
@@ -226,7 +226,7 @@ El pod graba todo en la W25N04KV (4 Gbit; la W25N02KV de 2 Gbit tiene la misma g
 
 ### Flujo de registros
 
-Cada tramo de grabación es **un flujo de bytes** de registros que se corta en cargas útiles de 1996 B: un registro puede cruzar páginas (el crudo GNSS, de unos 2 kB, siempre cruza). La posición en el flujo (bytes 28–31) dice exactamente cuánto se perdió entre dos páginas legibles, y la posición del primer registro (34–35) permite **resincronizar** después de una página perdida. `LogWriter.flush()` cierra una página corta (antes de dormir) y el flujo sigue en la siguiente; `close()` escribe la página con la bandera de fin (vacía si el flujo terminó justo en el borde).
+Cada tramo de grabación es **un flujo de bytes** de registros que se corta en cargas útiles de 1996 B: un registro puede cruzar páginas (el crudo GNSS, de unos 2 kB, siempre cruza). La posición en el flujo (bytes 28–31) dice exactamente cuánto se perdió entre dos páginas legibles, y la posición del primer registro (34–35) permite **resincronizar** después de una página perdida. `LogWriter.flush()` cierra una página corta (antes de dormir) y el flujo sigue en la siguiente; `close()` escribe la página con la bandera de fin (vacía si el flujo terminó justo en el borde). Si un corte de energía dejó un tramo abierto, en el arranque siguiente, antes de volver a grabar, el pod escribe un **cierre de recuperación** (`sealRecoveryPage`): una página vacía con las banderas de fin y de recuperación en la próxima página borrada del tramo, con una secuencia nueva y la clave actual. Así el tramo queda final, autenticado por el propio pod.
 
 Registro (TLV):
 
@@ -257,7 +257,7 @@ Un decodificador **saltea por el largo** un tipo que no conoce, así un tipo nue
 ### Base de tiempo
 
 - Los ticks son del **RTC a 32,768 kHz** y empiezan en cada arranque: el contador de arranques del encabezado es la época de tiempo.
-- `buildTimeBase` arma, por arranque, una función **lineal por tramos** que pasa por las anclas (tick ↔ hora GPS). Primero las mejores: un ancla de una fuente peor (base < baliza < PPS) entre dos mejores a menos de 60 s se descarta. Después, **por consenso** en orden de tick: un ancla que implica un ritmo a más de 500 ppm del nominal (más las dos incertidumbres) respecto de la última guardada espera en una racha de anclas consistentes entre sí (una fuente mejor reemplaza de una vez a una peor). Si la racha llega a 3 anclas y es más larga que las guardadas del final que la contradicen, esas se rechazan y la racha queda; si un ancla vuelve a coincidir con lo guardado, se rechaza la racha. Así un ancla mala al principio (por ejemplo un PPS 5 s corrido) nunca corre todo el arranque, y una ráfaga corta de anclas malas no le gana a una cola larga de buenas.
+- `buildTimeBase` arma, por arranque, una función **lineal por tramos** que pasa por las anclas (tick ↔ hora GPS). Primero las mejores: un ancla de una fuente peor (base < baliza < PPS) entre dos mejores a menos de 60 s se descarta. Después, **consenso global**: se quedan las anclas de la **cadena más larga** en orden de tick en la que cada par consecutivo es consistente (ritmo a menos de 500 ppm del nominal, más las dos incertidumbres), buscada por programación dinámica sobre todas las anclas; entre cadenas del mismo largo gana la de mejores fuentes. Las demás se rechazan. Así las anclas malas, sean una al principio, periódicas (por ejemplo una de cada tres corrida 1 s) o alternadas al azar, pierden contra las buenas mientras estas sean más.
 - Antes de la primera ancla y después de la última se **extrapola** con la pendiente del tramo más cercano (con una sola ancla, al ritmo nominal): así lo grabado antes del primer fix se ubica hacia atrás. Bajo techo, las anclas de la base al salir y al volver (en el mismo arranque) dan la pendiente.
 - `tickUncertaintyMs`: la incertidumbre del ancla más cercana más ±20 ppm por la distancia a ella.
 - **IMU**: `buildSensorClock` correlaciona la marca del sensor (u32, que da la vuelta) con el RTC por los `sensor_sync`; cada lote queda con el tick de su primer y su último dato. Entre dos sincronizaciones la marca tiene que avanzar lo que dice el RTC (5 % de tolerancia, módulo 2³²): si no, el sensor se reinició y empieza un tramo nuevo del reloj (no se confunde con una vuelta). Con un período del sensor de 0 no hay reloj. Sin sincronización, se cuenta hacia atrás desde la lectura de la FIFO, al ODR.
@@ -267,13 +267,13 @@ Un decodificador **saltea por el largo** un tipo que no conoce, así un tipo nue
 ### Memoria, índice y borrado
 
 - **Un tramo empieza siempre en un bloque borrado** y es dueño de sus bloques: borrar un tramo nunca toca otro. Se pierden como mucho 63 páginas por tramo.
-- **Nunca se pisa lo que no se descargó**: los bloques salen solo de los libres (`nextWritableBlock`), y un bloque es libre solo si **se leyeron todas sus páginas y están borradas**; una página que no se leyó nunca se supone borrada (el bloque queda como desconocido, `unknownBlocks`, y no se escribe ni se borra). Sin bloques libres, el pod deja de grabar, lo avisa con el LED y la app lo muestra.
+- **Nunca se pisa lo que no se descargó**: los bloques salen solo de los libres (`nextWritableBlock`), y un bloque es libre solo si **se leyeron todas sus páginas y están borradas**; una página que no se leyó nunca se supone borrada. Un bloque del que no se leyeron las 64 páginas, programado o no, queda como **desconocido** (`unknownBlocks`): no se escribe ni se borra, y un tramo con un bloque así no es `fullyRead`, así que la base no arma su `pod_raw` y el pod no lo borra. Sin bloques libres, el pod deja de grabar, lo avisa con el LED y la app lo muestra.
 - **Bloques malos**: la marca de fábrica (byte 0 del repuesto de la página 0 del bloque), la LUT del W25N y los que fallan al programar o borrar. El firmware no los usa; si falla un programa, marca el bloque y reescribe la página en el siguiente bloque bueno con una secuencia nueva (el decodificador descarta la copia repetida por su posición en el flujo).
 - **ECC**: el estado de cada lectura viaja con la página (`ok`, `corrected`, `uncorrectable`). Una página incorregible se marca, se saltea y se informa, y el flujo sigue en la próxima.
 - **Índice de tramos**: el pod lo guarda en los 8 bloques reservados del principio, pero es una caché: `scanNand` lo reconstruye sin clave (tramos, páginas, bloques, si se cerraron, bloques libres, huérfanos y mezclados) y `decodeLog`, con las claves, agrega el rango de tiempo.
 - **Borrado atado a lo subido y verificado**:
   1. La base sube el `pod_raw` del tramo con su manifiesto.
-  2. El servidor lo lee (`readPodRawFile` con el manifiesto), lo decodifica **con la clave** y revisa con `verifyUploadForErase` que tenga exactamente ese tramo, que todas las páginas que el escaneo del pod contó como válidas pasen el CMAC (`validPagesN` = `authenticPagesN`), que coincida el rango de páginas y que el tramo esté cerrado (o sea de un arranque anterior al actual del pod: lo cortó un corte de energía y no se va a cerrar nunca). La ingesta es idempotente por (DEVICEID, arranque, tramo) (`podRawIngestKey`).
+  2. El servidor lo lee (`readPodRawFile` con el manifiesto), lo decodifica **con la clave** y revisa con `verifyUploadForErase` que tenga exactamente ese tramo, que todas las páginas que el escaneo del pod contó como válidas pasen el CMAC (`validPagesN` = `authenticPagesN`), que coincida el rango de páginas, que las direcciones físicas de las páginas del archivo estén en los bloques del manifiesto y que el tramo esté **cerrado**, por su última página o por el cierre de recuperación del pod. Nunca por lo que diga la base. La ingesta es idempotente por (DEVICEID, arranque, tramo) (`podRawIngestKey`).
   3. Recién ahí firma (P-256, con la clave fijada en el pod) un **comando de borrado** que nombra el tramo: DEVICEID, arranque, tramo, primera y última secuencia, páginas válidas, bloques y SHA-256 (`encodeEraseCommand`, magia `SPER`).
   4. El pod verifica la firma y `eraseDecision` borra solo si el SHA-256 es el del archivo que subió y su propio escaneo coincide **exactamente** con el comando (`command_mismatch` si no). `planErase` borra solo los bloques que nombra el comando, y nunca uno mezclado, desconocido o de un tramo que no se puede borrar; los huérfanos (restos de una escritura cortada), solo a pedido.
 
@@ -332,7 +332,8 @@ Los encabezados y las marcas de tiempo de los registros suman un 14 % a la estim
 - `epochChange`: un tramo con cambio de época a mitad;
 - `damaged`: lecturas dañadas (CRC, CMAC con el CRC recalculado, escritura cortada, ECC incorregible, bloque malo, páginas desordenadas entre borradas) y lo que se espera de cada una;
 - `podRaw`: el manifiesto de `pod-raw-sample.bin`;
-- `timeline` (con `badFirstAnchor`: un PPS 5 s corrido y 600 buenos a 1 Hz) y `capacity`.
+- `timeline` (con `consensus`: un PPS 5 s corrido y 600 buenos, malos periódicos consistentes, malos alternados al azar y una ráfaga corta, como pares [tick, hora GPS]) y `capacity`;
+- en `damaged`, `recovery_close`: la última página cortada y el cierre de recuperación.
 
 El firmware codifica los registros de `segment.records` y `epochChange.records` con su escritor, compara cada `pageHex` byte a byte y deriva las claves; si tiene decodificador, compara también los casos de `damaged`. `src/log/fixtures.test.ts` regenera los dos archivos con el mismo `fixtures:update`.
 
@@ -347,7 +348,8 @@ El firmware codifica los registros de `segment.records` y `epochChange.records` 
 7. Base de tiempo lineal por tramos con prioridad PPS > baliza > base y rechazo a 500 ppm.
 8. `pod_raw` = las páginas cifradas tal cual, con su dirección física y su estado de ECC, más un manifiesto con el SHA-256.
 9. Borrado solo con un comando firmado que nombra exactamente el tramo (rango de páginas, páginas válidas, bloques, SHA-256), emitido después de decodificar con la clave, y que el pod compara con su propio escaneo.
-10. Un bloque es libre solo si se leyeron todas sus páginas borradas; la base de tiempo se arma por consenso.
+10. Un bloque solo es libre, o se puede borrar, si se leyeron sus 64 páginas; la base de tiempo es la cadena consistente más larga.
+11. Un tramo cortado por un corte de energía lo cierra el propio pod con un cierre de recuperación autenticado; el servidor confirma solo tramos cerrados.
 
 ## Fuera de este paquete
 

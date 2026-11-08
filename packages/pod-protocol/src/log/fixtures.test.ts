@@ -37,6 +37,7 @@ import { deriveLogPageKeys, logPageIv } from './integrity.js';
 import { scanNand } from './nand.js';
 import { inspectLogPage, openLogPage, readPageCrc, writePageCrc } from './page.js';
 import { buildPodRawFile, readPodRawFile } from './pod-raw.js';
+import { sealRecoveryPage } from './writer.js';
 import { decodeRecord, encodeRecord, RECORD_HEADER_LENGTH, type LogRecord } from './records.js';
 import { buildTimeBase, tickToGnssMs } from './timeline.js';
 
@@ -94,7 +95,7 @@ function pageVector(page: Uint8Array, key: Uint8Array) {
   return {
     header: { ...header, deviceId: undefined, deviceIdHex: toHex(header.deviceId) },
     ivHex: toHex(logPageIv(header.keyEpoch, header.pageSeq)),
-    plaintextHex: toHex(openLogPage({ page, header, storageKey: key })),
+    plaintextHex: toHex(openLogPage({ page, header, keys: deriveLogPageKeys(key) })),
     macHex: toHex(page.subarray(LOG_PAGE_MAC_OFFSET, LOG_PAGE_CRC_OFFSET)),
     crc32: readPageCrc(page),
     pageHex: toHex(page),
@@ -113,6 +114,7 @@ function summarise(decoded: DecodedLog) {
       lastPageSeq: s.lastPageSeq,
       pagesN: s.pagesN,
       closed: s.closed,
+      recovered: s.recovered,
       complete: s.complete,
       streamBytes: s.streamBytes,
       tickRange: s.tickRange,
@@ -294,6 +296,33 @@ function buildVectors() {
         ...[...pages.keys()].reverse().map((i) => intact(i, 601 + i)),
       ],
     },
+    {
+      name: 'recovery_close',
+      why: 'last page torn by a power loss, then the recovery close the pod writes at the next boot: the segment is closed (recovered)',
+      pagesPerBlock: 64,
+      badBlocks: [],
+      pages: [
+        ...pages.map((_, i) => (i === n - 1 ? mutate(i, (p) => p.fill(0xff, 900)) : intact(i))),
+        {
+          physicalPage: BASE_PHYSICAL + n,
+          ecc: 'ok',
+          pageHex: toHex(
+            sealRecoveryPage({
+              deviceId: TEST_DEVICE_ID,
+              bootCounter: WRITER.bootCounter,
+              segmentId: WRITER.segmentId,
+              streamOffset: (() => {
+                const h = inspectLogPage(pages[n - 2] ?? new Uint8Array());
+                return h.status === 'valid' ? h.header.streamOffset + h.header.payloadLength : 0;
+              })(),
+              pageSeq: 9_000,
+              keyEpoch: 2,
+              storageKey: key2,
+            }),
+          ),
+        },
+      ],
+    },
   ];
   const resolve = (list: DamagedPage[]): NandPageRead[] =>
     list.map((p) => ({
@@ -315,7 +344,16 @@ function buildVectors() {
   }));
 
   // pod_raw file of the main segment.
-  const scan = scanNand({ pages: reads(pages) });
+  // The dock reads every page of the segment's block (the rest erased).
+  const fullBlock: NandPageRead[] = [
+    ...reads(pages),
+    ...Array.from({ length: 64 - pages.length }, (_, i) => ({
+      physicalPage: BASE_PHYSICAL + pages.length + i,
+      data: new Uint8Array(LOG_PAGE_SIZE).fill(0xff),
+      ecc: 'ok' as const,
+    })),
+  ];
+  const scan = scanNand({ pages: fullBlock });
   const [summary] = scan.segments;
   if (!summary) throw new Error('no segment');
   const podRaw = buildPodRawFile({
@@ -352,39 +390,66 @@ function buildVectors() {
     }),
   ];
   const base = buildTimeBase(70_000, anchors);
-  // One bad first anchor (PPS 5 s off) followed by 600 good ones at 1 Hz.
-  const badFirst = [
-    {
+  // Consensus cases: PPS anchors at 1 Hz, the good ones on GPS time, bad ones off.
+  let lcgState = 12_345;
+  const random = (): number => {
+    lcgState = (Math.imul(lcgState, 1_664_525) + 1_013_904_223) >>> 0;
+    return lcgState / 0x1_0000_0000;
+  };
+  const consensusCase = (name: string, why: string, offsetsMs: number[]) => {
+    const pairs = offsetsMs.map((offset, s) => [
+      50_000 + s * 32_768,
+      1_446_000_000_000 + s * 1000 + offset,
+    ]);
+    const list = pairs.map(([tick, gnssTimeMs]) => ({
       type: 'time_anchor' as const,
-      tick: 50_000,
+      tick: tick ?? 0,
       source: 'gnss_pps' as const,
       subTickNs: 0,
-      gnssTimeMs: 1_446_000_005_000,
+      gnssTimeMs: gnssTimeMs ?? 0,
       uncertaintyUs: 1,
       gpsUtcOffsetS: 18,
-    },
-    ...Array.from({ length: 600 }, (_, i) => ({
-      type: 'time_anchor' as const,
-      tick: 50_000 + (i + 1) * 32_768,
-      source: 'gnss_pps' as const,
-      subTickNs: 0,
-      gnssTimeMs: 1_446_000_000_000 + (i + 1) * 1000,
-      uncertaintyUs: 1,
-      gpsUtcOffsetS: 18,
-    })),
-  ];
-  const badFirstBase = buildTimeBase(70_000, badFirst);
-  const timeline = {
-    badFirstAnchor: {
-      why: 'a PPS anchor 5 s off first, then 600 good ones: the good ones outvote it',
-      anchors: badFirst,
-      keptN: badFirstBase.points.length,
-      rejectedTicks: badFirstBase.rejected.map((r) => r.tick),
+    }));
+    const b = buildTimeBase(70_000, list);
+    return {
+      name,
+      why,
+      common: { source: 'gnss_pps', subTickNs: 0, uncertaintyUs: 1, gpsUtcOffsetS: 18 },
+      /** [tick, gnssTimeMs] per anchor. */
+      anchors: pairs,
+      keptN: b.points.length,
+      rejectedTicks: b.rejected.map((r) => r.tick),
       queries: [50_000, 50_000 + 300 * 32_768].map((tick) => ({
         tick,
-        gnssTimeMs: tickToGnssMs(badFirstBase, tick),
+        gnssTimeMs: tickToGnssMs(b, tick),
       })),
-    },
+    };
+  };
+  const consensus = [
+    consensusCase('bad_first_anchor', 'a PPS anchor 5 s off first, then 600 good ones', [
+      5_000,
+      ...Array.from({ length: 600 }, () => 0),
+    ]),
+    consensusCase(
+      'periodic_bad',
+      'b g g repeated: the bad ones +1 s and consistent among themselves, bad first',
+      Array.from({ length: 600 }, (_, s) => (s % 3 === 0 ? 1_000 : 0)),
+    ),
+    consensusCase(
+      'alternating_random_bad',
+      'bad and good alternating, the bad ones random within ±10 s around +3 s, bad first',
+      Array.from({ length: 600 }, (_, s) =>
+        s % 2 === 0 ? Math.round((random() - 0.5) * 20_000) + 3_000 : 0,
+      ),
+    ),
+    consensusCase(
+      'short_bad_burst',
+      '20 good, 3 consistent anchors +1 s, 10 good',
+      Array.from({ length: 33 }, (_, s) => (s >= 20 && s < 23 ? 1_000 : 0)),
+    ),
+  ];
+  const timeline = {
+    consensus,
     anchors,
     queries: [50_000, 50_000 + 5 * 32_768, 50_000 + 12.5 * 32_768, 50_000 + 20 * 32_768].map(
       (tick) => ({ tick, gnssTimeMs: tickToGnssMs(base, tick) }),
@@ -541,9 +606,9 @@ describe('golden log fixtures v1', () => {
       if (inspection.status !== 'valid') throw new Error('invalid page');
       const key = keyOf(inspection.header.keyEpoch);
       if (!key) throw new Error('no key');
-      expect(toHex(openLogPage({ page, header: inspection.header, storageKey: key }))).toBe(
-        p.plaintextHex,
-      );
+      expect(
+        toHex(openLogPage({ page, header: inspection.header, keys: deriveLogPageKeys(key) })),
+      ).toBe(p.plaintextHex);
     }
   });
 
@@ -592,12 +657,14 @@ describe('golden log fixtures v1', () => {
       uncorrectable_ecc: ['uncorrectable_ecc'],
       bad_block_skip: ['bad_block'],
       erased_and_other_order: [],
+      recovery_close: ['torn_write'],
     });
     const byName = new Map(vectors.damaged.map((c) => [c.name, c.expected.segments[0]]));
     expect(byName.get('bad_block_skip')?.complete).toBe(true);
     expect(byName.get('erased_and_other_order')?.complete).toBe(true);
     expect(byName.get('torn_write')).toMatchObject({ closed: false, complete: false });
     expect(byName.get('crc_flip')).toMatchObject({ closed: true, complete: false });
+    expect(byName.get('recovery_close')).toMatchObject({ closed: true, recovered: true });
   });
 
   it('the pod_raw sample opens against its manifest and decodes', () => {
@@ -618,16 +685,41 @@ describe('golden log fixtures v1', () => {
     expect(before).toBeLessThan(12);
   });
 
-  it('one bad first anchor does not shift the boot', () => {
-    const c = vectors.timeline.badFirstAnchor;
-    const base = buildTimeBase(70_000, c.anchors);
-    expect(base.points.length).toBe(c.keptN);
-    expect(c.keptN).toBe(600);
-    expect(c.rejectedTicks).toEqual([50_000]);
-    for (const q of c.queries) {
-      expect(tickToGnssMs(base, q.tick)).toBe(q.gnssTimeMs);
-    }
-    expect(c.queries[0]?.gnssTimeMs).toBeCloseTo(1_446_000_000_000, 3);
+  it.each(vectors.timeline.consensus.map((c) => [c.name, c] as const))(
+    'time base consensus %s',
+    (_, c) => {
+      const base = buildTimeBase(
+        70_000,
+        c.anchors.map(([tick, gnssTimeMs]) => ({
+          type: 'time_anchor' as const,
+          tick: tick ?? 0,
+          source: 'gnss_pps' as const,
+          subTickNs: 0,
+          gnssTimeMs: gnssTimeMs ?? 0,
+          uncertaintyUs: 1,
+          gpsUtcOffsetS: 18,
+        })),
+      );
+      expect(base.points.length).toBe(c.keptN);
+      expect(base.rejected.map((r) => r.tick)).toEqual(c.rejectedTicks);
+      for (const q of c.queries) {
+        expect(tickToGnssMs(base, q.tick)).toBe(q.gnssTimeMs);
+        // The good anchors are on GPS time: so is every query.
+        expect(q.gnssTimeMs).toBeCloseTo(
+          1_446_000_000_000 + ((q.tick - 50_000) / 32_768) * 1000,
+          3,
+        );
+      }
+    },
+  );
+
+  it('the consensus keeps the good anchors', () => {
+    expect(vectors.timeline.consensus.map((c) => [c.name, c.keptN])).toEqual([
+      ['bad_first_anchor', 600],
+      ['periodic_bad', 400],
+      ['alternating_random_bad', 300],
+      ['short_bad_burst', 30],
+    ]);
   });
 
   it('page keys derive from the storage keys', () => {

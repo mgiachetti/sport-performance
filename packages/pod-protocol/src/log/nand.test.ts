@@ -6,6 +6,7 @@ import {
   NandSimulator,
   syntheticSession,
   TEST_DEVICE_ID,
+  testStorageKey,
   writeSegment,
 } from '../testing/log-samples.js';
 import { decodeLog } from './decoder.js';
@@ -15,6 +16,7 @@ import {
   encodeEraseCommand,
   eraseDecision,
   type EraseCommand,
+  type SegmentSummary,
   nextWritableBlock,
   overlapsAny,
   planErase,
@@ -24,6 +26,7 @@ import {
   type EraseDecision,
 } from './nand.js';
 import { writePageCrc } from './page.js';
+import { sealRecoveryPage } from './writer.js';
 import {
   buildPodRawFile,
   podRawIngestKey,
@@ -156,14 +159,11 @@ function setupErase() {
 describe('erase rules', () => {
   const now = Date.UTC(2026, 10, 8);
   const { scan, a, b, fileA } = setupErase();
+  const filePages = readPodRawFile(fileA.bytes, fileA.manifest).pages;
   const verified = verifyUploadForErase({
     manifest: fileA.manifest,
-    decoded: decodeLog({
-      pages: readPodRawFile(fileA.bytes, fileA.manifest).pages,
-      deviceId: TEST_DEVICE_ID,
-      keyForEpoch: keysFor(2),
-    }),
-    podCurrentBootCounter: 70_000,
+    pages: filePages,
+    decoded: decodeLog({ pages: filePages, deviceId: TEST_DEVICE_ID, keyForEpoch: keysFor(2) }),
   });
   if (!verified.ok) throw new Error(verified.reason);
   const command: EraseCommand = verified.command;
@@ -207,36 +207,80 @@ describe('erase rules', () => {
       keyForEpoch: keysFor(2),
     });
     expect(
-      verifyUploadForErase({
-        manifest: fileA.manifest,
-        decoded: decodedForged,
-        podCurrentBootCounter: 70_000,
-      }),
+      verifyUploadForErase({ manifest: fileA.manifest, pages: forged, decoded: decodedForged }),
     ).toEqual({ ok: false, reason: 'pages_not_authentic' });
 
-    // Not closed (torn end) in the current boot: wait; from an earlier boot: it will never close.
-    const unclosed = pages.map((p, i) =>
-      i === pages.length - 1 ? { ...p, data: p.data.slice().fill(0xff, 1000) } : p,
-    );
-    const decodedUnclosed = decodeLog({
-      pages: unclosed,
+    // Manifest blocks that are not where the file's pages are.
+    expect(
+      verifyUploadForErase({
+        manifest: { ...fileA.manifest, blocks: [...fileA.manifest.blocks, 30] },
+        pages,
+        decoded: decodeLog({ pages, deviceId: TEST_DEVICE_ID, keyForEpoch: keysFor(2) }),
+      }),
+    ).toEqual({ ok: false, reason: 'blocks_mismatch' });
+  });
+
+  it('a segment cut by a power loss is confirmed only after the pod closes it itself', () => {
+    const nand = new NandSimulator();
+    const pages = writeSegment(syntheticSession({ durationS: 10 }), { firstPageSeq: 100 });
+    const physical = nand.writeSegment(pages);
+    const lastPhysical = physical.at(-1) ?? 0;
+    const torn = (pages.at(-1) ?? new Uint8Array()).slice().fill(0xff, 1000);
+    nand.pages.set(lastPhysical, { physicalPage: lastPhysical, data: torn, ecc: 'ok' });
+    const fileOf = (scanSegment: SegmentSummary) =>
+      buildPodRawFile({
+        segment: scanSegment,
+        pages: nand
+          .dump()
+          .filter(
+            (p) =>
+              scanSegment.blocks.includes(Math.floor(p.physicalPage / 64)) &&
+              !p.data.every((x) => x === 0xff),
+          ),
+        podSerial: 'ORC-0001',
+        startUnixMs: null,
+        endUnixMs: null,
+      });
+    const verify = (file: ReturnType<typeof fileOf>) => {
+      const read = readPodRawFile(file.bytes, file.manifest);
+      return verifyUploadForErase({
+        manifest: file.manifest,
+        pages: read.pages,
+        decoded: decodeLog({
+          pages: read.pages,
+          deviceId: TEST_DEVICE_ID,
+          keyForEpoch: keysFor(2),
+        }),
+      });
+    };
+    const before = scanNand({ pages: nand.dump(), geometry: nand.geometry }).segments[0];
+    if (!before) throw new Error('no segment');
+    expect(before.closed).toBe(false);
+    expect(verify(fileOf(before))).toEqual({ ok: false, reason: 'segment_not_closed' });
+
+    // Next boot: the pod writes the recovery close in the next erased page.
+    const recovery = sealRecoveryPage({
+      deviceId: TEST_DEVICE_ID,
+      bootCounter: before.bootCounter,
+      segmentId: before.segmentId,
+      streamOffset: before.streamBytes,
+      pageSeq: 5_000,
+      keyEpoch: 2,
+      storageKey: testStorageKey(2),
+    });
+    nand.pages.set(lastPhysical + 1, { physicalPage: lastPhysical + 1, data: recovery, ecc: 'ok' });
+    const after = scanNand({ pages: nand.dump(), geometry: nand.geometry }).segments[0];
+    if (!after) throw new Error('no segment');
+    expect(after).toMatchObject({ closed: true, recovered: true, lastPageSeq: 5_000 });
+    const file = fileOf(after);
+    const result = verify(file);
+    expect(result.ok).toBe(true);
+    const decoded = decodeLog({
+      pages: readPodRawFile(file.bytes).pages,
       deviceId: TEST_DEVICE_ID,
       keyForEpoch: keysFor(2),
     });
-    const manifestUnclosed = { ...fileA.manifest, validPagesN: fileA.manifest.validPagesN - 1 };
-    const lastSeq = decodedUnclosed.segments[0]?.lastPageSeq ?? 0;
-    const m = { ...manifestUnclosed, lastPageSeq: lastSeq };
-    expect(
-      verifyUploadForErase({
-        manifest: m,
-        decoded: decodedUnclosed,
-        podCurrentBootCounter: 70_000,
-      }),
-    ).toEqual({ ok: false, reason: 'segment_not_closed' });
-    expect(
-      verifyUploadForErase({ manifest: m, decoded: decodedUnclosed, podCurrentBootCounter: 70_002 })
-        .ok,
-    ).toBe(true);
+    expect(decoded.segments[0]).toMatchObject({ closed: true, recovered: true });
   });
 
   it('erases only with a signed command naming exactly the segment the pod sees', () => {
@@ -308,6 +352,51 @@ describe('erase rules', () => {
     const after = scanNand({ pages: nand.dump(), geometry: nand.geometry, badBlocks: [10] });
     expect(after.segments.map((s) => s.segmentId)).toEqual([6]);
     expect(after.freeBlocks).toEqual(expect.arrayContaining(a.blocks));
+  });
+
+  it('a segment block only partly read is never erased (pages not read may hold data)', () => {
+    // A closed 5-page segment in block 8; the scans read only pages 0–2.
+    const nand = new NandSimulator();
+    const pages = writeSegment(syntheticSession({ durationS: 3 }), { firstPageSeq: 10 });
+    expect(pages.length).toBeGreaterThanOrEqual(5);
+    nand.writeSegment(pages);
+    const partial = nand.dump().filter((p) => p.physicalPage < 8 * 64 + 3);
+    const partialScan = scanNand({ pages: partial, geometry: nand.geometry });
+    const [segment] = partialScan.segments;
+    if (!segment) throw new Error('no segment');
+    expect(segment).toMatchObject({ fullyRead: false, blocks: [8] });
+    expect(partialScan.unknownBlocks).toContain(8);
+    // The dock cannot build its file, the pod does not erase, and planErase keeps the block
+    // even with a decision that says erase.
+    expect(() =>
+      buildPodRawFile({
+        segment,
+        pages: partial,
+        podSerial: 'x',
+        startUnixMs: null,
+        endUnixMs: null,
+      }),
+    ).toThrow(/not read entirely/);
+    const forgedCommand: EraseCommand = {
+      deviceIdHex: segment.deviceIdHex,
+      bootCounter: segment.bootCounter,
+      segmentId: segment.segmentId,
+      firstPageSeq: segment.firstPageSeq,
+      lastPageSeq: segment.lastPageSeq,
+      validPagesN: segment.pagesN,
+      blocks: segment.blocks,
+      sha256Hex: 'ab'.repeat(32),
+    };
+    expect(
+      eraseDecision({
+        ...base,
+        segment,
+        uploadedSha256Hex: 'ab'.repeat(32),
+        eraseCommand: forgedCommand,
+      }),
+    ).toEqual({ erase: false, reason: 'segment_not_fully_read' });
+    const decision: EraseDecision = { erase: true, reason: 'server_confirmed', blocks: [8] };
+    expect(planErase(partialScan, new Map([[segmentKeyOf(segment), decision]]))).toEqual([]);
   });
 
   it('planErase never erases an unknown block', () => {

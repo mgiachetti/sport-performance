@@ -84,11 +84,6 @@ export function deriveLogPageKeys(storageKey: Uint8Array): LogPageKeys {
   };
 }
 
-/** Accepts the storage key (derives) or keys already derived. */
-export function resolveLogPageKeys(keys: Uint8Array | LogPageKeys): LogPageKeys {
-  return keys instanceof Uint8Array ? deriveLogPageKeys(keys) : keys;
-}
-
 export function checkStorageKey(key: Uint8Array): void {
   if (key.length !== AES_KEY_LENGTH) {
     fail('invalid_key', `the storage key is AES-128 (${String(AES_KEY_LENGTH)} B)`);

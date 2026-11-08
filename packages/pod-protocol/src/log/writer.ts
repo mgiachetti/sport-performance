@@ -138,6 +138,7 @@ export class LogWriter {
         segmentStart: this.streamOffset === 0,
         segmentEnd: flags.segmentEnd,
         continues: flags.continues,
+        recovered: false,
         deviceId: this.deviceId,
         bootCounter: this.bootCounter,
         segmentId: this.segmentId,
@@ -148,7 +149,7 @@ export class LogWriter {
         recordCount: this.recordStarts.length,
       },
       payload: this.buffer.slice(0, this.length),
-      storageKey: this.keys,
+      keys: this.keys,
     });
     this.nextPageSeq += 1;
     this.streamOffset += this.length;
@@ -156,4 +157,45 @@ export class LogWriter {
     this.recordStarts = [];
     return page;
   }
+}
+
+/**
+ * Recovery close (ADR 0106): at the next boot, before recording again, the pod
+ * scans its NAND and, for a segment a power loss left open (no segment-end
+ * page), programs this empty page with the segment-end and recovery flags in
+ * the next erased page of the segment's last block (or a fresh block), with a
+ * new page sequence and the current storage key. The segment is then final,
+ * authenticated by the pod itself, and the server can confirm it like any
+ * closed one; nothing the dock says decides it.
+ */
+export function sealRecoveryPage(input: {
+  deviceId: Uint8Array;
+  bootCounter: number;
+  segmentId: number;
+  /** End of the stream from the scan (`SegmentSummary.streamBytes`). */
+  streamOffset: number;
+  pageSeq: number;
+  keyEpoch: number;
+  storageKey: Uint8Array;
+}): Uint8Array {
+  return sealLogPage({
+    header: {
+      formatVersion: LOG_FORMAT_VERSION,
+      keyEpoch: input.keyEpoch,
+      segmentStart: input.streamOffset === 0,
+      segmentEnd: true,
+      continues: false,
+      recovered: true,
+      deviceId: input.deviceId,
+      bootCounter: input.bootCounter,
+      segmentId: input.segmentId,
+      pageSeq: input.pageSeq,
+      streamOffset: input.streamOffset,
+      payloadLength: 0,
+      firstRecordOffset: null,
+      recordCount: 0,
+    },
+    payload: new Uint8Array(0),
+    keys: deriveLogPageKeys(input.storageKey),
+  });
 }

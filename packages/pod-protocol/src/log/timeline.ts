@@ -100,22 +100,16 @@ function segmentIndex(n: number, upper: number): number {
   return Math.min(Math.max(upper, 1), n - 1);
 }
 
-/** Consecutive mutually consistent anchors that can outvote the kept tail. */
-export const ANCHOR_CONSENSUS_MIN = 3;
-
 /**
  * Builds the time base of one boot from its anchors:
  * 1. better sources first: an anchor of a lower-priority source between two
  *    kept better anchors less than 60 s apart is dropped;
- * 2. consensus in tick order: an anchor consistent with the last kept one
- *    (rate within 500 ppm of nominal, beyond both uncertainties) is kept. One
- *    that disagrees waits in a pending run of anchors consistent among
- *    themselves; a better source replaces a worse last anchor at once. When
- *    the pending run reaches `ANCHOR_CONSENSUS_MIN` anchors and outnumbers
- *    the kept anchors at the tail that disagree with it, those are rejected
- *    and the run is kept (so one bad first anchor never shifts the boot);
- *    otherwise, as soon as an anchor agrees with the kept tail again, the run
- *    is rejected.
+ * 2. global consensus: the kept anchors are the **largest chain** in tick
+ *    order in which every consecutive pair is consistent (rate within 500 ppm
+ *    of nominal, beyond both uncertainties), found by dynamic programming over
+ *    all anchors; between chains of the same length, the one with the better
+ *    sources wins. Bad anchors, however many, early or periodic, lose to the
+ *    good ones as long as the good ones are more; the rest are rejected.
  */
 export function buildTimeBase(bootCounter: number, anchors: readonly TimeAnchorRecord[]): TimeBase {
   const all = anchors.map(anchorPoint);
@@ -137,55 +131,57 @@ export function buildTimeBase(bootCounter: number, anchors: readonly TimeAnchorR
     kept = [...kept, ...accepted].sort((a, b) => a.tick - b.tick);
   }
 
-  const points: TimeAnchorPoint[] = [];
-  let pending: TimeAnchorPoint[] = [];
-  const reject = (list: readonly TimeAnchorPoint[]): void => {
-    for (const p of list) {
-      rejected.push({ ...p, reason: 'rate_out_of_range' });
-    }
-  };
-  for (const candidate of kept) {
-    // A better source replaces worse anchors it disagrees with.
-    let last = points.at(-1);
-    while (
-      last &&
-      !rateConsistent(last, candidate) &&
-      SOURCE_PRIORITY[last.source] < SOURCE_PRIORITY[candidate.source]
-    ) {
-      reject([last]);
-      points.pop();
-      last = points.at(-1);
-    }
-    if (!last || rateConsistent(last, candidate)) {
-      reject(pending);
-      pending = [];
-      points.push(candidate);
+  // Longest consistent chain: count[j] / prioritySum[j] of the best chain ending at j.
+  const n = kept.length;
+  const count = new Int32Array(n);
+  const prioritySum = new Float64Array(n);
+  const previous = new Int32Array(n).fill(-1);
+  let bestEnd = -1;
+  for (let j = 0; j < n; j += 1) {
+    const pj = kept[j];
+    if (!pj) {
       continue;
     }
-    const lastPending = pending.at(-1);
-    if (lastPending && !rateConsistent(lastPending, candidate)) {
-      reject(pending);
-      pending = [];
+    const priorityJ = SOURCE_PRIORITY[pj.source];
+    count[j] = 1;
+    prioritySum[j] = priorityJ;
+    for (let i = j - 1; i >= 0; i -= 1) {
+      // A chain ending at i has at most i + 1 anchors: nothing earlier can tie.
+      if ((count[j] ?? 0) > i + 2) {
+        break;
+      }
+      const pi = kept[i];
+      if (!pi || !rateConsistent(pi, pj)) {
+        continue;
+      }
+      const c = (count[i] ?? 0) + 1;
+      const p = (prioritySum[i] ?? 0) + priorityJ;
+      if (c > (count[j] ?? 0) || (c === count[j] && p > (prioritySum[j] ?? 0))) {
+        count[j] = c;
+        prioritySum[j] = p;
+        previous[j] = i;
+      }
     }
-    pending.push(candidate);
-    const head = pending[0];
-    if (head && pending.length >= ANCHOR_CONSENSUS_MIN) {
-      let disagreeing = 0;
-      for (let i = points.length - 1; i >= 0; i -= 1) {
-        const p = points[i];
-        if (!p || rateConsistent(p, head)) {
-          break;
-        }
-        disagreeing += 1;
-      }
-      if (pending.length > disagreeing) {
-        reject(points.splice(points.length - disagreeing, disagreeing));
-        points.push(...pending);
-        pending = [];
-      }
+    if (
+      bestEnd < 0 ||
+      (count[j] ?? 0) > (count[bestEnd] ?? 0) ||
+      (count[j] === count[bestEnd] && (prioritySum[j] ?? 0) > (prioritySum[bestEnd] ?? 0))
+    ) {
+      bestEnd = j;
     }
   }
-  reject(pending);
+  const inChain = new Set<number>();
+  for (let k = bestEnd; k >= 0; k = previous[k] ?? -1) {
+    inChain.add(k);
+  }
+  const points: TimeAnchorPoint[] = [];
+  kept.forEach((p, k) => {
+    if (inChain.has(k)) {
+      points.push(p);
+    } else {
+      rejected.push({ ...p, reason: 'rate_out_of_range' });
+    }
+  });
 
   const best = points.reduce<TimeAnchorSource | 'none'>(
     (acc, p) =>

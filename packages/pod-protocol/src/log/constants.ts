@@ -25,7 +25,7 @@ export const LOG_PAGE_CRC_OFFSET = LOG_PAGE_MAC_OFFSET + LOG_PAGE_MAC_LENGTH;
 /** `firstRecordOffset` when no record starts in the page (it only continues one). */
 export const NO_RECORD_START = 0xffff;
 
-/** Page flags (byte 6). Bits 7..3 are reserved and must be 0. */
+/** Page flags (byte 6). Bits 7..4 are reserved and must be 0. */
 export const PAGE_FLAGS = {
   /** First page of a recording segment (stream offset 0). */
   segmentStart: 0x01,
@@ -33,8 +33,14 @@ export const PAGE_FLAGS = {
   segmentEnd: 0x02,
   /** The last record of the page continues on the next page of the stream. */
   continues: 0x04,
+  /**
+   * Closing page the pod wrote at the next boot for a segment a power loss
+   * left open (with `segmentEnd`): the segment is final, authenticated by the
+   * pod itself.
+   */
+  recovered: 0x08,
 } as const;
-export const PAGE_FLAGS_RESERVED_MASK = 0xf8;
+export const PAGE_FLAGS_RESERVED_MASK = 0xf0;
 
 /** Erased NAND reads as 0xFF. */
 export const ERASED_BYTE = 0xff;
