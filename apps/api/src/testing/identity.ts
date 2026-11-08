@@ -88,6 +88,7 @@ export async function startIdentityApp(
     register?: BuildAppOptions['register'];
     routeClassLimits?: BuildAppOptions['routeClassLimits'];
     files?: BuildAppOptions['files'];
+    podCommandSigner?: BuildAppOptions['podCommandSigner'];
   } = {},
 ): Promise<IdentityTestApp> {
   const pgOptions = { poolMax: 4, connectTimeoutMs: 15_000, statementTimeoutMs: 15_000 };
@@ -128,6 +129,7 @@ export async function startIdentityApp(
     ...(options.register !== undefined && { register: options.register }),
     ...(options.routeClassLimits !== undefined && { routeClassLimits: options.routeClassLimits }),
     ...(options.files !== undefined && { files: options.files }),
+    ...(options.podCommandSigner !== undefined && { podCommandSigner: options.podCommandSigner }),
   });
   return {
     app,

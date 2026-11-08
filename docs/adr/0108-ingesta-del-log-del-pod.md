@@ -1,0 +1,55 @@
+# 0108. Ingesta del log del pod: subida por la base, verificación con las claves, comando de borrado firmado, recorte único por jugador y trazas a 1 Hz
+
+- Estado: Aceptado
+- Fecha: 2026-11-08
+- Issue: #293 (B-916)
+
+## Contexto
+
+El [ADR 0106](0106-sistema-del-pod-flota-ubicacion-protocolo-seguridad-y-datos.md) decidió el log en la NAND, el archivo `pod_raw` con estado pendiente, el recorte único a sesión × asignación × consentimiento y el borrado del pod solo con un comando firmado por el servidor después de verificar el archivo con la clave. El formato byte a byte, el decodificador y `verifyUploadForErase` ya están en `packages/pod-protocol` (#302). El [ADR 0107](0107-consentimiento-de-ubicacion.md) dejó el borrado por revocación esperando las tablas de trazas (`LOCATION_ERASURE_TABLES` vacío), y la revisión de #303 (#305, punto 4) pidió chequear el consentimiento **por instante** en la ingesta: un texto `outdated` o la firma del tutor que deja de valer a los 18 no cierran la asignación abierta. Faltaba decidir cómo llega el archivo, qué guarda la base, quién firma y con qué, cuándo y cómo se recorta, dónde quedan las posiciones y cómo se borran.
+
+## Decisión
+
+### Subida (la base, con la sesión del staff)
+
+- **La base corre con la sesión de `sc` o de la administración** (`pod.manage`, la flota): `POST /v1/pods/{podId}/raw-uploads` con el manifiesto del tramo (`buildPodRawFile`). El servidor crea el `file` `pod_raw` pendiente (tipo `application/octet-stream`, tamaño y SHA-256 del manifiesto firmados en el `PUT`, [ADR 0044](0044-archivos-urls-firmadas-y-retencion.md)) y una fila `pod_raw_upload` en `uploading`; la base sube directo al bucket y confirma (`POST /v1/pod-raw-uploads/{id}/confirm`), que revisa el objeto como la confirmación de cualquier archivo y lo deja `pending`.
+- **No pasa por el alta genérica de archivos**: el tipo `pod_raw` tiene `clientUpload: false` y ningún permiso de lectura, descarga ni borrado en `/v1/files` (nadie baja un crudo; solo lo lee el worker). La RLS de `file` suma una política restrictiva: un `pod_raw` lo ven solo `sc`, `admin` y el soporte, nunca el entrenador, el jugador, el tutor ni el staff médico.
+- **El manifiesto es del dispositivo del pod**: un trigger `SECURITY DEFINER` (`pod_raw_upload_guard`, después del alta, así la RLS rechaza primero lo de otro club) compara el `DEVICEID` y el número de serie con `pod_device`, que la API no lee (el id del chip no sale del registro). El worker decodifica siempre con ese `DEVICEID`.
+- **Idempotente por (DEVICEID, arranque, tramo)**: `ingest_key` = `podRawIngestKey` del protocolo, único entre las subidas no rechazadas del club. Reenviar el mismo archivo devuelve la misma subida (con una URL nueva mientras falte subirlo); otro archivo para el mismo tramo es `409`; uno rechazado deja lugar para subirlo de nuevo. Único por club y no global: un `409` nunca dice si el tramo existe en otro club.
+- **Ciclo de vida solo hacia adelante** (`uploading` → `pending` → `verified` → `trimmed`, y `rejected` desde cualquiera antes del recorte), con grants por columna: la API solo confirma; el resto lo escribe el worker. Las filas no tienen historial de cambios (ADR 0107): son metadatos del pod, nunca una posición.
+
+### Verificación y comando de borrado
+
+- **El worker decodifica con las claves** (`pod-raw-ingest-club`, con aviso por `pg_notify` al confirmar y barrido cada minuto): la clave de almacenamiento de cada época del manifiesto sale de la **clave maestra del club** y del `DEVICEID` (`deriveStorageKey`), corre `readPodRawFile` contra el manifiesto, `decodeLog` y `verifyUploadForErase`. Si pasa, guarda los bytes canónicos del comando (`encodeEraseCommand`) y queda `verified`; si no, `rejected` con el motivo del protocolo (`pages_not_authentic`, `segment_not_closed`…) o `file_missing` / `invalid_container` / `manifest_mismatch`, y el archivo se borra.
+- **La clave maestra llega por un proveedor inyectable** (`PodKeyProvider`): hoy desde el entorno del worker (`POD_MASTER_KEYS`, `club:clave` en base64), en los tests la clave de prueba de los vectores. Un club sin clave deja sus subidas pendientes (`master_key_missing`) y, pasados sus días, rechazadas (`expired`): nunca se guarda lo que no se pudo verificar.
+- **La API firma el comando** al pedirlo (`GET /v1/pod-raw-uploads/{id}/erase-command`, `pod.manage`): ECDSA P-256 con SHA-256 sobre los bytes canónicos, firma `r ‖ s` de 64 bytes (IEEE P1363, la que verifica un microcontrolador sin DER) y el id de la clave (`PodCommandSigner`, inyectable). La clave privada viene del entorno (`POD_COMMAND_SIGNING_KEY`, PKCS#8 en base64, con `POD_COMMAND_SIGNING_KEY_ID`); los tests generan una por corrida; nunca se commitea una. Sin clave, `503`: el pod conserva el tramo. Solo hay comando para `verified` y `trimmed`; nunca para uno rechazado. La magia `SPER` y la versión del comando separan el dominio de la firma de cualquier otro comando futuro.
+- **Base de tiempo**: el worker informa, sin rechazar, `time_base_none`, `time_base_few_anchors` (menos de 3 anclas), `time_base_steps`, `time_issues`, páginas y bytes perdidos; las trazas de un arranque con anclas pocas o con salto quedan con `time_low_confidence`.
+
+### Recorte único
+
+- **Cuándo**: cuando todas las sesiones que se superponen con la grabación terminaron (la ventana de una sesión es `[starts_at, starts_at + duración planificada)`, 120 minutos sin duración) y las asignaciones del pod en ese tiempo están cerradas y sin reproceso pendiente, con al menos una sesión (una cargada tarde todavía cuenta); o al vencer los días pendientes del club (`club.settings.pods.rawPendingDays`, 7 por defecto, de 1 a 30; `GET/PATCH /v1/configuration/pods`). El cierre explícito del staff todavía no existe: vale la duración planificada.
+- **Qué queda**, por jugador: lo que cae dentro de una de sus sesiones (participación que no es ausencia, o su categoría ese día) **y** de una asignación válida del pod (una asignación con sesión vale solo en esa sesión) **y** con `data` y `location` vigentes **en ese instante** (`consentCoverage`): desde la firma; la del tutor hasta la mayoría (`location`) o hasta el fin de la gracia (`data`); `location` solo mientras su texto era el vigente y nunca si se revocó (revocar borra todo, ADR 0106: un crudo pendiente no puede devolver lo borrado). Así un texto nuevo o los 18 años cortan los datos en el instante en que pasan, aunque la asignación siga abierta (#305).
+- **Cómo**: una traza a 1 Hz por jugador y sesión (`pod_trace_segment`) y **un `pod_raw` recortado por jugador** con solo las páginas cuyos registros caen en sus ventanas (`slicePodRawFile`: las páginas tal cual, cifradas y con su CMAC; volver a sellar reusaría el IV del CTR). El archivo original se borra; los recortados son inmutables desde ahí (enmienda del ADR 0005) y guardan el IMU y el PVT a 10 Hz para las métricas. Una página sin hora no se puede ubicar en una sesión y queda afuera (`untimed_pages`). Las páginas del borde pueden tener menos de un segundo fuera de la ventana (una página son unos 0,7 s): quedan cifradas en el archivo del jugador y nunca llegan a la traza.
+- **Reproceso**: una corrección o anulación de una asignación (`reprocess_requested_at`, #303) mientras el crudo está pendiente no necesita nada (el recorte lee los rangos corregidos); después del recorte se informa (`assignment_corrected_after_trim`) y no se mueve nada a otro jugador: el recorte es una sola vez y para siempre. El worker limpia la marca.
+
+### Trazas en la base
+
+- **`pod_trace_segment`**: tramos contiguos de hasta una hora a 1 Hz, en arreglos paralelos (milisegundos desde el inicio, latitud y longitud en 1e-7 grados, velocidad Doppler y precisión horizontal en mm, calidad del fix), con la variante `pod_log`, la versión del algoritmo del servidor (`pod-log-trace/1`) y las del firmware y el GNSS. Una hora a 1 Hz son unos 90 kB: un plantel por temporada entra en la base sin series temporales (ADR 0005 preveía estos derivados livianos). Las métricas no se calculan acá: HSR, aceleraciones y `accel_load_au` salen del crudo recortado con B-919 y B-906.
+- **RLS estricta** (`position_trace.read`): el jugador lo suyo; el `coach` y el `sc` asignados y la administración solo con `location` vigente del jugador; nunca el tutor, el staff médico ni el soporte del superadmin. Nadie de la aplicación escribe; el worker inserta y borra, nunca actualiza. Sin triggers de historial. Se guardan como su `pod_raw` recortado (365 días, `expires_at`) y el worker borra las vencidas.
+- **Revocar `location` borra** (`LOCATION_ERASURE_TABLES` = `public.pod_trace_segment`; los `pod_raw` del jugador quedan `deleted` para la retención, informados como `file:pod_raw`). La supresión y la exportación del titular (ADR 0051) las encuentran por su clave al jugador.
+
+## Alternativas descartadas
+
+- **Subir por el alta genérica de archivos.** Perdía el manifiesto, la idempotencia por tramo y el chequeo contra el dispositivo, y dejaba un crudo descargable por quien ve los archivos.
+- **Que el worker firme el comando y la base lo guarde firmado.** Pondría la clave de firma en el proceso que lee los crudos; firmar al pedirlo deja la clave solo en la API y permite rotarla sin reprocesar.
+- **Recortar a un solo archivo por subida.** Mezclaba a los jugadores de un mismo pod: revocar `location` de uno obligaba a borrar el crudo de los otros.
+- **Volver a sellar las páginas recortadas.** Reusaba los IV de AES-CTR con la misma clave (o pedía una época nueva por recorte).
+- **Trazas a 10 Hz en la base.** Diez veces el tamaño para un mapa de calor; el crudo recortado ya guarda el 10 Hz para las métricas.
+- **Chequear el consentimiento con el estado de hoy.** Dejaba pasar lo grabado con un texto anterior o con la firma del tutor después de los 18 (#305).
+
+## Consecuencias
+
+- Hay dos claves nuevas por ambiente, nunca en el repo: la de firma de comandos (API) y las maestras de los clubes (worker). Guardarlas cifradas por club en la base o en un KMS, y la rotación de la maestra antes de la época 255, quedan para el aprovisionamiento de los pods (B-914).
+- La pantalla de la base y la app de la base que suben y piden el comando, el cierre explícito de la sesión por el staff, la lectura de trazas y mapas de calor en la API y la web, y las métricas del pod quedan para B-914, B-917, B-919 y B-906.
+- Un crudo pendiente con datos de un jugador que revoca `location` sigue en el bucket hasta su recorte (como mucho los días del club): el recorte lo deja afuera y el borrado del worker no lo toca, porque todavía no es de ningún jugador.
+- El catálogo de endpoints de los contratos se partió en dos objetos (`coreApiEndpoints` y `podLogEndpoints`): uno solo superaba lo que el compilador escribe en un `.d.ts` (TS7056).

@@ -5,6 +5,7 @@ import {
   type S3StorageConfig,
 } from '@sport-performance/storage';
 import { z } from 'zod';
+import { parsePodMasterKeys } from './pod-raw/keys.js';
 
 const integer = (min: number, max: number) => z.coerce.number().int().min(min).max(max);
 
@@ -114,11 +115,23 @@ export const envSchema = z
     OPS_MONITOR: z.enum(['on', 'off']).default('on'),
     /** A check that stays failing is announced to Sentry again every this many minutes. */
     OPS_RENOTIFY_MINUTES: integer(5, 7 * 24 * 60).default(60),
+    // The pods (B-916, ADR 0106)
+    /**
+     * The clubs' master keys of the pods: `<club uuid>:<base64 of 32 bytes>`,
+     * comma-separated. A club without one keeps its uploads pending. Secret.
+     */
+    POD_MASTER_KEYS: z.string().max(65_536).optional(),
   })
   .superRefine((env, ctx) => {
     // The bucket of the file retention job (ADR 0044): all of its variables or none.
     for (const problem of storageEnvProblems(env, env.NODE_ENV === 'production')) {
       ctx.addIssue({ code: 'custom', path: [problem.variable], message: problem.message });
+    }
+    if (env.POD_MASTER_KEYS !== undefined) {
+      const parsed = parsePodMasterKeys(env.POD_MASTER_KEYS);
+      if (!parsed.ok) {
+        ctx.addIssue({ code: 'custom', path: ['POD_MASTER_KEYS'], message: parsed.problem });
+      }
     }
     if (env.RESEND_API_KEY !== undefined && env.EMAIL_FROM === undefined) {
       ctx.addIssue({
@@ -191,6 +204,8 @@ export interface WorkerConfig {
   } | null;
   /** `null` when `OPS_MONITOR=off`. */
   readonly opsMonitor: { readonly renotifyMinutes: number } | null;
+  /** The clubs' master keys of the pods (club id → base64). Never logged. */
+  readonly podMasterKeys: ReadonlyMap<string, string>;
 }
 
 /** Invalid environment: the message names the variables, never their values. */
@@ -244,6 +259,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): WorkerConfig {
             demoEmailDomains: e.DEMO_NOTIFICATION_EMAIL_DOMAINS,
           },
     opsMonitor: e.OPS_MONITOR === 'off' ? null : { renotifyMinutes: e.OPS_RENOTIFY_MINUTES },
+    podMasterKeys: (() => {
+      const parsed = parsePodMasterKeys(e.POD_MASTER_KEYS ?? '');
+      return parsed.ok ? parsed.keys : new Map<string, string>();
+    })(),
     sentry:
       e.SENTRY_DSN === undefined
         ? null
@@ -265,6 +284,8 @@ export function configSummary(config: WorkerConfig): Record<string, unknown> {
     sentry: config.sentry !== null,
     opsMonitor: config.opsMonitor,
     storage: config.storage === null ? null : { bucket: config.storage.bucket },
+    // How many clubs have a key, never which key.
+    podMasterKeys: config.podMasterKeys.size,
     notifications:
       config.notifications === null
         ? null

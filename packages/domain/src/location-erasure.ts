@@ -1,4 +1,5 @@
 import { memberGuard } from './enum.js';
+import type { FileKind } from './files.js';
 
 /**
  * Erasure of a player's position data when the `location` consent is revoked
@@ -31,11 +32,21 @@ export const LOCATION_ERASURE_CHANGE_REASON =
 
 /**
  * The tables whose rows the erasure deletes, as `schema.table`, in the order
- * the summary reports them. They do not exist yet: the position traces and
- * the `pod_raw` file kind arrive with the pod's ingestion (B-912, B-916), and
- * each one is added here and to the worker's erasure with its migration.
+ * the summary reports them: the position traces of the pod (B-916). Each
+ * table has the worker's `DELETE` grant and no history trigger.
  */
-export const LOCATION_ERASURE_TABLES = [] as const satisfies readonly string[];
+export const LOCATION_ERASURE_TABLES = [
+  'public.pod_trace_segment',
+] as const satisfies readonly string[];
+
+/**
+ * The file kinds of the player the erasure marks `deleted` (the retention job
+ * then removes their objects, as `app.erase_player` does, ADR 0044): the
+ * trimmed `pod_raw` files of the player. A pending `pod_raw` belongs to no
+ * player yet: when it is trimmed, a revoked `location` keeps every instant
+ * of that player out (`consentCoverage`). Reported as `file:<kind>`.
+ */
+export const LOCATION_ERASURE_FILE_KINDS = ['pod_raw'] as const satisfies readonly FileKind[];
 
 /** Rows deleted per table (`schema.table` → count), the summary of an erasure. */
 export type LocationErasedRows = Readonly<Record<string, number>>;

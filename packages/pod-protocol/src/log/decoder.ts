@@ -154,6 +154,18 @@ export interface UseInterval {
   truncated: boolean;
 }
 
+/**
+ * RTC ticks of the records whose bytes lie (even partly) in one page: what
+ * the server needs to trim a `pod_raw` file to time windows page by page
+ * (ADR 0106). `null` when no record of the page could be read.
+ */
+export interface PageTickSpan {
+  pageSeq: number;
+  physicalPage: number;
+  firstTick: number | null;
+  lastTick: number | null;
+}
+
 export interface DecodedSegment {
   deviceIdHex: string;
   bootCounter: number;
@@ -178,6 +190,8 @@ export interface DecodedSegment {
   gaps: LogGap[];
   intervals: UseInterval[];
   recordIssues: RecordIssue[];
+  /** One per decoded page (copies of the same stream bytes left out), in stream order. */
+  pageTicks: PageTickSpan[];
 }
 
 export interface TimeIssue {
@@ -428,7 +442,19 @@ function buildRuns(pages: OpenedPage[], closed: boolean): { runs: Run[]; gaps: L
   return { runs, gaps };
 }
 
-function parseRun(run: Run, records: LogRecord[], issues: RecordIssue[]): void {
+/** Stream bytes `[start, end)` of one record and its tick. */
+interface RecordSpan {
+  start: number;
+  end: number;
+  tick: number;
+}
+
+function parseRun(
+  run: Run,
+  records: LogRecord[],
+  issues: RecordIssue[],
+  spans: RecordSpan[],
+): void {
   const { bytes, recordStarts } = run;
   // A run that does not start the stream begins inside a record: resync at the
   // first record start a page header announces.
@@ -479,6 +505,7 @@ function parseRun(run: Run, records: LogRecord[], issues: RecordIssue[]): void {
       position = resyncAt;
       continue;
     }
+    spans.push({ start: streamOffset, end: run.streamOffset + end, tick });
     try {
       records.push(
         decodeRecordBody(typeCode, tick, bytes.subarray(position + RECORD_HEADER_LENGTH, end)),
@@ -715,6 +742,36 @@ function buildIntervals(
   return intervals.sort((a, b) => a.startTick - b.startTick || a.kind.localeCompare(b.kind));
 }
 
+/** Ticks of the records overlapping each page (spans and pages in stream order). */
+function pageTickSpans(pages: readonly OpenedPage[], spans: readonly RecordSpan[]): PageTickSpan[] {
+  const out: PageTickSpan[] = [];
+  let from = 0;
+  for (const page of pages) {
+    const start = page.header.streamOffset;
+    const end = start + page.header.payloadLength;
+    while (from < spans.length && (spans[from]?.end ?? 0) <= start) {
+      from += 1;
+    }
+    let firstTick: number | null = null;
+    let lastTick: number | null = null;
+    for (let i = from; i < spans.length; i += 1) {
+      const span = spans[i];
+      if (!span || span.start >= end) {
+        break;
+      }
+      firstTick = firstTick === null ? span.tick : Math.min(firstTick, span.tick);
+      lastTick = lastTick === null ? span.tick : Math.max(lastTick, span.tick);
+    }
+    out.push({
+      pageSeq: page.header.pageSeq,
+      physicalPage: page.physicalPage,
+      firstTick,
+      lastTick,
+    });
+  }
+  return out;
+}
+
 function tickRangeOf(records: readonly LogRecord[]): { first: number; last: number } | null {
   if (records.length === 0) {
     return null;
@@ -796,8 +853,9 @@ export function decodeLog(input: DecodeLogInput): DecodedLog {
     const { runs, gaps } = buildRuns(pages, closed);
     const records: LogRecord[] = [];
     const recordIssues: RecordIssue[] = [];
+    const spans: RecordSpan[] = [];
     for (const run of runs) {
-      parseRun(run, records, recordIssues);
+      parseRun(run, records, recordIssues, spans);
     }
     const streams = sortStreams(records);
     const anchors = anchorsByBoot.get(first.header.bootCounter) ?? [];
@@ -821,6 +879,7 @@ export function decodeLog(input: DecodeLogInput): DecodedLog {
         streams,
         gaps,
         recordIssues,
+        pageTicks: pageTickSpans(pages, spans),
       },
       records,
     });

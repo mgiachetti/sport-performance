@@ -9,6 +9,7 @@ import { createS3Storage } from '@sport-performance/storage';
 import { ConfigError, configSummary, loadConfig } from './config.js';
 import { createLogger, disabledErrorReporter, sentryErrorReporter } from './observability.js';
 import { ExpoPushService } from './notifications/index.js';
+import { staticPodKeyProvider } from './pod-raw/keys.js';
 import { startWorker } from './worker.js';
 
 async function main(): Promise<void> {
@@ -68,6 +69,7 @@ async function main(): Promise<void> {
     jobQueuePoolMax: config.jobQueue.poolMax,
     storage: config.storage === null ? null : createS3Storage(config.storage),
     opsMonitor: config.opsMonitor,
+    podKeys: staticPodKeyProvider(config.podMasterKeys),
     notifications:
       config.notifications === null
         ? null

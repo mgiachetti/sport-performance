@@ -59,6 +59,11 @@ export interface ClubSettings {
    */
   readonly notifications?: Readonly<Record<string, unknown>>;
   /**
+   * Pod settings (B-916): the days a `pod_raw` stays pending at most. Partial
+   * JSON validated by `resolvePodSettings` of the domain.
+   */
+  readonly pods?: Readonly<Record<string, unknown>>;
+  /**
    * Seed the demo data of a demo club (`is_demo`) was generated with (B-307,
    * ADR 0055): the ids of the demo rows depend on it, so the seed refuses to
    * extend a demo club with another one.

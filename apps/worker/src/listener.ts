@@ -13,6 +13,8 @@ export const PLAYER_REPORT_CHANNEL = 'sport_performance_player_report';
 export const DATA_EXPORT_CHANNEL = 'sport_performance_data_export';
 /** Channel of a revoked location consent (migration 0053, B-913). Payload: the club id. */
 export const LOCATION_ERASURE_CHANNEL = 'sport_performance_location_erasure';
+/** Channel of a confirmed `pod_raw` upload (migration 0055, B-916). Payload: the club id. */
+export const POD_RAW_CHANNEL = 'sport_performance_pod_raw';
 
 export interface RefreshListenerOptions {
   /** A `sport_performance_worker` login. */
@@ -26,6 +28,8 @@ export interface RefreshListenerOptions {
   readonly onExportClub?: (clubId: ClubId) => Promise<void>;
   /** Called for a club with a new erasure of position data; without it the channel is not listened to. */
   readonly onLocationErasureClub?: (clubId: ClubId) => Promise<void>;
+  /** Called for a club with a confirmed upload of a pod's log; without it the channel is not listened to. */
+  readonly onPodRawClub?: (clubId: ClubId) => Promise<void>;
   /** Notifications of a club within this window become one call. */
   readonly debounceMs?: number;
   readonly minReconnectMs?: number;
@@ -63,6 +67,9 @@ export function startRefreshListener(options: RefreshListenerOptions): RefreshLi
     ...(options.onLocationErasureClub === undefined
       ? []
       : [[LOCATION_ERASURE_CHANNEL, options.onLocationErasureClub] as const]),
+    ...(options.onPodRawClub === undefined
+      ? []
+      : [[POD_RAW_CHANNEL, options.onPodRawClub] as const]),
   ]);
   let client: pg.Client | null = null;
   let stopped = false;

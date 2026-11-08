@@ -30,6 +30,7 @@
     "@sport-performance/domain": "workspace:*",
     "@sport-performance/email": "workspace:*",
     "@sport-performance/i18n": "workspace:*",
+    "@sport-performance/pod-protocol": "workspace:*",
     "@sport-performance/storage": "workspace:*",
     "@sport-performance/ui-tokens": "workspace:*",
     "drizzle-orm": "0.45.4",

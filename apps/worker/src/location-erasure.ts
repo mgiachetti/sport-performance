@@ -1,5 +1,6 @@
 import {
   LOCATION_ERASURE_CHANGE_REASON,
+  LOCATION_ERASURE_FILE_KINDS,
   LOCATION_ERASURE_TABLES,
   locationErasedTotal,
   type ClubId,
@@ -14,7 +15,7 @@ import { inClubTransaction, type ClubTransaction } from './database.js';
  * Erasure of a player's position data after the `location` consent was
  * revoked (B-913, ADR 0106). Revoking it queues a `location_erasure` in the
  * same transaction (trigger `consent_location_erasure`); this job deletes the
- * player's position traces and `pod_raw` files and completes the row with
+ * player's position traces and trimmed `pod_raw` files and completes the row with
  * only the number of rows deleted per table. The completion is what the change
  * history records (the traces themselves have no history triggers): the
  * player, the counts and {@link LOCATION_ERASURE_CHANGE_REASON}, never the
@@ -41,24 +42,31 @@ export const LOCATION_ERASURE_BATCH = 20;
 
 /**
  * Deletes the position data of one player inside the erasure's transaction,
- * and returns the rows deleted per table.
- *
- * TODO(B-912, B-916): the position traces and the `pod_raw` file kind do not
- * exist yet (`LOCATION_ERASURE_TABLES` is empty, so this deletes nothing).
- * Each trace table arrives with its migration, the worker's `DELETE` grant and
- * no history trigger, and is listed there (a constant: never input). The
- * `pod_raw` file rows are not deleted but marked `deleted`, so the retention
- * job removes their objects from the bucket, as `app.erase_player` does (ADR
- * 0044): that step is added here with the file kind.
+ * and returns the rows deleted per table: the position traces
+ * (`LOCATION_ERASURE_TABLES`, a constant: never input; the worker's `DELETE`
+ * grant, no history trigger) and the trimmed `pod_raw` files of the player,
+ * marked `deleted` so the retention job removes their objects, as
+ * `app.erase_player` does (ADR 0044), reported as `file:pod_raw`. A pending
+ * `pod_raw` is of no player yet: its trim leaves this player out, because a
+ * revoked `location` never counts again (`consentCoverage`).
  */
 export async function deletePositionData(
   tx: ClubTransaction,
   playerId: PlayerId,
+  now: Date = new Date(),
 ): Promise<LocationErasedRows> {
   const deleted: Record<string, number> = {};
   for (const table of LOCATION_ERASURE_TABLES as readonly string[]) {
     const result = await tx.client.query(`delete from ${table} where player_id = $1`, [playerId]);
     deleted[table] = result.rowCount ?? 0;
+  }
+  for (const kind of LOCATION_ERASURE_FILE_KINDS) {
+    const result = await tx.client.query(
+      `update file set status = 'deleted', deleted_at = coalesce(deleted_at, $3), expires_at = $3
+        where player_id = $1 and kind::text = $2 and status <> 'deleted'`,
+      [playerId, kind, now],
+    );
+    deleted[`file:${kind}`] = result.rowCount ?? 0;
   }
   return deleted;
 }

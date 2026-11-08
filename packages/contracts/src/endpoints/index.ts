@@ -339,6 +339,15 @@ import {
   voidPodAssignment,
   getSessionPods,
 } from './pods.js';
+import {
+  createPodRawUpload,
+  confirmPodRawUpload,
+  getPodRawUpload,
+  listPodRawUploads,
+  getPodRawEraseCommand,
+  getPodSettings,
+  updatePodSettings,
+} from './pod-raw.js';
 
 export * from './alerts.js';
 export * from './anthropometry.js';
@@ -393,14 +402,11 @@ export * from './test-definitions.js';
 export * from './test-day-sheet.js';
 export * from './devices.js';
 export * from './pods.js';
+export * from './pod-raw.js';
 export * from './usage.js';
 
-/**
- * Every endpoint of the API, keyed by operationId. The API registers its
- * routes from here, the OpenAPI document is generated from here and the typed
- * client exposes one method per entry.
- */
-export const apiEndpoints = {
+/** The endpoints of the API but the pod's log ({@link podLogEndpoints}). */
+export const coreApiEndpoints = {
   getHealth,
   getAppCompatibility,
   sendSignInCode,
@@ -697,5 +703,30 @@ export const apiEndpoints = {
   getPlayerGymSummary,
   getUsageSummary,
 } as const satisfies EndpointCatalog;
+
+/**
+ * The ingestion of the pod's log (B-916, ADR 0108), in a catalog of its own:
+ * a single object literal with every endpoint is a type larger than what the
+ * compiler writes in a declaration file (TS7056).
+ */
+export const podLogEndpoints = {
+  createPodRawUpload,
+  confirmPodRawUpload,
+  getPodRawUpload,
+  listPodRawUploads,
+  getPodRawEraseCommand,
+  getPodSettings,
+  updatePodSettings,
+} as const satisfies EndpointCatalog;
+
+/**
+ * Every endpoint of the API, keyed by operationId. The API registers its
+ * routes from here, the OpenAPI document is generated from here and the typed
+ * client exposes one method per entry.
+ */
+export const apiEndpoints: typeof coreApiEndpoints & typeof podLogEndpoints = {
+  ...coreApiEndpoints,
+  ...podLogEndpoints,
+};
 
 export type ApiEndpoints = typeof apiEndpoints;

@@ -58,6 +58,8 @@ const APPEND_ONLY_TABLES = [
   'player_wellness_daily',
   // Loans are written only by app.lend_pod and app.end_pod_loan, which write both clubs (ADR 0106).
   'pod_loan',
+  // Position traces: the worker writes them once and deletes them (erasure, retention) (ADR 0106).
+  'pod_trace_segment',
   'push_ticket',
   'roster_import',
   'sync_change',
@@ -121,6 +123,20 @@ describe.skipIf(!hasDatabase)('RLS isolation between clubs (Postgres 16)', () =>
     t = await createMigratedDatabase();
     a = await seedClubFixture(t.db, 'club-a');
     b = await seedClubFixture(t.db, 'club-b');
+    // The traces of the pod are read only with the player's location consent granted
+    // (ADR 0106): the assigned player of each club signs it on the club's current text.
+    for (const club of [a, b]) {
+      await t.pool.query(
+        `with d as (
+           insert into consent_document (club_id, type, version, locale, title, body)
+           values ($1, 'location', '2026-11', 'es-AR', 'Ubicación', 'Texto de ubicación')
+           returning id)
+         insert into consent (club_id, player_id, type, document_id, document_version, signer_kind,
+                              signed_by, signed_at)
+         select $1, $2, 'location', d.id, '2026-11', 'guardian', $3, now() - interval '1 hour' from d`,
+        [club.clubId, club.players.assigned, club.users.parent],
+      );
+    }
     app = await connectAs(t, 'app');
     worker = await connectAs(t, 'worker');
     const { rows } = await t.pool.query<{ table: string; column: string }>(

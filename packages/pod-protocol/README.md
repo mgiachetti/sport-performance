@@ -27,7 +27,7 @@ TypeScript sin dependencias de plataforma: el núcleo no usa `node:*`, ni `Buffe
 | `log/decoder` | `decodeLog`: lo que corre el worker sobre un volcado o un `pod_raw` |
 | `log/timeline` | Base de tiempo por arranque (`buildTimeBase`, `tickToGnssMs`) y reloj de la IMU (`buildSensorClock`) |
 | `log/nand` | `scanNand` (índice sin clave), `nextWritableBlock`, comando de borrado (`encodeEraseCommand`), `eraseDecision`, `planErase`, `selectSegmentsToUpload` |
-| `log/pod-raw` | Archivo `pod_raw` y su manifiesto (`buildPodRawFile`, `readPodRawFile`), `verifyUploadForErase` (lo que revisa el servidor antes de firmar el borrado) y `podRawIngestKey` |
+| `log/pod-raw` | Archivo `pod_raw` y su manifiesto (`buildPodRawFile`, `readPodRawFile`), `verifyUploadForErase` (lo que revisa el servidor antes de firmar el borrado), `podRawIngestKey` y `slicePodRawFile` (el recorte único: un archivo nuevo con solo algunas páginas, byte a byte, [ADR 0108](../../docs/adr/0108-ingesta-del-log-del-pod.md)) |
 | `log/capacity` | Cuentas de tamaño: páginas por hora, bloques por sesión, sesiones por memoria |
 
 Los nombres llevan la unidad: `sessionDistanceDm`, `vmaxCmS`, `speedBandDistancesM`, `gnssTimeS`, `accelLoadCentiAu`. Los valores decodificados son enteros en la unidad del cable; la conversión a unidades del dominio (m, m/s, AU) la hace quien consume.
@@ -301,7 +301,7 @@ Lo que sube la base por cada tramo: las páginas **tal como están en la NAND** 
 | 36–63 | Reservado = 0 |
 | 64… | N × { página física (u32), estado del ECC (u8: 0 bien, 1 corregido, 2 incorregible), 3 B reservados, los 2048 B de la página } |
 
-Van todas las páginas programadas de los bloques del tramo, válidas o no, en orden físico, para que el worker informe lo que se perdió. El **manifiesto** (`PodRawManifest`, los metadatos del archivo) lleva el DEVICEID, el número de serie del pod, el arranque, el tramo, el rango de páginas, las entradas del archivo (`pagesN`) y las páginas válidas del escaneo (`validPagesN`), los bloques, las épocas de clave, si se cerró, el rango de tiempo en UTC (del índice del pod), el tamaño y el **SHA-256**. `readPodRawFile` lo verifica antes de confirmar, y `verifyUploadForErase` decide si el servidor puede firmar el borrado.
+Van todas las páginas programadas de los bloques del tramo, válidas o no, en orden físico, para que el worker informe lo que se perdió. El **manifiesto** (`PodRawManifest`, los metadatos del archivo) lleva el DEVICEID, el número de serie del pod, el arranque, el tramo, el rango de páginas, las entradas del archivo (`pagesN`) y las páginas válidas del escaneo (`validPagesN`), los bloques, las épocas de clave, si se cerró, el rango de tiempo en UTC (del índice del pod), el tamaño y el **SHA-256**. `readPodRawFile` lo verifica antes de confirmar, y `verifyUploadForErase` decide si el servidor puede firmar el borrado. Para el recorte, cada tramo decodificado trae `pageTicks`: los ticks de los registros que tienen bytes en cada página, así el worker ubica cada página en el tiempo y `slicePodRawFile` arma el archivo de un jugador con las páginas de sus ventanas (sin volver a sellar nada: nunca se reusa un IV).
 
 ### Lo que hace el worker
 

@@ -13,6 +13,7 @@ import {
   type S3StorageConfig,
 } from '@sport-performance/storage';
 import { z } from 'zod';
+import { POD_COMMAND_KEY_ID_PATTERN, podCommandKeyProblem } from '../pods/command-signer.js';
 import { databaseUrlProblems, secretProblems } from '../security/secrets.js';
 
 const integer = (min: number, max: number) => z.coerce.number().int().min(min).max(max);
@@ -54,7 +55,8 @@ const sentryShape = {
 /**
  * Environment variables of the API. Every variable is documented in
  * `apps/api/.env.example`. Secrets (`DATABASE_URL`, `AUTH_DATABASE_URL`, `SENTRY_DSN`,
- * `AUTH_SECRET`, `RESEND_API_KEY`, `STORAGE_SECRET_ACCESS_KEY`, `OPS_MONITOR_TOKEN`) never appear in error
+ * `AUTH_SECRET`, `RESEND_API_KEY`, `STORAGE_SECRET_ACCESS_KEY`, `OPS_MONITOR_TOKEN`,
+ * `POD_COMMAND_SIGNING_KEY`) never appear in error
  * messages or logs.
  */
 export const envSchema = z
@@ -106,6 +108,19 @@ export const envSchema = z
       .regex(/^[\x21-\x7e]+$/)
       .optional(),
     SHUTDOWN_TIMEOUT_MS: integer(1000, 120_000).default(10_000),
+    /**
+     * The server's key that signs the commands of the pods (B-916, ADR 0106): a P-256
+     * private key, PKCS#8 DER in base64, whose public half is pinned in every pod. Unset:
+     * the erase command answers `503` (the pods keep their segments).
+     */
+    POD_COMMAND_SIGNING_KEY: z
+      .string()
+      .min(1)
+      .max(4096)
+      .regex(/^[A-Za-z0-9+/]+={0,2}$/)
+      .optional(),
+    /** Id of that key (the pod picks the public key by it): with the key, never alone. */
+    POD_COMMAND_SIGNING_KEY_ID: z.string().regex(POD_COMMAND_KEY_ID_PATTERN).optional(),
 
     // Auth (ADR 0010, ADR 0028)
     /** Signs session cookies and keys the attempt counters. 32+ random characters; rotate = sign everyone out. */
@@ -198,6 +213,26 @@ export const envSchema = z
           message: `must not be older than APP_MIN_VERSION_${suffix}`,
         });
       }
+    }
+    if (env.POD_COMMAND_SIGNING_KEY !== undefined) {
+      const problem = podCommandKeyProblem(env.POD_COMMAND_SIGNING_KEY);
+      if (problem !== null) {
+        ctx.addIssue({ code: 'custom', path: ['POD_COMMAND_SIGNING_KEY'], message: problem });
+      }
+    }
+    if (
+      (env.POD_COMMAND_SIGNING_KEY === undefined) !==
+      (env.POD_COMMAND_SIGNING_KEY_ID === undefined)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: [
+          env.POD_COMMAND_SIGNING_KEY === undefined
+            ? 'POD_COMMAND_SIGNING_KEY'
+            : 'POD_COMMAND_SIGNING_KEY_ID',
+        ],
+        message: 'POD_COMMAND_SIGNING_KEY and POD_COMMAND_SIGNING_KEY_ID go together',
+      });
     }
     if (env.NODE_ENV !== 'production') return;
     // Secrets of production: long, unpredictable, not the example values (ADR 0031).
@@ -329,6 +364,8 @@ export interface ApiConfig {
   auth: AuthConfig;
   email: EmailConfig;
   files: FilesConfig;
+  /** The key that signs the pods' commands (ADR 0106); `null`: not configured. Never logged. */
+  podCommands: { signingKey: string; keyId: string } | null;
   /** Versions policy of the mobile app, by platform (ADR 0045). */
   mobileApp: MobileAppConfig;
 }
@@ -425,6 +462,8 @@ export function configSummary(config: ApiConfig) {
       logoUrlTtlS: config.files.logoUrlTtlS,
     },
     mobileApp: config.mobileApp,
+    // Which key signs the pods' commands, never the key.
+    podCommands: config.podCommands === null ? null : { keyId: config.podCommands.keyId },
     sentry: config.sentry !== null,
     // Whether the ops probe is on, never the token.
     opsHealth: (config.health.opsMonitorToken ?? null) !== null,
@@ -547,6 +586,10 @@ export function loadConfig(env: Env = process.env): ApiConfig {
       downloadUrlTtlS: e.FILE_DOWNLOAD_URL_TTL_S,
       logoUrlTtlS: e.FILE_LOGO_URL_TTL_S,
     },
+    podCommands:
+      e.POD_COMMAND_SIGNING_KEY === undefined || e.POD_COMMAND_SIGNING_KEY_ID === undefined
+        ? null
+        : { signingKey: e.POD_COMMAND_SIGNING_KEY, keyId: e.POD_COMMAND_SIGNING_KEY_ID },
     mobileApp: {
       ios: {
         minVersion: e.APP_MIN_VERSION_IOS,

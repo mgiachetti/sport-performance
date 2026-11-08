@@ -25,6 +25,10 @@ function kindList(kinds: readonly FileKind[]) {
 }
 
 const PLAYER_KINDS = FILE_KINDS.filter((kind) => FILE_KIND_POLICIES[kind].subject === 'player');
+/** Kinds that may carry a player (a pending `pod_raw` is of the pod, a trimmed one of a player). */
+const OPTIONAL_PLAYER_KINDS = FILE_KINDS.filter(
+  (kind) => FILE_KIND_POLICIES[kind].subject === 'player_optional',
+);
 /** Kinds that may carry a category, with it optional or required. */
 const CATEGORY_KINDS = FILE_KINDS.filter((kind) => {
   const { subject } = FILE_KIND_POLICIES[kind];
@@ -110,7 +114,7 @@ export const file = pgTable(
     // that adds it (`category_report`, 0038).
     check(
       'file_subject',
-      sql`((${t.kind}::text in (${kindList(PLAYER_KINDS)})) = (${t.playerId} is not null) or (${t.status} = 'deleted' and ${t.playerId} is null)) and (${t.categoryId} is null or ${t.kind}::text in (${kindList(CATEGORY_KINDS)})) and (${t.kind}::text not in (${kindList(REQUIRED_CATEGORY_KINDS)}) or ${t.categoryId} is not null)`,
+      sql`(${t.kind}::text in (${kindList(OPTIONAL_PLAYER_KINDS)}) or (${t.kind}::text in (${kindList(PLAYER_KINDS)})) = (${t.playerId} is not null) or (${t.status} = 'deleted' and ${t.playerId} is null)) and (${t.categoryId} is null or ${t.kind}::text in (${kindList(CATEGORY_KINDS)})) and (${t.kind}::text not in (${kindList(REQUIRED_CATEGORY_KINDS)}) or ${t.categoryId} is not null)`,
     ),
     check(
       'file_test_entry',

@@ -68,6 +68,9 @@ Una vez por ambiente; **nunca** el mismo valor en staging y production. Cargarlo
 | `api`, `worker` | `SENTRY_DSN` | Sentry → proyecto → Client Keys (opcional; vacío = apagado) |
 | `worker` | `EXPO_ACCESS_TOKEN` | Expo → Access tokens, solo si el proyecto exige "enhanced security" para push |
 | `worker` (solo staging) | `DEMO_NOTIFICATION_EMAIL_DOMAINS` | dominios catch-all del equipo, separados por coma (opcional) |
+| `api` | `POD_COMMAND_SIGNING_KEY` | `openssl ecparam -name prime256v1 -genkey -noout \| openssl pkcs8 -topk8 -nocrypt -outform DER \| base64` (opcional hasta tener pods; la pública, `openssl ec -pubout`, se graba en los pods) |
+| `api` | `POD_COMMAND_SIGNING_KEY_ID` | un id por clave, por ejemplo `srv-<ambiente>-1` (con la clave) |
+| `worker` | `POD_MASTER_KEYS` | por club con pods: `<id del club>:$(openssl rand -base64 32)`, separados por coma (opcional hasta tener pods) |
 
 Las contraseñas de la base no se cargan en Postgres a mano: `db:release` crea o actualiza los logins `sp_api`, `sp_auth` y `sp_worker` con ellas en cada deploy de la API. **Rotar** una es cambiar la variable y redeployar la API (y el worker si es la suya); el pre-deploy cambia la contraseña antes de que la versión nueva arranque.
 

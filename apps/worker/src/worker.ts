@@ -8,6 +8,8 @@ import { refreshClub, type RefreshDependencies } from './derived/refresh.js';
 import { listExportClubs, runClubExports } from './exports/process.js';
 import { purgeClubFiles } from './files.js';
 import { listLocationErasureClubs, runClubLocationErasures } from './location-erasure.js';
+import { listPodRawClubs, runClubPodRawIngest } from './pod-raw/ingest.js';
+import type { PodKeyProvider } from './pod-raw/keys.js';
 import { runClubNotifications, type DeliveryDependencies } from './notifications/index.js';
 import { createOpsMonitor } from './ops/monitor.js';
 import { runClubReports } from './reports/job.js';
@@ -51,9 +53,16 @@ export interface StartWorkerOptions {
    * of other jobs). Default: on, every 60 minutes.
    */
   readonly opsMonitor?: { readonly renotifyMinutes: number } | null;
+  /**
+   * The clubs' master keys of the pods (B-916, ADR 0106): without a club's
+   * key its uploads stay pending (`master_key_missing`). Default: none.
+   */
+  readonly podKeys?: PodKeyProvider;
   /** Current instant for "today"; injectable for tests. */
   readonly now?: () => Date;
 }
+
+const NO_POD_KEYS: PodKeyProvider = { masterKey: () => Promise.resolve(null) };
 
 export interface RunningWorker {
   readonly boss: PgBoss;
@@ -273,6 +282,36 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
         await enqueueClubJob(boss, QUEUES.dataExportClub, clubId);
       }
     });
+
+    // The pods' log (B-916, ADR 0108): verified with the keys, trimmed once, in the bucket.
+    const ingestDeps = {
+      pool: options.pool,
+      storage,
+      keys: options.podKeys ?? NO_POD_KEYS,
+      logger,
+      ...(options.now && { now: options.now }),
+    };
+    await boss.work(
+      QUEUES.podRawIngestClub,
+      { localConcurrency: options.clubConcurrency, pollingIntervalSeconds },
+      async ([job]: Job<unknown>[]) => {
+        if (job === undefined) return;
+        const { clubId } = parseRefreshClubJob(job.data);
+        try {
+          const report = await runClubPodRawIngest(ingestDeps, clubId, { jobId: job.id });
+          if (report.more) await enqueueClubJob(boss, QUEUES.podRawIngestClub, clubId);
+        } catch (error) {
+          logger.error({ err: error, clubId, jobId: job.id }, 'pod_raw ingestion failed');
+          reporter.capture(error, { job: QUEUES.podRawIngestClub, jobId: job.id, clubId });
+          throw error;
+        }
+      },
+    );
+    await boss.work(QUEUES.podRawIngestSweep, { pollingIntervalSeconds }, async () => {
+      for (const clubId of await listPodRawClubs(options.pool)) {
+        await enqueueClubJob(boss, QUEUES.podRawIngestClub, clubId);
+      }
+    });
   }
 
   const notifications = options.notifications;
@@ -344,6 +383,9 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
       onExportClub: async (clubId: ClubId) => {
         await enqueueClubJob(boss, QUEUES.dataExportClub, clubId);
       },
+      onPodRawClub: async (clubId: ClubId) => {
+        await enqueueClubJob(boss, QUEUES.podRawIngestClub, clubId);
+      },
     }),
   });
   await listener.ready;
@@ -358,6 +400,9 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
     }
     for (const clubId of await listExportClubs(options.pool)) {
       await enqueueClubJob(boss, QUEUES.dataExportClub, clubId);
+    }
+    for (const clubId of await listPodRawClubs(options.pool)) {
+      await enqueueClubJob(boss, QUEUES.podRawIngestClub, clubId);
     }
   }
 

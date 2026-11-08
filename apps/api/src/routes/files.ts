@@ -122,6 +122,14 @@ const FILE_PERMISSIONS: Record<FileKind, Record<FileAction, FilePermission | nul
     read: { kind: 'category_report', action: 'read' },
     delete: { kind: 'category', action: 'manage' },
   },
+  pod_raw: {
+    // The pod's log (B-916, ADR 0106): the dock uploads it through `/v1/pods/{podId}/raw-uploads`
+    // with its manifest, the worker reads, trims and deletes it. Nobody downloads, lists or
+    // deletes one here: its life is the ingestion's.
+    upload: null,
+    read: null,
+    delete: null,
+  },
 };
 
 const fileColumns = {
@@ -271,8 +279,7 @@ async function authorizeFile(
   resource: Omit<PermissionResource, 'kind'>,
 ): Promise<void> {
   const permission = FILE_PERMISSIONS[kind][action];
-  if (permission === null)
-    throw new HttpError('forbidden', 'This kind of file is not uploaded by people');
+  if (permission === null) throw new HttpError('forbidden', 'Not allowed for this kind of file');
   // The table is typed by file kind; the matrix by resource kind: each pair is a cell of it.
   await permissions.authorize(permission.kind, permission.action as never, resource);
 }

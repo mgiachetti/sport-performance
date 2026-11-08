@@ -94,6 +94,8 @@ describe('schema conventions', () => {
         'pod_assignment',
         'pod_device',
         'pod_loan',
+        'pod_raw_upload',
+        'pod_trace_segment',
         'position',
         'push_ticket',
         'push_token',
