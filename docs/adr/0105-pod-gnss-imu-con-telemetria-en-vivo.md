@@ -72,8 +72,8 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
   - Prototipo con el **RAK4630**: integrado y con el ecosistema WisBlock, a unos US$ 18–24.
   - Serie con **módulos Ebyte** (E73 + E22-900M22S), a unos US$ 10 los dos. Sus certificaciones FCC/CE no están verificadas.
 - **Memoria:** NAND SPI de **4 Gbit**. El cálculo está en `pod-f3.md`:
-  - Una sesión de 3 h son unos 24 MB sin las mediciones crudas del GNSS, y unos 46 MB con crudo a 1 Hz.
-  - Con 4 Gbit (512 MB) entran unas 11 sesiones con crudo.
+  - Una sesión de 3 h son unos 27 MB sin las mediciones crudas del GNSS, y unos 49 MB con crudo a 1 Hz (con el barómetro).
+  - Con 4 Gbit (512 MB) entran unas 10 sesiones con crudo.
   - 2 Gbit es el mínimo, y obliga a descargar seguido.
 - **Batería:** objetivo de 4–5 h de sesión. Cargador BQ25180 y medidor de carga MAX17048.
   - El consumo estimado es de unos 40–50 mA: GNSS de 21–30 mA, nRF52840, LNA, IMU, NAND y unos pocos mA de promedio de LoRa.
@@ -143,7 +143,7 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
 ### Después de la sesión
 
 - **El pod graba todo a tasa completa:** GNSS a 10 Hz, la IMU a 100 Hz o más y las ráfagas de impacto.
-- **Se descarga por una base con pines pogo o USB**, que también carga el pod. Por BLE, una sesión de 46 MB con crudo son unos 8 min por pod: con 100 pods no es viable.
+- **Se descarga por una base con pines pogo o USB**, que también carga el pod. Por BLE, una sesión de 49 MB con crudo son unos 8 min por pod: con 100 pods no es viable.
 - El crudo va a storage como dice [ADR 0005](0005-pod-crudo-en-storage.md).
 - **Posprocesado PPK en el worker**, con dos fuentes de corrección:
   - la **base de la cancha (LG290P)**, grabando crudo con la línea de base casi nula;

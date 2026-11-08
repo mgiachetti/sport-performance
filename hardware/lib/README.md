@@ -26,7 +26,7 @@ Los números LCSC salen del relevamiento de `docs/hardware/pod-f3.md` y de `docs
 
 ## Cómo se generan
 
-`generar.sh` instala `easyeda2kicad` en un entorno virtual y corre los comandos de la tabla. Después:
+`generar.sh` instala `easyeda2kicad` 1.0.1 (versión fijada) en un entorno virtual temporal que borra al terminar, corre los comandos de la tabla desde la raíz del repo y cambia la ruta de cada modelo 3D a `${KIPRJMOD}/../lib/pod.3dshapes`, para que no quede una ruta absoluta de la máquina. Después:
 
 1. Abrir cada footprint en KiCad y **compararlo contra el dibujo de la hoja del fabricante**: pads, paso, numeración, pin 1 y keep-out de antena.
 2. Cambiar la columna "Verificado contra la hoja" a **sí** solo después de esa comparación, con la fecha y quién la hizo.

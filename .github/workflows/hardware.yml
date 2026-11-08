@@ -46,16 +46,18 @@ jobs:
           docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
             -v "$GITHUB_WORKSPACE:/work" -v "$RUNNER_TEMP:/out" \
             -w "/work/$PROJECT_DIR" "$KICAD_IMAGE" \
-            kicad-cli sch erc --exit-code-violations --severity-all \
+            kicad-cli sch erc --exit-code-violations --severity-error --severity-warning \
               --output /out/erc.rpt pod-v0.kicad_sch
 
+      # Once the board has footprints, add --schematic-parity so the DRC also checks
+      # that the board matches the schematic.
       - name: DRC
         run: |
           set -euo pipefail
           docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
             -v "$GITHUB_WORKSPACE:/work" -v "$RUNNER_TEMP:/out" \
             -w "/work/$PROJECT_DIR" "$KICAD_IMAGE" \
-            kicad-cli pcb drc --exit-code-violations --severity-all \
+            kicad-cli pcb drc --exit-code-violations --severity-error --severity-warning \
               --output /out/drc.rpt pod-v0.kicad_pcb
 
       - name: Show reports

@@ -57,13 +57,13 @@ Sin pasivos de detalle, chaleco ni banda de FC:
 | IMU (6 ejes, 16 bits, 100 Hz) | 6 × 2 B × 100 Hz | 1,2 kB/s |
 | Canal de alto rango (3 ejes, 16 bits, 100 Hz de base; ráfagas al detectar un impacto) | 3 × 2 B × 100 Hz | 0,6 kB/s |
 | Solución GNSS (10 Hz, unos 40 B) | 40 B × 10 Hz | 0,4 kB/s |
-| Barómetro (presión y temperatura, 50 Hz, unos 6 B) | 6 B × 50 Hz | 0,3 kB/s (no cambia los totales de forma apreciable) |
-| **Sin crudo GNSS** | | **≈ 2,2 kB/s → unos 24 MB en 3 h** |
+| Barómetro (presión y temperatura, 50 Hz, unos 6 B) | 6 B × 50 Hz | 0,3 kB/s |
+| **Sin crudo GNSS** | | **≈ 2,5 kB/s → unos 27 MB en 3 h** |
 | Crudo GNSS (RAWX a 1 Hz, unos 30 satélites × 2 frecuencias × unos 32 B) | ≈ 2 kB por época | ≈ 2 kB/s |
-| **Con crudo a 1 Hz** | | **≈ 4,2 kB/s → unos 46 MB en 3 h** |
+| **Con crudo a 1 Hz** | | **≈ 4,5 kB/s → unos 49 MB en 3 h** |
 
-- **Memoria:** con 4 Gbit (512 MB) entran unas 11 sesiones con crudo, y con 2 Gbit unas 5. Crudo a 10 Hz serían unos 20 kB/s, unos 216 MB por sesión: impráctico, y además no vale la pena, porque el PPK corrige la trayectoria y la velocidad sale del Doppler a 10 Hz.
-- **Descarga:** 46 MB por BLE, a unos 100 kB/s en la práctica, son unos 8 min por pod. Por eso la descarga va por la base.
+- **Memoria:** con 4 Gbit (512 MB) entran unas 10 sesiones con crudo, y con 2 Gbit unas 5. Crudo a 10 Hz serían unos 20 kB/s, unos 216 MB por sesión: impráctico, y además no vale la pena, porque el PPK corrige la trayectoria y la velocidad sale del Doppler a 10 Hz.
+- **Descarga:** 49 MB por BLE, a unos 100 kB/s en la práctica, son unos 8 min por pod. Por eso la descarga va por la base.
 - **Telemetría en vivo:**
   - Un resumen por segundo de unos 20 B, que se manda de a 2: unos 40 B cada 2 s.
   - 40 B en SF7 / 125 kHz ocupan unos 82 ms en el aire. Con turnos de unos 100 ms (con tiempo de guarda), una trama de 2 s tiene 20 turnos por canal: **unos 160 pods en 8 canales**.

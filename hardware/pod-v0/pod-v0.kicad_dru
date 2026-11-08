@@ -9,5 +9,13 @@
 	(constraint annular_width (min 0.15mm)))
 (rule "PCBWay: agujero mínimo"
 	(constraint hole_size (min 0.2mm)))
+(rule "PCBWay: diámetro mínimo de vía"
+	(condition "A.Type == 'Via'")
+	(constraint via_diameter (min 0.45mm)))
+(rule "PCBWay: agujero a agujero"
+	(constraint hole_to_hole (min 0.25mm)))
 (rule "PCBWay: cobre al borde"
 	(constraint edge_clearance (min 0.3mm)))
+(rule "PCBWay: serigrafía a pads"
+	(layer "?.Silkscreen")
+	(constraint silk_clearance (min 0.15mm)))
