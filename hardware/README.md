@@ -47,7 +47,7 @@ python3 hardware/tools/esquematico/generar.py --check  # falla si algo quedó de
 
 **Partes sin footprint todavía** (el campo queda vacío hasta dibujarlo desde el paquete del fabricante): LC29H (Quectel), TPS22916C (DSBGA-4, tres lugares), TPS259470A (VQFN-10 RPW), ADXL372 (LGA-16), DWM3000 (Qorvo), los 5 pads de la base (patrón con llave a definir con la base), el patch cerámico, la tapa blindada y los SAW y el LNA de la cadena RF (partes por elegir). El TPS63900 usa el WSON-10 genérico de KiCad y el ICM-42688-P el LGA-14 genérico: comparar con el paquete de la hoja.
 
-**Lo que el generador no dibuja**: el puente USB-UART del GNSS (sin montar, sin parte elegida; los 0 Ω de D± quedan montados hacia el nRF), el lugar para una antena chip o SMA de LoRa y el área de la etiqueta (son de la placa).
+**Lo que el generador no dibuja**: el lugar para una antena chip o SMA de LoRa y el área de la etiqueta (son de la placa). El puente USB-UART del GNSS salió del diseño: para hablar con QGNSS está el conector de 4 pines.
 
 ## Controles y salidas
 
