@@ -53,7 +53,7 @@ class Footprint:
     model_rotate: float = 0
     fab_texts: list = field(default_factory=list)  # (text, x, y, size)
     comments: list = field(default_factory=list)  # Cmts.User: ("circle", x, y, r) or ("text", s, x, y)
-    keepouts: list = field(default_factory=list)  # (name, layers, pour_only, [(x, y), ...])
+    keepouts: list = field(default_factory=list)  # (name, layers, allowed, [(x, y), ...]); pours never allowed
     body_y: float = 0  # centre of the body and of the courtyard, when not at the origin
     courtyard_y: float = 0
 
@@ -115,13 +115,13 @@ def render(fp: Footprint) -> str:
             line += (" (options (clearance outline) (anchor rect))"
                      f" (primitives (gr_poly (pts {pts}) (width 0) (fill yes)))")
         out.append(line + ")")
-    for name, layers, pour_only, pts in fp.keepouts:
+    for name, layers, allowed, pts in fp.keepouts:
         xy = " ".join(f"(xy {n(x)} {n(y)})" for x, y in pts)
-        rule = "allowed" if pour_only else "not_allowed"
+        rule = {kind: "allowed" if kind in allowed else "not_allowed" for kind in ("tracks", "vias", "pads")}
         zone_layers = " ".join(f'"{layer}"' for layer in layers)
         out.append(f'\t(zone (net 0) (net_name "") (layers {zone_layers}) (name "{name}") (hatch edge 0.5) '
                    "(connect_pads (clearance 0)) (min_thickness 0.25) (filled_areas_thickness no) "
-                   f"(keepout (tracks {rule}) (vias {rule}) (pads {rule}) (copperpour not_allowed) "
+                   f"(keepout (tracks {rule['tracks']}) (vias {rule['vias']}) (pads {rule['pads']}) (copperpour not_allowed) "
                    f"(footprints allowed)) (fill (thermal_gap 0.5) (thermal_bridge_width 0.5)) (polygon (pts {xy})))")
     if fp.model:
         out.append(f'\t(model "{MODELS}/{fp.model}" (offset (xyz 0 0 0)) (scale (xyz 1 1 1)) '
@@ -213,8 +213,12 @@ EP_PASTE_Y = (-0.545, 0.545)  # centres of the two 1.13 x 0.89 apertures (p.39, 
 # pod-mecanica-produccion.md. Five flat gold pads, Ø2.0 mm on a 3.0 mm pitch, no paste (they are not
 # soldered). The key: the pad row sits 4 mm below the axis of the two magnets (22 mm apart, opposite
 # polarity), so a pod turned 180° would put the base's springs 8 mm away from the pads, and its magnets
-# repel. Physical order VBUS, GND, D+, D-, DETECT: GND between VBUS and the data pair. To confirm with the
-# base (spring tip, tolerance, magnet size).
+# repel. Physical order VBUS, GND, D+, D-, DETECT: GND between VBUS and the data pair. Finish: selective
+# electroplated hard gold of 0.5 um or more on these pads (fab note). The base's springs make in this order:
+# GND longest (first to make, last to break), then VBUS, D+ and D-, and DETECT shortest (VBUS only once the
+# pod is seated). The Hall sensor goes 15 mm or more from either magnet: a D5 x 2 mm N35 magnet still gives
+# about 4.8 mT (the DRV5032FB maximum operate point) at roughly 9-10 mm on its axis. To confirm with the base
+# (spring tip, tolerance, magnet size).
 def dock_pads() -> Footprint:
     order = [("1", "VBUS"), ("4", "GND"), ("2", "D+"), ("3", "D-"), ("5", "DET")]
     pads = [Pad(num, "circle", -6 + 3 * i, 0, 2.0, 2.0, ("F.Cu", "F.Mask")) for i, (num, _) in enumerate(order)]
@@ -223,14 +227,17 @@ def dock_pads() -> Footprint:
         "Diseño propio (B-909): 5 pads planos dorados del pod para los resortes pogo de la base "
         "(VBUS, D+, D-, GND, DETECT). Llave: fila de pads 4 mm por debajo del eje de dos imanes de polaridad "
         "opuesta; girado 180 grados, los resortes caen a 8 mm de los pads y los imanes se repelen. Sin pasta. "
-        "Medidas a confirmar con la base",
+        "Oro duro electrolítico selectivo de 0,5 um o más. Hall a 15 mm o más de cada imán. Medidas a confirmar con la base",
         "pogo dock base pads llave pod", pads, (7.25, 1.25), (7.5, 1.5), (-7.9, 0),
         attr="exclude_from_pos_files exclude_from_bom",
         fab_texts=[(label, -6 + 3 * i, 1.6, 0.4) for i, (_, label) in enumerate(order)],
         comments=[("circle", -11, -4, 2.5), ("circle", 11, -4, 2.5), ("line", -11, -4, 11, -4),
                   ("text", "Imán N, D5 mm, en la tapa", -11, -7), ("text", "Imán S, D5 mm, en la tapa", 11, -7),
                   ("text", "Eje de los imanes 4 mm sobre los pads (llave)", 0, -4.6),
-                  ("text", "Hall DRV5032 lejos de los imanes (distancia a medir)", 0, -8.6)])
+                  ("circle", -11, -4, 15), ("circle", 11, -4, 15),
+                  ("text", "Hall DRV5032 fuera de los círculos: 15 mm o más de cada imán", 0, -8.6),
+                  ("text", "Oro duro electrolítico selectivo, 0,5 um o más", 0, 3.0),
+                  ("text", "Resortes de la base: GND el más largo, DETECT el más corto", 0, 3.8)])
 
 
 # Quectel LC29H (AA, EA and the rest of the series), LCC-24, 12.2 x 16.0 x 2.5 mm. LC29H Series Hardware
@@ -269,7 +276,7 @@ def dwm3000() -> Footprint:
         "Qorvo DWM3000, dibujado desde la hoja Rev B (figuras 13 y 14) y el land pattern del foro de Qorvo, "
         "con el keep-out de la antena en todas las capas. Verificar",
         "Qorvo DWM3000 UWB", pads, (6.5, 11.35), (7.55, 12.125), (-7.9, -6.15),
-        body_y=-5.2, courtyard_y=-4.675, keepouts=[("DWM3000_ANTENA", ("*.Cu",), False, [(-6.5, top), (6.5, top), (6.5, ground), (-6.5, ground)])],
+        body_y=-5.2, courtyard_y=-4.675, keepouts=[("DWM3000_ANTENA", ("*.Cu",), (), [(-6.5, top), (6.5, top), (6.5, ground), (-6.5, ground)])],
         comments=[("line", -16.5, ground, 16.5, ground),
                   ("text", "Sin metal a los lados de la antena: unos 10 mm (Qorvo 6.1)", 0, top - 1),
                   ("text", "Límite de tierra", 0, ground + 0.6)])
@@ -325,6 +332,10 @@ def bga525n6() -> Footprint:
 # section 3 (p.6, drawing: pin 1.2 mm from the centre, towards the side opposite the chamfered corner)
 # and section 4.3 "Copper clearance" (p.10): plated hole Ø1.0, top pad Ø1.2 with Ø3.0 without copper on
 # the top and the inner layers, bottom pad Ø2.2 with Ø3.5 without copper on the bottom. Origin at the pin.
+# The clearances are keep-outs for pours, tracks and vias (the pin's own pad stays allowed). The feed
+# leaves on B.Cu from the Ø2.2 pad (the ceramic covers the top and its ground), so the bottom one has to
+# let that one track through: KiCad keep-outs cannot filter by net, so on B.Cu only tracks are allowed and
+# the RF_50 rules keep other nets 0.5 mm from the feed (hardware/README.md).
 def gvlb208() -> Footprint:
     def circle(r, steps=24):
         return [(r * math.cos(2 * math.pi * k / steps), r * math.sin(2 * math.pi * k / steps)) for k in range(steps)]
@@ -336,10 +347,11 @@ def gvlb208() -> Footprint:
         "tierra de 70 x 70 mm. Verificar",
         "antena patch GNSS L1 L5 Taoglas GVLB208", pads, (10, 10), (10.25, 10.25), (8.5, -10.5),
         attr="through_hole", body_y=-1.2, courtyard_y=-1.2,
-        keepouts=[("GVLB208_DESPEJE_SUP", ("F.Cu", "In1.Cu", "In2.Cu"), True, circle(1.5)),
-                  ("GVLB208_DESPEJE_INF", ("B.Cu",), True, circle(1.75))],
+        keepouts=[("GVLB208_DESPEJE_SUP", ("F.Cu", "In1.Cu", "In2.Cu"), ("pads",), circle(1.5)),
+                  ("GVLB208_DESPEJE_INF", ("B.Cu",), ("pads", "tracks"), circle(1.75))],
         comments=[("text", "Esquina chaflanada arriba a la derecha", 0, -8.5),
-                  ("text", "Plano de tierra recomendado 70 x 70 mm", 0, 6)])
+                  ("text", "Plano de tierra recomendado 70 x 70 mm", 0, 6),
+                  ("text", "Alimentación por B.Cu desde el pad de 2,2 mm; nunca DC", 0, 7)])
 
 
 FOOTPRINTS = [yfp0004, rpw0010a, dsk0010a, dock_pads, lc29h, dwm3000, adxl372, b8389, bga525n6, gvlb208]

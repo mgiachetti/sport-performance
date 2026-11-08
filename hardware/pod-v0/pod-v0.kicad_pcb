@@ -15,7 +15,7 @@
 		(comment 1 "Contorno provisorio de 45 x 65 mm; apilado de impedancia controlada a confirmar con PCBWay")
 		(comment 2 "Spec: docs/hardware/pod-v0.md")
 		(comment 3 "RF_50: CPWG 0,33 mm / 0,20 mm sobre L2; USB_90D: 0,25 mm / 0,15 mm (hardware/tools/impedancia.py)")
-		(comment 4 "Zonas BLE_ANTENA, GNSS_ANTENA y LORA_ANTENA provisorias: moverlas con la ubicación")
+		(comment 4 "Zonas BLE_ANTENA, GNSS_ANTENA, PATCH_FEED y LORA_ANTENA provisorias: moverlas con la ubicación")
 	)
 	(layers
 		(0 "F.Cu" signal)
@@ -172,7 +172,36 @@
 		)
 		(polygon
 			(pts
-				(xy 105 101) (xy 140 101) (xy 140 136) (xy 105 136)
+				(xy 107.5 101) (xy 137.5 101) (xy 137.5 131) (xy 107.5 131)
+			)
+		)
+	)
+	(zone
+		(net 0)
+		(net_name "")
+		(layers "In2.Cu")
+		(uuid "7c2f4e1a-3b5d-4f6e-9a8b-1c2d3e4f5a6b")
+		(name "PATCH_FEED")
+		(hatch edge 0.5)
+		(connect_pads
+			(clearance 0)
+		)
+		(min_thickness 0.25)
+		(filled_areas_thickness no)
+		(keepout
+			(tracks allowed)
+			(vias allowed)
+			(pads allowed)
+			(copperpour allowed)
+			(footprints allowed)
+		)
+		(fill
+			(thermal_gap 0.5)
+			(thermal_bridge_width 0.5)
+		)
+		(polygon
+			(pts
+				(xy 111 110) (xy 127 110) (xy 127 114) (xy 111 114)
 			)
 		)
 	)

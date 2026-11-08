@@ -5,6 +5,12 @@
 # Las salidas van a salidas/, que está en .gitignore: no se commitean.
 # Esta configuración no se probó todavía (el proyecto no tiene componentes): los nombres
 # de opciones de KiBot, en particular los de filtros y variantes, están sin verificar.
+#
+# Notas de fabricación que van con el pedido a PCBWay (hardware/README.md):
+# - Pads de la base (Pod_Dock_Pads_5P_D2.0mm_P3.0mm_Keyed): oro duro electrolítico selectivo
+#   de 0,5 um o más, solo en esos 5 pads.
+# - Patch GVLB208.A (AE201): un pin por agujero metalizado de 1,0 mm, soldado abajo después del SMT.
+# - Impedancia controlada: RF_50 (CPWG de 50 ohm en L1) y USB_90D (par de 90 ohm).
 kibot:
   version: 1
 

@@ -15,8 +15,8 @@ El contorno de 45 × 65 mm de `pod-v0.md` es provisorio. Antes de diseñar la pl
 | Capa | Qué | Medida | Fuente |
 |---|---|---|---|
 | Tapa superior | Carcasa con la ventana de la antena GNSS | Pared de 1,5–2 mm (a validar en el impacto) | — |
-| Antena GNSS | Taoglas AGVLB.25B: patch de 25 × 25 × 8 mm dentro de una **carcasa de 35 × 35 × 12 mm, 18 g**, afinada sobre un plano de tierra de **70 × 70 mm** | 35 × 35 × 12 mm | Hoja de Taoglas SPE-23-8-223-C |
-| Placa | 4 capas, 1,6 mm, módulos de un solo lado | ≥ 45 × 65 mm (a revisar con la antena de 35 mm) | `pod-v0.md` |
+| Antena GNSS | **Patch pasivo apilado L1 + L5 soldado en la placa** (decisión del usuario): Taoglas GVLB208.A de 20 × 20 × 8,8 mm, o una opción de 25 × 25 × 8 mm (Quectel YFGC000WWAM, **no verificada**). La Taoglas AGVLB.25B activa (carcasa de 35 × 35 × 12 mm, 18 g) queda como rescate por U.FL y no entra en la envolvente | 8,8 mm de alto | [Hoja del GVLB208.A](https://www.taoglas.com/datasheets/GVLB208.A.pdf) |
+| Placa | 4 capas, 1,6 mm, módulos de un solo lado | ≥ 45 × 65 mm (zona del patch de 30 × 30 mm) | `pod-v0.md` |
 | Batería | LiPo de 500–600 mAh con PCM y NTC | Unos 40 × 30 × 5 mm (**no verificado**, según la celda elegida) | Proveedor |
 | Hueco de hinchazón | Espacio libre sobre la celda | ≥ 10 % del espesor de la celda (**no verificado**, lo pide el proveedor) | — |
 | Antena LoRa | FPC de **≤ 45 mm** (por ejemplo Ebyte TX915-FPC-4510, 45 × 10 mm): la de 65 mm es tan larga como la placa. Más corta que un cuarto de onda a 915 MHz: su eficiencia y ganancia **no están verificadas** | 45 × 10 mm | Ebyte (**no verificado**) |
@@ -24,8 +24,11 @@ El contorno de 45 × 65 mm de `pod-v0.md` es provisorio. Antes de diseñar la pl
 
 **Metas** (a contrastar con Catapult Vector, cuyo peso y espesor **no están verificados** en esta revisión):
 
-- **Suma de alturas con el Taoglas**: paredes (2 × 1,5–2 mm) + carcasa del Taoglas (12 mm) + placa (1,6 mm) + módulos (unos 2,5 mm) + batería (unos 5 mm) + hueco de hinchazón (unos 0,5 mm) ≈ **24–26 mm**. La masa queda en unos 50 g, justa.
-- **Meta propuesta: espesor ≤ 15 mm y masa ≤ 50 g.** Con el Taoglas de 12 mm de alto, **15 mm no se puede**. La alternativa es un **patch cerámico L1/L5 plano soldado en la placa** (unos 25 × 25 × 4 mm, **no verificado**) con la cadena de LNA y SAW de la placa (la que ya prevé `pod-v0.md` para la antena pasiva). **Es una decisión del usuario**: 24–26 mm con la antena de marca afinada, o unos 15–17 mm con el patch plano y su afinado propio.
+- **Decisión del usuario (08/11/2026): patch pasivo apilado L1 + L5 en la placa, sin solo L1.** Un patch plano de una capa (unos 4 mm) pierde alrededor de 6 dB en L5, así que **≤ 15 mm con L5 no se puede**.
+- **Suma de alturas con el patch** (estimación): paredes (2 × 1,5–2 mm) + patch (8,8 mm; los módulos, de unos 2,5 mm, van al lado y no suman) + placa (1,6 mm) + partes de abajo (Hall y pasivos, alrededor de 1 mm) + batería (unos 5 mm) + hueco de hinchazón (unos 0,5 mm) ≈ **19–21 mm**. Con la Taoglas pegada arriba eran unos 24–26 mm.
+- **Meta: espesor de unos 19–21 mm y masa ≤ 50 g.** El patch con su cadena pesa unos 5–8 g menos que la Taoglas (estimación, `pod-f3.md`): la masa baja a unos 42–45 g (**no verificado**: sale del CAD y de la celda real).
+- **Abajo del patch**: el pin del GVLB208.A atraviesa la placa y deja su soldadura (y el pad de Ø2,2 mm) en la cara de abajo, sobre la batería: un **despeje de al menos 1 mm** entre esa gota y la celda, o una lámina aislante, para que no la marque ni la pinche (medida a confirmar con la pieza real, **no verificada**).
+- **Patch contra los tackles**: la cerámica de 8,8 mm queda como la parte más alta: la tapa lleva un **apoyo de presión** (nervio o almohadilla de elastómero contra el borde de la cerámica, no contra su cara radiante) para que un golpe no la despegue ni le cargue el pin, y la pared de arriba no apoya directo sobre ella. Su efecto sobre la sintonía se mide con la carcasa puesta.
 - Bordes redondeados (radio ≥ 3 mm) y sin aristas: va sobre la columna, debajo de los tackles.
 - La FPC de LoRa va pegada en la carcasa, en el borde opuesto a la antena GNSS, con su recorrido dibujado en el CAD (no a mano en cada pod).
 
@@ -38,7 +41,7 @@ El CAD se hace **antes** de diseñar la placa, junto con el bolsillo del chaleco
 - **Una sola interfaz externa: contactos (pads) para la base de pogo.** Sin USB-C ni agujeros para botón. La guía de luz del LED va sellada (pieza transparente sobremoldeada o pegada con adhesivo estanco).
 - **El MJF PA12 es poroso**: se sella con alisado por vapor o con un recubrimiento, o se pasa a un sobremoldeo cuando haya serie. Sin sellar no cumple IP67.
 - **Ventilación del barómetro**: membrana de ePTFE con canal sellado hasta el sensor, **protegida de aplastamiento** por el bolsillo (rejilla o rebaje). El protector solar y los aceites ensucian la membrana y le hacen perder la clasificación: se prueba con sudor artificial.
-- **Contactos del pod: pads planos chapados en oro**, al ras de la carcasa, con junta alrededor. **Los resortes (pogo) van en la base, no en el pod**: un resorte en algo que se usa en el cuerpo junta suciedad y se rompe (`pod-f3.md` y `pod-v0.md` ya lo reflejan). El VBUS del pod solo tiene tensión en la base (ver sección 5), así nunca queda energizado con sudor.
+- **Contactos del pod: pads planos con oro duro electrolítico selectivo de ≥ 0,5 µm** (no el oro de inmersión, ENIG, de unos 0,05–0,1 µm, que se gasta con los ciclos de los resortes), al ras de la carcasa, con junta alrededor. **Los resortes (pogo) van en la base, no en el pod**: un resorte en algo que se usa en el cuerpo junta suciedad y se rompe (`pod-f3.md` y `pod-v0.md` ya lo reflejan). El VBUS del pod solo tiene tensión en la base (ver sección 5), así nunca queda energizado con sudor.
 - **Prueba de estanqueidad en producción**: caída de presión de cada pod cerrado, **con la ventilación tapada** (la membrana de ePTFE respira y haría fallar la prueba) o antes de montar la membrana, que se prueba aparte con su propia junta.
 
 **Especificación ambiental** (se prueba con la carcasa antes de comprometer la electrónica):
@@ -87,6 +90,8 @@ Una celda de hobby no sirve: sin informes, el courier no la acepta y la polarida
 Una base de **20 lugares**.
 
 - **Contactos**: pogo con **clave mecánica** (patrón de pads asimétrico) y **imanes con polaridad**, para que un pod girado no entre. Sin esa clave, un pod al revés pone 5 V en un pin de datos.
+- **Orden de contacto de los resortes**: **GND el más largo** (primero en hacer contacto y último en soltar), después VBUS, D+ y D−, y **DETECT el más corto**: la base habilita VBUS recién cuando el último resorte toca, con la tierra ya hecha.
+- **Imanes y Hall**: el sensor Hall del pod va a **≥ 15 mm de cada imán de la base** (Ø5 × 2 mm N35, que da unos 4,8 mT a unos 9–10 mm sobre su eje; estimación **no verificada**), para que la base no lo dispare (`pod-v0.md`).
 - **Por lugar**: load switch con límite de corriente, y VBUS habilitado **solo con un pod detectado**, así el contacto expuesto nunca queda energizado solo. La detección usa un **quinto pad, DETECT**: el pod lo ata a GND (o a una resistencia que identifica la revisión) y la base habilita VBUS solo cuando lo ve. El pad está en `pod-v0.md`.
 - **USB**: el nRF52840 es full-speed (12 Mbps). 20 pods × 49 MB son cerca de 1 GB: con un hub de un solo TT se comparte un canal de 12 Mbps (más de 15 min). Hacen falta **hubs multi-TT**, respetando la cantidad de niveles.
 - **Fuente**: 20 pods a unos 300 mA son 6 A a 5 V, más los hubs y el host: fuente de unos 50 W con margen.
@@ -111,7 +116,7 @@ Cada pod pasa una prueba antes de cerrarse y otra después.
 
 - **Plantilla de pogo** barata con agujeros de alineación: la placa necesita **agujeros y fiduciales** para la plantilla (y para el Tag-Connect sin patas), y eso entra en el contorno **antes** de diseñarla.
 - **Registro**: número de serie, resultado y valores medidos de cada pod.
-- La antena (U.FL del Taoglas, FPC pegada) se arma con una plantilla y se verifica después de cerrar: un U.FL tiene pocos ciclos y sin retención puede salirse en un tackle (alivio de tensión y adhesivo).
+- Las antenas por cable (FPC de LoRa pegada y, en los pods de rescate, el U.FL de la Taoglas) se arman con una plantilla y se verifica después de cerrar: un U.FL tiene pocos ciclos y sin retención puede salirse en un tackle (alivio de tensión y adhesivo).
 
 ## 7. Programación de producción
 
@@ -142,6 +147,8 @@ Antes de pedir, se manda **el diseño (no solo los Gerbers)** para una revisión
 - **Panel**: rieles lejos de la antena del Raytac y de la zona libre del borde; sin V-score ni puentes al lado de la antena.
 - **Una sola cara** con todo el SMT si se puede: el Hall en la cara de abajo obliga a una segunda pasada.
 - Reglas de vías en el pad, puentes de máscara y apilado confirmados por PCBWay (las del `.kicad_dru` son valores iniciales).
+- **Nota de fabricación de los pads de la base**: oro duro electrolítico **selectivo** de ≥ 0,5 µm solo en los 5 pads (el resto con el acabado normal); costo y si lo hacen con la placa armada, **no verificados**.
+- **Patch GVLB208.A**: es de un pin por agujero metalizado (Ø1,0 mm) soldado abajo; PCBWay lo compra afuera de LCSC y lo suelda después del SMT.
 - Flux sin limpieza debajo de los LGA.
 
 ## 10. Riesgos de la lista de partes y costo
@@ -151,7 +158,7 @@ Antes de pedir, se manda **el diseño (no solo los Gerbers)** para una revisión
 | Parte | Riesgo | Acción |
 |---|---|---|
 | LSM6DSV320X | Poco stock (45 en LCSC) | Reservar cantidad para 100 + repuestos; respaldo ICM-42688-P + ADXL372 |
-| Taoglas AGVLB.25B | Una sola fuente | Cotizar, o elegir una alternativa con plano de tierra chico |
+| Patch GVLB208.A | Una sola fuente, fuera de LCSC; ajuste sobre una tierra chica | Cotizar; segunda fuente de 25 × 25 × 8 mm (Quectel YFGC000WWAM, **no verificada**); la Taoglas AGVLB.25B por U.FL como rescate |
 | LC29H (EA) | Sin stock ni precio | Preguntar a Quectel |
 | MDBT50Q-P1MV2 | Precio sin verificar; certificaciones a confirmar | Cotizar a 100 |
 | XL-1615RGBC-RF | Parte poco conocida, hoja sin verificar | Alternativa conocida |
