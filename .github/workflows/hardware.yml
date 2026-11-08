@@ -54,7 +54,7 @@ jobs:
             -v "$GITHUB_WORKSPACE:/work" -v "$RUNNER_TEMP:/out" \
             -w "/work/$PROJECT_DIR" "$KICAD_IMAGE" \
             sh -c 'set -eu
-              template="$(dirname "$(find /usr/share/kicad -path "*template*" -name fp-lib-table | head -n 1)")"
+              template="$(dirname "$(find /usr/share/kicad -path "*/template/fp-lib-table" | head -n 1)")"
               mkdir -p /tmp/.config/kicad/10.0
               cp "$template/fp-lib-table" "$template/sym-lib-table" /tmp/.config/kicad/10.0/
               exec kicad-cli sch erc --exit-code-violations --severity-error --severity-warning \
