@@ -57,7 +57,7 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
 - **Prototipo: directo a la placa v0 con módulos** ([`pod-v0.md`](../hardware/pod-v0.md)), sin placa intermedia de desarrollo.
   - Solo módulos (E73 con nRF52840, E22-900M22S con SX1262, LC29H), ningún chip de radio soldado directo: el RF de cada módulo ya viene resuelto.
   - **Lugares de rescate** para corregir en la mesa sin otra vuelta: 0 Ω y componentes sin montar en la cadena RF del GNSS (SAW, LNA, red pi, bias-T), una antena GNSS alternativa para soldar, IMU de respaldo, puentes en cada riel y el UART del GNSS a un conector para hablar con QGNSS.
-  - Las E/S del LC29H son de 2,8 V: hace falta traductor de niveles con el nRF52840 a 3,3 V (Hardware Design del LC29H, tabla 10).
+  - Las E/S del LC29H son de 2,8 V: hace falta traductor de niveles con el nRF52840, que corre a unos 3,45 V del riel del sistema (Hardware Design del LC29H, tabla 10). V_BCKP lleva su propio LDO de 3,0 V siempre encendido y el VCC del GNSS sale de un LDO fijo de 3,3 V con un load switch.
   - Se fabrica en PCBWay (compra las partes que no están en LCSC): 10 placas, 5 armadas.
 - **Antena:**
   - Patch cerámico **activo de doble banda L1/L5 de 25 × 25 mm**, con un plano de tierra suficiente.
