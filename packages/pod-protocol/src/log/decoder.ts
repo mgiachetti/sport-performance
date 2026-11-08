@@ -1,6 +1,7 @@
 import { ByteReader, equalBytes, toHex } from '../bytes.js';
 import { PodProtocolError } from '../errors.js';
 import { RTC_TICK_HZ } from './constants.js';
+import { deriveLogPageKeys, type LogPageKeys } from './integrity.js';
 import { inspectLogPage, openLogPage, type LogPageHeader } from './page.js';
 import {
   decodeRecordBody,
@@ -114,6 +115,13 @@ export type LogGap =
       lostBytes: number;
     }
   | {
+      /** Two authentic pages cover the same stream bytes: the later one is skipped. */
+      kind: 'stream_overlap';
+      afterPageSeq: number;
+      beforePageSeq: number;
+      overlapBytes: number;
+    }
+  | {
       /** The segment has no readable closing page: its end was lost (power cut, bad page). */
       kind: 'stream_end';
       afterPageSeq: number;
@@ -153,7 +161,10 @@ export interface DecodedSegment {
   keyEpochs: number[];
   firstPageSeq: number;
   lastPageSeq: number;
+  /** Pages decoded (copies of the same stream bytes counted once). */
   pagesN: number;
+  /** Pages that passed CRC and CMAC, copies included: what the pod's scan counts as valid. */
+  authenticPagesN: number;
   /** The closing page (segment-end flag) was read. */
   closed: boolean;
   /** Closed and without any stream gap. */
@@ -179,8 +190,13 @@ export interface DecodeLogInput {
   pages: readonly NandPageRead[];
   /** Storage key of each key epoch (`deriveStorageKey`); `undefined` = not available. */
   keyForEpoch: (keyEpoch: number) => Uint8Array | undefined;
-  /** When given, pages of another pod are reported and skipped. */
-  deviceId?: Uint8Array;
+  /**
+   * The pod the pages must come from (from the `pod_raw` manifest checked
+   * against the device table). Required: the worker never decodes pages
+   * without knowing whose they are; pages of another pod are reported and
+   * skipped.
+   */
+  deviceId: Uint8Array;
   /** Bad blocks (factory marker or grown, from the pod's table): their pages are skipped. */
   badBlocks?: readonly number[];
   pagesPerBlock?: number;
@@ -229,6 +245,8 @@ function openPages(input: DecodeLogInput): {
   const opened: OpenedPage[] = [];
   const stats = { pagesRead: 0, pagesErased: 0, pagesValid: 0, pagesSkipped: 0 };
   const reportedBadBlocks = new Set<number>();
+  /** Page keys derived once per epoch. */
+  const derivedKeys = new Map<number, LogPageKeys>();
 
   for (const read of input.pages) {
     stats.pagesRead += 1;
@@ -269,7 +287,7 @@ function openPages(input: DecodeLogInput): {
       continue;
     }
     const { header } = inspection;
-    if (input.deviceId && !equalBytes(input.deviceId, header.deviceId)) {
+    if (!equalBytes(input.deviceId, header.deviceId)) {
       stats.pagesSkipped += 1;
       issues.push({
         physicalPage: read.physicalPage,
@@ -278,7 +296,14 @@ function openPages(input: DecodeLogInput): {
       });
       continue;
     }
-    const key = input.keyForEpoch(header.keyEpoch);
+    let key = derivedKeys.get(header.keyEpoch);
+    if (!key) {
+      const storageKey = input.keyForEpoch(header.keyEpoch);
+      key = storageKey ? deriveLogPageKeys(storageKey) : undefined;
+      if (key) {
+        derivedKeys.set(header.keyEpoch, key);
+      }
+    }
     if (!key) {
       stats.pagesSkipped += 1;
       issues.push({
@@ -353,6 +378,17 @@ function buildRuns(pages: OpenedPage[], closed: boolean): { runs: Run[]; gaps: L
   let expected = 0;
   let previous: OpenedPage | null = null;
   for (const page of pages) {
+    if (previous && page.header.streamOffset < expected) {
+      // Authentic pages that overlap in the stream (a firmware bug): keep the
+      // first, report the overlap, never a negative loss.
+      gaps.push({
+        kind: 'stream_overlap',
+        afterPageSeq: previous.header.pageSeq,
+        beforePageSeq: page.header.pageSeq,
+        overlapBytes: expected - page.header.streamOffset,
+      });
+      continue;
+    }
     if (page.header.streamOffset !== expected) {
       gaps.push({
         kind: 'stream',
@@ -506,17 +542,8 @@ function timeImu(streams: LogStreams, clocks: Map<string, SensorClock>): void {
   for (const batch of streams.imu) {
     const n = batch.samples.length;
     const clock = clocks.get(batch.sensor);
-    const first =
-      clock &&
-      sensorTimestampToTick(
-        clock,
-        batch.firstSensorTimestamp,
-        batch.tick,
-        batch.sensorTickPeriodNs,
-      );
-    const last =
-      clock &&
-      sensorTimestampToTick(clock, batch.lastSensorTimestamp, batch.tick, batch.sensorTickPeriodNs);
+    const first = clock && sensorTimestampToTick(clock, batch.firstSensorTimestamp, batch.tick);
+    const last = clock && sensorTimestampToTick(clock, batch.lastSensorTimestamp, batch.tick);
     if (typeof first === 'number' && typeof last === 'number') {
       batch.firstSampleTick = first;
       batch.lastSampleTick = last;
@@ -581,7 +608,11 @@ function detectGaps(streams: LogStreams): LogGap[] {
       });
     } else {
       const previous = lastByChannel.get(batch.channel);
-      if (previous?.sensor === batch.sensor && batch.odrMilliHz > 0) {
+      if (
+        previous?.sensor === batch.sensor &&
+        batch.odrMilliHz > 0 &&
+        batch.sensorTickPeriodNs > 0
+      ) {
         const periodSensor = 1e12 / (batch.odrMilliHz * batch.sensorTickPeriodNs);
         const step = (batch.firstSensorTimestamp - previous.lastSensorTimestamp + U32) % U32;
         if (step > 1.5 * periodSensor) {
@@ -762,6 +793,7 @@ export function decodeLog(input: DecodeLogInput): DecodedLog {
         firstPageSeq: Math.min(...pages.map((p) => p.header.pageSeq)),
         lastPageSeq: Math.max(...pages.map((p) => p.header.pageSeq)),
         pagesN: pages.length,
+        authenticPagesN: list.length,
         closed,
         complete: closed && gaps.length === 0 && first.header.streamOffset === 0,
         streamBytes: last.header.streamOffset + last.header.payloadLength,
@@ -796,7 +828,11 @@ export function decodeLog(input: DecodeLogInput): DecodedLog {
     const syncs = [...(syncsByBoot.get(segment.bootCounter) ?? [])].sort((a, b) => a.tick - b.tick);
     const clocks = new Map<string, SensorClock>();
     for (const sensor of new Set(syncs.map((s) => s.sensor))) {
-      clocks.set(sensor, buildSensorClock(sensor, syncs));
+      // The nominal period of the sensor's counter comes from its batches.
+      const period =
+        segment.streams.imu.find((b) => b.sensor === sensor && b.sensorTickPeriodNs > 0)
+          ?.sensorTickPeriodNs ?? 0;
+      clocks.set(sensor, buildSensorClock(sensor, syncs, period));
     }
     timeImu(segment.streams, clocks);
     flagRadioTx(segment.streams, base);

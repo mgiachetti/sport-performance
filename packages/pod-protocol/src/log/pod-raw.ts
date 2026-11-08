@@ -12,8 +12,8 @@ import {
 import { DEVICE_ID_LENGTH } from '../crypto.js';
 import { fail } from '../errors.js';
 import { LOG_FORMAT_VERSION, LOG_PAGE_SIZE } from './constants.js';
-import { ECC_STATUSES, type EccStatus, type NandPageRead } from './decoder.js';
-import type { SegmentSummary } from './nand.js';
+import { ECC_STATUSES, type DecodedLog, type EccStatus, type NandPageRead } from './decoder.js';
+import type { EraseCommand, SegmentSummary } from './nand.js';
 
 /**
  * `pod_raw` file (ADR 0106, ADR 0044): the unit the dock uploads, one per
@@ -63,7 +63,10 @@ export interface PodRawManifest {
   segmentId: number;
   firstPageSeq: number;
   lastPageSeq: number;
+  /** Entries in the file (every programmed page of the segment's blocks). */
   pagesN: number;
+  /** Pages with a valid CRC and header in the pod's scan. */
+  validPagesN: number;
   blocks: number[];
   keyEpochs: number[];
   closed: boolean;
@@ -144,6 +147,7 @@ export function buildPodRawFile(input: {
       firstPageSeq: segment.firstPageSeq,
       lastPageSeq: segment.lastPageSeq,
       pagesN: pages.length,
+      validPagesN: segment.pagesN,
       blocks: [...segment.blocks],
       keyEpochs: [...segment.keyEpochs],
       closed: segment.closed,
@@ -233,4 +237,85 @@ export function readPodRawFile(
     });
   }
   return { header, pages };
+}
+
+/**
+ * Idempotency key of the ingestion: one `pod_raw` per (DEVICEID, boot,
+ * segment). A second upload of the same segment is the same file (same
+ * SHA-256) or a conflict, never a second copy.
+ */
+export function podRawIngestKey(manifest: PodRawManifest): string {
+  return `${manifest.deviceIdHex.toLowerCase()}/${String(manifest.bootCounter)}/${String(manifest.segmentId)}`;
+}
+
+export type UploadVerification =
+  | { ok: true; command: EraseCommand }
+  | {
+      ok: false;
+      reason:
+        | 'segment_missing'
+        | 'more_than_one_segment'
+        | 'page_range_mismatch'
+        | 'pages_not_authentic'
+        | 'segment_not_closed';
+    };
+
+/**
+ * What the server checks before signing an erase command, after
+ * `readPodRawFile(bytes, manifest)` and `decodeLog` **with the storage keys**
+ * on that file: the file holds exactly the manifest's segment, every page the
+ * pod's scan counted as valid also passed the CMAC (`authenticPagesN`), the
+ * page range matches, and the segment is closed — or it belongs to an earlier
+ * boot than the pod's current one (cut by a power loss: it will never close).
+ * The command it returns names the segment exactly; the pod erases only if its
+ * own scan still matches (`eraseDecision`).
+ */
+export function verifyUploadForErase(input: {
+  manifest: PodRawManifest;
+  decoded: DecodedLog;
+  /** Boot counter the pod reported at the dock; `null` if unknown. */
+  podCurrentBootCounter: number | null;
+}): UploadVerification {
+  const { manifest, decoded } = input;
+  if (decoded.segments.length > 1) {
+    return { ok: false, reason: 'more_than_one_segment' };
+  }
+  const segment = decoded.segments[0];
+  if (
+    segment?.deviceIdHex !== manifest.deviceIdHex.toLowerCase() ||
+    segment.bootCounter !== manifest.bootCounter ||
+    segment.segmentId !== manifest.segmentId
+  ) {
+    return { ok: false, reason: 'segment_missing' };
+  }
+  if (
+    segment.firstPageSeq !== manifest.firstPageSeq ||
+    segment.lastPageSeq !== manifest.lastPageSeq
+  ) {
+    return { ok: false, reason: 'page_range_mismatch' };
+  }
+  if (
+    segment.authenticPagesN !== manifest.validPagesN ||
+    decoded.pageIssues.some((i) => i.reason === 'mac_mismatch' || i.reason === 'unknown_key_epoch')
+  ) {
+    return { ok: false, reason: 'pages_not_authentic' };
+  }
+  const cutEarlierBoot =
+    input.podCurrentBootCounter !== null && input.podCurrentBootCounter > segment.bootCounter;
+  if (!segment.closed && !cutEarlierBoot) {
+    return { ok: false, reason: 'segment_not_closed' };
+  }
+  return {
+    ok: true,
+    command: {
+      deviceIdHex: manifest.deviceIdHex.toLowerCase(),
+      bootCounter: manifest.bootCounter,
+      segmentId: manifest.segmentId,
+      firstPageSeq: manifest.firstPageSeq,
+      lastPageSeq: manifest.lastPageSeq,
+      validPagesN: manifest.validPagesN,
+      blocks: [...manifest.blocks],
+      sha256Hex: manifest.sha256Hex.toLowerCase(),
+    },
+  };
 }

@@ -4,7 +4,13 @@ import { describe, expect, it } from 'vitest';
 
 import { toHex } from '../bytes.js';
 import { PodProtocolError, type PodProtocolErrorCode } from '../errors.js';
-import { keysFor, NandSimulator, syntheticSession, writeSegment } from '../testing/log-samples.js';
+import {
+  keysFor,
+  TEST_DEVICE_ID,
+  NandSimulator,
+  syntheticSession,
+  writeSegment,
+} from '../testing/log-samples.js';
 import { decodeLog } from './decoder.js';
 import { scanNand } from './nand.js';
 import {
@@ -81,7 +87,11 @@ describe('pod_raw file', () => {
   it('the worker reads it back and decodes the segment', () => {
     const read = readPodRawFile(bytes, manifest);
     expect(read.pages.map((p) => p.physicalPage)).toEqual(pages.map((p) => p.physicalPage));
-    const decoded = decodeLog({ pages: read.pages, keyForEpoch: keysFor(2) });
+    const decoded = decodeLog({
+      pages: read.pages,
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+    });
     expect(decoded.segments[0]).toMatchObject({ segmentId: 5, complete: true });
   });
 
@@ -116,7 +126,11 @@ describe('pod_raw file', () => {
     });
     const read = readPodRawFile(file.bytes, file.manifest);
     expect(read.pages[3]?.ecc).toBe('uncorrectable');
-    const decoded = decodeLog({ pages: read.pages, keyForEpoch: keysFor(2) });
+    const decoded = decodeLog({
+      pages: read.pages,
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+    });
     expect(decoded.pageIssues).toEqual([
       { physicalPage: pages[3]?.physicalPage, reason: 'uncorrectable_ecc' },
     ]);

@@ -14,7 +14,13 @@ import {
   PAGE_FLAGS,
   PAGE_FLAGS_RESERVED_MASK,
 } from './constants.js';
-import { crc32, logPageCtr, logPageMac } from './integrity.js';
+import {
+  crc32,
+  logPageCtr,
+  logPageMac,
+  resolveLogPageKeys,
+  type LogPageKeys,
+} from './integrity.js';
 
 /**
  * Clear header of a log page (40 B, authenticated by the CMAC, not encrypted):
@@ -155,14 +161,17 @@ export function decodeLogPageHeader(page: Uint8Array): LogPageHeader {
 
 /**
  * Seals a page: header in clear, payload zero-padded to 1996 B and encrypted
- * with AES-128-CTR (IV = key epoch ‖ page sequence), CMAC over header ‖
- * ciphertext, CRC-32 over everything before it.
+ * with AES-128-CTR (IV = domain ‖ key epoch ‖ page sequence) under the
+ * `encKey`, CMAC over header ‖ ciphertext under the `macKey`, CRC-32 over
+ * everything before it.
  */
 export function sealLogPage(input: {
   header: LogPageHeader;
   payload: Uint8Array;
-  storageKey: Uint8Array;
+  /** The storage key of the epoch, or the page keys derived from it. */
+  storageKey: Uint8Array | LogPageKeys;
 }): Uint8Array {
+  const keys = resolveLogPageKeys(input.storageKey);
   if (input.payload.length !== input.header.payloadLength) {
     fail('invalid_length', 'payload length differs from the header');
   }
@@ -170,13 +179,13 @@ export function sealLogPage(input: {
   const plaintext = new Uint8Array(LOG_PAGE_PAYLOAD_CAPACITY);
   plaintext.set(input.payload);
   const ciphertext = logPageCtr(
-    input.storageKey,
+    keys.encKey,
     input.header.keyEpoch,
     input.header.pageSeq,
     plaintext,
   );
   const authenticated = concatBytes(header, ciphertext);
-  const mac = logPageMac(input.storageKey, authenticated);
+  const mac = logPageMac(keys.macKey, authenticated);
   const page = new Uint8Array(LOG_PAGE_SIZE);
   page.set(authenticated);
   page.set(mac, LOG_PAGE_MAC_OFFSET);
@@ -240,15 +249,17 @@ export function inspectLogPage(page: Uint8Array): PageInspection {
 export function openLogPage(input: {
   page: Uint8Array;
   header: LogPageHeader;
-  storageKey: Uint8Array;
+  /** The storage key of the epoch, or the page keys derived from it. */
+  storageKey: Uint8Array | LogPageKeys;
 }): Uint8Array {
+  const keys = resolveLogPageKeys(input.storageKey);
   const authenticated = input.page.subarray(0, LOG_PAGE_MAC_OFFSET);
-  const mac = logPageMac(input.storageKey, authenticated);
+  const mac = logPageMac(keys.macKey, authenticated);
   if (!equalBytes(mac, input.page.subarray(LOG_PAGE_MAC_OFFSET, LOG_PAGE_CRC_OFFSET))) {
     fail('mac_mismatch', `page ${String(input.header.pageSeq)}`);
   }
   const plaintext = logPageCtr(
-    input.storageKey,
+    keys.encKey,
     input.header.keyEpoch,
     input.header.pageSeq,
     input.page.subarray(LOG_PAGE_HEADER_LENGTH, LOG_PAGE_MAC_OFFSET),

@@ -33,7 +33,7 @@ import {
   W25N04KV,
 } from './constants.js';
 import { decodeLog, type DecodedLog, type EccStatus, type NandPageRead } from './decoder.js';
-import { logPageIv } from './integrity.js';
+import { deriveLogPageKeys, logPageIv } from './integrity.js';
 import { scanNand } from './nand.js';
 import { inspectLogPage, openLogPage, readPageCrc, writePageCrc } from './page.js';
 import { buildPodRawFile, readPodRawFile } from './pod-raw.js';
@@ -306,6 +306,7 @@ function buildVectors() {
     expected: summarise(
       decodeLog({
         pages: resolve(c.pages),
+        deviceId: TEST_DEVICE_ID,
         keyForEpoch: keysFor(2),
         badBlocks: c.badBlocks,
         pagesPerBlock: c.pagesPerBlock,
@@ -351,7 +352,39 @@ function buildVectors() {
     }),
   ];
   const base = buildTimeBase(70_000, anchors);
+  // One bad first anchor (PPS 5 s off) followed by 600 good ones at 1 Hz.
+  const badFirst = [
+    {
+      type: 'time_anchor' as const,
+      tick: 50_000,
+      source: 'gnss_pps' as const,
+      subTickNs: 0,
+      gnssTimeMs: 1_446_000_005_000,
+      uncertaintyUs: 1,
+      gpsUtcOffsetS: 18,
+    },
+    ...Array.from({ length: 600 }, (_, i) => ({
+      type: 'time_anchor' as const,
+      tick: 50_000 + (i + 1) * 32_768,
+      source: 'gnss_pps' as const,
+      subTickNs: 0,
+      gnssTimeMs: 1_446_000_000_000 + (i + 1) * 1000,
+      uncertaintyUs: 1,
+      gpsUtcOffsetS: 18,
+    })),
+  ];
+  const badFirstBase = buildTimeBase(70_000, badFirst);
   const timeline = {
+    badFirstAnchor: {
+      why: 'a PPS anchor 5 s off first, then 600 good ones: the good ones outvote it',
+      anchors: badFirst,
+      keptN: badFirstBase.points.length,
+      rejectedTicks: badFirstBase.rejected.map((r) => r.tick),
+      queries: [50_000, 50_000 + 300 * 32_768].map((tick) => ({
+        tick,
+        gnssTimeMs: tickToGnssMs(badFirstBase, tick),
+      })),
+    },
     anchors,
     queries: [50_000, 50_000 + 5 * 32_768, 50_000 + 12.5 * 32_768, 50_000 + 20 * 32_768].map(
       (tick) => ({ tick, gnssTimeMs: tickToGnssMs(base, tick) }),
@@ -407,6 +440,8 @@ function buildVectors() {
           epoch,
           infoHex: toHex(kdfInfo('storage', TEST_DEVICE_ID, epoch)),
           keyHex: toHex(testStorageKey(epoch)),
+          encKeyHex: toHex(deriveLogPageKeys(testStorageKey(epoch)).encKey),
+          macKeyHex: toHex(deriveLogPageKeys(testStorageKey(epoch)).macKey),
         })),
       },
       records: sampleRecords.map((r) => ({ record: recordToJson(r), hex: toHex(encodeRecord(r)) })),
@@ -414,7 +449,9 @@ function buildVectors() {
         writer: WRITER,
         records: records.map(recordToJson),
         pages: pages.map((p) => pageVector(p, key2)),
-        expected: summarise(decodeLog({ pages: reads(pages), keyForEpoch: keysFor(2) })),
+        expected: summarise(
+          decodeLog({ pages: reads(pages), deviceId: TEST_DEVICE_ID, keyForEpoch: keysFor(2) }),
+        ),
       },
       epochChange: {
         writer: { ...WRITER, segmentId: 6, firstPageSeq: 8_192 },
@@ -426,7 +463,13 @@ function buildVectors() {
           const epoch = h.status === 'valid' ? h.header.keyEpoch : 2;
           return pageVector(p, testStorageKey(epoch));
         }),
-        expected: summarise(decodeLog({ pages: reads(rotatedPages), keyForEpoch: keysFor(2, 3) })),
+        expected: summarise(
+          decodeLog({
+            pages: reads(rotatedPages),
+            deviceId: TEST_DEVICE_ID,
+            keyForEpoch: keysFor(2, 3),
+          }),
+        ),
       },
       damaged,
       podRaw: { file: 'pod-raw-sample.bin', manifest: podRaw.manifest },
@@ -513,6 +556,7 @@ describe('golden log fixtures v1', () => {
             data: fromHex(p.pageHex),
             ecc: 'ok',
           })),
+          deviceId: TEST_DEVICE_ID,
           keyForEpoch: keyOf,
         }),
       );
@@ -529,6 +573,7 @@ describe('golden log fixtures v1', () => {
     }));
     const decoded = decodeLog({
       pages,
+      deviceId: TEST_DEVICE_ID,
       keyForEpoch: keyOf,
       badBlocks: c.badBlocks,
       pagesPerBlock: c.pagesPerBlock,
@@ -558,7 +603,7 @@ describe('golden log fixtures v1', () => {
   it('the pod_raw sample opens against its manifest and decodes', () => {
     const bytes = new Uint8Array(readFileSync(POD_RAW_PATH));
     const { pages } = readPodRawFile(bytes, vectors.podRaw.manifest);
-    const decoded = summarise(decodeLog({ pages, keyForEpoch: keyOf }));
+    const decoded = summarise(decodeLog({ pages, deviceId: TEST_DEVICE_ID, keyForEpoch: keyOf }));
     expect(decoded).toEqual(vectors.segment.expected);
   });
 
@@ -571,6 +616,26 @@ describe('golden log fixtures v1', () => {
     const before = (vectors.timeline.queries[1]?.gnssTimeMs ?? 0) - 1_446_000_005_000;
     expect(before).toBeGreaterThan(0);
     expect(before).toBeLessThan(12);
+  });
+
+  it('one bad first anchor does not shift the boot', () => {
+    const c = vectors.timeline.badFirstAnchor;
+    const base = buildTimeBase(70_000, c.anchors);
+    expect(base.points.length).toBe(c.keptN);
+    expect(c.keptN).toBe(600);
+    expect(c.rejectedTicks).toEqual([50_000]);
+    for (const q of c.queries) {
+      expect(tickToGnssMs(base, q.tick)).toBe(q.gnssTimeMs);
+    }
+    expect(c.queries[0]?.gnssTimeMs).toBeCloseTo(1_446_000_000_000, 3);
+  });
+
+  it('page keys derive from the storage keys', () => {
+    for (const k of vectors.keys.storage) {
+      const keys = deriveLogPageKeys(fromHex(k.keyHex));
+      expect(toHex(keys.encKey)).toBe(k.encKeyHex);
+      expect(toHex(keys.macKey)).toBe(k.macKeyHex);
+    }
   });
 
   it('capacity table', () => {

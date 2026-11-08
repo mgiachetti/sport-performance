@@ -100,13 +100,22 @@ function segmentIndex(n: number, upper: number): number {
   return Math.min(Math.max(upper, 1), n - 1);
 }
 
+/** Consecutive mutually consistent anchors that can outvote the kept tail. */
+export const ANCHOR_CONSENSUS_MIN = 3;
+
 /**
  * Builds the time base of one boot from its anchors:
  * 1. better sources first: an anchor of a lower-priority source between two
  *    kept better anchors less than 60 s apart is dropped;
- * 2. walking in tick order, an anchor that implies a rate farther than 500 ppm
- *    from nominal (beyond both uncertainties) from the previous kept one is
- *    rejected (the lower-priority one of the pair; on a tie, the later one).
+ * 2. consensus in tick order: an anchor consistent with the last kept one
+ *    (rate within 500 ppm of nominal, beyond both uncertainties) is kept. One
+ *    that disagrees waits in a pending run of anchors consistent among
+ *    themselves; a better source replaces a worse last anchor at once. When
+ *    the pending run reaches `ANCHOR_CONSENSUS_MIN` anchors and outnumbers
+ *    the kept anchors at the tail that disagree with it, those are rejected
+ *    and the run is kept (so one bad first anchor never shifts the boot);
+ *    otherwise, as soon as an anchor agrees with the kept tail again, the run
+ *    is rejected.
  */
 export function buildTimeBase(bootCounter: number, anchors: readonly TimeAnchorRecord[]): TimeBase {
   const all = anchors.map(anchorPoint);
@@ -129,22 +138,54 @@ export function buildTimeBase(bootCounter: number, anchors: readonly TimeAnchorR
   }
 
   const points: TimeAnchorPoint[] = [];
-  for (const point of kept) {
-    let candidate: TimeAnchorPoint | null = point;
-    while (candidate) {
-      const previous = points.at(-1);
-      if (!previous || rateConsistent(previous, candidate)) {
-        points.push(candidate);
-        candidate = null;
-      } else if (SOURCE_PRIORITY[previous.source] < SOURCE_PRIORITY[candidate.source]) {
-        points.pop();
-        rejected.push({ ...previous, reason: 'rate_out_of_range' });
-      } else {
-        rejected.push({ ...candidate, reason: 'rate_out_of_range' });
-        candidate = null;
+  let pending: TimeAnchorPoint[] = [];
+  const reject = (list: readonly TimeAnchorPoint[]): void => {
+    for (const p of list) {
+      rejected.push({ ...p, reason: 'rate_out_of_range' });
+    }
+  };
+  for (const candidate of kept) {
+    // A better source replaces worse anchors it disagrees with.
+    let last = points.at(-1);
+    while (
+      last &&
+      !rateConsistent(last, candidate) &&
+      SOURCE_PRIORITY[last.source] < SOURCE_PRIORITY[candidate.source]
+    ) {
+      reject([last]);
+      points.pop();
+      last = points.at(-1);
+    }
+    if (!last || rateConsistent(last, candidate)) {
+      reject(pending);
+      pending = [];
+      points.push(candidate);
+      continue;
+    }
+    const lastPending = pending.at(-1);
+    if (lastPending && !rateConsistent(lastPending, candidate)) {
+      reject(pending);
+      pending = [];
+    }
+    pending.push(candidate);
+    const head = pending[0];
+    if (head && pending.length >= ANCHOR_CONSENSUS_MIN) {
+      let disagreeing = 0;
+      for (let i = points.length - 1; i >= 0; i -= 1) {
+        const p = points[i];
+        if (!p || rateConsistent(p, head)) {
+          break;
+        }
+        disagreeing += 1;
+      }
+      if (pending.length > disagreeing) {
+        reject(points.splice(points.length - disagreeing, disagreeing));
+        points.push(...pending);
+        pending = [];
       }
     }
   }
+  reject(pending);
 
   const best = points.reduce<TimeAnchorSource | 'none'>(
     (acc, p) =>
@@ -243,53 +284,98 @@ export function unixMsToGnssMs(unixMs: number, gpsUtcOffsetS = DEFAULT_GPS_UTC_O
 
 const U32 = 0x1_0000_0000;
 
-export interface SensorClock {
-  sensor: SyncSensor;
+/** Relative error between the sensor and the RTC beyond which a jump is a reset, not drift. */
+const SENSOR_RESET_TOLERANCE = 0.05;
+
+export interface SensorClockRun {
   /** (unwrapped sensor timestamp, fractional RTC tick), sorted. */
   points: { sensorTimestamp: number; tick: number }[];
 }
 
-/** Correlates the sensor's own timestamp counter with the RTC from the `sensor_sync` records. */
+export interface SensorClock {
+  sensor: SyncSensor;
+  sensorTickPeriodNs: number;
+  /**
+   * One run per stretch of a continuous sensor counter. A sensor reset in the
+   * middle of a boot (power cycle, reconfiguration) starts a new run; a 32-bit
+   * wrap does not.
+   */
+  runs: SensorClockRun[];
+}
+
+/**
+ * Correlates the sensor's own timestamp counter with the RTC from the
+ * `sensor_sync` records. Between two syncs the counter must advance by what
+ * the RTC says (within 5 %, modulo 2³²): then a decrease is a wrap; otherwise
+ * the sensor was reset and a new run starts. With a period ≤ 0 there is no
+ * clock (no runs).
+ */
 export function buildSensorClock(
   sensor: SyncSensor,
   syncs: readonly SensorSyncRecord[],
+  sensorTickPeriodNs: number,
 ): SensorClock {
-  const points: SensorClock['points'] = [];
-  let wraps = 0;
-  let previous: number | null = null;
+  const runs: SensorClockRun[] = [];
+  if (!(sensorTickPeriodNs > 0)) {
+    return { sensor, sensorTickPeriodNs, runs };
+  }
+  const ticksPerSensor = sensorTickPeriodNs / NS_PER_TICK;
+  let run: SensorClockRun | null = null;
+  let previous: { raw: number; unwrapped: number; tick: number } | null = null;
   for (const sync of syncs) {
     if (sync.sensor !== sensor) {
       continue;
     }
-    if (previous !== null && sync.sensorTimestamp < previous) {
-      wraps += 1;
+    const tick = sync.tick + sync.subTickNs / NS_PER_TICK;
+    let unwrapped = sync.sensorTimestamp;
+    let continues = false;
+    if (previous && run) {
+      const expected = (tick - previous.tick) / ticksPerSensor;
+      const advance = (sync.sensorTimestamp - previous.raw + U32) % U32;
+      continues =
+        expected > 0 &&
+        expected < U32 / 2 &&
+        Math.abs(advance - expected) <= Math.max(expected * SENSOR_RESET_TOLERANCE, 2);
+      unwrapped = previous.unwrapped + advance;
     }
-    previous = sync.sensorTimestamp;
-    points.push({
-      sensorTimestamp: sync.sensorTimestamp + wraps * U32,
-      tick: sync.tick + sync.subTickNs / NS_PER_TICK,
-    });
+    if (!continues || !run) {
+      run = { points: [] };
+      runs.push(run);
+      unwrapped = sync.sensorTimestamp;
+    }
+    run.points.push({ sensorTimestamp: unwrapped, tick });
+    previous = { raw: sync.sensorTimestamp, unwrapped, tick };
   }
-  return { sensor, points };
+  return { sensor, sensorTickPeriodNs, runs };
 }
 
 /**
  * RTC tick of a (32-bit, wrapping) sensor timestamp. `nearTick` (the FIFO read
- * time) picks the wrap; `sensorTickPeriodNs` is used when there is only one
- * sync point. `null` if the clock has no sync point.
+ * time) picks the run (the last one that started before it) and the wrap. With
+ * one sync point in the run the nominal period is used. `null` if there is no
+ * clock.
  */
 export function sensorTimestampToTick(
   clock: SensorClock,
   sensorTimestamp: number,
   nearTick: number,
-  sensorTickPeriodNs: number,
 ): number | null {
-  const { points } = clock;
+  const ticksPerSensor = clock.sensorTickPeriodNs / NS_PER_TICK;
+  if (!(ticksPerSensor > 0)) {
+    return null;
+  }
+  let run = clock.runs[0];
+  for (const candidate of clock.runs) {
+    const start = candidate.points[0];
+    if (start && start.tick <= nearTick) {
+      run = candidate;
+    }
+  }
+  const points = run?.points ?? [];
   const first = points[0];
   if (!first) {
     return null;
   }
-  const ticksPerSensor = sensorTickPeriodNs / NS_PER_TICK;
   // Pick the wrap that lands nearest to `nearTick`.
   const predicted = first.sensorTimestamp + (nearTick - first.tick) / ticksPerSensor;
   const k = Math.round((predicted - sensorTimestamp) / U32);

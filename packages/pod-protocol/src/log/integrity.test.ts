@@ -1,10 +1,10 @@
-import { createCipheriv } from 'node:crypto';
+import { createCipheriv, hkdfSync } from 'node:crypto';
 import { crc32 as zlibCrc32 } from 'node:zlib';
 
 import { describe, expect, it } from 'vitest';
 
 import { fromHex, toHex } from '../bytes.js';
-import { crc32, logPageCtr, logPageIv, logPageMac } from './integrity.js';
+import { crc32, deriveLogPageKeys, logPageCtr, logPageIv, logPageMac } from './integrity.js';
 
 describe('crc32', () => {
   it('matches zlib (IEEE 802.3) and the check value', () => {
@@ -16,9 +16,28 @@ describe('crc32', () => {
 });
 
 describe('page IV', () => {
-  it('is key epoch ‖ page sequence LE ‖ zeros, never the physical address', () => {
-    expect(toHex(logPageIv(2, 0x0102_0304))).toBe('0204030201000000' + '0000000000000000');
+  it('is domain ‖ key epoch ‖ page sequence LE ‖ zeros, never the physical address', () => {
+    expect(toHex(logPageIv(2, 0x0102_0304))).toBe('4c020403020100000000000000000000');
+    // Epoch 0, page 0: still not an all-zero counter block.
+    expect(logPageIv(0, 0).some((b) => b !== 0)).toBe(true);
     expect(() => logPageIv(256, 0)).toThrow();
+  });
+});
+
+describe('page keys', () => {
+  it('CTR and CMAC use separate keys derived with HKDF from the storage key', () => {
+    const storageKey = fromHex('1c41d318a9e89cb33af85e4d4036d65f');
+    const keys = deriveLogPageKeys(storageKey);
+    const info = (label: string) =>
+      new Uint8Array(Buffer.from(`sport-performance/pod-log/v1/${label}`, 'ascii'));
+    expect(toHex(keys.encKey)).toBe(
+      toHex(new Uint8Array(hkdfSync('sha256', storageKey, new Uint8Array(0), info('ctr'), 16))),
+    );
+    expect(toHex(keys.macKey)).toBe(
+      toHex(new Uint8Array(hkdfSync('sha256', storageKey, new Uint8Array(0), info('cmac'), 16))),
+    );
+    expect(toHex(keys.encKey)).not.toBe(toHex(keys.macKey));
+    expect(toHex(keys.encKey)).not.toBe(toHex(storageKey));
   });
 });
 

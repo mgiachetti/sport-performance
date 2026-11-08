@@ -26,8 +26,8 @@ TypeScript sin dependencias de plataforma: el núcleo no usa `node:*`, ni `Buffe
 | `log/writer` | `LogWriter`: codificador de referencia (registros → páginas selladas) |
 | `log/decoder` | `decodeLog`: lo que corre el worker sobre un volcado o un `pod_raw` |
 | `log/timeline` | Base de tiempo por arranque (`buildTimeBase`, `tickToGnssMs`) y reloj de la IMU (`buildSensorClock`) |
-| `log/nand` | `scanNand` (índice sin clave), `nextWritableBlock`, `eraseDecision`, `planErase`, `selectSegmentsToUpload` |
-| `log/pod-raw` | Archivo `pod_raw` y su manifiesto (`buildPodRawFile`, `readPodRawFile`) |
+| `log/nand` | `scanNand` (índice sin clave), `nextWritableBlock`, comando de borrado (`encodeEraseCommand`), `eraseDecision`, `planErase`, `selectSegmentsToUpload` |
+| `log/pod-raw` | Archivo `pod_raw` y su manifiesto (`buildPodRawFile`, `readPodRawFile`), `verifyUploadForErase` (lo que revisa el servidor antes de firmar el borrado) y `podRawIngestKey` |
 | `log/capacity` | Cuentas de tamaño: páginas por hora, bloques por sesión, sesiones por memoria |
 
 Los nombres llevan la unidad: `sessionDistanceDm`, `vmaxCmS`, `speedBandDistancesM`, `gnssTimeS`, `accelLoadCentiAu`. Los valores decodificados son enteros en la unidad del cable; la conversión a unidades del dominio (m, m/s, AU) la hace quien consume.
@@ -214,14 +214,14 @@ El pod graba todo en la W25N04KV (4 Gbit; la W25N02KV de 2 Gbit tiene la misma g
 | 34–35 | Posición del primer registro que empieza en la página (u16; `0xFFFF` = ninguno, la página solo continúa uno) |
 | 36–37 | Registros que empiezan en la página (u16) |
 | 38–39 | Reservado = 0 |
-| 40–2035 | Carga útil cifrada con **AES-128-CTR** (relleno con ceros después del largo) |
-| 2036–2043 | **AES-CMAC** (RFC 4493) de los bytes 0–2035, truncado a 8 B |
+| 40–2035 | Carga útil cifrada con **AES-128-CTR** con la clave de cifrado (relleno con ceros después del largo) |
+| 2036–2043 | **AES-CMAC** (RFC 4493) de los bytes 0–2035 con la clave de MAC, truncado a 8 B |
 | 2044–2047 | **CRC-32** (IEEE 802.3, el de zlib) de los bytes 0–2043 |
 
 - **El encabezado va en claro y autenticado** (entra en el CMAC): la base y el escaneo del pod lo leen sin clave.
-- **IV del CTR** (16 B): época (u8) ‖ secuencia de página (u32 LE) ‖ siete ceros ‖ contador de bloque (u32 BE desde 0; una página son 125 bloques). Nunca la dirección física, que se reusa al borrar. Como en CCM, CTR y CMAC usan la misma clave (lo pide el ADR); el primer bloque del CMAC empieza con la magia y lleva la época en el byte 5, así nunca coincide con un bloque de contador.
+- **IV del CTR** (16 B): dominio `0x4C` ‖ época (u8) ‖ secuencia de página (u32 LE) ‖ seis ceros ‖ contador de bloque (u32 BE desde 0; una página son 125 bloques). Nunca la dirección física, que se reusa al borrar, y nunca un bloque de contador todo en cero (el byte de dominio).
 - **Cifrar y después autenticar**: el CMAC va sobre el texto cifrado. El CRC va aparte, para que la base (sin clave) y el escaneo detecten páginas cortadas o dañadas.
-- **Clave**: `deriveStorageKey` = `KDF(maestra, "storage" | DEVICEID | época)`.
+- **Claves**: `deriveStorageKey` = `KDF(maestra, "storage" | DEVICEID | época)`, y de ella **dos claves separadas** (`deriveLogPageKeys`): HKDF-SHA256 con la clave de almacenamiento de entrada, sal vacía e `info` = `ASCII("sport-performance/pod-log/v1/ctr")` para el CTR y `.../cmac` para el CMAC, 16 B cada una. El pod las deriva una vez por época; CTR y CMAC nunca comparten clave.
 - **Secuencia de página**: el pod guarda en la NVS una reserva de secuencias (por ejemplo de a 1024) y en cada arranque empieza por encima de la reserva y de lo que encuentra en la memoria. Es la mitad del IV: nunca se repite con la misma clave. Sigue contando aunque cambie la época; si llegara a dar la vuelta, el pod no graba hasta rotar la clave en la base.
 
 ### Flujo de registros
@@ -257,21 +257,27 @@ Un decodificador **saltea por el largo** un tipo que no conoce, así un tipo nue
 ### Base de tiempo
 
 - Los ticks son del **RTC a 32,768 kHz** y empiezan en cada arranque: el contador de arranques del encabezado es la época de tiempo.
-- `buildTimeBase` arma, por arranque, una función **lineal por tramos** que pasa por las anclas (tick ↔ hora GPS). Primero las mejores: un ancla de una fuente peor (base < baliza < PPS) entre dos mejores a menos de 60 s se descarta. Después se rechaza el ancla que implica un ritmo a más de 500 ppm del nominal (más las dos incertidumbres) respecto de la anterior: de un par cae la de peor fuente y, en un empate, la posterior.
+- `buildTimeBase` arma, por arranque, una función **lineal por tramos** que pasa por las anclas (tick ↔ hora GPS). Primero las mejores: un ancla de una fuente peor (base < baliza < PPS) entre dos mejores a menos de 60 s se descarta. Después, **por consenso** en orden de tick: un ancla que implica un ritmo a más de 500 ppm del nominal (más las dos incertidumbres) respecto de la última guardada espera en una racha de anclas consistentes entre sí (una fuente mejor reemplaza de una vez a una peor). Si la racha llega a 3 anclas y es más larga que las guardadas del final que la contradicen, esas se rechazan y la racha queda; si un ancla vuelve a coincidir con lo guardado, se rechaza la racha. Así un ancla mala al principio (por ejemplo un PPS 5 s corrido) nunca corre todo el arranque, y una ráfaga corta de anclas malas no le gana a una cola larga de buenas.
 - Antes de la primera ancla y después de la última se **extrapola** con la pendiente del tramo más cercano (con una sola ancla, al ritmo nominal): así lo grabado antes del primer fix se ubica hacia atrás. Bajo techo, las anclas de la base al salir y al volver (en el mismo arranque) dan la pendiente.
 - `tickUncertaintyMs`: la incertidumbre del ancla más cercana más ±20 ppm por la distancia a ella.
-- **IMU**: `buildSensorClock` correlaciona la marca del sensor (u32, que da la vuelta) con el RTC por los `sensor_sync`; cada lote queda con el tick de su primer y su último dato. Sin sincronización, se cuenta hacia atrás desde la lectura de la FIFO, al ODR.
+- **IMU**: `buildSensorClock` correlaciona la marca del sensor (u32, que da la vuelta) con el RTC por los `sensor_sync`; cada lote queda con el tick de su primer y su último dato. Entre dos sincronizaciones la marca tiene que avanzar lo que dice el RTC (5 % de tolerancia, módulo 2³²): si no, el sensor se reinició y empieza un tramo nuevo del reloj (no se confunde con una vuelta). Con un período del sensor de 0 no hay reloj. Sin sincronización, se cuenta hacia atrás desde la lectura de la FIFO, al ODR.
 - Las épocas del GNSS que se superponen con una TX de LoRa salen marcadas (`duringRadioTx`).
 - La conversión a UTC (`gnssMsToUnixMs`) usa el GPS − UTC que trajo el ancla (18 s por defecto).
 
 ### Memoria, índice y borrado
 
 - **Un tramo empieza siempre en un bloque borrado** y es dueño de sus bloques: borrar un tramo nunca toca otro. Se pierden como mucho 63 páginas por tramo.
-- **Nunca se pisa lo que no se descargó**: los bloques salen solo de los borrados (`nextWritableBlock`); sin bloques libres, el pod deja de grabar, lo avisa con el LED y la app lo muestra.
+- **Nunca se pisa lo que no se descargó**: los bloques salen solo de los libres (`nextWritableBlock`), y un bloque es libre solo si **se leyeron todas sus páginas y están borradas**; una página que no se leyó nunca se supone borrada (el bloque queda como desconocido, `unknownBlocks`, y no se escribe ni se borra). Sin bloques libres, el pod deja de grabar, lo avisa con el LED y la app lo muestra.
 - **Bloques malos**: la marca de fábrica (byte 0 del repuesto de la página 0 del bloque), la LUT del W25N y los que fallan al programar o borrar. El firmware no los usa; si falla un programa, marca el bloque y reescribe la página en el siguiente bloque bueno con una secuencia nueva (el decodificador descarta la copia repetida por su posición en el flujo).
 - **ECC**: el estado de cada lectura viaja con la página (`ok`, `corrected`, `uncorrectable`). Una página incorregible se marca, se saltea y se informa, y el flujo sigue en la próxima.
 - **Índice de tramos**: el pod lo guarda en los 8 bloques reservados del principio, pero es una caché: `scanNand` lo reconstruye sin clave (tramos, páginas, bloques, si se cerraron, bloques libres, huérfanos y mezclados) y `decodeLog`, con las claves, agrega el rango de tiempo.
-- **Borrado** (`eraseDecision`): solo cuando el servidor confirma el SHA-256 del `pod_raw` subido. La **única excepción**: un tramo que no se superpone con ninguna sesión se borra sin subir a los N días (configurable por el club). Si la base no pudo preguntar las sesiones (sin conexión), nada se borra por edad. `planErase` borra un bloque solo si todos sus tramos se pueden borrar; los bloques huérfanos (restos de una escritura cortada) solo a pedido.
+- **Borrado atado a lo subido y verificado**:
+  1. La base sube el `pod_raw` del tramo con su manifiesto.
+  2. El servidor lo lee (`readPodRawFile` con el manifiesto), lo decodifica **con la clave** y revisa con `verifyUploadForErase` que tenga exactamente ese tramo, que todas las páginas que el escaneo del pod contó como válidas pasen el CMAC (`validPagesN` = `authenticPagesN`), que coincida el rango de páginas y que el tramo esté cerrado (o sea de un arranque anterior al actual del pod: lo cortó un corte de energía y no se va a cerrar nunca). La ingesta es idempotente por (DEVICEID, arranque, tramo) (`podRawIngestKey`).
+  3. Recién ahí firma (P-256, con la clave fijada en el pod) un **comando de borrado** que nombra el tramo: DEVICEID, arranque, tramo, primera y última secuencia, páginas válidas, bloques y SHA-256 (`encodeEraseCommand`, magia `SPER`).
+  4. El pod verifica la firma y `eraseDecision` borra solo si el SHA-256 es el del archivo que subió y su propio escaneo coincide **exactamente** con el comando (`command_mismatch` si no). `planErase` borra solo los bloques que nombra el comando, y nunca uno mezclado, desconocido o de un tramo que no se puede borrar; los huérfanos (restos de una escritura cortada), solo a pedido.
+
+  La **única excepción**: un tramo que no se superpone con ninguna sesión se borra sin subir a los N días (configurable por el club). Si la base no pudo preguntar las sesiones (sin conexión), nada se borra por edad.
 - **Minimización en la base**: `selectSegmentsToUpload` elige los tramos que se superponen con alguna ventana de sesión (con margen).
 
 ### Archivo `pod_raw`
@@ -291,15 +297,15 @@ Lo que sube la base por cada tramo: las páginas **tal como están en la NAND** 
 | 36–63 | Reservado = 0 |
 | 64… | N × { página física (u32), estado del ECC (u8: 0 bien, 1 corregido, 2 incorregible), 3 B reservados, los 2048 B de la página } |
 
-Van todas las páginas programadas de los bloques del tramo, válidas o no, en orden físico, para que el worker informe lo que se perdió. El **manifiesto** (`PodRawManifest`, los metadatos del archivo) lleva el DEVICEID, el número de serie del pod, el arranque, el tramo, el rango de páginas y los bloques, las épocas de clave, si se cerró, el rango de tiempo en UTC (del índice del pod), el tamaño y el **SHA-256**. `readPodRawFile` lo verifica antes de confirmar.
+Van todas las páginas programadas de los bloques del tramo, válidas o no, en orden físico, para que el worker informe lo que se perdió. El **manifiesto** (`PodRawManifest`, los metadatos del archivo) lleva el DEVICEID, el número de serie del pod, el arranque, el tramo, el rango de páginas, las entradas del archivo (`pagesN`) y las páginas válidas del escaneo (`validPagesN`), los bloques, las épocas de clave, si se cerró, el rango de tiempo en UTC (del índice del pod), el tamaño y el **SHA-256**. `readPodRawFile` lo verifica antes de confirmar, y `verifyUploadForErase` decide si el servidor puede firmar el borrado.
 
 ### Lo que hace el worker
 
-`decodeLog` recibe las páginas (un volcado con `pagesFromDump` o un `pod_raw` con `readPodRawFile`) y nunca falla por datos malos: todo se informa.
+`decodeLog` recibe las páginas (un volcado con `pagesFromDump` o un `pod_raw` con `readPodRawFile`) y el **DEVICEID obligatorio** del pod (el del manifiesto, revisado contra la tabla de dispositivos): el worker nunca decodifica páginas sin saber de quién son. Nunca falla por datos malos: todo se informa.
 
 1. Saltea las páginas de bloques malos y las de ECC incorregible y descarta las borradas; verifica el CRC (cortada si la cola lee borrada), el encabezado, el pod y el CMAC con la clave de su época; descifra.
 2. Agrupa por (DEVICEID, arranque, tramo), ordena por posición en el flujo y descarta copias repetidas.
-3. Arma los tramos contiguos del flujo, informa los huecos (`stream`: bytes perdidos; `stream_end`: falta la página de cierre) y parsea los registros, con resincronización en el primer registro de la página siguiente.
+3. Arma los tramos contiguos del flujo, informa los huecos (`stream`: bytes perdidos; `stream_end`: falta la página de cierre; `stream_overlap`: dos páginas auténticas cubren los mismos bytes, se queda la primera) y parsea los registros, con resincronización en el primer registro de la página siguiente.
 4. Separa los flujos con tipo (`pvt`, `raw`, `imu`, `baro`, `anchors`, `markers`, `health`, `radioTx`, `events`, `firmware`, `config`, `unknown`), arma la base de tiempo de cada arranque, ubica la IMU, marca las épocas con TX y detecta los huecos de PVT, IMU y barómetro.
 5. Devuelve los **intervalos de uso** (grabando, chaleco puesto, en movimiento) según los marcadores; la sesión del staff es la dueña de la ventana.
 
@@ -314,32 +320,34 @@ La carga útil es el 97,5 % de la página. Se reservan 8 bloques para el índice
 | 2,86 kB/s (registros v1, perfil por defecto) | 5159 | 242 | 16 | 8 |
 | 4,88 kB/s (registros v1, con crudo) | 8795 | 413 | 9 | 4 |
 
-Los encabezados y las marcas de tiempo de los registros suman un 14 % a la estimación de pod-f3.md (`profileStreamRateBps`).
+Los encabezados y las marcas de tiempo de los registros suman un 14 % a la estimación de pod-f3.md (`profileStreamRateBps`). Las ráfagas de impacto del canal de alto rango suben la tasa mientras duran, así que en rugby el margen real es algo menor.
 
 ### Archivos de ejemplo del log
 
 `fixtures/v1/log-vectors.json` y `fixtures/v1/pod-raw-sample.bin`, con las mismas claves de prueba:
 
-- `keys`: clave maestra, DEVICEID y claves de almacenamiento de las épocas 2 y 3 (con la `info` del HKDF);
+- `keys`: clave maestra, DEVICEID, claves de almacenamiento de las épocas 2 y 3 (con la `info` del HKDF) y sus claves de CTR y de CMAC;
 - `records`: un registro de cada tipo, con sus campos y sus bytes;
 - `segment`: los registros de un tramo de 2 s (con crudo) y, por página, el encabezado, el IV, la carga útil en claro, el CMAC, el CRC y la página entera, más el resultado esperado de decodificarlo;
 - `epochChange`: un tramo con cambio de época a mitad;
 - `damaged`: lecturas dañadas (CRC, CMAC con el CRC recalculado, escritura cortada, ECC incorregible, bloque malo, páginas desordenadas entre borradas) y lo que se espera de cada una;
 - `podRaw`: el manifiesto de `pod-raw-sample.bin`;
-- `timeline` y `capacity`.
+- `timeline` (con `badFirstAnchor`: un PPS 5 s corrido y 600 buenos a 1 Hz) y `capacity`.
 
 El firmware codifica los registros de `segment.records` y `epochChange.records` con su escritor, compara cada `pageHex` byte a byte y deriva las claves; si tiene decodificador, compara también los casos de `damaged`. `src/log/fixtures.test.ts` regenera los dos archivos con el mismo `fixtures:update`.
 
 ### Decisiones del log (resumidas en el ADR 0106, "Formato v1 del log")
 
 1. Página de 40 B de encabezado en claro y autenticado, 1996 B de carga útil, CMAC de 8 B y CRC-32 al final; magia `SPLG`.
-2. IV = época ‖ secuencia de página, con la secuencia monótona por pod en toda su vida (no por época) y reservada en la NVS.
-3. CMAC sobre el texto cifrado; CRC aparte para revisar sin clave.
+2. IV = dominio ‖ época ‖ secuencia de página, con la secuencia monótona por pod en toda su vida (no por época) y reservada en la NVS.
+3. CMAC sobre el texto cifrado, con claves de CTR y de CMAC separadas (HKDF desde la clave de almacenamiento); CRC aparte para revisar sin clave.
 4. Registros TLV con un tick u48 del RTC en cada uno, en un flujo continuo por tramo que cruza páginas, con la posición en el flujo y la del primer registro para medir huecos y resincronizar.
 5. El tramo de grabación es la unidad de subida y de borrado, y empieza en un bloque borrado.
 6. Hora GPS en ms (u48) en el PVT y en las anclas, en la misma escala que la radio (sin segundos intercalares).
 7. Base de tiempo lineal por tramos con prioridad PPS > baliza > base y rechazo a 500 ppm.
 8. `pod_raw` = las páginas cifradas tal cual, con su dirección física y su estado de ECC, más un manifiesto con el SHA-256.
+9. Borrado solo con un comando firmado que nombra exactamente el tramo (rango de páginas, páginas válidas, bloques, SHA-256), emitido después de decodificar con la clave, y que el pod compara con su propio escaneo.
+10. Un bloque es libre solo si se leyeron todas sus páginas borradas; la base de tiempo se arma por consenso.
 
 ## Fuera de este paquete
 

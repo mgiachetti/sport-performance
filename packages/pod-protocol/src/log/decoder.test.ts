@@ -94,7 +94,11 @@ describe('LogWriter', () => {
     writer.append(item(RECORDS, 3));
     const [last] = writer.close();
     if (!short || !last) throw new Error('missing pages');
-    const decoded = decodeLog({ pages: asReads([short, last]), keyForEpoch: keysFor(2) });
+    const decoded = decodeLog({
+      pages: asReads([short, last]),
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+    });
     expect(header(last).streamOffset).toBe(header(short).payloadLength);
     expect(decoded.segments[0]?.complete).toBe(true);
     expect(allRecords(decoded).sort(byTick)).toEqual(RECORDS.slice(0, 4).sort(byTick));
@@ -125,7 +129,11 @@ describe('LogWriter', () => {
       firstRecordOffset: null,
       segmentEnd: true,
     });
-    const decoded = decodeLog({ pages: asReads([...pages, end]), keyForEpoch: keysFor(2) });
+    const decoded = decodeLog({
+      pages: asReads([...pages, end]),
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+    });
     expect(decoded.segments[0]?.complete).toBe(true);
     expect(decoded.segments[0]?.streams.unknown).toHaveLength(1);
   });
@@ -135,8 +143,8 @@ describe('decodeLog', () => {
   it('round-trips a whole segment with every stream', () => {
     const decoded = decodeLog({
       pages: asReads(PAGES),
-      keyForEpoch: keysFor(2),
       deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
     });
     expect(decoded.pageIssues).toEqual([]);
     expect(decoded.segments).toHaveLength(1);
@@ -163,7 +171,11 @@ describe('decodeLog', () => {
   });
 
   it('flags the GNSS epochs that overlap a LoRa transmission', () => {
-    const decoded = decodeLog({ pages: asReads(PAGES), keyForEpoch: keysFor(2) });
+    const decoded = decodeLog({
+      pages: asReads(PAGES),
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+    });
     const pvt = decoded.segments[0]?.streams.pvt ?? [];
     const flagged = pvt
       .filter((p) => p.duringRadioTx)
@@ -174,7 +186,11 @@ describe('decodeLog', () => {
   });
 
   it('use intervals come from the markers', () => {
-    const decoded = decodeLog({ pages: asReads(PAGES), keyForEpoch: keysFor(2) });
+    const decoded = decodeLog({
+      pages: asReads(PAGES),
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+    });
     const intervals = decoded.segments[0]?.intervals ?? [];
     expect(intervals.map((i) => [i.kind, i.truncated])).toEqual([
       ['recording', false],
@@ -192,7 +208,11 @@ describe('decodeLog', () => {
     const bad = item(pages, 3).slice();
     bad[700] = (bad[700] ?? 0) ^ 0x01;
     pages[3] = bad;
-    const decoded = decodeLog({ pages: asReads(pages), keyForEpoch: keysFor(2) });
+    const decoded = decodeLog({
+      pages: asReads(pages),
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+    });
     expect(decoded.pageIssues).toEqual([{ physicalPage: 8 * 64 + 3, reason: 'crc_mismatch' }]);
     const [segment] = decoded.segments;
     expect(segment?.complete).toBe(false);
@@ -211,7 +231,11 @@ describe('decodeLog', () => {
     bad[45] = (bad[45] ?? 0) ^ 0x10;
     bad.set(writePageCrc(bad), LOG_PAGE_CRC_OFFSET);
     pages[2] = bad;
-    const decoded = decodeLog({ pages: asReads(pages), keyForEpoch: keysFor(2) });
+    const decoded = decodeLog({
+      pages: asReads(pages),
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+    });
     expect(decoded.pageIssues).toMatchObject([{ reason: 'mac_mismatch', pageSeq: 4_098 }]);
   });
 
@@ -228,7 +252,12 @@ describe('decodeLog', () => {
     const physical = nand.writeSegment(big);
     expect(physical.some((p) => Math.floor(p / 64) === 9)).toBe(false);
     expect(Math.floor((physical[64] ?? 0) / 64)).toBe(10);
-    const clean = decodeLog({ pages: nand.dump(), keyForEpoch: keysFor(2), badBlocks: [9] });
+    const clean = decodeLog({
+      pages: nand.dump(),
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+      badBlocks: [9],
+    });
     expect(clean.pageIssues).toEqual([{ physicalPage: 9 * 64, reason: 'bad_block' }]);
     expect(clean.segments[0]?.complete).toBe(true);
 
@@ -236,7 +265,12 @@ describe('decodeLog', () => {
     const dump = nand
       .dump()
       .map((p) => (p.physicalPage === physical[10] ? { ...p, ecc: 'uncorrectable' as const } : p));
-    const decoded = decodeLog({ pages: dump, keyForEpoch: keysFor(2), badBlocks: [9] });
+    const decoded = decodeLog({
+      pages: dump,
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+      badBlocks: [9],
+    });
     expect(decoded.pageIssues).toContainEqual({
       physicalPage: physical[10],
       reason: 'uncorrectable_ecc',
@@ -249,7 +283,11 @@ describe('decodeLog', () => {
     const torn = item(PAGES, 6).slice();
     torn.fill(0xff, 900);
     const pages = [...PAGES.slice(0, 6), torn];
-    const decoded = decodeLog({ pages: asReads(pages), keyForEpoch: keysFor(2) });
+    const decoded = decodeLog({
+      pages: asReads(pages),
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+    });
     expect(decoded.pageIssues).toEqual([{ physicalPage: 8 * 64 + 6, reason: 'torn_write' }]);
     const [segment] = decoded.segments;
     expect(segment).toMatchObject({ closed: false, complete: false });
@@ -268,19 +306,61 @@ describe('decodeLog', () => {
     expect(new Set(epochs)).toEqual(new Set([2, 3]));
     // Sequences keep counting across the change, so no IV repeats.
     expect(pages.map((p) => header(p).pageSeq)).toEqual(pages.map((_, i) => 4_096 + i));
-    const both = decodeLog({ pages: asReads(pages), keyForEpoch: keysFor(2, 3) });
+    const both = decodeLog({
+      pages: asReads(pages),
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2, 3),
+    });
     expect(both.segments[0]).toMatchObject({ complete: true, keyEpochs: [2, 3] });
     expect(both.segments[0]?.streams.pvt.length).toBe(
       records.filter((r) => r.type === 'gnss_pvt').length,
     );
 
     // Without the new key: those pages are reported and the stream ends early.
-    const onlyOld = decodeLog({ pages: asReads(pages), keyForEpoch: keysFor(2) });
+    const onlyOld = decodeLog({
+      pages: asReads(pages),
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+    });
     const missing = epochs.filter((e) => e === 3).length;
     expect(onlyOld.pageIssues.filter((i) => i.reason === 'unknown_key_epoch')).toHaveLength(
       missing,
     );
     expect(onlyOld.segments[0]?.complete).toBe(false);
+  });
+
+  it('authentic pages that overlap in the stream are an overlap, never a negative loss', () => {
+    const second = header(item(PAGES, 1));
+    const payload = openLogPage({
+      page: item(PAGES, 1),
+      header: second,
+      storageKey: testStorageKey(2),
+    });
+    const overlapping = sealLogPage({
+      header: {
+        ...second,
+        pageSeq: second.pageSeq + 5_000,
+        streamOffset: second.streamOffset + 100,
+      },
+      payload,
+      storageKey: testStorageKey(2),
+    });
+    const decoded = decodeLog({
+      pages: [...asReads(PAGES), { physicalPage: 77 * 64, data: overlapping }],
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+    });
+    const gaps = decoded.segments[0]?.gaps ?? [];
+    expect(gaps).toEqual([
+      {
+        kind: 'stream_overlap',
+        afterPageSeq: second.pageSeq,
+        beforePageSeq: second.pageSeq + 5_000,
+        overlapBytes: 1996 - 100,
+      },
+    ]);
+    expect(gaps.every((g) => g.kind !== 'stream' || g.lostBytes > 0)).toBe(true);
+    expect(allRecords(decoded).length).toBe(RECORDS.length);
   });
 
   it('a page programmed twice (rewrite after a failed program) decodes once', () => {
@@ -298,6 +378,7 @@ describe('decodeLog', () => {
     // The failed program still reads, the rewrite has a later sequence.
     const decoded = decodeLog({
       pages: [...asReads(PAGES), { physicalPage: 99 * 64, data: rewrite }],
+      deviceId: TEST_DEVICE_ID,
       keyForEpoch: keysFor(2),
     });
     expect(decoded.pageIssues).toEqual([]);
@@ -309,8 +390,8 @@ describe('decodeLog', () => {
     const other = writeSegment(syntheticSession({ durationS: 1 }), { deviceId: OTHER_DEVICE_ID });
     const decoded = decodeLog({
       pages: [...asReads(PAGES), ...other.map((data, i) => ({ physicalPage: 50 * 64 + i, data }))],
-      keyForEpoch: keysFor(2),
       deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
     });
     expect(decoded.pageIssues.every((i) => i.reason === 'other_device')).toBe(true);
     expect(decoded.segments).toHaveLength(1);
@@ -323,7 +404,11 @@ describe('decodeLog', () => {
       segmentId: 6,
       firstPageSeq: 8_192,
     });
-    const decoded = decodeLog({ pages: asReads([...second, ...first]), keyForEpoch: keysFor(2) });
+    const decoded = decodeLog({
+      pages: asReads([...second, ...first]),
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+    });
     expect(decoded.segments.map((s) => [s.bootCounter, s.segmentId, s.complete])).toEqual([
       [70_000, 5, true],
       [70_001, 6, true],

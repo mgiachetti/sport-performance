@@ -1,4 +1,13 @@
-import { toHex } from '../bytes.js';
+import {
+  asciiBytes,
+  assertUint,
+  ByteReader,
+  ByteWriter,
+  equalBytes,
+  fromHex,
+  toHex,
+} from '../bytes.js';
+import { fail } from '../errors.js';
 import { W25N04KV, type NandGeometry } from './constants.js';
 import type { NandPageRead } from './decoder.js';
 import { inspectLogPage } from './page.js';
@@ -12,9 +21,10 @@ import { inspectLogPage } from './page.js';
  *   blocks, so erasing a segment never touches another one;
  * - blocks are only taken from the erased ones: **nothing undownloaded is ever
  *   overwritten**; with no erased block left the pod stops recording;
- * - a segment is erased only when the server confirmed the SHA-256 of its
- *   `pod_raw` file, with one exception: a segment that overlaps no session is
- *   erased without upload after N days;
+ * - a segment is erased only with a signed erase command naming exactly the
+ *   segment the pod still sees and the SHA-256 of the uploaded `pod_raw`,
+ *   with one exception: a segment that overlaps no session is erased without
+ *   upload after N days;
  * - bad blocks (factory marker, W25N LUT or grown) are never written or read.
  */
 
@@ -41,8 +51,13 @@ export interface NandScan {
   geometry: NandGeometry;
   segments: SegmentSummary[];
   badBlocks: number[];
-  /** Usable blocks with every page erased. */
+  /** Usable blocks whose every page was read and is erased: the only ones a pod may write. */
   freeBlocks: number[];
+  /**
+   * Usable blocks with no programmed page among those read but not every page
+   * read: their state is unknown, so they are neither free nor erasable.
+   */
+  unknownBlocks: number[];
   /** Blocks with programmed pages none of which is a valid log page (debris of a cut write). */
   orphanBlocks: number[];
   /** Blocks with valid pages of more than one segment (should never happen; never erased). */
@@ -61,8 +76,8 @@ function segmentKey(deviceIdHex: string, bootCounter: number, segmentId: number)
 
 /**
  * Scans the pages of the chip without keys (the dock never has any): CRC,
- * header, ECC status. `pages` must cover every page of the usable blocks: a
- * page that is not given counts as erased.
+ * header, ECC status. A block is free only if all its pages were read and are
+ * erased; a page that is not given is never assumed erased.
  */
 export function scanNand(input: {
   pages: readonly NandPageRead[];
@@ -80,6 +95,8 @@ export function scanNand(input: {
     uncorrectable_ecc: 0,
   };
   const programmedBlocks = new Set<number>();
+  /** Distinct pages read erased, per block. */
+  const erasedPages = new Map<number, Set<number>>();
   const blocksWithValid = new Map<number, Set<string>>();
   const segments = new Map<string, SegmentSummary>();
   let highestPageSeq: number | null = null;
@@ -98,6 +115,9 @@ export function scanNand(input: {
     const inspection = inspectLogPage(read.data);
     if (inspection.status === 'erased') {
       counts.erased += 1;
+      const set = erasedPages.get(block) ?? new Set<number>();
+      set.add(read.physicalPage);
+      erasedPages.set(block, set);
       continue;
     }
     programmedBlocks.add(block);
@@ -151,6 +171,7 @@ export function scanNand(input: {
   // Programmed pages that are not valid still belong to the segment whose
   // valid pages share their block (a torn last page, say).
   const freeBlocks: number[] = [];
+  const unknownBlocks: number[] = [];
   const orphanBlocks: number[] = [];
   const mixedBlocks: number[] = [];
   for (let block = geometry.reservedBlocks; block < geometry.blocks; block += 1) {
@@ -158,7 +179,11 @@ export function scanNand(input: {
       continue;
     }
     if (!programmedBlocks.has(block)) {
-      freeBlocks.push(block);
+      if ((erasedPages.get(block)?.size ?? 0) === geometry.pagesPerBlock) {
+        freeBlocks.push(block);
+      } else {
+        unknownBlocks.push(block);
+      }
       continue;
     }
     const owners = blocksWithValid.get(block);
@@ -180,6 +205,7 @@ export function scanNand(input: {
     segments: list,
     badBlocks: [...bad].sort((a, b) => a - b),
     freeBlocks,
+    unknownBlocks,
     orphanBlocks,
     mixedBlocks,
     pageCounts: counts,
@@ -189,8 +215,9 @@ export function scanNand(input: {
 }
 
 /**
- * Next block to write: the lowest erased usable block (wear levelling is the
- * firmware's choice among erased blocks; it never picks a programmed one).
+ * Next block to write: the lowest usable block read entirely erased (wear
+ * levelling is the firmware's choice among those; it never picks a programmed
+ * or an unread one).
  * `null` = memory full: the pod stops recording, shows it on the LED and the
  * app tells the staff.
  */
@@ -198,7 +225,135 @@ export function nextWritableBlock(scan: NandScan, afterBlock = -1): number | nul
   return scan.freeBlocks.find((b) => b > afterBlock) ?? scan.freeBlocks[0] ?? null;
 }
 
+// ---------------------------------------------------------------------------
+// Erase: bound to exactly what was uploaded and verified
+// ---------------------------------------------------------------------------
+
+/**
+ * What the server signs (ECDSA P-256 with the key pinned in the pod, ADR 0106)
+ * to let a pod erase one segment. It names the segment exactly as the pod's
+ * own scan sees it; the pod erases only if its scan still matches.
+ */
+export interface EraseCommand {
+  deviceIdHex: string;
+  bootCounter: number;
+  segmentId: number;
+  firstPageSeq: number;
+  lastPageSeq: number;
+  /** Pages with a valid CRC and header in the pod's scan (`SegmentSummary.pagesN`). */
+  validPagesN: number;
+  /** Blocks of the segment, ascending. */
+  blocks: number[];
+  /** SHA-256 of the `pod_raw` file the server verified. */
+  sha256Hex: string;
+}
+
+export const ERASE_COMMAND_MAGIC = asciiBytes('SPER');
+export const ERASE_COMMAND_VERSION = 1;
+
+/**
+ * Canonical bytes of an erase command (what the server signs):
+ *
+ * ```
+ * 0..3    magic "SPER"
+ * 4       version (1)
+ * 5..12   DEVICEID
+ * 13..16  boot counter (u32)
+ * 17..20  segment id (u32)
+ * 21..24  first page sequence (u32)
+ * 25..28  last page sequence (u32)
+ * 29..32  valid pages (u32)
+ * 33..64  SHA-256 of the pod_raw file
+ * 65..66  block count N (u16)
+ * 67…     N × block (u16, ascending)
+ * ```
+ */
+export function encodeEraseCommand(command: EraseCommand): Uint8Array {
+  const deviceId = fromHex(command.deviceIdHex);
+  const sha = fromHex(command.sha256Hex);
+  if (deviceId.length !== 8 || sha.length !== 32) {
+    fail('field_out_of_range', 'deviceIdHex must be 8 B and sha256Hex 32 B');
+  }
+  assertUint('bootCounter', command.bootCounter, 32);
+  assertUint('segmentId', command.segmentId, 32);
+  assertUint('firstPageSeq', command.firstPageSeq, 32);
+  assertUint('lastPageSeq', command.lastPageSeq, 32);
+  assertUint('validPagesN', command.validPagesN, 32);
+  assertUint('blocks.length', command.blocks.length, 16);
+  const w = new ByteWriter(67 + 2 * command.blocks.length)
+    .raw(ERASE_COMMAND_MAGIC)
+    .u8(ERASE_COMMAND_VERSION)
+    .raw(deviceId)
+    .u32(command.bootCounter)
+    .u32(command.segmentId)
+    .u32(command.firstPageSeq)
+    .u32(command.lastPageSeq)
+    .u32(command.validPagesN)
+    .raw(sha)
+    .u16(command.blocks.length);
+  let previous = -1;
+  for (const block of command.blocks) {
+    assertUint('block', block, 16);
+    if (block <= previous) {
+      fail('field_out_of_range', 'blocks must be ascending and distinct');
+    }
+    previous = block;
+    w.u16(block);
+  }
+  return w.finish();
+}
+
+export function decodeEraseCommand(bytes: Uint8Array): EraseCommand {
+  const r = new ByteReader(bytes);
+  if (!equalBytes(r.raw(4), ERASE_COMMAND_MAGIC)) {
+    fail('invalid_container', 'not an erase command');
+  }
+  const version = r.u8();
+  if (version !== ERASE_COMMAND_VERSION) {
+    fail('unsupported_version', `erase command ${String(version)}`);
+  }
+  const deviceIdHex = toHex(r.raw(8));
+  const bootCounter = r.u32();
+  const segmentId = r.u32();
+  const firstPageSeq = r.u32();
+  const lastPageSeq = r.u32();
+  const validPagesN = r.u32();
+  const sha256Hex = toHex(r.raw(32));
+  const count = r.u16();
+  const blocks = Array.from({ length: count }, () => r.u16());
+  r.end();
+  const command: EraseCommand = {
+    deviceIdHex,
+    bootCounter,
+    segmentId,
+    firstPageSeq,
+    lastPageSeq,
+    validPagesN,
+    blocks,
+    sha256Hex,
+  };
+  // Validates the block order.
+  encodeEraseCommand(command);
+  return command;
+}
+
+/** Whether a (signature-verified) erase command names exactly this segment of the pod's scan. */
+export function eraseCommandMatches(command: EraseCommand, segment: SegmentSummary): boolean {
+  return (
+    command.deviceIdHex.toLowerCase() === segment.deviceIdHex.toLowerCase() &&
+    command.bootCounter === segment.bootCounter &&
+    command.segmentId === segment.segmentId &&
+    command.firstPageSeq === segment.firstPageSeq &&
+    command.lastPageSeq === segment.lastPageSeq &&
+    command.validPagesN === segment.pagesN &&
+    command.blocks.length === segment.blocks.length &&
+    command.blocks.every((b, i) => b === segment.blocks[i])
+  );
+}
+
 export interface SegmentRetentionInput {
+  /** The segment as the pod's own scan sees it right now. */
+  segment: SegmentSummary;
   /** Segment the pod is recording right now (never erased). */
   recording: boolean;
   /** End of the segment (Unix ms, from the pod's index), `null` if unknown. */
@@ -210,12 +365,15 @@ export interface SegmentRetentionInput {
   overlapsSession: boolean | null;
   /** SHA-256 of the `pod_raw` file the dock built and uploaded, `null` if not uploaded. */
   uploadedSha256Hex: string | null;
-  /** SHA-256 the server confirmed after storing the file, `null` = not confirmed. */
-  serverConfirmedSha256Hex: string | null;
+  /**
+   * Erase command from the server, passed only **after** the pod verified its
+   * signature with the pinned server key; `null` = not confirmed.
+   */
+  eraseCommand: EraseCommand | null;
 }
 
 export type EraseDecision =
-  | { erase: true; reason: 'server_confirmed' | 'off_session_expired' }
+  | { erase: true; reason: 'server_confirmed' | 'off_session_expired'; blocks: number[] }
   | {
       erase: false;
       reason:
@@ -223,6 +381,7 @@ export type EraseDecision =
         | 'awaiting_upload'
         | 'awaiting_confirmation'
         | 'sha_mismatch'
+        | 'command_mismatch'
         | 'retained_off_session'
         | 'overlap_unknown';
     };
@@ -230,9 +389,12 @@ export type EraseDecision =
 const DAY_MS = 86_400_000;
 
 /**
- * The erase rule of ADR 0106: only with the server's SHA-256 confirmation; the
- * single exception is a segment that overlaps no session, erased without upload
- * once it is `offSessionRetentionDays` old (club setting).
+ * The erase rule of ADR 0106: only with a signed erase command from the server
+ * that names exactly this segment (DEVICEID, boot, segment, page range, valid
+ * pages, blocks) as the pod's own scan sees it, and the SHA-256 of the file
+ * that was uploaded. The single exception is a segment that overlaps no
+ * session, erased without upload once it is `offSessionRetentionDays` old
+ * (club setting).
  */
 export function eraseDecision(
   input: SegmentRetentionInput & { nowUnixMs: number; offSessionRetentionDays: number },
@@ -240,14 +402,15 @@ export function eraseDecision(
   if (input.recording) {
     return { erase: false, reason: 'recording' };
   }
-  if (input.serverConfirmedSha256Hex !== null) {
-    if (
-      input.uploadedSha256Hex !== null &&
-      input.serverConfirmedSha256Hex.toLowerCase() === input.uploadedSha256Hex.toLowerCase()
-    ) {
-      return { erase: true, reason: 'server_confirmed' };
+  const command = input.eraseCommand;
+  if (command !== null) {
+    if (command.sha256Hex.toLowerCase() !== input.uploadedSha256Hex?.toLowerCase()) {
+      return { erase: false, reason: 'sha_mismatch' };
     }
-    return { erase: false, reason: 'sha_mismatch' };
+    if (!eraseCommandMatches(command, input.segment)) {
+      return { erase: false, reason: 'command_mismatch' };
+    }
+    return { erase: true, reason: 'server_confirmed', blocks: [...command.blocks] };
   }
   if (input.overlapsSession === true) {
     return {
@@ -264,27 +427,29 @@ export function eraseDecision(
   }
   const ageMs = input.nowUnixMs - input.endedAtUnixMs;
   return ageMs >= input.offSessionRetentionDays * DAY_MS
-    ? { erase: true, reason: 'off_session_expired' }
+    ? { erase: true, reason: 'off_session_expired', blocks: [...input.segment.blocks] }
     : { erase: false, reason: 'retained_off_session' };
 }
 
 /**
- * Blocks to erase given a decision per segment (keyed by `segmentKeyOf`). A
- * block is erased only if every segment with pages in it is erasable; mixed
- * blocks and orphan blocks are kept unless `eraseOrphanBlocks` (after the dock
- * uploaded them for diagnosis).
+ * Blocks to erase given a decision per segment (keyed by `segmentKeyOf`). Only
+ * the blocks a decision names that are still the segment's blocks in this
+ * scan, and only if every segment with pages in them is erasable; mixed,
+ * unknown and orphan blocks are kept (orphans go only with
+ * `eraseOrphanBlocks`, after the dock uploaded them for diagnosis).
  */
 export function planErase(
   scan: NandScan,
   decisions: ReadonlyMap<string, EraseDecision>,
   options: { eraseOrphanBlocks?: boolean } = {},
 ): number[] {
-  const keepers = new Set<number>(scan.mixedBlocks);
+  const keepers = new Set<number>([...scan.mixedBlocks, ...scan.unknownBlocks]);
   const candidates = new Set<number>();
   for (const segment of scan.segments) {
     const decision = decisions.get(segmentKeyOf(segment));
+    const named = decision?.erase ? new Set(decision.blocks) : new Set<number>();
     for (const block of segment.blocks) {
-      if (decision?.erase) {
+      if (named.has(block)) {
         candidates.add(block);
       } else {
         keepers.add(block);

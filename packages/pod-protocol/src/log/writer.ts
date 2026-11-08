@@ -2,7 +2,7 @@ import { assertUint } from '../bytes.js';
 import { DEVICE_ID_LENGTH } from '../crypto.js';
 import { fail } from '../errors.js';
 import { LOG_FORMAT_VERSION, LOG_PAGE_PAYLOAD_CAPACITY } from './constants.js';
-import { checkStorageKey } from './integrity.js';
+import { checkStorageKey, deriveLogPageKeys, type LogPageKeys } from './integrity.js';
 import { sealLogPage } from './page.js';
 import { encodeRecord, type LogRecord } from './records.js';
 
@@ -34,7 +34,7 @@ export class LogWriter {
   private readonly bootCounter: number;
   private readonly segmentId: number;
   private keyEpoch: number;
-  private storageKey: Uint8Array;
+  private keys: LogPageKeys;
   private nextPageSeq: number;
   private streamOffset = 0;
   private readonly buffer = new Uint8Array(LOG_PAGE_PAYLOAD_CAPACITY);
@@ -55,7 +55,7 @@ export class LogWriter {
     this.bootCounter = options.bootCounter;
     this.segmentId = options.segmentId;
     this.keyEpoch = options.keyEpoch;
-    this.storageKey = options.storageKey.slice();
+    this.keys = deriveLogPageKeys(options.storageKey);
     this.nextPageSeq = options.firstPageSeq;
   }
 
@@ -77,7 +77,7 @@ export class LogWriter {
     assertUint('keyEpoch', keyEpoch, 8);
     checkStorageKey(storageKey);
     this.keyEpoch = keyEpoch;
-    this.storageKey = storageKey.slice();
+    this.keys = deriveLogPageKeys(storageKey);
   }
 
   /** Appends one record; returns the pages it completed. */
@@ -148,7 +148,7 @@ export class LogWriter {
         recordCount: this.recordStarts.length,
       },
       payload: this.buffer.slice(0, this.length),
-      storageKey: this.storageKey,
+      storageKey: this.keys,
     });
     this.nextPageSeq += 1;
     this.streamOffset += this.length;

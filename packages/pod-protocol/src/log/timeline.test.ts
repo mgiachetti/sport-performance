@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { keysFor, syntheticSession, writeSegment } from '../testing/log-samples.js';
+import { keysFor, TEST_DEVICE_ID, syntheticSession, writeSegment } from '../testing/log-samples.js';
 import { GPS_EPOCH_UNIX_MS, RTC_TICK_HZ } from './constants.js';
 import { decodeLog, type NandPageRead } from './decoder.js';
 import type { SensorSyncRecord, TimeAnchorRecord } from './records.js';
@@ -38,7 +38,7 @@ function anchor(
 function decodeSession(options: Parameters<typeof syntheticSession>[0]) {
   const pages = writeSegment(syntheticSession(options));
   const reads: NandPageRead[] = pages.map((data, i) => ({ physicalPage: i, data }));
-  const decoded = decodeLog({ pages: reads, keyForEpoch: keysFor(2) });
+  const decoded = decodeLog({ pages: reads, deviceId: TEST_DEVICE_ID, keyForEpoch: keysFor(2) });
   const base = decoded.timeBases[0];
   const segment = decoded.segments[0];
   if (!base || !segment) throw new Error('nothing decoded');
@@ -112,6 +112,37 @@ describe('time base', () => {
     ]);
   });
 
+  it('one bad first anchor (PPS 5 s off) does not shift the boot: 600 good ones outvote it', () => {
+    const anchors = [
+      anchor(START_TICK, START_GNSS_MS + 5_000),
+      ...Array.from({ length: 600 }, (_, i) =>
+        anchor(START_TICK + (i + 1) * RTC_TICK_HZ, START_GNSS_MS + (i + 1) * 1000),
+      ),
+    ];
+    const base = buildTimeBase(1, anchors);
+    expect(base.points).toHaveLength(600);
+    expect(base.rejected).toMatchObject([
+      { gnssTimeMs: START_GNSS_MS + 5_000, reason: 'rate_out_of_range' },
+    ]);
+    // The start of the boot is placed back from the good anchors.
+    expect(tickToGnssMs(base, START_TICK)).toBeCloseTo(START_GNSS_MS, 3);
+  });
+
+  it('a short burst of consistent bad anchors does not outvote a long good tail', () => {
+    const good = (s: number) => anchor(START_TICK + s * RTC_TICK_HZ, START_GNSS_MS + s * 1000);
+    const anchors = [
+      ...Array.from({ length: 20 }, (_, s) => good(s)),
+      // Three anchors one second ahead, consistent among themselves.
+      ...[20, 21, 22].map((s) =>
+        anchor(START_TICK + s * RTC_TICK_HZ, START_GNSS_MS + (s + 1) * 1000),
+      ),
+      ...Array.from({ length: 10 }, (_, i) => good(23 + i)),
+    ];
+    const base = buildTimeBase(1, anchors);
+    expect(base.points).toHaveLength(30);
+    expect(base.rejected.map((r) => (r.tick - START_TICK) / RTC_TICK_HZ)).toEqual([20, 21, 22]);
+  });
+
   it('a better anchor replaces a worse one that disagrees with it', () => {
     const base = buildTimeBase(1, [
       anchor(START_TICK, START_GNSS_MS + 900, 'dock', 50_000),
@@ -159,17 +190,52 @@ describe('sensor clock', () => {
   it('unwraps the 32-bit sensor timestamp', () => {
     const perSecond = 1e9 / 21_750;
     const t0 = 0xffff_ffff - Math.round(perSecond * 1.5);
-    const clock = buildSensorClock('lsm6dsv320x', [
-      sync(0, t0),
-      sync(RTC_TICK_HZ, (t0 + Math.round(perSecond)) % 0x1_0000_0000),
-      sync(2 * RTC_TICK_HZ, (t0 + Math.round(2 * perSecond)) % 0x1_0000_0000),
-    ]);
-    expect(clock.points[2]?.sensorTimestamp).toBeGreaterThan(0xffff_ffff);
+    const clock = buildSensorClock(
+      'lsm6dsv320x',
+      [
+        sync(0, t0),
+        sync(RTC_TICK_HZ, (t0 + Math.round(perSecond)) % 0x1_0000_0000),
+        sync(2 * RTC_TICK_HZ, (t0 + Math.round(2 * perSecond)) % 0x1_0000_0000),
+      ],
+      21_750,
+    );
+    expect(clock.runs).toHaveLength(1);
+    expect(clock.runs[0]?.points[2]?.sensorTimestamp).toBeGreaterThan(0xffff_ffff);
     const wrapped = (t0 + Math.round(1.75 * perSecond)) % 0x1_0000_0000;
-    expect(sensorTimestampToTick(clock, wrapped, 1.75 * RTC_TICK_HZ, 21_750)).toBeCloseTo(
+    expect(sensorTimestampToTick(clock, wrapped, 1.75 * RTC_TICK_HZ)).toBeCloseTo(
       1.75 * RTC_TICK_HZ,
       0,
     );
+  });
+
+  it('a sensor reset mid-boot starts a new run instead of being taken for a wrap', () => {
+    const perSecond = 1e9 / 21_750;
+    const clock = buildSensorClock(
+      'lsm6dsv320x',
+      [
+        sync(0, 5_000_000),
+        sync(RTC_TICK_HZ, 5_000_000 + Math.round(perSecond)),
+        // Reset: the counter restarts near 0.
+        sync(2 * RTC_TICK_HZ, 1_000),
+        sync(3 * RTC_TICK_HZ, 1_000 + Math.round(perSecond)),
+      ],
+      21_750,
+    );
+    expect(clock.runs.map((r) => r.points.length)).toEqual([2, 2]);
+    // After the reset, timestamps map through the new run.
+    expect(
+      sensorTimestampToTick(clock, 1_000 + Math.round(0.5 * perSecond), 2.6 * RTC_TICK_HZ),
+    ).toBeCloseTo(2.5 * RTC_TICK_HZ, 0);
+    // Before it, through the old one.
+    expect(
+      sensorTimestampToTick(clock, 5_000_000 + Math.round(0.5 * perSecond), 0.6 * RTC_TICK_HZ),
+    ).toBeCloseTo(0.5 * RTC_TICK_HZ, 0);
+  });
+
+  it('a sensor period of 0 gives no clock instead of dividing by zero', () => {
+    const clock = buildSensorClock('lsm6dsv320x', [sync(0, 1), sync(RTC_TICK_HZ, 2)], 0);
+    expect(clock.runs).toEqual([]);
+    expect(sensorTimestampToTick(clock, 1, 0)).toBeNull();
   });
 
   it('IMU batches are timed from the sensor clock across the wrap, gaps from timestamps', () => {

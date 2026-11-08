@@ -9,8 +9,12 @@ import {
   writeSegment,
 } from '../testing/log-samples.js';
 import { decodeLog } from './decoder.js';
+import { LOG_PAGE_CRC_OFFSET, W25N04KV } from './constants.js';
 import {
+  decodeEraseCommand,
+  encodeEraseCommand,
   eraseDecision,
+  type EraseCommand,
   nextWritableBlock,
   overlapsAny,
   planErase,
@@ -19,7 +23,14 @@ import {
   selectSegmentsToUpload,
   type EraseDecision,
 } from './nand.js';
-import { buildPodRawFile, sha256Hex } from './pod-raw.js';
+import { writePageCrc } from './page.js';
+import {
+  buildPodRawFile,
+  podRawIngestKey,
+  readPodRawFile,
+  sha256Hex,
+  verifyUploadForErase,
+} from './pod-raw.js';
 
 const DAY_MS = 86_400_000;
 
@@ -60,7 +71,12 @@ describe('scanNand', () => {
   it('the rebuilt index matches what the decoder sees, with time ranges', () => {
     const { nand } = filledNand();
     const scan = scanNand({ pages: nand.dump(), geometry: nand.geometry, badBlocks: [10] });
-    const decoded = decodeLog({ pages: nand.dump(), keyForEpoch: keysFor(2), badBlocks: [10] });
+    const decoded = decodeLog({
+      pages: nand.dump(),
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+      badBlocks: [10],
+    });
     expect(
       decoded.segments.map((s) => [s.segmentId, s.firstPageSeq, s.lastPageSeq, s.pagesN]),
     ).toEqual(scan.segments.map((s) => [s.segmentId, s.firstPageSeq, s.lastPageSeq, s.pagesN]));
@@ -102,37 +118,154 @@ describe('scanNand', () => {
     expect(programmed.has(next ?? -1)).toBe(false);
     expect(nextWritableBlock(scan, 1_000)).toBe(scan.freeBlocks[0]);
   });
+  it('a page that was not read is never assumed erased', () => {
+    const empty = scanNand({ pages: [] });
+    expect(empty.freeBlocks).toEqual([]);
+    expect(empty.unknownBlocks).toHaveLength(W25N04KV.blocks - W25N04KV.reservedBlocks);
+    expect(nextWritableBlock(empty)).toBeNull();
+
+    // A block read except one page: unknown, not free, and never erased.
+    const { nand } = filledNand();
+    const partial = nand.dump().filter((p) => p.physicalPage !== 20 * 64 + 5);
+    const scan = scanNand({ pages: partial, geometry: nand.geometry, badBlocks: [10] });
+    expect(scan.freeBlocks).not.toContain(20);
+    expect(scan.unknownBlocks).toEqual([20]);
+  });
 });
+
+function setupErase() {
+  const { nand } = filledNand();
+  const dump = nand.dump();
+  const scan = scanNand({ pages: dump, geometry: nand.geometry, badBlocks: [10] });
+  const [a, b] = scan.segments;
+  if (!a || !b) throw new Error('two segments expected');
+  const blockPages = (blocks: number[]) =>
+    dump.filter(
+      (p) => blocks.includes(Math.floor(p.physicalPage / 64)) && !p.data.every((x) => x === 0xff),
+    );
+  const fileA = buildPodRawFile({
+    segment: a,
+    pages: blockPages(a.blocks),
+    podSerial: 'ORC-0001',
+    startUnixMs: null,
+    endUnixMs: null,
+  });
+  return { nand, scan, a, b, fileA };
+}
 
 describe('erase rules', () => {
   const now = Date.UTC(2026, 10, 8);
+  const { scan, a, b, fileA } = setupErase();
+  const verified = verifyUploadForErase({
+    manifest: fileA.manifest,
+    decoded: decodeLog({
+      pages: readPodRawFile(fileA.bytes, fileA.manifest).pages,
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+    }),
+    podCurrentBootCounter: 70_000,
+  });
+  if (!verified.ok) throw new Error(verified.reason);
+  const command: EraseCommand = verified.command;
   const base = {
+    segment: a,
     recording: false,
     endedAtUnixMs: now - DAY_MS,
     overlapsSession: true,
-    uploadedSha256Hex: 'ab'.repeat(32),
-    serverConfirmedSha256Hex: null,
+    uploadedSha256Hex: fileA.manifest.sha256Hex,
+    eraseCommand: null,
     nowUnixMs: now,
     offSessionRetentionDays: 7,
   } as const;
 
-  it('erases only with the server SHA-256 confirmation', () => {
+  it('the server signs only what it decoded valid and closed', () => {
+    expect(command).toEqual({
+      deviceIdHex: a.deviceIdHex,
+      bootCounter: a.bootCounter,
+      segmentId: a.segmentId,
+      firstPageSeq: a.firstPageSeq,
+      lastPageSeq: a.lastPageSeq,
+      validPagesN: a.pagesN,
+      blocks: a.blocks,
+      sha256Hex: sha256Hex(fileA.bytes),
+    });
+    expect(decodeEraseCommand(encodeEraseCommand(command))).toEqual(command);
+    expect(podRawIngestKey(fileA.manifest)).toBe(`${a.deviceIdHex}/70000/5`);
+
+    // A page that passes the CRC but not the CMAC: not confirmed.
+    const { pages } = readPodRawFile(fileA.bytes, fileA.manifest);
+    const forged = pages.map((p, i) => {
+      if (i !== 2) return p;
+      const data = p.data.slice();
+      data[100] = (data[100] ?? 0) ^ 1;
+      data.set(writePageCrc(data), LOG_PAGE_CRC_OFFSET);
+      return { ...p, data };
+    });
+    const decodedForged = decodeLog({
+      pages: forged,
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+    });
+    expect(
+      verifyUploadForErase({
+        manifest: fileA.manifest,
+        decoded: decodedForged,
+        podCurrentBootCounter: 70_000,
+      }),
+    ).toEqual({ ok: false, reason: 'pages_not_authentic' });
+
+    // Not closed (torn end) in the current boot: wait; from an earlier boot: it will never close.
+    const unclosed = pages.map((p, i) =>
+      i === pages.length - 1 ? { ...p, data: p.data.slice().fill(0xff, 1000) } : p,
+    );
+    const decodedUnclosed = decodeLog({
+      pages: unclosed,
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+    });
+    const manifestUnclosed = { ...fileA.manifest, validPagesN: fileA.manifest.validPagesN - 1 };
+    const lastSeq = decodedUnclosed.segments[0]?.lastPageSeq ?? 0;
+    const m = { ...manifestUnclosed, lastPageSeq: lastSeq };
+    expect(
+      verifyUploadForErase({
+        manifest: m,
+        decoded: decodedUnclosed,
+        podCurrentBootCounter: 70_000,
+      }),
+    ).toEqual({ ok: false, reason: 'segment_not_closed' });
+    expect(
+      verifyUploadForErase({ manifest: m, decoded: decodedUnclosed, podCurrentBootCounter: 70_002 })
+        .ok,
+    ).toBe(true);
+  });
+
+  it('erases only with a signed command naming exactly the segment the pod sees', () => {
     expect(eraseDecision({ ...base })).toEqual({ erase: false, reason: 'awaiting_confirmation' });
     expect(eraseDecision({ ...base, uploadedSha256Hex: null })).toEqual({
       erase: false,
       reason: 'awaiting_upload',
     });
-    expect(eraseDecision({ ...base, serverConfirmedSha256Hex: 'AB'.repeat(32) })).toEqual({
+    expect(eraseDecision({ ...base, eraseCommand: command })).toEqual({
       erase: true,
       reason: 'server_confirmed',
-    });
-    expect(eraseDecision({ ...base, serverConfirmedSha256Hex: 'cd'.repeat(32) })).toEqual({
-      erase: false,
-      reason: 'sha_mismatch',
+      blocks: a.blocks,
     });
     expect(
-      eraseDecision({ ...base, recording: true, serverConfirmedSha256Hex: 'ab'.repeat(32) }),
-    ).toEqual({
+      eraseDecision({ ...base, eraseCommand: { ...command, sha256Hex: 'cd'.repeat(32) } }),
+    ).toEqual({ erase: false, reason: 'sha_mismatch' });
+    // The pod's scan no longer matches what was uploaded (a page more, another block…).
+    for (const changed of [
+      { ...command, validPagesN: command.validPagesN + 1 },
+      { ...command, lastPageSeq: command.lastPageSeq + 1 },
+      { ...command, blocks: [...command.blocks, 30] },
+      { ...command, segmentId: 6 },
+    ]) {
+      expect(eraseDecision({ ...base, eraseCommand: changed })).toEqual({
+        erase: false,
+        reason: 'command_mismatch',
+      });
+    }
+    expect(eraseDecision({ ...base, recording: true, eraseCommand: command })).toEqual({
       erase: false,
       reason: 'recording',
     });
@@ -144,6 +277,7 @@ describe('erase rules', () => {
     expect(eraseDecision({ ...off, endedAtUnixMs: now - 7 * DAY_MS })).toEqual({
       erase: true,
       reason: 'off_session_expired',
+      blocks: a.blocks,
     });
     // Offline dock: overlap unknown, nothing goes by age.
     expect(
@@ -163,32 +297,10 @@ describe('erase rules', () => {
   });
 
   it('planErase erases the blocks of erasable segments only', () => {
-    const { nand } = filledNand();
-    const dump = nand.dump();
-    const scan = scanNand({ pages: dump, geometry: nand.geometry, badBlocks: [10] });
-    const [a, b] = scan.segments;
-    if (!a || !b) throw new Error('two segments expected');
-    const blockPages = (blocks: number[]) =>
-      dump.filter(
-        (p) => blocks.includes(Math.floor(p.physicalPage / 64)) && !p.data.every((x) => x === 0xff),
-      );
-    const fileA = buildPodRawFile({
-      segment: a,
-      pages: blockPages(a.blocks),
-      podSerial: 'ORC-0001',
-      startUnixMs: null,
-      endUnixMs: null,
-    });
+    const { nand } = setupErase();
     const decisions = new Map<string, EraseDecision>([
-      [
-        segmentKeyOf(a),
-        eraseDecision({
-          ...base,
-          uploadedSha256Hex: fileA.manifest.sha256Hex,
-          serverConfirmedSha256Hex: sha256Hex(fileA.bytes),
-        }),
-      ],
-      [segmentKeyOf(b), eraseDecision({ ...base })],
+      [segmentKeyOf(a), eraseDecision({ ...base, eraseCommand: command })],
+      [segmentKeyOf(b), eraseDecision({ ...base, segment: b })],
     ]);
     const blocks = planErase(scan, decisions);
     expect(blocks).toEqual(a.blocks);
@@ -196,6 +308,14 @@ describe('erase rules', () => {
     const after = scanNand({ pages: nand.dump(), geometry: nand.geometry, badBlocks: [10] });
     expect(after.segments.map((s) => s.segmentId)).toEqual([6]);
     expect(after.freeBlocks).toEqual(expect.arrayContaining(a.blocks));
+  });
+
+  it('planErase never erases an unknown block', () => {
+    const decision: EraseDecision = { erase: true, reason: 'server_confirmed', blocks: a.blocks };
+    const withUnknown = { ...scan, unknownBlocks: [a.blocks[0] ?? 0] };
+    expect(planErase(withUnknown, new Map([[segmentKeyOf(a), decision]]))).toEqual(
+      a.blocks.slice(1),
+    );
   });
 
   it('orphan blocks are erased only on request', () => {
