@@ -180,6 +180,7 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
 
 ## Consecuencias
 
+- **Mecánica, producción y certificación** (solo pines pogo, batería de 500–600 mAh, IP67, base, prueba de fin de línea, programación de producción, ENACOM antes del piloto, dos vueltas de placa): `docs/hardware/pod-mecanica-produccion.md`.
 - **Homologación ante ENACOM.** El nuevo RAMATEL (Res. 57/2026, vigente desde el 01/12/2026 según la Res. 843/2026) define "comercializar" incluyendo **dar en comodato**. Si prestamos los pods a los clubes, el equipo final necesita **Homologación**, con certificado de una agencia reconocida y ensayo de laboratorio. El FCC/CE de los módulos probablemente no alcanza: lo que se registra es el equipo final.
   - Para **uso propio** existe la Autorización por modelo, con una Declaración de Conformidad.
   - Antes de la tanda de 100 hay que definir el modelo de entrega y presupuestar la homologación.
