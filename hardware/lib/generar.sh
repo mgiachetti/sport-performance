@@ -44,4 +44,14 @@ for footprint in hardware/lib/pod.pretty/*.kicad_mod; do
   rm -f "$footprint.bak"
 done
 
+# easyeda2kicad marca algunos footprints solo SMD como through_hole (BGA y LGA): sin
+# esto se caen del pick-and-place exportado solo SMD.
+for footprint in hardware/lib/pod.pretty/*.kicad_mod; do
+  [ -e "$footprint" ] || continue
+  if ! grep -q "thru_hole" "$footprint"; then
+    sed -i.bak "s/(attr through_hole)/(attr smd)/" "$footprint"
+    rm -f "$footprint.bak"
+  fi
+done
+
 echo "Listo. Verificar cada footprint contra su hoja antes de usarlo."

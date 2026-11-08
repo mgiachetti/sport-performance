@@ -19,6 +19,8 @@ Los símbolos y footprints no se dibujan a mano a partir de una tabla de pines i
 | MAX17048G+T10 (C2682616) | `TDFN-8_L2.0-W2.0-P0.50-BL-EP1.2` | 9 | Pad expuesto. |
 | DRV5032FBDBZR (C2655033) | `SOT-23_L2.9-W1.3-P1.90-LS2.4-BR` | 3 | — |
 
+**Antes de rutear, además de la tabla:** el courtyard de cada footprint es el contorno del cuerpo y en algunos (por ejemplo el LSM6DSV320X, con pads a ±1,60 mm contra un borde de ±1,50) queda más chico que los pads: agrandarlo. Los pines de los símbolos tienen tipo eléctrico "unspecified": poner al menos los de alimentación como power_in para que el ERC sirva. El tamaño de las bolas del BQ25180 (0,184 mm) se compara con el land pattern recomendado de TI. Los footprints están en el formato de KiCad 5; `kicad-cli fp upgrade` los pasa al actual.
+
 Los modelos 3D (`.wrl` y `.step`, unos 17 MB) se commitean: los `.step` hacen falta para la envolvente mecánica en CAD.
 
 ## Partes y de dónde sale cada una

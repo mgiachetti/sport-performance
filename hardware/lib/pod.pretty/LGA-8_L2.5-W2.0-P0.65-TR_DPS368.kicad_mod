@@ -1,5 +1,5 @@
 (module easyeda2kicad:LGA-8_L2.5-W2.0-P0.65-TR_DPS368 (layer F.Cu) (tedit 5DC5F6A4)
-	(attr through_hole)
+	(attr smd)
 	(fp_text reference REF** (at 0.000 -4.975) (layer F.SilkS)
 		(effects (font (size 1 1) (thickness 0.15)))
 	)
