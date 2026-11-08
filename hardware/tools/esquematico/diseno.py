@@ -1,0 +1,421 @@
+"""Netlist of the pod v0, one entry per hierarchical sheet.
+
+Design of record: docs/hardware/pod-v0.md (block diagram, parts, nRF52840 pin assignment, power
+tree, RF chain, rescue footprints). Every part carries Verificado = "no" until someone checks it
+against its datasheet. Net names are global: a net used in more than one sheet gets global labels,
+the rails in ``simbolos.POWER_NETS`` get power symbols, everything else gets local labels.
+"""
+
+from __future__ import annotations
+
+from modelo import (C0402, C0603, C1206, D0402, JUMPER_CLOSED, R0805, SOD123F, SOD323, SOT23, SOT23_5, SOT23_6,
+                    TP_PAD, UFL, C, D, ESD, FLAG, L, NC, NMOS, R, R0, TP, Group, Sheet, part)
+
+POD = "pod:"
+
+# ---------------------------------------------------------------------------
+power = Sheet("power", "Pod v0: power",
+              "Alimentación: BQ25180, MAX17048, buck-boost VREG 3,4 V, LDO 3,2 V del GNSS, LDO de V_BCKP", 100, [
+    Group("Batería", [
+        part("Conn_Bateria", "LiPo 500–600 mAh", {"1": "BAT", "2": "GND", "3": "BAT_NTC", "MP": "GND"},
+             "Connector_JST:JST_GH_SM03B-GHS-TB_1x03-1MP_P1.25mm_Horizontal",
+             note="Conector con llave y patas asimétricas (BAT, GND, NTC): el de la celda, no verificado"),
+        FLAG("BAT"), TP("BAT"), TP("GND"),
+    ], ["Celda con PCM y NTC de 10 kΩ; nunca un JST de hobby sin revisar la polaridad"]),
+    Group("Cargador BQ25180", [
+        part("BQ25180YBGR", "BQ25180", {"A2": "VBUS", "C2": "BAT", "B2": "SYS", "D2": "GND", "D1": "BAT_NTC",
+                                        "A1": "CHG_INT", "B1": "I2C_SCL", "C1": "I2C_SDA"},
+             POD + "DSBGA-8_L1.6-W0.9-R2-C4-P0.40-BL", mpn="BQ25180YBGR", lcsc="C3682423", manufacturer="Texas Instruments",
+             note="I2C 0x6A; carga de 300–350 mA escrita por el firmware; cobre y vías térmicas debajo"),
+        C("1u", "VBUS"), C("10u", "SYS", footprint=C0603), C("1u", "BAT"),
+        R("10k", "BAT_NTC", "GND", dnp=True, note="Arranque sin batería: 10 kΩ en TS para que no vea falla de temperatura"),
+        NMOS("MR_G", "BAT_NTC", dnp=True,
+             note="Reset manual en TS/MR, sin montar: un diodo no sirve (V_TSMR de unos 90 mV); fuga baja frente al NTC"),
+        R("100k", "MR_G", "GND", dnp=True, note="Pull-down del gate del reset manual"),
+        part("SW_Push", "Reset manual", {"1": "BAT", "2": "MR_G"}, "Button_Switch_SMD:SW_SPST_TL3342", dnp=True,
+             note="Pulsador propio desde BAT: anda también en modo envío (sin SYS ni VREG)"),
+        TP("SYS"),
+    ]),
+    Group("Medidor MAX17048", [
+        part("MAX17048G+T10", "MAX17048", {"1": "GND", "2": "BAT", "3": "BAT", "4": "GND", "5": "FG_ALRT", "6": "GND",
+                                           "7": "I2C_SCL", "8": "I2C_SDA", "9": "GND"},
+             POD + "TDFN-8_L2.0-W2.0-P0.50-BL-EP1.2", mpn="MAX17048G+T10", lcsc="C2682616", manufacturer="Analog Devices",
+             note="VDD y CELL en la celda; I2C 0x36 (no verificada)"),
+        C("1u", "BAT"),
+    ]),
+    Group("Buck-boost VREG 3,4 V (TPS63900)", [
+        part("TPS63900", "TPS63900", {"10": "SYS", "1": "SYS", "2": "BB_SEL", "9": "BB_LX1", "7": "BB_LX2",
+                                      "6": "VREG_BB", "3": "BB_CFG1", "4": "BB_CFG2", "5": "BB_CFG3", "8": "GND", "11": "GND"},
+             "Package_SON:WSON-10-1EP_2.5x2.5mm_P0.5mm_EP1.2x2mm", mpn="TPS63900DSKR", manufacturer="Texas Instruments",
+             note="Footprint genérico WSON-10 de 2,5 × 2,5 mm: comparar el pad expuesto con el DSK de TI"),
+        L("2.2u", "BB_LX1", "BB_LX2", "Inductor_SMD:L_Murata_DFE201610P", mpn="DFE201610E-2R2M",
+          note="2,2 µH según la hoja; parte no verificada"),
+        C("10u", "SYS", footprint=C0603), C("22u", "VREG_BB", footprint=C0603),
+        R0("BB_SEL", "SYS", note="SEL alto: V_O(2) = 3,4 V (CFG1 + CFG2)"),
+        R0("BB_SEL", "GND", dnp=True, note="SEL bajo: V_O(1) de CFG3 (3,3 V), para probar otro punto"),
+        R("0", "BB_CFG1", "GND", note="R_CFG1 = 0 Ω y R_CFG2 = 8,25 kΩ: 3,4 V sin límite de corriente de entrada (tabla 7-2)"),
+        R("8.25k 1%", "BB_CFG2", "GND"),
+        R("16.2k 1%", "BB_CFG3", "GND", note="R_CFG3 = 16,2 kΩ: V_O(1) = 3,3 V (tabla 7-3; 3,4 V no existe con SEL bajo)"),
+        R0("VREG_BB", "VREG", note="Medición de corriente de VREG"),
+        FLAG("VREG"), TP("VREG"),
+    ], ["3,4 V solo existe como V_O(2) (SEL alto): la tabla de SEL bajo salta de 3,3 a 3,6 V"]),
+    Group("LDO del GNSS 3,2 V", [
+        part("TPS7A20_DBV", "TPS7A20 3,2 V", {"1": "VREG", "3": "GNSS_LDO_EN", "4": NC, "5": "VGNSS_LDO", "2": "GND"},
+             SOT23_5, mpn="TPS7A2032PDBVR", manufacturer="Texas Instruments",
+             note="Descarga activa de 150 Ω y pull-down de 500 kΩ en EN (hoja de TI); número de parte no verificado"),
+        C("1u", "VREG"), C("1u", "VGNSS_LDO"),
+        R0("GNSS_EN", "GNSS_LDO_EN", note="EN desde GNSS_EN (P1.13)"),
+        R0("VREG", "GNSS_LDO_EN", dnp=True, note="EN atado a VREG"),
+        R("100k", "GNSS_EN", "GND", note="Pull-down: GNSS apagado con el nRF en reset o en la DFU"),
+        part("TPS22916", "TPS22916C", {"A2": "VGNSS_LDO", "B2": "GNSS_EN", "A1": "VGNSS_SW", "B1": "GND"},
+             dnp=True, mpn="TPS22916CYFPR", manufacturer="Texas Instruments",
+             note="Load switch del GNSS sin montar (el EN del LDO hace el corte); footprint DSBGA-4 por dibujar"),
+        R0("VGNSS_LDO", "VGNSS_SW", note="Puente del load switch del GNSS"),
+        R0("VGNSS_SW", "VCC_GNSS", note="Medición de corriente del GNSS"),
+        R0("VREG", "VCC_GNSS", dnp=True, note="GNSS directo de VREG"),
+        FLAG("VCC_GNSS"), TP("VCC_GNSS"),
+    ]),
+    Group("LDO de V_BCKP 3,0 V", [
+        part("TPS7A02_DBV", "TPS7A02 3,0 V", {"1": "BAT", "3": "BCKP_EN", "4": NC, "5": "V_BCKP_LDO", "2": "GND"},
+             SOT23_5, mpn="TPS7A0230PDBVR", manufacturer="Texas Instruments",
+             note="EN con pull-down interno: va directo a SYS, sin divisor; número de parte no verificado"),
+        C("1u", "BAT"), C("1u", "V_BCKP_LDO"),
+        R0("SYS", "BCKP_EN", note="EN directo de SYS: se corta en modo envío"),
+        R0("BAT", "BCKP_EN", dnp=True, note="EN atado a BAT"),
+        R0("V_BCKP_LDO", "V_BCKP", note="Medición de corriente de V_BCKP"),
+        R0("VREG", "V_BCKP", dnp=True, note="V_BCKP desde VREG"),
+        FLAG("V_BCKP"), TP("V_BCKP"),
+        FLAG("GND"),
+    ]),
+])
+
+# ---------------------------------------------------------------------------
+gnss_rf = Sheet("gnss_rf", "Pod v0: gnss_rf",
+                "GNSS: LC29H, traductores de 2,8 V, reset, conector para QGNSS y cadena RF de la antena", 200, [
+    Group("Quectel LC29H", [
+        part("LC29H", "LC29H(AA)", {"23": "VCC_GNSS", "22": "V_BCKP", "7": "VDD_EXT", "9": "GNSS_VDD_RF", "11": "GNSS_RF_IN",
+                                    "14": "GNSS_ANT_ON", "10": "GND", "12": "GND", "13": "GND", "24": "GND",
+                                    "1": "GNSS_WAKEUP", "8": "GNSS_RESET_N", "3": "GNSS_PPS_28", "20": "GNSS_TXD", "21": "GNSS_RXD",
+                                    "18": "GNSS_SDA", "19": "GNSS_SCL", "2": NC, "4": NC,
+                                    "5": NC, "6": NC, "15": NC, "16": NC, "17": NC},
+             mpn="LC29HAAMD", manufacturer="Quectel",
+             note="Mismo lugar para la LC29H(EA). Footprint de Quectel, por dibujar. FWD y WHEELTICK reservados en AA y EA"),
+        C("10u", "VCC_GNSS", footprint=C0603), C("100n", "VCC_GNSS"), C("1u", "V_BCKP"), C("100n", "VDD_EXT"),
+        R("10k", "GNSS_WAKEUP", "VCC_GNSS", dnp=True, note="Pull-up de respaldo del WAKEUP al VCC del GNSS"),
+        TP("GNSS_WAKEUP"), TP("GNSS_SDA"), TP("GNSS_SCL"), TP("GNSS_ANT_ON"), TP("VDD_EXT"),
+    ], ["WAKEUP (3,0–3,6 V) directo del nRF; I2C y ANT_ON del módulo solo a pads"]),
+    Group("Reset del GNSS", [
+        NMOS("GNSS_RST", "GNSS_RESET_N", note="Drenador abierto como pide Quectel: RESET_N ≤ 0,1 V al menos 100 ms"),
+        R("100k", "GNSS_RST", "GND"),
+    ]),
+    Group("Traductores 3,4 V ↔ 2,8 V", [
+        part("SN74LVC1T45", "SN74LVC1T45", {"1": "VREG", "3": "GNSS_TX", "5": "VREG", "6": "VDD_EXT", "4": "GNSS_RXD_T", "2": "GND"},
+             SOT23_6, mpn="SN74LVC1T45DBVR", manufacturer="Texas Instruments", note="nRF → RXD del GNSS (DIR alto: A a B)"),
+        part("SN74LVC1T45", "SN74LVC1T45", {"1": "VREG", "3": "GNSS_RX", "5": "GND", "6": "VDD_EXT", "4": "GNSS_TXD_T", "2": "GND"},
+             SOT23_6, mpn="SN74LVC1T45DBVR", manufacturer="Texas Instruments", note="TXD del GNSS → nRF (DIR bajo: B a A)"),
+        part("SN74LVC1T45", "SN74LVC1T45", {"1": "VREG", "3": "GNSS_PPS", "5": "GND", "6": "VDD_EXT", "4": "GNSS_PPS_28", "2": "GND"},
+             SOT23_6, mpn="SN74LVC1T45DBVR", manufacturer="Texas Instruments", note="1PPS → nRF (DIR bajo: B a A)"),
+        C("100n", "VREG", note="VCCA del traductor de TX"), C("100n", "VDD_EXT", note="VCCB del traductor de TX"),
+        C("100n", "VREG", note="VCCA del traductor de RX"), C("100n", "VDD_EXT", note="VCCB del traductor de RX"),
+        C("100n", "VREG", note="VCCA del traductor de PPS"), C("100n", "VDD_EXT", note="VCCB del traductor de PPS"),
+        R0("GNSS_TX", "GNSS_RXD_T", dnp=True, note="Puente del traductor"),
+        R0("GNSS_RX", "GNSS_TXD_T", dnp=True, note="Puente del traductor"),
+        R0("GNSS_PPS", "GNSS_PPS_28", dnp=True, note="Puente del traductor"),
+    ], ["Con el GNSS apagado, el lado A de RX y PPS queda en alta impedancia: pull-up interna del nRF"]),
+    Group("Conector para QGNSS", [
+        part("Conn_01x04_MP", "QGNSS", {"1": "GNSS_TXD", "2": "GNSS_RXD", "3": "VDD_EXT", "4": "GND", "MP": "GND"},
+             "Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal",
+             note="TXD, RXD, VDD_EXT y GND para hablar con QGNSS desde una notebook"),
+        part("SolderJumper_Bridged", "Puente", {"1": "GNSS_TXD", "2": "GNSS_TXD_T"}, JUMPER_CLOSED,
+             note="Se corta para desconectar el nRF"),
+        part("SolderJumper_Bridged", "Puente", {"1": "GNSS_RXD_T", "2": "GNSS_RXD"}, JUMPER_CLOSED,
+             note="Se corta para desconectar el nRF"),
+    ]),
+    Group("Antena y bias-T", [
+        part("Conn_Coax", "U.FL Taoglas", {"1": "GNSS_ANT_UFL", "2": "GND"}, UFL, mpn="U.FL-R-SMT-1(10)", manufacturer="Hirose",
+             note="Taoglas AGVLB.25B.07.0060A por cable de 60 mm"),
+        part("Antenna", "Patch L1/L5", {"1": "GNSS_ANT_PATCH"}, dnp=True,
+             note="Patch cerámico plano en la placa (alternativa por altura); footprint por dibujar"),
+        R0("GNSS_ANT_UFL", "GNSS_ANT", note="Selector de antena: U.FL"),
+        R0("GNSS_ANT_PATCH", "GNSS_ANT", dnp=True, note="Selector de antena: patch"),
+        ESD("ESD ≤ 0,6 pF", "GNSS_ANT", D0402, note="ESD de RF (parte por elegir)"),
+        L("68n", "GNSS_ANT", "GNSS_BIAS_L", note="Bias-T: L ≥ 68 nH"),
+        R("33", "GNSS_BIAS_L", "GNSS_BIAS", R0805, note="R de protección de 22–33 Ω en 0805 (o PTC)"),
+        C("100p", "GNSS_BIAS"), C("100n", "GNSS_BIAS"),
+        R0("GNSS_VDD_RF", "GNSS_BIAS", note="Antena siempre alimentada desde VDD_RF; se saca con el patch pasivo"),
+        part("Q_PMOS_GSD", "PMOS", {"1": "GNSS_ANT_SW_G", "2": "GNSS_VDD_RF", "3": "GNSS_BIAS"}, SOT23, dnp=True,
+             note="Control por ANT_ON, sin montar (parte por elegir)"),
+        R("100k", "GNSS_ANT_SW_G", "GNSS_VDD_RF", dnp=True),
+        NMOS("GNSS_ANT_ON", "GNSS_ANT_SW_G", dnp=True),
+        R("100k", "GNSS_ANT_ON", "GND", dnp=True),
+        part("Shield", "Tapa blindada", {"1": "GND"}, dnp=True, note="Lugar para tapa sobre el GNSS y su cadena RF; footprint por dibujar"),
+    ], ["Con el patch pasivo: abrir el bias, montar SAW y LNA, atenuador en 0 Ω"]),
+    Group("Cadena RF hasta RF_IN", [
+        C("100p", "GNSS_ANT", "GNSS_RF_A", note="Bloqueo de DC"),
+        part("SAW_L1L5", "SAW L1+L5", {"1": "GNSS_RF_A", "3": "GNSS_RF_B", "2": "GND", "4": "GND"}, dnp=True,
+             note="SAW de doble banda (parte por elegir)"),
+        R0("GNSS_RF_A", "GNSS_RF_B", note="Puente del primer SAW"),
+        C("100p", "GNSS_RF_B", "GNSS_LNA_IN", dnp=True, note="Bloqueo de DC de entrada del LNA"),
+        part("LNA_L1L5", "LNA L1+L5", {"1": "GNSS_LNA_IN", "2": "VCC_GNSS", "3": "VCC_GNSS", "4": "GNSS_LNA_OUT", "5": "GND"},
+             dnp=True, note="Solo con el patch pasivo: con la Taoglas, dos LNA en cascada saturan el módulo"),
+        C("100p", "GNSS_LNA_OUT", "GNSS_RF_C", dnp=True, note="Bloqueo de DC de salida del LNA"),
+        C("100n", "VCC_GNSS", dnp=True),
+        R0("GNSS_RF_B", "GNSS_RF_C", note="Puente del LNA"),
+        part("SAW_L1L5", "SAW L1+L5", {"1": "GNSS_RF_C", "3": "GNSS_RF_D", "2": "GND", "4": "GND"}, dnp=True,
+             note="SAW de doble banda (parte por elegir)"),
+        R0("GNSS_RF_C", "GNSS_RF_D", note="Puente del segundo SAW"),
+        R("150", "GNSS_RF_D", "GND", note="Atenuador pi de 6 dB (6–10 dB con la Taoglas; con el patch: serie 0 Ω y paralelos sin montar)"),
+        R("37.4", "GNSS_RF_D", "GNSS_RF_E", note="Atenuador pi, serie"),
+        R("150", "GNSS_RF_E", "GND", note="Atenuador pi, paralelo"),
+        C("DNP", "GNSS_RF_E", dnp=True, note="Red pi de ajuste, paralelo de entrada"),
+        R0("GNSS_RF_E", "GNSS_RF_IN", note="Red pi de ajuste, serie"),
+        C("DNP", "GNSS_RF_IN", dnp=True, note="Red pi de ajuste, paralelo de salida"),
+    ], ["Ganancia total al RF_IN < 17 dB; la Taoglas da 28,3–30,3 dB"]),
+])
+
+# ---------------------------------------------------------------------------
+NRF_PINS = {
+    "1": "GND", "2": "GND", "15": "GND", "33": "GND", "55": "GND",
+    "28": "VREG", "30": "VREG", "31": NC, "32": "VBUS", "34": "USB_DM", "35": "USB_DP",
+    "3": "GNSS_PPS", "4": "CHG_INT", "5": "BARO_INT", "6": "GNSS_EN", "7": "FG_ALRT", "8": "BTN",
+    "9": "GNSS_RST", "10": "LORA_DIO1", "11": "LORA_BUSY", "12": "LORA_NRST", "13": "VBAT_ADC", "14": "LORA_RXEN",
+    "16": "UWB_CS", "17": "XL1", "18": "XL2", "19": "HG_CS", "20": "BUZZER", "21": "LED_G", "22": "GNSS_TX",
+    "23": "I2C_SCL", "24": "GNSS_RX", "25": "LED_B", "26": "IMU_CS", "27": "LED_R", "29": "I2C_SDA",
+    "36": "SENS_SCK", "37": "SENS_MOSI", "38": "LORA_NSS", "39": "SENS_MISO", "40": "NRESET", "41": "NAND_CS",
+    "42": "NAND_SCK_MCU", "43": "NAND_MISO", "44": "NAND_MOSI", "45": "DBG_RX", "46": "DBG_TX", "47": "LORA_MISO",
+    "48": "LORA_SCK", "49": "LORA_MOSI", "50": "UWB_IRQ", "51": "SWDIO", "52": "GNSS_WAKEUP", "53": "SWDCLK",
+    "54": "HALL_INT", "56": "IMU_INT1", "57": "IMU_INT2", "58": "UWB_RST", "59": "UWB_WAKEUP", "60": "HG_INT",
+    "61": "LORA_EN",
+}
+
+E22_PINS = {
+    "1": "GND", "2": "GND", "3": "GND", "4": "GND", "5": "GND", "10": "GND", "11": "GND", "12": "GND", "20": "GND", "22": "GND",
+    "6": "LORA_RXEN", "7": "LORA_TXEN", "8": "LORA_DIO2", "9": "VCC_LORA", "13": "LORA_DIO1", "14": "LORA_BUSY",
+    "15": "LORA_NRST", "16": "LORA_MISO", "17": "LORA_MOSI", "18": "LORA_SCK", "19": "LORA_NSS", "21": "LORA_ANT",
+}
+
+mcu_radio = Sheet("mcu_radio", "Pod v0: mcu_radio",
+                  "nRF52840 (Raytac MDBT50Q-P1MV2), LoRa E22-900M22S, LED de estado, depuración y fabricación", 300, [
+    Group("nRF52840 en el MDBT50Q-P1MV2", [
+        part("MDBT50Q-P1MV2", "MDBT50Q-P1MV2", NRF_PINS, POD + "COMM-SMD_MDBT50Q-1MV2", mpn="MDBT50Q-P1MV2", lcsc="C5119772",
+             manufacturer="Raytac",
+             note="Modo de tensión normal: VDD y VDDH a VREG, DCCH sin conectar. Keep-out de la antena PCB según la sección 2.3"),
+        C("4.7u", "VREG", footprint=C0603), C("100n", "VREG"), C("4.7u", "VBUS", footprint=C0603),
+        part("Crystal", "32,768 kHz", {"1": "XL1", "2": "XL2"}, "Crystal:Crystal_SMD_2012-2Pin_2.0x1.2mm",
+             note="CL ≤ 12,5 pF, ESR ≤ 100 kΩ, C0 ≤ 2 pF (parte por elegir); se saca para usar el RC calibrado"),
+        C("18p", "XL1", note="18–20 pF para un cristal de CL 12,5 pF: ajustar a la parte elegida"),
+        C("18p", "XL2", note="18–20 pF para un cristal de CL 12,5 pF: ajustar a la parte elegida"),
+    ], ["Asignación de pines: docs/hardware/pod-v0.md, \"Pines del nRF52840\". P0.26 y P0.27, vecinos del cristal, solo con CS estáticos"]),
+    Group("Pull-ups, botón y lectura de SYS", [
+        R("4.7k", "I2C_SDA", "VREG"), R("4.7k", "I2C_SCL", "VREG"),
+        R("100k", "CHG_INT", "VREG", note="/INT del BQ25180, drenador abierto (pulso de 128 µs)"),
+        R("100k", "FG_ALRT", "VREG", note="ALRT del MAX17048, drenador abierto"),
+        R("100k", "BARO_INT", "VREG", note="INT del barómetro configurada de drenador abierto"),
+        part("SW_Push", "Botón", {"1": "BTN", "2": "GND"}, "Button_Switch_SMD:SW_SPST_TL3342",
+             note="Botón de banco a GND (pull-up interna del nRF); verificar la numeración del footprint"),
+        R("390k", "SYS", "VBAT_ADC", dnp=True, note="Divisor desde SYS al AIN4, ≤ 400 kΩ por rama (rescate del MAX17048)"),
+        R("390k", "VBAT_ADC", "GND", dnp=True),
+    ]),
+    Group("Depuración y pads de prueba", [
+        part("TC2030-NL", "TC2030-NL", {"1": "VREG", "2": "SWDIO", "3": "NRESET", "4": "SWDCLK", "5": "GND", "6": NC},
+             "Connector:Tag-Connect_TC2030-IDC-NL_2x03_P1.27mm_Vertical",
+             note="Tag-Connect con sus agujeros de alineación; nRESET con PSELRESET en la UICR"),
+        TP("SWDIO"), TP("SWDCLK"), TP("NRESET"), TP("DBG_TX"), TP("DBG_RX"),
+        TP("GNSS_PPS"), TP("IMU_INT1"), TP("LORA_DIO1"), TP("LORA_BUSY"), TP("GND"),
+    ], ["Pads de prueba en una sola cara y en grilla para el jig"]),
+    Group("LED RGB de estado", [
+        part("XL-1615RGBC-RF", "XL-1615RGBC-RF", {"2": "LED_A", "1": "LED_KR", "4": "LED_KG", "3": "LED_KB"},
+             POD + "LED-ARRAY-SMD_4P-L1.6-W1.5-BR_XL-1615RGBC-RF", mpn="XL-1615RGBC-RF", lcsc="C965840", manufacturer="XINGLIGHT",
+             note="Ánodo común (no verificado); debajo de la guía de luz, en la esquina de la nuca"),
+        part("XL-1615RGBC-RF", "XL-1615RGBC-RF", {"2": "LED_A", "1": "LED2_KR", "4": "LED2_KG", "3": "LED2_KB"},
+             POD + "LED-ARRAY-SMD_4P-L1.6-W1.5-BR_XL-1615RGBC-RF", dnp=True, mpn="XL-1615RGBC-RF", lcsc="C965840",
+             manufacturer="XINGLIGHT", note="Segundo LED, sin montar, en el borde de los pads de la base"),
+        R0("SYS", "LED_A", note="Ánodo desde SYS"), R0("VREG", "LED_A", dnp=True, note="Ánodo desde VREG"),
+        R("1k", "LED_KR", "LED_DR", note="Brillo: se ajusta en el banco (1–2 mA por color)"),
+        R("1k", "LED_KG", "LED_DG"), R("1k", "LED_KB", "LED_DB"),
+        R("1k", "LED2_KR", "LED_DR", dnp=True, note="Resistencias propias del segundo LED"),
+        R("1k", "LED2_KG", "LED_DG", dnp=True), R("1k", "LED2_KB", "LED_DB", dnp=True),
+        NMOS("LED_R", "LED_DR"), NMOS("LED_G", "LED_DG"), NMOS("LED_B", "LED_DB"),
+        R("100k", "LED_R", "GND", note="Pull-down del gate: apagado en reset, arranque y DFU"),
+        R("100k", "LED_G", "GND"), R("100k", "LED_B", "GND"),
+    ]),
+    Group("Buzzer (sin montar)", [
+        part("Buzzer", "Buzzer SMD", {"1": "SYS", "2": "BUZ_D"}, "Buzzer_Beeper:MagneticBuzzer_CUI_CMT-8504-100-SMT", dnp=True,
+             note="Para \"buscar mi pod\" con sonido (parte no verificada)"),
+        D("Diodo", "BUZ_D", "SYS", SOD323, dnp=True, note="Rueda libre del buzzer magnético"),
+        NMOS("BUZZER", "BUZ_D", dnp=True),
+        R("100k", "BUZZER", "GND", note="Pull-down del gate, montada"),
+    ]),
+    Group("LoRa E22-900M22S", [
+        part("E22-900M22S", "E22-900M22S", E22_PINS, POD + "WIRELM-SMD_E22-900M22S", mpn="E22-900M22S", lcsc="C411293",
+             manufacturer="Ebyte", note="SX1262 con TCXO de 32 MHz; RXEN y TXEN activos en alto"),
+        R0("LORA_DIO2", "LORA_TXEN", note="TXEN desde DIO2 (por defecto) o desde el pad"),
+        TP("LORA_TXEN"),
+        R("100k", "LORA_NSS", "VCC_LORA", note="Pull-up al riel del E22, nunca a VREG"),
+        C("10u", "VCC_LORA", footprint=C0603), C("100n", "VCC_LORA"),
+        C("47u", "VCC_LORA", footprint=C1206, dnp=True, note="Lugar para un capacitor grande (picos de TX)"),
+        TP("VCC_LORA"),
+    ]),
+    Group("Load switch del E22", [
+        part("TPS22916", "TPS22916C", {"A2": "VREG_LORA", "B2": "LORA_EN", "A1": "VCC_LORA", "B1": "GND"},
+             mpn="TPS22916CYFPR", manufacturer="Texas Instruments",
+             note="Variante C: descarga rápida de la salida. Footprint DSBGA-4 por dibujar (o TPS22917/18 en SOT-23)"),
+        R0("VREG", "VREG_LORA", note="Medición de corriente del LoRa"),
+        R0("VREG_LORA", "VCC_LORA", dnp=True, note="Puente del load switch (E22 siempre alimentado)"),
+        R("100k", "LORA_EN", "GND", note="Pull-down: el E22 arranca apagado"),
+        C("1u", "VREG_LORA"),
+        FLAG("VREG_LORA"), FLAG("VCC_LORA"),
+    ]),
+    Group("Antena LoRa", [
+        C("DNP", "LORA_ANT", dnp=True, note="Pasabajos o trampa sin montar, paralelo de entrada"),
+        R0("LORA_ANT", "LORA_RF", note="Puente del pasabajos (lugar de su L serie)"),
+        C("DNP", "LORA_RF", dnp=True, note="Pasabajos, paralelo de salida"),
+        part("Conn_Coax", "U.FL LoRa", {"1": "LORA_RF", "2": "GND"}, UFL, mpn="U.FL-R-SMT-1(10)", manufacturer="Hirose",
+             note="FPC de 915 MHz de 45 × 10 mm (Ebyte TX915-FPC-4510) en la carcasa"),
+    ]),
+    Group("Fabricación (solo footprint)", [
+        part("Fiducial", "Fiducial", {}, "Fiducial:Fiducial_1mm_Mask2mm"),
+        part("Fiducial", "Fiducial", {}, "Fiducial:Fiducial_1mm_Mask2mm"),
+        part("Fiducial", "Fiducial", {}, "Fiducial:Fiducial_1mm_Mask2mm"),
+        part("MountingHole", "Herramienta", {}, "MountingHole:MountingHole_2.1mm", note="Agujero de herramienta del jig (diámetro a confirmar)"),
+        part("MountingHole", "Herramienta", {}, "MountingHole:MountingHole_2.1mm", note="Agujero de herramienta del jig (diámetro a confirmar)"),
+    ], ["Área libre para la etiqueta con número de serie y QR: se reserva en la placa"]),
+])
+
+# ---------------------------------------------------------------------------
+sensors = Sheet("sensors", "Pod v0: sensors",
+                "IMU LSM6DSV320X (+ ICM-42688-P y ADXL372 sin montar), barómetro BMP581 (+ DPS368 sin montar), Hall DRV5032FB", 400, [
+    Group("IMU LSM6DSV320X", [
+        part("LSM6DSV320XTR", "LSM6DSV320X", {"14": "SENS_MOSI", "13": "SENS_SCK", "12": "IMU_CS", "11": NC, "10": NC,
+                                              "9": "IMU_INT2", "8": "VREG", "7": "GND", "6": "GND", "5": "VREG", "4": "IMU_INT1",
+                                              "3": "GND", "2": "GND", "1": "SENS_MISO"},
+             POD + "LGA-14_L3.0-W2.5-P0.50-TL", mpn="LSM6DSV320XTR", lcsc="C26633007", manufacturer="STMicroelectronics",
+             note="SPI de 4 hilos en el SPIM1; SDx/SCx (I2C maestro) a GND y OSC_AUX/SDO_AUX sin conectar: verificar con la hoja de ST"),
+        C("100n", "VREG"), C("100n", "VREG"),
+    ], ["Cerca del centro del pod"]),
+    Group("ICM-42688-P (sin montar)", [
+        part("ICM-42688-P", "ICM-42688-P", {"8": "VREG", "5": "VREG", "6": "GND", "4": "ICM_INT1", "9": NC, "12": "ICM_CS",
+                                            "13": "SENS_SCK", "14": "SENS_MOSI", "1": "SENS_MISO",
+                                            "2": NC, "3": NC, "7": NC, "10": NC, "11": NC},
+             "Package_LGA:LGA-14_3x2.5mm_P0.5mm_LayoutBorder3x4y", dnp=True, mpn="ICM-42688-P", manufacturer="TDK InvenSense",
+             note="Pines y footprint sin verificar contra la hoja de TDK"),
+        R0("IMU_CS", "ICM_CS", dnp=True, note="CS compartido con el LSM6DSV320X"),
+        R0("ICM_INT1", "IMU_INT1", dnp=True, note="INT1 compartida con el LSM6DSV320X"),
+        C("100n", "VREG", dnp=True),
+    ]),
+    Group("ADXL372 (sin montar)", [
+        part("ADXL372", "ADXL372", {"14": "VREG", "1": "VREG", "12": "GND", "13": "GND", "16": "GND", "11": "HG_INT", "9": NC,
+                                    "8": "HG_CS", "4": "SENS_SCK", "6": "SENS_MOSI", "7": "SENS_MISO",
+                                    "2": NC, "3": NC, "5": NC, "10": NC, "15": NC},
+             dnp=True, mpn="ADXL372BCCZ", manufacturer="Analog Devices",
+             note="Pines sin verificar (supuestos como la familia ADXL362); footprint LGA-16 por dibujar"),
+        C("100n", "VREG", dnp=True),
+        R0("HG_INT", "IMU_INT2", dnp=True, note="HG_INT a INT2 del LSM6DSV320X"),
+    ]),
+    Group("Barómetro BMP581", [
+        part("BMP581", "BMP581", {"1": "VREG", "10": "VREG", "3": "GND", "8": "GND", "9": "GND", "2": "I2C_SCL", "4": "I2C_SDA",
+                                  "5": "BARO_SDO", "6": "BARO_CSB", "7": "BARO_INT_B"},
+             POD + "LGA-10_L2.0-W2.0-P0.50-TL_BMP581", mpn="BMP581", lcsc="C5362283", manufacturer="Bosch",
+             note="Junto a la ventilación con membrana de ePTFE, lejos del buck-boost y del cargador"),
+        R0("BARO_SDO", "VREG", note="SDO a VDDIO: dirección 0x47"),
+        R0("BARO_SDO", "GND", dnp=True, note="SDO a GND: dirección 0x46"),
+        R0("BARO_CSB", "VREG", note="CSB a VDDIO: I2C (en bajo al encender queda en SPI o I3C)"),
+        R0("BARO_INT_B", "BARO_INT", note="INT del BMP581 a BARO_INT (P1.12)"),
+        C("100n", "VREG"), C("100n", "VREG"),
+    ]),
+    Group("DPS368 (sin montar)", [
+        part("DPS368XTSA1", "DPS368", {"1": "GND", "7": "GND", "2": "VREG", "3": "I2C_SDA", "4": "I2C_SCL", "5": "DPS_SDO",
+                                       "6": "VREG", "8": "VREG"},
+             POD + "LGA-8_L2.5-W2.0-P0.65-TR_DPS368", dnp=True, mpn="DPS368XTSA1", lcsc="C3232508", manufacturer="Infineon",
+             note="CSB a VDDIO (I2C); SDO es la interrupción en I2C y fija la dirección (0x77 en alto)"),
+        R0("DPS_SDO", "BARO_INT", dnp=True, note="Interrupción del DPS368 a BARO_INT"),
+        C("100n", "VREG", dnp=True),
+    ]),
+    Group("Hall del chaleco DRV5032FB", [
+        part("DRV5032FBDBZR", "DRV5032FB", {"1": "VREG", "2": "HALL_OUT", "3": "GND"},
+             POD + "SOT-23_L2.9-W1.3-P1.90-LS2.4-BR", mpn="DRV5032FBDBZR", lcsc="C2655033", manufacturer="Texas Instruments",
+             note="Omnipolar, push-pull, 5 Hz; en la cara que apoya contra el bolsillo, lejos de los pads y sus imanes"),
+        R("47k", "HALL_OUT", "HALL_INT", note="Serie de 10–100 kΩ (valor no verificado): protege el pad NFC antes de escribir NFCPINS"),
+        C("100n", "VREG"),
+    ]),
+])
+
+# ---------------------------------------------------------------------------
+storage = Sheet("storage", "Pod v0: storage", "NAND W25N04KV en el SPIM3, con load switch sin montar", 500, [
+    Group("NAND W25N04KV", [
+        part("W25N02KVZEIR", "W25N04KVZEIR", {"1": "NAND_CS", "2": "NAND_MISO", "3": "NAND_WP", "4": "GND", "5": "NAND_MOSI",
+                                              "6": "NAND_SCK", "7": "NAND_HOLD", "8": "VCC_NAND", "9": "GND"},
+             POD + "WSON-8_L8.0-W6.0-P1.27-TL-EP-1", mpn="W25N04KVZEIR", manufacturer="Winbond",
+             note="W25N02KVZEIR (C3010298) en el mismo lugar; pines idénticos no verificados"),
+        R("22", "NAND_SCK_MCU", "NAND_SCK", note="Serie de 22–33 Ω en el reloj de 32 MHz, a ajustar"),
+        R("10k", "NAND_WP", "VCC_NAND", note="Pull-up al riel de la NAND, nunca a VREG"),
+        R("10k", "NAND_HOLD", "VCC_NAND"),
+        R("100k", "NAND_CS", "VCC_NAND"),
+        C("100n", "VCC_NAND"), C("1u", "VCC_NAND"),
+        TP("VCC_NAND"),
+    ]),
+    Group("Load switch de la NAND (sin montar)", [
+        part("TPS22916", "TPS22916C", {"A2": "VREG", "B2": "NAND_SW_ON", "A1": "VCC_NAND", "B1": "GND"}, dnp=True,
+             mpn="TPS22916CYFPR", manufacturer="Texas Instruments", note="Solo si el reposo de la NAND pesa en el banco"),
+        R0("VREG", "VCC_NAND", note="Puente del load switch, montado"),
+        R0("NAND_SW_ON", "VREG", note="EN al riel de entrada, montado"),
+        R0("NAND_SW_ON", "HG_INT", dnp=True, note="EN desde NAND_EN en P1.03 (en lugar del ADXL372)"),
+        R("100k", "HG_INT", "GND", dnp=True, note="Pull-down de NAND_EN: montarlo junto con el load switch"),
+        FLAG("VCC_NAND"),
+    ]),
+])
+
+# ---------------------------------------------------------------------------
+DWM_PINS = {
+    "6": "VCC_UWB", "7": "VCC_UWB", "5": "UWB_VDD1", "1": NC, "2": "UWB_WAKEUP", "3": "UWB_RST", "22": "UWB_IRQ",
+    "8": "GND", "16": "GND", "21": "GND", "23": "GND", "24": "GND",
+    "17": "UWB_CS", "20": "SENS_SCK", "18": "SENS_MOSI", "19": "SENS_MISO",
+    "15": NC, "14": NC, "13": NC, "12": NC, "11": NC, "10": NC, "9": NC, "4": NC,
+}
+
+uwb = Sheet("uwb", "Pod v0: uwb", "UWB DWM3000 sin montar, en el bus de sensores (SPIM1), sin load switch", 700, [
+    Group("DWM3000 (sin montar)", [
+        part("DWM3000", "DWM3000", DWM_PINS, dnp=True, mpn="DWM3000", manufacturer="Qorvo",
+             note="Footprint del paquete de Qorvo, por dibujar (la DWM1000 de KiCad comparte pines según la librería oficial)"),
+        R0("VREG", "VCC_UWB", note="Medición de corriente del UWB"),
+        R0("VCC_UWB", "UWB_VDD1", dnp=True, note="Pin 5 (VDD1 en la DWM3000): conexión a verificar con la hoja"),
+        C("10u", "VCC_UWB", footprint=C0603, dnp=True), C("100n", "VCC_UWB", dnp=True),
+        FLAG("VCC_UWB"), TP("VCC_UWB"),
+    ], ["Siempre en VREG: el firmware lo pone en DEEPSLEEP. Keep-out de la antena sin cobre en ninguna capa"]),
+])
+
+# ---------------------------------------------------------------------------
+usb_dock = Sheet("usb_dock", "Pod v0: usb_dock", "Pads de la base (VBUS, D+, D−, GND, DETECT), switch de entrada con OVP y ESD", 600, [
+    Group("Pads de la base", [
+        part("Pads_Base", "Pads de la base", {"1": "VBUS_PAD", "2": "DOCK_DP", "3": "DOCK_DM", "4": "GND", "5": "DOCK_DET"},
+             note="5 pads planos dorados con llave; patrón asimétrico a dibujar con la base"),
+        R("10k", "DOCK_DET", "GND", note="DETECT a GND: la base habilita VBUS solo con un pod asentado (valor a definir)"),
+        D("SMF12A", "GND", "VBUS_PAD", SOD123F, symbol="D_TVS", mpn="SMF12A",
+          note="TVS de 12–13 V de stand-off (clase SMF12A o SMAJ12A, engrape de unos 20 V con 8/20 µs); aguas abajo protege el OVLO"),
+        ESD("ESD 5 V", "DOCK_DET", note="ESD de DETECT (parte por elegir)"),
+        part("USBLC6-2SC6", "USBLC6-2SC6", {"1": "DOCK_DP", "6": "DOCK_DP", "3": "DOCK_DM", "4": "DOCK_DM", "5": "VBUS", "2": "GND"},
+             SOT23_6, mpn="USBLC6-2SC6", manufacturer="STMicroelectronics", note="ESD de baja capacidad en D+/D−"),
+        FLAG("VBUS_PAD"),
+    ], ["Objetivo IEC 61000-4-2: ±8 kV por contacto y ±15 kV por aire en los pads"]),
+    Group("Switch de entrada de VBUS (TPS259470A)", [
+        part("TPS259470", "TPS259470A", {"5": "VBUS_PAD", "1": "VIN_EN", "2": "VIN_OVLO", "8": "GND", "6": "VBUS",
+                                         "9": "EF_ILM", "7": "EF_DVDT", "10": NC, "3": NC, "4": NC},
+             mpn="TPS259470ARPWR", manufacturer="Texas Instruments",
+             note="OVLO ajustable con reintento automático; footprint VQFN-10 RPW por dibujar"),
+        R("374k 1%", "VBUS_PAD", "VIN_EN", note="UVLO de 1,20 V × (1 + 374/162) ≈ 4,0 V; TI pide ≥ 350 kΩ arriba"),
+        R("162k 1%", "VIN_EN", "GND"),
+        R("374k 1%", "VBUS_PAD", "VIN_OVLO", note="OVLO de 1,20 V × (1 + 374/100) ≈ 5,69 V"),
+        R("100k 1%", "VIN_OVLO", "GND"),
+        R("3.32k 1%", "EF_ILM", "GND", note="Límite de 0,85–1,15 A"),
+        C("DNP", "EF_DVDT", dnp=True, note="Rampa de salida más lenta (abierto: la más rápida)"),
+        C("1u 25V", "VBUS_PAD", footprint=C0603),
+        R0("VBUS_PAD", "VBUS", dnp=True, note="Puente del switch de entrada"),
+        TP("VBUS"),
+    ]),
+    Group("USB D+/D−", [
+        R0("DOCK_DP", "USB_DP", note="D+ al nRF"),
+        R0("DOCK_DM", "USB_DM", note="D− al nRF"),
+    ]),
+])
+
+SHEETS = [power, gnss_rf, mcu_radio, sensors, storage, usb_dock, uwb]

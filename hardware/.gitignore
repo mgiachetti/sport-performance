@@ -7,3 +7,5 @@ fp-info-cache
 _autosave-*
 ~*.lck
 *.bak
+# Caché de Python del generador del esquemático.
+__pycache__/

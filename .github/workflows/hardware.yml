@@ -35,19 +35,30 @@ jobs:
         with:
           persist-credentials: false
 
+      # The sheets and pod.kicad_sym come from hardware/tools/esquematico (standard library only):
+      # fail if they differ from what the generator writes.
+      - name: Schematic generator up to date
+        run: python3 hardware/tools/esquematico/generar.py --check
+
       - name: Pull KiCad image
         run: docker pull "$KICAD_IMAGE"
 
       # The container runs as the runner's user so the reports are writable; HOME points
-      # to /tmp because kicad-cli writes its configuration there.
+      # to /tmp because kicad-cli writes its configuration there. The ERC checks that every
+      # footprint exists, so it first installs KiCad's default global library tables (the
+      # official libraries are in the image) into that fresh configuration.
       - name: ERC
         run: |
           set -euo pipefail
           docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
             -v "$GITHUB_WORKSPACE:/work" -v "$RUNNER_TEMP:/out" \
             -w "/work/$PROJECT_DIR" "$KICAD_IMAGE" \
-            kicad-cli sch erc --exit-code-violations --severity-error --severity-warning \
-              --output /out/erc.rpt pod-v0.kicad_sch
+            sh -c 'set -eu
+              template="$(dirname "$(find /usr/share/kicad -path "*/template/fp-lib-table" | head -n 1)")"
+              mkdir -p /tmp/.config/kicad/10.0
+              cp "$template/fp-lib-table" "$template/sym-lib-table" /tmp/.config/kicad/10.0/
+              exec kicad-cli sch erc --exit-code-violations --severity-error --severity-warning \
+                --output /out/erc.rpt pod-v0.kicad_sch'
 
       # Once the board has footprints, add --schematic-parity so the DRC also checks
       # that the board matches the schematic.
