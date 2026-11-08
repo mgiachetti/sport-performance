@@ -21,9 +21,9 @@ Este documento acompaña al [ADR 0105](../adr/0105-pod-gnss-imu-con-telemetria-e
 | Memoria NAND SPI | Winbond W25N02KVZEIR (2 Gbit) | W25N04 (4 Gbit, la recomendada) o GigaDevice | US$ 4,72–6,14 (C3010298) | [LCSC W25N02](https://www.lcsc.com/product-image/C3010298.html) | 2 Gbit sí. 4 Gbit y GigaDevice, **no verificados** |
 | Cargador | TI BQ25180 | TP4056 | US$ 1,52–2,20 | [LCSC BQ25180](https://www.lcsc.com/product-detail/C3682423.html) | Sí |
 | Medidor de carga | MAX17048G+T10 | — | ≈ US$ 1,35 | [LCSC MAX17048](https://lcsc.com/product-detail/image/MAX17048G-T10_C2682616.html) | Sí |
-| Batería | LiPo de ~1000 mAh con NTC | — | ≈ US$ 5 (precio minorista) | [Core Electronics](https://core-electronics.com.au/catalog/product/view/sku/CE06795) | Parcial: el precio mayorista **no está verificado** |
-| Antena LoRa 915 | FPC de 15 × 65 mm con IPEX | Ebyte TX915-FPC-4510 | ≈ US$ 1,2 (AUD 1,78 @100) | [Core Electronics](https://core-electronics.com.au/915mhz-ufl-antenna.html) | Sí |
-| Pines pogo (4, magnéticos) | Xinyangze YZ103915020T (C6276862) | — | ~US$ 1 (estimado) | [LCSC](https://lcsc.com/product-detail/Pogo-Pin-Spring-Probe-Connector_Xinyangze-YZ103915020T-04025-02_C6276862.html) | **No verificado** |
+| Batería | LiPo de **500–600 mAh** (decisión del usuario) con PCM y NTC, de un proveedor con informe **UN38.3 e IEC 62133** y MSDS | — | ≈ US$ 5 (precio minorista de una celda de 1000 mAh; la de 500–600 mAh de un proveedor con informes, **no verificado**) | [Core Electronics](https://core-electronics.com.au/catalog/product/view/sku/CE06795) | Parcial: precio y proveedor, **no verificados** |
+| Antena LoRa 915 | **FPC de 45 × 10 mm** (Ebyte TX915-FPC-4510) | FPC de 15 × 65 mm con IPEX (≈ US$ 1,2; demasiado larga para la placa) | Precio de la de 45 mm, **no verificado** | [Core Electronics](https://core-electronics.com.au/915mhz-ufl-antenna.html) (la de 65 mm) | Medidas y precio de la de 45 mm, **no verificados** |
+| Contactos del pod (única conexión, sin USB-C) | **5 pads planos dorados** en la placa (VBUS, D+, D−, GND, DETECT); los resortes pogo (por ejemplo Xinyangze YZ103915020T, C6276862) van en la base | Switch de entrada de VBUS con OVP y TVS en los pads | Pads: costo del acabado dorado del PCB. Switch y TVS: **no verificados** | — | **No verificado** |
 | PCB de 4 capas + armado | JLCPCB Standard | PCBWay | US$ 25 de setup por cara y US$ 1,5–3 por parte extendida: unos US$ 6–10 por placa | [JLCPCB](https://jlcpcb.com/help/article/40-pcb-assembly-price) | Tarifas sí. El total por placa es una **estimación** |
 | Carcasa | MJF PA12 en JLC3DP, con junta | — | US$ 0,275/g, unos US$ 6–10 con 20–35 g | [JLC3DP](https://jlc3dp.com/blog/drastic-material-price-cuts-and-adjusted-post-processing-service-fees) | Precio por gramo sí. Los gramos son **estimados** |
 | UWB opcional (sin montar en la primera tanda) | Qorvo DW3110 + antena chip + cristal | QM33110 (sucesor, sin precio); DW1000 descartado | Chip: US$ 6,64 @100 (LCSC; precio no confirmado en la revisión) / US$ 8,77 @100 (RFMW). Con antena, cristal, pasivos y armado: unos US$ 9–12 | [LCSC DW3110](https://www.lcsc.com/product-detail/C3040882.html) · [RFMW DW3110](https://www.rfmw.com/ProductDetail/DW3110-Qorvo/691974) · [Qorvo QM33110W](https://www.qorvo.com/products/p/QM33110W) | Chip sí. El resto, **no verificado** |
@@ -44,7 +44,7 @@ Sin pasivos de detalle, chaleco ni banda de FC:
 |---|---|---|---|
 | Gateway LoRa de 8 canales SX1302: RAK7268V2 (alternativa: RAK2287 + Raspberry Pi) | 1 por cancha | US$ 139; versión US915 sin LTE, US$ 169,99. RAK2287: US$ 84–99 | [hackster](https://hackster.io/products/buy/97716) · [RAK](https://store.rakwireless.com/products/wislink-concentrator-module-sx1302-rak2287-lorawan) |
 | Mástil de 3–5 m para el gateway | 1 por cancha | — | **No verificado** |
-| Bases de carga y descarga (pogo + USB) | ~5 de 20 lugares | Diseño propio: costo **no verificado** | — |
+| Bases de carga y descarga (resortes pogo contra los pads del pod; VBUS solo con DETECT) | ~5 de 20 lugares | Diseño propio: costo **no verificado** | — |
 | Base de la cancha y referencia: **Quectel LG290P** (4 bandas, crudo a 10–20 Hz según el foro, **no verificado**) con antena L1/L2/L5 | 1 por cancha | Módulo US$ 67–107 en DigiKey; breakout de Waveshare unos US$ 90 | [DigiKey](https://www.digikey.bg/en/product-highlight/q/quectel/lg290p-03-gnss-module) · [CNX Software](https://www.cnx-software.com/2025/11/25/waveshare-low-cost-lg290p-gnss-rtk-breakout-board-rtc-battery-support/) |
 | Chalecos con bolsillo entre los omóplatos | 100 o más (talles) | **No verificado** | — |
 | Imán del bolsillo (neodimio **encapsulado** o recubierto, cosido o pegado en el fondo del bolsillo, en una posición fija frente al Hall del pod) | 1 por chaleco | Centavos por imán; tamaño y fuerza se eligen en el banco; que aguante el lavado, **no verificado** | — |
@@ -71,7 +71,7 @@ Sin pasivos de detalle, chaleco ni banda de FC:
   - Un resumen por segundo de unos 20 B, que se manda de a 2: unos 40 B cada 2 s.
   - 40 B en SF7 / 125 kHz ocupan unos 82 ms en el aire. Con turnos de unos 100 ms (con tiempo de guarda), una trama de 2 s tiene 20 turnos por canal: **unos 160 pods en 8 canales**.
   - 30 pods ocupan cerca del 15 % de cada canal. Cada 1 s sería el 31 %, con capacidad para unos 80 pods.
-- **Batería:** el consumo estimado es de unos 40–50 mA. Con 1000 mAh son unas 20 h para un objetivo de 4–5 h. El banco decide entre dejar ese margen o bajar a unos 400–500 mAh.
+- **Batería:** 500–600 mAh (decisión del usuario). El consumo estimado en actividad es de unos 50–60 mA, contando los 18 mA del LNA de la antena (`pod-v0.md`): unas 8–12 h para un objetivo de 4–5 h.
 
 ## GNSS: qué se sabe de la salida cruda
 
@@ -128,7 +128,7 @@ No se encontraron estudios de GNSS de doble banda de bajo costo en deportes. Lo 
      - si el AA saca crudo, a qué tasa y si la configuración persiste;
      - el RTK de la EA con el LG290P de base: % de "fixed" y bytes/s de RTCM;
      - hasta qué tasa sale RAWX en el F10N;
-     - el consumo real (estimado en 40–50 mA) y la batería necesaria;
+     - el consumo real (estimado en 50–60 mA) y que la batería de 500–600 mAh alcance;
      - si transmitir LoRa satura la entrada del GNSS, con y sin el SAW.
 2. **Cancha, lado a lado** (en el club):
    - Un jugador de primera lleva **el Catapult y nuestro pod a la vez**, en sesiones de entrenamiento y en un partido.
