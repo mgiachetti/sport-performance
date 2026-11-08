@@ -24,3 +24,17 @@ description = "Public alphabet of the player access codes (B-310), not a secret"
 regexes = [
   '''^(23456789ABCDEFGHJKMNPQRSTUVWXYZ|0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ)$''',
 ]
+
+[[allowlists]]
+description = "Public test vectors of the pod protocol (B-914), not secrets"
+# The golden vectors of the pod-protocol package (fixtures/v1/vectors.json) publish the AES-128 keys derived
+# with HKDF from the fixed test master key 000102…1f (link, storage and beacon keys
+# of epoch 2), so the firmware can check its KDF and AES-CCM byte for byte. No club
+# ever uses them. Only these three exact derived values, and only in that file.
+condition = "AND"
+paths = [
+  '''(^|/)fixtures/v1/vectors\.json$''',
+]
+regexes = [
+  '''^(6f96c831eabe814d457fd53b18bb258c|1c41d318a9e89cb33af85e4d4036d65f|eab7326d66d93e14a8f5d01095541722)$''',
+]

@@ -1,0 +1,468 @@
+{
+  "format": "sport-performance/pod-protocol/vectors",
+  "protocolVersion": 1,
+  "readme": "packages/pod-protocol/README.md",
+  "integers": "little-endian",
+  "keys": {
+    "masterKeyHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "deviceIdHex": "8a1f3c5e7d902b46",
+    "gatewayIdHex": "ac1f09fffe0a51c0",
+    "epoch": 2,
+    "linkKeyHex": "6f96c831eabe814d457fd53b18bb258c",
+    "beaconKeyHex": "eab7326d66d93e14a8f5d01095541722"
+  },
+  "common": {
+    "networkId": 2641,
+    "podShortId": 23,
+    "keyId": 2
+  },
+  "kdf": [
+    {
+      "label": "uplink",
+      "idHex": "8a1f3c5e7d902b46",
+      "epoch": 2,
+      "infoHex": "73706f72742d706572666f726d616e63652f706f642d6b64662f76312f75706c696e6b00088a1f3c5e7d902b4602",
+      "keyHex": "6f96c831eabe814d457fd53b18bb258c"
+    },
+    {
+      "label": "storage",
+      "idHex": "8a1f3c5e7d902b46",
+      "epoch": 2,
+      "infoHex": "73706f72742d706572666f726d616e63652f706f642d6b64662f76312f73746f7261676500088a1f3c5e7d902b4602",
+      "keyHex": "1c41d318a9e89cb33af85e4d4036d65f"
+    },
+    {
+      "label": "beacon",
+      "idHex": "ac1f09fffe0a51c0",
+      "epoch": 2,
+      "infoHex": "73706f72742d706572666f726d616e63652f706f642d6b64662f76312f626561636f6e0008ac1f09fffe0a51c002",
+      "keyHex": "eab7326d66d93e14a8f5d01095541722"
+    }
+  ],
+  "uplink": [
+    {
+      "name": "live_summary_sample",
+      "bootCounter": 70000,
+      "frameNumber": 9,
+      "message": {
+        "type": "live_summary",
+        "summary": {
+          "batteryPct": 87,
+          "vestOn": true,
+          "fixQuality": "fix_3d",
+          "sessionDistanceDm": 41235,
+          "speedBandDistancesM": [2900, 850, 312, 61],
+          "accelerationsN": 23,
+          "decelerationsN": 19,
+          "accelLoadCentiAu": 31415,
+          "impactsN": 7,
+          "seconds": [
+            {
+              "vmaxCmS": 712,
+              "distanceDm": 68,
+              "positionDm": {
+                "xDm": 1234,
+                "yDm": -567
+              }
+            },
+            {
+              "vmaxCmS": 745,
+              "distanceDm": 72,
+              "positionDm": {
+                "xDm": 1302,
+                "yDm": -560
+              }
+            }
+          ],
+          "configVersion": 12
+        }
+      },
+      "nonceHex": "70110100090000000000000000",
+      "headerHex": "11510a17000270110900",
+      "plaintextHex": "60af13a100540b520338013d0017001300b77a000700c802e9024448d204c9fd1605d0fd0c",
+      "packetHex": "11510a17000270110900ea4408a6bb6b55291420ddb50be37d9069f193b138874763db3a347872b7d42421b07e78e6db90e8e6"
+    },
+    {
+      "name": "live_summary_saturated",
+      "bootCounter": 131071,
+      "frameNumber": 65535,
+      "message": {
+        "type": "live_summary",
+        "summary": {
+          "batteryPct": 100,
+          "vestOn": true,
+          "fixQuality": "rtk_fixed",
+          "sessionDistanceDm": 16777215,
+          "speedBandDistancesM": [65535, 65535, 65535, 65535],
+          "accelerationsN": 65535,
+          "decelerationsN": 65535,
+          "accelLoadCentiAu": 16777215,
+          "impactsN": 65535,
+          "seconds": [
+            {
+              "vmaxCmS": 65534,
+              "distanceDm": 254,
+              "positionDm": {
+                "xDm": -32767,
+                "yDm": 32767
+              }
+            },
+            {
+              "vmaxCmS": 1,
+              "distanceDm": 1,
+              "positionDm": null
+            }
+          ],
+          "configVersion": 255
+        }
+      },
+      "nonceHex": "ffff0100ffff00000000000000",
+      "headerHex": "11510a170002ffffffff",
+      "plaintextHex": "c0c9fffffffffffffffffffffffffffffffffffffffffeff0100fe010180ff7f00800080ff",
+      "packetHex": "11510a170002ffffffffb10a4bb25d6fef2585735fb95e243012f36b2ace9c51ba7ca7cd5d04e2e18b8631cacef2663eeacec2"
+    },
+    {
+      "name": "live_summary_no_position",
+      "bootCounter": 1,
+      "frameNumber": 0,
+      "message": {
+        "type": "live_summary_no_position",
+        "summary": {
+          "batteryPct": null,
+          "vestOn": false,
+          "fixQuality": "no_fix",
+          "sessionDistanceDm": 41235,
+          "speedBandDistancesM": [2900, 850, 312, 61],
+          "accelerationsN": 23,
+          "decelerationsN": 19,
+          "accelLoadCentiAu": 31415,
+          "impactsN": 7,
+          "seconds": [
+            {
+              "vmaxCmS": null,
+              "distanceDm": null,
+              "positionDm": null
+            },
+            {
+              "vmaxCmS": 0,
+              "distanceDm": 0,
+              "positionDm": null
+            }
+          ],
+          "configVersion": 12
+        }
+      },
+      "nonceHex": "01000000000000000000000000",
+      "headerHex": "12510a17000201000000",
+      "plaintextHex": "00fe13a100540b520338013d0017001300b77a000700ffff0000ff000c",
+      "packetHex": "12510a170002010000000f2b8e8edc7173ecc5307f0fdbbb4a8b7b56fe074c260e229fffdb9b5a6b0b8f09"
+    },
+    {
+      "name": "slot_request",
+      "bootCounter": 70001,
+      "frameNumber": 0,
+      "message": {
+        "type": "slot_request"
+      },
+      "nonceHex": "71110100000000000000000000",
+      "headerHex": "13510a17000271110000",
+      "plaintextHex": "",
+      "packetHex": "13510a170002711100004bbc3949"
+    }
+  ],
+  "beacon": [
+    {
+      "name": "beacon_sample",
+      "beacon": {
+        "networkId": 2641,
+        "gnssTimeS": 1446000000,
+        "keyId": 2,
+        "sessionOpen": true,
+        "ledMode": "match",
+        "channelPlanId": 3,
+        "configVersion": 12,
+        "sessionSeq": 5,
+        "sessionTransitionGnssS": 1445998200,
+        "grants": [
+          {
+            "action": "grant",
+            "podShortId": 23,
+            "channel": 3,
+            "slot": 7
+          },
+          {
+            "action": "release",
+            "podShortId": 41,
+            "channel": 0,
+            "slot": 15
+          }
+        ]
+      },
+      "nonceHex": "510a8035305618000000000000",
+      "plaintextHex": "03030c05782e30560217003729008f",
+      "packetHex": "18510a803530560281845e944fef51b1cf29cb42dcac0e44eb85a9"
+    },
+    {
+      "name": "beacon_max_grants",
+      "beacon": {
+        "networkId": 2641,
+        "gnssTimeS": 1446000002,
+        "keyId": 2,
+        "sessionOpen": false,
+        "ledMode": "off",
+        "channelPlanId": 3,
+        "configVersion": 12,
+        "sessionSeq": 5,
+        "sessionTransitionGnssS": null,
+        "grants": [
+          {
+            "action": "grant",
+            "podShortId": 100,
+            "channel": 0,
+            "slot": 1
+          },
+          {
+            "action": "grant",
+            "podShortId": 101,
+            "channel": 1,
+            "slot": 2
+          },
+          {
+            "action": "grant",
+            "podShortId": 102,
+            "channel": 2,
+            "slot": 3
+          },
+          {
+            "action": "release",
+            "podShortId": 103,
+            "channel": 3,
+            "slot": 4
+          },
+          {
+            "action": "grant",
+            "podShortId": 104,
+            "channel": 4,
+            "slot": 5
+          },
+          {
+            "action": "grant",
+            "podShortId": 105,
+            "channel": 5,
+            "slot": 6
+          },
+          {
+            "action": "grant",
+            "podShortId": 106,
+            "channel": 6,
+            "slot": 7
+          },
+          {
+            "action": "release",
+            "podShortId": 107,
+            "channel": 7,
+            "slot": 8
+          },
+          {
+            "action": "grant",
+            "podShortId": 108,
+            "channel": 0,
+            "slot": 9
+          }
+        ]
+      },
+      "nonceHex": "510a8235305618000000000000",
+      "plaintextHex": "04030c0500000000096400016500126600236700b46800456900566a00676b00f86c0009",
+      "packetHex": "18510a8235305602f6673d59171f8cabd28e5d4c8bb5ff76d5f2e35aa2a6ce4cadadc3857b7448e8931b4786ec7e1d21"
+    }
+  ],
+  "rtcm": [
+    {
+      "name": "rtcm_fragment_1_of_3",
+      "fragment": {
+        "networkId": 2641,
+        "gnssTimeS": 1446000000,
+        "keyId": 2,
+        "fragmentIndex": 1,
+        "fragmentCount": 3,
+        "dataHex": "d3254a6f94b9de03284d7297bce1062b50759abfe4092e53789dc2e70c31567ba0c5ea0f34597ea3c8ed12375c81a6cbf0153a5f84a9cef3183d6287acd1f61b"
+      },
+      "nonceHex": "510a803530561a010000000000",
+      "packetHex": "1a510a8035305602010321538089b6cd827cb1033109ffa372683ed754035a3da4246759c5402bdd1acebe43d1be56678486a2943962e21336c763dbcb0c3c2ee7f42d312ca13bb460459aad86d7"
+    }
+  ],
+  "rejections": [
+    {
+      "name": "mic_flipped",
+      "why": "last MIC bit flipped",
+      "packetHex": "11510a17000270110900ea4408a6bb6b55291420ddb50be37d9069f193b138874763db3a347872b7d42421b07e78e6db90e8e7",
+      "bootCounter": 70000,
+      "error": "authentication_failed"
+    },
+    {
+      "name": "header_flipped",
+      "why": "pod short id changed: the header is AAD",
+      "packetHex": "11510a16000270110900ea4408a6bb6b55291420ddb50be37d9069f193b138874763db3a347872b7d42421b07e78e6db90e8e6",
+      "bootCounter": 70000,
+      "error": "authentication_failed"
+    },
+    {
+      "name": "wrong_high_boot_bits",
+      "why": "same 16 low bits, other 32-bit boot counter",
+      "packetHex": "11510a17000270110900ea4408a6bb6b55291420ddb50be37d9069f193b138874763db3a347872b7d42421b07e78e6db90e8e6",
+      "bootCounter": 135536,
+      "error": "authentication_failed"
+    },
+    {
+      "name": "bad_version",
+      "why": "version nibble 2",
+      "packetHex": "21510a17000270110900ea4408a6bb6b55291420ddb50be37d9069f193b138874763db3a347872b7d42421b07e78e6db90e8e6",
+      "bootCounter": 70000,
+      "error": "unsupported_version"
+    },
+    {
+      "name": "truncated",
+      "why": "50 B live summary",
+      "packetHex": "11510a17000270110900ea4408a6bb6b55291420ddb50be37d9069f193b138874763db3a347872b7d42421b07e78e6db90e8",
+      "bootCounter": 70000,
+      "error": "invalid_length"
+    },
+    {
+      "name": "reserved_status_bits",
+      "why": "valid MIC, reserved status bit set",
+      "packetHex": "11510a17000270110a005ca5f71134d6e9c3503981e28762d2bbde66bfa08d07910f68f6324fcb8c8befb53841c3c2b429e9bc",
+      "bootCounter": 70000,
+      "error": "reserved_bits_set"
+    }
+  ],
+  "receiveSequence": [
+    {
+      "packetHex": "13510a170002f0ff090070bc4c53",
+      "bootCounter": 131056,
+      "frameNumber": 9,
+      "result": "accepted"
+    },
+    {
+      "packetHex": "13510a170002f0ff090070bc4c53",
+      "bootCounter": 131056,
+      "frameNumber": 9,
+      "result": "replay"
+    },
+    {
+      "packetHex": "13510a170002f0ff0800bc49685b",
+      "bootCounter": 131056,
+      "frameNumber": 8,
+      "result": "replay"
+    },
+    {
+      "packetHex": "13510a170002f0ff0a000f260ba3",
+      "bootCounter": 131056,
+      "frameNumber": 10,
+      "result": "accepted"
+    },
+    {
+      "packetHex": "13510a170002effff4017eee2d42",
+      "bootCounter": 131055,
+      "frameNumber": 500,
+      "result": "replay"
+    },
+    {
+      "packetHex": "13510a170002f1ff00009442214b",
+      "bootCounter": 131057,
+      "frameNumber": 0,
+      "result": "accepted"
+    },
+    {
+      "packetHex": "13510a170002ffff03001b2724c4",
+      "bootCounter": 131071,
+      "frameNumber": 3,
+      "result": "accepted"
+    },
+    {
+      "packetHex": "13510a170002000000000d0ec3b1",
+      "bootCounter": 131072,
+      "frameNumber": 0,
+      "result": "accepted"
+    },
+    {
+      "packetHex": "13510a17000200900000ab75f35c",
+      "bootCounter": 167936,
+      "frameNumber": 0,
+      "result": "replay"
+    }
+  ],
+  "bootCounterReconstruction": [
+    {
+      "low16": 4661,
+      "reference": 332340,
+      "expected": 332341
+    },
+    {
+      "low16": 1,
+      "reference": 393214,
+      "expected": 393217
+    },
+    {
+      "low16": 65534,
+      "reference": 393217,
+      "expected": 393214
+    },
+    {
+      "low16": 7,
+      "reference": null,
+      "expected": 7
+    }
+  ],
+  "airtime": [
+    {
+      "payloadLengthB": 51,
+      "spreadingFactor": 7,
+      "bandwidthHz": 125000,
+      "codingRateDenominator": 5,
+      "preambleSymbols": 8,
+      "explicitHeader": true,
+      "crc": true,
+      "timeOnAirMs": 102.656
+    },
+    {
+      "payloadLengthB": 43,
+      "spreadingFactor": 7,
+      "bandwidthHz": 125000,
+      "codingRateDenominator": 5,
+      "preambleSymbols": 8,
+      "explicitHeader": true,
+      "crc": true,
+      "timeOnAirMs": 87.296
+    },
+    {
+      "payloadLengthB": 48,
+      "spreadingFactor": 7,
+      "bandwidthHz": 125000,
+      "codingRateDenominator": 5,
+      "preambleSymbols": 8,
+      "explicitHeader": true,
+      "crc": true,
+      "timeOnAirMs": 97.536
+    },
+    {
+      "payloadLengthB": 14,
+      "spreadingFactor": 7,
+      "bandwidthHz": 125000,
+      "codingRateDenominator": 5,
+      "preambleSymbols": 8,
+      "explicitHeader": true,
+      "crc": true,
+      "timeOnAirMs": 46.336
+    },
+    {
+      "payloadLengthB": 255,
+      "spreadingFactor": 7,
+      "bandwidthHz": 125000,
+      "codingRateDenominator": 5,
+      "preambleSymbols": 8,
+      "explicitHeader": true,
+      "crc": true,
+      "timeOnAirMs": 399.616
+    }
+  ]
+}
