@@ -23,7 +23,7 @@
 | U.FL (Hirose U.FL-R-SMT-1) | Librería oficial de KiCad: `Connector_Coaxial:U.FL_Hirose_U.FL-R-SMT-1_Vertical` y el símbolo `Connector:Conn_Coaxial` | Librería oficial | — | no |
 | Qorvo DWM3000 (sin montar) | Footprint de Qorvo (paquete de diseño del módulo) | Número LCSC no encontrado | — | no |
 | TI TPS22916C (load switch del GNSS, del E22 y de la NAND sin montar) | easyeda2kicad cuando se confirme el número, o la librería oficial de KiCad (DSBGA de 4 bolas; si PCBWay no lo arma, una alternativa con patas en SOT-23, por ejemplo TPS22917 o TPS22918, **no verificadas**) | Número LCSC por buscar | — | no |
-| TI DRV5032 (Hall, sin montar) | easyeda2kicad cuando se confirme la variante y el número | Número LCSC por buscar | — | no |
+| TI DRV5032FB (Hall del chaleco, montado) | easyeda2kicad | C2655033 (DRV5032FBDBZR, SOT-23) | — | no |
 
 Los números LCSC salen del relevamiento de `docs/hardware/pod-f3.md` y de `docs/hardware/pod-v0.md`.
 
