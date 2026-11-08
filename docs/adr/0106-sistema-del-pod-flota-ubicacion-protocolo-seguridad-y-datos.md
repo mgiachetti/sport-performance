@@ -120,6 +120,39 @@ En la matriz ([ADR 0025](0025-matriz-de-permisos.md)), con RLS como última barr
 - **Servicio de borde en el gateway**: recibe los paquetes, los guarda y los sirve a las tablets por WebSocket en la red local, y los sube cuando hay internet. **No tiene las claves de los pods**: descifra la tablet.
 - **Tablet en primer plano**: iOS suspende las conexiones con la pantalla bloqueada; la pantalla en vivo pide mantenerse encendida y, si se cae, se reconecta y pide al borde lo que perdió.
 
+### Formato v1 del protocolo
+
+El formato byte a byte normativo está en el README de [`packages/pod-protocol`](../../packages/pod-protocol/README.md), con archivos de ejemplo (`fixtures/v1/vectors.json`) que el firmware usa en CI. Lo que este ADR no fijaba y quedó decidido ahí:
+
+- **Orden de bytes:** little-endian en todo el cable y en los nonces.
+- **Byte 0:** versión (4 bits altos, hoy 1; la 0 no vale) y tipo (4 bits bajos):
+  - subida en 0x1–0x7: resumen en vivo 0x1 (51 B), resumen sin posiciones 0x2 (43 B; la posición opcional por club se indica con el tipo, no con una bandera cifrada), pedido de turno 0x3 (14 B: encabezado y MIC, sin carga útil);
+  - bajada en 0x8–0xF: baliza 0x8, configuración 0x9 (cuerpo a definir), fragmento RTCM 0xA.
+- **Palabra de estado:** batería en % en los bits 15..9 (127 = desconocida), chaleco en el 8, calidad del fix en 7..5 (sin fix, navegación por estima, 2D, 3D, DGNSS, RTK flotante, RTK fijo; el 7 reservado) y 5 bits reservados en 0 (si no, se rechaza).
+- **Anchos y unidades:**
+  - 4 bandas × u16 en m;
+  - aceleraciones y desaceleraciones u16 cada una;
+  - `accel_load_au` u24 en centésimas de AU;
+  - Vmax por segundo u16 en cm/s y distancia por segundo u8 en dm, con 0xFFFF y 0xFF como "sin dato";
+  - posición i16 en dm, con −32768 como "sin posición".
+
+  Los contadores acumulados **saturan**, no dan la vuelta.
+- **Hora GNSS:** segundos GPS en u32 (sin segundos intercalares), siempre par porque marca el inicio de la trama de 2 s.
+- **Baliza:**
+  - banderas (sesión abierta, modo del LED);
+  - id del plan de canales;
+  - versión de la configuración;
+  - los cierres del staff como secuencia de sesión (u8) y hora de la última apertura o cierre (u32);
+  - hasta 9 asignaciones de 3 B (liberar, canal de 3 bits, turno de 4 bits), que dan los 48 B. El turno 0 de cada canal es el de contienda y nunca se asigna.
+- **Nonce de bajada:** el "tipo de mensaje" es el byte 0 completo (versión y tipo), así una versión futura nunca comparte nonce con esta.
+- **Número de trama:** cuenta las tramas de 2 s desde el arranque (sube aunque el pod no transmita) y el pod manda **como mucho una subida por (arranque, trama)**, sea del tipo que sea: ese par es el nonce entero.
+- **Reconstrucción del contador de arranques:** el valor más cercano al de referencia dentro de ±32 768. La referencia es el mayor entre el último aceptado y la pista del servidor (el último valor que vio en la base), así la pista también hace avanzar a un pod.
+- **Anti-repetición:** por (id corto del pod, época), sin el id de red, porque el contador del pod es el mismo en todas las redes del club. Los paquetes de un mismo pod se procesan de a uno; un paquete que llega después de uno más nuevo (por ejemplo, lo que reenvía el borde al reconectar) se descarta como repetido, y los acumulados del más nuevo ya lo incluyen.
+- **KDF:** HKDF-SHA256 (RFC 5869), sal vacía, 16 B de salida (AES-128, lo que hace el CryptoCell-310). La `info` es `ASCII("sport-performance/pod-kdf/v1/" + etiqueta) ‖ 0x00 ‖ u8(largo del id) ‖ id ‖ u8(época)`:
+  - DEVICEID = FICR `DEVICEID[0..1]` en el orden de memoria (8 B);
+  - id del gateway = su EUI-64 (8 B);
+  - clave maestra del club de 32 B.
+
 ### Seguridad
 
 - **Clave maestra por club** en el servidor (cifrada, nunca en un pod ni en un gateway). De ella salen, con el **id del chip** (FICR `DEVICEID`, no el id corto de la red):
@@ -138,6 +171,13 @@ En la matriz ([ADR 0025](0025-matriz-de-permisos.md)), con RLS como última barr
   - El **número de trama** es de 16 bits y empieza en cada arranque; antes de dar la vuelta (unas 36 h), el pod incrementa y guarda el contador de arranques y vuelve a empezar.
   - Si el contador de arranques da la vuelta dentro de una época, el pod no transmite hasta rotar en la base.
 - **Nonce de la baliza y de la bajada** = id de red (2 B) + hora GNSS completa de la trama (4 B) + **tipo de mensaje** (1 B: baliza, configuración, RTCM…) + **índice de fragmento** (1 B), completado hasta 13 B. Así la baliza, la bajada y cada fragmento RTCM de la misma trama, autenticados con la misma clave de baliza, nunca comparten nonce.
+- **MIC de 4 B, modelo de amenaza**:
+  - Un paquete falso pasa con probabilidad 2^-32 por intento. A unos 80 intentos por segundo (lo que el gateway puede demodular en sus 8 canales), en una sesión de 2 h son unos 576 000 intentos: alrededor de **1,3·10^-4** de que pase uno.
+  - El efecto es acotado. Del lado de la subida, un valor falso en el vivo (el informe usa el log) o quemar la ventana de anti-repetición con un contador muy adelantado. Lo segundo se limita porque la tablet **rechaza un salto del contador de arranques mayor que un tope sobre la referencia** (`counter_jump`, 1024 por defecto, escalable con el tiempo desde la última vez que vio al pod); un salto dentro del mismo arranque solo afecta hasta el próximo. Del lado de la bajada, una baliza falsa puede asignar o liberar turnos, cambiar el LED o marcar sesión abierta o cerrada en esa trama.
+  - El cierre que vale es el del servidor por hora, no el que vio el pod.
+- **Unicidad del nonce de la bajada**: el gateway **persiste la última hora GNSS que usó** y nunca sella dos mensajes distintos para el mismo (red, hora, tipo, fragmento). Después de un reinicio, de perder el GPS o ante una hora sospechosa (suplantación) **no vuelve atrás**: no transmite hasta tener una hora posterior a la guardada.
+- **Pedido de turno sin verificar en el gateway**: el gateway no tiene las claves de los pods, así que no puede verificar el MIC del pedido. Solo asigna turnos a ids cortos que están en la lista de pods del club, que le pasa la tablet. Un atacante puede ocupar turnos de pods que no están en la cancha: **riesgo aceptado** (la tablet ve el pedido falso al verificarlo y el pod legítimo vuelve a pedir).
+- **Época de 8 bits**: la época va en el id de clave del paquete y en la KDF, y nunca da la vuelta. Antes de llegar a la 255, el club **rota la clave maestra**, así una época no se repite con la misma maestra (y el IV de CTR de la NAND, época + secuencia de página, nunca se reusa con la misma clave de almacenamiento).
 - **Anti-repetición en la tablet**: guarda el último (arranque, trama) por pod y época en su base local cifrada; sobrevive a reinicios de la app.
 - **Las claves de la sesión llegan a la tablet desde el servidor** antes de la sesión y quedan en la base local cifrada ([ADR 0069](0069-base-local-y-motor-de-sincronizacion-mobile.md)), así funciona de visitante sin internet.
 - **APPROTECT**: el endurecido está solo en los nRF52840 de código de fabricación Fxx (revisión 3) en adelante; qué revisión trae el Raytac, **no verificado**. Se activa en la primera programación, junto con `NFCPINS` y `PSELRESET` en la UICR, y el firmware lo mantiene bloqueado (`CONFIG_NRF_APPROTECT_LOCK`).
