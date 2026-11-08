@@ -2,7 +2,26 @@
 
 `pod.kicad_sym` (símbolos), `pod.pretty/` (footprints) y `pod.3dshapes/` (modelos 3D). El proyecto `../pod-v0/` las carga por su `sym-lib-table` y `fp-lib-table`, con rutas relativas a `${KIPRJMOD}`.
 
-**Están vacías.** Los símbolos y footprints no se dibujan a mano a partir de una tabla de pines inventada. Se generan desde la base de LCSC/EasyEDA con [`easyeda2kicad`](https://github.com/uPesy/easyeda2kicad.py), o se toman de las librerías oficiales de KiCad o del fabricante. Correr `generar.sh` (abajo) en una máquina con Python y KiCad.
+Los símbolos y footprints no se dibujan a mano a partir de una tabla de pines inventada. Se generan desde la base de LCSC/EasyEDA con [`easyeda2kicad`](https://github.com/uPesy/easyeda2kicad.py), o se toman de las librerías oficiales de KiCad o del fabricante.
+
+**Generada el 2026-11-08** con `generar.sh` (easyeda2kicad 1.0.1): 10 partes, ninguna verificada todavía contra su hoja.
+
+| Parte | Footprint generado | Pads | A revisar en especial |
+|---|---|---|---|
+| MDBT50Q-P1MV2 (C5119772) | `COMM-SMD_MDBT50Q-1MV2` | 61 | **EasyEDA usa el footprint de la -1MV2 (antena chip) para la -P1MV2 (antena PCB).** Los pads coinciden en número, pero el keep-out de la antena es distinto: compararlo con la sección 2.3 de la hoja de Raytac y dibujarlo a mano en el footprint. |
+| XL-1615RGBC-RF (C965840) | `LED-ARRAY-SMD_4P-L1.6-W1.5-BR_XL-1615RGBC-RF` | 4 | Ánodo común y orden R/G/B de los pines. |
+| E22-900M22S (C411293) | `WIRELM-SMD_E22-900M22S` | 22 | Numeración contra la tabla de Ebyte (6 RXEN, 7 TXEN, 21 ANT…). |
+| LSM6DSV320X (C26633007) | `LGA-14_L3.0-W2.5-P0.50-TL` | 14 | Orientación (el modelo 3D se llama L2.5-W3.0) y pin 1. |
+| BMP581 (C5362283) | `LGA-10_L2.0-W2.0-P0.50-TL_BMP581` | 10 | Pin 1 y que el agujero de presión quede del lado correcto. |
+| DPS368 (C3232508, sin montar) | `LGA-8_L2.5-W2.0-P0.65-TR_DPS368` | 8 | — |
+| W25N02KVZEIR (C3010298) | `WSON-8_L8.0-W6.0-P1.27-TL-EP-1` | 9 | Pad expuesto y que la W25N04KV use el mismo. |
+| BQ25180 (C3682423) | `DSBGA-8_L1.6-W0.9-R2-C4-P0.40-BL` | 8 | Mapa de bolas contra la hoja de TI (A1 /INT … D2 GND). |
+| MAX17048G+T10 (C2682616) | `TDFN-8_L2.0-W2.0-P0.50-BL-EP1.2` | 9 | Pad expuesto. |
+| DRV5032FBDBZR (C2655033) | `SOT-23_L2.9-W1.3-P1.90-LS2.4-BR` | 3 | — |
+
+**Antes de rutear, además de la tabla:** el courtyard de cada footprint es el contorno del cuerpo y en algunos (por ejemplo el LSM6DSV320X, con pads a ±1,60 mm contra un borde de ±1,50) queda más chico que los pads: agrandarlo. Los pines de los símbolos tienen tipo eléctrico "unspecified": poner al menos los de alimentación como power_in para que el ERC sirva. El tamaño de las bolas del BQ25180 (0,184 mm) se compara con el land pattern recomendado de TI. Los footprints están en el formato de KiCad 5; `kicad-cli fp upgrade` los pasa al actual.
+
+Los modelos 3D (`.wrl` y `.step`, unos 17 MB) se commitean: los `.step` hacen falta para la envolvente mecánica en CAD.
 
 ## Partes y de dónde sale cada una
 

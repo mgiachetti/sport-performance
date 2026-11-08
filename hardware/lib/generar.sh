@@ -34,11 +34,24 @@ done
 
 # easyeda2kicad guarda la ruta absoluta de cada modelo 3D. Se reemplaza por una ruta
 # relativa al proyecto, para que funcione en cualquier máquina y en el CI.
+# Según cómo se le pase --output, la ruta sale absoluta o relativa a la raíz del repo:
+# se cubren los dos casos.
 abs_3d="$PWD/hardware/lib/pod.3dshapes"
 for footprint in hardware/lib/pod.pretty/*.kicad_mod; do
   [ -e "$footprint" ] || continue
-  sed -i.bak "s|${abs_3d}|\${KIPRJMOD}/../lib/pod.3dshapes|g" "$footprint"
+  sed -i.bak -e "s|${abs_3d}|\${KIPRJMOD}/../lib/pod.3dshapes|g" \
+    -e "s|model \"hardware/lib/pod.3dshapes/|model \"\${KIPRJMOD}/../lib/pod.3dshapes/|g" "$footprint"
   rm -f "$footprint.bak"
+done
+
+# easyeda2kicad marca algunos footprints solo SMD como through_hole (BGA y LGA): sin
+# esto se caen del pick-and-place exportado solo SMD.
+for footprint in hardware/lib/pod.pretty/*.kicad_mod; do
+  [ -e "$footprint" ] || continue
+  if ! grep -q "thru_hole" "$footprint"; then
+    sed -i.bak "s/(attr through_hole)/(attr smd)/" "$footprint"
+    rm -f "$footprint.bak"
+  fi
 done
 
 echo "Listo. Verificar cada footprint contra su hoja antes de usarlo."
