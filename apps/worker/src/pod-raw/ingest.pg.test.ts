@@ -417,10 +417,12 @@ describe.skipIf(!hasDatabase || !hasBucket)('pod log ingestion (Postgres 16 + Mi
     });
     // Flip a byte of a page's ciphertext and fix its CRC: only the MAC can tell.
     const bytes = recording.bytes.slice();
-    const at = 64 + 8 + 100;
+    // A middle page: the first and last pages bound the range, which would fail first.
+    const entry = 64 + 2 * 2056 + 8;
+    const at = entry + 100;
     bytes[at] = (bytes[at] ?? 0) ^ 0xff;
     const { crc32 } = await import('@sport-performance/pod-protocol');
-    const page = bytes.subarray(64 + 8, 64 + 8 + 2048);
+    const page = bytes.subarray(entry, entry + 2048);
     const crc = crc32(page.subarray(0, 2044));
     page[2044] = crc & 0xff;
     page[2045] = (crc >>> 8) & 0xff;
