@@ -114,17 +114,17 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
   - posición.
 - **Capacidad:**
   - Un paquete de 40 B en SF7 / 125 kHz ocupa unos 82 ms en el aire.
-  - Con turnos de unos 100 ms (paquete más tiempo de guarda), una trama de 2 s tiene 20 turnos por canal: **unos 160 pods en 8 canales**. Alcanza para entrenar una categoría entera a la vez.
+  - Con turnos de unos 100 ms (paquete más tiempo de guarda), una trama de 2 s tiene 20 turnos por canal: **unos 160 pods en 8 canales**. Con el paquete completo (encabezado, estado y MIC) y la bajada, la capacidad baja a **unos 128 pods**: ver [ADR 0106](0106-sistema-del-pod-flota-ubicacion-protocolo-seguridad-y-datos.md). Alcanza para entrenar una categoría entera a la vez.
   - 30 pods ocupan cerca del 15 % de cada canal. Cada 1 s sería el 31 %, con capacidad para unos 80 pods: por eso la cadencia es de 2 s.
 - **Gateway de 8 canales SX1302** (RAK7268V2, unos US$ 139–170), en un **mástil de 3–5 m** al costado de la cancha, para quedar por encima de los jugadores.
   - Se conecta a la **tablet del staff** por Ethernet o por Wi-Fi local, con un packet forwarder, y **funciona sin internet**.
   - El forwarder tiene que dejar pasar tramas que no son LoRaWAN, con una sync word privada. Se verifica en B-905.
   - Solo si hay conexión al exterior (Wi-Fi del club o 4G), el vivo sube al servidor para que también lo vea quien no está en la cancha.
 - **Privacidad y seguridad (son datos de menores):**
-  - **Cifrado y autenticación:** cada paquete va cifrado y autenticado con una clave del club (AES-CCM), grabada en el pod cuando está en la base. Lleva un contador que impide repetir paquetes viejos.
+  - **Cifrado y autenticación:** cada paquete va cifrado y autenticado con AES-CCM. Las claves por pod, la rotación y el contador persistente están en el [ADR 0106](0106-sistema-del-pod-flota-ubicacion-protocolo-seguridad-y-datos.md).
   - **Sin datos personales en el aire:** el paquete lleva solo el id del pod. Qué pod usa cada jugador lo sabe solo la app, que lo asigna en cada sesión.
   - **Quién ve la pantalla en vivo:** solo el staff, según la matriz de permisos ([ADR 0025](0025-matriz-de-permisos.md)): el entrenador y el preparador físico asignados a la categoría, y la administración. Ningún jugador ve nombres de otros.
-  - **Consentimiento:** el seguimiento por GNSS necesita el consentimiento de datos del jugador. Si el texto vigente no menciona la ubicación, se publica una versión nueva del texto ([ADR 0043](0043-consentimientos.md)). Sin consentimiento, el pod no se asigna.
+  - **Consentimiento:** reemplazado por el consentimiento propio `location` del [ADR 0106](0106-sistema-del-pod-flota-ubicacion-protocolo-seguridad-y-datos.md). Texto anterior: el seguimiento por GNSS necesita el consentimiento de datos del jugador. Si el texto vigente no menciona la ubicación, se publica una versión nueva del texto ([ADR 0043](0043-consentimientos.md)). Sin consentimiento, el pod no se asigna.
   - **Retención:** las trazas de posición tienen una retención propia (ADR 0044), que se define en B-908. Las cubren la exportación y el borrado del titular.
 - **El cálculo del vivo se hace en la tablet**, con **las mismas funciones de `packages/domain`** que usa el worker después. El pod solo resume y no decide nada. Así, cambiar una regla no exige actualizar el firmware de 100 pods, y el vivo y el informe calculan igual.
 - **Las señales de esfuerzo son reglas declarativas por club**, con valores por defecto en seeds, como el motor de alertas ([ADR 0022](0022-motor-de-reglas-de-alerta.md)):
@@ -198,3 +198,4 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
 - **App:** tiene que recibir el gateway y mostrar la pantalla en vivo. Las métricas y señales del vivo son funciones nuevas del dominio, con tests, y las usan la tablet y el worker.
 - El ADR va asociado a B-901: `pnpm docs:check` exige un `B-xxx` en la línea del issue, y el epic #116 no tiene uno propio.
 - Este ADR queda **Propuesto** hasta que los tests de banco y de cancha confirmen el GNSS y la antena. Con esos datos se escribe un ADR que lo acepta o lo reemplaza.
+- El sistema alrededor del pod (alcance M19 y primera, flota, consentimiento `location`, protocolo, seguridad, base de tiempo, log y variantes del método) está en el [ADR 0106](0106-sistema-del-pod-flota-ubicacion-protocolo-seguridad-y-datos.md).
