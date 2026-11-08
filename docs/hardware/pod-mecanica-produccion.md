@@ -2,7 +2,7 @@
 
 Complementa a `pod-v0.md` (diseño eléctrico) y a `pod-f3.md` (partes y costos). Sale de la revisión completa del plan de la Fase 3 (fabricación, mecánica, prueba y certificación) y de las decisiones del 08/11/2026 (ADR 0105):
 
-- **Solo pines pogo** hacia afuera: el producto no lleva USB-C. El USB-C queda en las placas de desarrollo.
+- **Solo contactos (pads) para la base de pogo** hacia afuera: el producto no lleva USB-C. El USB-C queda en las placas de desarrollo.
 - **Batería de 500–600 mAh**, fijada ahora porque define el tamaño de la carcasa.
 - **Usuarios: M19 y plantel superior** (adultos y jugadores de 17 y 18 años). Los menores siguen alcanzados por las reglas de privacidad y de seguridad (consentimiento de ubicación aparte, imán del chaleco).
 
@@ -20,7 +20,7 @@ El contorno de 45 × 65 mm de `pod-v0.md` es provisorio. Antes de diseñar la pl
 | Batería | LiPo de 500–600 mAh con PCM y NTC | Unos 40 × 30 × 5 mm (**no verificado**, según la celda elegida) | Proveedor |
 | Hueco de hinchazón | Espacio libre sobre la celda | ≥ 10 % del espesor de la celda (**no verificado**, lo pide el proveedor) | — |
 | Antena LoRa | FPC de **≤ 45 mm** (por ejemplo Ebyte TX915-FPC-4510, 45 × 10 mm): la de 65 mm es tan larga como la placa. Más corta que un cuarto de onda a 915 MHz: su eficiencia y ganancia **no están verificadas** | 45 × 10 mm | Ebyte (**no verificado**) |
-| Tapa inferior | Cara contra el cuerpo, pines pogo y Hall | — | — |
+| Tapa inferior | Cara contra el cuerpo, contactos (pads) para la base de pogo y Hall | — | — |
 
 **Metas** (a contrastar con Catapult Vector, cuyo peso y espesor **no están verificados** en esta revisión):
 
@@ -35,7 +35,7 @@ El CAD se hace **antes** de diseñar la placa, junto con el bolsillo del chaleco
 
 **Meta: IP67** (sumergible 1 m durante 30 min) y resistencia al sudor y al protector solar.
 
-- **Una sola interfaz externa: pines pogo.** Sin USB-C ni agujeros para botón. La guía de luz del LED va sellada (pieza transparente sobremoldeada o pegada con adhesivo estanco).
+- **Una sola interfaz externa: contactos (pads) para la base de pogo.** Sin USB-C ni agujeros para botón. La guía de luz del LED va sellada (pieza transparente sobremoldeada o pegada con adhesivo estanco).
 - **El MJF PA12 es poroso**: se sella con alisado por vapor o con un recubrimiento, o se pasa a un sobremoldeo cuando haya serie. Sin sellar no cumple IP67.
 - **Ventilación del barómetro**: membrana de ePTFE con canal sellado hasta el sensor, **protegida de aplastamiento** por el bolsillo (rejilla o rebaje). El protector solar y los aceites ensucian la membrana y le hacen perder la clasificación: se prueba con sudor artificial.
 - **Contactos del pod: pads planos chapados en oro**, al ras de la carcasa, con junta alrededor. **Los resortes (pogo) van en la base, no en el pod**: un resorte en algo que se usa en el cuerpo junta suciedad y se rompe (la referencia de `pod-f3.md` a pines pogo en el pod se corrige en otro PR). El VBUS del pod solo tiene tensión en la base (ver sección 5), así nunca queda energizado con sudor.
@@ -164,9 +164,9 @@ Antes de pedir, se manda **el diseño (no solo los Gerbers)** para una revisión
 
 **Planilla de costo de abajo hacia arriba**, con cortes por cantidad (5, 10, 100):
 
-- **Por pod**: todas las partes, incluidas las que faltan en la tabla de `pod-f3.md` (buck-boost, LDO, load switches, traductores, SAW, cristal de 32 kHz, TVS, U.FL, contactos pogo), PCB, armado, carcasa sellada, batería certificada y etiqueta. Estimación realista: **US$ 85–95 a nivel de placa** (contra US$ 75–85 de `pod-f3.md`; **no verificado**).
+- **Por pod**: todas las partes, incluidas las que faltan en la tabla de `pod-f3.md` (buck-boost, LDO, load switches, traductores, SAW, cristal de 32 kHz, TVS, U.FL, pads/inserto de contactos), PCB, armado, carcasa sellada, batería certificada y etiqueta. Estimación realista: **US$ 85–95 a nivel de placa** (contra US$ 75–85 de `pod-f3.md`; **no verificado**).
 - **Por chaleco**: chaleco con bolsillo e imán encapsulado.
-- **Infraestructura por lugar**: base de 20 lugares con host, **gateway de exterior con GPS**: el GPS alinea su propia transmisión (baliza y RTCM) con la hora del GNSS afuera; bajo techo manda la baliza. La elección del RAK7268V2 de `pod-f3.md` la reemplaza B-918 (ADR 0106, en revisión) (el RAK7268V2 es de interior y no tiene PPS de GPS para la baliza; un modelo de exterior o un gabinete, con alimentación, puesta a tierra y protección contra robo), base GNSS de la cancha (LG290P).
+- **Infraestructura por lugar**: base de 20 lugares con host, **gateway de exterior con GPS**: el GPS alinea su propia transmisión (baliza y RTCM) con la hora del GNSS afuera; bajo techo manda la baliza. La elección del RAK7268V2 de `pod-f3.md` la reemplaza B-918 (ADR 0106, en revisión), porque el RAK7268V2 es de interior y no tiene PPS de GPS para la baliza: va un modelo de exterior o un gabinete, con alimentación, puesta a tierra y protección contra robo, base GNSS de la cancha (LG290P).
 - **NRE**: VID de USB-IF, custodia de la clave de firma de MCUboot, vueltas de placa, plantilla de prueba, herramental de la carcasa si se sobremoldea, ensayo de laboratorio de ENACOM, importación y despachante.
 - **Repuestos y rendimiento**: 10–15 % extra.
 - **Posventa**: devoluciones, etiquetas, esfuerzo de firmware.
