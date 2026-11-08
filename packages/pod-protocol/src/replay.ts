@@ -33,20 +33,17 @@ export function lastAccepted(
 }
 
 /**
- * Boot counter to rebuild the high bits against: the one of this epoch, or the
- * highest seen for the pod in any epoch (the boot counter is persistent and
- * does not restart with a key rotation), or the server hint.
+ * Boot counter to rebuild the high bits against: the highest of the one of
+ * this epoch, the ones seen for the pod in other epochs (the boot counter is
+ * persistent and does not restart with a key rotation) and the server hint (the
+ * last value the server saw at the base, which can move a pod forward).
  */
 export function bootCounterReference(
   state: ReplayState,
   podShortId: number,
-  keyId: number,
   serverHint?: number,
 ): number | undefined {
-  const own = lastAccepted(state, podShortId, keyId);
-  if (own) {
-    return own.bootCounter;
-  }
+  assertUint('podShortId', podShortId, 16);
   const prefix = `${String(podShortId)}/`;
   let best = serverHint;
   for (const [key, entry] of Object.entries(state.entries)) {
@@ -111,14 +108,24 @@ export function serializeReplayState(state: ReplayState): string {
   return JSON.stringify(state);
 }
 
-/** Strict parse: anything unexpected throws rather than silently resetting the window. */
+/**
+ * Strict parse: anything unexpected throws rather than silently resetting the
+ * window. Keys must be spelled exactly as `entryKey` writes them (no `"023/2"`,
+ * which would otherwise shadow `"23/2"`).
+ */
 export function parseReplayState(json: string): ReplayState {
   const value: unknown = JSON.parse(json);
   if (typeof value !== 'object' || value === null) {
     fail('field_out_of_range', 'replay state must be an object');
   }
   const record = value as Record<string, unknown>;
-  if (record.version !== 1 || typeof record.entries !== 'object' || record.entries === null) {
+  if (
+    Array.isArray(value) ||
+    record.version !== 1 ||
+    typeof record.entries !== 'object' ||
+    record.entries === null ||
+    Array.isArray(record.entries)
+  ) {
     fail('unsupported_version', 'replay state must be version 1 with entries');
   }
   const entries: Record<string, LinkCounter> = {};
@@ -127,10 +134,15 @@ export function parseReplayState(json: string): ReplayState {
     if (!match) {
       fail('field_out_of_range', `bad replay entry key ${key}`);
     }
-    entryKey(Number(match[1]), Number(match[2]));
-    const entry = raw as Partial<LinkCounter> | null;
-    const bootCounter = entry?.bootCounter;
-    const frameNumber = entry?.frameNumber;
+    if (entryKey(Number(match[1]), Number(match[2])) !== key) {
+      fail('field_out_of_range', `replay entry key ${key} is not canonical`);
+    }
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+      fail('field_out_of_range', `bad replay entry ${key}`);
+    }
+    const entry = raw as Partial<LinkCounter>;
+    const bootCounter = entry.bootCounter;
+    const frameNumber = entry.frameNumber;
     if (typeof bootCounter !== 'number' || typeof frameNumber !== 'number') {
       fail('field_out_of_range', `bad replay entry ${key}`);
     }

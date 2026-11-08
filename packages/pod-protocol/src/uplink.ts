@@ -472,17 +472,39 @@ export async function openUplink(input: {
 }
 
 /**
+ * Default cap on how far ahead of the reference (last accepted or server hint)
+ * a boot counter may jump. A pod boots on every wake from System OFF: 1024 is
+ * months of normal use, while a forged frame that passes the 4 B MIC by luck
+ * (2^-32 per try) cannot push the window to the end of the 32-bit space and
+ * silence the pod for the rest of the epoch.
+ */
+export const DEFAULT_MAX_BOOT_COUNTER_AHEAD = 1024;
+
+/**
  * What the tablet runs for each packet from the edge service: rebuilds the
  * boot counter, rejects replays, verifies and decrypts, and returns the new
  * anti-replay state (to persist) only when the frame is accepted.
+ *
+ * Packets of the same pod **must be processed one after the other**: await
+ * each call and feed its `replay` into the next. Two concurrent calls with the
+ * same state would both pass the freshness check. A frame that arrives after a
+ * newer one (for example, what the edge service resends after a reconnection)
+ * is rejected as `replay`; the cumulative counters of the newer one already
+ * include it.
  */
 export async function receiveUplink(input: {
   packet: Uint8Array;
   replay: ReplayState;
   /** Link key of `(podShortId, keyId)`, or `undefined` if the tablet has none (unknown pod or epoch). */
   keyFor: (header: UplinkHeader) => Uint8Array | undefined | Promise<Uint8Array | undefined>;
-  /** Last boot counter the server saw for the pod, for the first contact. */
+  /** Last boot counter the server saw for the pod (at the base): first contact, or moves the pod forward. */
   bootCounterHint?: (header: UplinkHeader) => number | undefined;
+  /**
+   * Largest accepted jump of the boot counter over the reference (default
+   * {@link DEFAULT_MAX_BOOT_COUNTER_AHEAD}). The caller can scale it with the
+   * time elapsed since the pod was last seen. No cap without a reference.
+   */
+  maxBootCounterAhead?: number;
   crypto?: CcmProvider;
 }): Promise<OpenedUplink & { replay: ReplayState }> {
   const header = decodeUplinkHeader(input.packet);
@@ -496,10 +518,16 @@ export async function receiveUplink(input: {
   const reference = bootCounterReference(
     input.replay,
     header.podShortId,
-    header.keyId,
     input.bootCounterHint?.(header),
   );
   const bootCounter = reconstructBootCounter(header.bootCounterLow16, reference);
+  const maxAhead = input.maxBootCounterAhead ?? DEFAULT_MAX_BOOT_COUNTER_AHEAD;
+  if (reference !== undefined && bootCounter > reference + maxAhead) {
+    fail(
+      'counter_jump',
+      `pod ${String(header.podShortId)}: boot counter ${String(bootCounter - reference)} ahead of the reference`,
+    );
+  }
   const counter = { bootCounter, frameNumber: header.frameNumber };
   if (!isFresh(input.replay, header.podShortId, header.keyId, counter)) {
     fail('replay', `pod ${String(header.podShortId)}: frame not newer than the last accepted`);

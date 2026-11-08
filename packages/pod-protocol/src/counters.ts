@@ -59,8 +59,10 @@ export interface NextLinkCounter extends LinkCounter {
 
 /**
  * Reference implementation of the pod's counter rule (the firmware mirrors it):
- * the frame number goes up by one per uplink; before it would wrap (after
- * 0xFFFF, about 36 h at one uplink every 2 s) the pod increments and persists
+ * the frame number counts **2 s TDMA frames since the boot** (it goes up by one
+ * per frame whether the pod transmits in it or not, so it also orders frames in
+ * time) and the pod sends at most one uplink per frame. Before it would wrap
+ * (after 0xFFFF, about 36 h) the pod increments and persists
  * the boot counter and starts again at frame 0. If the boot counter itself
  * would wrap inside an epoch the pod stops transmitting until the base rotates
  * the key (`boot_counter_exhausted`).

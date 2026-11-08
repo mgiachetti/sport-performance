@@ -21,6 +21,7 @@ import {
   openUplink,
   receiveUplink,
   sealUplink,
+  DEFAULT_MAX_BOOT_COUNTER_AHEAD,
   type LiveSummary,
 } from './uplink.js';
 
@@ -310,16 +311,72 @@ describe('receiveUplink', () => {
     expect(after.bootCounter).toBe(0x2_0000);
   });
 
-  it('does not record a frame whose MIC fails, so a forged header cannot burn the window', async () => {
+  it('does not record a frame whose MIC fails, so a forged high counter cannot burn the window', async () => {
     const keyFor = () => key;
-    const forged = await live(70_000, 9);
+    const accepted = await receiveUplink({
+      packet: await live(70_000, 9),
+      replay: emptyReplayState(),
+      keyFor,
+      bootCounterHint: () => 70_000,
+    });
+    // A forged frame far ahead (valid header, wrong MIC) is refused…
+    const forged = await live(70_500, 60_000);
     forged[forged.length - 1] = (forged[forged.length - 1] ?? 0) ^ 1;
-    const replay = emptyReplayState();
     await expectCode(
-      receiveUplink({ packet: forged, replay, keyFor, bootCounterHint: () => 70_000 }),
+      receiveUplink({ packet: forged, replay: accepted.replay, keyFor }),
       'authentication_failed',
     );
-    expect(replay.entries).toEqual({});
+    // …and the next legitimate, lower frame is still accepted with the same state.
+    const next = await receiveUplink({
+      packet: await live(70_000, 10),
+      replay: accepted.replay,
+      keyFor,
+    });
+    expect(next.replay.entries['23/2']).toEqual({ bootCounter: 70_000, frameNumber: 10 });
+  });
+
+  it('caps how far ahead of the reference the boot counter may jump', async () => {
+    const keyFor = () => key;
+    const accepted = await receiveUplink({
+      packet: await live(70_000, 9),
+      replay: emptyReplayState(),
+      keyFor,
+      bootCounterHint: () => 70_000,
+    });
+    const far = await live(70_000 + DEFAULT_MAX_BOOT_COUNTER_AHEAD + 1, 0);
+    await expectCode(
+      receiveUplink({ packet: far, replay: accepted.replay, keyFor }),
+      'counter_jump',
+    );
+    const allowed = await receiveUplink({
+      packet: far,
+      replay: accepted.replay,
+      keyFor,
+      maxBootCounterAhead: 4096,
+    });
+    expect(allowed.bootCounter).toBe(70_000 + DEFAULT_MAX_BOOT_COUNTER_AHEAD + 1);
+  });
+
+  it('lets a newer server hint move a pod forward past the reconstruction window', async () => {
+    const keyFor = () => key;
+    const accepted = await receiveUplink({
+      packet: await live(5, 1),
+      replay: emptyReplayState(),
+      keyFor,
+    });
+    const later = await live(40_005, 0);
+    // Without the hint the reference is 5, and 40 005 is far over the cap.
+    await expectCode(
+      receiveUplink({ packet: later, replay: accepted.replay, keyFor }),
+      'counter_jump',
+    );
+    const moved = await receiveUplink({
+      packet: later,
+      replay: accepted.replay,
+      keyFor,
+      bootCounterHint: () => 40_000,
+    });
+    expect(moved.bootCounter).toBe(40_005);
   });
 
   it('reports a pod or epoch without a key', async () => {

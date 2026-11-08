@@ -12,6 +12,7 @@ export const POD_PROTOCOL_ERROR_CODES = [
   'reserved_bits_set',
   'authentication_failed',
   'replay',
+  'counter_jump',
   'boot_counter_exhausted',
   'invalid_key',
 ] as const;

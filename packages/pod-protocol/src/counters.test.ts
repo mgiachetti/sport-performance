@@ -33,7 +33,7 @@ describe('reconstructBootCounter', () => {
     { low16: 0x0001, reference: 0x5_fffe, expected: 0x6_0001 },
     { low16: 0xfffe, reference: 0x6_0001, expected: 0x5_fffe },
     { low16: 0x9000, reference: 0x1000, expected: 0x9000 },
-    { low16: 0x9001, reference: 0x1000, expected: 0x9001 - 0x10000 + 0x10000 },
+    { low16: 0x9001, reference: 0x1000, expected: 0x9001 },
     { low16: 0xffff, reference: 0x0000, expected: 0xffff },
   ])('$low16 against $reference → $expected', ({ low16, reference, expected }) => {
     expect(reconstructBootCounter(low16, reference)).toBe(expected);
@@ -79,9 +79,9 @@ describe('replay state', () => {
       expect.objectContaining({ code: 'replay' }),
     );
     state = recordAccepted(state, 23, 3, { bootCounter: 12, frameNumber: 0 });
-    expect(bootCounterReference(state, 23, 4)).toBe(12);
-    expect(bootCounterReference(state, 23, 4, 50)).toBe(50);
-    expect(bootCounterReference(state, 99, 4)).toBeUndefined();
+    expect(bootCounterReference(state, 23)).toBe(12);
+    expect(bootCounterReference(state, 23, 50)).toBe(50);
+    expect(bootCounterReference(state, 99)).toBeUndefined();
   });
 
   it('serialises to JSON and parses strictly', () => {
@@ -103,6 +103,26 @@ describe('replay state', () => {
       parseReplayState('{"version":1,"entries":{"1/1":{"bootCounter":1,"frameNumber":70000}}}'),
     ).toThrow(PodProtocolError);
     expect(() => parseReplayState('null')).toThrow(PodProtocolError);
+  });
+
+  it('rejects non-canonical keys and arrays', () => {
+    const entry = '{"bootCounter":1,"frameNumber":1}';
+    for (const json of [
+      `{"version":1,"entries":{"023/2":${entry}}}`,
+      `{"version":1,"entries":{"23/02":${entry}}}`,
+      '{"version":1,"entries":[]}',
+      '[]',
+      '{"version":1,"entries":{"23/2":[1,1]}}',
+    ]) {
+      expect(() => parseReplayState(json)).toThrow(PodProtocolError);
+    }
+  });
+
+  it('a newer server hint moves the reference forward over the own entry', () => {
+    const state = recordAccepted(emptyReplayState(), 23, 2, { bootCounter: 10, frameNumber: 5 });
+    expect(bootCounterReference(state, 23)).toBe(10);
+    expect(bootCounterReference(state, 23, 500)).toBe(500);
+    expect(bootCounterReference(state, 23, 3)).toBe(10);
   });
 
   it('forgets old epochs', () => {

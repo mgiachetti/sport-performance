@@ -100,10 +100,18 @@ AES-CCM con nonce de 13 B (L = 2) y MIC de 4 B.
 
 ### Contador de arranques y número de trama
 
-- El pod manda **una sola subida por (arranque, trama)**, sea del tipo que sea: ese par es el nonce entero.
+- El número de trama cuenta las **tramas de 2 s desde el arranque**: sube aunque el pod no transmita en esa trama. El pod manda **como mucho una subida por (arranque, trama)**, sea del tipo que sea: ese par es el nonce entero.
 - El número de trama empieza en 0 en cada arranque. Antes de pasar de 0xFFFF (unas 36 h), el pod incrementa y **guarda** el contador de arranques y vuelve a 0 (`nextLinkCounter`, con `persistBootCounter`). Si el contador de arranques llegaría a dar la vuelta, el pod no transmite hasta rotar la clave en la base (`boot_counter_exhausted`).
-- El receptor reconstruye los 32 bits con el valor **más cercano** al último visto, dentro de ±32 768 arranques (`reconstructBootCounter`). Sin referencia toma los bits altos en 0; el servidor le pasa a la tablet el último contador que vio en la base (`bootCounterHint`). Una reconstrucción equivocada solo hace fallar el MIC.
+- El receptor reconstruye los 32 bits con el valor **más cercano** a la referencia, dentro de ±32 768 arranques (`reconstructBootCounter`). La referencia es el **mayor** entre lo último aceptado para el pod (en cualquier época) y la pista del servidor (`bootCounterHint`, el último contador que vio en la base), así la pista también hace avanzar a un pod. Sin ninguna de las dos toma los bits altos en 0. Una reconstrucción equivocada solo hace fallar el MIC.
+- **Tope de salto**: `receiveUplink` rechaza con `counter_jump` un contador de arranques más de `maxBootCounterAhead` (1024 por defecto) por encima de la referencia, así un paquete falso que pase el MIC de 4 B por suerte no puede llevar la ventana al final del espacio de 32 bits. Quien llama puede escalar el tope con el tiempo desde que vio al pod.
 - Anti-repetición: se acepta solo un (arranque, trama) **estrictamente mayor** que el último aceptado para ese pod y esa época, y el estado se actualiza **después** de verificar el MIC.
+- Los paquetes de un mismo pod se procesan **de a uno**: se espera cada `receiveUplink` y se pasa su `replay` al siguiente. Un paquete que llega después de uno más nuevo (por ejemplo, lo que reenvía el borde al reconectar) vuelve como `replay`; los acumulados del más nuevo ya lo incluyen.
+
+### Del lado del gateway
+
+- **Persiste la última hora GNSS que usó** para sellar y nunca sella dos mensajes distintos para el mismo (red, hora, tipo, fragmento): después de un reinicio, de perder el GPS o ante una hora sospechosa, no transmite hasta tener una hora posterior a la guardada.
+- No puede verificar el pedido de turno (no tiene las claves de los pods): solo asigna turnos a ids cortos de la lista de pods del club.
+- La época (u8) nunca da la vuelta: antes de la 255 el club rota la clave maestra.
 
 ### Claves
 
@@ -152,9 +160,9 @@ pnpm --filter @sport-performance/pod-protocol fixtures:update
 
 `CcmProvider` es una interfaz con `seal` y `open` asíncronos. `nobleCcmProvider` arma CCM (RFC 3610 / NIST SP 800-38C) sobre los bloques AES de `@noble/ciphers` (ECB, CBC y CTR; noble no trae CCM). Los tests lo comparan con el vector 1 de RFC 3610 y con `aes-*-ccm` de Node/OpenSSL (`src/testing/node-ccm.ts`, solo para tests). La app puede inyectar un módulo nativo con la misma interfaz.
 
-## Decisiones propias (a llevar al ADR 0106)
+## Decisiones propias (resumidas en el ADR 0106, "Formato v1 del protocolo")
 
-El ADR no fija estos puntos; se eligieron acá y se proponen para el ADR:
+El ADR no fijaba estos puntos; se eligieron acá y el ADR los resume:
 
 1. **Little-endian** en todo el cable y en los nonces.
 2. **Códigos de tipo**: subida 0x1–0x7 y bajada 0x8–0xF; `live_summary` 0x1, sin posiciones 0x2 (la posición es opcional por club: se elige por tipo y largo, no por una bandera cifrada), pedido de turno 0x3, baliza 0x8, configuración 0x9, RTCM 0xA. Versión del protocolo = 1.
@@ -167,6 +175,9 @@ El ADR no fija estos puntos; se eligieron acá y se proponen para el ADR:
 9. **Pedido de turno** de 14 B (encabezado + MIC, sin carga útil).
 10. **KDF**: HKDF-SHA256 con la `info` de arriba, sal vacía, AES-128; id del gateway = EUI-64.
 11. **Ventana de reconstrucción** del contador de arranques de ±32 768.
+12. **Número de trama** por trama de 2 s desde el arranque, con una sola subida por (arranque, trama).
+13. **Referencia** = máximo entre lo aceptado y la pista del servidor, con **tope de salto** (`counter_jump`).
+14. **Anti-repetición** por (id corto, época), sin el id de red.
 
 ## Fuera de este paquete
 
