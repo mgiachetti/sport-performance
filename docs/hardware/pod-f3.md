@@ -11,7 +11,8 @@ Este documento acompaña al [ADR 0105](../adr/0105-pod-gnss-imu-con-telemetria-e
 | GNSS L1 + L5 | **Quectel LC29H(AA)** (principal; placa lista para la EA) | LC29H(EA) para RTK en vivo; u-blox NEO-F10N-00B-20 solo como comparación en el banco | F10N-20: US$ 18,69–21,36. LC29H(AA): US$ 7,40 | [findchips NEO-F10N](https://www.findchips.com/search/NEO-F10N-00B) · [Ozdisan LC29H(AA)](https://www.ozdisan.com/en/p/gsm-and-gnss-modules-650/quectel-lc29haamd-1574222) | Sí (F10N por agregador) |
 | GNSS, otras opciones | LC29H(DA) | Allystar TAU1201 | DA: €20,53. TAU1201: US$ 11–16 | [DigiKey LC29H(DA)](https://www.digikey.jp/en/products/detail/quectel/LC29HDAMD/21272459) · [ichome TAU1201](https://ichome.com/product-detail/allystar/tau1201-1216a00) | Sí |
 | GNSS, otras opciones | Unicore UM620N (UC6580A) | — | — | [manual UM620N](https://manuals.plus/unicorecomm/um620n-automotive-grade-dual-frequency-multi-gnss-positioning-module-manual-2) | **No verificado** (sin precio) |
-| Antena L1/L5 activa de 25 × 25 mm | Taoglas AGVLB.25B.07.0060A (LNA de 2 etapas) | Linx ANT-GNCP-C25L15100; Pulse ANT1825JB01BGNL5A (LCSC C3284896, sin precio) | €21,03 @120 / €19,87 @360 (DigiKey). Linx: precio **no verificado** | [DigiKey Taoglas](https://www.digikey.ie/en/products/detail/taoglas-limited/AGVLB-25B-07-0060A/21777673) · [DigiKey Linx](https://www.digikey.fi/en/products/detail/te-connectivity-linx/ANT-GNCP-C25L15100/15294130) | Precio sí. Que tenga SAW, **no verificado** |
+| Antena L1/L5 pasiva en la placa (**principal**, decisión del usuario del 08/11/2026) | Patch apilado **Taoglas GVLB208.A** (20 × 20 × 8,8 mm) + 2 × SAW **B39162B8389P810** (C5556161) + LNA **BGA525N6** (C18337445) + adaptación (4 L de 5,1 nH, 1 L de 10–12 nH, 1 nF, 68 pF, ESD) | Patch de 25 × 25 × 8 mm (Quectel YFGC000WWAM, **no verificado**) | **Estimación**: unos €8–10 menos por pod que la Taoglas activa, y unos 5–8 g menos (sin la carcasa de 35 × 35 × 12 mm ni el cable). Los precios del patch, de los SAW y del LNA a 100 unidades, **no verificados** | [Hoja del GVLB208.A](https://www.taoglas.com/datasheets/GVLB208.A.pdf) | **No verificado** (estimación de costo y peso) |
+| Antena L1/L5 activa de 25 × 25 mm (**rescate y referencia de banco**, por el U.FL) | Taoglas AGVLB.25B.07.0060A (LNA de 2 etapas) | Linx ANT-GNCP-C25L15100; Pulse ANT1825JB01BGNL5A (LCSC C3284896, sin precio) | €21,03 @120 / €19,87 @360 (DigiKey). Linx: precio **no verificado** | [DigiKey Taoglas](https://www.digikey.ie/en/products/detail/taoglas-limited/AGVLB-25B-07-0060A/21777673) · [DigiKey Linx](https://www.digikey.fi/en/products/detail/te-connectivity-linx/ANT-GNCP-C25L15100/15294130) | Precio sí. Que tenga SAW, **no verificado** |
 | Antena L1/L5 activa china | — | — | US$ 4–8 | — | **No verificado**. Define si se llega a US$ 80 con el F10N |
 | MCU + BLE + LoRa | Raytac MDBT50Q-P1MV2 (nRF52840, 48 GPIO) + Ebyte E22-900M22S (SX1262) | Ebyte E73-2G4M08S1C (descartado: 31 GPIO); RAK4630 (otro encapsulado) | MDBT50Q: desde US$ 6,65 (LCSC, -1MV2) a US$ 8,50 @25 (SparkFun); la -P1MV2, precio **no verificado**. E22: desde US$ 4,63. Juntos, unos US$ 11–13, uno a tres dólares más que con el E73 (US$ 5,52) | [LCSC MDBT50Q-1MV2](https://www.lcsc.com/product-detail/C5118826.html) · [JLC MDBT50Q-P1MV2](https://jlcpcb.com/partdetail/RAYTAC-MDBT50QP1MV2/C5119772) · [SparkFun](https://www.sparkfun.com/nordic-nrf52840-ble-module-mdbt50q-1mv2.html) · [LCSC E22](https://www.lcsc.com/product-detail/C411293.html) · [LCSC E73](https://lcsc.com/product-detail/C356849.html) | Precios de la -1MV2, del E22 y del E73 sí. Certificaciones del MDBT50Q -P1MV2 y de los Ebyte, **no verificadas** |
 | Load switches y Hall | TPS22916C en el GNSS y en el E22 (montados) y en la NAND (sin montar); **DRV5032FB montado** (Hall del chaleco) | DRV5032FA (20 Hz) | Unos US$ 0,3–0,5 cada load switch (**no verificado**); DRV5032FB unos US$ 0,15–0,21 | [LCSC C2655033](https://lcsc.com/product-detail/Hall-Sensor_Texas-Instruments-DRV5032FBDBZR_C2655033.html) | Load switches **no verificados**; Hall sí |
@@ -32,10 +33,10 @@ Este documento acompaña al [ADR 0105](../adr/0105-pod-gnss-imu-con-telemetria-e
 
 Sin pasivos de detalle, chaleco ni banda de FC:
 
-- **Optimista y de la decisión, unos US$ 75–85:** LC29H(AA) + MDBT50Q + E22 + LSM6DSV320X + antena Taoglas, con la **NAND de 2 Gbit** (la de 4 Gbit no tiene precio verificado). El rango va del PCB y la carcasa en su extremo bajo al alto. La antena se convirtió de € a US$ en forma aproximada. El MDBT50Q en lugar del E73 suma unos US$ 1–3, y el LED con sus NMOS unos centavos.
+- **Optimista y de la decisión, unos US$ 75–85:** LC29H(AA) + MDBT50Q + E22 + LSM6DSV320X + antena Taoglas, con la **NAND de 2 Gbit** (la de 4 Gbit no tiene precio verificado). **Con el patch pasivo como antena principal** (decisión del 08/11/2026), la antena y su cadena cuestan unos €8–10 menos (estimación): unos US$ 66–76. El rango va del PCB y la carcasa en su extremo bajo al alto. La antena se convirtió de € a US$ en forma aproximada. El MDBT50Q en lugar del E73 suma unos US$ 1–3, y el LED con sus NMOS unos centavos.
 - **Con la EA:** se suma la diferencia con la AA, unos US$ 12–15 por pod (**no verificado**: la EA no tiene precio relevado, y la referencia es la DA a €20,53 @100).
 - **Pesimista, unos US$ 113 (los extremos altos de la tabla), solo como referencia:** NEO-F10N-20 + RAK4630 + antena Linx, cuyo precio **no está verificado** (se tomó igual al de la Taoglas).
-- **Lo que más pesa es la antena GNSS de marca** (€19,87–21,03). Con el F10N, los US$ 80 se alcanzan solo con una antena L1/L5 activa china de US$ 4–8, cuyo precio no está verificado. Cambiar el MDBT50Q + E22 por el RAK4630 suma unos US$ 6–12.
+- **Lo que más pesaba era la antena GNSS de marca** (€19,87–21,03); con el patch pasivo en la placa queda como rescate. Con el F10N, los US$ 80 se alcanzan solo con una antena L1/L5 activa china de US$ 4–8, cuyo precio no está verificado. Cambiar el MDBT50Q + E22 por el RAK4630 suma unos US$ 6–12.
 - **Con UWB montado** se suman unos US$ 9–12 por pod. Los totales de arriba son sin UWB.
 
 ## Equipo compartido
@@ -71,7 +72,7 @@ Sin pasivos de detalle, chaleco ni banda de FC:
   - Un resumen por segundo de unos 20 B, que se manda de a 2: unos 40 B cada 2 s.
   - 40 B en SF7 / 125 kHz ocupan unos 82 ms en el aire. Con turnos de unos 100 ms (con tiempo de guarda), una trama de 2 s tiene 20 turnos por canal: **unos 160 pods en 8 canales**.
   - 30 pods ocupan cerca del 15 % de cada canal. Cada 1 s sería el 31 %, con capacidad para unos 80 pods.
-- **Batería:** 500–600 mAh (decisión del usuario). El consumo estimado en actividad es de unos 50–60 mA, contando los 18 mA del LNA de la antena (`pod-v0.md`): unas 8–12 h para un objetivo de 4–5 h.
+- **Batería:** 500–600 mAh (decisión del usuario). El consumo estimado en actividad es de unos 35–45 mA con el patch pasivo y el LNA de la placa (2,3 mA), unos 50–60 mA con los 18 mA del LNA de la Taoglas (`pod-v0.md`): unas 11–17 h (8–12 h con la Taoglas) para un objetivo de 4–5 h.
 
 ## GNSS: qué se sabe de la salida cruda
 
@@ -144,7 +145,7 @@ No se encontraron estudios de GNSS de doble banda de bajo costo en deportes. Lo 
 
 1. El crudo del LC29H está limitado a 1 Hz (dato de la serie). Para la AA, el crudo en modo base no está verificado, y en la EA la configuración no es estable entre firmwares.
 2. La tasa de RAWX del F10N no está confirmada, y el stock de la variante -20 es incierto (Avnet: mínimo de 500 unidades y 19 semanas).
-3. El costo de la antena L1/L5 define si se cumple el objetivo de US$ 80.
+3. El costo de la antena L1/L5 definía el objetivo de US$ 80; con el patch pasivo baja unos €8–10 (estimación), y el riesgo pasa a ser cuánto pierde el patch en L5 sobre la tierra chica de la placa (se mide en el arranque de la v0 contra la Taoglas).
 4. El LSM6DSV320X tiene stock bajo; el respaldo es el ICM-42688-P + ADXL372.
 5. Las certificaciones del E22 y de la variante -P1MV2 del MDBT50Q no están verificadas.
 6. La homologación ante ENACOM del equipo final, si se presta o se vende.

@@ -113,7 +113,7 @@
 # --- Zona de la antena GNSS (patch pasivo en la placa; la Taoglas va por U.FL) ---
 # Tierra continua en L1 (y en L2, por "L2 solo GND"): en L1 solo GND y la RF. Las vías pasan
 # por L1, así que adentro solo hay vías de GND; L3 y L4 pueden pasar por debajo sin cambiar de
-# capa. Ningún componente en la cara de arriba, salvo el patch en la placa (AE201, sin montar).
+# capa. Ningún componente en la cara de arriba, salvo el patch en la placa (AE201, montado).
 (rule "GNSS_ANTENA: solo GND y RF en L1"
 	(layer "F.Cu")
 	(condition "A.intersectsArea('GNSS_ANTENA') && A.NetName != 'GND' && A.NetClass != 'RF_50'")
