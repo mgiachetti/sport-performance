@@ -284,7 +284,7 @@ export function registerPodRawRoutes(
           ),
         );
       if (existing !== undefined) {
-        const row = existing as UploadRow;
+        const row: UploadRow = existing;
         if (row.podId !== target.id || !sameFile(row, manifest)) {
           throw new HttpError('conflict', 'This segment was already uploaded with another file');
         }

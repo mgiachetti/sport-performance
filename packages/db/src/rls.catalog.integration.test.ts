@@ -49,6 +49,8 @@ const DELETABLE = {
     'notification',
     'player_load_daily',
     'player_wellness_daily',
+    // Position traces: erased with the location consent and past their retention (ADR 0108).
+    'pod_trace_segment',
     'push_ticket',
     // Per-member usage past its retention, once folded into the weekly counts (ADR 0093).
     'usage_activity',
@@ -291,6 +293,7 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
       'app.worker_forget_push_token',
       'app.worker_location_erasure_clubs',
       'app.worker_ops_backlog',
+      'app.worker_pod_raw_clubs',
       'app.worker_push_tokens',
       'app.worker_record_ops_checks',
       'app.worker_report_clubs',
@@ -308,6 +311,7 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
       'public.player_sport_matches',
       'public.pod_device_guard',
       'public.pod_device_owner_guard',
+      'public.pod_raw_upload_guard',
       'public.sync_change_record',
       'public.unit_matches_metric',
     ]);
