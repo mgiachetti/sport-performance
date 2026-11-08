@@ -117,7 +117,7 @@ No se encontraron estudios de GNSS de doble banda de bajo costo en deportes. Lo 
 
 ## Plan de prototipos
 
-1. **Banco** (unos US$ 810–1.090 en origen; 2–4 semanas). La lista de compras y el protocolo están en [`banco-gnss.md`](banco-gnss.md):
+1. **Banco mínimo** (unos US$ 420 en origen; ver [`banco-gnss.md`](banco-gnss.md), "Compra reducida"): un LC29H(AA) en placa y los dos LG290P. En paralelo se diseña la **v0** ([`pod-v0.md`](pod-v0.md)). La lista completa de abajo queda como referencia si la v0 no alcanza:
    - LC29H(AA) ×2, LC29H(EA), dos LG290P (base en trípode y referencia en el chaleco), y NEO-F10N para comparar, con las antenas Taoglas, un RAK4631 (WisBlock) y una placa con el LSM6DSV320X.
    - **Medir:**
      - si el AA saca crudo, a qué tasa y si la configuración persiste;
@@ -131,7 +131,7 @@ No se encontraron estudios de GNSS de doble banda de bajo costo en deportes. Lo 
    - El LG290P como base al costado, y el RINEX de RAMSAC del mismo día como respaldo.
    - **Comparar:** distancia, HSR, Vmax, aceleraciones y desaceleraciones, y contactos (estos contra video).
    - Con esos datos se elige el GNSS y la antena, y el ADR 0105 se acepta o se reemplaza.
-3. **Placa propia: 2–3 vueltas en JLCPCB**, con 4 capas, carcasa MJF, base de carga y descarga, y el turno LoRa probado con 10–30 placas.
+3. **Placa propia, directo a la v0 con módulos en PCBWay** ([`pod-v0.md`](pod-v0.md)): 10 placas, 5 armadas (AA, EA y una con UWB), con lugares de rescate para no necesitar una vuelta intermedia. Después, las vueltas que hagan falta (en PCBWay o JLCPCB) con la carcasa MJF, la base de carga y descarga y el turno LoRa probado con 10–30 placas.
 4. **Piloto con unos 10 pods** en una categoría, en vivo durante los partidos, más la descarga y el PPK.
 5. **Tanda de 100**, después de definir el modo de entrega a los clubes y presupuestar la homologación ante ENACOM.
 

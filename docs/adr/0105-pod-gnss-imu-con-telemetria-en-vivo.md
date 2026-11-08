@@ -53,7 +53,12 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
     - LC29H BS como base: el LG290P tiene más bandas y calidad de referencia, y una sola base sirve para PPK, RTK y validación.
     - LC29H DA: RTK solo a 1 Hz.
     - Allystar TAU1201/1202, sin salida cruda confirmada. Unicore UM620N, sin precio ni salida cruda confirmados.
-  - **El banco** ([`banco-gnss.md`](../hardware/banco-gnss.md)) mide si el AA tiene crudo, el RTK de la EA con el LG290P, el F10N y el consumo, y decide con datos de cancha contra Catapult.
+  - **El banco** ([`banco-gnss.md`](../hardware/banco-gnss.md)) se reduce a lo mínimo: un LC29H(AA) en placa para saber si tiene crudo y velocidad Doppler, y los dos LG290P (base y referencia). El RTK de la EA, el consumo y la convivencia con LoRa se miden en la v0.
+- **Prototipo: directo a la placa v0 con módulos** ([`pod-v0.md`](../hardware/pod-v0.md)), sin placa intermedia de desarrollo.
+  - Solo módulos (E73 con nRF52840, E22-900M22S con SX1262, LC29H), ningún chip de radio soldado directo: el RF de cada módulo ya viene resuelto.
+  - **Lugares de rescate** para corregir en la mesa sin otra vuelta: 0 Ω y componentes sin montar en la cadena RF del GNSS (SAW, LNA, red pi, bias-T), una antena GNSS alternativa para soldar, IMU de respaldo, puentes en cada riel y el UART del GNSS a un conector para hablar con QGNSS.
+  - Las E/S del LC29H son de 2,8 V: hace falta traductor de niveles con el nRF52840 a 3,3 V (Hardware Design del LC29H, tabla 10).
+  - Se fabrica en PCBWay (compra las partes que no están en LCSC): 10 placas, 5 armadas.
 - **Antena:**
   - Patch cerámico **activo de doble banda L1/L5 de 25 × 25 mm**, con un plano de tierra suficiente.
   - **Filtro SAW antes del LNA**, porque el pod transmite LoRa a centímetros del receptor.
