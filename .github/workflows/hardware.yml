@@ -40,8 +40,26 @@ jobs:
       - name: Schematic generator up to date
         run: python3 hardware/tools/esquematico/generar.py --check
 
+      # Footprints drawn from the datasheets (hardware/tools/footprints_hoja.py).
+      - name: Footprint generator up to date
+        run: python3 hardware/tools/footprints_hoja.py --check
+
       - name: Pull KiCad image
         run: docker pull "$KICAD_IMAGE"
+
+      # Every footprint of the own library has to load in KiCad: export each one to SVG and
+      # compare the count with the files (a footprint that does not parse is skipped).
+      - name: Own footprints load in KiCad
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/fp_svg"
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+            -v "$GITHUB_WORKSPACE:/work" -v "$RUNNER_TEMP:/out" -w /work/hardware/lib "$KICAD_IMAGE" \
+            kicad-cli fp export svg --output /out/fp_svg pod.pretty
+          files=$(ls hardware/lib/pod.pretty/*.kicad_mod | wc -l)
+          svgs=$(ls "$RUNNER_TEMP"/fp_svg/*.svg | wc -l)
+          echo "footprints: $files, exportados: $svgs"
+          test "$files" -eq "$svgs"
 
       # The container runs as the runner's user so the reports are writable; HOME points
       # to /tmp because kicad-cli writes its configuration there. The ERC checks that every

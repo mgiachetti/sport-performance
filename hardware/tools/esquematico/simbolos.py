@@ -270,26 +270,34 @@ def ic_symbols() -> list:
         ("10", "GPIO5/SPIPOL", BI), ("9", "GPIO6/SPIHA", BI), ("4", "GPIO7", BI),
     ], description="Módulo UWB Qorvo DWM3000 (pines de la librería oficial de KiCad, sin verificar contra la hoja)",
         datasheet="https://www.qorvo.com/products/d/da008142"))
-    # TDK ICM-42688-P (LGA-14). Pin table from general knowledge of the part: NOT verified.
+    # TDK ICM-42688-P (LGA-14). DS-000347 rev. 1.2, table 9 (p.19): pin 7 RESV goes to GND; 2, 3, 10, 11 NC or GND.
     s.append(block("ICM-42688-P", "U", [
         ("8", "VDD", PI), ("5", "VDDIO", PI), ("6", "GND", PI), None, ("4", "INT1", OUT), ("9", "INT2/FSYNC", BI),
     ], [
         ("12", "AP_CS", IN), ("13", "AP_SCLK", IN), ("14", "AP_SDI", BI), ("1", "AP_SDO", TRI), None,
         ("2", "RESV", PAS), ("3", "RESV", PAS), ("7", "RESV", PAS), ("10", "RESV", PAS), ("11", "RESV", PAS),
-    ], description="IMU de 6 ejes TDK ICM-42688-P (numeración de pines sin verificar)"))
-    # Analog Devices ADXL372 (LGA-16). Pin table NOT verified (assumed like the ADXL362 family).
+    ], description="IMU de 6 ejes TDK ICM-42688-P (pines de DS-000347 rev. 1.2, tabla 9)"))
+    # Analog Devices ADXL372 (LGA-16). Data sheet Rev. B, table 5 (p.7): 3, 5, 10 reserved, 2 and 15 not connected.
     s.append(block("ADXL372", "U", [
         ("14", "VS", PI), ("1", "VDDIO", PI), ("12", "GND", PI), ("13", "GND", PI), ("16", "GND", PI), None,
         ("11", "INT1", OUT), ("9", "INT2", OUT),
     ], [
         ("8", "~{CS}", IN), ("4", "SCLK", IN), ("6", "MOSI", IN), ("7", "MISO", TRI), None,
-        ("2", "NC", PAS), ("3", "RES", PAS), ("5", "RES", PAS), ("10", "RES", PAS), ("15", "RES", PAS),
-    ], description="Acelerómetro de ±200 g ADXL372 (numeración de pines sin verificar)"))
-    # Generic placeholders: part not chosen yet (pod-v0.md: dual-band L1 + L5, no verificado).
-    s.append(block("SAW_L1L5", "FL", [("1", "IN", PAS), ("2", "GND", PI)], [("3", "OUT", PAS), ("4", "GND", PI)],
-                   description="Filtro SAW L1 + L5 (parte por elegir; pines genéricos)", min_half_width=3.81))
-    s.append(block("LNA_L1L5", "U", [("1", "RFIN", PAS), ("2", "VCC", PI), ("3", "EN", IN)], [("4", "RFOUT", PAS), ("5", "GND", PI)],
-                   description="LNA L1 + L5 (parte por elegir; pines genéricos)", min_half_width=3.81))
+        ("2", "NIC", PAS), ("3", "RES", PAS), ("5", "RES", PAS), ("10", "RES", PAS), ("15", "NIC", PAS),
+    ], description="Acelerómetro de ±200 g ADXL372 (pines de la hoja Rev. B, tabla 5)"))
+    # RF chain candidates (issue 278). Qualcomm RF360 B39162B8389P810: dual-band L1 + L5 SAW, pads 1 IN,
+    # 4 OUT, 2/3/5 GND (datasheet p.5). Infineon BGA525N6: L1/L2/L5 LNA, pins 1 GND, 2 VCC, 3 AO, 4 CTRL2,
+    # 5 AI, 6 CTRL1 (datasheet v1.2, pin table). Both still to verify.
+    s.append(block("B39162B8389P810", "FL", [("1", "IN", PAS), ("2", "GND", PI), ("3", "GND", PI)],
+                   [("4", "OUT", PAS), ("5", "GND", PI)],
+                   description="SAW de doble banda L1 + L5 (Qualcomm RF360 B8389), pines a verificar",
+                   datasheet="https://datasheet.lcsc.com/datasheet/pdf/eab07ffddc7092a73be1e657f827b881.pdf",
+                   min_half_width=3.81))
+    s.append(block("BGA525N6", "U", [("5", "AI", PAS), ("2", "VCC", PI), ("6", "CTRL1", IN), ("4", "CTRL2", IN)],
+                   [("3", "AO", PAS), ("1", "GND", PI)],
+                   description="LNA GNSS L1/L2/L5 de Infineon (CTRL1/CTRL2: H,H bajo consumo; H,L estándar; L,H alta ganancia; L,L apagado)",
+                   datasheet="https://www.infineon.com/dgdl/Infineon-BGA525N6-DataSheet-v01_01-EN.pdf?fileId=8ac78c8c872bd8d6018775bb1e8d010e",
+                   min_half_width=3.81))
     # Discrete transistors, SOT-23 standard numbering (1 G, 2 S, 3 D).
     s.append(block("Q_NMOS_GSD", "Q", [("1", "G", IN)], [("3", "D", PAS), ("2", "S", PAS)],
                    description="NMOS de nivel lógico, SOT-23 (1 G, 2 S, 3 D)", min_half_width=2.54))
