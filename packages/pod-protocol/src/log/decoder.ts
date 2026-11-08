@@ -180,11 +180,28 @@ export interface DecodedSegment {
   recordIssues: RecordIssue[];
 }
 
+export interface TimeIssue {
+  bootCounter: number;
+  /** `null` for the time base of the whole boot. */
+  segmentId: number | null;
+  stage: 'time_base' | 'segment_timing';
+  detail: string;
+}
+
+function describe(error: unknown): string {
+  return error instanceof Error ? `${error.name}: ${error.message}` : 'unknown error';
+}
+
 export interface DecodedLog {
   segments: DecodedSegment[];
   /** One per boot counter seen. */
   timeBases: TimeBase[];
   pageIssues: PageIssue[];
+  /**
+   * Timing that could not be built (hostile or broken anchors, sensor
+   * timestamps): reported here, the segment still decodes without it.
+   */
+  timeIssues: TimeIssue[];
   stats: { pagesRead: number; pagesErased: number; pagesValid: number; pagesSkipped: number };
 }
 
@@ -809,14 +826,26 @@ export function decodeLog(input: DecodeLogInput): DecodedLog {
     });
   }
 
+  const timeIssues: TimeIssue[] = [];
   const timeBases = [...anchorsByBoot.entries()]
     .sort(([a], [b]) => a - b)
-    .map(([boot, anchors]) =>
-      buildTimeBase(
-        boot,
-        [...anchors].sort((a, b) => a.tick - b.tick),
-      ),
-    );
+    .map(([boot, anchors]) => {
+      try {
+        return buildTimeBase(
+          boot,
+          [...anchors].sort((a, b) => a.tick - b.tick),
+        );
+      } catch (error) {
+        // Never let hostile anchors crash the worker: no absolute time for this boot.
+        timeIssues.push({
+          bootCounter: boot,
+          segmentId: null,
+          stage: 'time_base',
+          detail: describe(error),
+        });
+        return buildTimeBase(boot, []);
+      }
+    });
   const baseByBoot = new Map(timeBases.map((b) => [b.bootCounter, b]));
 
   const syncsByBoot = new Map<number, SensorSyncRecord[]>();
@@ -827,27 +856,17 @@ export function decodeLog(input: DecodeLogInput): DecodedLog {
   }
 
   const segments: DecodedSegment[] = partial.map(({ segment }) => {
-    const base = baseByBoot.get(segment.bootCounter);
-    const syncs = [...(syncsByBoot.get(segment.bootCounter) ?? [])].sort((a, b) => a.tick - b.tick);
-    const clocks = new Map<string, SensorClock>();
-    for (const sensor of new Set(syncs.map((s) => s.sensor))) {
-      // The nominal period of the sensor's counter comes from its batches.
-      const period =
-        segment.streams.imu.find((b) => b.sensor === sensor && b.sensorTickPeriodNs > 0)
-          ?.sensorTickPeriodNs ?? 0;
-      clocks.set(sensor, buildSensorClock(sensor, syncs, period));
+    try {
+      return timeSegment(segment, baseByBoot.get(segment.bootCounter), syncsByBoot);
+    } catch (error) {
+      timeIssues.push({
+        bootCounter: segment.bootCounter,
+        segmentId: segment.segmentId,
+        stage: 'segment_timing',
+        detail: describe(error),
+      });
+      return { ...segment, intervals: [], gnssTimeRange: null };
     }
-    timeImu(segment.streams, clocks);
-    flagRadioTx(segment.streams, base);
-    const range = segment.tickRange;
-    const start = base && range ? tickToGnssMs(base, range.first) : null;
-    const end = base && range ? tickToGnssMs(base, range.last) : null;
-    return {
-      ...segment,
-      gaps: [...segment.gaps, ...detectGaps(segment.streams)],
-      intervals: buildIntervals(segment.streams, range, base),
-      gnssTimeRange: start !== null && end !== null ? { startMs: start, endMs: end } : null,
-    };
   });
   segments.sort(
     (a, b) =>
@@ -856,7 +875,34 @@ export function decodeLog(input: DecodeLogInput): DecodedLog {
       a.segmentId - b.segmentId,
   );
 
-  return { segments, timeBases, pageIssues: issues, stats };
+  return { segments, timeBases, pageIssues: issues, timeIssues, stats };
+}
+
+function timeSegment(
+  segment: Omit<DecodedSegment, 'intervals' | 'gnssTimeRange'>,
+  base: TimeBase | undefined,
+  syncsByBoot: ReadonlyMap<number, SensorSyncRecord[]>,
+): DecodedSegment {
+  const syncs = [...(syncsByBoot.get(segment.bootCounter) ?? [])].sort((a, b) => a.tick - b.tick);
+  const clocks = new Map<string, SensorClock>();
+  for (const sensor of new Set(syncs.map((s) => s.sensor))) {
+    // The nominal period of the sensor's counter comes from its batches.
+    const period =
+      segment.streams.imu.find((b) => b.sensor === sensor && b.sensorTickPeriodNs > 0)
+        ?.sensorTickPeriodNs ?? 0;
+    clocks.set(sensor, buildSensorClock(sensor, syncs, period));
+  }
+  timeImu(segment.streams, clocks);
+  flagRadioTx(segment.streams, base);
+  const range = segment.tickRange;
+  const start = base && range ? tickToGnssMs(base, range.first) : null;
+  const end = base && range ? tickToGnssMs(base, range.last) : null;
+  return {
+    ...segment,
+    gaps: [...segment.gaps, ...detectGaps(segment.streams)],
+    intervals: buildIntervals(segment.streams, range, base),
+    gnssTimeRange: start !== null && end !== null ? { startMs: start, endMs: end } : null,
+  };
 }
 
 /** Splits a contiguous dump (pages of `pageSizeB`, data area only) into page reads. */

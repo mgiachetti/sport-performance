@@ -2,6 +2,8 @@ import {
   ANCHOR_LOOKBACK,
   ANCHOR_MAX_RATE_ERROR_PPM,
   ANCHOR_STRETCH_MIN,
+  ANCHOR_STRETCH_MIN_TICKS,
+  MAX_TIME_STRETCHES,
   DEFAULT_GPS_UTC_OFFSET_S,
   GPS_EPOCH_UNIX_MS,
   RTC_TICK_HZ,
@@ -45,7 +47,11 @@ export interface TimeAnchorPoint {
   uncertaintyUs: number;
 }
 
-export type RejectedAnchorReason = 'covered_by_better_source' | 'rate_out_of_range';
+export type RejectedAnchorReason =
+  | 'covered_by_better_source'
+  | 'rate_out_of_range'
+  /** Beyond `MAX_TIME_STRETCHES` stretches in one boot (hostile or broken timing). */
+  | 'too_many_stretches';
 
 /** Anchors consistent among themselves, with no step between them. */
 export interface TimeStretch {
@@ -170,42 +176,70 @@ function bestChain(anchors: readonly TimeAnchorPoint[]): number[] {
   return chain.reverse();
 }
 
+/** Whether a chain found before or after the main one is enough to be its own stretch. */
+function longEnoughForStretch(points: readonly TimeAnchorPoint[]): boolean {
+  const first = points[0];
+  const last = points.at(-1);
+  if (!first || !last) {
+    return false;
+  }
+  return (
+    points.length >= ANCHOR_STRETCH_MIN ||
+    (points.length >= 3 && last.tick - first.tick >= ANCHOR_STRETCH_MIN_TICKS)
+  );
+}
+
 /**
- * Splits `anchors` into stretches: the best chain is one stretch; the anchors
- * inside its span that are not in it are rejected; the ones before and after
- * it are split again (a stretch there needs at least `ANCHOR_STRETCH_MIN`
- * anchors, unless it is the only one of the boot).
+ * Splits `anchors` into stretches with a work list (no recursion): the best
+ * chain of the whole boot is the first stretch; the anchors inside its span
+ * that are not in it are rejected; the ones before and after it are split
+ * again. A stretch there needs `longEnoughForStretch` (10 anchors, or 3 over
+ * 30 s), and a boot has at most `MAX_TIME_STRETCHES`: the rest is rejected
+ * (`too_many_stretches`). Each pass is O(n · K) and there are at most
+ * 2 · MAX_TIME_STRETCHES + 1 passes.
  */
 function buildStretches(
   anchors: readonly TimeAnchorPoint[],
   rejected: TimeBase['rejected'],
-  top: boolean,
 ): TimeStretch[] {
-  if (anchors.length === 0) {
-    return [];
-  }
-  const chain = bestChain(anchors);
-  const first = chain[0] ?? 0;
-  const last = chain.at(-1) ?? 0;
-  if (!top && chain.length < ANCHOR_STRETCH_MIN) {
-    for (const p of anchors) {
-      rejected.push({ ...p, reason: 'rate_out_of_range' });
-    }
-    return [];
-  }
-  const inChain = new Set(chain);
-  for (let k = first; k <= last; k += 1) {
-    const p = anchors[k];
-    if (p && !inChain.has(k)) {
-      rejected.push({ ...p, reason: 'rate_out_of_range' });
-    }
-  }
-  const points = chain.map((k) => anchors[k]).filter((p): p is TimeAnchorPoint => !!p);
-  return [
-    ...buildStretches(anchors.slice(0, first), rejected, false),
-    { points },
-    ...buildStretches(anchors.slice(last + 1), rejected, false),
+  const stretches: TimeStretch[] = [];
+  const work: { items: readonly TimeAnchorPoint[]; top: boolean }[] = [
+    { items: anchors, top: true },
   ];
+  const rejectAll = (items: readonly TimeAnchorPoint[], reason: RejectedAnchorReason): void => {
+    for (const p of items) {
+      rejected.push({ ...p, reason });
+    }
+  };
+  for (let item = work.shift(); item; item = work.shift()) {
+    const { items, top } = item;
+    if (items.length === 0) {
+      continue;
+    }
+    if (stretches.length >= MAX_TIME_STRETCHES) {
+      rejectAll(items, 'too_many_stretches');
+      continue;
+    }
+    const chain = bestChain(items);
+    const points = chain.map((k) => items[k]).filter((p): p is TimeAnchorPoint => !!p);
+    if (!top && !longEnoughForStretch(points)) {
+      rejectAll(items, 'rate_out_of_range');
+      continue;
+    }
+    const first = chain[0] ?? 0;
+    const last = chain.at(-1) ?? 0;
+    const inChain = new Set(chain);
+    for (let k = first; k <= last; k += 1) {
+      const p = items[k];
+      if (p && !inChain.has(k)) {
+        rejected.push({ ...p, reason: 'rate_out_of_range' });
+      }
+    }
+    stretches.push({ points });
+    work.push({ items: items.slice(0, first), top: false });
+    work.push({ items: items.slice(last + 1), top: false });
+  }
+  return stretches.sort((a, b) => (a.points[0]?.tick ?? 0) - (b.points[0]?.tick ?? 0));
 }
 
 function mapInPoints(points: readonly TimeAnchorPoint[], tick: number): number | null {
@@ -233,8 +267,9 @@ function mapInPoints(points: readonly TimeAnchorPoint[], tick: number): number |
  *    agrees within 100 ppm of nominal (beyond both uncertainties), skipping at
  *    most 64 anchors per link, ties broken by the better sources;
  * 3. steps: anchors before or after that chain that agree among themselves
- *    (3 or more) form their own stretch, and the jump between stretches is
- *    reported. Times are never interpolated across a step.
+ *    (10 or more, or 3 over 30 s) form their own stretch, up to 16 per boot,
+ *    and the jump between stretches is reported. Times are never interpolated
+ *    across a step.
  */
 export function buildTimeBase(bootCounter: number, anchors: readonly TimeAnchorRecord[]): TimeBase {
   const all = anchors.map(anchorPoint);
@@ -256,7 +291,7 @@ export function buildTimeBase(bootCounter: number, anchors: readonly TimeAnchorR
     kept = [...kept, ...accepted].sort((a, b) => a.tick - b.tick);
   }
 
-  const stretches = buildStretches(kept, rejected, true);
+  const stretches = buildStretches(kept, rejected);
   const steps: TimeStep[] = [];
   for (let k = 1; k < stretches.length; k += 1) {
     const a = stretches[k - 1]?.points ?? [];
@@ -316,7 +351,11 @@ export function tickToGnssMs(base: TimeBase, tick: number): number | null {
   return stretch ? mapInPoints(stretch.points, tick) : null;
 }
 
-/** Inverse of `tickToGnssMs` (in the stretch whose GPS times contain it, else the nearest). */
+/**
+ * Inverse of `tickToGnssMs`, in the stretch whose GPS times contain the value,
+ * else the nearest. After a backward step two stretches can cover the same GPS
+ * times: the first in tick order wins (GPS time alone cannot tell them apart).
+ */
 export function gnssMsToTick(base: TimeBase, gnssTimeMs: number): number | null {
   let points: TimeAnchorPoint[] | null = null;
   let bestDistance = Number.POSITIVE_INFINITY;

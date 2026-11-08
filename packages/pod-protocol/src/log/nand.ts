@@ -303,36 +303,57 @@ export function mayAppend(input: { pagesSealed: number; remainingPages: number }
   return input.pagesSealed <= input.remainingPages - 1;
 }
 
+export type RecoveryPageLocation = 'own_block' | 'debris_block' | 'free_block';
+
 /**
- * Where the recovery close of a segment left open goes: the next page after
- * the last programmed one of the segment's own last block (pages are
- * programmed in order); only if that block is full, the first page of a free
- * block (the reserve exists for this; it costs a whole block per power cut, so
- * it is the fallback). `pages` must cover the segment's last block.
+ * Where the recovery close of a segment left open goes (pages of a block are
+ * programmed in order, so always after its last programmed page):
+ * 1. the next page of the segment's own last block;
+ * 2. else the next erased page of an orphan block whose programmed pages are
+ *    all torn or CRC-failed (debris of a cut write, unreadable anyway): the
+ *    valid recovery page then binds that block to the segment, so a torn
+ *    recovery attempt in the reserve never leaves the memory stuck;
+ * 3. else the first page of a free block (the reserve; a whole 128 KiB block
+ *    per power cut, so it is the last resort).
+ * `pages` must cover the segment's last block and the orphan blocks (a full
+ * dump does). `null` only if none of the three exists.
  */
 export function planRecoveryPage(input: {
   scan: NandScan;
   segment: SegmentSummary;
   pages: readonly NandPageRead[];
-}): { physicalPage: number; inFreeBlock: boolean } | null {
+}): { physicalPage: number; location: RecoveryPageLocation } | null {
   const { pagesPerBlock } = input.scan.geometry;
   const lastBlock = Math.max(...input.segment.blocks);
-  let highest = -1;
+  const orphans = new Set(input.scan.orphanBlocks);
+  /** Highest programmed page index per block, and whether all programmed pages are torn/CRC-failed. */
+  const highest = new Map<number, number>();
+  const onlyDebris = new Map<number, boolean>();
   for (const read of input.pages) {
-    if (Math.floor(read.physicalPage / pagesPerBlock) !== lastBlock) {
+    const block = Math.floor(read.physicalPage / pagesPerBlock);
+    if (block !== lastBlock && !orphans.has(block)) {
       continue;
     }
-    const programmed =
-      read.ecc === 'uncorrectable' || inspectLogPage(read.data).status !== 'erased';
-    if (programmed) {
-      highest = Math.max(highest, read.physicalPage % pagesPerBlock);
+    const status =
+      read.ecc === 'uncorrectable' ? 'uncorrectable' : inspectLogPage(read.data).status;
+    if (status === 'erased') {
+      continue;
+    }
+    highest.set(block, Math.max(highest.get(block) ?? -1, read.physicalPage % pagesPerBlock));
+    onlyDebris.set(block, (onlyDebris.get(block) ?? true) && status === 'crc_mismatch');
+  }
+  const own = highest.get(lastBlock) ?? -1;
+  if (own < pagesPerBlock - 1) {
+    return { physicalPage: lastBlock * pagesPerBlock + own + 1, location: 'own_block' };
+  }
+  for (const block of input.scan.orphanBlocks) {
+    const used = highest.get(block) ?? -1;
+    if (onlyDebris.get(block) === true && used < pagesPerBlock - 1) {
+      return { physicalPage: block * pagesPerBlock + used + 1, location: 'debris_block' };
     }
   }
-  if (highest < pagesPerBlock - 1) {
-    return { physicalPage: lastBlock * pagesPerBlock + highest + 1, inFreeBlock: false };
-  }
   const free = input.scan.freeBlocks[0];
-  return free === undefined ? null : { physicalPage: free * pagesPerBlock, inFreeBlock: true };
+  return free === undefined ? null : { physicalPage: free * pagesPerBlock, location: 'free_block' };
 }
 
 /**

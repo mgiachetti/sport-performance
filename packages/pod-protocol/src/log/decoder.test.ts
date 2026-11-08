@@ -420,6 +420,29 @@ describe('decodeLog', () => {
     ]);
   });
 
+  it('hostile anchors (30 000 in groups of 3 at different offsets) never crash the worker', () => {
+    const records: LogRecord[] = Array.from({ length: 30_000 }, (_, s) => ({
+      type: 'time_anchor',
+      tick: 1_000 + s * 32_768,
+      source: 'gnss_pps',
+      subTickNs: 0,
+      gnssTimeMs: 1_446_000_000_000 + s * 1000 + Math.floor(s / 3) * 7_919,
+      uncertaintyUs: 1,
+      gpsUtcOffsetS: 18,
+    }));
+    const pages = writeSegment(records);
+    const started = performance.now();
+    const decoded = decodeLog({
+      pages: asReads(pages),
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+    });
+    expect(performance.now() - started).toBeLessThan(5_000);
+    expect(decoded.segments[0]?.complete).toBe(true);
+    expect(decoded.segments[0]?.streams.anchors).toHaveLength(30_000);
+    expect(decoded.timeIssues).toEqual([]);
+  });
+
   it('splits a raw dump into page reads', () => {
     const dump = new Uint8Array(3 * LOG_PAGE_SIZE + 10);
     const pages = pagesFromDump(dump, { firstPhysicalPage: 640 });

@@ -498,14 +498,14 @@ describe('memory full: a page always stays for the close', () => {
     ).toBe(false);
   });
 
-  it('a power cut on the close: recovered in the segment’s own block if a page is left, else in the reserve', () => {
+  it('a power cut on the close: recovered in the segment’s own block if a page is left, else in the reserve, and a torn recovery there is retried in that debris block', () => {
     const { nand, physical } = recordUntilFull();
     const closeAt = physical.at(-1) ?? -1;
     const torn = (nand.pages.get(closeAt)?.data ?? new Uint8Array()).slice().fill(0xff, 1000);
     nand.pages.set(closeAt, { physicalPage: closeAt, data: torn, ecc: 'ok' });
     const keys = deriveLogPageKeys(testStorageKey(2));
 
-    const recover = (n: NandSimulator) => {
+    const recover = (n: NandSimulator, tear = false) => {
       const dump = n.dump();
       const scan = scanNand({ pages: dump, geometry: n.geometry });
       const [segment] = scan.segments;
@@ -531,7 +531,9 @@ describe('memory full: a page always stays for the close', () => {
         keyEpoch: 2,
         storageKey: testStorageKey(2),
       });
-      n.pages.set(place.physicalPage, { physicalPage: place.physicalPage, data: page, ecc: 'ok' });
+      // A power cut while programming the recovery page itself tears it.
+      const data = tear ? page.slice().fill(0xff, 700) : page;
+      n.pages.set(place.physicalPage, { physicalPage: place.physicalPage, data, ecc: 'ok' });
       const after = scanNand({ pages: n.dump(), geometry: n.geometry });
       return { place, after };
     };
@@ -541,7 +543,7 @@ describe('memory full: a page always stays for the close', () => {
       const own = new NandSimulator(nand.geometry);
       nand.pages.forEach((v, k) => own.pages.set(k, v));
       const { place, after } = recover(own);
-      expect(place).toEqual({ physicalPage: closeAt + 1, inFreeBlock: false });
+      expect(place).toEqual({ physicalPage: closeAt + 1, location: 'own_block' });
       expect(after.segments[0]).toMatchObject({ closed: true, recovered: true, blocks: [8, 9] });
       expect(after.freeBlocks).toEqual([10]);
     }
@@ -551,8 +553,15 @@ describe('memory full: a page always stays for the close', () => {
       const at = 9 * 64 + p;
       nand.pages.set(at, { physicalPage: at, data: torn, ecc: 'ok' });
     }
+    // (c) And the recovery attempt in the reserve is itself torn: the reserve is
+    // now debris (no free block left), and the retry continues in it.
+    const torn1 = recover(nand, true);
+    expect(torn1.place).toEqual({ physicalPage: 10 * 64, location: 'free_block' });
+    expect(torn1.after.freeBlocks).toEqual([]);
+    expect(torn1.after.orphanBlocks).toEqual([10]);
+    expect(torn1.after.segments[0]?.closed).toBe(false);
     const { place, after } = recover(nand);
-    expect(place).toEqual({ physicalPage: 10 * 64, inFreeBlock: true });
+    expect(place).toEqual({ physicalPage: 10 * 64 + 1, location: 'debris_block' });
     expect(after.segments[0]).toMatchObject({ closed: true, recovered: true, blocks: [8, 9, 10] });
     expect(after.freeBlocks).toEqual([]);
     expect(canStartSegment(after)).toBe(false);

@@ -97,8 +97,14 @@ export const RTC_TOLERANCE_PPM = 20;
 export const ANCHOR_MAX_RATE_ERROR_PPM = 100;
 /** A link of the consensus chain skips at most this many anchors (cost O(n · K)). */
 export const ANCHOR_LOOKBACK = 64;
-/** Anchors needed for a stretch after a step (a lone anchor before or after is rejected). */
-export const ANCHOR_STRETCH_MIN = 3;
+/**
+ * A stretch after a step needs this many anchors, or at least 3 spanning
+ * `ANCHOR_STRETCH_MIN_TICKS`; fewer are rejected.
+ */
+export const ANCHOR_STRETCH_MIN = 10;
+export const ANCHOR_STRETCH_MIN_TICKS = 30 * RTC_TICK_HZ;
+/** Time stretches per boot at most; anchors beyond are rejected (`too_many_stretches`). */
+export const MAX_TIME_STRETCHES = 16;
 
 /** GPS epoch (06/01/1980 00:00:00 UTC) in Unix milliseconds. */
 export const GPS_EPOCH_UNIX_MS = 315_964_800_000;

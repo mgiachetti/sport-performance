@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { keysFor, TEST_DEVICE_ID, syntheticSession, writeSegment } from '../testing/log-samples.js';
-import { GPS_EPOCH_UNIX_MS, RTC_TICK_HZ } from './constants.js';
+import { GPS_EPOCH_UNIX_MS, MAX_TIME_STRETCHES, RTC_TICK_HZ } from './constants.js';
 import { decodeLog, type NandPageRead } from './decoder.js';
 import type { SensorSyncRecord, TimeAnchorRecord } from './records.js';
 import {
@@ -199,6 +199,31 @@ describe('time base', () => {
     const base = buildTimeBase(1, anchors);
     expect(performance.now() - started).toBeLessThan(2_000);
     expect(base.points.length + base.rejected.length).toBe(30_000);
+  });
+
+  it.each([9_000, 30_000])(
+    '%i anchors in groups of 3 at different offsets: bounded time, no stack overflow',
+    (n) => {
+      const anchors = Array.from({ length: n }, (_, s) =>
+        anchor(START_TICK + s * RTC_TICK_HZ, START_GNSS_MS + s * 1000 + Math.floor(s / 3) * 7_919),
+      );
+      const started = performance.now();
+      const base = buildTimeBase(1, anchors);
+      expect(performance.now() - started).toBeLessThan(3_000);
+      expect(base.stretches.length).toBeLessThanOrEqual(MAX_TIME_STRETCHES);
+      expect(base.points.length + base.rejected.length).toBe(n);
+    },
+  );
+
+  it('a boot with more steps than the cap keeps 16 stretches and reports the rest', () => {
+    // 40 runs of 20 anchors, each 3 s ahead of the previous one.
+    const anchors = Array.from({ length: 800 }, (_, s) =>
+      anchor(START_TICK + s * RTC_TICK_HZ, START_GNSS_MS + s * 1000 + Math.floor(s / 20) * 3_000),
+    );
+    const base = buildTimeBase(1, anchors);
+    expect(base.stretches).toHaveLength(MAX_TIME_STRETCHES);
+    expect(base.steps).toHaveLength(MAX_TIME_STRETCHES - 1);
+    expect(base.rejected.some((r) => r.reason === 'too_many_stretches')).toBe(true);
   });
 
   it('a short burst of consistent bad anchors does not outvote a long good tail', () => {
