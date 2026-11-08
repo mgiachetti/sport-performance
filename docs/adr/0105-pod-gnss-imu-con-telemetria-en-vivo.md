@@ -29,7 +29,11 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
   - **Por qué 10 Hz:** es la frecuencia de Catapult Vector. Subir a 18 o 25 Hz aporta poco frente a la precisión.
   - **Quectel LC29H(AA), opción principal del pod**, a unos US$ 7,40 contra unos US$ 19–21 del F10N-20 ([página de la serie](https://www.quectel.com/product/gnss-lc29h)).
     - Posiciona a 10 Hz y se supone que da la **velocidad por Doppler a 10 Hz** (el banco lo confirma, con el filtrado y la latencia del módulo), que es lo que importa para la carga: Vmax, HSR, sprints y aceleraciones. La distancia también se integra mejor desde esa velocidad que desde diferencias de posición.
-    - Según la página de la serie, la salida cruda es de 1 Hz. Que la variante AA saque crudo (modo base con MSM7) está **no verificado**: los reportes del foro son de la EA. Sin crudo, el AA sigue sirviendo por el Doppler.
+    - **Crudo de la AA**, según la *LC29H&LC79H Series GNSS Protocol Specification* V1.5 ([`lc29h-protocolo.md`](../hardware/lc29h-protocolo.md)):
+      - **La AA no tiene modo base**: `$PQTMCFGRCVRMODE` es solo de BA, CA, DA, EA y EL (§2.3.14).
+      - **Saca RTCM3 MSM4 o MSM7** con `$PAIR432` y **efemérides** con `$PAIR436` (§2.4.39 y §2.4.43; tabla 8, sin restricción de variante en la salida), con la salida RTCM3 del UART prendida por `$PQTMCFGPROT` (§2.3.38).
+      - La tasa (la página de la serie dice crudo a 1 Hz), si se guarda y si afecta el PVT a 10 Hz **se verifican en el banco**.
+      - Sin crudo, el AA sigue sirviendo por el Doppler.
   - **Placa lista para la EA.**
     - Todas las variantes del LC29H tienen el mismo encapsulado, de 12,2 × 16,0 × 2,5 mm ([especificación V1.8](https://quectel.com.cn/wp-content/uploads/2021/08/Quectel_LC29H系列_GNSS_模块产品规格书_V1.8.pdf), [V1.2](https://quectel.com/content/uploads/sites/3/2022/06/Quectel_LC29H_GNSS_Specification_V1.2.pdf)). Que los pines sean iguales uno a uno está **no verificado**: antes de dibujar la placa se compara en el *LC29H Hardware Design* o se consulta a Quectel.
     - La placa conecta el **RX de la UART del GNSS** a la segunda UART del nRF52840, más el PPS y el reset. Así, una tanda lleva AA o EA sin rediseñar. Lo que cambia con la EA es el firmware: pasar el RTCM de LoRa al módulo y leer el estado del RTK.
