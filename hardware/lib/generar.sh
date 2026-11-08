@@ -22,7 +22,7 @@ parts=(
   C26633007 # ST LSM6DSV320X
   C5362283  # Bosch BMP581
   C3232508  # Infineon DPS368 (sin montar)
-  C3010298  # Winbond W25N02KVZEIR
+  C3010298  # Winbond W25N02KVZEIR (la W25N04KV del diseño usa el mismo footprint WSON-8; su número LCSC no se encontró)
   C3682423  # TI BQ25180
   C2682616  # Analog Devices MAX17048G+T10
 )
