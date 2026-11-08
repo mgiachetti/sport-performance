@@ -12,7 +12,7 @@ Lo que dice "verificado" se leyó en la hoja del fabricante o en un distribuidor
 flowchart LR
   BAT[LiPo ~1000 mAh con PCM y NTC] --> CHG[BQ25180 cargador, salida SYS]
   USBC[USB-C con Rd 5,1 kΩ / pogo VBUS] --> CHG
-  BAT --> BCK[LDO 3,0 V siempre encendido]
+  BAT --> BCK[LDO 3,0 V, EN desde SYS]
   BCK --> VB[V_BCKP del GNSS]
   CHG --> BB[Buck-boost 3,45 V: VREG]
   CHG --> FG[MAX17048 medidor]
@@ -21,7 +21,7 @@ flowchart LR
   BB --> IMU[LSM6DSV320X]
   BB --> NAND[W25N04KV NAND]
   BB --> UWB[DWM3000 sin montar, sin load switch]
-  BB --> LDO[LDO bajo ruido 3,3 V fijo] --> SWG[Load switch VCC GNSS] --> GNSS[Quectel LC29H AA o EA]
+  BB --> LDO[LDO bajo ruido 3,2 V fijo] --> SWG[Load switch VCC GNSS] --> GNSS[Quectel LC29H AA o EA]
   ANT1[Taoglas activa por U.FL] --> RFCH[ESD, bias-T, bloqueo DC, SAW, LNA opcional, SAW, red pi]
   ANT2[Patch SMD pasivo sin montar] --> RFCH
   RFCH --> GNSS
@@ -81,9 +81,9 @@ Tamaño estimado: unos 45 × 65 mm (**no verificado**: sale del ruteo). Vista de
 | Cargador | **BQ25180** (I2C, salida SYS, modo envío) | — | DSBGA de 8 bolas, 1,6 × 1,1 mm: A1 /INT, A2 IN, B1 SCL, B2 SYS, C1 SDA, C2 BAT, **D1 TS/MR** (NTC y reset manual en el mismo pin), D2 GND | [Hoja de TI (pines TS/MR)](https://ti.com/document-viewer/ja-jp/BQ25180/datasheet/GUID-56076AC1-C090-40FA-9076-7A93BDD85026) · [mapa de bolas en Flux](https://www.flux.ai/adrian95/bq25180ybgr~vng.md) · [LCSC](https://www.lcsc.com/product-detail/C3682423.html) | TS/MR y encapsulado sí (TI). El resto del mapa, de una librería de terceros. Si /INT es de drenador abierto y la dirección I2C (se cita 0x6A), **no verificados** |
 | Batería | LiPo de ~1000 mAh **con PCM** (protección de sobrecarga, sobredescarga y cortocircuito) y **NTC de 10 kΩ en la celda** | — | Conector de 3 vías (BAT, GND, NTC) al TS/MR del BQ25180 | — | El conector y la celda, **no verificados** |
 | Medidor de carga | **MAX17048** (I2C, ALRT de drenador abierto) | Divisor de tensión al AIN4 del nRF, sin montar | Dirección I2C citada 0x36 | [LCSC](https://lcsc.com/product-detail/image/MAX17048G-T10_C2682616.html) | Dirección, **no verificada** |
-| Riel del sistema (VREG) | **Buck-boost a 3,45 V** desde SYS (candidatos: TPS63802, TPS63900) | 0 Ω para probar otro punto de ajuste | Alimenta nRF, E22, IMU, NAND y UWB (todos con máximo de 3,6 V) y el LDO del GNSS. La LiPo baja de 3,45 V antes de vaciarse, por eso buck-boost | — | Parte **no verificada** |
-| 3,3 V del GNSS | **LDO de bajo ruido fijo a 3,3 V** desde VREG (candidatos: TPS7A20, TLV757P), siempre habilitado | 0 Ω para tomar el GNSS directo de VREG (3,45 V, dentro de 3,1–3,6 V) | El LDO no se apaga: lo que se corta es VCC, con un load switch después del LDO | Hardware Design, sección 3.2.1 | Parte **no verificada** |
-| V_BCKP | **LDO de 3,0 V de consumo ultrabajo, siempre encendido, desde BAT** (candidato: TPS7A02) | 0 Ω para alimentar V_BCKP desde VREG | Nunca desde SYS (4,4–4,6 V con USB conectado, más que el máximo de 3,6 V). Se mantiene con el pod apagado, salvo en modo envío | Hardware Design, sección 3.2.2 y tabla 10 | Rango sí. Parte **no verificada** |
+| Riel del sistema (VREG) | **Buck-boost a 3,45 V** desde SYS (candidatos: TPS63802, TPS63900) | 0 Ω para probar otro punto de ajuste | Alimenta nRF, E22, IMU, NAND y UWB (todos con máximo de 3,6 V) y el LDO del GNSS. La LiPo baja de 3,45 V antes de vaciarse, por eso buck-boost. Precisión del punto de ajuste de ±1,5 % o mejor (3,40–3,50 V) y sobrepico acotado ante el escalón de unos 120 mA de una TX de LoRa. El TPS63802 se ajusta con divisor; el TPS63900 usa niveles fijos por resistencia, y que tenga 3,45 V está por confirmar | — | Parte **no verificada** |
+| 3,2 V del GNSS | **LDO de bajo ruido fijo a 3,2 V** desde VREG (candidatos: TPS7A20, TLV757P), siempre habilitado | 0 Ω para tomar el GNSS directo de VREG (3,45 V, dentro de 3,1–3,6 V) | **3,2 V y no 3,3 V**: desde 3,45 V, un LDO de 3,3 V tendría unos 30 mV de margen en el peor caso, y cerca del dropout su rechazo de ruido (PSRR) se cae. Con ±1,5 %, el piso es 3,15 V, por encima del mínimo de 3,1 V del LC29H. El LDO no se apaga: lo que se corta es VCC, con un load switch después del LDO | Hardware Design, sección 3.2.1 | Parte **no verificada** |
+| V_BCKP | **LDO de 3,0 V de consumo ultrabajo desde BAT** (candidato: TPS7A02), con **EN desde SYS por un divisor** | 0 Ω para alimentar V_BCKP desde VREG. 0 Ω para atar EN a BAT | Nunca alimentado desde SYS (4,4–4,6 V con USB conectado, más que el máximo de 3,6 V); SYS solo maneja el EN. Se mantiene con el pod apagado y **se corta en modo envío** (sin SYS): así el modo envío no gasta el consumo propio del LDO ni el de backup del LC29H. A cambio, después de un envío o un almacenamiento en modo envío se pierde el arranque en caliente. Con el EN atado a BAT, V_BCKP sigue en modo envío y descarga la batería | Hardware Design, sección 3.2.2 y tabla 10 | Rango sí. Parte **no verificada** |
 | Load switch | VCC del GNSS (candidato: TPS22916) | 0 Ω de puente | El UWB **no** lleva load switch: comparte el SPIM2, y apagarlo lo alimentaría por los pines del bus. Queda en VREG y se duerme por software | — | Parte **no verificada** |
 | Traductor de niveles | 3,45 V ↔ 2,8 V para TXD, RXD y 1PPS del GNSS (candidatos: 3 × SN74LVC1T45 de dirección fija, con el lado de 2,8 V desde VDD_EXT) | 0 Ω de puente en cada línea, sin montar | El nRF lee "alto" desde 0,7 × VDD y el GNSS da 2,1 V mínimo: **sin traductor no es confiable**. Al revés, 3,45 V supera el VIH máximo del GNSS (3,08 V). VDD_EXT solo existe con el GNSS encendido: el traductor tiene que aislar con un lado apagado | Hardware Design, tabla 10 y nota de la sección 4.1.1 | El problema, sí. Las partes y su aislamiento, **no verificados** |
 | RESET del GNSS | NPN o NMOS en drenador abierto, como recomienda Quectel | — | RESET_N bajo ≤ 0,1 V, al menos 100 ms | Hardware Design, sección 4.2.2 y tabla 10 | Sí |
@@ -181,15 +181,16 @@ En orden, desde la antena hasta el módulo:
 - Si el E22 usa TCXO, se configura con `SetDIO3AsTCXOCtrl` (tensión y tiempo según el módulo, **no verificados**).
 - Modo SPI por dispositivo en el bus compartido: cada CS con su modo y velocidad.
 - Direcciones I2C citadas: MAX17048 0x36, BQ25180 0x6A (las dos **no verificadas**).
+- El DWM3000 queda siempre alimentado desde VREG: en las placas que lo tienen, el firmware lo pone en **DEEPSLEEP** al arrancar y entre usos.
 
 **Pines del LC29H** (de la tabla 5 del Hardware Design): WAKEUP 1, FWD 2, 1PPS 3, WHEELTICK 4, reservados 5–6, VDD_EXT 7 (salida 2,8 V, 100 mA), RESET_N 8, VDD_RF 9, GND 10, RF_IN 11, GND 12–13, ANT_ON 14, reservados 15–17, I2C_SDA 18, I2C_SCL 19, TXD 20, RXD 21, V_BCKP 22, VCC 23, GND 24.
 
 - **WAKEUP** queda sin conectar (el datasheet lo permite si no se usa el modo backup), con un 0 Ω sin montar a un pad. Si se conecta, su nivel alto es de 3,0–3,6 V, no de 2,8 V.
-- **V_BCKP** desde su LDO de 3,0 V siempre encendido (ver la tabla), para el arranque en caliente.
+- **V_BCKP** desde su LDO de 3,0 V, encendido mientras haya SYS (ver la tabla), para el arranque en caliente.
 - **VDD_EXT** (solo con el GNSS encendido) alimenta el lado de 2,8 V del traductor y el VIO del puente USB-UART.
 - **I2C del LC29H** queda a un pad, sin conectar al bus del nRF (otro nivel).
 
-**Modo envío y botón:** el BQ25180 entra en modo envío por I2C (el pod queda con consumo mínimo, sin V_BCKP). Sale **al conectar VBUS** (la base o el USB), que es lo normal en el club, o con un **reset manual en TS/MR**: el botón llega a TS/MR por un diodo, sin montar. Que el NTC y el botón convivan en ese pin, **no verificado**.
+**Modo envío y botón:** el BQ25180 entra en modo envío por I2C. Sin SYS, el divisor apaga el LDO de V_BCKP: el pod queda con consumo mínimo y pierde el arranque en caliente del GNSS. Sale **al conectar VBUS** (la base o el USB), que es lo normal en el club, o con un **reset manual en TS/MR**: el botón llega a TS/MR por un diodo, sin montar. Riesgos si se monta: cada toque pausa la carga, una pulsación larga puede disparar el reset por hardware del BQ25180, y el diodo tiene que tener fuga inversa baja y caída directa menor que el umbral bajo de MR (no un BAS16 sin revisarlo). Que el NTC y el botón convivan en ese pin, **no verificado**.
 
 **¿El LC29H entra en el lugar de un NEO de u-blox?** Los dos miden 12,2 × 16 mm y la disposición se parece (RESET_N 8, RF_IN 11, GND 10/12/13, UART en 20/21, V_BCKP 22, VCC 23), pero hay diferencias que impiden un lugar doble sin cambios: el pin 7 es VDD_EXT (salida) en el LC29H y reservado en el NEO-F10N; el 14 es ANT_ON en el LC29H y LNA_EN en el F10N; y las E/S del LC29H son de 2,8 V, mientras que en el F10N siguen a VCC ([manual de integración del NEO-F10N](https://manualshive.com/en/manual/ublox/neo-f10n/4488978?page=37), copia de terceros). La compatibilidad pin a pin está **no verificada**: la v0 no la usa.
 
@@ -231,7 +232,7 @@ En orden, desde la antena hasta el módulo:
 - [ ] HG_INT a INT2 del LSM6DSV320X por 0 Ω.
 
 **Alimentación**
-- [ ] 0 Ω en serie en cada riel (VREG, 3,3 V del GNSS, V_BCKP, LoRa, UWB) para medir corriente con un amperímetro.
+- [ ] 0 Ω en serie en cada riel (VREG, 3,2 V del GNSS, V_BCKP, LoRa, UWB) para medir corriente con un amperímetro.
 - [ ] Puente del load switch del GNSS.
 - [ ] **Rd de 5,1 kΩ en CC1 y CC2** del USB-C (montadas), con lugar para cambiarlas.
 - [ ] Divisor de batería al AIN4.
@@ -254,7 +255,7 @@ En orden, desde la antena hasta el módulo:
 
 ## Arranque de la placa (en orden)
 
-1. **Primer encendido con fuente de laboratorio con límite de corriente** (en lugar de la batería), sin módulos habilitados: medir cada riel (SYS, VREG, 3,3 V del GNSS, V_BCKP) y su corriente por los 0 Ω.
+1. **Primer encendido con fuente de laboratorio con límite de corriente** (en lugar de la batería), sin módulos habilitados. Sin la batería y su NTC, poner **10 kΩ en TS** para que el BQ25180 no vea una falla de temperatura. Medir cada riel (SYS, VREG, 3,2 V del GNSS, V_BCKP) y su corriente por los 0 Ω.
 2. SWD: leer el nRF52840, grabar un firmware mínimo.
 3. I2C: leer el BQ25180 y el MAX17048 (IDs y direcciones).
 4. **Carga**: por USB-C y por los pines pogo, con la batería real y su NTC; ver el /INT.
@@ -268,9 +269,10 @@ En orden, desde la antena hasta el módulo:
 12. IMU: leer ID, configurar alto rango, ver el canal de ±320 g.
 13. NAND: escribir, leer y borrar bloques; medir tasa y la corriente en reposo después de parar el SPIM3 (errata 195).
 14. LoRa: TX y RX contra un RAK o el gateway, en 915–928 MHz.
-15. **Desensibilización del GNSS**: C/N0 de los satélites con LoRa apagado y transmitiendo a la potencia máxima prevista. Si cae, probar el SAW, la tapa blindada y la ubicación de las antenas.
-16. Antena alternativa: cambiar al patch SMD por el 0 Ω (abriendo el bias y montando el LNA) y comparar C/N0 en el mismo lugar.
-17. Consumo total y autonomía con la batería real.
+15. **Ruido en el VCC del GNSS**: ripple con el osciloscopio en el VCC del LC29H con LoRa transmitiendo; si sube, comparar con el 0 Ω directo a VREG.
+16. **Desensibilización del GNSS**: C/N0 de los satélites con LoRa apagado y transmitiendo a la potencia máxima prevista. Si cae, probar el SAW, la tapa blindada y la ubicación de las antenas.
+17. Antena alternativa: cambiar al patch SMD por el 0 Ω (abriendo el bias y montando el LNA) y comparar C/N0 en el mismo lugar.
+18. Consumo total y autonomía con la batería real.
 
 ## Compra mínima de banco que se mantiene
 
@@ -284,15 +286,16 @@ Antes de cerrar el esquemático hace falta saber si la AA saca crudo y si su vel
 1. Pines del E22-900M22S: SPI, NRST, VCC y su rango, TCXO; si trae U.FL o solo pad de antena.
 2. Pines y tensión del DWM3000 (IRQ, RSTn, WAKEUP, EXTON).
 3. Hoja de ST del LSM6DSV320X (pines y tensiones confirmados solo por distribuidores).
-4. BQ25180: mapa de bolas completo en la hoja de TI, si /INT es de drenador abierto, dirección I2C, y si el NTC y el botón conviven en TS/MR. Dirección del MAX17048.
+4. BQ25180: mapa de bolas completo en la hoja de TI, si /INT es de drenador abierto, dirección I2C, y si el NTC y el botón conviven en TS/MR (pausa de carga en cada toque, reset por hardware con pulsación larga, fuga y caída del diodo frente al umbral de MR). Dirección del MAX17048.
 5. Pines idénticos entre W25N02KV y W25N04KV.
 6. Si el SPIM3 necesita pines dedicados para 32 MHz; que los workarounds de las erratas 195 y 198 alcancen.
 7. Fuga de los pines de NFC usados como GPIO.
 8. Alimentación del E73: DCCH y las bobinas del DC/DC.
 9. Valor de BAUDRATE propio para 921600 bps en el nRF52840.
-10. Partes de alimentación (buck-boost, LDO del GNSS, LDO de V_BCKP), traductor de niveles (y que aísle con un lado apagado), load switch, SAW y LNA de doble banda, puente USB-UART, conector de batería y celda con PCM y NTC.
+10. Partes de alimentación: buck-boost ajustable a 3,45 V con ±1,5 % y su sobrepico con el escalón de TX, LDO del GNSS de 3,2 V, LDO de V_BCKP con EN por divisor; traductor de niveles (y que aísle con un lado apagado), load switch, SAW y LNA de doble banda, puente USB-UART, conector de batería y celda con PCM y NTC.
 11. Tensión de alimentación de la Taoglas, si trae SAW, y el plano de tierra que pide.
 12. Si el patch Pulse es pasivo o activo, sus dimensiones y su footprint.
 13. Stock y precio de la LC29H(EA) suelta.
-14. Que la tabla de pines del Hardware Design V1.0 siga igual en la versión vigente para AA y EA.
-15. Si la AA saca crudo y si da velocidad Doppler sin filtrado de más (banco con el HAT).
+14. Consumo de backup del LC29H en V_BCKP y consumo propio del LDO de V_BCKP.
+15. Que la tabla de pines del Hardware Design V1.0 siga igual en la versión vigente para AA y EA.
+16. Si la AA saca crudo y si da velocidad Doppler sin filtrado de más (banco con el HAT).
