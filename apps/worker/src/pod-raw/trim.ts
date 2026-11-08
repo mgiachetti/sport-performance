@@ -54,33 +54,58 @@ export function timedPages(
 }
 
 /**
- * The pages each player keeps: those whose records overlap that player's
- * windows and **no other player's**. A page shared by two players (the vest
- * handed over between two of its records) goes to neither file: under a
- * second is lost, another player's data is never carried.
+ * The pages each player keeps. Who a page belongs to comes from the pod's
+ * **assignment ranges** over the recording (every player the pod was
+ * assigned to, whatever their consent; voided assignments are out), never
+ * only from the windows that became data: a page whose records overlap the
+ * ranges of two or more players (a vest handed over) goes to **no** file, so
+ * a player without consent at the hand-over never has a record in the other
+ * one's file. Of the rest, a player keeps the pages that overlap their own
+ * windows (data). Under a second is lost at each hand-over.
  */
 export function assignPages(
   pages: readonly TimedPage[],
   windowsByPlayer: ReadonlyMap<string, readonly TimeInterval[]>,
-): { byPlayer: Map<string, TimedPage[]>; shared: number } {
+  rangesByPlayer: ReadonlyMap<string, readonly TimeInterval[]>,
+): { byPlayer: Map<string, TimedPage[]>; shared: TimedPage[] } {
   const byPlayer = new Map<string, TimedPage[]>();
   for (const playerId of windowsByPlayer.keys()) byPlayer.set(playerId, []);
-  let shared = 0;
+  const shared: TimedPage[] = [];
   for (const page of pages) {
-    const owners = [...windowsByPlayer.entries()].filter(([, windows]) =>
-      intervalsOverlap(windows, page.fromMs, page.toMs),
+    const owners = [...rangesByPlayer.entries()].filter(([, ranges]) =>
+      intervalsOverlap(ranges, page.fromMs, page.toMs),
     );
     if (owners.length > 1) {
-      shared += 1;
+      shared.push(page);
       continue;
     }
-    const owner = owners[0];
-    if (owner !== undefined) byPlayer.get(owner[0])?.push(page);
+    const owner = owners[0]?.[0];
+    if (owner === undefined) continue;
+    const windows = windowsByPlayer.get(owner);
+    if (windows !== undefined && intervalsOverlap(windows, page.fromMs, page.toMs)) {
+      byPlayer.get(owner)?.push(page);
+    }
   }
   return { byPlayer, shared };
 }
 
-/** The pages of `pages` that still overlap `windows` (a correction after the trim). */
+/**
+ * The pages a player still keeps after a correction: those overlapping their
+ * windows `kept` and no **current** assignment range of another player.
+ */
+export function pagesStillOwned(
+  pages: readonly TimedPage[],
+  kept: readonly TimeInterval[],
+  otherRanges: readonly TimeInterval[],
+): TimedPage[] {
+  return pages.filter(
+    (page) =>
+      intervalsOverlap(kept, page.fromMs, page.toMs) &&
+      !intervalsOverlap(otherRanges, page.fromMs, page.toMs),
+  );
+}
+
+/** The pages of `pages` that overlap `windows`. */
 export function pagesOverlapping(
   pages: readonly TimedPage[],
   windows: readonly TimeInterval[],

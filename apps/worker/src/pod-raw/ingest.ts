@@ -49,7 +49,7 @@ import { inClubTransaction, type ClubTransaction } from '../database.js';
 import type { PodKeyProvider } from './keys.js';
 import {
   assignPages,
-  pagesOverlapping,
+  pagesStillOwned,
   timedPages,
   traceChunks,
   traceSamples,
@@ -58,6 +58,29 @@ import {
 } from './trim.js';
 
 export { pagesOverlapping, traceChunks, traceSamples } from './trim.js';
+import { lockPlayersLocation, playersStillKeepingLocation } from './locks.js';
+
+/** The raw assignment ranges of each player of the pod (whatever their consent). */
+function rangesByPlayer(assignments: readonly AssignmentRow[]): Map<string, TimeInterval[]> {
+  const out = new Map<string, TimeInterval[]>();
+  for (const a of assignments) {
+    const list = out.get(a.player_id) ?? [];
+    list.push({
+      startMs: a.starts_at.getTime(),
+      endMs: a.ends_at?.getTime() ?? Number.POSITIVE_INFINITY,
+    });
+    out.set(a.player_id, list);
+  }
+  for (const [player, list] of out) out.set(player, normalizeIntervals(list));
+  return out;
+}
+
+/** The ranges of every player but `playerId`. */
+function otherRanges(ranges: ReadonlyMap<string, readonly TimeInterval[]>, playerId: string) {
+  return normalizeIntervals(
+    [...ranges.entries()].filter(([p]) => p !== playerId).flatMap(([, r]) => r),
+  );
+}
 
 /**
  * Ingestion of the pod's NAND log (B-916, ADR 0106, ADR 0108), the
@@ -908,8 +931,10 @@ async function trimNext(
       const from = row.recorded_from;
       const to = row.recorded_to;
       let trims: PlayerTrim[] = [];
+      let ranges = new Map<string, TimeInterval[]>();
       if (from !== null && to !== null) {
         const found = await playerTrims(tx, clubId, row.pod_id, from, to);
+        ranges = rangesByPlayer(found.assignments);
         const due = podRawTrimDue({
           now,
           pendingUntil,
@@ -924,6 +949,21 @@ async function trimNext(
         });
         if (!due) return { outcome: 'waiting' };
         trims = found.trims;
+      }
+      if (trims.length > 0) {
+        // Serialized with the erasure of each player (revoking location), and checked again
+        // under the lock: a revocation committed meanwhile keeps that player out.
+        await lockPlayersLocation(
+          tx,
+          clubId,
+          trims.map((t) => t.playerId),
+        );
+        const keeping = await playersStillKeepingLocation(
+          tx,
+          clubId,
+          trims.map((t) => t.playerId),
+        );
+        trims = trims.filter((t) => keeping.has(t.playerId));
       }
       // Without absolute time nothing can be placed in a session: nothing becomes data.
       let segment: DecodedSegment | undefined;
@@ -973,11 +1013,13 @@ async function trimNext(
       if (segment !== undefined && bytes !== null) {
         const timed = timedPages(segment, base);
         untimed = timed.untimed;
+        // Ownership from the assignment ranges of every player, not only those with data.
         const assigned = assignPages(
           timed.pages,
           new Map(trims.map((trim) => [trim.playerId, trim.windows])),
+          ranges,
         );
-        shared = assigned.shared;
+        shared = assigned.shared.length;
         for (const trim of trims) {
           const pages = assigned.byPlayer.get(trim.playerId) ?? [];
           const perSession = trim.sessions.map((s) => ({
@@ -1002,10 +1044,8 @@ async function trimNext(
                   written,
                 );
           // The pages left out because another player's windows touch them.
-          const sharedOfPlayer = timed.pages.filter(
-            (p) =>
-              intervalsOverlap(trim.windows, p.fromMs, p.toMs) &&
-              !pages.some((own) => own.physicalPage === p.physicalPage),
+          const sharedOfPlayer = assigned.shared.filter((p) =>
+            intervalsOverlap(trim.windows, p.fromMs, p.toMs),
           ).length;
           await tx.client.query(
             `insert into pod_raw_trim (club_id, pod_raw_upload_id, player_id, file_id, windows,
@@ -1111,11 +1151,11 @@ async function cutPlayer(
   upload: UploadRow,
   trim: TrimRow,
   kept: TimeInterval[],
+  pages: TimedPage[],
   now: Date,
   written: string[],
 ): Promise<{ samplesDeleted: number; remove: string[] }> {
   const remove: string[] = [];
-  const pages = pagesOverlapping(trim.pages, kept);
   let fileId = trim.file_id;
   if (trim.file_id !== null && pages.length !== trim.pages.length) {
     const { rows } = await tx.client.query<{ size_bytes: string; expires_at: Date | null }>(
@@ -1249,7 +1289,7 @@ async function correctAssignment(
       const remove: string[] = [];
       for (const upload of uploads) {
         if (upload.recorded_from === null || upload.recorded_to === null) continue;
-        const { trims } = await playerTrims(
+        const { trims, assignments } = await playerTrims(
           tx,
           clubId,
           upload.pod_id,
@@ -1257,6 +1297,8 @@ async function correctAssignment(
           upload.recorded_to,
         );
         const windowsNow = new Map(trims.map((t) => [t.playerId, t.windows]));
+        // The current ranges of every player: a hand-over moved earlier takes pages away too.
+        const rangesNow = rangesByPlayer(assignments);
         const { rows: trimRows } = await tx.client.query<TrimRow>(
           `select id, player_id, file_id, windows, pages from pod_raw_trim
             where club_id = $1 and pod_raw_upload_id = $2 for update`,
@@ -1266,9 +1308,15 @@ async function correctAssignment(
         let changed = false;
         for (const trim of trimRows) {
           const kept = intersectIntervals(trim.windows, windowsNow.get(trim.player_id) ?? []);
-          if (sameIntervals(normalizeIntervals(trim.windows), kept)) continue;
+          const pages = pagesStillOwned(trim.pages, kept, otherRanges(rangesNow, trim.player_id));
+          if (
+            sameIntervals(normalizeIntervals(trim.windows), kept) &&
+            pages.length === trim.pages.length
+          ) {
+            continue;
+          }
           changed = true;
-          const cut = await cutPlayer(deps, tx, clubId, upload, trim, kept, now, written);
+          const cut = await cutPlayer(deps, tx, clubId, upload, trim, kept, pages, now, written);
           samplesDeleted += cut.samplesDeleted;
           remove.push(...cut.remove);
         }

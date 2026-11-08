@@ -15,7 +15,14 @@ import {
   podRecording,
 } from '../testing/pod-recording.js';
 import { decodeIssues } from './ingest.js';
-import { assignPages, pagesOverlapping, timedPages, traceChunks, traceSamples } from './trim.js';
+import {
+  assignPages,
+  pagesOverlapping,
+  pagesStillOwned,
+  timedPages,
+  traceChunks,
+  traceSamples,
+} from './trim.js';
 
 /** The pages of a segment overlapping `windows` (one player alone). */
 function pagesInWindows(
@@ -136,12 +143,13 @@ describe('a longer recording', () => {
       ['b', [{ startMs: handOver, endMs: start + 120_000 }]],
     ]);
     const timed = timedPages(segment, base);
-    const assigned = assignPages(timed.pages, windows);
+    // Both consented: the windows are the assignment ranges.
+    const assigned = assignPages(timed.pages, windows, windows);
     // The page with records on both sides of the hand-over is shared: in no file.
-    expect(assigned.shared).toBeGreaterThanOrEqual(1);
+    expect(assigned.shared.length).toBeGreaterThanOrEqual(1);
     const a = assigned.byPlayer.get('a') ?? [];
     const b = assigned.byPlayer.get('b') ?? [];
-    expect(a.length + b.length + assigned.shared).toBe(timed.pages.length);
+    expect(a.length + b.length + assigned.shared.length).toBe(timed.pages.length);
     const pageMs = Math.max(...timed.pages.map((p) => p.toMs - p.fromMs));
     for (const [player, pages, other] of [
       ['a', a, b],
@@ -176,5 +184,51 @@ describe('a longer recording', () => {
       if (otherWindow === undefined) throw new Error('no window');
       expect(times.every((t) => t < otherWindow.startMs || t >= otherWindow.endMs)).toBe(true);
     }
+  });
+
+  it('ownership comes from the assignment ranges: a player without consent keeps the other out', () => {
+    const { segment, base } = decode(bytes, manifest);
+    const handOver = start + 60_000;
+    const ranges = new Map([
+      ['a', [{ startMs: start, endMs: handOver }]],
+      ['b', [{ startMs: handOver, endMs: start + 120_000 }]],
+    ]);
+    const timed = timedPages(segment, base);
+    const straddling = timed.pages.filter((p) => p.fromMs < handOver && p.toMs >= handOver);
+    expect(straddling.length).toBeGreaterThanOrEqual(1);
+    // B (second) without consent: no windows. A never gets the page with B's records.
+    const bSilent = assignPages(timed.pages, new Map([['a', ranges.get('a') ?? []]]), ranges);
+    const a = bSilent.byPlayer.get('a') ?? [];
+    expect(a.length).toBeGreaterThan(0);
+    expect(pagesOverlapping(a, ranges.get('b') ?? [])).toEqual([]);
+    expect(bSilent.byPlayer.has('b')).toBe(false);
+    // A (first) without consent: B never gets the page with A's records.
+    const aSilent = assignPages(timed.pages, new Map([['b', ranges.get('b') ?? []]]), ranges);
+    expect(pagesOverlapping(aSilent.byPlayer.get('b') ?? [], ranges.get('a') ?? [])).toEqual([]);
+    for (const page of straddling) {
+      expect(a.some((p) => p.physicalPage === page.physicalPage)).toBe(false);
+      expect(
+        (aSilent.byPlayer.get('b') ?? []).some((p) => p.physicalPage === page.physicalPage),
+      ).toBe(false);
+    }
+  });
+
+  it('a correction that moves the hand-over earlier takes the pages now in the other range', () => {
+    const { segment, base } = decode(bytes, manifest);
+    const timed = timedPages(segment, base);
+    const before = [{ startMs: start, endMs: start + 60_000 }];
+    const kept =
+      assignPages(timed.pages, new Map([['a', before]]), new Map([['a', before]])).byPlayer.get(
+        'a',
+      ) ?? [];
+    // B now starts at 40 s; A's windows end there too.
+    const moved = start + 40_000;
+    const now = pagesStillOwned(
+      kept,
+      [{ startMs: start, endMs: moved }],
+      [{ startMs: moved, endMs: start + 120_000 }],
+    );
+    expect(now.length).toBeLessThan(kept.length);
+    expect(now.every((p) => p.toMs < moved)).toBe(true);
   });
 });

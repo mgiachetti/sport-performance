@@ -12,6 +12,7 @@ import type { ObjectStorage } from '@sport-performance/storage';
 import type pg from 'pg';
 import type { Logger } from 'pino';
 import { inClubTransaction, type ClubTransaction } from './database.js';
+import { lockPlayersLocation } from './pod-raw/locks.js';
 
 /**
  * Erasure of a player's position data after the `location` consent was
@@ -119,6 +120,13 @@ export async function runClubLocationErasures(
         [clubId, LOCATION_ERASURE_BATCH + 1],
       );
       const batch = rows.slice(0, LOCATION_ERASURE_BATCH);
+      // Never interleaved with a trim of the pod's log for these players (ADR 0108): a trim
+      // running now commits first and its rows are deleted here, or it waits and sees this.
+      await lockPlayersLocation(
+        tx,
+        clubId,
+        batch.map((row) => row.player_id),
+      );
       let deleted = 0;
       for (const row of batch) {
         const counts = await deletePositionData(tx, row.player_id, new Date(), objectKeys);

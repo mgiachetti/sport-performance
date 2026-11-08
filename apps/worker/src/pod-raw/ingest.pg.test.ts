@@ -388,8 +388,14 @@ describe.skipIf(!hasDatabase || !hasBucket)('pod log ingestion (Postgres 16 + Mi
       expect(trim.pages.every((p) => p.toMs >= window.startMs && p.fromMs < window.endMs)).toBe(
         true,
       );
-      expect(trim.shared_pages_n).toBe(0);
     }
+    // The early player hands the vest to the late one at 21:05; the late one has no location
+    // consent until 21:07, so has no data there. The page with records on both sides of
+    // 21:05 still goes to no file: ownership is the assignment ranges, not the data.
+    const earlyTrim = trims.find((t) => t.player_id === early);
+    expect(earlyTrim?.shared_pages_n).toBeGreaterThanOrEqual(1);
+    expect(earlyTrim?.pages.every((p) => p.toMs < T0 + 5 * MIN)).toBe(true);
+    expect(trims.find((t) => t.player_id === late)?.shared_pages_n).toBe(0);
     const trimmed = files.filter((f) => f.player_id !== null);
     expect(trimmed.map((f) => f.player_id).sort()).toEqual([early, late].sort());
     expect(trimmed.every((f) => f.status === 'ready')).toBe(true);
@@ -428,7 +434,8 @@ describe.skipIf(!hasDatabase || !hasBucket)('pod log ingestion (Postgres 16 + Mi
       [uploadId, early],
     );
     const oldFile = before.rows[0]?.file_id ?? '';
-    // The staff shortens the early player's assignment: 20:55–21:03 (with its reason).
+    // The hand-over was at 21:03, not 21:05: the staff shortens the early player's assignment
+    // (with its reason) and voids the late one's, made again from 21:03.
     const client = await owner.connect();
     try {
       await client.query('begin');
@@ -437,11 +444,17 @@ describe.skipIf(!hasDatabase || !hasBucket)('pod log ingestion (Postgres 16 + Mi
         `update pod_assignment set ends_at = $2, reprocess_requested_at = now() where id = $1`,
         [assignmentEarly, new Date(T0 + 3 * MIN)],
       );
+      await client.query(
+        `update pod_assignment set archived_at = now(), reprocess_requested_at = now()
+          where club_id = $1 and player_id = $2 and archived_at is null`,
+        [clubA, late],
+      );
       await client.query('commit');
     } finally {
       client.release();
     }
-    expect(await run(clubA, T0 + 22 * MIN)).toMatchObject({ reprocessed: 1, failed: 0 });
+    await assign(clubA, podA, late, T0 + 3 * MIN, T0 + 15 * MIN);
+    expect(await run(clubA, T0 + 22 * MIN)).toMatchObject({ reprocessed: 2, failed: 0 });
     const upload = await uploadOf(uploadId);
     expect(upload.issues).toContainEqual({ code: 'assignment_corrected_after_trim', count: 120 });
     const { rows: traces } = await owner.query<{
@@ -469,7 +482,8 @@ describe.skipIf(!hasDatabase || !hasBucket)('pod log ingestion (Postgres 16 + Mi
     const trim = trims[0];
     if (trim === undefined) throw new Error('no trim');
     expect(trim.windows).toEqual([{ startMs: T0, endMs: T0 + 3 * MIN }]);
-    expect(trim.pages.every((p) => p.fromMs < T0 + 3 * MIN)).toBe(true);
+    // No page with records past the new hand-over (now in the late player's range).
+    expect(trim.pages.every((p) => p.toMs < T0 + 3 * MIN)).toBe(true);
     // A new trimmed file with the pages left; the old one deleted and its object removed.
     expect(trim.file_id).not.toBe(oldFile);
     expect(traces[0]?.raw_file_id).toBe(trim.file_id);
@@ -710,6 +724,31 @@ describe.skipIf(!hasDatabase || !hasBucket)('pod log ingestion (Postgres 16 + Mi
     );
     // The one cut by the correction and the one left: both deleted.
     expect(files.map((f) => f.status)).toEqual(['deleted', 'deleted']);
+  });
+
+  it('a pending erasure of the player, seen under the lock, keeps them out of a trim', async () => {
+    // The late player still has location, but an erasure is queued (revoked and signed again,
+    // or an erasure racing this trim): nothing of theirs is kept until it completes.
+    await owner.query(
+      `insert into location_erasure (club_id, player_id, reason, status)
+       values ($1, $2, 'consent_revoked', 'pending')`,
+      [clubA, late],
+    );
+    const recording = podRecording({
+      startUnixMs: T0 - 2 * MIN,
+      durationS: 14 * 60,
+      segmentId: 40,
+      firstPageSeq: 40_000,
+      firstBlock: 80,
+    });
+    const { uploadId: racing } = await confirmedUpload(clubA, podA, recording, T0 + 13 * MIN);
+    expect(await run(clubA, T0 + 40 * MIN)).toMatchObject({ verified: 1, trimmed: 1, failed: 0 });
+    expect(await uploadOf(racing)).toMatchObject({ state: 'trimmed', trimmed_players_n: 0 });
+    const { rows } = await owner.query<{ n: number }>(
+      'select count(*)::int as n from pod_trace_segment where pod_raw_upload_id = $1',
+      [racing],
+    );
+    expect(rows[0]?.n).toBe(0);
   });
 
   it('deletes traces past their retention', async () => {
