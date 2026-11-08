@@ -708,7 +708,8 @@ describe.skipIf(!hasDatabase || !hasBucket)('pod log ingestion (Postgres 16 + Mi
       `select status::text from file where club_id = $1 and kind = 'pod_raw' and player_id = $2`,
       [clubA, early],
     );
-    expect(files.map((f) => f.status)).toEqual(['deleted']);
+    // The one cut by the correction and the one left: both deleted.
+    expect(files.map((f) => f.status)).toEqual(['deleted', 'deleted']);
   });
 
   it('deletes traces past their retention', async () => {
