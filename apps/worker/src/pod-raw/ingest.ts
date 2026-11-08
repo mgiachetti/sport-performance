@@ -958,6 +958,14 @@ async function trimNext(
           clubId,
           trims.map((t) => t.playerId),
         );
+        // Read again under the lock: the consents may have changed since the first read.
+        // Only the players locked: a consent signed between the two reads never adds one.
+        if (from !== null && to !== null) {
+          const locked = new Set(trims.map((t) => t.playerId));
+          trims = (await playerTrims(tx, clubId, row.pod_id, from, to)).trims.filter((t) =>
+            locked.has(t.playerId),
+          );
+        }
         const keeping = await playersStillKeepingLocation(
           tx,
           clubId,
@@ -1286,6 +1294,17 @@ async function correctAssignment(
           for update of u`,
         [clubId, assignment.pod_id, assignment.player_id],
       );
+      // Every player kept in these uploads, locked once and in order before their rows (an
+      // erasure holds the same lock while it deletes them): a player whose location was
+      // revoked, or has an erasure pending, keeps nothing.
+      const { rows: keptRows } = await tx.client.query<{ player_id: string }>(
+        `select distinct player_id from pod_raw_trim
+          where club_id = $1 and pod_raw_upload_id = any ($2::uuid[])`,
+        [clubId, uploads.map((u) => u.id)],
+      );
+      const players = keptRows.map((r) => r.player_id);
+      await lockPlayersLocation(tx, clubId, players);
+      const keeping = await playersStillKeepingLocation(tx, clubId, players);
       const remove: string[] = [];
       for (const upload of uploads) {
         if (upload.recorded_from === null || upload.recorded_to === null) continue;
@@ -1307,7 +1326,9 @@ async function correctAssignment(
         let samplesDeleted = 0;
         let changed = false;
         for (const trim of trimRows) {
-          const kept = intersectIntervals(trim.windows, windowsNow.get(trim.player_id) ?? []);
+          const kept = keeping.has(trim.player_id)
+            ? intersectIntervals(trim.windows, windowsNow.get(trim.player_id) ?? [])
+            : [];
           const pages = pagesStillOwned(trim.pages, kept, otherRanges(rangesNow, trim.player_id));
           if (
             sameIntervals(normalizeIntervals(trim.windows), kept) &&

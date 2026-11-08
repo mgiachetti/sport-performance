@@ -751,10 +751,49 @@ describe.skipIf(!hasDatabase || !hasBucket)('pod log ingestion (Postgres 16 + Mi
     expect(rows[0]?.n).toBe(0);
   });
 
-  it('deletes traces past their retention', async () => {
+  it('a correction with an erasure pending deletes what the player kept, under the lock', async () => {
+    // The late player's erasure is still pending (above); their assignment is corrected.
+    const { rows: before } = await owner.query<{ file_id: string }>(
+      'select file_id from pod_raw_trim where pod_raw_upload_id = $1 and player_id = $2',
+      [uploadId, late],
+    );
+    expect(before).toHaveLength(1);
     await owner.query(
-      `update pod_trace_segment set expires_at = now() - interval '1 minute' where club_id = $1`,
-      [clubA],
+      `update pod_assignment set reprocess_requested_at = now()
+        where club_id = $1 and player_id = $2 and archived_at is null`,
+      [clubA, late],
+    );
+    expect(await run(clubA, T0 + 45 * MIN)).toMatchObject({ reprocessed: 1, failed: 0 });
+    const { rows: traces } = await owner.query<{ n: number }>(
+      'select count(*)::int as n from pod_trace_segment where pod_raw_upload_id = $1 and player_id = $2',
+      [uploadId, late],
+    );
+    expect(traces[0]?.n).toBe(0);
+    const { rows: trims } = await owner.query<{ n: number }>(
+      'select count(*)::int as n from pod_raw_trim where pod_raw_upload_id = $1 and player_id = $2',
+      [uploadId, late],
+    );
+    expect(trims[0]?.n).toBe(0);
+    const { rows: files } = await owner.query<{ status: string }>(
+      'select status::text from file where id = $1',
+      [before[0]?.file_id],
+    );
+    expect(files[0]?.status).toBe('deleted');
+    expect(
+      await storage.get(`clubs/${clubA}/pod_raw/${before[0]?.file_id ?? ''}`, 1 << 30),
+    ).toBeNull();
+  });
+
+  it('deletes traces past their retention', async () => {
+    // A trace row as the trim writes it, already past its retention.
+    await owner.query(
+      `insert into pod_trace_segment (club_id, player_id, training_session_id, pod_id,
+         pod_raw_upload_id, chunk_index, method_variant, algorithm_version, starts_at, ends_at,
+         samples_n, offsets_ms, lat_e7, lon_e7, speed_mm_s, h_acc_mm, fix_quality,
+         time_low_confidence, expires_at)
+       values ($1, $2, $3, $4, $5, 99, 'pod_log', 'pod-log-trace/1', $6, $7, 1, '{0}', '{1}', '{1}',
+               '{1}', '{1}', '{3}', false, now() - interval '1 minute')`,
+      [clubA, late, session, podA, uploadId, new Date(T0), new Date(T0 + 1000)],
     );
     expect(await run(clubA, Date.now())).toMatchObject({ tracesDeleted: 1 });
     const { rows } = await owner.query<{ n: number }>(
