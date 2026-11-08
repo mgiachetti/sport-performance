@@ -41,7 +41,7 @@ Qué dice:
   - `$PAIR432,<Mode>` (§2.4.39, p. 127): −1 apaga, 0 = MSM4, 1 = MSM7. Según la nota 1 de la tabla 8, saca los MSM "if the corresponding constellation is enabled". `$PAIR433` lo consulta.
   - `$PAIR436,1` (§2.4.43, p. 130): efemérides en RTCM. `$PAIR437` lo consulta.
   - `$PAIR434,0|1` (§2.4.41, p. 129): el 1005. Al rover no le sirve, así que va en 0.
-  - **En la AA, el puerto tiene que tener RTCM3 en la salida**: `$PQTMCFGPROT,W,1,1,<in>,<out>` (§2.3.38, pp. 81–83, "only supported on LC29H (AA) and LC79H (AL)"). El bit 0 es NMEA y el bit 2, RTCM3. El ejemplo de la especificación responde `00000005,00000001` (entrada NMEA + RTCM3, salida solo NMEA): **por defecto la salida RTCM podría estar apagada**. El firmware lee con `$PQTMCFGPROT,R,1,1` y pone la salida en 5. La especificación no dice si `PQTMCFGPROT` necesita guardar y reiniciar.
+  - **En la AA, el puerto tiene que tener RTCM3 en la salida**: `$PQTMCFGPROT,W,1,1,<in>,<out>` (§2.3.38, pp. 81–83, "only supported on LC29H (AA) and LC79H (AL)"). El bit 0 es NMEA y el bit 2, RTCM3. El ejemplo de lectura de la especificación (`00000005,00000001`: entrada NMEA + RTCM3, salida solo NMEA) devuelve el valor que se acaba de escribir con `W,1,1,5,1`, **no el de fábrica**: el valor por defecto **no lo dice la especificación**. El firmware lee con `$PQTMCFGPROT,R,1,1` y pone la salida en 5. La especificación no dice si `PQTMCFGPROT` necesita guardar y reiniciar.
 - **Modo base:** **no hace falta, y en la AA no existe.** `$PQTMCFGRCVRMODE` (§2.3.14, p. 55) "is supported on LC29H (BA, CA, DA, EA) and LC79H (EL)". Lo mismo `$PQTMCFGSVIN` (p. 47). La prueba del banco con `$PQTMCFGRCVRMODE,W,2` en la AA no tiene sentido: se usa `$PAIR432` directo.
 - **Tasa máxima:** **no lo dice la especificación.**
   - La tabla 6 de `$PQTMCFGMSGRATE` (pp. 42–43) no incluye mensajes RTCM, y ningún comando baja la tasa del RTCM. Lo esperable es que los MSM salgan en cada época de posición.
@@ -52,7 +52,7 @@ Qué dice:
   - MSM7 con 4–5 constelaciones y doble banda es del orden de 1–1,5 kB por época (estimación);
   - a 10 Hz serían unos 10–15 kB/s, contra unos 92 kB/s de 921600 bps en 8N1;
   - entra, pero es el mensaje más grande del puerto. La nota 2 de `$PAIR864` (p. 136) avisa que "messages may be lost when the baud rate is below 460800 bps at 10 Hz output frequency".
-- **Qué no da la RTCM:** la AA no da el modo de la fase portadora como en `UBX-RXM-RAWX`. El indicador de continuidad (lock time) va dentro del MSM. MSM7 trae la fase, el pseudorango, el Doppler y la C/N0 con más resolución, y es el que conviene para PPK. MSM4 no trae el Doppler fino.
+- **Qué no da la RTCM:** la AA no da el modo de la fase portadora como en `UBX-RXM-RAWX`. El indicador de continuidad (lock time) va dentro del MSM. MSM7 trae la fase, el pseudorango, la tasa de fase (Doppler) y la C/N0 con más resolución, y es el que conviene para PPK. **MSM4 no trae ningún campo de tasa de fase (Doppler)**: solo MSM5 y MSM7 lo llevan, y la AA saca MSM4 o MSM7, no MSM5.
 
 **Para el banco (B-901):**
 - confirmar que salen los MSM7 a 10 Hz y a 1 Hz de posición, y a qué tasa;
@@ -89,7 +89,7 @@ Qué dice:
 - **`$PQTMCFGUART,W,[1,]<baud>[,8,0,1,0]`** (§2.3.37, pp. 79–81, solo AA y AL): tiene efecto después de `$PQTMSAVEPAR` y un reinicio.
 - **Velocidad de fábrica:** **no lo dice la especificación.** Los ejemplos usan 115200, que es el valor habitual del Hardware Design (verificar).
 - **Control de flujo:** solo por software (`$PAIR866`, p. 137). El pod no lo usa: es UART binario por la RTCM, y XON/XOFF no sirve ahí.
-- **El firmware arranca probando 921600.** Si no responde `$PQTMVERNO` en unos 200 ms, prueba 115200, manda `$PAIR864,0,0,921600*10`, guarda y reinicia el módulo (`$PQTMSRR*4B` en la AA, §2.3.19, p. 59; o un ciclo de VCC).
+- **El firmware arranca probando 921600.** Si no responde `$PQTMVERNO` en unos 200 ms, prueba 115200, manda `$PAIR864,0,0,921600*10`, guarda y reinicia el módulo (`$PQTMSRR*4B` en la AA, §2.3.19, p. 59; o un ciclo de VCC). **Guardar con el GNSS prendido vale solo a 1 Hz o menos** (nota 2 de `$PAIR513`, p. 133). Si el módulo ya arrancó a 10 Hz desde la NVM y solo el UART volvió a 115200, primero se apaga el GNSS (`$PAIR382,1*2E` y `$PAIR003*39`), después se guarda y se vuelve a prender (`$PAIR002*38`) o se reinicia.
 
 ### Qué mensajes prender y cuáles apagar
 
@@ -132,7 +132,7 @@ Qué dice:
     - **AA:** GPS+GLO+GAL+BDS+NavIC+QZSS; GPS+GLO+GAL+BDS+QZSS; GPS+GLO+GAL+QZSS; GPS+GLO+BDS+QZSS; GPS+GAL+NavIC+QZSS; GPS+GAL+BDS+QZSS; GPS+GLO+QZSS; GPS+GAL+QZSS; GPS+BDS+QZSS; GPS+QZSS; solo BDS; solo NavIC. En la AA, QZSS se puede prender o apagar dentro de cada combinación;
     - **BA, CA, DA y EA:** otra lista (p. 62). GLONASS entra solo junto con GPS, Galileo y BeiDou (con QZSS o con NavIC). NavIC "currently unsupported on LC29H (DA, EA)".
 - **Para el pod en Argentina:**
-  - **AA:** GPS + GLONASS + Galileo + BeiDou + QZSS (`$PAIR066,1,1,1,1,1,0*3B`). NavIC no se ve, y QZSS casi no, pero no molesta y la combinación sin QZSS no está en la lista;
+  - **AA:** GPS + GLONASS + Galileo + BeiDou + QZSS (`$PAIR066,1,1,1,1,1,0*3B`). NavIC no se ve en Argentina. QZSS casi no se ve, pero no molesta: en la AA se puede prender o apagar dentro de cada combinación (nota de `$PAIR066`, p. 105; el ejemplo `$PAIR066,1,0,1,1,0,0` es GPS + Galileo + BeiDou sin QZSS), y se deja prendido porque no cuesta nada;
   - **EA:** la misma combinación, que está en su lista: `$PQTMCFGCNST,W,1,1,1,1,1,0*2A` (con `$PQTMSAVEPAR` y un reinicio).
 - **L5:**
   - `$PAIR104,1` (§2.4.29, pp. 117–118), solo en la AA y la AL: doble banda, con el GNSS apagado (`$PAIR382,1` + `$PAIR003` antes, `$PAIR002` después). `$PAIR105` lo consulta;
@@ -146,7 +146,7 @@ Qué dice:
 - **Modo de navegación** (`$PAIR080`, §2.4.23, pp. 111–113, solo AA y AL; tabla 7, p. 112):
   - 0 = normal (hasta 100 m/s);
   - 1 = **fitness**: "for running and walking activities, the low-speed (< 5 m/s) movement will have a greater effect on the position calculation. It reduces measurement noise caused by arm movement", hasta 30 m/s;
-  - 4 = estacionario, 5 = vuelo, 7 = natación, 9 = bicicleta.
+  - 3 = globo, 4 = estacionario, 5 = vuelo, 7 = natación, 9 = bicicleta.
 
   `$PQTMCFGNAVMODE` es solo de la CA (p. 86).
   - **Decisión para el pod:** arrancar en **normal (0)**. El modo fitness filtra el ruido de los brazos y le da peso al movimiento lento: puede **suavizar las aceleraciones y el pico de los sprints**, que es justo lo que mide el pod (aceleraciones de más de 2 m/s², Vmax).
@@ -229,7 +229,7 @@ Qué dice:
   - **`$PAIR382` nunca** se guarda;
   - el odómetro tampoco (`$PQTMODO`, p. 72), pero el pod no lo usa;
   - la especificación no da la lista completa. Por eso, como pide el [ADR 0106](../adr/0106-sistema-del-pod-flota-ubicacion-protocolo-seguridad-y-datos.md), el firmware **manda la configuración completa en cada arranque**;
-  - **para no gastar la NVM**, consulta antes (`$PAIR051`, `$PAIR105`, `$PAIR067`, `$PAIR433`, `$PAIR437`, `$PAIR081`, `$PAIR865,0,0`) y **guarda solo si algo cambió**.
+  - **para no gastar la NVM**, consulta antes (`$PAIR051`, `$PAIR105`, `$PAIR067`, `$PAIR433`, `$PAIR437`, `$PAIR081`, `$PAIR071`, `$PQTMCFGPROT,R,1,1`, `$PAIR865,0,0`) y **guarda solo si algo cambió**.
 - **Volver a fábrica:**
   - `$PQTMRESTOREPAR*13` (§2.3.3, pp. 39–40) "takes effect after a reboot". En la AA restaura todos los comandos; en BA, CA, DA y EA, solo los PQTM, `$PAIR050` y `$PAIR062`;
   - `$PAIR007*3D` hace un frío completo y vuelve a fábrica (p. 96);
@@ -275,6 +275,8 @@ $PQTMUNIQID*16                        -> id del chip (tabla de dispositivos)
 #    - Si no responde a 921600: abrir a 115200, mandar
 $PAIR864,0,0,921600*10
 #      y después guardar ($PAIR513*3D) y reiniciar ($PQTMSRR*4B o ciclo de VCC); volver a 0.
+#      Guardar con el GNSS prendido vale solo a ≤ 1 Hz: si el módulo ya estaba a 10 Hz (NVM),
+#      antes de $PAIR513 mandar $PAIR382,1*2E y $PAIR003*39.
 
 # 1. Consultar y comparar con la configuración esperada (si todo coincide, saltar al 4)
 $PAIR051*3E      $PAIR105*3E      $PAIR067*3B      $PAIR081*33      $PAIR071*3C
