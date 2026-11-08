@@ -27,11 +27,33 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
   - **Por qué doble banda:** medir en dos frecuencias cancela el retardo ionosférico y rechaza mejor el multicamino. En L5 se ven desde acá Galileo E5a, GPS L5 y BeiDou B2a. GLONASS aporta solo en L1.
   - **Qué usa Catapult:** según las fotos internas de su presentación ante la FCC (2ADAL-S7401), que revisó el equipo, el Vector S7 lleva un **u-blox EVA-M8Q**, de una sola banda (L1), con 10 Hz en varias constelaciones o 18 Hz solo con GPS. Un receptor de doble banda puede igualarlo o superarlo en la medición cruda; lo que hay que alcanzar es su procesamiento.
   - **Por qué 10 Hz:** es la frecuencia de Catapult Vector. Subir a 18 o 25 Hz aporta poco frente a la precisión.
-  - **Prototipo con dos candidatos:**
-    - **u-blox NEO-F10N-00B-20, como opción principal.** Es la única variante del F10N con fase portadora (`UBX-RXM-RAWX`), con protocolo documentado y conversión a RINEX con RTKLIB. La -00B-00 no tiene salida cruda.
-    - **Quectel LC29H(AA), como opción de costo**, a unos US$ 7,40 contra unos US$ 19–21 del F10N-20. Posiciona a 10 Hz. Según la página de la serie LC29H, la salida cruda es de 1 Hz. Que la variante AA saque crudo en modo base con MSM7 está **no verificado**: los reportes del foro son de la EA.
-  - **Primer test de banco:** medir hasta qué tasa sale RAWX en el F10N, y si el modo base del LC29H es estable y no degrada la solución de navegación (PVT).
-  - **Descartados:** Allystar TAU1201/1202, sin salida cruda confirmada. Unicore UM620N, sin precio ni salida cruda confirmados.
+  - **Quectel LC29H(AA), opción principal del pod**, a unos US$ 7,40 contra unos US$ 19–21 del F10N-20 ([página de la serie](https://www.quectel.com/product/gnss-lc29h)).
+    - Posiciona a 10 Hz y se supone que da la **velocidad por Doppler a 10 Hz** (el banco lo confirma, con el filtrado y la latencia del módulo), que es lo que importa para la carga: Vmax, HSR, sprints y aceleraciones. La distancia también se integra mejor desde esa velocidad que desde diferencias de posición.
+    - Según la página de la serie, la salida cruda es de 1 Hz. Que la variante AA saque crudo (modo base con MSM7) está **no verificado**: los reportes del foro son de la EA. Sin crudo, el AA sigue sirviendo por el Doppler.
+  - **Placa lista para la EA.**
+    - Todas las variantes del LC29H tienen el mismo encapsulado, de 12,2 × 16,0 × 2,5 mm ([especificación V1.8](https://quectel.com.cn/wp-content/uploads/2021/08/Quectel_LC29H系列_GNSS_模块产品规格书_V1.8.pdf), [V1.2](https://quectel.com/content/uploads/sites/3/2022/06/Quectel_LC29H_GNSS_Specification_V1.2.pdf)). Que los pines sean iguales uno a uno está **no verificado**: antes de dibujar la placa se compara en el *LC29H Hardware Design* o se consulta a Quectel.
+    - La placa conecta el **RX de la UART del GNSS** a la segunda UART del nRF52840, más el PPS y el reset. Así, una tanda lleva AA o EA sin rediseñar. Lo que cambia con la EA es el firmware: pasar el RTCM de LoRa al módulo y leer el estado del RTK.
+  - **LC29H(EA) con RTK en vivo, como opción para uso táctico** (distancias entre jugadores, formaciones):
+    - Hace RTK a 1–10 Hz con correcciones de una base en la cancha; la EA está a la venta ([Future Electronics](https://www.futureelectronics.com/p/semiconductors--analog--sensors--gyro-angular-rate/lc29heata-quectel-3214812), [hoja de datos](https://xonstorage.blob.core.windows.net/pdf/quectelwireless_lc29heamd_apr22_nocat_xonlink.pdf)).
+    - El gateway difunde el RTCM **una sola vez para todos los pods** por LoRa, y los pods escuchan, lo que suma unos pocos mA. **Que entre está no verificado:**
+      - MSM7 con 4 constelaciones y doble banda son de varios cientos de bytes a 1 kB/s, contra unos 680 B/s de SF7 / 125 kHz, con tramas de hasta 255 B y límites de permanencia por canal.
+      - El gateway SX1302 es half-duplex: mientras difunde, no recibe en ninguno de los 8 canales, y le quita turnos a los 160 pods / 2 s del vivo.
+      - Mitigaciones a medir en el banco: MSM4, menos constelaciones, correcciones cada 2–5 s, un canal de bajada de 500 kHz o una radio aparte para transmitir.
+    - Con la EA, el PPK pasa a ser un respaldo opcional, para los tramos en que se perdieron correcciones.
+  - **u-blox NEO-F10N-00B-20, solo como comparación en el banco.** Es la única variante del F10N con fase portadora (`UBX-RXM-RAWX`). La -00B-00 no tiene salida cruda.
+  - **Quectel LG290P como base de la cancha y como referencia** (una por cancha, no por jugador):
+    - Recibe 4 bandas (L1/L2/L5/E6) y saca fase portadora a 10–20 Hz según el [foro de Quectel](https://forums.quectel.com/t/lg290p-10-20-hz-raw-carrier-phase-observations-and-multi-receiver-synchronization/61346), **no verificado** contra la hoja de datos ([especificación](https://www.quectel.com.cn/wp-content/uploads/2024/12/Quectel_LG290P系列_GNSS_模块产品规格书_V1.4.pdf)).
+    - Consume unos 98 mA y cuesta US$ 67–107 en DigiKey ([LG290P](https://www.digikey.bg/en/product-highlight/q/quectel/lg290p-03-gnss-module)): no entra en el pod.
+    - Es la **base principal del PPK y del RTK**, con línea de base casi nula. RAMSAC queda como respaldo.
+    - En el banco y en la cancha es la **referencia** para medir qué tan lejos están el AA, la EA y el F10N.
+  - **Descartados:**
+    - LC79H: generación anterior, con crudo a 1 Hz (AL) o a 1/2/5 Hz (EL), y nada que haga mejor que el LC29H.
+    - LG69T: automotriz, más grande y sin precio. Trae funciones que no sirven en un jugador (navegación a estima, rumbo).
+    - LC29H BA y CA: navegación a estima pensada para vehículos.
+    - LC29H BS como base: el LG290P tiene más bandas y calidad de referencia, y una sola base sirve para PPK, RTK y validación.
+    - LC29H DA: RTK solo a 1 Hz.
+    - Allystar TAU1201/1202, sin salida cruda confirmada. Unicore UM620N, sin precio ni salida cruda confirmados.
+  - **El banco** ([`banco-gnss.md`](../hardware/banco-gnss.md)) mide si el AA tiene crudo, el RTK de la EA con el LG290P, el F10N y el consumo, y decide con datos de cancha contra Catapult.
 - **Antena:**
   - Patch cerámico **activo de doble banda L1/L5 de 25 × 25 mm**, con un plano de tierra suficiente.
   - **Filtro SAW antes del LNA**, porque el pod transmite LoRa a centímetros del receptor.
@@ -64,8 +86,9 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
   - **Anclas e instalación** (unas 4–6 en una cancha cubierta de 40 × 20 m; **no verificado**) se compran solo para el lugar que las necesite. Quedan fuera del objetivo de US$ 80.
 - **Ubicación:** en un chaleco, **entre los omóplatos**, con la antena hacia arriba. Es la misma ubicación de Catapult, así lo medido se compara con primera.
 - **Objetivo de costo: US$ 80 por pod en origen, para 100 unidades.**
-  - El relevamiento da unos **US$ 74–82** en el caso optimista: LC29H, módulos Ebyte, LSM6DSV320X, antena Taoglas y NAND de 2 Gbit, con el PCB y la carcasa en el extremo bajo o alto de su rango.
-  - Da unos **US$ 113** en el caso pesimista (los extremos altos de la tabla): F10N-20, RAK4630 y antena Linx, cuyo precio está **no verificado**.
+  - El relevamiento da unos **US$ 74–82** en el caso optimista, que es el de la decisión: LC29H(AA), módulos Ebyte, LSM6DSV320X, antena Taoglas y NAND de 2 Gbit, con el PCB y la carcasa en el extremo bajo o alto de su rango.
+  - **Con la EA**, se suma la diferencia de precio con la AA. La EA no tiene precio relevado; como referencia, la DA cuesta €20,53 @100 contra US$ 7,40 de la AA. La diferencia de unos US$ 12–15 por pod está **no verificada**.
+  - Da unos **US$ 113** en el caso pesimista (los extremos altos de la tabla): F10N-20, RAK4630 y antena Linx, cuyo precio está **no verificado**. Queda como referencia, porque el F10N ya no es el GNSS del pod.
   - **Lo que más pesa es la antena GNSS de marca**, de €19,87–21,03 la Taoglas en DigiKey. Hasta con la opción barata, los US$ 80 quedan justos. Con el F10N, los US$ 80 solo se alcanzan con una antena L1/L5 activa china de unos US$ 4–8, cuyo precio no está verificado.
 
 ### Telemetría en vivo
@@ -117,16 +140,23 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
 - **Se descarga por una base con pines pogo o USB**, que también carga el pod. Por BLE, una sesión de 46 MB con crudo son unos 8 min por pod: con 100 pods no es viable.
 - El crudo va a storage como dice [ADR 0005](0005-pod-crudo-en-storage.md).
 - **Posprocesado PPK en el worker**, con dos fuentes de corrección:
-  - una **base propia al costado de la cancha**: otro módulo igual grabando crudo, con la línea de base casi nula y las mismas señales;
-  - **o el RINEX de 1 s de RAMSAC** (IGN), de las estaciones IGM0/IGM1 de CABA, a unos 15 km de Munro según una estimación.
+  - la **base de la cancha (LG290P)**, grabando crudo con la línea de base casi nula;
+  - **o, como respaldo, el RINEX de 1 s de RAMSAC** (IGN), de las estaciones IGM0/IGM1 de CABA, a unos 15 km de Munro según una estimación.
+- **Cómo se corrige el AA con crudo a 1 Hz:**
+  - El error de la posición sola es sobre todo **lento** (ionosfera, órbitas y relojes cambian en minutos). Cada segundo, el PPK da una posición corregida, y la diferencia con la posición propia del pod es un **desvío**. Ese desvío se interpola entre segundos, en tramos que se cortan cuando cambia el conjunto de satélites usados, y se resta a la traza de 10 Hz. **Solo es posible si el AA saca crudo** (no verificado); si no, el AA queda con la posición sola de doble banda.
+  - No corrige el multicamino rápido, que filtran la IMU y el procesamiento.
+  - La velocidad y la distancia salen del Doppler a 10 Hz, sin depender del crudo.
+  - En un jugador en movimiento se espera precisión de **decímetros, no centímetros**: el cuerpo tapa satélites y hace perder la fase portadora, y con crudo a 1 Hz se recupera más lento. Para el mapa de calor y la trayectoria alcanza.
+- **Con la EA**, el RTK en vivo ya da centímetros y el PPK es un respaldo opcional.
 
   Que RAMSAC rastree L5/E5a y si el servicio tiene costo están **no verificados**.
 - **Métodos:** el método es `pod` (CLAUDE.md, principio 4), con dos variantes que se guardan las dos:
   - `pod_live`: lo calculado en vivo con los resúmenes;
   - `pod_ppk`: lo procesado después con el crudo y el PPK;
+  - `pod_rtk`: la posición RTK en vivo de la EA, si se monta;
   - `pod_uwb`: posición por UWB bajo techo, si se monta (B-911).
 
-  Los informes, el panel y las alertas usan `pod_ppk` cuando existe. Nunca se comparan las variantes entre sí, ni contra Catapult, sin avisar.
+  Los informes, el panel y las alertas usan `pod_rtk` cuando su proporción de soluciones "fixed" en la sesión supera el umbral del club; si no, `pod_ppk`; y si no hay ninguno, `pod_live`. Nunca se comparan las variantes entre sí, ni contra Catapult, sin avisar.
 - **Bandas de FC:** quedan diferidas, pero el firmware conserva el rol de central BLE para leer una banda estándar y retransmitirla por LoRa, sin cambiar el hardware.
 
 ## Alternativas descartadas
@@ -135,7 +165,8 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
 - **4G en cada pod.** Tiene costo por jugador, consumo y depende de la cobertura de cada club.
 - **GNSS de una sola banda (L1)**, por ejemplo el RAK12500 / ZOE-M8Q del backlog. Ahorra unos US$ 5–10, pero no resuelve la ionosfera ni la falta de SBAS, que son el problema en Argentina.
 - **Sin acelerómetro de alto rango.** Ahorra unos US$ 2–4, pero en rugby los contactos saturan un acelerómetro de ±16 g.
-- **RTK en vivo**, con correcciones por el downlink de LoRa a 100 pods. Es marginal en ancho de banda, y obliga a receptores RTK más caros. El vivo no necesita centímetros, y el PPK de después da la precisión.
+- **RTK en vivo en toda la tanda.** Que las correcciones entren por LoRa, con el gateway half-duplex, está **no verificado**; la EA cuesta más que el AA, y la carga no necesita centímetros. Queda como opción para uso táctico, con la placa lista para la EA.
+- **LG290P en cada pod.** Tiene el mejor crudo, pero cuesta US$ 67–107 y consume unos 98 mA: va solo como base y referencia.
 - **Descarga solo por BLE.** No escala a 100 pods (ver arriba).
 
 ## Consecuencias
@@ -149,7 +180,7 @@ El relevamiento de partes, precios, regulación y RAMSAC, con sus fuentes, está
   - las vueltas de prototipo y la homologación.
 - **Validación propia obligatoria.** No hay estudios publicados de GNSS de doble banda de bajo costo en deportes. El plan de prototipos compara en la cancha del club contra un Catapult puesto a la vez, y contra fotocélulas en el sprint (`pod-f3.md`).
 - **Riesgos de suministro:**
-  - el F10N-00B-20 tiene stock incierto (Avnet pide un mínimo de 500 unidades y 19 semanas);
+  - el F10N-00B-20 tiene stock incierto (Avnet pide un mínimo de 500 unidades y 19 semanas), pero ya no es el GNSS principal;
   - el LSM6DSV320X tiene stock bajo.
 
   Los dos tienen respaldo definido.
