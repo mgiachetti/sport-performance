@@ -107,7 +107,7 @@ describe.skipIf(!hasDatabase)('pod log ingestion (Postgres 16)', () => {
       `insert into pod_raw_upload (club_id, pod_id, device_id, ingest_key, chip_id, pod_serial,
          boot_counter, segment_id, first_page_seq, last_page_seq, pages_n, valid_pages_n, blocks,
          key_epochs, segment_closed, size_bytes, sha256_hex, file_id, state)
-       values ($1, $2, $3, $4::text || '/7/' || $5::text, $4::text, $6, 7, $5::bigint, 10, 10, 1, 1, '{3}', '{0}', true, $7,
+       values ($1, $2, $3, $10, $4, $6, 7, $5, 10, 10, 1, 1, '{3}', '{0}', true, $7,
                repeat('a', 64), $8, $9)
        returning id`,
       [
@@ -120,6 +120,7 @@ describe.skipIf(!hasDatabase)('pod log ingestion (Postgres 16)', () => {
         overrides.sizeBytes ?? 2056 + 64,
         fileId,
         overrides.state ?? 'uploading',
+        `${chip}/7/${String(segment)}`,
       ],
     );
   }

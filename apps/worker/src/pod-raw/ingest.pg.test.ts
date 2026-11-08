@@ -148,7 +148,7 @@ describe.skipIf(!hasDatabase || !hasBucket)('pod log ingestion (Postgres 16 + Mi
          segment_id, first_page_seq, last_page_seq, pages_n, valid_pages_n, blocks, key_epochs,
          segment_closed, declared_start_at, declared_end_at, size_bytes, sha256_hex, file_id, state,
          confirmed_at, pending_until)
-       select $1, p.id, p.device_id, $3::text || '/' || $4::text || '/' || $5::text, $3::text, $6, $4::bigint, $5::bigint, $7, $8, $9, $10, $11, $12,
+       select $1, p.id, p.device_id, $20, $3, $6, $4, $5, $7, $8, $9, $10, $11, $12,
               $13, $14, $15, $16, $17, $18, 'pending', $19, $19 + interval '7 days'
          from pod p where p.club_id = $1 and p.id = $2
        returning id`,
@@ -172,6 +172,7 @@ describe.skipIf(!hasDatabase || !hasBucket)('pod log ingestion (Postgres 16 + Mi
         m.sha256Hex,
         fileId,
         new Date(confirmedAt),
+        `${m.deviceIdHex}/${String(m.bootCounter)}/${String(m.segmentId)}`,
       ],
     );
     return { uploadId: rows[0]?.id ?? '', fileId };
