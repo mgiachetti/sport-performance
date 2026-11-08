@@ -122,6 +122,27 @@ export function canChangePodStatus(from: PodStatus, to: PodStatus): boolean {
   return POD_TRANSITIONS[from].includes(to);
 }
 
+/**
+ * A loan of a pod to another club, in two steps (ADR 0106): `pending` until
+ * the administration of the receiving club accepts it (`active`) or declines
+ * it (`declined`); the lender may cancel a pending one (`cancelled`); either
+ * club ends an active one (`returned`).
+ */
+export const POD_LOAN_STATUSES = [
+  'pending',
+  'active',
+  'declined',
+  'cancelled',
+  'returned',
+] as const;
+export type PodLoanStatus = (typeof POD_LOAN_STATUSES)[number];
+export const isPodLoanStatus = memberGuard(POD_LOAN_STATUSES);
+
+/** Whether a loan in `status` still holds the pod (asked for or in force). */
+export function podLoanOpen(status: PodLoanStatus): boolean {
+  return status === 'pending' || status === 'active';
+}
+
 // ─── Assignments ─────────────────────────────────────────────────────────────────────
 
 /** Consents a player needs to be assigned a pod (`location` only when granted, B-913). */

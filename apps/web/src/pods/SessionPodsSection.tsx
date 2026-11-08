@@ -340,6 +340,8 @@ function CorrectionForm(props: {
   const open = endDate === '' && endTime === '';
   const endsAt = open ? null : fromLocalStart({ date: endDate, time: endTime }, club.timeZone);
   const timeInvalid = startsAt === null || (!open && endsAt === null);
+  const startChanged = startDate !== start.date || startTime !== start.time;
+  const endChanged = endDate !== (endAt?.date ?? '') || endTime !== (endAt?.time ?? '');
   const trimmed = reason.trim();
   const reasonMissing = trimmed === '';
 
@@ -357,8 +359,10 @@ function CorrectionForm(props: {
         body: {
           version: assignment.version,
           changeReason: trimmed,
-          ...(startsAt === null || startsAt === assignment.startsAt ? {} : { startsAt }),
-          ...(endsAt === assignment.endsAt ? {} : { endsAt }),
+          // Only what was edited: the inputs show minutes, so resending an untouched time would
+          // move it to the minute (a back-to-back swap would then overlap the next one).
+          ...(startChanged && startsAt !== null ? { startsAt } : {}),
+          ...(endChanged ? { endsAt } : {}),
         },
       });
     },

@@ -1,5 +1,5 @@
 {
-  "id": "0c5375bb-819d-4d9d-9725-afa12c60a8b2",
+  "id": "c3c00780-8c8f-44c6-a49b-751f016b280f",
   "prevId": "45f06a7a-66c4-4cf2-bbe2-71d3237a1902",
   "version": "7",
   "dialect": "postgresql",
@@ -21948,20 +21948,34 @@
           "primaryKey": false,
           "notNull": true
         },
+        "status": {
+          "name": "status",
+          "type": "pod_loan_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "borrower_club_slug": {
+          "name": "borrower_club_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "borrower_club_id": {
           "name": "borrower_club_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "borrower_pod_id": {
           "name": "borrower_pod_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
-        "starts_at": {
-          "name": "starts_at",
+        "requested_at": {
+          "name": "requested_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
@@ -21970,6 +21984,18 @@
         "planned_ends_at": {
           "name": "planned_ends_at",
           "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "accepted_at": {
+          "name": "accepted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "accepted_by": {
+          "name": "accepted_by",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -22003,7 +22029,7 @@
               "nulls": "last"
             },
             {
-              "expression": "starts_at",
+              "expression": "requested_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -22040,6 +22066,23 @@
             }
           ],
           "isUnique": false,
+          "where": "\"pod_loan\".\"borrower_club_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pod_loan_accepted_by_idx": {
+          "name": "pod_loan_accepted_by_idx",
+          "columns": [
+            {
+              "expression": "accepted_by",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"pod_loan\".\"accepted_by\" is not null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -22077,7 +22120,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"pod_loan\".\"ended_at\" is null",
+          "where": "\"pod_loan\".\"status\" in ('pending', 'active')",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -22149,6 +22192,19 @@
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
+        "pod_loan_accepted_by_user_id_fk": {
+          "name": "pod_loan_accepted_by_user_id_fk",
+          "tableFrom": "pod_loan",
+          "tableTo": "user",
+          "columnsFrom": [
+            "accepted_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "pod_loan_ended_by_user_id_fk": {
           "name": "pod_loan_ended_by_user_id_fk",
           "tableFrom": "pod_loan",
@@ -22201,11 +22257,19 @@
       "checkConstraints": {
         "pod_loan_other_club": {
           "name": "pod_loan_other_club",
-          "value": "\"pod_loan\".\"borrower_club_id\" <> \"pod_loan\".\"club_id\""
+          "value": "\"pod_loan\".\"borrower_club_id\" is null or \"pod_loan\".\"borrower_club_id\" <> \"pod_loan\".\"club_id\""
+        },
+        "pod_loan_slug_format": {
+          "name": "pod_loan_slug_format",
+          "value": "\"pod_loan\".\"borrower_club_slug\" ~ '^[a-z0-9]+(-[a-z0-9]+)*$' and char_length(\"pod_loan\".\"borrower_club_slug\") <= 63"
+        },
+        "pod_loan_lifecycle": {
+          "name": "pod_loan_lifecycle",
+          "value": "(\"pod_loan\".\"status\" in ('pending', 'active')) = (\"pod_loan\".\"ended_at\" is null)\n          and (\"pod_loan\".\"status\" in ('active', 'returned')) = (\"pod_loan\".\"accepted_at\" is not null)\n          and (\"pod_loan\".\"accepted_at\" is null or (\"pod_loan\".\"borrower_club_id\" is not null and \"pod_loan\".\"borrower_pod_id\" is not null))"
         },
         "pod_loan_range": {
           "name": "pod_loan_range",
-          "value": "(\"pod_loan\".\"planned_ends_at\" is null or \"pod_loan\".\"planned_ends_at\" > \"pod_loan\".\"starts_at\")\n          and (\"pod_loan\".\"ended_at\" is null or \"pod_loan\".\"ended_at\" >= \"pod_loan\".\"starts_at\")"
+          "value": "(\"pod_loan\".\"planned_ends_at\" is null or \"pod_loan\".\"planned_ends_at\" > \"pod_loan\".\"requested_at\")\n          and (\"pod_loan\".\"accepted_at\" is null or \"pod_loan\".\"accepted_at\" >= \"pod_loan\".\"requested_at\")\n          and (\"pod_loan\".\"ended_at\" is null or \"pod_loan\".\"ended_at\" >= \"pod_loan\".\"requested_at\")"
         }
       },
       "isRLSEnabled": false
@@ -23074,6 +23138,17 @@
       "values": [
         "pending",
         "completed"
+      ]
+    },
+    "public.pod_loan_status": {
+      "name": "pod_loan_status",
+      "schema": "public",
+      "values": [
+        "pending",
+        "active",
+        "declined",
+        "cancelled",
+        "returned"
       ]
     },
     "public.pod_provisioning_state": {

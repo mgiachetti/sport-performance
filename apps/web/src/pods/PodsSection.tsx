@@ -161,13 +161,22 @@ function PodActions(props: { pod: Pod }) {
   const { api } = useServices();
   const refresh = useRefreshPods();
   const { pod } = props;
+  // At the version the list showed: a change made meanwhile answers 409 and the list reloads.
   const params = { params: { podId: pod.id } };
+  const version = { version: pod.version };
   const missing = useMutation({
-    mutationFn: (status: 'lost' | 'stolen') => api.markPodMissing({ ...params, body: { status } }),
+    mutationFn: (status: 'lost' | 'stolen') =>
+      api.markPodMissing({ ...params, body: { ...version, status } }),
     onSettled: refresh,
   });
-  const recover = useMutation({ mutationFn: () => api.recoverPod(params), onSettled: refresh });
-  const retire = useMutation({ mutationFn: () => api.retirePod(params), onSettled: refresh });
+  const recover = useMutation({
+    mutationFn: () => api.recoverPod({ ...params, body: version }),
+    onSettled: refresh,
+  });
+  const retire = useMutation({
+    mutationFn: () => api.retirePod({ ...params, body: version }),
+    onSettled: refresh,
+  });
   const own = pod.borrowedFromClubId === null;
   const error = missing.error ?? recover.error ?? retire.error;
   return (
@@ -366,7 +375,7 @@ function PodCategoryRow(props: { item: PodCategory; name: string }) {
     mutationFn: () =>
       api.setPodCategory({
         params: { categoryId: item.categoryId },
-        body: { podsEnabled: !item.podsEnabled },
+        body: { version: item.version, podsEnabled: !item.podsEnabled },
       }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: podsKey(selection) }),
   });

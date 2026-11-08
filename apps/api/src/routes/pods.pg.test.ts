@@ -304,7 +304,10 @@ describeWithPostgres('pods (Postgres)', (serverUrl) => {
       const pod = await newPod();
       const created = await assign(coach, { podId: pod.id, playerId: second });
       expect(created.statusCode, created.body).toBe(201);
-      const lost = await request(sc, 'POST', `/v1/pods/${pod.id}/missing`, { status: 'lost' });
+      const lost = await request(sc, 'POST', `/v1/pods/${pod.id}/missing`, {
+        version: pod.version,
+        status: 'lost',
+      });
       expect(lost.statusCode, lost.body).toBe(200);
       expect(lost.json<PodBody>()).toMatchObject({ status: 'lost' });
       expect(lost.json<PodBody>().keysRevokedAt).not.toBeNull();
@@ -317,7 +320,13 @@ describeWithPostgres('pods (Postgres)', (serverUrl) => {
       const refused = await assign(coach, { podId: pod.id, playerId: withConsent });
       expect(refused.statusCode, refused.body).toBe(409);
       expect(refused.json<ErrorBody>().error.details?.[0]?.code).toBe('pod_not_active');
-      const recovered = await request(sc, 'POST', `/v1/pods/${pod.id}/recover`);
+      const stale = await request(sc, 'POST', `/v1/pods/${pod.id}/recover`, {
+        version: pod.version,
+      });
+      expect(stale.statusCode, stale.body).toBe(409);
+      const recovered = await request(sc, 'POST', `/v1/pods/${pod.id}/recover`, {
+        version: lost.json<PodBody>().version,
+      });
       expect(recovered.json<PodBody>()).toMatchObject({
         status: 'active',
         keyEpoch: 1,
@@ -341,17 +350,34 @@ describeWithPostgres('pods (Postgres)', (serverUrl) => {
       expect(ok.json<PodBody>().number).toBe(500);
     });
 
-    it('turns pods on per category (administration only)', async () => {
-      const list = await request(coach, 'GET', '/v1/pods/categories');
-      const items = list.json<{ items: { categoryId: string; podsEnabled: boolean }[] }>().items;
+    it('turns pods on per category (administration only), at its version', async () => {
+      const list = async () =>
+        (await request(coach, 'GET', '/v1/pods/categories')).json<{
+          items: { categoryId: string; podsEnabled: boolean; version: string }[];
+        }>().items;
+      const items = await list();
       expect(items.find((c) => c.categoryId === m19)?.podsEnabled).toBe(true);
-      expect(items.find((c) => c.categoryId === m15)?.podsEnabled).toBe(false);
+      const m15Row = items.find((c) => c.categoryId === m15);
+      expect(m15Row?.podsEnabled).toBe(false);
+      const version = m15Row?.version ?? '';
       expect(
-        (await request(sc, 'PUT', `/v1/pods/categories/${m15}`, { podsEnabled: true })).statusCode,
+        (await request(sc, 'PUT', `/v1/pods/categories/${m15}`, { version, podsEnabled: true }))
+          .statusCode,
       ).toBe(403);
-      const on = await request(admin, 'PUT', `/v1/pods/categories/${m15}`, { podsEnabled: true });
-      expect(on.json<{ podsEnabled: boolean }>().podsEnabled).toBe(true);
-      await request(admin, 'PUT', `/v1/pods/categories/${m15}`, { podsEnabled: false });
+      const on = await request(admin, 'PUT', `/v1/pods/categories/${m15}`, {
+        version,
+        podsEnabled: true,
+      });
+      expect(on.statusCode, on.body).toBe(200);
+      const stale = await request(admin, 'PUT', `/v1/pods/categories/${m15}`, {
+        version,
+        podsEnabled: false,
+      });
+      expect(stale.statusCode).toBe(409);
+      await request(admin, 'PUT', `/v1/pods/categories/${m15}`, {
+        version: on.json<{ version: string }>().version,
+        podsEnabled: false,
+      });
     });
   });
 
@@ -432,6 +458,39 @@ describeWithPostgres('pods (Postgres)', (serverUrl) => {
       expect(voided.json<AssignmentBody>().archivedAt).not.toBeNull();
     });
 
+    it('growing an assignment is assigning again: refused once the pod is lost', async () => {
+      const pod = await newPod();
+      const startsAt = new Date(Date.now() - 5 * 3_600_000).toISOString();
+      const endsAt = new Date(Date.now() - 4.5 * 3_600_000).toISOString();
+      const created = await assign(coach, {
+        podId: pod.id,
+        playerId: withConsent,
+        startsAt,
+        endsAt,
+      });
+      expect(created.statusCode, created.body).toBe(201);
+      const row = created.json<AssignmentBody>();
+      const lost = await request(sc, 'POST', `/v1/pods/${pod.id}/missing`, {
+        version: pod.version,
+        status: 'lost',
+      });
+      expect(lost.statusCode, lost.body).toBe(200);
+      const reopen = await request(coach, 'PATCH', `/v1/pod-assignments/${row.id}`, {
+        version: row.version,
+        endsAt: null,
+        changeReason: 'Siguió con el pod',
+      });
+      expect(reopen.statusCode, reopen.body).toBe(409);
+      expect(reopen.json<ErrorBody>().error.details?.[0]?.code).toBe('pod_not_active');
+      // Shrinking it is still allowed.
+      const shrink = await request(coach, 'PATCH', `/v1/pod-assignments/${row.id}`, {
+        version: row.version,
+        endsAt: new Date(Date.now() - 4.75 * 3_600_000).toISOString(),
+        changeReason: 'Salió antes',
+      });
+      expect(shrink.statusCode, shrink.body).toBe(200);
+    });
+
     it('the session shows the consent state of each player', async () => {
       const response = await request(coach, 'GET', `/v1/training-sessions/${session}/pods`);
       expect(response.statusCode, response.body).toBe(200);
@@ -507,30 +566,97 @@ describeWithPostgres('pods (Postgres)', (serverUrl) => {
   });
 
   describe('loans', () => {
-    it('lends a pod to another club and ends the loan', async () => {
+    it('asked by S&C, accepted by the other administration, returned by either side', async () => {
       const pod = await newPod();
       const lent = await request(sc, 'POST', `/v1/pods/${pod.id}/loans`, {
         borrowerClubSlug: 'pods-b',
       });
       expect(lent.statusCode, lent.body).toBe(201);
-      const loan = lent.json<{ id: string; borrowerClubId: string; endedAt: string | null }>();
-      expect(loan.borrowerClubId).toBe(clubB);
-      expect((await request(sc, 'GET', `/v1/pods/${pod.id}`)).json<PodBody>().status).toBe('lent');
-      const inB = await request(adminB, 'GET', '/v1/pods');
-      const borrowed = inB.json<{ items: PodBody[] }>().items;
-      expect(borrowed.some((p) => p.borrowedFromClubId === clubA && p.number === pod.number)).toBe(
-        true,
-      );
-      expect((await request(coach, 'POST', `/v1/pod-loans/${loan.id}/end`)).statusCode).toBe(403);
-      const ended = await request(sc, 'POST', `/v1/pod-loans/${loan.id}/end`);
-      expect(ended.statusCode, ended.body).toBe(200);
-      expect(ended.json<{ endedAt: string | null }>().endedAt).not.toBeNull();
-      const back = (await request(sc, 'GET', `/v1/pods/${pod.id}`)).json<PodBody>();
-      expect(back).toMatchObject({ status: 'active', keyEpoch: 1 });
-      const unknown = await request(sc, 'POST', `/v1/pods/${pod.id}/loans`, {
+      const loan = lent.json<{ id: string; status: string; borrowerClubId: string | null }>();
+      expect(loan).toMatchObject({ status: 'pending', borrowerClubId: null });
+      // An unknown club gets the same answer: nothing tells whether a slug exists.
+      const unknownPod = await newPod();
+      const unknown = await request(sc, 'POST', `/v1/pods/${unknownPod.id}/loans`, {
         borrowerClubSlug: 'no-such-club',
       });
-      expect(unknown.statusCode).toBe(404);
+      expect(unknown.statusCode, unknown.body).toBe(201);
+      expect(unknown.json<{ status: string; borrowerClubId: string | null }>()).toMatchObject({
+        status: 'pending',
+        borrowerClubId: null,
+      });
+      expect((await request(sc, 'GET', `/v1/pods/${pod.id}`)).json<PodBody>().status).toBe(
+        'active',
+      );
+      // The other club sees it and accepts it (its administration only).
+      const incoming = await request(adminB, 'GET', '/v1/pod-loans/incoming');
+      expect(incoming.statusCode, incoming.body).toBe(200);
+      expect(incoming.json<{ items: { id: string }[] }>().items.map((l) => l.id)).toContain(
+        loan.id,
+      );
+      expect((await request(sc, 'GET', '/v1/pod-loans/incoming')).statusCode).toBe(403);
+      const accepted = await request(
+        adminB,
+        'POST',
+        `/v1/pod-loans/incoming/${loan.id}/accept`,
+        {},
+      );
+      expect(accepted.statusCode, accepted.body).toBe(200);
+      expect(accepted.json<{ status: string }>().status).toBe('active');
+      expect((await request(sc, 'GET', `/v1/pods/${pod.id}`)).json<PodBody>().status).toBe('lent');
+      const inB = (await request(adminB, 'GET', '/v1/pods')).json<{ items: PodBody[] }>().items;
+      expect(inB.some((p) => p.borrowedFromClubId === clubA && p.number === pod.number)).toBe(true);
+      expect((await request(coach, 'POST', `/v1/pod-loans/${loan.id}/end`)).statusCode).toBe(403);
+      const returned = await request(adminB, 'POST', `/v1/pod-loans/incoming/${loan.id}/return`);
+      expect(returned.statusCode, returned.body).toBe(200);
+      expect(returned.json<{ status: string }>().status).toBe('returned');
+      const back = (await request(sc, 'GET', `/v1/pods/${pod.id}`)).json<PodBody>();
+      expect(back).toMatchObject({ status: 'active', keyEpoch: 1 });
+      // The lender cancels the pending one.
+      const cancelled = await request(
+        sc,
+        'POST',
+        `/v1/pod-loans/${unknown.json<{ id: string }>().id}/end`,
+      );
+      expect(cancelled.json<{ status: string }>().status).toBe('cancelled');
+    });
+
+    it('the registry never moves a device that is in a fleet', async () => {
+      const pod = await newPod();
+      const devices = await request(
+        superadmin,
+        'GET',
+        `/v1/pod-devices?serialNumber=${pod.serialNumber}`,
+        undefined,
+        registry,
+      );
+      const device = devices.json<{ items: { id: string; version: string }[] }>().items[0];
+      const moved = await request(
+        superadmin,
+        'PATCH',
+        `/v1/pod-devices/${device?.id ?? ''}`,
+        { version: device?.version, ownerClubId: clubB },
+        registry,
+      );
+      expect(moved.statusCode, moved.body).toBe(409);
+    });
+  });
+
+  describe('consent revocation', () => {
+    it('revoking the location consent ends the pod the player wears', async () => {
+      const player = await newPlayer(m19, ['data', 'location']);
+      const pod = await newPod();
+      const created = await assign(coach, { podId: pod.id, playerId: player });
+      expect(created.statusCode, created.body).toBe(201);
+      await database.admin.query(
+        `update consent set revoked_at = now(), revoked_by = $2 where player_id = $1 and type = 'location'`,
+        [player, parent.userId],
+      );
+      const after = await request(
+        coach,
+        'GET',
+        `/v1/pod-assignments/${created.json<AssignmentBody>().id}`,
+      );
+      expect(after.json<AssignmentBody>().endsAt).not.toBeNull();
     });
   });
 });

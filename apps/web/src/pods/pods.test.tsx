@@ -35,8 +35,8 @@ describe('pods: the fleet in the administration', () => {
         ]),
       listPodCategories: () => ({
         items: [
-          { categoryId: fixtures.M15_RUGBY.id, podsEnabled: false },
-          { categoryId: fixtures.M17_RUGBY.id, podsEnabled: true },
+          { categoryId: fixtures.M15_RUGBY.id, podsEnabled: false, version: '1' },
+          { categoryId: fixtures.M17_RUGBY.id, podsEnabled: true, version: '2' },
         ],
       }),
       ...handlers,
@@ -113,7 +113,10 @@ describe('pods: the fleet in the administration', () => {
     await waitFor(() => {
       expect(api.callsTo('markPodMissing')).toHaveLength(1);
     });
-    expect(api.callsTo('markPodMissing')[0]?.body).toEqual({ status: 'lost' });
+    expect(api.callsTo('markPodMissing')[0]?.body).toEqual({
+      version: pod(7).version,
+      status: 'lost',
+    });
     expect(api.callsTo('markPodMissing')[0]?.params).toEqual({ podId: pod(7).id });
   });
 
@@ -264,6 +267,43 @@ describe('pods: assignments on a session', () => {
       changeReason: 'Se cambió de chaleco',
       startsAt: '2026-11-03T21:45:00.000Z',
     });
+  });
+
+  it('sends only the edited end: a back-to-back swap keeps the exact start', async () => {
+    const { api, user } = renderApp({
+      path: `/sessions/${SESSION_ID}`,
+      handlers: handlers({
+        getSessionPods: () => ({
+          podsEnabled: true,
+          players: [
+            sessionPodPlayer(
+              P3,
+              { first: 'Lucas', last: 'Castro' },
+              {
+                assignment: podAssignment(P3, TAKEN, {
+                  startsAt: '2026-11-03T21:30:17.250Z',
+                  endsAt: '2026-11-03T22:10:42.000Z',
+                }),
+              },
+            ),
+          ],
+        }),
+        correctPodAssignment: () => podAssignment(P3, TAKEN),
+      }),
+    });
+    const table = await podsTable();
+    await user.click(table.getByRole('button', { name: 'Corregir Castro, Lucas' }));
+    const end = table.getByLabelText('Hora de fin');
+    await user.clear(end);
+    await user.type(end, '19:05');
+    await user.type(table.getByLabelText('Motivo'), 'Cambio de chaleco');
+    await user.click(table.getByRole('button', { name: 'Guardar corrección' }));
+    await waitFor(() => {
+      expect(api.callsTo('correctPodAssignment')).toHaveLength(1);
+    });
+    const body = api.callsTo('correctPodAssignment')[0]?.body as Record<string, unknown>;
+    expect(body).not.toHaveProperty('startsAt');
+    expect(body.endsAt).toBe('2026-11-03T22:05:00.000Z');
   });
 
   it('says when the category of the session has no pods', async () => {

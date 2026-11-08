@@ -2,6 +2,8 @@ import {
   correctPodAssignment,
   createPodAssignment,
   endPodAssignment,
+  acceptPodLoan,
+  declinePodLoan,
   endPodLoan,
   getPod,
   getPodAssignment,
@@ -10,6 +12,7 @@ import {
   listPodAssignments,
   listPodCategories,
   listPodDevices,
+  listIncomingPodLoans,
   listPodLoans,
   listPods,
   markPodMissing,
@@ -17,10 +20,12 @@ import {
   registerPod,
   registerPodDevice,
   retirePod,
+  returnPodLoan,
   setPodCategory,
   updatePod,
   updatePodDevice,
   voidPodAssignment,
+  type IncomingPodLoan,
   type Pod,
   type PodAssignment,
   type PodDevice,
@@ -38,17 +43,21 @@ import {
   podLoan,
 } from '@sport-performance/db/schema';
 import {
+  CONSENT_TYPES,
   POD_ASSIGNMENT_CONSENTS,
   can,
   canChangePodStatus,
   nextPodShortId,
   podAssignmentNeedsReprocess,
   podAssignmentProblem,
+  podAssignmentRangeProblem,
   type CategoryId,
+  type ConsentType,
   type ClubId,
   type ExistingPodAssignment,
   type PlayerId,
   type PodAssignmentProblem,
+  type PodLoanStatus,
   type PodProvisioningState,
   type PodStatus,
   type Sport,
@@ -57,7 +66,7 @@ import { randomUUID } from 'node:crypto';
 import { and, asc, eq, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { TenantDatabase } from '../db/database.js';
-import { currentConsentTypesOf, requirePlayerFacts } from '../http/consents.js';
+import { requirePlayerFacts } from '../http/consents.js';
 import { registerEndpoint } from '../http/endpoint.js';
 import { HttpError, databaseErrorOf } from '../http/errors.js';
 import { keysetPage, type KeysetSpec } from '../http/pagination.js';
@@ -187,6 +196,21 @@ function deviceConflict(error: unknown): HttpError | undefined {
   return new HttpError('conflict', `A device already has this ${field}`, {
     details: [{ path: ['body', field], code: 'taken', message: 'Already registered' }],
   });
+}
+
+/** A device moved or decommissioned while a club has it in its fleet: `409`. */
+async function withDeviceInUse<T>(work: () => Promise<T>): Promise<T> {
+  try {
+    return await work();
+  } catch (error) {
+    const found = databaseErrorOf(error);
+    if (found?.code === '23514' && found.constraint === 'pod_device_in_use') {
+      throw new HttpError('conflict', 'The device is in a fleet: retire its pod first', {
+        details: [issue(['body', 'ownerClubId'], 'pod_device_in_use', 'In a fleet')],
+      });
+    }
+    throw error;
+  }
 }
 
 // ─── Pods ────────────────────────────────────────────────────────────────────────────
@@ -327,9 +351,12 @@ async function podInUse(db: TenantDatabase, podId: string): Promise<boolean> {
 const podLoanColumns = {
   id: podLoan.id,
   podId: podLoan.podId,
+  status: podLoan.status,
+  borrowerClubSlug: podLoan.borrowerClubSlug,
   borrowerClubId: podLoan.borrowerClubId,
-  startsAt: podLoan.startsAt,
+  requestedAt: podLoan.requestedAt,
   plannedEndsAt: podLoan.plannedEndsAt,
+  acceptedAt: podLoan.acceptedAt,
   endedAt: podLoan.endedAt,
   createdAt: podLoan.createdAt,
   updatedAt: podLoan.updatedAt,
@@ -338,9 +365,12 @@ const podLoanColumns = {
 interface PodLoanRow {
   id: string;
   podId: string;
-  borrowerClubId: ClubId;
-  startsAt: Date;
+  status: PodLoanStatus;
+  borrowerClubSlug: string;
+  borrowerClubId: ClubId | null;
+  requestedAt: Date;
   plannedEndsAt: Date | null;
+  acceptedAt: Date | null;
   endedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -350,18 +380,26 @@ function podLoanDto(row: PodLoanRow): PodLoan {
   return {
     id: row.id as PodLoan['id'],
     podId: row.podId as PodLoan['podId'],
-    borrowerClubId: row.borrowerClubId,
-    startsAt: row.startsAt.toISOString(),
+    borrowerClubSlug: row.borrowerClubSlug,
+    // Only once the other club accepted it: never whether a slug names a club.
+    borrowerClubId: row.acceptedAt === null ? null : row.borrowerClubId,
+    status: row.status,
+    requestedAt: row.requestedAt.toISOString(),
     plannedEndsAt: iso(row.plannedEndsAt),
+    acceptedAt: iso(row.acceptedAt),
     endedAt: iso(row.endedAt),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
 }
 
-const POD_LOAN_KEYS: KeysetSpec<PodLoanRow, 'startsAt'> = {
+const POD_LOAN_KEYS: KeysetSpec<PodLoanRow, 'requestedAt'> = {
   fields: {
-    startsAt: { column: podLoan.startsAt, type: 'timestamp', value: (row) => row.startsAt },
+    requestedAt: {
+      column: podLoan.requestedAt,
+      type: 'timestamp',
+      value: (row) => row.requestedAt,
+    },
   },
   id: { column: podLoan.id, value: (row) => row.id },
 };
@@ -373,6 +411,92 @@ async function readPodLoan(db: TenantDatabase, clubId: ClubId, id: string): Prom
     .where(and(eq(podLoan.clubId, clubId), eq(podLoan.id, id)));
   if (row === undefined) throw new HttpError('not_found', 'Pod loan not found');
   return row;
+}
+
+interface IncomingLoanRow extends Record<string, unknown> {
+  id: string;
+  lender_club_id: string;
+  lender_club_name: string;
+  pod_number: number;
+  serial_number: string;
+  hardware_revision: string;
+  status: PodLoanStatus;
+  requested_at: string | Date;
+  planned_ends_at: string | Date | null;
+  accepted_at: string | Date | null;
+  ended_at: string | Date | null;
+  borrower_pod_id: string | null;
+}
+
+const isoOf = (value: string | Date | null): string | null =>
+  value === null ? null : new Date(value).toISOString();
+
+function incomingLoanDto(row: IncomingLoanRow): IncomingPodLoan {
+  return {
+    id: row.id as IncomingPodLoan['id'],
+    lenderClubId: row.lender_club_id as IncomingPodLoan['lenderClubId'],
+    lenderClubName: row.lender_club_name,
+    podNumber: row.pod_number,
+    serialNumber: row.serial_number,
+    hardwareRevision: row.hardware_revision,
+    status: row.status,
+    requestedAt: new Date(row.requested_at).toISOString(),
+    plannedEndsAt: isoOf(row.planned_ends_at),
+    acceptedAt: isoOf(row.accepted_at),
+    endedAt: isoOf(row.ended_at),
+    podId: row.borrower_pod_id as IncomingPodLoan['podId'],
+  };
+}
+
+/** The loans offered to the context's club (its administration), by id when given. */
+async function incomingLoans(db: TenantDatabase, id?: string): Promise<IncomingLoanRow[]> {
+  const { rows } = await db.execute<IncomingLoanRow>(
+    id === undefined
+      ? sql`select * from app.incoming_pod_loans()`
+      : sql`select * from app.incoming_pod_loans() where id = ${id}::uuid`,
+  );
+  return rows;
+}
+
+async function readIncomingLoan(db: TenantDatabase, id: string): Promise<IncomingPodLoan> {
+  const [row] = await incomingLoans(db, id);
+  if (row === undefined) throw new HttpError('not_found', 'Pod loan not found');
+  return incomingLoanDto(row);
+}
+
+/** The errors of the loan functions, as the API answers them. */
+function loanError(error: unknown): HttpError | undefined {
+  const found = databaseErrorOf(error);
+  if (found === undefined) return undefined;
+  if (found.code === 'P0002') return new HttpError('not_found', 'Pod loan not found');
+  if (found.code === '23505' && found.constraint === 'pod_number_live_key') {
+    return new HttpError('conflict', 'The club already has a pod with this number', {
+      details: [issue(['body', 'number'], 'taken', 'Choose another number for the pod')],
+    });
+  }
+  if (found.code === '23514' && (found.constraint ?? '').startsWith('pod_loan_')) {
+    const messages: Record<string, string> = {
+      pod_loan_pod_in_use: 'The pod is assigned now or later: end its assignments first',
+      pod_loan_pod_unavailable: 'Only an active pod of the club itself, without another loan',
+      pod_loan_not_pending: 'The loan is no longer pending',
+      pod_loan_other_club: 'A club does not lend to itself',
+    };
+    return new HttpError('conflict', messages[found.constraint ?? ''] ?? 'Pod loan conflict', {
+      details: [issue(['params', 'podLoanId'], found.constraint ?? 'conflict', 'Pod loan')],
+    });
+  }
+  if (found.code === '23514' && found.constraint === 'pod_short_id_range') {
+    return new HttpError('conflict', 'The network of the club is full');
+  }
+  return undefined;
+}
+
+async function withLoanErrors<T>(work: () => Promise<T>): Promise<T> {
+  try {
+    return await work();
+  } catch (error) {
+    throw loanError(error) ?? error;
+  }
 }
 
 // ─── Assignments ─────────────────────────────────────────────────────────────────────
@@ -565,7 +689,13 @@ function assignmentProblemError(problem: PodAssignmentProblem): HttpError {
  */
 function exclusionError(error: unknown): HttpError | undefined {
   const found = databaseErrorOf(error);
-  if (found?.code !== '23P01') return undefined;
+  if (found === undefined) return undefined;
+  if (found.code === '23514' && found.constraint === 'pod_assignment_extension') {
+    return new HttpError('conflict', 'Growing the assignment needs the consents and the pod', {
+      details: [issue(['body', 'endsAt'], 'pod_not_active', 'Assign it again')],
+    });
+  }
+  if (found.code !== '23P01') return undefined;
   if (found.constraint === 'pod_assignment_pod_no_overlap') {
     return new HttpError('conflict', 'The pod is assigned then', {
       details: [issue(['body', 'podId'], 'pod_overlap', 'Another assignment of the pod')],
@@ -629,6 +759,51 @@ async function databaseNow(db: TenantDatabase): Promise<Date> {
   const value = rows[0]?.ms;
   if (value === undefined) throw new Error('now() returned no row');
   return new Date(Number(value));
+}
+
+/** A status change of a pod at the version the client read (`409` otherwise). */
+async function setPodStatus(
+  db: TenantDatabase,
+  clubId: ClubId,
+  podId: string,
+  version: string,
+  values: Partial<typeof pod.$inferInsert> | Record<string, unknown>,
+): Promise<void> {
+  const where = and(eq(pod.clubId, clubId), eq(pod.id, podId));
+  await updateAtVersion({
+    resource: 'Pod',
+    update: async () =>
+      (
+        await db
+          .update(pod)
+          .set(values as Partial<typeof pod.$inferInsert>)
+          .where(and(where, versionMatches(pod.updatedAt, version)))
+          .returning({ id: pod.id })
+      )[0],
+    exists: async () => (await db.select({ id: pod.id }).from(pod).where(where)).length > 0,
+  });
+}
+
+/** Whether a corrected range covers more than the one it corrects. */
+function podAssignmentGrows(
+  before: { startsAt: Date; endsAt: Date | null },
+  after: { startsAt: Date; endsAt: Date | null },
+): boolean {
+  if (after.startsAt.getTime() < before.startsAt.getTime()) return true;
+  if (before.endsAt === null) return false;
+  return after.endsAt === null || after.endsAt.getTime() > before.endsAt.getTime();
+}
+
+/** The categories an assignment is for: its session's, else the player's current ones. */
+async function assignmentCategoryIds(
+  db: TenantDatabase,
+  clubId: ClubId,
+  trainingSessionId: string | null,
+  playerCategoryIds: readonly CategoryId[] | undefined,
+): Promise<readonly CategoryId[]> {
+  if (trainingSessionId === null) return playerCategoryIds ?? [];
+  const session = await readSession(db, clubId, trainingSessionId);
+  return session.categoryId === null ? [] : [session.categoryId];
 }
 
 // ─── Routes ──────────────────────────────────────────────────────────────────────────
@@ -715,28 +890,30 @@ export function registerPodRoutes(app: FastifyInstance): void {
     handler: async ({ params, body }, { db, permissions, auth: caller }) => {
       await permissions.authorize('pod_device', 'manage');
       const where = eq(podDevice.id, params.podDeviceId);
-      const row = await updateAtVersion({
-        resource: 'Pod device',
-        update: async () =>
-          (
-            await db
-              .update(podDevice)
-              .set({
-                ...(body.hardwareRevision !== undefined && {
-                  hardwareRevision: body.hardwareRevision,
-                }),
-                ...(body.provisioningState !== undefined && {
-                  provisioningState: body.provisioningState,
-                }),
-                ...(body.ownerClubId !== undefined && { ownerClubId: body.ownerClubId }),
-                updatedBy: caller.userId,
-              })
-              .where(and(where, versionMatches(podDevice.updatedAt, body.version)))
-              .returning(podDeviceColumns)
-          )[0],
-        exists: async () =>
-          (await db.select({ id: podDevice.id }).from(podDevice).where(where)).length > 0,
-      });
+      const row = await withDeviceInUse(() =>
+        updateAtVersion({
+          resource: 'Pod device',
+          update: async () =>
+            (
+              await db
+                .update(podDevice)
+                .set({
+                  ...(body.hardwareRevision !== undefined && {
+                    hardwareRevision: body.hardwareRevision,
+                  }),
+                  ...(body.provisioningState !== undefined && {
+                    provisioningState: body.provisioningState,
+                  }),
+                  ...(body.ownerClubId !== undefined && { ownerClubId: body.ownerClubId }),
+                  updatedBy: caller.userId,
+                })
+                .where(and(where, versionMatches(podDevice.updatedAt, body.version)))
+                .returning(podDeviceColumns)
+            )[0],
+          exists: async () =>
+            (await db.select({ id: podDevice.id }).from(podDevice).where(where)).length > 0,
+        }),
+      );
       return podDeviceDto(row);
     },
   });
@@ -848,6 +1025,12 @@ export function registerPodRoutes(app: FastifyInstance): void {
         });
         return podDto(row, await clubDevices(db));
       } catch (error) {
+        const found = databaseErrorOf(error);
+        if (found?.code === '23514' && found.constraint === 'pod_device_owner') {
+          throw new HttpError('conflict', "The device is not the club's anymore", {
+            details: [issue(['body', 'serialNumber'], 'not_owned', 'Not a device of the club')],
+          });
+        }
         throw podConflict(error) ?? error;
       }
     },
@@ -908,25 +1091,23 @@ export function registerPodRoutes(app: FastifyInstance): void {
       if (!canChangePodStatus(current.status, body.status)) {
         throw new HttpError('conflict', `A ${current.status} pod is not marked ${body.status}`);
       }
-      await releasePodAssignments(db, current.id, `pod marked ${body.status}`);
       // Its keys are revoked (ADR 0106): the base stops accepting it and rotates the beacon
-      // keys of the club's gateways on its next connection.
-      await db
-        .update(pod)
-        .set({
-          status: body.status,
-          statusChangedAt: sql`now()`,
-          keysRevokedAt: sql`coalesce(${pod.keysRevokedAt}, now())`,
-          updatedBy: caller.userId,
-        })
-        .where(and(eq(pod.clubId, clubId), eq(pod.id, current.id)));
+      // keys of the club's gateways on its next connection. Out of the fleet first, then its
+      // assignments are released (the database releases only a pod out of the fleet).
+      await setPodStatus(db, clubId, current.id, body.version, {
+        status: body.status,
+        statusChangedAt: sql`now()`,
+        keysRevokedAt: sql`coalesce(${pod.keysRevokedAt}, now())`,
+        updatedBy: caller.userId,
+      });
+      await releasePodAssignments(db, current.id, `pod marked ${body.status}`);
       return podResponse(db, clubId, current.id);
     },
   });
 
   registerEndpoint(app, recoverPod, {
     transaction: true,
-    handler: async ({ params }, { db, permissions, auth: caller }) => {
+    handler: async ({ params, body }, { db, permissions, auth: caller }) => {
       await permissions.authorize('pod', 'manage');
       const { clubId } = caller.membership;
       const current = await readPod(db, clubId, params.podId);
@@ -935,23 +1116,20 @@ export function registerPodRoutes(app: FastifyInstance): void {
         throw new HttpError('conflict', `A ${current.status} pod is not recovered`);
       }
       // Provisioned again with the next key epoch before it is used.
-      await db
-        .update(pod)
-        .set({
-          status: 'active',
-          statusChangedAt: sql`now()`,
-          keyEpoch: sql`${pod.keyEpoch} + 1`,
-          keysRevokedAt: null,
-          updatedBy: caller.userId,
-        })
-        .where(and(eq(pod.clubId, clubId), eq(pod.id, current.id)));
+      await setPodStatus(db, clubId, current.id, body.version, {
+        status: 'active',
+        statusChangedAt: sql`now()`,
+        keyEpoch: sql`${pod.keyEpoch} + 1`,
+        keysRevokedAt: null,
+        updatedBy: caller.userId,
+      });
       return podResponse(db, clubId, current.id);
     },
   });
 
   registerEndpoint(app, retirePod, {
     transaction: true,
-    handler: async ({ params }, { db, permissions, auth: caller }) => {
+    handler: async ({ params, body }, { db, permissions, auth: caller }) => {
       await permissions.authorize('pod', 'manage');
       const { clubId } = caller.membership;
       const current = await readPod(db, clubId, params.podId);
@@ -962,10 +1140,24 @@ export function registerPodRoutes(app: FastifyInstance): void {
       if (await podInUse(db, current.id)) {
         throw new HttpError('conflict', 'The pod is assigned now or later: end it first');
       }
-      await db
-        .update(pod)
-        .set({ status: 'retired', statusChangedAt: sql`now()`, updatedBy: caller.userId })
-        .where(and(eq(pod.clubId, clubId), eq(pod.id, current.id)));
+      const [openLoan] = await db
+        .select({ id: podLoan.id })
+        .from(podLoan)
+        .where(
+          and(
+            eq(podLoan.clubId, clubId),
+            eq(podLoan.podId, current.id),
+            inArray(podLoan.status, ['pending', 'active']),
+          ),
+        );
+      if (openLoan !== undefined) {
+        throw new HttpError('conflict', 'The pod has an open loan: cancel it first');
+      }
+      await setPodStatus(db, clubId, current.id, body.version, {
+        status: 'retired',
+        statusChangedAt: sql`now()`,
+        updatedBy: caller.userId,
+      });
       return podResponse(db, clubId, current.id);
     },
   });
@@ -977,7 +1169,11 @@ export function registerPodRoutes(app: FastifyInstance): void {
     handler: async (_input, { db, permissions, auth: caller }) => {
       await permissions.authorize('pod', 'read');
       const rows = await db
-        .select({ categoryId: category.id, podsEnabled: category.podsEnabled })
+        .select({
+          categoryId: category.id,
+          podsEnabled: category.podsEnabled,
+          version: rowVersion(category.updatedAt),
+        })
         .from(category)
         .where(and(eq(category.clubId, caller.membership.clubId), isNull(category.archivedAt)))
         .orderBy(asc(category.sortOrder), asc(category.name), asc(category.id));
@@ -999,13 +1195,23 @@ export function registerPodRoutes(app: FastifyInstance): void {
       if (current.archivedAt !== null) {
         throw new HttpError('conflict', 'The category is archived: restore it first');
       }
-      const [row] = await db
-        .update(category)
-        .set({ podsEnabled: body.podsEnabled, updatedBy: caller.userId })
-        .where(where)
-        .returning({ categoryId: category.id, podsEnabled: category.podsEnabled });
-      if (row === undefined) throw new HttpError('not_found', 'Category not found');
-      return row;
+      return updateAtVersion({
+        resource: 'Category',
+        update: async () =>
+          (
+            await db
+              .update(category)
+              .set({ podsEnabled: body.podsEnabled, updatedBy: caller.userId })
+              .where(and(where, versionMatches(category.updatedAt, body.version)))
+              .returning({
+                categoryId: category.id,
+                podsEnabled: category.podsEnabled,
+                version: rowVersion(category.updatedAt),
+              })
+          )[0],
+        exists: async () =>
+          (await db.select({ id: category.id }).from(category).where(where)).length > 0,
+      });
     },
   });
 
@@ -1022,7 +1228,7 @@ export function registerPodRoutes(app: FastifyInstance): void {
         .where(
           and(
             eq(podLoan.clubId, caller.membership.clubId),
-            query.status === 'open' ? isNull(podLoan.endedAt) : undefined,
+            query.status === 'open' ? inArray(podLoan.status, ['pending', 'active']) : undefined,
             plan.where,
           ),
         )
@@ -1048,32 +1254,26 @@ export function registerPodRoutes(app: FastifyInstance): void {
       }
       if (
         body.plannedEndsAt !== undefined &&
-        new Date(body.plannedEndsAt).getTime() <= Date.now()
+        new Date(body.plannedEndsAt).getTime() <= (await databaseNow(db)).getTime()
       ) {
         throw new HttpError('validation_failed', 'The loan ends in the future', {
           details: [issue(['body', 'plannedEndsAt'], 'custom', 'After now')],
         });
       }
-      let loanId: string;
-      try {
+      const loanId = await withLoanErrors(async () => {
         const { rows } = await db.execute<{ id: string }>(
           sql`select app.lend_pod(${params.podId}::uuid, ${body.borrowerClubSlug}, ${body.plannedEndsAt ?? null}::timestamptz, ${clientUuid}::uuid) as id`,
         );
-        loanId = rows[0]?.id ?? '';
-      } catch (error) {
-        const found = databaseErrorOf(error);
-        if (found?.code === 'P0002') throw new HttpError('not_found', 'Pod or club not found');
-        if (found?.code === '23514' && found.constraint === 'pod_loan_pod_in_use') {
-          throw new HttpError('conflict', 'The pod is assigned now or later: end it first');
-        }
-        if (found?.code === '23514' && found.constraint === 'pod_loan_pod_unavailable') {
-          throw new HttpError('conflict', 'Only an active pod of the club itself is lent');
-        }
-        if (found?.code === '23505' && found.constraint === 'pod_number_live_key') {
-          throw new HttpError('conflict', 'The receiving club already has a pod with this number');
+        const id = rows[0]?.id;
+        if (id === undefined) throw new Error('lend_pod returned no loan');
+        return id;
+      }).catch((error: unknown) => {
+        // The pod, not the loan, is what was not found.
+        if (error instanceof HttpError && error.code === 'not_found') {
+          throw new HttpError('not_found', 'Pod not found');
         }
         throw error;
-      }
+      });
       return podLoanDto(await readPodLoan(db, clubId, loanId));
     },
   });
@@ -1084,8 +1284,60 @@ export function registerPodRoutes(app: FastifyInstance): void {
       await permissions.authorize('pod', 'manage');
       const { clubId } = caller.membership;
       await readPodLoan(db, clubId, params.podLoanId);
-      await db.execute(sql`select app.end_pod_loan(${params.podLoanId}::uuid)`);
+      await withLoanErrors(() =>
+        db.execute(sql`select app.end_pod_loan(${params.podLoanId}::uuid)`),
+      );
       return podLoanDto(await readPodLoan(db, clubId, params.podLoanId));
+    },
+  });
+
+  // The receiving club: its administration accepts, declines or returns (ADR 0106).
+  registerEndpoint(app, listIncomingPodLoans, {
+    transaction: true,
+    handler: async (_input, { db, permissions }) => {
+      await permissions.authorize('club', 'update');
+      return { items: (await incomingLoans(db)).map(incomingLoanDto) };
+    },
+  });
+
+  registerEndpoint(app, acceptPodLoan, {
+    transaction: true,
+    handler: async ({ params, body }, { db, permissions }) => {
+      await permissions.authorize('club', 'update');
+      await readIncomingLoan(db, params.podLoanId);
+      await withLoanErrors(() =>
+        db.execute(
+          sql`select app.accept_pod_loan(${params.podLoanId}::uuid, ${body.number ?? null}::integer)`,
+        ),
+      );
+      return readIncomingLoan(db, params.podLoanId);
+    },
+  });
+
+  registerEndpoint(app, declinePodLoan, {
+    transaction: true,
+    handler: async ({ params }, { db, permissions }) => {
+      await permissions.authorize('club', 'update');
+      const loan = await readIncomingLoan(db, params.podLoanId);
+      if (loan.status === 'active') {
+        throw new HttpError('conflict', 'The loan was accepted: return the pod instead');
+      }
+      await withLoanErrors(() =>
+        db.execute(sql`select app.end_pod_loan(${params.podLoanId}::uuid)`),
+      );
+      return readIncomingLoan(db, params.podLoanId);
+    },
+  });
+
+  registerEndpoint(app, returnPodLoan, {
+    transaction: true,
+    handler: async ({ params }, { db, permissions }) => {
+      await permissions.authorize('club', 'update');
+      await readIncomingLoan(db, params.podLoanId);
+      await withLoanErrors(() =>
+        db.execute(sql`select app.end_pod_loan(${params.podLoanId}::uuid)`),
+      );
+      return readIncomingLoan(db, params.podLoanId);
     },
   });
 
@@ -1185,14 +1437,18 @@ export function registerPodRoutes(app: FastifyInstance): void {
           details: [issue(['body', 'podId'], 'not_found', 'Not a pod of the club')],
         });
       });
-      let categoryIds: readonly CategoryId[] = facts.categoryIds;
       if (body.trainingSessionId !== undefined) {
         const session = await readSession(db, clubId, body.trainingSessionId);
         if (session.archivedAt !== null) {
           throw new HttpError('conflict', 'The training session is archived: restore it first');
         }
-        categoryIds = session.categoryId === null ? [] : [session.categoryId];
       }
+      const categoryIds = await assignmentCategoryIds(
+        db,
+        clubId,
+        body.trainingSessionId ?? null,
+        facts.categoryIds,
+      );
       const startsAt =
         body.startsAt === undefined
           ? (recordedAt ?? (await databaseNow(db)))
@@ -1251,12 +1507,17 @@ export function registerPodRoutes(app: FastifyInstance): void {
       }
       const endsAt =
         body.endsAt === undefined ? (recordedAt ?? (await databaseNow(db))) : new Date(body.endsAt);
-      if (endsAt.getTime() <= row.startsAt.getTime()) {
-        throw assignmentProblemError({ code: 'ends_before_start' });
-      }
+      const rangeProblem = podAssignmentRangeProblem({ startsAt: row.startsAt, endsAt });
+      if (rangeProblem !== null) throw assignmentProblemError({ code: rangeProblem });
+      // Ended in the past: what the pod recorded since then is not the player's.
+      const inThePast = endsAt.getTime() < (await databaseNow(db)).getTime() - 60_000;
       const [updated] = await db
         .update(podAssignment)
-        .set({ endsAt, updatedBy: caller.userId })
+        .set({
+          endsAt,
+          ...(inThePast && { reprocessRequestedAt: sql`now()` }),
+          updatedBy: caller.userId,
+        })
         .where(
           and(
             eq(podAssignment.clubId, clubId),
@@ -1279,7 +1540,7 @@ export function registerPodRoutes(app: FastifyInstance): void {
     handler: async ({ params, body }, { db, permissions, auth: caller }) => {
       const { clubId } = caller.membership;
       const row = await readAssignment(db, clubId, params.podAssignmentId);
-      await authorizeAssignment(db, permissions, clubId, row.playerId, 'manage');
+      const loaded = await authorizeAssignment(db, permissions, clubId, row.playerId, 'manage');
       if (row.archivedAt !== null) {
         throw new HttpError('conflict', 'The assignment was voided');
       }
@@ -1300,16 +1561,37 @@ export function registerPodRoutes(app: FastifyInstance): void {
       }
       if (reprocess) {
         await lockAssignmentKeys(db, row.podId, row.playerId);
-        // A correction fixes what happened: the pod, the category and the consents were
-        // checked when it was made (a pod lost since, a revoked consent, do not block it).
-        // Only the range and the overlaps are checked again.
+        // Shrinking (a later start, an earlier end) fixes what happened: the pod, the category
+        // and the consents were checked when it was made, and a pod lost or a consent revoked
+        // since must not block it. Growing it (an earlier start, a later or open end) collects
+        // more of the player's position: it is assigning again, with every check of a new one
+        // (the database refuses it too, `pod_assignment_guard`).
+        const grows = podAssignmentGrows(row, after);
+        let podStatus: PodStatus = 'active';
+        let categoryPodsEnabled = true;
+        let consents: readonly ConsentType[] = [...POD_ASSIGNMENT_CONSENTS];
+        if (grows) {
+          await permissions.authorize('pod_assignment', 'assign', { player: loaded.facts });
+          podStatus = (await readPod(db, clubId, row.podId)).status;
+          categoryPodsEnabled = await categoryHasPods(
+            db,
+            clubId,
+            await assignmentCategoryIds(
+              db,
+              clubId,
+              row.trainingSessionId,
+              loaded.facts.categoryIds,
+            ),
+          );
+          consents = loaded.facts.consents ?? [];
+        }
         const problem = podAssignmentProblem({
           podId: row.podId,
           playerId: row.playerId,
           ...after,
-          podStatus: 'active',
-          categoryPodsEnabled: true,
-          consents: [...POD_ASSIGNMENT_CONSENTS],
+          podStatus,
+          categoryPodsEnabled,
+          consents,
           existing: await overlapping(
             db,
             clubId,
@@ -1446,6 +1728,22 @@ export function registerPodRoutes(app: FastifyInstance): void {
                 ),
               )
               .orderBy(asc(podAssignment.startsAt));
+      // The consents of every player at once (`app.current_consent_types`, as the matrix reads them).
+      const consentRows =
+        ids.length === 0
+          ? []
+          : (
+              await db.execute<{ id: string; types: string[] | null }>(
+                sql`select v.id::text as id, app.current_consent_types(v.id)::text[] as types
+                      from unnest(${`{${ids.join(',')}}`}::uuid[]) as v(id)`,
+              )
+            ).rows;
+      const consentsOf = new Map(
+        consentRows.map((r) => [
+          r.id,
+          CONSENT_TYPES.filter((type) => (r.types ?? []).includes(type)),
+        ]),
+      );
       const seen = new Set<string>();
       const entries: SessionPodPlayer[] = [];
       for (const p of players) {
@@ -1455,7 +1753,7 @@ export function registerPodRoutes(app: FastifyInstance): void {
           id: p.id,
           sport: session.sport,
           categoryIds: [session.categoryId],
-          consents: await currentConsentTypesOf(db, p.id),
+          consents: consentsOf.get(p.id) ?? [],
         };
         const resource = { kind: 'pod_assignment' as const, clubId, player: facts };
         if (!can(subject, 'read', resource)) continue;

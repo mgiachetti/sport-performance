@@ -19719,7 +19719,7 @@
       "patch": {
         "operationId": "correctPodAssignment",
         "summary": "Corregir una asignación",
-        "description": "Quien puede asignar. Cambia el inicio, el fin o la nota; el pod y el jugador no (una equivocada se anula y se hace otra). Corregir el rango pide `changeReason` (queda en el historial) y marca la asignación para reprocesar las sesiones afectadas. Choque con otra asignación del mismo pod o del mismo jugador: `conflict` con el detalle `pod_overlap` o `player_overlap` (y el id de la otra en el mensaje); pod que no está activo: `pod_not_active`; categoría sin pods: `category_not_enabled`. `version` desactualizada: `conflict`.",
+        "description": "Cambia el inicio, el fin o la nota; el pod y el jugador no (una equivocada se anula y se hace otra). Achicar el rango lo puede quien la gestiona (`pod_assignment.manage`); agrandarlo (empezar antes, terminar después o dejarla abierta) es asignar de nuevo: pide `pod_assignment.assign` con los consentimientos `data` y `location`, el pod activo y la categoría con pods. Corregir el rango pide `changeReason` (queda en el historial) y marca la asignación para reprocesar las sesiones afectadas. Choque con otra asignación del mismo pod o del mismo jugador: `conflict` con el detalle `pod_overlap` o `player_overlap` (y el id de la otra en el mensaje); pod que no está activo: `pod_not_active`; categoría sin pods: `category_not_enabled`. `version` desactualizada: `conflict`.",
         "tags": [
           "pods"
         ],
@@ -19860,7 +19860,7 @@
       "post": {
         "operationId": "endPodAssignment",
         "summary": "Terminar una asignación",
-        "description": "Quien puede asignar (sin pedir el consentimiento: un consentimiento revocado nunca deja un pod asignado). En `endsAt` (por defecto, ahora). Una ya terminada o anulada: `conflict`.",
+        "description": "El `coach` y el `sc` de la categoría del jugador y la administración (`pod_assignment.manage`), sin pedir el consentimiento: un consentimiento revocado nunca deja un pod asignado. Solo una abierta, en `endsAt` (por defecto, ahora; uno en el pasado la marca para reprocesar). Una ya terminada o anulada: `conflict`.",
         "tags": [
           "pods"
         ],
@@ -19962,7 +19962,7 @@
       "post": {
         "operationId": "voidPodAssignment",
         "summary": "Anular una asignación",
-        "description": "Quien puede asignar. Una cargada por error (otro jugador, otro pod): deja de contar, con motivo en el historial, y se marca para reprocesar. Idempotente.",
+        "description": "Quien gestiona las asignaciones del jugador (`pod_assignment.manage`, sin consentimiento). Una cargada por error (otro jugador, otro pod): deja de contar, con motivo en el historial, y se marca para reprocesar; nunca vuelve. Idempotente.",
         "tags": [
           "pods"
         ],
@@ -20403,7 +20403,7 @@
       "get": {
         "operationId": "listPodLoans",
         "summary": "Préstamos de pods del club",
-        "description": "Solo `sc` y la administración. Los que el club hizo a otros clubes, los más recientes primero. Por defecto, los abiertos.",
+        "description": "Solo `sc` y la administración. Los que el club pidió hacer a otros clubes, los más recientes primero. Por defecto, los abiertos (pendientes y activos).",
         "tags": [
           "pods"
         ],
@@ -20456,13 +20456,13 @@
             "name": "sort",
             "in": "query",
             "required": false,
-            "description": "Orden: `startsAt`; con `-` adelante, descendente. Desempata por id.",
+            "description": "Orden: `requestedAt`; con `-` adelante, descendente. Desempata por id.",
             "schema": {
-              "default": "startsAt",
+              "default": "-requestedAt",
               "type": "string",
               "enum": [
-                "startsAt",
-                "-startsAt"
+                "requestedAt",
+                "-requestedAt"
               ]
             }
           },
@@ -20512,8 +20512,8 @@
     "/v1/pod-loans/{podLoanId}/end": {
       "post": {
         "operationId": "endPodLoan",
-        "summary": "Terminar un préstamo",
-        "description": "Solo `sc` y la administración. El pod del otro club se retira (sus asignaciones terminan ahora) y el del club vuelve a la flota con la época de claves siguiente. Idempotente.",
+        "summary": "Retirar o terminar un préstamo",
+        "description": "Solo `sc` y la administración. Uno pendiente se retira (`cancelled`); uno activo termina: el pod del otro club se retira (su asignación en curso termina ahora) y el del club vuelve a la flota con la época de claves siguiente. Idempotente.",
         "tags": [
           "pods"
         ],
@@ -20555,6 +20555,316 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PodLoan"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/pod-loans/incoming": {
+      "get": {
+        "operationId": "listIncomingPodLoans",
+        "summary": "Préstamos de pods que otros clubes le ofrecen al club",
+        "description": "Solo la administración del club que lo recibe. Los más recientes primero.",
+        "tags": [
+          "pods"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Los préstamos ofrecidos al club.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncomingPodLoanList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/pod-loans/incoming/{podLoanId}/accept": {
+      "post": {
+        "operationId": "acceptPodLoan",
+        "summary": "Aceptar un préstamo de pod",
+        "description": "Solo la administración del club que lo recibe. El club tiene un pod propio por el préstamo: con `number` (por defecto, el número del club que lo presta; si el club ya lo usa: `conflict` con el detalle en `number`, para elegir otro) y el id corto más bajo libre de su red. El pod tiene que seguir activo y libre en el otro club. Uno ya activo: idempotente; uno que ya no está pendiente: `conflict`.",
+        "tags": [
+          "pods"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "podLoanId",
+            "in": "path",
+            "required": true,
+            "description": "Id de préstamo de pod (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "number": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 999,
+                    "description": "Número pintado en el pod y en su chaleco (1 a 999), único entre los pods del club que no están retirados."
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "El préstamo aceptado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncomingPodLoan"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error.conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/pod-loans/incoming/{podLoanId}/decline": {
+      "post": {
+        "operationId": "declinePodLoan",
+        "summary": "Rechazar un préstamo de pod",
+        "description": "Solo la administración del club que lo recibe. Uno pendiente queda `declined`. Idempotente.",
+        "tags": [
+          "pods"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "podLoanId",
+            "in": "path",
+            "required": true,
+            "description": "Id de préstamo de pod (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "El préstamo rechazado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncomingPodLoan"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error.validation_failed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error.unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error.forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error.not_found"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error.conflict"
+          },
+          "426": {
+            "$ref": "#/components/responses/Error.app_update_required"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error.rate_limited"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error.internal_error"
+          }
+        }
+      }
+    },
+    "/v1/pod-loans/incoming/{podLoanId}/return": {
+      "post": {
+        "operationId": "returnPodLoan",
+        "summary": "Devolver un pod prestado",
+        "description": "Solo la administración del club que lo recibe. Uno activo termina (el pod del club se retira y su asignación en curso termina ahora); uno pendiente se rechaza. Idempotente.",
+        "tags": [
+          "pods"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "bearerToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "podLoanId",
+            "in": "path",
+            "required": true,
+            "description": "Id de préstamo de pod (UUID, RFC 9562).",
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "x-membership-id",
+            "in": "header",
+            "required": false,
+            "description": "Membresía (club y rol) con la que actúa el request, de `GET /v1/me/memberships`. Si el usuario tiene una sola, se usa esa y el header es opcional.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "El préstamo terminado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncomingPodLoan"
                 }
               }
             }
@@ -21026,8 +21336,8 @@
     "/v1/pods/{podId}/loans": {
       "post": {
         "operationId": "lendPod",
-        "summary": "Prestar un pod a otro club",
-        "description": "Solo `sc` y la administración. El club que lo recibe tiene un pod propio por el préstamo (el mismo número, el id corto más bajo libre de su red) y los datos que genere son suyos; el del club queda `lent`. Solo un pod activo del club, sin asignaciones de ahora en adelante. Idempotente por `clientUuid`. Club desconocido: `not_found`; pod no disponible o número ocupado en el otro club: `conflict`.",
+        "summary": "Pedir prestar un pod a otro club",
+        "description": "Solo `sc` y la administración. Queda `pending` hasta que la administración del otro club lo acepta: recién ahí el otro club tiene un pod propio por el préstamo y el del club queda `lent`. La respuesta es la misma exista o no el slug (nunca dice si un club existe). Solo un pod activo del club, sin otro préstamo abierto ni asignaciones de ahora en adelante. Idempotente por `clientUuid`. Pod no disponible o el slug del propio club: `conflict`.",
         "tags": [
           "pods"
         ],
@@ -21102,7 +21412,7 @@
         },
         "responses": {
           "201": {
-            "description": "El préstamo.",
+            "description": "El préstamo, pendiente.",
             "content": {
               "application/json": {
                 "schema": {
@@ -21145,7 +21455,7 @@
       "post": {
         "operationId": "markPodMissing",
         "summary": "Marcar un pod perdido o robado",
-        "description": "Solo `sc` y la administración. Revoca sus claves (la base deja de aceptarlo y se rotan las de baliza en la próxima conexión) y termina su asignación en curso; las que no empezaron se anulan. Idempotente con el mismo estado. Un pod prestado, retirado o de un préstamo recibido: `conflict`.",
+        "description": "Solo `sc` y la administración. Revoca sus claves (la base deja de aceptarlo y se rotan las de baliza en la próxima conexión) y termina su asignación en curso; las que no empezaron se anulan. Idempotente con el mismo estado. Un pod prestado o retirado, o `version` desactualizada: `conflict`.",
         "tags": [
           "pods"
         ],
@@ -21187,6 +21497,10 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "version": {
+                    "description": "Versión que el cliente leyó (`version` de la respuesta). Si no es la actual: `409 conflict`.",
+                    "$ref": "#/components/schemas/ResourceVersion"
+                  },
                   "status": {
                     "type": "string",
                     "enum": [
@@ -21196,6 +21510,7 @@
                   }
                 },
                 "required": [
+                  "version",
                   "status"
                 ],
                 "additionalProperties": false
@@ -21248,7 +21563,7 @@
       "post": {
         "operationId": "recoverPod",
         "summary": "Recuperar un pod perdido o robado",
-        "description": "Solo `sc` y la administración. Vuelve a la flota con la época de claves siguiente: hay que aprovisionarlo de nuevo antes de usarlo. Idempotente.",
+        "description": "Solo `sc` y la administración. Vuelve a la flota con la época de claves siguiente: hay que aprovisionarlo de nuevo antes de usarlo. Idempotente. `version` desactualizada: `conflict`.",
         "tags": [
           "pods"
         ],
@@ -21283,6 +21598,26 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "description": "Versión que el cliente leyó (`version` de la respuesta). Si no es la actual: `409 conflict`.",
+                    "$ref": "#/components/schemas/ResourceVersion"
+                  }
+                },
+                "required": [
+                  "version"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "El pod, activo.",
@@ -21309,6 +21644,9 @@
           "409": {
             "$ref": "#/components/responses/Error.conflict"
           },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
+          },
           "426": {
             "$ref": "#/components/responses/Error.app_update_required"
           },
@@ -21325,7 +21663,7 @@
       "post": {
         "operationId": "retirePod",
         "summary": "Retirar un pod de la flota",
-        "description": "Solo `sc` y la administración. Libera su número y su id corto; sus asignaciones pasadas quedan. Asignado ahora o más adelante, prestado o de un préstamo recibido: `conflict`. Idempotente.",
+        "description": "Solo `sc` y la administración. Libera su número y su id corto; sus asignaciones pasadas quedan. Asignado ahora o más adelante, prestado o de un préstamo recibido, o `version` desactualizada: `conflict`. Idempotente.",
         "tags": [
           "pods"
         ],
@@ -21360,6 +21698,26 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "description": "Versión que el cliente leyó (`version` de la respuesta). Si no es la actual: `409 conflict`.",
+                    "$ref": "#/components/schemas/ResourceVersion"
+                  }
+                },
+                "required": [
+                  "version"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "El pod, retirado.",
@@ -21385,6 +21743,9 @@
           },
           "409": {
             "$ref": "#/components/responses/Error.conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error.payload_too_large"
           },
           "426": {
             "$ref": "#/components/responses/Error.app_update_required"
@@ -21462,7 +21823,7 @@
       "put": {
         "operationId": "setPodCategory",
         "summary": "Habilitar o no los pods en una categoría",
-        "description": "Solo la administración. Las asignaciones ya hechas quedan; las nuevas siguen la configuración.",
+        "description": "Solo la administración. Las asignaciones ya hechas quedan; las nuevas siguen la configuración. Archivada o `version` desactualizada: `conflict`.",
         "tags": [
           "pods"
         ],
@@ -21504,11 +21865,16 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "version": {
+                    "description": "Versión que el cliente leyó (`version` de la respuesta). Si no es la actual: `409 conflict`.",
+                    "$ref": "#/components/schemas/ResourceVersion"
+                  },
                   "podsEnabled": {
                     "type": "boolean"
                   }
                 },
                 "required": [
+                  "version",
                   "podsEnabled"
                 ],
                 "additionalProperties": false
@@ -38220,6 +38586,140 @@
         "description": "Reloj lógico híbrido `PPPPPPPPPPPPPPP-CCCCCC-nodo`: milisegundos desde 1970 (15 dígitos), contador (6 dígitos) y nodo del dispositivo (16 a 32 caracteres hex en minúscula). Se ordena como texto.",
         "example": "001793620800000-000003-0f1e2d3c4b5a6978"
       },
+      "IncomingPodLoan": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de préstamo de pod (UUID, RFC 9562)."
+          },
+          "lenderClubId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "description": "Id de club (UUID, RFC 9562)."
+          },
+          "lenderClubName": {
+            "type": "string"
+          },
+          "podNumber": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 999,
+            "description": "Número pintado en el pod y en su chaleco (1 a 999), único entre los pods del club que no están retirados."
+          },
+          "serialNumber": {
+            "type": "string"
+          },
+          "hardwareRevision": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PodLoanStatus"
+          },
+          "requestedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+            "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+            "examples": [
+              "2026-11-01T12:00:00.000Z"
+            ]
+          },
+          "plannedEndsAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "acceptedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "endedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "podId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de pod (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "El pod del club por el préstamo, una vez aceptado."
+          }
+        },
+        "required": [
+          "id",
+          "lenderClubId",
+          "lenderClubName",
+          "podNumber",
+          "serialNumber",
+          "hardwareRevision",
+          "status",
+          "requestedAt",
+          "plannedEndsAt",
+          "acceptedAt",
+          "endedAt",
+          "podId"
+        ]
+      },
+      "IncomingPodLoanList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncomingPodLoan"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
       "Invitation": {
         "type": "object",
         "properties": {
@@ -43771,11 +44271,16 @@
           },
           "podsEnabled": {
             "type": "boolean"
+          },
+          "version": {
+            "description": "Versión de la categoría.",
+            "$ref": "#/components/schemas/ResourceVersion"
           }
         },
         "required": [
           "categoryId",
-          "podsEnabled"
+          "podsEnabled",
+          "version"
         ]
       },
       "PodCategoryList": {
@@ -43997,13 +44502,28 @@
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "description": "Id de pod (UUID, RFC 9562)."
           },
-          "borrowerClubId": {
+          "borrowerClubSlug": {
             "type": "string",
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-            "description": "Id de club (UUID, RFC 9562)."
+            "description": "El slug del club al que se pidió."
           },
-          "startsAt": {
+          "borrowerClubId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "description": "Id de club (UUID, RFC 9562)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "El club que lo recibió, una vez aceptado; `null` mientras está pendiente o si no se aceptó (nunca dice si el slug existe)."
+          },
+          "status": {
+            "$ref": "#/components/schemas/PodLoanStatus"
+          },
+          "requestedAt": {
             "type": "string",
             "format": "date-time",
             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
@@ -44013,6 +44533,22 @@
             ]
           },
           "plannedEndsAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                "description": "Fecha y hora ISO 8601 con zona (`Z` u offset). El servidor emite UTC con milisegundos.",
+                "examples": [
+                  "2026-11-01T12:00:00.000Z"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "acceptedAt": {
             "anyOf": [
               {
                 "type": "string",
@@ -44066,9 +44602,12 @@
         "required": [
           "id",
           "podId",
+          "borrowerClubSlug",
           "borrowerClubId",
-          "startsAt",
+          "status",
+          "requestedAt",
           "plannedEndsAt",
+          "acceptedAt",
           "endedAt",
           "createdAt",
           "updatedAt"
@@ -44100,6 +44639,17 @@
           "items",
           "nextCursor"
         ]
+      },
+      "PodLoanStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "active",
+          "declined",
+          "cancelled",
+          "returned"
+        ],
+        "description": "`pending` (pedido, hasta que la administración del otro club lo acepte), `active`, `declined` (el otro club no lo aceptó), `cancelled` (el club lo retiró antes) o `returned` (terminó)."
       },
       "PodPage": {
         "type": "object",

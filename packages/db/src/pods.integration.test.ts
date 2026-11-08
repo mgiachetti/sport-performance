@@ -485,86 +485,208 @@ describe.skipIf(!hasDatabase)('pod fleet (Postgres 16)', () => {
   }
 
   describe('loans', () => {
-    it('lend and end: two clubs, the next key epoch, only S&C and the administration', async () => {
-      const { podId } = await newPod(a);
-      for (const who of ['coach', 'player', 'medical'] as const) {
-        const result = await failure(
-          run(as(who), (client) =>
-            client.query('select app.lend_pod($1, $2, null, $3)', [podId, b.slug, randomUUID()]),
-          ),
+    const lendAs = (who: FixtureUser, podId: string, slug: string, clientUuid = randomUUID()) =>
+      run(as(who), async (client) => {
+        const { rows } = await client.query<{ id: string }>(
+          'select app.lend_pod($1, $2, null, $3) as id',
+          [podId, slug, clientUuid],
         );
+        return must(rows[0]).id;
+      });
+    const loanOf = async (id: string) =>
+      must(
+        (
+          await t.pool.query<{ status: string; borrower_club_id: string | null }>(
+            'select status::text, borrower_club_id from pod_loan where id = $1',
+            [id],
+          )
+        ).rows[0],
+      );
+    const incoming = (who: FixtureUser, club: ClubFixture) =>
+      run(as(who, club), async (client) => {
+        const { rows } = await client.query<{ id: string; status: string }>(
+          'select id, status::text from app.incoming_pod_loans()',
+        );
+        return rows;
+      });
+    const statusOf = async (id: string) =>
+      must(
+        (await t.pool.query<{ status: string }>('select status from pod where id = $1', [id]))
+          .rows[0],
+      ).status;
+
+    it('asked by S&C, accepted by the receiving administration: two clubs, the next key epoch', async () => {
+      const { podId, deviceId } = await newPod(a);
+      for (const who of ['coach', 'player', 'medical'] as const) {
+        const result = await failure(lendAs(who, podId, b.slug));
         expect(result.code, who).toBe('42501');
       }
       const clientUuid = randomUUID();
-      const lend = () =>
-        run(as('sc'), async (client) => {
-          const { rows } = await client.query<{ id: string }>(
-            'select app.lend_pod($1, $2, null, $3) as id',
-            [podId, b.slug, clientUuid],
-          );
-          return must(rows[0]).id;
-        });
-      const loanId = await lend();
-      expect(await lend()).toBe(loanId);
-      const lender = await t.pool.query<{ status: string }>(
-        'select status from pod where id = $1',
-        [podId],
-      );
-      expect(must(lender.rows[0]).status).toBe('lent');
-      // The receiving club sees its pod for the loan, never the loan itself.
-      const borrowed = await run(as('admin', b), async (client) => {
-        const { rows } = await client.query<{
-          id: string;
-          status: string;
-          borrowed_from_club_id: string;
-        }>('select id, status, borrowed_from_club_id from pod where loan_id = $1', [loanId]);
-        return rows;
-      });
-      expect(borrowed).toHaveLength(1);
-      expect(must(borrowed[0]).borrowed_from_club_id).toBe(a.clubId);
+      const loanId = await lendAs('sc', podId, b.slug, clientUuid);
+      expect(await lendAs('sc', podId, b.slug, clientUuid)).toBe(loanId);
+      expect((await loanOf(loanId)).status).toBe('pending');
+      // Pending: the lender's pod stays in its fleet; the other club sees the request.
+      expect(await statusOf(podId)).toBe('active');
+      expect((await incoming('admin', b)).map((l) => l.id)).toContain(loanId);
+      expect(await incoming('sc', b)).toEqual([]);
       expect(await count(as('admin', b), 'from pod_loan where id = $1', [loanId])).toBe(0);
-      expect(await count(as('sc'), 'from pod_loan where id = $1', [loanId])).toBe(1);
-      expect(await count(as('coach'), 'from pod_loan')).toBe(0);
-      // A lent pod is not lent again; the receiving club cannot lend it on.
+      // Only the administration accepts; a number the receiving club uses is a conflict.
       expect(
         (
           await failure(
-            run(as('sc'), (client) =>
-              client.query('select app.lend_pod($1, $2, null, $3)', [podId, b.slug, randomUUID()]),
-            ),
+            run(as('sc', b), (c) => c.query('select app.accept_pod_loan($1, null)', [loanId])),
           )
-        ).constraint,
-      ).toBe('pod_loan_pod_unavailable');
-      // The application never writes a loan directly.
+        ).code,
+      ).toBe('42501');
+      expect(
+        await failure(
+          run(as('admin', b), (c) => c.query('select app.accept_pod_loan($1, 1)', [loanId])),
+        ),
+      ).toEqual({ code: '23505', constraint: 'pod_number_live_key' });
+      const borrowedId = await run(as('admin', b), async (c) => {
+        const { rows } = await c.query<{ id: string }>(
+          'select app.accept_pod_loan($1, null) as id',
+          [loanId],
+        );
+        return must(rows[0]).id;
+      });
+      expect((await loanOf(loanId)).status).toBe('active');
+      expect(await statusOf(podId)).toBe('lent');
+      const devicesOfB = () =>
+        run(as('admin', b), async (c) => {
+          const { rows } = await c.query<{ id: string }>('select id from app.club_pod_devices()');
+          return rows.map((r) => r.id);
+        });
+      expect(await devicesOfB()).toContain(deviceId);
+      // The registry never moves a device that is in a fleet.
+      expect(
+        await failure(
+          run({ userId: superadminId, supportReason: 'Registro de pods' }, (c) =>
+            c.query('update pod_device set owner_club_id = $2 where id = $1', [deviceId, b.clubId]),
+          ),
+        ),
+      ).toEqual({ code: '23514', constraint: 'pod_device_in_use' });
+      // A lent pod is not lent again; the application never writes a loan directly.
+      expect((await failure(lendAs('sc', podId, b.slug))).constraint).toBe(
+        'pod_loan_pod_unavailable',
+      );
       expect(
         (
           await failure(
-            run(as('admin'), (client) =>
-              client.query('update pod_loan set ended_at = now() where id = $1', [loanId]),
+            run(as('admin'), (c) =>
+              c.query('update pod_loan set ended_at = now() where id = $1', [loanId]),
             ),
           )
         ).code,
       ).toBe('42501');
-
-      await run(as('admin'), (client) => client.query('select app.end_pod_loan($1)', [loanId]));
-      await run(as('admin'), (client) => client.query('select app.end_pod_loan($1)', [loanId]));
+      // The receiving club returns it; the lender's pod is back with the next epoch.
+      await run(as('admin', b), (c) => c.query('select app.end_pod_loan($1)', [loanId]));
+      await run(as('admin'), (c) => c.query('select app.end_pod_loan($1)', [loanId]));
+      expect((await loanOf(loanId)).status).toBe('returned');
       const after = await t.pool.query<{ status: string; key_epoch: number }>(
         'select status, key_epoch from pod where id = $1',
         [podId],
       );
       expect(must(after.rows[0])).toEqual({ status: 'active', key_epoch: 1 });
-      const back = await t.pool.query<{ status: string }>('select status from pod where id = $1', [
-        must(borrowed[0]).id,
-      ]);
-      expect(must(back.rows[0]).status).toBe('retired');
-      // Another club's loan is not found.
+      expect(await statusOf(borrowedId)).toBe('retired');
+      expect(await devicesOfB()).not.toContain(deviceId);
+    });
+
+    it('an unknown club looks like a known one; declined and cancelled loans', async () => {
+      const { podId } = await newPod(a);
+      const unknown = await lendAs('sc', podId, 'no-such-club');
+      expect(await loanOf(unknown)).toEqual({ status: 'pending', borrower_club_id: null });
+      await run(as('sc'), (c) => c.query('select app.end_pod_loan($1)', [unknown]));
+      expect((await loanOf(unknown)).status).toBe('cancelled');
+      const declined = await lendAs('admin', podId, b.slug);
+      await run(as('admin', b), (c) => c.query('select app.end_pod_loan($1)', [declined]));
+      expect((await loanOf(declined)).status).toBe('declined');
       expect(
         (
           await failure(
-            run(as('admin', b), (client) => client.query('select app.end_pod_loan($1)', [loanId])),
+            run(as('admin', b), (c) => c.query('select app.accept_pod_loan($1, null)', [declined])),
+          )
+        ).constraint,
+      ).toBe('pod_loan_not_pending');
+      expect((await failure(lendAs('sc', podId, a.slug))).constraint).toBe('pod_loan_other_club');
+    });
+  });
+
+  describe('release and growth of assignments', () => {
+    it('only S&C and the administration release a pod; a lost pod never grows an assignment', async () => {
+      const { podId } = await newPod(a);
+      const created = await insertAssignment(as('coach'), {
+        podId,
+        playerId: a.players.assigned,
+        startsAt: '2026-11-06T15:00:00Z',
+        endsAt: '2026-11-06T16:00:00Z',
+      });
+      const id = must(created.rows[0] as { id: string }).id;
+      expect(
+        (
+          await failure(
+            run(as('coach'), (c) =>
+              c.query(`select app.release_pod_assignments($1, 'x', false)`, [podId]),
+            ),
           )
         ).code,
-      ).toBe('P0002');
+      ).toBe('42501');
+      await t.pool.query(`update pod set status = 'lost' where id = $1`, [podId]);
+      const grow = await failure(
+        run(as('coach'), async (c) => {
+          await c.query(`select set_config('app.change_reason', 'más tiempo', true)`);
+          await c.query(
+            `update pod_assignment set ends_at = '2026-11-06T17:00:00Z' where id = $1`,
+            [id],
+          );
+        }),
+      );
+      expect(grow).toEqual({ code: '23514', constraint: 'pod_assignment_extension' });
+      // Shrinking is free of the checks.
+      await run(as('coach'), async (c) => {
+        await c.query(`select set_config('app.change_reason', 'menos tiempo', true)`);
+        await c.query(`update pod_assignment set ends_at = '2026-11-06T15:30:00Z' where id = $1`, [
+          id,
+        ]);
+      });
+      // A voided one never comes back.
+      await run(as('coach'), (c) =>
+        c.query(`update pod_assignment set archived_at = now() where id = $1`, [id]),
+      );
+      expect(
+        await failure(
+          run(as('admin'), (c) =>
+            c.query(`update pod_assignment set archived_at = null where id = $1`, [id]),
+          ),
+        ),
+      ).toEqual({ code: '23514', constraint: 'pod_assignment_voided' });
+    });
+
+    it('revoking the location consent ends the assignment the player wears', async () => {
+      const { podId } = await newPod(a);
+      const created = await insertAssignment(as('coach'), {
+        podId,
+        playerId: a.players.assigned,
+        startsAt: new Date(Date.now() - 60_000).toISOString(),
+        endsAt: null,
+      });
+      const id = must(created.rows[0] as { id: string }).id;
+      await run(as('parent'), (c) =>
+        c.query(
+          `update consent set revoked_at = now(), revoked_by = $2, updated_by = $2
+            where player_id = $1 and type = 'location' and revoked_at is null`,
+          [a.players.assigned, a.users.parent],
+        ),
+      );
+      const { rows } = await t.pool.query<{ ended: boolean; reason: string | null }>(
+        `select a.ends_at is not null as ended,
+                (select h.reason from change_history h
+                  where h.table_name = 'pod_assignment' and h.record_id = a.id
+                  order by h.seq desc limit 1) as reason
+           from pod_assignment a where a.id = $1`,
+        [id],
+      );
+      expect(must(rows[0])).toEqual({ ended: true, reason: 'location consent revoked' });
     });
   });
 });

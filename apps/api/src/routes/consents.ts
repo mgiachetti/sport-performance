@@ -12,7 +12,13 @@ import {
   type ConsentDocumentSummary,
   type ConsentTypeStatus,
 } from '@sport-performance/contracts';
-import { consent, consentDocument, player } from '@sport-performance/db/schema';
+import {
+  category,
+  consent,
+  consentDocument,
+  player,
+  playerCategory,
+} from '@sport-performance/db/schema';
 import {
   CONSENT_TYPES,
   consentSignerOfRole,
@@ -253,7 +259,29 @@ async function askedTypes(
         await clubModules(db, clubId),
         row.sex,
         signed.map((s) => s.type),
+        await inPodsCategory(db, clubId, playerId),
       );
+}
+
+/**
+ * Whether the player is today in a category with pods (`category.pods_enabled`,
+ * B-912): the location consent is asked only there (ADR 0107).
+ */
+async function inPodsCategory(
+  db: TenantDatabase,
+  clubId: ClubId,
+  playerId: PlayerId,
+): Promise<boolean> {
+  const { rows } = await db.execute<{ found: boolean }>(
+    sql`select exists (
+          select 1 from ${playerCategory} pc
+            join ${category} c on c.club_id = pc.club_id and c.id = pc.category_id
+           where pc.club_id = ${clubId} and pc.player_id = ${playerId}
+             and c.pods_enabled and c.archived_at is null
+             and pc.valid_from <= app.club_today()
+             and (pc.valid_to is null or pc.valid_to > app.club_today())) as found`,
+  );
+  return rows[0]?.found === true;
 }
 
 async function playerSex(
@@ -442,7 +470,12 @@ export function registerConsentRoutes(app: FastifyInstance): void {
       const sex = await playerSex(db, clubId, facts.id);
       if (
         sex === undefined ||
-        !consentTypeSignable(await clubModules(db, clubId), sex.sex, document.type)
+        !consentTypeSignable(
+          await clubModules(db, clubId),
+          sex.sex,
+          document.type,
+          await inPodsCategory(db, clubId, facts.id),
+        )
       ) {
         throw new HttpError('conflict', 'This consent is not asked for this player');
       }

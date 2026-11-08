@@ -254,6 +254,7 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
     );
     expect(rows.map((r) => r.fn)).toEqual([
       'app.accept_invitation',
+      'app.accept_pod_loan',
       'app.assigned_category_ids',
       'app.begin_support_access',
       'app.category_report_coverage',
@@ -267,6 +268,7 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
       'app.erase_player',
       'app.export_player_data',
       'app.guardian_children',
+      'app.incoming_pod_loans',
       'app.invitation_by_token',
       'app.is_superadmin',
       'app.lend_pod',
@@ -298,12 +300,14 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
       'public.change_history_record',
       'public.club_data_export_forget_player',
       'public.consent_location_erasure',
+      'public.consent_pod_assignments_release',
       'public.derived_refresh_mark',
       'public.derived_refresh_trigger',
       'public.file_test_entry_check',
       'public.gym_set_program_guard',
       'public.player_sport_matches',
       'public.pod_device_guard',
+      'public.pod_device_owner_guard',
       'public.sync_change_record',
       'public.unit_matches_metric',
     ]);

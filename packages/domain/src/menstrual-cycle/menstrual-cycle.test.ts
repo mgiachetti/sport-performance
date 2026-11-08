@@ -219,6 +219,21 @@ describe('menstrualCycleUnavailableReason', () => {
   });
 });
 
+describe('consentTypesAskedFor: location only in categories with pods (B-912)', () => {
+  const GPS = { menstrual_cycle: false, gps: true };
+  it('asks for location with gps on and the player in a category with pods', () => {
+    expect(consentTypesAskedFor(GPS, 'male', [], true)).toContain('location');
+    expect(consentTypesAskedFor(GPS, 'male', [], false)).not.toContain('location');
+    expect(consentTypesAskedFor({ ...GPS, gps: false }, 'male', [], true)).not.toContain(
+      'location',
+    );
+    // Once signed it stays, so it can be revoked.
+    expect(consentTypesAskedFor(GPS, 'male', ['location'], false)).toContain('location');
+    expect(consentTypeSignable(GPS, 'male', 'location', false)).toBe(false);
+    expect(consentTypeSignable(GPS, 'male', 'location', true)).toBe(true);
+  });
+});
+
 describe('consentTypesAskedFor', () => {
   it('asks for the cycle consent only where the module is offered, or once signed', () => {
     expect(consentTypesAskedFor(DEFAULT_CLUB_MODULES, 'female', [])).toEqual([

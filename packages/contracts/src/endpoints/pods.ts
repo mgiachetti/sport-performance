@@ -10,6 +10,7 @@ import {
   POD_SHORT_ID_MAX,
   POD_SHORT_ID_MIN,
   POD_STATUSES,
+  POD_LOAN_STATUSES,
   normalizePodSerial,
 } from '@sport-performance/domain';
 import { z } from 'zod';
@@ -344,11 +345,12 @@ export const markPodMissing = defineEndpoint({
   method: 'POST',
   path: '/v1/pods/{podId}/missing',
   summary: 'Marcar un pod perdido o robado',
-  description: `${FLEET_MANAGE} Revoca sus claves (la base deja de aceptarlo y se rotan las de baliza en la próxima conexión) y termina su asignación en curso; las que no empezaron se anulan. Idempotente con el mismo estado. Un pod prestado, retirado o de un préstamo recibido: \`conflict\`.`,
+  description: `${FLEET_MANAGE} Revoca sus claves (la base deja de aceptarlo y se rotan las de baliza en la próxima conexión) y termina su asignación en curso; las que no empezaron se anulan. Idempotente con el mismo estado. Un pod prestado o retirado, o \`version\` desactualizada: \`conflict\`.`,
   tags: ['pods'],
   auth: 'club',
   params: podParams,
   body: z.strictObject({
+    version: expectedVersionSchema,
     status: z.enum(['lost', 'stolen']),
   }),
   response: { status: 200, description: 'El pod, perdido o robado.', schema: podSchema },
@@ -359,10 +361,11 @@ export const recoverPod = defineEndpoint({
   method: 'POST',
   path: '/v1/pods/{podId}/recover',
   summary: 'Recuperar un pod perdido o robado',
-  description: `${FLEET_MANAGE} Vuelve a la flota con la época de claves siguiente: hay que aprovisionarlo de nuevo antes de usarlo. Idempotente.`,
+  description: `${FLEET_MANAGE} Vuelve a la flota con la época de claves siguiente: hay que aprovisionarlo de nuevo antes de usarlo. Idempotente. \`version\` desactualizada: \`conflict\`.`,
   tags: ['pods'],
   auth: 'club',
   params: podParams,
+  body: z.strictObject({ version: expectedVersionSchema }),
   response: { status: 200, description: 'El pod, activo.', schema: podSchema },
   errors: ['not_found', 'conflict'],
 });
@@ -371,10 +374,11 @@ export const retirePod = defineEndpoint({
   method: 'POST',
   path: '/v1/pods/{podId}/retire',
   summary: 'Retirar un pod de la flota',
-  description: `${FLEET_MANAGE} Libera su número y su id corto; sus asignaciones pasadas quedan. Asignado ahora o más adelante, prestado o de un préstamo recibido: \`conflict\`. Idempotente.`,
+  description: `${FLEET_MANAGE} Libera su número y su id corto; sus asignaciones pasadas quedan. Asignado ahora o más adelante, prestado o de un préstamo recibido, o \`version\` desactualizada: \`conflict\`. Idempotente.`,
   tags: ['pods'],
   auth: 'club',
   params: podParams,
+  body: z.strictObject({ version: expectedVersionSchema }),
   response: { status: 200, description: 'El pod, retirado.', schema: podSchema },
   errors: ['not_found', 'conflict'],
 });
@@ -385,6 +389,7 @@ export const podCategorySchema = z
   .object({
     categoryId: categoryIdSchema,
     podsEnabled: z.boolean(),
+    version: resourceVersionSchema.meta({ description: 'Versión de la categoría.' }),
   })
   .meta({ id: 'PodCategory' });
 
@@ -408,24 +413,36 @@ export const setPodCategory = defineEndpoint({
   path: '/v1/pods/categories/{categoryId}',
   summary: 'Habilitar o no los pods en una categoría',
   description:
-    'Solo la administración. Las asignaciones ya hechas quedan; las nuevas siguen la configuración.',
+    'Solo la administración. Las asignaciones ya hechas quedan; las nuevas siguen la configuración. Archivada o `version` desactualizada: `conflict`.',
   tags: ['pods'],
   auth: 'club',
   params: z.strictObject({ categoryId: categoryIdSchema }),
-  body: z.strictObject({ podsEnabled: z.boolean() }),
+  body: z.strictObject({ version: expectedVersionSchema, podsEnabled: z.boolean() }),
   response: { status: 200, description: 'La categoría.', schema: podCategorySchema },
   errors: ['not_found', 'conflict'],
 });
 
 // ─── Loans ───────────────────────────────────────────────────────────────────────────
 
+export const podLoanStatusSchema = z.enum(POD_LOAN_STATUSES).meta({
+  id: 'PodLoanStatus',
+  description:
+    '`pending` (pedido, hasta que la administración del otro club lo acepte), `active`, `declined` (el otro club no lo aceptó), `cancelled` (el club lo retiró antes) o `returned` (terminó).',
+});
+
 export const podLoanSchema = z
   .object({
     id: podLoanIdSchema,
     podId: podIdSchema,
-    borrowerClubId: clubIdSchema,
-    startsAt: dateTimeSchema,
+    borrowerClubSlug: z.string().meta({ description: 'El slug del club al que se pidió.' }),
+    borrowerClubId: clubIdSchema.nullable().meta({
+      description:
+        'El club que lo recibió, una vez aceptado; `null` mientras está pendiente o si no se aceptó (nunca dice si el slug existe).',
+    }),
+    status: podLoanStatusSchema,
+    requestedAt: dateTimeSchema,
     plannedEndsAt: dateTimeSchema.nullable(),
+    acceptedAt: dateTimeSchema.nullable(),
     endedAt: dateTimeSchema.nullable(),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
@@ -434,16 +451,40 @@ export const podLoanSchema = z
 
 export type PodLoan = z.output<typeof podLoanSchema>;
 
+export const incomingPodLoanSchema = z
+  .object({
+    id: podLoanIdSchema,
+    lenderClubId: clubIdSchema,
+    lenderClubName: z.string(),
+    podNumber: podNumberSchema,
+    serialNumber: z.string(),
+    hardwareRevision: z.string(),
+    status: podLoanStatusSchema,
+    requestedAt: dateTimeSchema,
+    plannedEndsAt: dateTimeSchema.nullable(),
+    acceptedAt: dateTimeSchema.nullable(),
+    endedAt: dateTimeSchema.nullable(),
+    podId: podIdSchema
+      .nullable()
+      .meta({ description: 'El pod del club por el préstamo, una vez aceptado.' }),
+  })
+  .meta({ id: 'IncomingPodLoan' });
+
+export type IncomingPodLoan = z.output<typeof incomingPodLoanSchema>;
+
+const loanParams = z.strictObject({ podLoanId: podLoanIdSchema });
+const BORROWER_RULES = 'Solo la administración del club que lo recibe.';
+
 export const listPodLoans = defineEndpoint({
   method: 'GET',
   path: '/v1/pod-loans',
   summary: 'Préstamos de pods del club',
-  description: `${FLEET_MANAGE} Los que el club hizo a otros clubes, los más recientes primero. Por defecto, los abiertos.`,
+  description: `${FLEET_MANAGE} Los que el club pidió hacer a otros clubes, los más recientes primero. Por defecto, los abiertos (pendientes y activos).`,
   tags: ['pods'],
   auth: 'club',
   query: pageQuerySchema.extend({
     status: z.enum(['open', 'all']).default('open'),
-    sort: sortQuerySchema(['startsAt'], 'startsAt'),
+    sort: sortQuerySchema(['requestedAt'], '-requestedAt'),
   }),
   response: {
     status: 200,
@@ -456,8 +497,8 @@ export const listPodLoans = defineEndpoint({
 export const lendPod = defineEndpoint({
   method: 'POST',
   path: '/v1/pods/{podId}/loans',
-  summary: 'Prestar un pod a otro club',
-  description: `${FLEET_MANAGE} El club que lo recibe tiene un pod propio por el préstamo (el mismo número, el id corto más bajo libre de su red) y los datos que genere son suyos; el del club queda \`lent\`. Solo un pod activo del club, sin asignaciones de ahora en adelante. Idempotente por \`clientUuid\`. Club desconocido: \`not_found\`; pod no disponible o número ocupado en el otro club: \`conflict\`.`,
+  summary: 'Pedir prestar un pod a otro club',
+  description: `${FLEET_MANAGE} Queda \`pending\` hasta que la administración del otro club lo acepta: recién ahí el otro club tiene un pod propio por el préstamo y el del club queda \`lent\`. La respuesta es la misma exista o no el slug (nunca dice si un club existe). Solo un pod activo del club, sin otro préstamo abierto ni asignaciones de ahora en adelante. Idempotente por \`clientUuid\`. Pod no disponible o el slug del propio club: \`conflict\`.`,
   tags: ['pods'],
   auth: 'club',
   params: podParams,
@@ -466,19 +507,71 @@ export const lendPod = defineEndpoint({
     borrowerClubSlug: slugSchema.meta({ description: 'Slug del club que lo recibe.' }),
     plannedEndsAt: dateTimeSchema.optional(),
   }),
-  response: { status: 201, description: 'El préstamo.', schema: podLoanSchema },
-  errors: ['not_found', 'conflict'],
+  response: { status: 201, description: 'El préstamo, pendiente.', schema: podLoanSchema },
+  errors: ['not_found', 'conflict', 'validation_failed'],
 });
 
 export const endPodLoan = defineEndpoint({
   method: 'POST',
   path: '/v1/pod-loans/{podLoanId}/end',
-  summary: 'Terminar un préstamo',
-  description: `${FLEET_MANAGE} El pod del otro club se retira (sus asignaciones terminan ahora) y el del club vuelve a la flota con la época de claves siguiente. Idempotente.`,
+  summary: 'Retirar o terminar un préstamo',
+  description: `${FLEET_MANAGE} Uno pendiente se retira (\`cancelled\`); uno activo termina: el pod del otro club se retira (su asignación en curso termina ahora) y el del club vuelve a la flota con la época de claves siguiente. Idempotente.`,
   tags: ['pods'],
   auth: 'club',
-  params: z.strictObject({ podLoanId: podLoanIdSchema }),
+  params: loanParams,
   response: { status: 200, description: 'El préstamo terminado.', schema: podLoanSchema },
+  errors: ['not_found'],
+});
+
+export const listIncomingPodLoans = defineEndpoint({
+  method: 'GET',
+  path: '/v1/pod-loans/incoming',
+  summary: 'Préstamos de pods que otros clubes le ofrecen al club',
+  description: `${BORROWER_RULES} Los más recientes primero.`,
+  tags: ['pods'],
+  auth: 'club',
+  response: {
+    status: 200,
+    description: 'Los préstamos ofrecidos al club.',
+    schema: z.object({ items: z.array(incomingPodLoanSchema) }).meta({ id: 'IncomingPodLoanList' }),
+  },
+  errors: [],
+});
+
+export const acceptPodLoan = defineEndpoint({
+  method: 'POST',
+  path: '/v1/pod-loans/incoming/{podLoanId}/accept',
+  summary: 'Aceptar un préstamo de pod',
+  description: `${BORROWER_RULES} El club tiene un pod propio por el préstamo: con \`number\` (por defecto, el número del club que lo presta; si el club ya lo usa: \`conflict\` con el detalle en \`number\`, para elegir otro) y el id corto más bajo libre de su red. El pod tiene que seguir activo y libre en el otro club. Uno ya activo: idempotente; uno que ya no está pendiente: \`conflict\`.`,
+  tags: ['pods'],
+  auth: 'club',
+  params: loanParams,
+  body: z.strictObject({ number: podNumberSchema.optional() }),
+  response: { status: 200, description: 'El préstamo aceptado.', schema: incomingPodLoanSchema },
+  errors: ['not_found', 'conflict'],
+});
+
+export const declinePodLoan = defineEndpoint({
+  method: 'POST',
+  path: '/v1/pod-loans/incoming/{podLoanId}/decline',
+  summary: 'Rechazar un préstamo de pod',
+  description: `${BORROWER_RULES} Uno pendiente queda \`declined\`. Idempotente.`,
+  tags: ['pods'],
+  auth: 'club',
+  params: loanParams,
+  response: { status: 200, description: 'El préstamo rechazado.', schema: incomingPodLoanSchema },
+  errors: ['not_found', 'conflict'],
+});
+
+export const returnPodLoan = defineEndpoint({
+  method: 'POST',
+  path: '/v1/pod-loans/incoming/{podLoanId}/return',
+  summary: 'Devolver un pod prestado',
+  description: `${BORROWER_RULES} Uno activo termina (el pod del club se retira y su asignación en curso termina ahora); uno pendiente se rechaza. Idempotente.`,
+  tags: ['pods'],
+  auth: 'club',
+  params: loanParams,
+  response: { status: 200, description: 'El préstamo terminado.', schema: incomingPodLoanSchema },
   errors: ['not_found'],
 });
 
@@ -586,7 +679,7 @@ export const endPodAssignment = defineEndpoint({
   method: 'POST',
   path: '/v1/pod-assignments/{podAssignmentId}/end',
   summary: 'Terminar una asignación',
-  description: `Quien puede asignar (sin pedir el consentimiento: un consentimiento revocado nunca deja un pod asignado). En \`endsAt\` (por defecto, ahora). Una ya terminada o anulada: \`conflict\`.`,
+  description: `El \`coach\` y el \`sc\` de la categoría del jugador y la administración (\`pod_assignment.manage\`), sin pedir el consentimiento: un consentimiento revocado nunca deja un pod asignado. Solo una abierta, en \`endsAt\` (por defecto, ahora; uno en el pasado la marca para reprocesar). Una ya terminada o anulada: \`conflict\`.`,
   tags: ['pods'],
   auth: 'club',
   params: assignmentParams,
@@ -601,7 +694,7 @@ export const correctPodAssignment = defineEndpoint({
   method: 'PATCH',
   path: '/v1/pod-assignments/{podAssignmentId}',
   summary: 'Corregir una asignación',
-  description: `Quien puede asignar. Cambia el inicio, el fin o la nota; el pod y el jugador no (una equivocada se anula y se hace otra). Corregir el rango pide \`changeReason\` (queda en el historial) y marca la asignación para reprocesar las sesiones afectadas. ${CONFLICTS} \`version\` desactualizada: \`conflict\`.`,
+  description: `Cambia el inicio, el fin o la nota; el pod y el jugador no (una equivocada se anula y se hace otra). Achicar el rango lo puede quien la gestiona (\`pod_assignment.manage\`); agrandarlo (empezar antes, terminar después o dejarla abierta) es asignar de nuevo: pide \`pod_assignment.assign\` con los consentimientos \`data\` y \`location\`, el pod activo y la categoría con pods. Corregir el rango pide \`changeReason\` (queda en el historial) y marca la asignación para reprocesar las sesiones afectadas. ${CONFLICTS} \`version\` desactualizada: \`conflict\`.`,
   tags: ['pods'],
   auth: 'club',
   params: assignmentParams,
@@ -621,7 +714,7 @@ export const voidPodAssignment = defineEndpoint({
   path: '/v1/pod-assignments/{podAssignmentId}/void',
   summary: 'Anular una asignación',
   description:
-    'Quien puede asignar. Una cargada por error (otro jugador, otro pod): deja de contar, con motivo en el historial, y se marca para reprocesar. Idempotente.',
+    'Quien gestiona las asignaciones del jugador (`pod_assignment.manage`, sin consentimiento). Una cargada por error (otro jugador, otro pod): deja de contar, con motivo en el historial, y se marca para reprocesar; nunca vuelve. Idempotente.',
   tags: ['pods'],
   auth: 'club',
   params: assignmentParams,

@@ -7,6 +7,7 @@ import {
   POD_SHORT_ID_MAX,
   POD_SHORT_ID_MIN,
   POD_STATUSES,
+  POD_LOAN_STATUSES,
   type ClubId,
   type PlayerId,
 } from '@sport-performance/domain';
@@ -38,6 +39,7 @@ import { trainingSession } from './training.js';
 
 export const podProvisioningStateEnum = pgEnum('pod_provisioning_state', POD_PROVISIONING_STATES);
 export const podStatusEnum = pgEnum('pod_status', POD_STATUSES);
+export const podLoanStatusEnum = pgEnum('pod_loan_status', POD_LOAN_STATUSES);
 
 /**
  * A physical pod, global to the platform (no `club_id`, like the identity
@@ -164,10 +166,14 @@ export const pod = pgTable(
 
 /**
  * A loan of the club's pod to another club (ADR 0106), a row of the lending
- * club: the receiving club gets a pod of its own for the loan
- * (`borrower_pod_id`, a row of that club) and the lender's pod is `lent`.
- * The data generated during the loan belongs to the receiving club. Created
- * and ended by `app.lend_pod` / `app.end_pod_loan`, which write both clubs.
+ * club, in two steps: S&C or the administration of the lender asks for it
+ * (`pending`, naming the other club by its slug: whether that club exists is
+ * never answered), and the administration of the receiving club accepts it
+ * (`active`: it gets a pod of its own for the loan, `borrower_pod_id`, a row
+ * of that club, and the lender's pod is `lent`) or declines it. The lender
+ * cancels a pending one; either side ends an active one (`returned`). The
+ * data generated during the loan belongs to the receiving club. Written only
+ * by the `app.*_pod_loan` functions, which write both clubs.
  */
 export const podLoan = pgTable(
   'pod_loan',
@@ -177,35 +183,58 @@ export const podLoan = pgTable(
     deviceId: uuid('device_id')
       .notNull()
       .references(() => podDevice.id, { onDelete: 'restrict' }),
+    status: podLoanStatusEnum('status').notNull().default('pending'),
+    /** The slug the lender typed; the club it names, if any, is `borrower_club_id`. */
+    borrowerClubSlug: text('borrower_club_slug').notNull(),
     borrowerClubId: uuid('borrower_club_id')
-      .notNull()
       .references(() => club.id, { onDelete: 'restrict' })
       .$type<ClubId>(),
-    /** The pod of the receiving club (no foreign key: a row of another club). */
-    borrowerPodId: uuid('borrower_pod_id').notNull(),
-    startsAt: timestamptz('starts_at').notNull().defaultNow(),
-    /** When the loan is planned to end; it ends when the lender ends it (`ended_at`). */
+    /** The pod of the receiving club once accepted (no foreign key: a row of another club). */
+    borrowerPodId: uuid('borrower_pod_id'),
+    requestedAt: timestamptz('requested_at').notNull().defaultNow(),
+    /** When the loan is planned to end; it ends when one of the clubs ends it. */
     plannedEndsAt: timestamptz('planned_ends_at'),
+    acceptedAt: timestamptz('accepted_at'),
+    acceptedBy: text('accepted_by').references(() => user.id, { onDelete: 'set null' }),
     endedAt: timestamptz('ended_at'),
     endedBy: text('ended_by').references(() => user.id, { onDelete: 'set null' }),
   },
   (t) => [
     ...tenantConstraints('pod_loan', t),
     tenantReference('pod_loan', t.clubId, t.podId, pod),
-    index('pod_loan_pod_idx').on(t.clubId, t.podId, t.startsAt),
+    index('pod_loan_pod_idx').on(t.clubId, t.podId, t.requestedAt),
     index('pod_loan_device_id_idx').on(t.deviceId),
-    index('pod_loan_borrower_club_id_idx').on(t.borrowerClubId),
+    index('pod_loan_borrower_club_id_idx')
+      .on(t.borrowerClubId)
+      .where(sql`${t.borrowerClubId} is not null`),
+    index('pod_loan_accepted_by_idx')
+      .on(t.acceptedBy)
+      .where(sql`${t.acceptedBy} is not null`),
     index('pod_loan_ended_by_idx')
       .on(t.endedBy)
       .where(sql`${t.endedBy} is not null`),
     uniqueIndex('pod_loan_open_key')
       .on(t.clubId, t.podId)
-      .where(sql`${t.endedAt} is null`),
-    check('pod_loan_other_club', sql`${t.borrowerClubId} <> ${t.clubId}`),
+      .where(sql`${t.status} in ('pending', 'active')`),
+    check(
+      'pod_loan_other_club',
+      sql`${t.borrowerClubId} is null or ${t.borrowerClubId} <> ${t.clubId}`,
+    ),
+    check(
+      'pod_loan_slug_format',
+      sql`${t.borrowerClubSlug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$' and char_length(${t.borrowerClubSlug}) <= 63`,
+    ),
+    check(
+      'pod_loan_lifecycle',
+      sql`(${t.status} in ('pending', 'active')) = (${t.endedAt} is null)
+          and (${t.status} in ('active', 'returned')) = (${t.acceptedAt} is not null)
+          and (${t.acceptedAt} is null or (${t.borrowerClubId} is not null and ${t.borrowerPodId} is not null))`,
+    ),
     check(
       'pod_loan_range',
-      sql`(${t.plannedEndsAt} is null or ${t.plannedEndsAt} > ${t.startsAt})
-          and (${t.endedAt} is null or ${t.endedAt} >= ${t.startsAt})`,
+      sql`(${t.plannedEndsAt} is null or ${t.plannedEndsAt} > ${t.requestedAt})
+          and (${t.acceptedAt} is null or ${t.acceptedAt} >= ${t.requestedAt})
+          and (${t.endedAt} is null or ${t.endedAt} >= ${t.requestedAt})`,
     ),
   ],
 );

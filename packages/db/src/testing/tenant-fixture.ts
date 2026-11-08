@@ -675,8 +675,12 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         ...base,
         podId: lentPod,
         deviceId: must(devices[1]).id,
+        status: 'active',
+        borrowerClubSlug: `${slug}-borrower`,
         borrowerClubId: borrower,
         borrowerPodId: randomUUID(),
+        requestedAt: new Date('2026-03-01T12:00:00Z'),
+        acceptedAt: new Date('2026-03-02T12:00:00Z'),
         createdBy: users.sc,
       })
       .returning({ id: podLoan.id }),
