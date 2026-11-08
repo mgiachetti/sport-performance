@@ -136,7 +136,8 @@ export const podRawUpload = pgTable(
     ),
     check(
       'pod_raw_upload_lifecycle',
-      sql`(${t.state} = 'uploading') = (${t.confirmedAt} is null)
+      sql`(${t.state} <> 'uploading' or ${t.confirmedAt} is null)
+          and (${t.state} not in ('pending', 'verified', 'trimmed') or ${t.confirmedAt} is not null)
           and (${t.confirmedAt} is null) = (${t.pendingUntil} is null)
           and (${t.verifiedAt} is null) = (${t.eraseCommand} is null)
           and (${t.state} not in ('verified', 'trimmed') or ${t.verifiedAt} is not null)

@@ -95,7 +95,8 @@ CREATE TABLE "pod_raw_upload" (
           and cardinality("pod_raw_upload"."blocks") between 1 and 65535 and cardinality("pod_raw_upload"."key_epochs") >= 1
           and "pod_raw_upload"."size_bytes" > 0 and char_length("pod_raw_upload"."pod_serial") between 1 and 64
           and ("pod_raw_upload"."declared_end_at" is null or "pod_raw_upload"."declared_start_at" is null or "pod_raw_upload"."declared_end_at" >= "pod_raw_upload"."declared_start_at")),
-	CONSTRAINT "pod_raw_upload_lifecycle" CHECK (("pod_raw_upload"."state" = 'uploading') = ("pod_raw_upload"."confirmed_at" is null)
+	CONSTRAINT "pod_raw_upload_lifecycle" CHECK (("pod_raw_upload"."state" <> 'uploading' or "pod_raw_upload"."confirmed_at" is null)
+          and ("pod_raw_upload"."state" not in ('pending', 'verified', 'trimmed') or "pod_raw_upload"."confirmed_at" is not null)
           and ("pod_raw_upload"."confirmed_at" is null) = ("pod_raw_upload"."pending_until" is null)
           and ("pod_raw_upload"."verified_at" is null) = ("pod_raw_upload"."erase_command" is null)
           and ("pod_raw_upload"."state" not in ('verified', 'trimmed') or "pod_raw_upload"."verified_at" is not null)
