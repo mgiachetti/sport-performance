@@ -1,0 +1,4 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "pod")(type "KiCad")(uri "${KIPRJMOD}/../lib/pod.kicad_sym")(options "")(descr "Símbolos propios del pod"))
+)

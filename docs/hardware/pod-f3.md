@@ -15,6 +15,7 @@ Este documento acompaña al [ADR 0105](../adr/0105-pod-gnss-imu-con-telemetria-e
 | Antena L1/L5 activa china | — | — | US$ 4–8 | — | **No verificado**. Define si se llega a US$ 80 con el F10N |
 | MCU + BLE + LoRa | RAK4630 (prototipo) | Ebyte E73-2G4M08S1C (nRF52840) + E22-900M22S (SX1262) (serie) | RAK4630: US$ 18,62 @10 (LCSC), US$ 23,95 @260 (DigiKey). Ebyte: US$ 5,52 + desde US$ 4,63 ≈ US$ 10 | [LCSC E73](https://lcsc.com/product-detail/C356849.html) · [LCSC E22](https://www.lcsc.com/product-detail/C411293.html) · [LCSC RAK4630](https://www.lcsc.com/product-image/C33033533.html) | Precios sí. Certificaciones FCC/CE de los Ebyte y del RAK4630, **no verificadas** |
 | IMU con alto rango | ST LSM6DSV320X (±2–16 g y ±32–320 g, canales independientes) | ICM-42688-P + ADXL372 | US$ 7,25 (LCSC C26633007). Alternativa: ICM US$ 2,1–3,4 (datos contradictorios) + ADXL372 US$ 11,65 | [ST](https://estore.st.com/en/lsm6dsv320xtr-cpn.html) · [LCSC LSM6DSV320X](https://www.lcsc.com/product-image/C26633007.html) · [LCSC ADXL372](https://www.lcsc.com/product-detail/C579465.html) | Sí. Stock bajo (45 en LCSC) |
+| Barómetro | Bosch BMP581 | Infineon DPS368; BMP390 | US$ 1,23 (LCSC C5362283). DPS368: US$ 2,59 (C3232508) | [LCSC C5362283](https://www.lcsc.com/product-image/C5362283.html) · [LCSC DPS368 C3232508](https://www.lcsc.com/product-image/C3232508.html) | Precio sí; la hoja vigente de Bosch, **no verificada** |
 | Memoria NAND SPI | Winbond W25N02KVZEIR (2 Gbit) | W25N04 (4 Gbit, la recomendada) o GigaDevice | US$ 4,72–6,14 (C3010298) | [LCSC W25N02](https://www.lcsc.com/product-image/C3010298.html) | 2 Gbit sí. 4 Gbit y GigaDevice, **no verificados** |
 | Cargador | TI BQ25180 | TP4056 | US$ 1,52–2,20 | [LCSC BQ25180](https://www.lcsc.com/product-detail/C3682423.html) | Sí |
 | Medidor de carga | MAX17048G+T10 | — | ≈ US$ 1,35 | [LCSC MAX17048](https://lcsc.com/product-detail/image/MAX17048G-T10_C2682616.html) | Sí |
@@ -56,12 +57,13 @@ Sin pasivos de detalle, chaleco ni banda de FC:
 | IMU (6 ejes, 16 bits, 100 Hz) | 6 × 2 B × 100 Hz | 1,2 kB/s |
 | Canal de alto rango (3 ejes, 16 bits, 100 Hz de base; ráfagas al detectar un impacto) | 3 × 2 B × 100 Hz | 0,6 kB/s |
 | Solución GNSS (10 Hz, unos 40 B) | 40 B × 10 Hz | 0,4 kB/s |
-| **Sin crudo GNSS** | | **≈ 2,2 kB/s → unos 24 MB en 3 h** |
+| Barómetro (presión y temperatura, 50 Hz, unos 6 B) | 6 B × 50 Hz | 0,3 kB/s |
+| **Sin crudo GNSS** | | **≈ 2,5 kB/s → unos 27 MB en 3 h** |
 | Crudo GNSS (RAWX a 1 Hz, unos 30 satélites × 2 frecuencias × unos 32 B) | ≈ 2 kB por época | ≈ 2 kB/s |
-| **Con crudo a 1 Hz** | | **≈ 4,2 kB/s → unos 46 MB en 3 h** |
+| **Con crudo a 1 Hz** | | **≈ 4,5 kB/s → unos 49 MB en 3 h** |
 
-- **Memoria:** con 4 Gbit (512 MB) entran unas 11 sesiones con crudo, y con 2 Gbit unas 5. Crudo a 10 Hz serían unos 20 kB/s, unos 216 MB por sesión: impráctico, y además no vale la pena, porque el PPK corrige la trayectoria y la velocidad sale del Doppler a 10 Hz.
-- **Descarga:** 46 MB por BLE, a unos 100 kB/s en la práctica, son unos 8 min por pod. Por eso la descarga va por la base.
+- **Memoria:** con 4 Gbit (512 MB) entran unas 10 sesiones con crudo, y con 2 Gbit unas 5. Crudo a 10 Hz serían unos 20 kB/s, unos 216 MB por sesión: impráctico, y además no vale la pena, porque el PPK corrige la trayectoria y la velocidad sale del Doppler a 10 Hz.
+- **Descarga:** 49 MB por BLE, a unos 100 kB/s en la práctica, son unos 8 min por pod. Por eso la descarga va por la base.
 - **Telemetría en vivo:**
   - Un resumen por segundo de unos 20 B, que se manda de a 2: unos 40 B cada 2 s.
   - 40 B en SF7 / 125 kHz ocupan unos 82 ms en el aire. Con turnos de unos 100 ms (con tiempo de guarda), una trama de 2 s tiene 20 turnos por canal: **unos 160 pods en 8 canales**.

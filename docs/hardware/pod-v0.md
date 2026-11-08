@@ -20,6 +20,7 @@ flowchart LR
   BB --> LORA[Ebyte E22-900M22S SX1262]
   BB --> IMU[LSM6DSV320X]
   BB --> NAND[W25N04KV NAND]
+  BB --> BARO[BMP581 barómetro]
   BB --> UWB[DWM3000 sin montar, sin load switch]
   BB --> LDO[LDO bajo ruido 3,2 V fijo] --> SWG[Load switch VCC GNSS] --> GNSS[Quectel LC29H AA o EA]
   ANT1[Taoglas activa por U.FL] --> RFCH[ESD, bias-T, bloqueo DC, SAW, LNA opcional, SAW, red pi]
@@ -33,6 +34,7 @@ flowchart LR
   MCU <-->|SPIM3 hasta 32 MHz| NAND
   MCU <-->|I2C| CHG
   MCU <-->|I2C| FG
+  MCU <-->|I2C| BARO
   LORA --> ANTL[Antena FPC 915 MHz por U.FL, en la carcasa]
   MCU -->|USB| USBC
 ```
@@ -66,6 +68,7 @@ Tamaño estimado: unos 45 × 65 mm (**no verificado**: sale del ruteo). Vista de
 - **Batería debajo**, sin tapar ninguna antena.
 - **USB-C y 4 pines pogo** (VBUS, GND, D+, D−) en el borde de abajo, para la base de carga y descarga (B-907).
 - **UWB sin montar** en el borde derecho, con su keep-out.
+- **Barómetro junto a la ventilación de la carcasa**, en un borde lateral, lejos del buck-boost y del cargador (calientan y la presión se corrige con la temperatura) y fuera de la zona donde aprieta el chaleco. La carcasa lleva una **ventilación con membrana de ePTFE impermeable** (tipo Gore) justo encima: deja pasar la presión y no el sudor ni la lluvia. Entre la ventilación y el sensor va un **canal sellado** (junta o espuma de celda cerrada alrededor del sensor), así el barómetro mide el aire de afuera y no el volumen de adentro de la carcasa, que cambia con la temperatura y con los golpes. Sin la ventilación, la carcasa con junta mide la presión de adentro.
 
 ## Partes y alternativas
 
@@ -81,6 +84,7 @@ Tamaño estimado: unos 45 × 65 mm (**no verificado**: sale del ruteo). Vista de
 | Cargador | **BQ25180** (I2C, salida SYS, modo envío) | — | DSBGA de 8 bolas, 1,6 × 1,1 mm: A1 /INT, A2 IN, B1 SCL, B2 SYS, C1 SDA, C2 BAT, **D1 TS/MR** (NTC y reset manual en el mismo pin), D2 GND | [Hoja de TI (pines TS/MR)](https://ti.com/document-viewer/ja-jp/BQ25180/datasheet/GUID-56076AC1-C090-40FA-9076-7A93BDD85026) · [mapa de bolas en Flux](https://www.flux.ai/adrian95/bq25180ybgr~vng.md) · [LCSC](https://www.lcsc.com/product-detail/C3682423.html) | TS/MR y encapsulado sí (TI). El resto del mapa, de una librería de terceros. Si /INT es de drenador abierto y la dirección I2C (se cita 0x6A), **no verificados** |
 | Batería | LiPo de ~1000 mAh **con PCM** (protección de sobrecarga, sobredescarga y cortocircuito) y **NTC de 10 kΩ en la celda** | — | Conector de 3 vías (BAT, GND, NTC) al TS/MR del BQ25180 | — | El conector y la celda, **no verificados** |
 | Medidor de carga | **MAX17048** (I2C, ALRT de drenador abierto) | Divisor de tensión al AIN4 del nRF, sin montar | Dirección I2C citada 0x36 | [LCSC](https://lcsc.com/product-detail/image/MAX17048G-T10_C2682616.html) | Dirección, **no verificada** |
+| Barómetro | **Bosch BMP581** (LGA de 10 pines, 2 × 2 mm) | **Infineon DPS368** en su propio lugar, sin montar (otra dirección I2C, encapsulado resistente al agua); BMP390 como segunda opción | I2C en el bus del cargador y del medidor: dirección **0x47** con SDO a VDDIO o 0x46 con SDO a GND, sin choque con 0x36 ni 0x6A. **VDD y VDDIO son pines separados**, los dos a VREG. **CSB atado a VDDIO**: si está en bajo al encender, el sensor queda en SPI o I3C. INT configurada de **drenador abierto, activa en bajo** (registro INT_CONFIG). VDD 1,71–3,6 V (1,65 V según otra fuente): VREG de 3,45 V entra. Ruido de menos de 0,1 Pa en alta resolución (1 Pa ≈ 8 cm de altura); hasta 480 Hz en modo continuo según una hoja preliminar. US$ 1,23 en LCSC; el DPS368, US$ 2,59 | [LCSC C5362283](https://www.lcsc.com/product-image/C5362283.html) · [DFRobot BMP581](https://wiki.dfrobot.com/SKU_SEN0667_Fermion:_BMP581_Barometric_Pressure_Sensor) · [Zephyr bosch,bmp581](https://docs.zephyrproject.org/latest/build/dts/api/bindings/sensor/bosch%2Cbmp581-i3c.html) · [LCSC DPS368 C3232508](https://www.lcsc.com/product-image/C3232508.html) · [LCSC BMP390 C5124834](https://www.lcsc.com/product-detail/C5124834.html) | Dirección, rango de tensión, VDDIO separado, CSB en alto para I2C e INT de drenador abierto: de distribuidores, de una hoja preliminar y de conocimiento general del sensor; la hoja vigente de Bosch, **no verificada** |
 | Riel del sistema (VREG) | **Buck-boost a 3,45 V** desde SYS (candidatos: TPS63802, TPS63900) | 0 Ω para probar otro punto de ajuste | Alimenta nRF, E22, IMU, NAND y UWB (todos con máximo de 3,6 V) y el LDO del GNSS. La LiPo baja de 3,45 V antes de vaciarse, por eso buck-boost. Precisión del punto de ajuste de ±1,5 % o mejor (3,40–3,50 V) y sobrepico acotado ante el escalón de unos 120 mA de una TX de LoRa. El TPS63802 se ajusta con divisor; el TPS63900 usa niveles fijos por resistencia, y que tenga 3,45 V está por confirmar | — | Parte **no verificada** |
 | 3,2 V del GNSS | **LDO de bajo ruido fijo a 3,2 V** desde VREG (candidatos: TPS7A20, TLV757P), siempre habilitado | 0 Ω para tomar el GNSS directo de VREG (3,45 V, dentro de 3,1–3,6 V) | **3,2 V y no 3,3 V**: desde 3,45 V, un LDO de 3,3 V tendría unos 30 mV de margen en el peor caso, y cerca del dropout su rechazo de ruido (PSRR) se cae. Con ±1,5 %, el piso es 3,15 V, por encima del mínimo de 3,1 V del LC29H. El LDO no se apaga: lo que se corta es VCC, con un load switch después del LDO | Hardware Design, sección 3.2.1 | Parte **no verificada** |
 | V_BCKP | **LDO de 3,0 V de consumo ultrabajo desde BAT** (candidato: TPS7A02), con **EN desde SYS por un divisor** | 0 Ω para alimentar V_BCKP desde VREG. 0 Ω para atar EN a BAT | Nunca alimentado desde SYS (4,4–4,6 V con USB conectado, más que el máximo de 3,6 V); SYS solo maneja el EN. Se mantiene con el pod apagado y **se corta en modo envío** (sin SYS): así el modo envío no gasta el consumo propio del LDO ni el de backup del LC29H. A cambio, después de un envío o un almacenamiento en modo envío se pierde el arranque en caliente. Con el EN atado a BAT, V_BCKP sigue en modo envío y descarga la batería | Hardware Design, sección 3.2.2 y tabla 10 | Rango sí. Parte **no verificada** |
@@ -126,7 +130,7 @@ En orden, desde la antena hasta el módulo:
 - **XL1/XL2 sin cristal**: se usan como LED y botón, y el nRF corre con el oscilador RC de baja frecuencia calibrado. Rescate: lugar para el cristal de 32,768 kHz sin montar, con 0 Ω para desconectar LED y botón.
 - **Alimentación del E73**: en modo de tensión normal, VDD y VDDH van juntos a VREG. Qué hacer con DCCH y si el módulo trae las bobinas del DC/DC adentro, **no verificado** (el manual de Ebyte no lo detalla; ver el PS del nRF52840).
 - **UART del GNSS**: con el registro estándar, 921600 bps da en realidad unos 941176 bps (≈ 2 % arriba, [foro de Nordic](https://devzone.nordicsemi.com/f/nordic-q-a/43280/technical-question-regarding-uart-baud-rate-generator-baudrate-register-offset-0x524/557385)). Se usa un valor propio de BAUDRATE (el foro da 0x0EBEE000 para el nRF52832; para el nRF52840, **no verificado**) o se mide el margen en el banco; si no alcanza, 460800 bps.
-- **Conteo**: el E73 saca 31 GPIO: **15 rápidos, 12 de baja frecuencia, 2 de NFC y 2 del cristal**, más el reset. La v0 usa 30 y deja libre P0.10 (NFC2).
+- **Conteo**: el E73 saca 31 GPIO: **15 rápidos, 12 de baja frecuencia, 2 de NFC y 2 del cristal**, más el reset. La v0 usa los 31: P0.10 (NFC2) junta la INT del barómetro y, si hace falta, el ALRT del MAX17048, en OR cableado.
 
 **Asignación:**
 
@@ -145,9 +149,9 @@ En orden, desde la antena hasta el módulo:
 | UWB_CS | P0.04 | 18 | Rápido | GPIO | DWM3000 SPICSn, sin montar | Libre si el UWB no va |
 | GNSS_TX (MCU → GNSS RXD) | P0.06 | 14 | Rápido | UARTE1 | traductor → LC29H RXD (pin 21) | Configuración y RTCM para la EA |
 | GNSS_RX (GNSS TXD → MCU) | P0.08 | 16 | Rápido | UARTE1 | LC29H TXD (pin 20) → traductor | NMEA o binario a 10 Hz |
-| I2C_SDA | P0.12 | 20 | Rápido | TWIM0 | BQ25180, MAX17048 | Pull-ups de 4,7 kΩ |
+| I2C_SDA | P0.12 | 20 | Rápido | TWIM0 | BQ25180, MAX17048, BMP581, DPS368 (sin montar) | Pull-ups de 4,7 kΩ |
 | I2C_SCL | P0.07 | 22 | Rápido | TWIM0 | idem | |
-| PWR_INT | P1.11 | 1 | Baja frec. | GPIO (entrada) | /INT del BQ25180 (A1) + /ALRT del MAX17048 en OR cableado | Si /INT no es de drenador abierto, el ALRT pasa a P0.10 por 0 Ω |
+| PWR_INT | P1.11 | 1 | Baja frec. | GPIO (entrada) | /INT del BQ25180 (A1) + /ALRT del MAX17048 en OR cableado | Si /INT no es de drenador abierto, el ALRT pasa a SENS_INT (P0.10) por 0 Ω |
 | GNSS_PPS | P1.10 | 2 | Baja frec. | GPIOTE | LC29H 1PPS (pin 3) → traductor | 1 Hz |
 | GNSS_RST | P0.03 | 3 | Baja frec. | GPIO | NPN/NMOS → LC29H RESET_N (pin 8) | |
 | VBAT_ADC | P0.28 | 4 | Baja frec. | AIN4 | Divisor de la batería, sin montar | Rescate si falla el MAX17048 |
@@ -160,7 +164,7 @@ En orden, desde la antena hasta el módulo:
 | IMU_INT1 | P1.04 | 40 | Baja frec. | GPIOTE | LSM6DSV320X INT1 | |
 | HG_INT | P1.06 | 42 | Baja frec. | GPIOTE | ADXL372 INT1, sin montar; o INT2 del LSM6DSV320X por 0 Ω | Con la IMU principal, queda como INT2 |
 | UWB_RST | P0.09 (NFC1) | 41 | NFC | GPIO (drenador abierto) | DWM3000 RSTn, sin montar | Que RSTn no se maneje en alto, **no verificado** |
-| (libre) | P0.10 (NFC2) | 43 | NFC | — | Pad de prueba | Reserva para el ALRT del MAX17048 |
+| SENS_INT | P0.10 (NFC2) | 43 | NFC | GPIOTE | INT del BMP581 (drenador abierto, activa en bajo) + ALRT del MAX17048 de respaldo, en OR cableado con un solo pull-up | Cada fuente llega por su 0 Ω para aislarla. El firmware lee el estado de las dos al recibir la interrupción |
 | LED | P0.00 (XL1) | 11 | Cristal | GPIO | LED de estado | |
 | BOTÓN | P0.01 (XL2) | 13 | Cristal | GPIO | Botón a GND (y al TS/MR del BQ25180 por diodo, ver abajo) | |
 | USB D+ / D− / VBUS | — | 31 / 29 / 27 | — | USBD | USB-C y pogo, con 0 Ω para pasar D± al puente USB-UART del GNSS | |
@@ -170,7 +174,7 @@ En orden, desde la antena hasta el módulo:
 - **Pines que quedan libres según cómo se arme:**
   - sin ADXL372: HG_CS (P0.26);
   - sin UWB: UWB_CS (P0.04), UWB_IRQ (P1.02) y UWB_RST (P0.09);
-  - siempre: P0.10.
+  - P0.10 es compartido: INT del barómetro y ALRT del medidor, los dos de drenador abierto.
 - **Si hace falta uno más, se libera en este orden:**
   1. HG_INT pasa a ser INT2 del LSM6DSV320X por 0 Ω (ya previsto).
   2. VBAT_ADC, si el MAX17048 anda.
@@ -180,7 +184,9 @@ En orden, desde la antena hasta el módulo:
 - Con TXEN en DIO2, el firmware pone **RXEN en bajo antes de transmitir** y en alto para recibir.
 - Si el E22 usa TCXO, se configura con `SetDIO3AsTCXOCtrl` (tensión y tiempo según el módulo, **no verificados**).
 - Modo SPI por dispositivo en el bus compartido: cada CS con su modo y velocidad.
-- Direcciones I2C citadas: MAX17048 0x36, BQ25180 0x6A (las dos **no verificadas**).
+- Direcciones I2C citadas: MAX17048 0x36, BQ25180 0x6A, BMP581 0x47 (todas **no verificadas** contra la hoja del fabricante).
+- **SENS_INT compartido**: al llegar la interrupción, el firmware lee el estado del BMP581 y el del MAX17048 (si su 0 Ω está puesto) para saber cuál fue.
+- **Barómetro**: a 25–50 Hz, con el sobremuestreo y el filtro IIR que dejen el ruido en unos pocos cm sin agregar retardo que borre un salto (el compromiso entre tasa y ruido sale del banco). La altura se calcula **fusionando barómetro e IMU** (filtro complementario o de Kalman): el barómetro fija la altura lenta y la aceleración vertical sigue lo rápido. Usos: levantada en el line, saltos, y apoyo a `time_to_feet_s` (el pod pasa de unos 1,3 m de pie a unos 0,2 m en el suelo). Una métrica nueva (por ejemplo `lineout_lift_m` o `jump_height_cm`) **no se agrega todavía**: se define con el club en el diccionario de métricas, con código, unidad y definición.
 - El DWM3000 queda siempre alimentado desde VREG: en las placas que lo tienen, el firmware lo pone en **DEEPSLEEP** al arrancar y entre usos.
 
 **Pines del LC29H** (de la tabla 5 del Hardware Design): WAKEUP 1, FWD 2, 1PPS 3, WHEELTICK 4, reservados 5–6, VDD_EXT 7 (salida 2,8 V, 100 mA), RESET_N 8, VDD_RF 9, GND 10, RF_IN 11, GND 12–13, ANT_ON 14, reservados 15–17, I2C_SDA 18, I2C_SCL 19, TXD 20, RXD 21, V_BCKP 22, VCC 23, GND 24.
@@ -231,13 +237,19 @@ En orden, desde la antena hasta el módulo:
 - [ ] ADXL372 en su lugar, con su CS e INT propios.
 - [ ] HG_INT a INT2 del LSM6DSV320X por 0 Ω.
 
+**Barómetro**
+- [ ] DPS368 en su propio lugar, sin montar (mismo bus I2C, otra dirección).
+- [ ] SDO del BMP581 a VDDIO o a GND por 0 Ω (dirección 0x47 o 0x46).
+- [ ] CSB del BMP581 a VDDIO (I2C), con 0 Ω.
+- [ ] INT del BMP581 a SENS_INT (P0.10) por su propio 0 Ω.
+
 **Alimentación**
 - [ ] 0 Ω en serie en cada riel (VREG, 3,2 V del GNSS, V_BCKP, LoRa, UWB) para medir corriente con un amperímetro.
 - [ ] Puente del load switch del GNSS.
 - [ ] **Rd de 5,1 kΩ en CC1 y CC2** del USB-C (montadas), con lugar para cambiarlas.
 - [ ] Divisor de batería al AIN4.
 - [ ] Botón al TS/MR del BQ25180 por diodo, sin montar.
-- [ ] ALRT del MAX17048 a P0.10 por 0 Ω, si el OR cableado no anda.
+- [ ] ALRT del MAX17048 a SENS_INT (P0.10) por su propio 0 Ω, si el OR cableado con /INT no anda.
 - [ ] Lugar para un capacitor de entrada grande en el E22 (picos de TX).
 
 **Depuración**
@@ -267,12 +279,13 @@ En orden, desde la antena hasta el módulo:
 10. PPS: ver el pulso en el pad y en la interrupción del nRF.
 11. GNSS por el nRF (con el traductor): NMEA o binario sin errores a la tasa elegida (ver el margen del BAUDRATE).
 12. IMU: leer ID, configurar alto rango, ver el canal de ±320 g.
-13. NAND: escribir, leer y borrar bloques; medir tasa y la corriente en reposo después de parar el SPIM3 (errata 195).
-14. LoRa: TX y RX contra un RAK o el gateway, en 915–928 MHz.
-15. **Ruido en el VCC del GNSS**: ripple con el osciloscopio en el VCC del LC29H con LoRa transmitiendo; si sube, comparar con el 0 Ω directo a VREG.
-16. **Desensibilización del GNSS**: C/N0 de los satélites con LoRa apagado y transmitiendo a la potencia máxima prevista. Si cae, probar el SAW, la tapa blindada y la ubicación de las antenas.
-17. Antena alternativa: cambiar al patch SMD por el 0 Ω (abriendo el bias y montando el LNA) y comparar C/N0 en el mismo lugar.
-18. Consumo total y autonomía con la batería real.
+13. **Barómetro**: leer su ID por I2C; en la mesa, ver el ruido de presión a 25–50 Hz; subir y bajar el pod 1 m y ver el cambio (unos 12 Pa); repetir con la carcasa cerrada y la ventilación puesta.
+14. NAND: escribir, leer y borrar bloques; medir tasa y la corriente en reposo después de parar el SPIM3 (errata 195).
+15. LoRa: TX y RX contra un RAK o el gateway, en 915–928 MHz.
+16. **Ruido en el VCC del GNSS**: ripple con el osciloscopio en el VCC del LC29H con LoRa transmitiendo; si sube, comparar con el 0 Ω directo a VREG.
+17. **Desensibilización del GNSS**: C/N0 de los satélites con LoRa apagado y transmitiendo a la potencia máxima prevista. Si cae, probar el SAW, la tapa blindada y la ubicación de las antenas.
+18. Antena alternativa: cambiar al patch SMD por el 0 Ω (abriendo el bias y montando el LNA) y comparar C/N0 en el mismo lugar.
+19. Consumo total y autonomía con la batería real.
 
 ## Compra mínima de banco que se mantiene
 
@@ -299,3 +312,4 @@ Antes de cerrar el esquemático hace falta saber si la AA saca crudo y si su vel
 14. Consumo de backup del LC29H en V_BCKP y consumo propio del LDO de V_BCKP.
 15. Que la tabla de pines del Hardware Design V1.0 siga igual en la versión vigente para AA y EA.
 16. Si la AA saca crudo y si da velocidad Doppler sin filtrado de más (banco con el HAT).
+17. Hoja vigente de Bosch del BMP581 (dirección I2C, rango de VDD y VDDIO, CSB para elegir I2C, INT de drenador abierto, tasa y ruido por modo), la parte de ventilación con membrana para la carcasa, y si el BMP390 entra en el mismo lugar.

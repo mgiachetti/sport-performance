@@ -1,0 +1,16 @@
+(kicad_sch
+	(version 20231120)
+	(generator "eeschema")
+	(generator_version "8.0")
+	(uuid "af217299-f713-4767-8649-3b57582bd329")
+	(paper "A4")
+	(title_block
+		(title "Pod v0: usb_dock")
+		(date "2026-11-07")
+		(rev "v0")
+		(company "Sport Performance")
+		(comment 1 "USB-C con Rd 5,1 kΩ, pines pogo, ESD, puente USB-UART sin montar")
+		(comment 2 "Spec: docs/hardware/pod-v0.md")
+	)
+	(lib_symbols)
+)

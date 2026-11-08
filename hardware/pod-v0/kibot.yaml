@@ -1,0 +1,92 @@
+# Salidas de fabricación del pod v0 (B-909). Se corre a mano por ahora, con KiBot 1.9.1
+# (la última en PyPI al 2026-11-07; fijar esa versión al instalarlo):
+#   kibot -c kibot.yaml -e pod-v0.kicad_sch -b pod-v0.kicad_pcb -d salidas
+# El CI (.github/workflows/hardware.yml) solo corre ERC y DRC con kicad-cli.
+# Las salidas van a salidas/, que está en .gitignore: no se commitean.
+# Esta configuración no se probó todavía (el proyecto no tiene componentes): los nombres
+# de opciones de KiBot, en particular los de filtros y variantes, están sin verificar.
+kibot:
+  version: 1
+
+preflight:
+  erc: true
+  drc: true
+  # Desactivado mientras el esquemático no tenga componentes: cuando los tenga, activarlo
+  # para que KiBot compare los campos de los símbolos con los de sus footprints.
+  check_fields: false
+
+global:
+  # Campo de cada símbolo con su número LCSC (C...). El MPN va en el campo MPN.
+  field_lcsc_part: LCSC
+
+filters:
+  # Excluye los componentes marcados como "sin montar" (atributo DNP nativo de KiCad)
+  # de la BOM de armado y del pick and place.
+  - name: sin_montar
+    comment: Saca los DNP
+    type: generic
+    exclude_dnp: true
+
+outputs:
+  - name: esquematico_pdf
+    comment: Esquemático completo en PDF
+    type: pdf_sch_print
+    dir: esquematico
+
+  - name: bom_armado
+    comment: Lista de materiales para el armado (sin los DNP), con MPN y LCSC
+    type: bom
+    dir: bom
+    options:
+      format: CSV
+      exclude_filter: sin_montar
+      columns:
+        - References
+        - Value
+        - Footprint
+        - MPN
+        - LCSC
+        - Quantity Per PCB
+
+  - name: bom_completa
+    comment: Lista de materiales con todos los lugares, incluidos los sin montar
+    type: bom
+    dir: bom
+    options:
+      format: CSV
+      output: '%f-completa.%x'
+      columns:
+        - References
+        - Value
+        - Footprint
+        - MPN
+        - LCSC
+        - Quantity Per PCB
+
+  - name: gerbers
+    comment: Gerbers para PCBWay (4 capas)
+    type: gerber
+    dir: fabricacion/gerbers
+    layers:
+      - copper
+      - F.SilkS
+      - B.SilkS
+      - F.Mask
+      - B.Mask
+      - F.Paste
+      - B.Paste
+      - Edge.Cuts
+
+  - name: taladros
+    comment: Archivos de taladrado
+    type: excellon
+    dir: fabricacion/gerbers
+
+  - name: posiciones
+    comment: Pick and place para el armado (sin los DNP)
+    type: position
+    dir: fabricacion
+    options:
+      format: CSV
+      only_smd: false
+      dnf_filter: sin_montar

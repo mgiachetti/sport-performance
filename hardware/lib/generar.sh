@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Genera símbolos, footprints y modelos 3D de la librería del pod desde LCSC/EasyEDA.
+# Uso: bash hardware/lib/generar.sh (desde cualquier carpeta del repo).
+# Después, verificar cada footprint contra la hoja del fabricante (ver README.md).
+set -euo pipefail
+
+# Versión fijada de easyeda2kicad (PyPI, última al 2026-11-07).
+EASYEDA2KICAD_VERSION=1.0.1
+
+cd "$(git rev-parse --show-toplevel)"
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+python3 -m venv "$tmp/venv"
+"$tmp/venv/bin/pip" install --quiet "easyeda2kicad==${EASYEDA2KICAD_VERSION}"
+
+parts=(
+  C356849   # Ebyte E73-2G4M08S1C (nRF52840)
+  C411293   # Ebyte E22-900M22S (SX1262)
+  C26633007 # ST LSM6DSV320X
+  C5362283  # Bosch BMP581
+  C3232508  # Infineon DPS368 (sin montar)
+  C3010298  # Winbond W25N02KVZEIR
+  C3682423  # TI BQ25180
+  C2682616  # Analog Devices MAX17048G+T10
+)
+
+for part in "${parts[@]}"; do
+  "$tmp/venv/bin/easyeda2kicad" --full --lcsc_id="$part" --output hardware/lib/pod --overwrite
+done
+
+# easyeda2kicad guarda la ruta absoluta de cada modelo 3D. Se reemplaza por una ruta
+# relativa al proyecto, para que funcione en cualquier máquina y en el CI.
+abs_3d="$PWD/hardware/lib/pod.3dshapes"
+for footprint in hardware/lib/pod.pretty/*.kicad_mod; do
+  [ -e "$footprint" ] || continue
+  sed -i.bak "s|${abs_3d}|\${KIPRJMOD}/../lib/pod.3dshapes|g" "$footprint"
+  rm -f "$footprint.bak"
+done
+
+echo "Listo. Verificar cada footprint contra su hoja antes de usarlo."
