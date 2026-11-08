@@ -224,7 +224,8 @@ def ic_symbols() -> list:
     # against Quectel's schematic part (Footprint&Part V1.4, 2026-07-03): same numbers and functions; names as
     # Quectel's, which lists each variant's function ("RSVD/FWD"...), except 18-21, named by their AA/EA use
     # (Quectel: I2C_SDA/SPI_CS/RSVD/URC_IND, I2C_SCL/SPI_CLK/RSVD, TXD1/SPI_MISO/TXD1, RXD1/SPI_MOSI/RXD1).
-    # Quectel marks every pin passive; the types here are ours, for the ERC.
+    # Quectel marks every pin passive; the types here are ours, for the ERC. Pins 5, 6, 15 and 16 carry "_1V8":
+    # they are in the 1.8 V domain (absolute maximum 1.98 V), never to the 2.8 V translators.
     s.append(block("LC29H", "U", [
         ("23", "VCC", PI), ("22", "V_BCKP", PI), ("7", "VDD_EXT", PO), ("9", "VDD_RF", PO), None,
         ("11", "RF_IN", PAS), ("14", "ANT_ON", OUT), None,
@@ -232,9 +233,10 @@ def ic_symbols() -> list:
     ], [
         ("1", "WAKEUP", IN), ("8", "RESET_N", IN), ("3", "1PPS", OUT), ("20", "TXD1", OUT), ("21", "RXD1", IN),
         ("18", "I2C_SDA", BI), ("19", "I2C_SCL", BI), ("2", "RSVD/FWD", IN), ("4", "RSVD/WHEELTICK", IN),
-        ("5", "D_SEL1/RSVD", NC), ("6", "D_SEL2/RSVD", NC), ("15", "TXD2/RSVD", NC), ("16", "RXD2/RSVD", NC),
+        ("5", "D_SEL1_1V8/RSVD", NC), ("6", "D_SEL2_1V8/RSVD", NC), ("15", "TXD2_1V8/RSVD", NC),
+        ("16", "RXD2_1V8/RSVD", NC),
         ("17", "RSVD/WI", NC),
-    ], description="Quectel LC29H (AA/EA), GNSS L1/L5, LCC de 24 pines, E/S de 2,8 V",
+    ], description="Quectel LC29H (AA/EA), GNSS L1/L5, LCC de 24 pines, E/S de 2,8 V salvo 5, 6, 15 y 16 (1,8 V, máx. 1,98 V)",
         datasheet="https://forums.quectel.com/uploads/short-url/6AJSfkCWZOBEg7psU3USNgfcBqm.pdf"))
     # TI TPS63900, SLVSET3D table 5-1 (WSON-10 DSK).
     s.append(block("TPS63900", "U", [
