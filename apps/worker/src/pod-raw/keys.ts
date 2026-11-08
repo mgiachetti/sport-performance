@@ -27,8 +27,10 @@ export function parsePodMasterKeys(
     .map((part) => part.trim())
     .filter((part) => part !== '')) {
     const separator = entry.indexOf(':');
-    const clubId = entry.slice(0, separator);
-    const key = entry.slice(separator + 1);
+    // Ids are compared lowercase (Postgres prints uuids lowercase); a key wrapped by `base64`
+    // or pasted with spaces keeps only its characters.
+    const clubId = entry.slice(0, separator).trim().toLowerCase();
+    const key = entry.slice(separator + 1).replace(/\s+/g, '');
     if (separator < 1 || !isUuid(clubId)) {
       return { ok: false, problem: 'every entry is <club uuid>:<base64 key>' };
     }
@@ -48,7 +50,7 @@ export function parsePodMasterKeys(
 export function staticPodKeyProvider(keys: ReadonlyMap<string, string>): PodKeyProvider {
   return {
     masterKey: (clubId) => {
-      const key = keys.get(clubId);
+      const key = keys.get(clubId.toLowerCase());
       return Promise.resolve(key === undefined ? null : new Uint8Array(Buffer.from(key, 'base64')));
     },
   };

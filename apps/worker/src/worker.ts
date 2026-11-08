@@ -182,9 +182,13 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
       if (job === undefined) return;
       const { clubId } = parseRefreshClubJob(job.data);
       try {
-        const report = await runClubLocationErasures({ pool: options.pool, logger }, clubId, {
-          jobId: job.id,
-        });
+        const report = await runClubLocationErasures(
+          { pool: options.pool, logger, storage: options.storage },
+          clubId,
+          {
+            jobId: job.id,
+          },
+        );
         if (report.more) await enqueueClubJob(boss, QUEUES.locationErasureClub, clubId);
       } catch (error) {
         logger.error({ err: error, clubId, jobId: job.id }, 'location erasure failed');

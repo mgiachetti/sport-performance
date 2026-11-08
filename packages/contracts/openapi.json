@@ -42002,6 +42002,8 @@
                     "stream_gaps",
                     "record_issues",
                     "untimed_pages",
+                    "shared_pages",
+                    "storage_unavailable",
                     "assignment_corrected_after_trim"
                   ]
                 },
@@ -42029,7 +42031,9 @@
                   "blocks_mismatch",
                   "pages_not_authentic",
                   "segment_not_closed",
-                  "expired"
+                  "expired",
+                  "decode_failed",
+                  "master_key_missing_expired"
                 ]
               },
               {

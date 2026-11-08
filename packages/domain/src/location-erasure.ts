@@ -32,11 +32,13 @@ export const LOCATION_ERASURE_CHANGE_REASON =
 
 /**
  * The tables whose rows the erasure deletes, as `schema.table`, in the order
- * the summary reports them: the position traces of the pod (B-916). Each
- * table has the worker's `DELETE` grant and no history trigger.
+ * the summary reports them: the position traces of the pod and the windows
+ * and page times of the player's trimmed `pod_raw` (B-916). Each table has
+ * the worker's `DELETE` grant and no history trigger.
  */
 export const LOCATION_ERASURE_TABLES = [
   'public.pod_trace_segment',
+  'public.pod_raw_trim',
 ] as const satisfies readonly string[];
 
 /**

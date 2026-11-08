@@ -55,7 +55,7 @@ describe('pod_raw vocabulary', () => {
       clientUpload: false,
       contentTypes: ['application/octet-stream'],
     });
-    expect(LOCATION_ERASURE_TABLES).toEqual(['public.pod_trace_segment']);
+    expect(LOCATION_ERASURE_TABLES).toEqual(['public.pod_trace_segment', 'public.pod_raw_trim']);
     expect(LOCATION_ERASURE_FILE_KINDS).toEqual(['pod_raw']);
   });
 });
@@ -239,14 +239,12 @@ describe('podRawTrimDue', () => {
       pendingUntil: later,
       sessionEnds: [ended],
       openAssignment: false,
-      reprocessPending: false,
     };
     expect(podRawTrimDue(base)).toBe(true);
     expect(podRawTrimDue({ ...base, sessionEnds: [ended, new Date('2026-11-05T01:00:00Z')] })).toBe(
       false,
     );
     expect(podRawTrimDue({ ...base, openAssignment: true })).toBe(false);
-    expect(podRawTrimDue({ ...base, reprocessPending: true })).toBe(false);
     // No session yet: the staff may load it late.
     expect(podRawTrimDue({ ...base, sessionEnds: [] })).toBe(false);
     expect(podRawTrimDue({ ...base, sessionEnds: [], openAssignment: true, now: later })).toBe(

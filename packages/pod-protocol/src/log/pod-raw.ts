@@ -274,8 +274,13 @@ export function slicePodRawFile(
   if (kept.length === 0) {
     return null;
   }
-  const firstPageSeq = Math.min(...kept.map((k) => k.pageSeq));
-  const lastPageSeq = Math.max(...kept.map((k) => k.pageSeq));
+  // A loop, not a spread: a whole NAND is 131 072 pages, past the arguments of a call.
+  let firstPageSeq = Number.POSITIVE_INFINITY;
+  let lastPageSeq = Number.NEGATIVE_INFINITY;
+  for (const k of kept) {
+    firstPageSeq = Math.min(firstPageSeq, k.pageSeq);
+    lastPageSeq = Math.max(lastPageSeq, k.pageSeq);
+  }
   const out = new Uint8Array(POD_RAW_HEADER_LENGTH + kept.length * POD_RAW_ENTRY_LENGTH);
   out.set(bytes.subarray(0, POD_RAW_HEADER_LENGTH), 0);
   const w = new ByteWriter(12).u32(firstPageSeq).u32(lastPageSeq).u32(kept.length);

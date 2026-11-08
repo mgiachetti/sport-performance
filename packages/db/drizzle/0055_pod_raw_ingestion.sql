@@ -1,7 +1,47 @@
 CREATE TYPE "public"."pod_method_variant" AS ENUM('pod_live', 'pod_log', 'pod_ppk', 'pod_rtk', 'pod_uwb');--> statement-breakpoint
-CREATE TYPE "public"."pod_raw_rejection_reason" AS ENUM('file_missing', 'invalid_container', 'manifest_mismatch', 'segment_missing', 'more_than_one_segment', 'page_range_mismatch', 'blocks_mismatch', 'pages_not_authentic', 'segment_not_closed', 'expired');--> statement-breakpoint
+CREATE TYPE "public"."pod_raw_rejection_reason" AS ENUM('file_missing', 'invalid_container', 'manifest_mismatch', 'segment_missing', 'more_than_one_segment', 'page_range_mismatch', 'blocks_mismatch', 'pages_not_authentic', 'segment_not_closed', 'expired', 'decode_failed', 'master_key_missing_expired');--> statement-breakpoint
 CREATE TYPE "public"."pod_raw_upload_state" AS ENUM('uploading', 'pending', 'verified', 'trimmed', 'rejected');--> statement-breakpoint
 ALTER TYPE "public"."file_kind" ADD VALUE 'pod_raw';--> statement-breakpoint
+CREATE TABLE "pod_command_audit" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"club_id" uuid NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"created_by" text,
+	"updated_by" text,
+	"client_uuid" uuid DEFAULT gen_random_uuid() NOT NULL,
+	"pod_raw_upload_id" uuid NOT NULL,
+	"command" text NOT NULL,
+	"key_id" text NOT NULL,
+	"command_sha256" text NOT NULL,
+	"request_id" text,
+	CONSTRAINT "pod_command_audit_club_id_id_key" UNIQUE("club_id","id"),
+	CONSTRAINT "pod_command_audit_club_id_client_uuid_key" UNIQUE("club_id","client_uuid"),
+	CONSTRAINT "pod_command_audit_command" CHECK ("pod_command_audit"."command" in ('erase')),
+	CONSTRAINT "pod_command_audit_sha256_format" CHECK ("pod_command_audit"."command_sha256" ~ '^[0-9a-f]{64}$'),
+	CONSTRAINT "pod_command_audit_key_id_format" CHECK ("pod_command_audit"."key_id" ~ '^[A-Za-z0-9._-]{1,64}$'),
+	CONSTRAINT "pod_command_audit_request_id_format" CHECK ("pod_command_audit"."request_id" is null or "pod_command_audit"."request_id" ~ '^[A-Za-z0-9._:-]{1,128}$')
+);
+--> statement-breakpoint
+CREATE TABLE "pod_raw_trim" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"club_id" uuid NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"created_by" text,
+	"updated_by" text,
+	"client_uuid" uuid DEFAULT gen_random_uuid() NOT NULL,
+	"pod_raw_upload_id" uuid NOT NULL,
+	"player_id" uuid NOT NULL,
+	"file_id" uuid,
+	"windows" jsonb NOT NULL,
+	"pages" jsonb NOT NULL,
+	"shared_pages_n" integer DEFAULT 0 NOT NULL,
+	CONSTRAINT "pod_raw_trim_club_id_id_key" UNIQUE("club_id","id"),
+	CONSTRAINT "pod_raw_trim_club_id_client_uuid_key" UNIQUE("club_id","client_uuid"),
+	CONSTRAINT "pod_raw_trim_shape" CHECK (jsonb_typeof("pod_raw_trim"."windows") = 'array' and jsonb_typeof("pod_raw_trim"."pages") = 'array' and "pod_raw_trim"."shared_pages_n" >= 0)
+);
+--> statement-breakpoint
 CREATE TABLE "pod_raw_upload" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"club_id" uuid NOT NULL,
@@ -112,6 +152,16 @@ CREATE TABLE "pod_trace_segment" (
 );
 --> statement-breakpoint
 ALTER TABLE "file" DROP CONSTRAINT "file_subject";--> statement-breakpoint
+ALTER TABLE "pod_command_audit" ADD CONSTRAINT "pod_command_audit_club_id_club_id_fk" FOREIGN KEY ("club_id") REFERENCES "public"."club"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "pod_command_audit" ADD CONSTRAINT "pod_command_audit_created_by_user_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "pod_command_audit" ADD CONSTRAINT "pod_command_audit_updated_by_user_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "pod_command_audit" ADD CONSTRAINT "pod_command_audit_pod_raw_upload_id_fkey" FOREIGN KEY ("club_id","pod_raw_upload_id") REFERENCES "public"."pod_raw_upload"("club_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "pod_raw_trim" ADD CONSTRAINT "pod_raw_trim_club_id_club_id_fk" FOREIGN KEY ("club_id") REFERENCES "public"."club"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "pod_raw_trim" ADD CONSTRAINT "pod_raw_trim_created_by_user_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "pod_raw_trim" ADD CONSTRAINT "pod_raw_trim_updated_by_user_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "pod_raw_trim" ADD CONSTRAINT "pod_raw_trim_pod_raw_upload_id_fkey" FOREIGN KEY ("club_id","pod_raw_upload_id") REFERENCES "public"."pod_raw_upload"("club_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "pod_raw_trim" ADD CONSTRAINT "pod_raw_trim_player_id_fkey" FOREIGN KEY ("club_id","player_id") REFERENCES "public"."player"("club_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "pod_raw_trim" ADD CONSTRAINT "pod_raw_trim_file_id_fkey" FOREIGN KEY ("club_id","file_id") REFERENCES "public"."file"("club_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "pod_raw_upload" ADD CONSTRAINT "pod_raw_upload_club_id_club_id_fk" FOREIGN KEY ("club_id") REFERENCES "public"."club"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "pod_raw_upload" ADD CONSTRAINT "pod_raw_upload_created_by_user_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "pod_raw_upload" ADD CONSTRAINT "pod_raw_upload_updated_by_user_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -126,6 +176,10 @@ ALTER TABLE "pod_trace_segment" ADD CONSTRAINT "pod_trace_segment_training_sessi
 ALTER TABLE "pod_trace_segment" ADD CONSTRAINT "pod_trace_segment_pod_id_fkey" FOREIGN KEY ("club_id","pod_id") REFERENCES "public"."pod"("club_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "pod_trace_segment" ADD CONSTRAINT "pod_trace_segment_pod_raw_upload_id_fkey" FOREIGN KEY ("club_id","pod_raw_upload_id") REFERENCES "public"."pod_raw_upload"("club_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "pod_trace_segment" ADD CONSTRAINT "pod_trace_segment_raw_file_id_fkey" FOREIGN KEY ("club_id","raw_file_id") REFERENCES "public"."file"("club_id","id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "pod_command_audit_upload_idx" ON "pod_command_audit" USING btree ("club_id","pod_raw_upload_id","created_at");--> statement-breakpoint
+CREATE UNIQUE INDEX "pod_raw_trim_player_key" ON "pod_raw_trim" USING btree ("club_id","pod_raw_upload_id","player_id");--> statement-breakpoint
+CREATE INDEX "pod_raw_trim_player_idx" ON "pod_raw_trim" USING btree ("club_id","player_id");--> statement-breakpoint
+CREATE INDEX "pod_raw_trim_file_id_idx" ON "pod_raw_trim" USING btree ("club_id","file_id") WHERE "pod_raw_trim"."file_id" is not null;--> statement-breakpoint
 CREATE UNIQUE INDEX "pod_raw_upload_file_key" ON "pod_raw_upload" USING btree ("club_id","file_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "pod_raw_upload_ingest_key" ON "pod_raw_upload" USING btree ("club_id","ingest_key") WHERE "pod_raw_upload"."state" <> 'rejected';--> statement-breakpoint
 CREATE INDEX "pod_raw_upload_pod_idx" ON "pod_raw_upload" USING btree ("club_id","pod_id","created_at");--> statement-breakpoint
@@ -206,7 +260,7 @@ CREATE POLICY "file_app_pod_raw" ON "public"."file" AS RESTRICTIVE FOR ALL TO "s
 -- After the insert or update (RLS has already checked the row). On insert (the API, as the dock's staff): the pod's device, its chip id and serial number
 -- are the manifest's (the API never reads the chip id: `pod_device` is the registry's), the
 -- file is a `pod_raw` of no player with the declared size, and it starts `uploading`.
--- On update: only forward (`uploading` → `pending` | `rejected`, `pending` → `verified` |
+-- Nothing of what the worker fills can come with the insert. On update: only forward (`uploading` → `pending` | `rejected`, `pending` → `verified` |
 -- `rejected`, `verified` → `trimmed` | `rejected`), and the application only confirms
 -- (`uploading` → `pending`). The owner (fixtures, operators) is not limited.
 CREATE FUNCTION "public"."pod_raw_upload_guard"() RETURNS trigger
@@ -233,8 +287,14 @@ BEGIN
       RAISE EXCEPTION 'The file of an upload is a pod_raw of no player with the declared size'
         USING ERRCODE = 'check_violation', CONSTRAINT = 'pod_raw_upload_file', TABLE = 'pod_raw_upload';
     END IF;
-    IF NOT privileged AND NEW.state <> 'uploading' THEN
-      RAISE EXCEPTION 'An upload starts uploading'
+    IF NOT privileged AND (NEW.state <> 'uploading'
+        OR NEW.confirmed_at IS NOT NULL OR NEW.pending_until IS NOT NULL OR NEW.verified_at IS NOT NULL
+        OR NEW.erase_command IS NOT NULL OR NEW.recorded_from IS NOT NULL OR NEW.recorded_to IS NOT NULL
+        OR NEW.firmware_version IS NOT NULL OR NEW.gnss_firmware_version IS NOT NULL
+        OR NEW.issues <> '[]'::jsonb OR NEW.rejection_reason IS NOT NULL OR NEW.rejected_at IS NOT NULL
+        OR NEW.trimmed_at IS NOT NULL OR NEW.trimmed_players_n IS NOT NULL
+        OR NEW.trimmed_samples_n IS NOT NULL) THEN
+      RAISE EXCEPTION 'An upload starts uploading, with nothing of its life filled in'
         USING ERRCODE = 'check_violation', CONSTRAINT = 'pod_raw_upload_transition', TABLE = 'pod_raw_upload';
     END IF;
     RETURN NULL;
@@ -300,3 +360,40 @@ $$;
 REVOKE ALL ON FUNCTION "app"."worker_pod_raw_clubs"() FROM PUBLIC;
 --> statement-breakpoint
 GRANT EXECUTE ON FUNCTION "app"."worker_pod_raw_clubs"() TO "sport_performance_worker";
+
+--> statement-breakpoint
+
+-- ─── The trimmed files of each player and the audit of the signed commands ──────────
+CREATE TRIGGER "pod_raw_trim_set_updated_at" BEFORE UPDATE ON "pod_raw_trim" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();--> statement-breakpoint
+CREATE TRIGGER "pod_command_audit_set_updated_at" BEFORE UPDATE ON "pod_command_audit" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();--> statement-breakpoint
+
+-- pod_raw_trim (position_trace.read): the windows and page times of a player's trimmed file,
+--   read like the traces. The worker writes it, cuts it again after a correction and deletes
+--   it (erasure, retention); the application never writes it. No history.
+-- pod_command_audit: every command the server signed. S&C, the administration and support
+--   read it; the application inserts it as the caller, nobody changes or deletes it.
+DO $$
+DECLARE
+  player_scope constant text := '((SELECT "app"."sees_whole_club"()) OR player_id = ANY ((SELECT "app"."visible_player_ids"())::uuid[]))';
+BEGIN
+  PERFORM "app_admin"."secure_club_table"('public.pod_raw_trim',
+    format('(%s AND player_id = ANY ((SELECT "app"."visible_player_ids"())::uuid[])) OR (%s AND %s AND %L = ANY (("app"."current_consent_types"(player_id))::text[]))',
+           "app_admin"."role_in"('{player}'), "app_admin"."role_in"('{coach,sc,admin}'), player_scope, 'location'),
+    '{}');
+  PERFORM "app_admin"."secure_club_table"('public.pod_command_audit',
+    "app_admin"."role_in"('{sc,admin,superadmin}'), '{sc,admin,superadmin}');
+END
+$$;
+--> statement-breakpoint
+REVOKE UPDATE ON "public"."pod_command_audit" FROM "sport_performance_app", "sport_performance_worker";
+--> statement-breakpoint
+REVOKE UPDATE ON "public"."pod_raw_trim" FROM "sport_performance_app", "sport_performance_worker";
+--> statement-breakpoint
+GRANT UPDATE ("file_id", "windows", "pages", "shared_pages_n", "updated_at", "updated_by")
+  ON "public"."pod_raw_trim" TO "sport_performance_worker";
+--> statement-breakpoint
+GRANT DELETE ON "public"."pod_raw_trim" TO "sport_performance_worker";
+--> statement-breakpoint
+CREATE POLICY "pod_command_audit_app_insert_author" ON "public"."pod_command_audit" AS RESTRICTIVE
+  FOR INSERT TO "sport_performance_app"
+  WITH CHECK (created_by = (SELECT "app"."current_user_id"()));

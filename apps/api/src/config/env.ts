@@ -13,7 +13,11 @@ import {
   type S3StorageConfig,
 } from '@sport-performance/storage';
 import { z } from 'zod';
-import { POD_COMMAND_KEY_ID_PATTERN, podCommandKeyProblem } from '../pods/command-signer.js';
+import {
+  POD_COMMAND_KEY_ID_PATTERN,
+  compactBase64,
+  podCommandKeyProblem,
+} from '../pods/command-signer.js';
 import { databaseUrlProblems, secretProblems } from '../security/secrets.js';
 
 const integer = (min: number, max: number) => z.coerce.number().int().min(min).max(max);
@@ -115,9 +119,16 @@ export const envSchema = z
      */
     POD_COMMAND_SIGNING_KEY: z
       .string()
-      .min(1)
-      .max(4096)
-      .regex(/^[A-Za-z0-9+/]+={0,2}$/)
+      .max(8192)
+      // `base64` wraps lines and a paste may add spaces: they are not part of the key.
+      .transform(compactBase64)
+      .pipe(
+        z
+          .string()
+          .min(1)
+          .max(4096)
+          .regex(/^[A-Za-z0-9+/]+={0,2}$/),
+      )
       .optional(),
     /** Id of that key (the pod picks the public key by it): with the key, never alone. */
     POD_COMMAND_SIGNING_KEY_ID: z.string().regex(POD_COMMAND_KEY_ID_PATTERN).optional(),

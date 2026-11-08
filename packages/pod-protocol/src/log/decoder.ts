@@ -742,6 +742,16 @@ function buildIntervals(
   return intervals.sort((a, b) => a.startTick - b.startTick || a.kind.localeCompare(b.kind));
 }
 
+/** The lowest or highest page sequence, in a loop (a spread overflows the call stack at ~100k pages). */
+function pageSeqBound(
+  pages: readonly OpenedPage[],
+  pick: (a: number, b: number) => number,
+): number {
+  let bound = pages[0]?.header.pageSeq ?? 0;
+  for (const page of pages) bound = pick(bound, page.header.pageSeq);
+  return bound;
+}
+
 /** Ticks of the records overlapping each page (spans and pages in stream order). */
 function pageTickSpans(pages: readonly OpenedPage[], spans: readonly RecordSpan[]): PageTickSpan[] {
   const out: PageTickSpan[] = [];
@@ -867,8 +877,8 @@ export function decodeLog(input: DecodeLogInput): DecodedLog {
         bootCounter: first.header.bootCounter,
         segmentId: first.header.segmentId,
         keyEpochs: [...new Set(pages.map((p) => p.header.keyEpoch))],
-        firstPageSeq: Math.min(...pages.map((p) => p.header.pageSeq)),
-        lastPageSeq: Math.max(...pages.map((p) => p.header.pageSeq)),
+        firstPageSeq: pageSeqBound(pages, Math.min),
+        lastPageSeq: pageSeqBound(pages, Math.max),
         pagesN: pages.length,
         authenticPagesN: list.length,
         closed,

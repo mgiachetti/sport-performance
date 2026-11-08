@@ -189,6 +189,31 @@ describe.skipIf(!hasDatabase)('pod log ingestion (Postgres 16)', () => {
           code: '23514',
         });
       });
+      // Nothing of the worker's comes with the insert (an erase command, a verification…).
+      await run(as('sc'), async (client) => {
+        const fileId = await newRawFile(client, a);
+        expect(
+          await failure(
+            client.query(
+              `insert into pod_raw_upload (club_id, pod_id, device_id, ingest_key, chip_id, pod_serial,
+                 boot_counter, segment_id, first_page_seq, last_page_seq, pages_n, valid_pages_n,
+                 blocks, key_epochs, segment_closed, size_bytes, sha256_hex, file_id, issues)
+               values ($1, $2, $3, $4, $5, $6, 7, 999, 10, 10, 1, 1, '{3}', '{0}', true, $7,
+                       repeat('a', 64), $8, '[{"code":"page_issues"}]')`,
+              [
+                a.clubId,
+                a.rows.pod,
+                device.id,
+                `${device.chip}/7/999`,
+                device.chip,
+                device.serial,
+                2056 + 64,
+                fileId,
+              ],
+            ),
+          ),
+        ).toEqual({ code: '23514', constraint: 'pod_raw_upload_transition' });
+      });
       // The coach cannot create one, nor any file of the kind.
       expect(await failure(run(as('coach'), (client) => newRawFile(client, a)))).toMatchObject({
         code: '42501',
@@ -422,6 +447,64 @@ describe.skipIf(!hasDatabase)('pod log ingestion (Postgres 16)', () => {
             and tgname like '%change_history%'`,
       );
       expect(must(rows[0]).n).toBe(0);
+    });
+  });
+
+  describe('pod_raw_trim and pod_command_audit', () => {
+    it('the trim of a player is read like their traces; the audit by who runs the fleet', async () => {
+      // The assigned player of A signs the current location text (the one published above).
+      await t.pool.query(
+        `insert into consent (club_id, player_id, type, document_id, document_version, signer_kind,
+                              signed_by, signed_at)
+         select $1, $2, 'location', d.id, d.version, 'guardian', $3, now() - interval '1 minute'
+           from consent_document d where d.club_id = $1 and d.type = 'location' and d.version = '2026-12'`,
+        [a.clubId, a.players.assigned, a.users.parent],
+      );
+      for (const who of ['admin', 'sc', 'coach', 'player'] as const) {
+        expect(await count(as(who), 'from pod_raw_trim'), who).toBe(1);
+      }
+      for (const who of ['coachM17', 'parent', 'medical'] as const) {
+        expect(await count(as(who), 'from pod_raw_trim'), who).toBe(0);
+      }
+      expect(await count(as('admin', b), 'from pod_raw_trim')).toBe(0);
+      expect(await count(as('player', b), 'from pod_raw_trim')).toBe(1);
+      for (const who of ['admin', 'sc'] as const) {
+        expect(await count(as(who), 'from pod_command_audit'), who).toBe(1);
+      }
+      for (const who of ['coach', 'player', 'parent', 'medical'] as const) {
+        expect(await count(as(who), 'from pod_command_audit'), who).toBe(0);
+      }
+    });
+
+    it('the audit is written as the caller and never changed', async () => {
+      const insert = (client: pg.ClientBase, createdBy: string) =>
+        client.query(
+          `insert into pod_command_audit (club_id, pod_raw_upload_id, command, key_id, command_sha256, created_by)
+           values ($1, $2, 'erase', 'k-1', repeat('b', 64), $3)`,
+          [a.clubId, a.rows.pod_raw_upload, createdBy],
+        );
+      expect(await failure(run(as('sc'), (client) => insert(client, a.users.sc)))).toEqual({
+        code: 'no error',
+      });
+      expect(await failure(run(as('sc'), (client) => insert(client, a.users.admin)))).toMatchObject(
+        { code: '42501' },
+      );
+      expect(
+        await failure(
+          run(as('admin'), (client) =>
+            client.query(`update pod_command_audit set key_id = 'x' where id = $1`, [
+              a.rows.pod_command_audit,
+            ]),
+          ),
+        ),
+      ).toMatchObject({ code: '42501' });
+      expect(
+        await failure(
+          run(as('admin'), (client) =>
+            client.query(`delete from pod_command_audit where id = $1`, [a.rows.pod_command_audit]),
+          ),
+        ),
+      ).toMatchObject({ code: '42501' });
     });
   });
 

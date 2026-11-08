@@ -58,6 +58,10 @@ const APPEND_ONLY_TABLES = [
   'player_wellness_daily',
   // Loans are written only by app.lend_pod and app.end_pod_loan, which write both clubs (ADR 0106).
   'pod_loan',
+  // The audit of the commands the server signed: insert only (ADR 0108).
+  'pod_command_audit',
+  // A player's trimmed file and its windows: written by the worker only (ADR 0108).
+  'pod_raw_trim',
   // Position traces: the worker writes them once and deletes them (erasure, retention) (ADR 0106).
   'pod_trace_segment',
   'push_ticket',

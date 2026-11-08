@@ -2,11 +2,13 @@ import {
   LOCATION_ERASURE_CHANGE_REASON,
   LOCATION_ERASURE_FILE_KINDS,
   LOCATION_ERASURE_TABLES,
+  fileObjectKey,
   locationErasedTotal,
   type ClubId,
   type LocationErasedRows,
   type PlayerId,
 } from '@sport-performance/domain';
+import type { ObjectStorage } from '@sport-performance/storage';
 import type pg from 'pg';
 import type { Logger } from 'pino';
 import { inClubTransaction, type ClubTransaction } from './database.js';
@@ -26,6 +28,11 @@ export interface LocationErasureDependencies {
   /** Pool of a `sport_performance_worker` login. */
   readonly pool: pg.Pool;
   readonly logger: Logger;
+  /**
+   * The bucket: the objects of the erased files are removed right after the
+   * commit (the retention job is the backstop). Without it only the retention job.
+   */
+  readonly storage?: ObjectStorage | null;
 }
 
 export interface LocationErasureReport {
@@ -45,8 +52,9 @@ export const LOCATION_ERASURE_BATCH = 20;
  * and returns the rows deleted per table: the position traces
  * (`LOCATION_ERASURE_TABLES`, a constant: never input; the worker's `DELETE`
  * grant, no history trigger) and the trimmed `pod_raw` files of the player,
- * marked `deleted` so the retention job removes their objects, as
- * `app.erase_player` does (ADR 0044), reported as `file:pod_raw`. A pending
+ * marked `deleted` (their objects are removed after the commit, the retention
+ * job is the backstop, as `app.erase_player`, ADR 0044), reported as
+ * `file:pod_raw`; their keys go into `objectKeys`. A pending
  * `pod_raw` is of no player yet: its trim leaves this player out, because a
  * revoked `location` never counts again (`consentCoverage`).
  */
@@ -54,6 +62,7 @@ export async function deletePositionData(
   tx: ClubTransaction,
   playerId: PlayerId,
   now: Date = new Date(),
+  objectKeys: string[] = [],
 ): Promise<LocationErasedRows> {
   const deleted: Record<string, number> = {};
   for (const table of LOCATION_ERASURE_TABLES as readonly string[]) {
@@ -61,12 +70,16 @@ export async function deletePositionData(
     deleted[table] = result.rowCount ?? 0;
   }
   for (const kind of LOCATION_ERASURE_FILE_KINDS) {
-    const result = await tx.client.query(
+    const result = await tx.client.query<{ club_id: ClubId; id: string }>(
       `update file set status = 'deleted', deleted_at = coalesce(deleted_at, $3), expires_at = $3
-        where player_id = $1 and kind::text = $2 and status <> 'deleted'`,
+        where player_id = $1 and kind::text = $2 and status <> 'deleted'
+        returning club_id, id`,
       [playerId, kind, now],
     );
     deleted[`file:${kind}`] = result.rowCount ?? 0;
+    for (const file of result.rows) {
+      objectKeys.push(fileObjectKey({ clubId: file.club_id, kind, id: file.id }));
+    }
   }
   return deleted;
 }
@@ -89,6 +102,7 @@ export async function runClubLocationErasures(
   clubId: ClubId,
   options: { readonly jobId?: string } = {},
 ): Promise<LocationErasureReport> {
+  const objectKeys: string[] = [];
   const report = await inClubTransaction(
     deps.pool,
     clubId,
@@ -107,7 +121,7 @@ export async function runClubLocationErasures(
       const batch = rows.slice(0, LOCATION_ERASURE_BATCH);
       let deleted = 0;
       for (const row of batch) {
-        const counts = await deletePositionData(tx, row.player_id);
+        const counts = await deletePositionData(tx, row.player_id, new Date(), objectKeys);
         await tx.client.query(
           `update location_erasure
               set status = 'completed', completed_at = now(), deleted_rows = $3::jsonb
@@ -126,5 +140,15 @@ export async function runClubLocationErasures(
     },
     options.jobId === undefined ? {} : { requestId: `job:${options.jobId}` },
   );
+  // Committed: the objects go now; whatever fails here, the retention job removes later.
+  if (deps.storage) {
+    for (const key of objectKeys) {
+      try {
+        await deps.storage.remove(key);
+      } catch (error) {
+        deps.logger.warn({ err: error, clubId }, 'erased object not removed: retention will');
+      }
+    }
+  }
   return report;
 }

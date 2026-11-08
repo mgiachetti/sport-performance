@@ -54,6 +54,8 @@ import {
   podAssignment,
   podDevice,
   podLoan,
+  podCommandAudit,
+  podRawTrim,
   podRawUpload,
   podTraceSegment,
   position,
@@ -774,6 +776,43 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         expiresAt: new Date('2027-03-11T23:00:00Z'),
       })
       .returning({ id: file.id }),
+  );
+  rows.pod_raw_trim = await id(
+    db
+      .insert(podRawTrim)
+      .values({
+        ...base,
+        podRawUploadId: rows.pod_raw_upload,
+        playerId: assigned,
+        fileId: trimmedRaw,
+        windows: [
+          {
+            startMs: Date.parse('2026-03-10T21:00:00Z'),
+            endMs: Date.parse('2026-03-10T22:30:00Z'),
+          },
+        ],
+        pages: [
+          {
+            physicalPage: 512,
+            fromMs: Date.parse('2026-03-10T21:00:00Z'),
+            toMs: Date.parse('2026-03-10T21:00:01Z'),
+          },
+        ],
+      })
+      .returning({ id: podRawTrim.id }),
+  );
+  rows.pod_command_audit = await id(
+    db
+      .insert(podCommandAudit)
+      .values({
+        ...base,
+        podRawUploadId: rows.pod_raw_upload,
+        command: 'erase',
+        keyId: 'fixture-1',
+        commandSha256: 'a'.repeat(64),
+        createdBy: users.sc,
+      })
+      .returning({ id: podCommandAudit.id }),
   );
   rows.pod_trace_segment = await id(
     db

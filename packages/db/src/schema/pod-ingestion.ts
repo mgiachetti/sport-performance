@@ -243,3 +243,83 @@ export const podTraceSegment = pgTable(
     ),
   ],
 );
+
+/** A page of a trimmed `pod_raw` and the time of its records (UTC ms, both included). */
+export interface PodRawTrimPage {
+  readonly physicalPage: number;
+  readonly fromMs: number;
+  readonly toMs: number;
+}
+
+/**
+ * What the one-time trim kept of a `pod_raw` for one player (B-916, ADR
+ * 0108): their trimmed file, the windows that are their data (session ×
+ * assignment × consent per instant) and the time of every page in the file,
+ * so the metrics (B-919, B-906) clip the records at the edges and a
+ * correction after the trim cuts the file again without the keys. A page
+ * whose records overlap the windows of two players is in neither file. Read
+ * like the traces (`position_trace.read`); erased with the `location`
+ * consent; never in the change history.
+ */
+export const podRawTrim = pgTable(
+  'pod_raw_trim',
+  {
+    ...tenantColumns(),
+    podRawUploadId: uuid('pod_raw_upload_id').notNull(),
+    playerId: uuid('player_id').notNull().$type<PlayerId>(),
+    /** The trimmed file; `NULL` when no page was the player's alone (only the trace). */
+    fileId: uuid('file_id'),
+    /** `[{ startMs, endMs }]`, half-open, sorted, UTC ms. */
+    windows: jsonb('windows').notNull().$type<readonly { startMs: number; endMs: number }[]>(),
+    pages: jsonb('pages').notNull().$type<readonly PodRawTrimPage[]>(),
+    /** Pages left out because they overlap another player's windows. */
+    sharedPagesN: integer('shared_pages_n').notNull().default(0),
+  },
+  (t) => [
+    ...tenantConstraints('pod_raw_trim', t),
+    tenantReference('pod_raw_trim', t.clubId, t.podRawUploadId, podRawUpload),
+    tenantReference('pod_raw_trim', t.clubId, t.playerId, player),
+    tenantReference('pod_raw_trim', t.clubId, t.fileId, file),
+    uniqueIndex('pod_raw_trim_player_key').on(t.clubId, t.podRawUploadId, t.playerId),
+    index('pod_raw_trim_player_idx').on(t.clubId, t.playerId),
+    index('pod_raw_trim_file_id_idx')
+      .on(t.clubId, t.fileId)
+      .where(sql`${t.fileId} is not null`),
+    check(
+      'pod_raw_trim_shape',
+      sql`jsonb_typeof(${t.windows}) = 'array' and jsonb_typeof(${t.pages}) = 'array' and ${t.sharedPagesN} >= 0`,
+    ),
+  ],
+);
+
+/**
+ * Every command the server signed for a pod (ADR 0106, 0108): which upload,
+ * which key, the SHA-256 of the signed bytes, who asked (`created_by`) and
+ * the request. Append-only: the application inserts, nobody changes or
+ * deletes a row. Read by S&C, the administration and support, like the
+ * uploads.
+ */
+export const podCommandAudit = pgTable(
+  'pod_command_audit',
+  {
+    ...tenantColumns(),
+    podRawUploadId: uuid('pod_raw_upload_id').notNull(),
+    command: text('command').notNull(),
+    keyId: text('key_id').notNull(),
+    /** SHA-256 (hex) of the canonical bytes that were signed. */
+    commandSha256: text('command_sha256').notNull(),
+    requestId: text('request_id'),
+  },
+  (t) => [
+    ...tenantConstraints('pod_command_audit', t),
+    tenantReference('pod_command_audit', t.clubId, t.podRawUploadId, podRawUpload),
+    index('pod_command_audit_upload_idx').on(t.clubId, t.podRawUploadId, t.createdAt),
+    check('pod_command_audit_command', sql`${t.command} in ('erase')`),
+    check('pod_command_audit_sha256_format', sql`${t.commandSha256} ~ '^[0-9a-f]{64}$'`),
+    check('pod_command_audit_key_id_format', sql`${t.keyId} ~ '^[A-Za-z0-9._-]{1,64}$'`),
+    check(
+      'pod_command_audit_request_id_format',
+      sql`${t.requestId} is null or ${t.requestId} ~ '^[A-Za-z0-9._:-]{1,128}$'`,
+    ),
+  ],
+);

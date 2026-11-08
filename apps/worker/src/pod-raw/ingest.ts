@@ -4,9 +4,7 @@ import {
   POD_LOG_TRACE_ALGORITHM_VERSION,
   POD_SESSION_DEFAULT_DURATION_MIN,
   POD_TIME_BASE_MIN_ANCHORS,
-  POD_TRACE_CHUNK_MAX_SAMPLES,
   consentCoverage,
-  decimateByTime,
   fileExpiresAt,
   fileObjectKey,
   intersectIntervals,
@@ -27,7 +25,6 @@ import {
   type TimeZone,
 } from '@sport-performance/domain';
 import {
-  FIX_QUALITIES,
   PodProtocolError,
   decodeLog,
   deriveStorageKey,
@@ -37,7 +34,6 @@ import {
   podRawIngestKey,
   readPodRawFile,
   slicePodRawFile,
-  tickToGnssMs,
   toHex,
   verifyUploadForErase,
   type DecodedLog,
@@ -51,17 +47,32 @@ import type pg from 'pg';
 import type { Logger } from 'pino';
 import { inClubTransaction, type ClubTransaction } from '../database.js';
 import type { PodKeyProvider } from './keys.js';
+import {
+  assignPages,
+  pagesOverlapping,
+  timedPages,
+  traceChunks,
+  traceSamples,
+  type TimedPage,
+  type TraceSample,
+} from './trim.js';
+
+export { pagesOverlapping, traceChunks, traceSamples } from './trim.js';
 
 /**
  * Ingestion of the pod's NAND log (B-916, ADR 0106, ADR 0108), the
  * `pod-raw-ingest-club` job. Per club, in this order:
  *
- * 1. An upload whose window closed without bytes is rejected (`file_missing`).
+ * 1. An upload whose window closed without bytes is rejected (`file_missing`),
+ *    and a pending one that could not be verified in its days (`expired`).
+ *    Traces past their retention are deleted.
  * 2. Assignments of a pod with uploads that were corrected or voided
  *    (`reprocess_requested_at`): while the raw is pending nothing was kept, so
- *    the trim uses the corrected ranges; after the trim it is reported
- *    (`assignment_corrected_after_trim`), never moved to another player. The
- *    flag is cleared.
+ *    the trim reads the corrected ranges. After the trim, whatever falls
+ *    outside the corrected ranges is deleted (trace samples and pages of the
+ *    player's trimmed file), never moved to another player: the original is
+ *    gone. Reported as `assignment_corrected_after_trim` with the samples
+ *    deleted. The flag is cleared.
  * 3. Every confirmed upload is decoded with the pod's storage keys (from the
  *    club's master key and the manifest's `DEVICEID`) and checked with
  *    `verifyUploadForErase`: `verified` with the canonical erase command the
@@ -70,15 +81,19 @@ import type { PodKeyProvider } from './keys.js';
  *    whose pending days are over) is trimmed once: per player, only what is
  *    inside a session **and** a valid assignment **and** the `data` and
  *    `location` consents in force at that instant becomes data: a 1 Hz trace
- *    (`pod_trace_segment`, method `pod_log`) and a trimmed `pod_raw` of that
- *    player with only the pages of those windows (byte for byte: nothing is
- *    re-sealed). The original file is deleted.
- * 5. Traces past their retention are deleted.
+ *    (`pod_trace_segment`, method `pod_log`), a trimmed `pod_raw` of that
+ *    player with only the pages that are theirs alone (byte for byte: nothing
+ *    is re-sealed), and its windows and page times (`pod_raw_trim`). The
+ *    original file is deleted and its object removed right after the commit.
  *
+ * One upload never blocks the rest: a bucket failure is reported and tried
+ * again next run; a file that does not open is rejected; an unexpected error
+ * is logged, the upload skipped, and the job fails at the end so it retries.
  * Idempotent: each step moves rows forward under `FOR UPDATE SKIP LOCKED`
  * and a re-run finds nothing to do. No metric is computed here (speed bands,
  * HSR, accelerations and `accel_load_au` come with B-919 and B-906, from the
- * trimmed raw). Logs carry ids and counts, never a position.
+ * trimmed raw). Files are read whole into memory (a 3 h session is about
+ * 30 MiB). Logs carry ids and counts, never a position.
  */
 
 export interface PodRawIngestDependencies {
@@ -92,11 +107,14 @@ export interface PodRawIngestDependencies {
 
 export interface PodRawIngestReport {
   readonly expired: number;
+  /** Corrected assignments processed (flags cleared). */
   readonly reprocessed: number;
   readonly verified: number;
   readonly rejected: number;
   readonly trimmed: number;
   readonly tracesDeleted: number;
+  /** Uploads or corrections skipped by an unexpected error (the job then fails to retry). */
+  readonly failed: number;
   /** More work than one run does: the caller enqueues the job again. */
   readonly more: boolean;
 }
@@ -105,8 +123,8 @@ export interface PodRawIngestReport {
 export const POD_RAW_BATCH = 4;
 /** Traces deleted per run by the retention. */
 export const POD_TRACE_RETENTION_BATCH = 1000;
-/** A gap longer than this between two kept samples starts a new trace row. */
-export const POD_TRACE_GAP_MS = 10_000;
+/** Corrected assignments processed per run. */
+export const POD_CORRECTIONS_BATCH = 20;
 
 interface UploadRow {
   id: string;
@@ -179,6 +197,30 @@ function mergeIssues(
   return [...byCode.values()];
 }
 
+async function setIssues(
+  tx: ClubTransaction,
+  clubId: ClubId,
+  row: Pick<UploadRow, 'id' | 'issues'>,
+  issues: readonly PodRawIssue[],
+): Promise<void> {
+  if (JSON.stringify(issues) === JSON.stringify(row.issues)) return;
+  await tx.client.query(
+    `update pod_raw_upload set issues = $3::jsonb where club_id = $1 and id = $2`,
+    [clubId, row.id, JSON.stringify(issues)],
+  );
+}
+
+/** Removes objects whose rows were committed as deleted; the daily purge is the backstop. */
+async function removeObjects(deps: PodRawIngestDependencies, keys: readonly string[]) {
+  for (const key of keys) {
+    try {
+      await deps.storage.remove(key);
+    } catch (error) {
+      deps.logger.warn({ err: error }, 'pod_raw object not removed: the retention job will');
+    }
+  }
+}
+
 // ─── Decoding ────────────────────────────────────────────────────────────────────────
 
 type Opened =
@@ -189,7 +231,9 @@ type Opened =
       decoded: DecodedLog;
       manifest: PodRawManifest;
     }
-  | { ok: false; reason: PodRawRejectionReason };
+  /** The bucket failed: not a rejection, the file is tried again next run. */
+  | { ok: false; transient: true }
+  | { ok: false; transient: false; reason: PodRawRejectionReason };
 
 /** Reads the object and decodes it with the pod's storage keys of the manifest's epochs. */
 async function openUpload(
@@ -200,43 +244,57 @@ async function openUpload(
 ): Promise<Opened> {
   const manifest = manifestOf(row);
   // The row was created for this segment: the same idempotency key as the protocol's.
-  if (podRawIngestKey(manifest) !== row.ingest_key)
-    return { ok: false, reason: 'manifest_mismatch' };
+  if (podRawIngestKey(manifest) !== row.ingest_key) {
+    return { ok: false, transient: false, reason: 'manifest_mismatch' };
+  }
   let bytes: Uint8Array | null;
   try {
     bytes = await deps.storage.get(objectKey(clubId, row.file_id), manifest.sizeB);
   } catch (error) {
     // Bigger than the manifest says: not the declared file.
-    if (error instanceof ObjectTooLargeError) return { ok: false, reason: 'manifest_mismatch' };
-    throw error;
+    if (error instanceof ObjectTooLargeError)
+      return { ok: false, transient: false, reason: 'manifest_mismatch' };
+    deps.logger.warn({ err: error, clubId, podRawUploadId: row.id }, 'pod_raw not read');
+    return { ok: false, transient: true };
   }
-  if (bytes === null) return { ok: false, reason: 'file_missing' };
+  if (bytes === null) return { ok: false, transient: false, reason: 'file_missing' };
   let pages: NandPageRead[];
   try {
     pages = readPodRawFile(bytes, manifest).pages;
   } catch (error) {
-    const code = error instanceof PodProtocolError ? error.code : 'unknown';
-    if (code === 'manifest_mismatch') return { ok: false, reason: 'manifest_mismatch' };
-    if (error instanceof PodProtocolError) return { ok: false, reason: 'invalid_container' };
-    throw error;
+    if (error instanceof PodProtocolError) {
+      return {
+        ok: false,
+        transient: false,
+        reason: error.code === 'manifest_mismatch' ? 'manifest_mismatch' : 'invalid_container',
+      };
+    }
+    return { ok: false, transient: false, reason: 'decode_failed' };
   }
   // Always with the manifest's DEVICEID (checked against the pod's device on insert).
   const deviceId = fromHex(manifest.deviceIdHex);
   const epochs = new Set(manifest.keyEpochs);
   const keys = new Map<number, Uint8Array>();
-  const decoded = decodeLog({
-    pages,
-    deviceId,
-    keyForEpoch: (epoch) => {
-      if (!epochs.has(epoch)) return undefined;
-      let key = keys.get(epoch);
-      if (key === undefined) {
-        key = deriveStorageKey({ masterKey, deviceId, epoch });
-        keys.set(epoch, key);
-      }
-      return key;
-    },
-  });
+  let decoded: DecodedLog;
+  try {
+    decoded = decodeLog({
+      pages,
+      deviceId,
+      keyForEpoch: (epoch) => {
+        if (!epochs.has(epoch)) return undefined;
+        let key = keys.get(epoch);
+        if (key === undefined) {
+          key = deriveStorageKey({ masterKey, deviceId, epoch });
+          keys.set(epoch, key);
+        }
+        return key;
+      },
+    });
+  } catch (error) {
+    // The decoder reports bad data instead of throwing; this is a bug, never retried forever.
+    deps.logger.error({ err: error, clubId, podRawUploadId: row.id }, 'pod_raw did not decode');
+    return { ok: false, transient: false, reason: 'decode_failed' };
+  }
   return { ok: true, bytes, pages, decoded, manifest };
 }
 
@@ -280,7 +338,30 @@ function versionsOf(segment: DecodedSegment): { firmware: string | null; gnss: s
   };
 }
 
-// ─── 1. Expired upload windows ───────────────────────────────────────────────────────
+/** The recording's time in UTC from the decoded log, or `null` without absolute time. */
+function recordedRange(segment: DecodedSegment, base: TimeBase | undefined): TimeInterval | null {
+  const offset = base?.gpsUtcOffsetS;
+  const pvt = segment.streams.pvt;
+  const first = pvt[0];
+  const last = pvt.at(-1);
+  const fromPvt =
+    first !== undefined && last !== undefined
+      ? { startMs: first.gnssTimeMs, endMs: last.gnssTimeMs }
+      : null;
+  const gnss = segment.gnssTimeRange
+    ? {
+        startMs: Math.min(segment.gnssTimeRange.startMs, fromPvt?.startMs ?? Infinity),
+        endMs: Math.max(segment.gnssTimeRange.endMs, fromPvt?.endMs ?? -Infinity),
+      }
+    : fromPvt;
+  if (gnss === null) return null;
+  return {
+    startMs: Math.floor(gnssMsToUnixMs(gnss.startMs, offset)),
+    endMs: Math.ceil(gnssMsToUnixMs(gnss.endMs, offset)),
+  };
+}
+
+// ─── 1. Expired upload windows, retention ────────────────────────────────────────────
 
 async function rejectExpiredUploads(
   tx: ClubTransaction,
@@ -312,63 +393,38 @@ async function rejectExpiredUploads(
   return rows[0]?.n ?? 0;
 }
 
-// ─── 2. Corrected assignments ────────────────────────────────────────────────────────
-
-async function processReprocessFlags(tx: ClubTransaction, clubId: ClubId): Promise<number> {
-  const { rows } = await tx.client.query<{
-    id: string;
-    pod_id: string;
-    starts_at: Date;
-    ends_at: Date | null;
-  }>(
-    `select a.id, a.pod_id, a.starts_at, a.ends_at from pod_assignment a
-      where a.club_id = $1 and a.reprocess_requested_at is not null
-        and exists (select 1 from pod_raw_upload u where u.club_id = a.club_id and u.pod_id = a.pod_id)
-      order by a.reprocess_requested_at, a.id
-      limit 100
-      for update of a skip locked`,
-    [clubId],
+async function deleteExpiredTraces(tx: ClubTransaction, clubId: ClubId, now: Date) {
+  const { rowCount } = await tx.client.query(
+    `delete from pod_trace_segment
+      where club_id = $1 and id in (
+        select id from pod_trace_segment where club_id = $1 and expires_at <= $2
+         order by expires_at limit $3)`,
+    [clubId, now, POD_TRACE_RETENTION_BATCH],
   );
-  for (const assignment of rows) {
-    const { rows: trimmed } = await tx.client.query<{ id: string; issues: PodRawIssue[] }>(
-      `select id, issues from pod_raw_upload
-        where club_id = $1 and pod_id = $2 and state = 'trimmed'
-          and recorded_from is not null and recorded_to is not null
-          and recorded_from < coalesce($4::timestamptz, 'infinity') and recorded_to >= $3
-        for update`,
-      [clubId, assignment.pod_id, assignment.starts_at, assignment.ends_at],
-    );
-    for (const upload of trimmed) {
-      await tx.client.query(
-        `update pod_raw_upload set issues = $3::jsonb where club_id = $1 and id = $2`,
-        [
-          clubId,
-          upload.id,
-          JSON.stringify(mergeIssues(upload.issues, [{ code: 'assignment_corrected_after_trim' }])),
-        ],
-      );
-    }
-    // Pending uploads need nothing: the trim reads the corrected ranges.
-    await tx.client.query(
-      `update pod_assignment set reprocess_requested_at = null where club_id = $1 and id = $2`,
-      [clubId, assignment.id],
-    );
-  }
-  return rows.length;
+  return rowCount ?? 0;
 }
 
-// ─── 3. Verification ─────────────────────────────────────────────────────────────────
+// ─── Locking and rejecting ───────────────────────────────────────────────────────────
 
-async function lockNext(tx: ClubTransaction, clubId: ClubId, state: string, extra = '') {
+/** The next upload in `state`, not among `skip`, locked; its id goes into `skip` at once. */
+async function lockNext(
+  tx: ClubTransaction,
+  clubId: ClubId,
+  state: 'pending' | 'verified',
+  skip: string[],
+): Promise<UploadRow | undefined> {
   const { rows } = await tx.client.query<UploadRow>(
     `select ${UPLOAD_COLUMNS} from pod_raw_upload
-      where club_id = $1 and state = $2 ${extra}
+      where club_id = $1 and state = $2 and not (id = any ($3::uuid[]))
       order by confirmed_at, id
       limit 1
       for update skip locked`,
-    [clubId, state],
+    [clubId, state, skip],
   );
-  return rows[0];
+  const row = rows[0];
+  // Before anything can fail: an error with this upload never makes the run take it again.
+  if (row !== undefined) skip.push(row.id);
+  return row;
 }
 
 async function reject(
@@ -377,16 +433,17 @@ async function reject(
   row: UploadRow,
   reason: PodRawRejectionReason,
   now: Date,
-): Promise<void> {
+): Promise<string> {
   await tx.client.query(
     `update pod_raw_upload set state = 'rejected', rejection_reason = $3, rejected_at = $4
       where club_id = $1 and id = $2`,
     [clubId, row.id, reason, now],
   );
   await deleteFile(tx, clubId, row.file_id, now);
+  return objectKey(clubId, row.file_id);
 }
 
-/** Marks a file deleted now: the retention job removes the object (ADR 0044). */
+/** Marks a file deleted now; the caller removes the object after the commit. */
 async function deleteFile(tx: ClubTransaction, clubId: ClubId, fileId: string, now: Date) {
   await tx.client.query(
     `update file set status = 'deleted', deleted_at = coalesce(deleted_at, $3), expires_at = $3
@@ -395,39 +452,43 @@ async function deleteFile(tx: ClubTransaction, clubId: ClubId, fileId: string, n
   );
 }
 
-type VerifyOutcome = 'verified' | 'rejected' | 'skipped' | 'none';
+// ─── 3. Verification ─────────────────────────────────────────────────────────────────
+
+type Outcome = 'verified' | 'rejected' | 'trimmed' | 'skipped' | 'waiting' | 'none';
+
+interface StepResult {
+  readonly outcome: Outcome;
+  /** Objects to remove once the transaction committed. */
+  readonly remove?: readonly string[];
+}
 
 async function verifyNext(
   deps: PodRawIngestDependencies,
   clubId: ClubId,
   masterKey: Uint8Array | null,
-  skip: readonly string[],
-): Promise<{ outcome: VerifyOutcome; id?: string }> {
-  const now = deps.now?.() ?? new Date();
+  skip: string[],
+  now: Date,
+): Promise<StepResult> {
   return inClubTransaction(deps.pool, clubId, async (tx) => {
-    const row = await lockNext(
-      tx,
-      clubId,
-      'pending',
-      skip.length === 0 ? '' : `and id <> all ('{${skip.join(',')}}'::uuid[])`,
-    );
+    const row = await lockNext(tx, clubId, 'pending', skip);
     if (row === undefined) return { outcome: 'none' };
     if (masterKey === null) {
       // Kept pending until the club has a key (or its pending days are over).
-      await tx.client.query(
-        `update pod_raw_upload set issues = $3::jsonb where club_id = $1 and id = $2`,
-        [clubId, row.id, JSON.stringify(mergeIssues(row.issues, [{ code: 'master_key_missing' }]))],
-      );
-      return { outcome: 'skipped', id: row.id };
+      await setIssues(tx, clubId, row, mergeIssues(row.issues, [{ code: 'master_key_missing' }]));
+      return { outcome: 'skipped' };
     }
     const opened = await openUpload(deps, clubId, row, masterKey);
+    if (!opened.ok && opened.transient) {
+      await setIssues(tx, clubId, row, mergeIssues(row.issues, [{ code: 'storage_unavailable' }]));
+      return { outcome: 'skipped' };
+    }
     if (!opened.ok) {
-      await reject(tx, clubId, row, opened.reason, now);
+      const removed = await reject(tx, clubId, row, opened.reason, now);
       deps.logger.warn(
         { clubId, podRawUploadId: row.id, reason: opened.reason },
         'pod_raw rejected',
       );
-      return { outcome: 'rejected', id: row.id };
+      return { outcome: 'rejected', remove: [removed] };
     }
     const verification = verifyUploadForErase({
       manifest: opened.manifest,
@@ -435,20 +496,23 @@ async function verifyNext(
       decoded: opened.decoded,
     });
     if (!verification.ok) {
-      await reject(tx, clubId, row, verification.reason, now);
+      const removed = await reject(tx, clubId, row, verification.reason, now);
       deps.logger.warn(
         { clubId, podRawUploadId: row.id, reason: verification.reason },
         'pod_raw rejected',
       );
-      return { outcome: 'rejected', id: row.id };
+      return { outcome: 'rejected', remove: [removed] };
     }
     const segment = opened.decoded.segments[0];
-    if (segment === undefined) throw new Error('a verified upload has its segment');
+    if (segment === undefined) {
+      const removed = await reject(tx, clubId, row, 'segment_missing', now);
+      return { outcome: 'rejected', remove: [removed] };
+    }
     const base = timeBaseOf(opened.decoded, segment);
     const range = recordedRange(segment, base);
     const versions = versionsOf(segment);
     const issues = mergeIssues(
-      row.issues.filter((i) => i.code !== 'master_key_missing'),
+      row.issues.filter((i) => i.code !== 'master_key_missing' && i.code !== 'storage_unavailable'),
       decodeIssues(opened.decoded, segment),
     );
     await tx.client.query(
@@ -472,34 +536,11 @@ async function verifyNext(
       { clubId, podRawUploadId: row.id, issues: issues.map((i) => i.code) },
       'pod_raw verified',
     );
-    return { outcome: 'verified', id: row.id };
+    return { outcome: 'verified' };
   });
 }
 
-/** The recording's time in UTC from the decoded log, or `null` without absolute time. */
-function recordedRange(segment: DecodedSegment, base: TimeBase | undefined): TimeInterval | null {
-  const offset = base?.gpsUtcOffsetS;
-  const pvt = segment.streams.pvt;
-  const first = pvt[0];
-  const last = pvt.at(-1);
-  const fromPvt =
-    first !== undefined && last !== undefined
-      ? { startMs: first.gnssTimeMs, endMs: last.gnssTimeMs }
-      : null;
-  const gnss = segment.gnssTimeRange
-    ? {
-        startMs: Math.min(segment.gnssTimeRange.startMs, fromPvt?.startMs ?? Infinity),
-        endMs: Math.max(segment.gnssTimeRange.endMs, fromPvt?.endMs ?? -Infinity),
-      }
-    : fromPvt;
-  if (gnss === null) return null;
-  return {
-    startMs: Math.floor(gnssMsToUnixMs(gnss.startMs, offset)),
-    endMs: Math.ceil(gnssMsToUnixMs(gnss.endMs, offset)),
-  };
-}
-
-// ─── 4. The one-time trim ────────────────────────────────────────────────────────────
+// ─── Windows: sessions × assignments × consent per instant ───────────────────────────
 
 interface SessionRow {
   id: string;
@@ -515,7 +556,6 @@ interface AssignmentRow {
   training_session_id: string | null;
   starts_at: Date;
   ends_at: Date | null;
-  reprocess_requested_at: Date | null;
 }
 
 /** Sessions of the club whose window overlaps `[from, to]`, not archived. */
@@ -535,6 +575,7 @@ async function sessionsOverlapping(
   return rows;
 }
 
+/** Live (not voided) assignments of the pod overlapping `[from, to]`. */
 async function assignmentsOverlapping(
   tx: ClubTransaction,
   clubId: ClubId,
@@ -543,7 +584,7 @@ async function assignmentsOverlapping(
   to: Date,
 ): Promise<AssignmentRow[]> {
   const { rows } = await tx.client.query<AssignmentRow>(
-    `select id, player_id, training_session_id, starts_at, ends_at, reprocess_requested_at
+    `select id, player_id, training_session_id, starts_at, ends_at
        from pod_assignment
       where club_id = $1 and pod_id = $2 and archived_at is null
         and starts_at <= $4 and (ends_at is null or ends_at > $3)
@@ -626,15 +667,6 @@ async function consentRecords(
   }));
 }
 
-interface TraceSample {
-  timeMs: number;
-  latE7: number;
-  lonE7: number;
-  speedMmS: number | null;
-  hAccMm: number | null;
-  fix: number;
-}
-
 interface PlayerTrim {
   playerId: string;
   windows: TimeInterval[];
@@ -642,14 +674,49 @@ interface PlayerTrim {
   sessions: { id: string; windows: TimeInterval[] }[];
 }
 
-/** Per player, where their data is (sessions × assignments × consents per instant). */
+/** `a` minus `b` (both normalized). */
+function subtract(a: readonly TimeInterval[], b: readonly TimeInterval[]): TimeInterval[] {
+  const out: TimeInterval[] = [];
+  for (const interval of a) {
+    let pieces: TimeInterval[] = [interval];
+    for (const cut of b) {
+      pieces = pieces.flatMap((p) => {
+        if (cut.endMs <= p.startMs || cut.startMs >= p.endMs) return [p];
+        const parts: TimeInterval[] = [];
+        if (cut.startMs > p.startMs) parts.push({ startMs: p.startMs, endMs: cut.startMs });
+        if (cut.endMs < p.endMs) parts.push({ startMs: cut.endMs, endMs: p.endMs });
+        return parts;
+      });
+    }
+    out.push(...pieces);
+  }
+  return normalizeIntervals(out);
+}
+
+async function clubTimeZone(tx: ClubTransaction, clubId: ClubId): Promise<TimeZone> {
+  const { rows } = await tx.client.query<{ time_zone: TimeZone }>(
+    'select time_zone from club where id = $1',
+    [clubId],
+  );
+  const zone = rows[0]?.time_zone;
+  if (zone === undefined) throw new Error('club not found');
+  return zone;
+}
+
+/** Per player, where their data is in `[from, to]` (sessions × assignments × consents). */
 async function playerTrims(
   tx: ClubTransaction,
   clubId: ClubId,
-  timeZone: TimeZone,
-  sessions: readonly SessionRow[],
-  assignments: readonly AssignmentRow[],
-): Promise<PlayerTrim[]> {
+  podId: string,
+  from: Date,
+  to: Date,
+): Promise<{ trims: PlayerTrim[]; sessions: SessionRow[]; assignments: AssignmentRow[] }> {
+  const sessions = await sessionsOverlapping(tx, clubId, from, to);
+  const assignments = await assignmentsOverlapping(tx, clubId, podId, from, to);
+  if (sessions.length === 0 || assignments.length === 0) {
+    return { trims: [], sessions, assignments };
+  }
+  const timeZone = await clubTimeZone(tx, clubId);
   const sessionById = new Map(sessions.map((s) => [s.id, s]));
   // A session named by an assignment counts even if loaded with another window.
   const named = [
@@ -676,7 +743,7 @@ async function playerTrims(
     [clubId, playerIds],
   );
   const birthOf = new Map(players.map((p) => [p.id, p.birth_date as LocalDate]));
-  const out: PlayerTrim[] = [];
+  const trims: PlayerTrim[] = [];
   for (const playerId of playerIds) {
     const birthDate = birthOf.get(playerId);
     if (birthDate === undefined) continue;
@@ -727,262 +794,257 @@ async function playerTrims(
       bySession.push({ id: session.id, windows: inside });
       left = subtract(left, inside);
     }
-    out.push({ playerId, windows, sessions: bySession });
+    trims.push({ playerId, windows, sessions: bySession });
   }
-  return out;
+  return { trims, sessions, assignments };
 }
 
-/** `a` minus `b` (both normalized). */
-function subtract(a: readonly TimeInterval[], b: readonly TimeInterval[]): TimeInterval[] {
-  const out: TimeInterval[] = [];
-  for (const interval of a) {
-    let pieces: TimeInterval[] = [interval];
-    for (const cut of b) {
-      pieces = pieces.flatMap((p) => {
-        if (cut.endMs <= p.startMs || cut.startMs >= p.endMs) return [p];
-        const parts: TimeInterval[] = [];
-        if (cut.startMs > p.startMs) parts.push({ startMs: p.startMs, endMs: cut.startMs });
-        if (cut.endMs < p.endMs) parts.push({ startMs: cut.endMs, endMs: p.endMs });
-        return parts;
-      });
-    }
-    out.push(...pieces);
-  }
-  return normalizeIntervals(out);
+// ─── Writing what a player keeps ─────────────────────────────────────────────────────
+
+interface TraceMeta {
+  podId: string;
+  uploadId: string;
+  firmwareVersion: string | null;
+  gnssFirmwareVersion: string | null;
+  lowConfidence: boolean;
+  expiresAt: Date;
 }
 
-/** The 1 Hz samples of the windows, from the PVT epochs with a fix. */
-export function traceSamples(
-  segment: DecodedSegment,
-  base: TimeBase | undefined,
-  windows: readonly TimeInterval[],
-): TraceSample[] {
-  const offset = base?.gpsUtcOffsetS;
-  const samples: TraceSample[] = [];
-  for (const pvt of segment.streams.pvt) {
-    if (pvt.fixQuality === 'no_fix') continue;
-    const timeMs = Math.round(gnssMsToUnixMs(pvt.gnssTimeMs, offset));
-    if (!intervalsContain(windows, timeMs)) continue;
-    samples.push({
-      timeMs,
-      latE7: pvt.latE7,
-      lonE7: pvt.lonE7,
-      speedMmS: pvt.groundSpeedMmS,
-      hAccMm: pvt.hAccMm,
-      fix: FIX_QUALITIES.indexOf(pvt.fixQuality),
-    });
-  }
-  samples.sort((x, y) => x.timeMs - y.timeMs);
-  return decimateByTime(samples);
-}
-
-/** Contiguous stretches of at most {@link POD_TRACE_CHUNK_MAX_SAMPLES}. */
-export function traceChunks(samples: readonly TraceSample[]): TraceSample[][] {
-  const chunks: TraceSample[][] = [];
-  let current: TraceSample[] = [];
-  for (const sample of samples) {
-    const previous = current.at(-1);
-    if (
-      previous !== undefined &&
-      (sample.timeMs - previous.timeMs > POD_TRACE_GAP_MS ||
-        current.length >= POD_TRACE_CHUNK_MAX_SAMPLES)
-    ) {
-      chunks.push(current);
-      current = [];
-    }
-    current.push(sample);
-  }
-  if (current.length > 0) chunks.push(current);
-  return chunks;
-}
-
-/** The physical pages whose records fall in the windows; untimed pages never do. */
-export function pagesInWindows(
-  segment: DecodedSegment,
-  base: TimeBase | undefined,
-  windows: readonly TimeInterval[],
-): { keep: Set<number>; untimed: number } {
-  const keep = new Set<number>();
-  let untimed = 0;
-  const offset = base?.gpsUtcOffsetS;
-  for (const span of segment.pageTicks) {
-    const from = base && span.firstTick !== null ? tickToGnssMs(base, span.firstTick) : null;
-    const to = base && span.lastTick !== null ? tickToGnssMs(base, span.lastTick) : null;
-    if (from === null || to === null) {
-      untimed += 1;
-      continue;
-    }
-    if (intervalsOverlap(windows, gnssMsToUnixMs(from, offset), gnssMsToUnixMs(to, offset))) {
-      keep.add(span.physicalPage);
-    }
-  }
-  return { keep, untimed };
-}
-
-async function clubTimeZone(tx: ClubTransaction, clubId: ClubId): Promise<TimeZone> {
-  const { rows } = await tx.client.query<{ time_zone: TimeZone }>(
-    'select time_zone from club where id = $1',
-    [clubId],
+async function insertTrace(
+  tx: ClubTransaction,
+  clubId: ClubId,
+  meta: TraceMeta,
+  playerId: string,
+  sessionId: string,
+  rawFileId: string | null,
+  index: number,
+  chunk: readonly TraceSample[],
+): Promise<void> {
+  const first = chunk[0];
+  const last = chunk.at(-1);
+  if (first === undefined || last === undefined) return;
+  await tx.client.query(
+    `insert into pod_trace_segment (club_id, player_id, training_session_id, pod_id,
+       pod_raw_upload_id, raw_file_id, chunk_index, method_variant, algorithm_version,
+       firmware_version, gnss_firmware_version, starts_at, ends_at, samples_n, offsets_ms,
+       lat_e7, lon_e7, speed_mm_s, h_acc_mm, fix_quality, time_low_confidence, expires_at)
+     values ($1, $2, $3, $4, $5, $6, $7, 'pod_log', $8, $9, $10, $11, $12, $13, $14, $15,
+             $16, $17, $18, $19, $20, $21)
+     on conflict (club_id, pod_raw_upload_id, player_id, training_session_id, chunk_index)
+     do nothing`,
+    [
+      clubId,
+      playerId,
+      sessionId,
+      meta.podId,
+      meta.uploadId,
+      rawFileId,
+      index,
+      POD_LOG_TRACE_ALGORITHM_VERSION,
+      meta.firmwareVersion,
+      meta.gnssFirmwareVersion,
+      new Date(first.timeMs),
+      // Exclusive end: one sample interval after the last.
+      new Date(last.timeMs + 1000),
+      chunk.length,
+      chunk.map((s) => s.timeMs - first.timeMs),
+      chunk.map((s) => s.latE7),
+      chunk.map((s) => s.lonE7),
+      chunk.map((s) => s.speedMmS),
+      chunk.map((s) => s.hAccMm),
+      chunk.map((s) => s.fix),
+      meta.lowConfidence,
+      meta.expiresAt,
+    ],
   );
-  const zone = rows[0]?.time_zone;
-  if (zone === undefined) throw new Error('club not found');
-  return zone;
 }
 
-type TrimOutcome = 'trimmed' | 'waiting' | 'none';
+/** Puts a trimmed file of a player in the bucket and records it; returns its id. */
+async function writeTrimmedFile(
+  deps: PodRawIngestDependencies,
+  tx: ClubTransaction,
+  clubId: ClubId,
+  playerId: string,
+  bytes: Uint8Array,
+  sha256Hex: string,
+  now: Date,
+  expiresAt: Date,
+  written: string[],
+): Promise<string> {
+  const fileId = randomUUID();
+  const checksum = Buffer.from(sha256Hex, 'hex').toString('base64');
+  const key = objectKey(clubId, fileId);
+  await deps.storage.put({
+    key,
+    body: bytes,
+    contentType: 'application/octet-stream',
+    checksumSha256: checksum,
+  });
+  written.push(key);
+  await tx.client.query(
+    `insert into file (id, club_id, kind, status, player_id, content_type, size_bytes,
+                       checksum_sha256, file_name, uploaded_at, expires_at)
+     values ($1, $2, 'pod_raw', 'ready', $3, 'application/octet-stream', $4, $5, $6, $7, $8)`,
+    [fileId, clubId, playerId, bytes.length, checksum, 'pod-raw-trimmed.sprw', now, expiresAt],
+  );
+  return fileId;
+}
+
+// ─── 4. The one-time trim ────────────────────────────────────────────────────────────
 
 async function trimNext(
   deps: PodRawIngestDependencies,
   clubId: ClubId,
   masterKey: Uint8Array | null,
-  skip: readonly string[],
-): Promise<{ outcome: TrimOutcome; id?: string }> {
-  const now = deps.now?.() ?? new Date();
+  skip: string[],
+  now: Date,
+): Promise<StepResult> {
   const written: string[] = [];
   try {
     return await inClubTransaction(deps.pool, clubId, async (tx) => {
-      const row = await lockNext(
-        tx,
-        clubId,
-        'verified',
-        skip.length === 0 ? '' : `and id <> all ('{${skip.join(',')}}'::uuid[])`,
-      );
+      const row = await lockNext(tx, clubId, 'verified', skip);
       if (row === undefined) return { outcome: 'none' };
       const pendingUntil = row.pending_until ?? now;
       const from = row.recorded_from;
       const to = row.recorded_to;
-      let sessions: SessionRow[] = [];
-      let assignments: AssignmentRow[] = [];
+      let trims: PlayerTrim[] = [];
       if (from !== null && to !== null) {
-        sessions = await sessionsOverlapping(tx, clubId, from, to);
-        assignments = await assignmentsOverlapping(tx, clubId, row.pod_id, from, to);
+        const found = await playerTrims(tx, clubId, row.pod_id, from, to);
         const due = podRawTrimDue({
           now,
           pendingUntil,
-          sessionEnds: sessions.map(
+          sessionEnds: found.sessions.map(
             (s) =>
               new Date(
                 sessionWindow({ startsAt: s.starts_at, plannedDurationMin: s.planned_duration_min })
                   .endMs,
               ),
           ),
-          openAssignment: assignments.some((a) => a.ends_at === null),
-          reprocessPending: assignments.some((a) => a.reprocess_requested_at !== null),
+          openAssignment: found.assignments.some((a) => a.ends_at === null),
         });
-        if (!due) return { outcome: 'waiting', id: row.id };
+        if (!due) return { outcome: 'waiting' };
+        trims = found.trims;
       }
       // Without absolute time nothing can be placed in a session: nothing becomes data.
-      let trims: PlayerTrim[] = [];
       let segment: DecodedSegment | undefined;
       let base: TimeBase | undefined;
       let bytes: Uint8Array | null = null;
-      if (from !== null && to !== null && assignments.length > 0 && sessions.length > 0) {
-        if (masterKey === null) return { outcome: 'waiting', id: row.id };
-        trims = await playerTrims(
-          tx,
-          clubId,
-          await clubTimeZone(tx, clubId),
-          sessions,
-          assignments,
-        );
-        if (trims.length > 0) {
-          const opened = await openUpload(deps, clubId, row, masterKey);
-          if (!opened.ok) throw new Error(`a verified pod_raw no longer opens: ${opened.reason}`);
-          bytes = opened.bytes;
-          segment = opened.decoded.segments[0];
-          base = segment === undefined ? undefined : timeBaseOf(opened.decoded, segment);
+      if (trims.length > 0) {
+        if (masterKey === null) {
+          if (now < pendingUntil) return { outcome: 'waiting' };
+          // Never decoded in time: nothing of it becomes data, before retention takes the object.
+          const removed = await reject(tx, clubId, row, 'master_key_missing_expired', now);
+          return { outcome: 'rejected', remove: [removed] };
         }
+        const opened = await openUpload(deps, clubId, row, masterKey);
+        if (!opened.ok && opened.transient) {
+          await setIssues(
+            tx,
+            clubId,
+            row,
+            mergeIssues(row.issues, [{ code: 'storage_unavailable' }]),
+          );
+          return { outcome: 'skipped' };
+        }
+        if (!opened.ok) {
+          const removed = await reject(tx, clubId, row, opened.reason, now);
+          deps.logger.warn(
+            { clubId, podRawUploadId: row.id, reason: opened.reason },
+            'verified pod_raw rejected at the trim',
+          );
+          return { outcome: 'rejected', remove: [removed] };
+        }
+        bytes = opened.bytes;
+        segment = opened.decoded.segments[0];
+        base = segment === undefined ? undefined : timeBaseOf(opened.decoded, segment);
       }
-      const lowConfidence = row.issues.some((i) => LOW_CONFIDENCE.includes(i.code));
-      const expiresAt = fileExpiresAt('pod_raw', now) ?? now;
+      const meta: TraceMeta = {
+        podId: row.pod_id,
+        uploadId: row.id,
+        firmwareVersion: row.firmware_version,
+        gnssFirmwareVersion: row.gnss_firmware_version,
+        lowConfidence: row.issues.some((i) => LOW_CONFIDENCE.includes(i.code)),
+        expiresAt: fileExpiresAt('pod_raw', now) ?? now,
+      };
       let samplesTotal = 0;
       let players = 0;
-      let untimedPages = 0;
-      for (const trim of trims) {
-        if (segment === undefined || bytes === null) break;
-        const pages = pagesInWindows(segment, base, trim.windows);
-        untimedPages = Math.max(untimedPages, pages.untimed);
-        const sliced = slicePodRawFile(bytes, pages.keep);
-        const perSession = trim.sessions.map((s) => ({
-          id: s.id,
-          chunks: traceChunks(traceSamples(segment, base, s.windows)),
-        }));
-        if (sliced === null && perSession.every((s) => s.chunks.length === 0)) continue;
-        players += 1;
-        let rawFileId: string | null = null;
-        if (sliced !== null) {
-          rawFileId = randomUUID();
-          const checksum = Buffer.from(sliced.sha256Hex, 'hex').toString('base64');
-          await deps.storage.put({
-            key: objectKey(clubId, rawFileId),
-            body: sliced.bytes,
-            contentType: 'application/octet-stream',
-            checksumSha256: checksum,
-          });
-          written.push(objectKey(clubId, rawFileId));
+      let untimed = 0;
+      let shared = 0;
+      if (segment !== undefined && bytes !== null) {
+        const timed = timedPages(segment, base);
+        untimed = timed.untimed;
+        const assigned = assignPages(
+          timed.pages,
+          new Map(trims.map((trim) => [trim.playerId, trim.windows])),
+        );
+        shared = assigned.shared;
+        for (const trim of trims) {
+          const pages = assigned.byPlayer.get(trim.playerId) ?? [];
+          const perSession = trim.sessions.map((s) => ({
+            id: s.id,
+            chunks: traceChunks(traceSamples(segment, base, s.windows)),
+          }));
+          if (pages.length === 0 && perSession.every((s) => s.chunks.length === 0)) continue;
+          players += 1;
+          const sliced = slicePodRawFile(bytes, new Set(pages.map((p) => p.physicalPage)));
+          const rawFileId =
+            sliced === null
+              ? null
+              : await writeTrimmedFile(
+                  deps,
+                  tx,
+                  clubId,
+                  trim.playerId,
+                  sliced.bytes,
+                  sliced.sha256Hex,
+                  now,
+                  meta.expiresAt,
+                  written,
+                );
+          // The pages left out because another player's windows touch them.
+          const sharedOfPlayer = timed.pages.filter(
+            (p) =>
+              intervalsOverlap(trim.windows, p.fromMs, p.toMs) &&
+              !pages.some((own) => own.physicalPage === p.physicalPage),
+          ).length;
           await tx.client.query(
-            `insert into file (id, club_id, kind, status, player_id, content_type, size_bytes,
-                               checksum_sha256, file_name, uploaded_at, expires_at)
-             values ($1, $2, 'pod_raw', 'ready', $3, 'application/octet-stream', $4, $5, $6, $7, $8)`,
+            `insert into pod_raw_trim (club_id, pod_raw_upload_id, player_id, file_id, windows,
+                                       pages, shared_pages_n)
+             values ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7)`,
             [
-              rawFileId,
               clubId,
+              row.id,
               trim.playerId,
-              sliced.bytes.length,
-              checksum,
-              `${row.ingest_key.replaceAll('/', '-')}-trimmed.sprw`,
-              now,
-              expiresAt,
+              rawFileId,
+              JSON.stringify(trim.windows),
+              JSON.stringify(pages),
+              sharedOfPlayer,
             ],
           );
-        }
-        for (const session of perSession) {
-          for (const [index, chunk] of session.chunks.entries()) {
-            const first = chunk[0];
-            const last = chunk.at(-1);
-            if (first === undefined || last === undefined) continue;
-            samplesTotal += chunk.length;
-            await tx.client.query(
-              `insert into pod_trace_segment (club_id, player_id, training_session_id, pod_id,
-                 pod_raw_upload_id, raw_file_id, chunk_index, method_variant, algorithm_version,
-                 firmware_version, gnss_firmware_version, starts_at, ends_at, samples_n, offsets_ms,
-                 lat_e7, lon_e7, speed_mm_s, h_acc_mm, fix_quality, time_low_confidence, expires_at)
-               values ($1, $2, $3, $4, $5, $6, $7, 'pod_log', $8, $9, $10, $11, $12, $13, $14, $15,
-                       $16, $17, $18, $19, $20, $21)
-               on conflict (club_id, pod_raw_upload_id, player_id, training_session_id, chunk_index)
-               do nothing`,
-              [
+          for (const session of perSession) {
+            for (const [index, chunk] of session.chunks.entries()) {
+              samplesTotal += chunk.length;
+              await insertTrace(
+                tx,
                 clubId,
+                meta,
                 trim.playerId,
                 session.id,
-                row.pod_id,
-                row.id,
                 rawFileId,
                 index,
-                POD_LOG_TRACE_ALGORITHM_VERSION,
-                row.firmware_version,
-                row.gnss_firmware_version,
-                new Date(first.timeMs),
-                // Exclusive end: one sample interval after the last.
-                new Date(last.timeMs + 1000),
-                chunk.length,
-                chunk.map((s) => s.timeMs - first.timeMs),
-                chunk.map((s) => s.latE7),
-                chunk.map((s) => s.lonE7),
-                chunk.map((s) => s.speedMmS),
-                chunk.map((s) => s.hAccMm),
-                chunk.map((s) => s.fix),
-                lowConfidence,
-                expiresAt,
-              ],
-            );
+                chunk,
+              );
+            }
           }
         }
       }
-      const issues =
-        untimedPages > 0
-          ? mergeIssues(row.issues, [{ code: 'untimed_pages', count: untimedPages }])
-          : row.issues;
+      const added: PodRawIssue[] = [];
+      if (untimed > 0) added.push({ code: 'untimed_pages', count: untimed });
+      if (shared > 0) added.push({ code: 'shared_pages', count: shared });
+      const issues = mergeIssues(
+        row.issues.filter((i) => i.code !== 'storage_unavailable'),
+        added,
+      );
       await tx.client.query(
         `update pod_raw_upload
             set state = 'trimmed', trimmed_at = $3, trimmed_players_n = $4, trimmed_samples_n = $5,
@@ -993,10 +1055,10 @@ async function trimNext(
       // The rest is deleted: the original pending file goes, only the trimmed ones stay.
       await deleteFile(tx, clubId, row.file_id, now);
       deps.logger.info(
-        { clubId, podRawUploadId: row.id, players, samples: samplesTotal },
+        { clubId, podRawUploadId: row.id, players, samples: samplesTotal, shared },
         'pod_raw trimmed',
       );
-      return { outcome: 'trimmed', id: row.id };
+      return { outcome: 'trimmed', remove: [objectKey(clubId, row.file_id)] };
     });
   } catch (error) {
     // Objects written for a transaction that did not commit are untracked: remove them.
@@ -1005,17 +1067,255 @@ async function trimNext(
   }
 }
 
-// ─── 5. Retention of the traces ──────────────────────────────────────────────────────
+// ─── 2. Corrections after the trim ───────────────────────────────────────────────────
 
-async function deleteExpiredTraces(tx: ClubTransaction, clubId: ClubId, now: Date) {
-  const { rowCount } = await tx.client.query(
-    `delete from pod_trace_segment
-      where club_id = $1 and id in (
-        select id from pod_trace_segment where club_id = $1 and expires_at <= $2
-         order by expires_at limit $3)`,
-    [clubId, now, POD_TRACE_RETENTION_BATCH],
+interface TrimRow {
+  id: string;
+  player_id: string;
+  file_id: string | null;
+  windows: TimeInterval[];
+  pages: TimedPage[];
+}
+
+interface TraceRow {
+  training_session_id: string;
+  chunk_index: number;
+  starts_at: Date;
+  offsets_ms: number[];
+  lat_e7: number[];
+  lon_e7: number[];
+  speed_mm_s: (number | null)[];
+  h_acc_mm: (number | null)[];
+  fix_quality: number[];
+  time_low_confidence: boolean;
+  expires_at: Date;
+}
+
+function sameIntervals(a: readonly TimeInterval[], b: readonly TimeInterval[]): boolean {
+  return (
+    JSON.stringify(a.map((x) => [x.startMs, x.endMs])) ===
+    JSON.stringify(b.map((x) => [x.startMs, x.endMs]))
   );
-  return rowCount ?? 0;
+}
+
+/**
+ * Cuts what a player kept of a trimmed upload down to `kept`: the trace samples
+ * outside it are deleted, and the pages of their file outside it too (a new
+ * trimmed file of the pages left; the old one deleted). Returns the samples
+ * deleted and the objects to remove after the commit.
+ */
+async function cutPlayer(
+  deps: PodRawIngestDependencies,
+  tx: ClubTransaction,
+  clubId: ClubId,
+  upload: UploadRow,
+  trim: TrimRow,
+  kept: TimeInterval[],
+  now: Date,
+  written: string[],
+): Promise<{ samplesDeleted: number; remove: string[] }> {
+  const remove: string[] = [];
+  const pages = pagesOverlapping(trim.pages, kept);
+  let fileId = trim.file_id;
+  if (trim.file_id !== null && pages.length !== trim.pages.length) {
+    const { rows } = await tx.client.query<{ size_bytes: string; expires_at: Date | null }>(
+      `select size_bytes, expires_at from file where club_id = $1 and id = $2 and status = 'ready'`,
+      [clubId, trim.file_id],
+    );
+    const current = rows[0];
+    fileId = null;
+    if (current !== undefined && pages.length > 0) {
+      const bytes = await deps.storage.get(
+        objectKey(clubId, trim.file_id),
+        Number(current.size_bytes),
+      );
+      const sliced =
+        bytes === null ? null : slicePodRawFile(bytes, new Set(pages.map((p) => p.physicalPage)));
+      if (sliced !== null) {
+        fileId = await writeTrimmedFile(
+          deps,
+          tx,
+          clubId,
+          trim.player_id,
+          sliced.bytes,
+          sliced.sha256Hex,
+          now,
+          current.expires_at ?? fileExpiresAt('pod_raw', now) ?? now,
+          written,
+        );
+      }
+    }
+  }
+  // The traces: cut and written again (they never change in place), with the new file.
+  const { rows: traces } = await tx.client.query<TraceRow>(
+    `select training_session_id, chunk_index, starts_at, offsets_ms, lat_e7, lon_e7, speed_mm_s,
+            h_acc_mm, fix_quality, time_low_confidence, expires_at
+       from pod_trace_segment where club_id = $1 and pod_raw_upload_id = $2 and player_id = $3
+      order by training_session_id, chunk_index`,
+    [clubId, upload.id, trim.player_id],
+  );
+  let samplesDeleted = 0;
+  await tx.client.query(
+    `delete from pod_trace_segment where club_id = $1 and pod_raw_upload_id = $2 and player_id = $3`,
+    [clubId, upload.id, trim.player_id],
+  );
+  for (const trace of traces) {
+    const start = trace.starts_at.getTime();
+    const samples: TraceSample[] = [];
+    trace.offsets_ms.forEach((offset, i) => {
+      const timeMs = start + offset;
+      if (!intervalsContain(kept, timeMs)) return;
+      samples.push({
+        timeMs,
+        latE7: trace.lat_e7[i] ?? 0,
+        lonE7: trace.lon_e7[i] ?? 0,
+        speedMmS: trace.speed_mm_s[i] ?? null,
+        hAccMm: trace.h_acc_mm[i] ?? null,
+        fix: trace.fix_quality[i] ?? 0,
+      });
+    });
+    samplesDeleted += trace.offsets_ms.length - samples.length;
+    await insertTrace(
+      tx,
+      clubId,
+      {
+        podId: upload.pod_id,
+        uploadId: upload.id,
+        firmwareVersion: upload.firmware_version,
+        gnssFirmwareVersion: upload.gnss_firmware_version,
+        lowConfidence: trace.time_low_confidence,
+        expiresAt: trace.expires_at,
+      },
+      trim.player_id,
+      trace.training_session_id,
+      fileId,
+      trace.chunk_index,
+      samples,
+    );
+  }
+  if (trim.file_id !== null && fileId !== trim.file_id) {
+    await deleteFile(tx, clubId, trim.file_id, now);
+    remove.push(objectKey(clubId, trim.file_id));
+  }
+  if (kept.length === 0) {
+    await tx.client.query(`delete from pod_raw_trim where club_id = $1 and id = $2`, [
+      clubId,
+      trim.id,
+    ]);
+  } else {
+    await tx.client.query(
+      `update pod_raw_trim set file_id = $3, windows = $4::jsonb, pages = $5::jsonb
+        where club_id = $1 and id = $2`,
+      [clubId, trim.id, fileId, JSON.stringify(kept), JSON.stringify(pages)],
+    );
+  }
+  return { samplesDeleted, remove };
+}
+
+/**
+ * One corrected or voided assignment: every trimmed upload of its pod where
+ * its player kept something is cut down to what the current assignments,
+ * sessions and consents still allow. Nothing is ever added: the original is
+ * gone, the data cannot move to another player.
+ */
+async function correctAssignment(
+  deps: PodRawIngestDependencies,
+  clubId: ClubId,
+  assignmentId: string,
+  now: Date,
+): Promise<{ done: boolean; remove: string[] }> {
+  const written: string[] = [];
+  try {
+    return await inClubTransaction(deps.pool, clubId, async (tx) => {
+      const { rows } = await tx.client.query<{ pod_id: string; player_id: string }>(
+        `select pod_id, player_id from pod_assignment
+          where club_id = $1 and id = $2 and reprocess_requested_at is not null
+          for update skip locked`,
+        [clubId, assignmentId],
+      );
+      const assignment = rows[0];
+      if (assignment === undefined) return { done: false, remove: [] };
+      const { rows: uploads } = await tx.client.query<UploadRow>(
+        `select ${UPLOAD_COLUMNS} from pod_raw_upload u
+          where u.club_id = $1 and u.pod_id = $2 and u.state = 'trimmed'
+            and u.recorded_from is not null and u.recorded_to is not null
+            and exists (select 1 from pod_raw_trim t
+                         where t.club_id = u.club_id and t.pod_raw_upload_id = u.id
+                           and t.player_id = $3)
+          order by u.recorded_from
+          for update of u`,
+        [clubId, assignment.pod_id, assignment.player_id],
+      );
+      const remove: string[] = [];
+      for (const upload of uploads) {
+        if (upload.recorded_from === null || upload.recorded_to === null) continue;
+        const { trims } = await playerTrims(
+          tx,
+          clubId,
+          upload.pod_id,
+          upload.recorded_from,
+          upload.recorded_to,
+        );
+        const windowsNow = new Map(trims.map((t) => [t.playerId, t.windows]));
+        const { rows: trimRows } = await tx.client.query<TrimRow>(
+          `select id, player_id, file_id, windows, pages from pod_raw_trim
+            where club_id = $1 and pod_raw_upload_id = $2 for update`,
+          [clubId, upload.id],
+        );
+        let samplesDeleted = 0;
+        let changed = false;
+        for (const trim of trimRows) {
+          const kept = intersectIntervals(trim.windows, windowsNow.get(trim.player_id) ?? []);
+          if (sameIntervals(normalizeIntervals(trim.windows), kept)) continue;
+          changed = true;
+          const cut = await cutPlayer(deps, tx, clubId, upload, trim, kept, now, written);
+          samplesDeleted += cut.samplesDeleted;
+          remove.push(...cut.remove);
+        }
+        const previous = upload.issues.find((i) => i.code === 'assignment_corrected_after_trim');
+        await setIssues(
+          tx,
+          clubId,
+          upload,
+          mergeIssues(upload.issues, [
+            {
+              code: 'assignment_corrected_after_trim',
+              count: (previous?.count ?? 0) + samplesDeleted,
+            },
+          ]),
+        );
+        if (changed) {
+          deps.logger.info(
+            { clubId, podRawUploadId: upload.id, samplesDeleted },
+            'pod_raw cut after a corrected assignment',
+          );
+        }
+      }
+      await tx.client.query(
+        `update pod_assignment set reprocess_requested_at = null where club_id = $1 and id = $2`,
+        [clubId, assignmentId],
+      );
+      return { done: true, remove };
+    });
+  } catch (error) {
+    await Promise.allSettled(written.map((key) => deps.storage.remove(key)));
+    throw error;
+  }
+}
+
+async function flaggedAssignments(deps: PodRawIngestDependencies, clubId: ClubId) {
+  return inClubTransaction(deps.pool, clubId, async (tx) => {
+    // Voided ones too: a void is the widest correction.
+    const { rows } = await tx.client.query<{ id: string }>(
+      `select a.id from pod_assignment a
+        where a.club_id = $1 and a.reprocess_requested_at is not null
+          and exists (select 1 from pod_raw_upload u where u.club_id = a.club_id and u.pod_id = a.pod_id)
+        order by a.reprocess_requested_at, a.id
+        limit $2`,
+      [clubId, POD_CORRECTIONS_BATCH],
+    );
+    return rows.map((r) => r.id);
+  });
 }
 
 // ─── The job ─────────────────────────────────────────────────────────────────────────
@@ -1027,50 +1327,87 @@ export async function runClubPodRawIngest(
 ): Promise<PodRawIngestReport> {
   const requestId = options.jobId === undefined ? {} : { requestId: `job:${options.jobId}` };
   const now = deps.now?.() ?? new Date();
-  const { expired, reprocessed, tracesDeleted } = await inClubTransaction(
+  const errors: unknown[] = [];
+  const { expired, tracesDeleted } = await inClubTransaction(
     deps.pool,
     clubId,
     async (tx) => ({
       expired: await rejectExpiredUploads(tx, clubId, now),
-      reprocessed: await processReprocessFlags(tx, clubId),
       tracesDeleted: await deleteExpiredTraces(tx, clubId, now),
     }),
     requestId,
   );
+
+  let reprocessed = 0;
+  const flagged = await flaggedAssignments(deps, clubId);
+  for (const assignmentId of flagged) {
+    try {
+      const result = await correctAssignment(deps, clubId, assignmentId, now);
+      if (result.done) reprocessed += 1;
+      await removeObjects(deps, result.remove);
+    } catch (error) {
+      errors.push(error);
+      deps.logger.error({ err: error, clubId, assignmentId }, 'pod_raw correction failed');
+    }
+  }
+
   const masterKey = await deps.keys.masterKey(clubId);
   let verified = 0;
   let rejected = 0;
   let trimmed = 0;
   let budget = POD_RAW_BATCH;
+  const step = async (
+    run: (skip: string[]) => Promise<StepResult>,
+    skip: string[],
+  ): Promise<Outcome> => {
+    try {
+      const result = await run(skip);
+      await removeObjects(deps, result.remove ?? []);
+      return result.outcome;
+    } catch (error) {
+      // The upload is in `skip` already: the rest of the club's queue goes on.
+      errors.push(error);
+      deps.logger.error({ err: error, clubId, podRawUploadId: skip.at(-1) }, 'pod_raw step failed');
+      return 'skipped';
+    }
+  };
   const skipVerify: string[] = [];
   while (budget > 0) {
-    const result = await verifyNext(deps, clubId, masterKey, skipVerify);
-    if (result.outcome === 'none') break;
-    if (result.id !== undefined) skipVerify.push(result.id);
-    if (result.outcome === 'skipped') continue;
+    const outcome = await step(
+      (skip) => verifyNext(deps, clubId, masterKey, skip, now),
+      skipVerify,
+    );
+    if (outcome === 'none') break;
+    if (outcome === 'skipped') continue;
     budget -= 1;
-    if (result.outcome === 'verified') verified += 1;
+    if (outcome === 'verified') verified += 1;
     else rejected += 1;
   }
   const skipTrim: string[] = [];
   while (budget > 0) {
-    const result = await trimNext(deps, clubId, masterKey, skipTrim);
-    if (result.outcome === 'none') break;
-    if (result.id !== undefined) skipTrim.push(result.id);
-    if (result.outcome === 'waiting') continue;
+    const outcome = await step((skip) => trimNext(deps, clubId, masterKey, skip, now), skipTrim);
+    if (outcome === 'none') break;
+    if (outcome === 'waiting' || outcome === 'skipped') continue;
     budget -= 1;
-    trimmed += 1;
+    if (outcome === 'trimmed') trimmed += 1;
+    else rejected += 1;
   }
-  const report = {
+  const report: PodRawIngestReport = {
     expired,
     reprocessed,
     verified,
     rejected,
     trimmed,
     tracesDeleted,
-    more: budget === 0 || tracesDeleted === POD_TRACE_RETENTION_BATCH,
+    failed: errors.length,
+    more:
+      budget === 0 ||
+      tracesDeleted === POD_TRACE_RETENTION_BATCH ||
+      flagged.length === POD_CORRECTIONS_BATCH,
   };
   deps.logger.info({ clubId, jobId: options.jobId, ...report }, 'pod_raw ingestion');
+  // Everything else went on; failing now makes pg-boss retry (and Sentry see it).
+  if (errors.length > 0) throw errors[0];
   return report;
 }
 

@@ -82,6 +82,12 @@ describe('loadConfig', () => {
       loadConfig({ ...base, POD_COMMAND_SIGNING_KEY: key, POD_COMMAND_SIGNING_KEY_ID: 'srv-1' })
         .podCommands,
     ).toEqual({ signingKey: key, keyId: 'srv-1' });
+    // Wrapped by `base64` or pasted with spaces: the whitespace is dropped.
+    const wrapped = `${key.slice(0, 64)}\n${key.slice(64, 100)} \n${key.slice(100)}\n`;
+    expect(
+      loadConfig({ ...base, POD_COMMAND_SIGNING_KEY: wrapped, POD_COMMAND_SIGNING_KEY_ID: 'srv-1' })
+        .podCommands,
+    ).toEqual({ signingKey: key, keyId: 'srv-1' });
     expect(() => loadConfig({ ...base, POD_COMMAND_SIGNING_KEY: key })).toThrow(
       'POD_COMMAND_SIGNING_KEY_ID',
     );

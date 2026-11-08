@@ -360,6 +360,36 @@ describe.skipIf(!hasDatabase || !hasBucket)('pod log ingestion (Postgres 16 + Mi
       [clubA],
     );
     expect(files.find((f) => f.id === originalFile)?.status).toBe('deleted');
+    // Its object is gone right after the commit, not at the next daily purge.
+    expect(await storage.get(`clubs/${clubA}/pod_raw/${originalFile}`, 1 << 30)).toBeNull();
+    // Each player's windows and page times are kept with their file (for B-919 / B-906).
+    const { rows: trims } = await owner.query<{
+      player_id: string;
+      file_id: string | null;
+      windows: { startMs: number; endMs: number }[];
+      pages: { physicalPage: number; fromMs: number; toMs: number }[];
+      shared_pages_n: number;
+    }>(
+      `select player_id, file_id, windows, pages, shared_pages_n from pod_raw_trim
+        where pod_raw_upload_id = $1 order by player_id`,
+      [uploadId],
+    );
+    expect(trims.map((t) => t.player_id).sort()).toEqual([early, late].sort());
+    expect(trims.find((t) => t.player_id === early)?.windows).toEqual([
+      { startMs: T0, endMs: T0 + 5 * MIN },
+    ]);
+    expect(trims.find((t) => t.player_id === late)?.windows).toEqual([
+      { startMs: T0 + 7 * MIN, endMs: T0 + 10 * MIN },
+    ]);
+    for (const trim of trims) {
+      expect(trim.pages.length).toBeGreaterThan(0);
+      const window = trim.windows[0];
+      if (window === undefined) throw new Error('no window');
+      expect(trim.pages.every((p) => p.toMs >= window.startMs && p.fromMs < window.endMs)).toBe(
+        true,
+      );
+      expect(trim.shared_pages_n).toBe(0);
+    }
     const trimmed = files.filter((f) => f.player_id !== null);
     expect(trimmed.map((f) => f.player_id).sort()).toEqual([early, late].sort());
     expect(trimmed.every((f) => f.status === 'ready')).toBe(true);
@@ -392,19 +422,149 @@ describe.skipIf(!hasDatabase || !hasBucket)('pod log ingestion (Postgres 16 + Mi
     expect(rows[0]?.n).toBe(2);
   });
 
-  it('a correction after the trim is reported, never moved, and the flag cleared', async () => {
-    await owner.query(`update pod_assignment set reprocess_requested_at = now() where id = $1`, [
-      assignmentEarly,
-    ]);
-    expect(await run(clubA, T0 + 22 * MIN)).toMatchObject({ reprocessed: 1 });
-    expect((await uploadOf(uploadId)).issues.map((i) => i.code)).toContain(
-      'assignment_corrected_after_trim',
+  it('a correction after the trim deletes what is no longer the player’s, never moves it', async () => {
+    const before = await owner.query<{ file_id: string }>(
+      'select file_id from pod_raw_trim where pod_raw_upload_id = $1 and player_id = $2',
+      [uploadId, early],
     );
-    const { rows } = await owner.query<{ flag: Date | null }>(
+    const oldFile = before.rows[0]?.file_id ?? '';
+    // The staff shortens the early player's assignment: 20:55–21:03 (with its reason).
+    const client = await owner.connect();
+    try {
+      await client.query('begin');
+      await client.query("select set_config('app.change_reason', 'Se cambió de chaleco', true)");
+      await client.query(
+        `update pod_assignment set ends_at = $2, reprocess_requested_at = now() where id = $1`,
+        [assignmentEarly, new Date(T0 + 3 * MIN)],
+      );
+      await client.query('commit');
+    } finally {
+      client.release();
+    }
+    expect(await run(clubA, T0 + 22 * MIN)).toMatchObject({ reprocessed: 1, failed: 0 });
+    const upload = await uploadOf(uploadId);
+    expect(upload.issues).toContainEqual({ code: 'assignment_corrected_after_trim', count: 120 });
+    const { rows: traces } = await owner.query<{
+      player_id: string;
+      samples_n: number;
+      ends_at: Date;
+      raw_file_id: string;
+    }>(
+      `select player_id, samples_n, ends_at, raw_file_id from pod_trace_segment
+        where pod_raw_upload_id = $1 order by starts_at`,
+      [uploadId],
+    );
+    expect(traces.map((t) => [t.player_id, t.samples_n, t.ends_at.getTime()])).toEqual([
+      [early, 180, T0 + 3 * MIN],
+      [late, 180, T0 + 10 * MIN],
+    ]);
+    const { rows: trims } = await owner.query<{
+      file_id: string;
+      windows: { startMs: number; endMs: number }[];
+      pages: { fromMs: number; toMs: number }[];
+    }>(
+      'select file_id, windows, pages from pod_raw_trim where pod_raw_upload_id = $1 and player_id = $2',
+      [uploadId, early],
+    );
+    const trim = trims[0];
+    if (trim === undefined) throw new Error('no trim');
+    expect(trim.windows).toEqual([{ startMs: T0, endMs: T0 + 3 * MIN }]);
+    expect(trim.pages.every((p) => p.fromMs < T0 + 3 * MIN)).toBe(true);
+    // A new trimmed file with the pages left; the old one deleted and its object removed.
+    expect(trim.file_id).not.toBe(oldFile);
+    expect(traces[0]?.raw_file_id).toBe(trim.file_id);
+    const { rows: old } = await owner.query<{ status: string }>(
+      'select status::text from file where id = $1',
+      [oldFile],
+    );
+    expect(old[0]?.status).toBe('deleted');
+    expect(await storage.get(`clubs/${clubA}/pod_raw/${oldFile}`, 1 << 30)).toBeNull();
+    const { rows: flags } = await owner.query<{ flag: Date | null }>(
       'select reprocess_requested_at as flag from pod_assignment where id = $1',
       [assignmentEarly],
     );
-    expect(rows[0]?.flag).toBeNull();
+    expect(flags[0]?.flag).toBeNull();
+  });
+
+  it('one upload never blocks the rest: a bucket failure waits, the others go on', async () => {
+    // Two recordings outside any session (nothing of them becomes data).
+    const failing = podRecording({
+      startUnixMs: T0 + 120 * MIN,
+      durationS: 20,
+      segmentId: 20,
+      firstPageSeq: 20_000,
+      firstBlock: 40,
+    });
+    const fine = podRecording({
+      startUnixMs: T0 + 125 * MIN,
+      durationS: 20,
+      segmentId: 21,
+      firstPageSeq: 21_000,
+      firstBlock: 41,
+    });
+    const bad = await confirmedUpload(clubA, podA, failing, T0 + 130 * MIN);
+    const good = await confirmedUpload(clubA, podA, fine, T0 + 131 * MIN);
+    const flaky: ObjectStorage = {
+      ...storage,
+      get: (key, maxBytes) =>
+        key.endsWith(bad.fileId)
+          ? Promise.reject(new Error('bucket down'))
+          : storage.get(key, maxBytes),
+    };
+    const report = await runClubPodRawIngest(
+      { pool: worker, storage: flaky, keys: keys(), logger, now: () => new Date(T0 + 132 * MIN) },
+      clubA,
+    );
+    expect(report).toMatchObject({ verified: 1, failed: 0 });
+    expect(await uploadOf(bad.uploadId)).toMatchObject({
+      state: 'pending',
+      issues: [{ code: 'storage_unavailable' }],
+    });
+    expect((await uploadOf(good.uploadId)).state).toBe('verified');
+    // Next run, with the bucket back: verified, the issue gone.
+    await run(clubA, T0 + 133 * MIN);
+    expect(await uploadOf(bad.uploadId)).toMatchObject({ state: 'verified', issues: [] });
+  });
+
+  it('a verified upload whose object is gone at the trim is rejected, nothing kept', async () => {
+    const recording = podRecording({
+      startUnixMs: T0 - 2 * MIN,
+      durationS: 14 * 60,
+      segmentId: 30,
+      firstPageSeq: 30_000,
+      firstBlock: 60,
+    });
+    const { uploadId: lost, fileId } = await confirmedUpload(clubA, podA, recording, T0 + 13 * MIN);
+    let reads = 0;
+    // Readable at the verification, gone at the trim.
+    const vanishing: ObjectStorage = {
+      ...storage,
+      get: (key, maxBytes) => {
+        if (!key.endsWith(fileId)) return storage.get(key, maxBytes);
+        reads += 1;
+        return reads === 1 ? storage.get(key, maxBytes) : Promise.resolve(null);
+      },
+    };
+    const report = await runClubPodRawIngest(
+      {
+        pool: worker,
+        storage: vanishing,
+        keys: keys(),
+        logger,
+        now: () => new Date(T0 + 23 * MIN),
+      },
+      clubA,
+    );
+    expect(report).toMatchObject({ verified: 1, rejected: 1, trimmed: 0, failed: 0 });
+    expect(await uploadOf(lost)).toMatchObject({
+      state: 'rejected',
+      rejection_reason: 'file_missing',
+    });
+    const { rows } = await owner.query<{ n: number }>(
+      'select count(*)::int as n from pod_trace_segment where pod_raw_upload_id = $1',
+      [lost],
+    );
+    expect(rows[0]?.n).toBe(0);
   });
 
   it('rejects a file whose pages do not pass the CMAC, and deletes it', async () => {
@@ -469,19 +629,76 @@ describe.skipIf(!hasDatabase || !hasBucket)('pod log ingestion (Postgres 16 + Mi
     });
   });
 
+  it('a verified upload with data to keep and no master key is rejected at the end of its days', async () => {
+    const { rows: categories } = await owner.query<{ id: string }>(
+      `select id from category where club_id = $1`,
+      [clubB],
+    );
+    const player = await insertPlayer(clubB, categories[0]?.id ?? '', 'Visitante');
+    await sign(clubB, player, 'data', T0 - 60 * MIN);
+    await sign(clubB, player, 'location', T0 - 60 * MIN);
+    await owner.query(
+      `insert into training_session (club_id, sport, kind, category_id, starts_at, local_date, planned_duration_min)
+       values ($1, 'rugby', 'training', $2, $3, '2026-11-04', 10)`,
+      [clubB, categories[0]?.id, new Date(T0)],
+    );
+    await assign(clubB, podB, player, T0 - 5 * MIN, T0 + 15 * MIN);
+    const recording = podRecording({
+      deviceIdHex: OTHER_CHIP,
+      startUnixMs: T0,
+      durationS: 60,
+      podSerial: 'ORC-0002',
+      segmentId: 9,
+      firstPageSeq: 9_000,
+    });
+    const { uploadId: verified } = await confirmedUpload(clubB, podB, recording, T0 + 1 * MIN);
+    // As the worker left it while the club still had a key.
+    await owner.query(
+      `update pod_raw_upload set state = 'verified', verified_at = now(), erase_command = '5350',
+              recorded_from = $2, recorded_to = $3 where id = $1`,
+      [verified, new Date(T0), new Date(T0 + 60_000)],
+    );
+    // Within its days: it waits for a key.
+    expect(await run(clubB, T0 + 20 * MIN)).toMatchObject({ trimmed: 0, rejected: 0 });
+    expect((await uploadOf(verified)).state).toBe('verified');
+    // At the end of them: rejected, before the retention takes the object.
+    expect(await run(clubB, T0 + 8 * 24 * 60 * MIN)).toMatchObject({ rejected: 1 });
+    expect(await uploadOf(verified)).toMatchObject({
+      state: 'rejected',
+      rejection_reason: 'master_key_missing_expired',
+    });
+    const { rows } = await owner.query<{ n: number }>(
+      'select count(*)::int as n from pod_trace_segment where club_id = $1',
+      [clubB],
+    );
+    expect(rows[0]?.n).toBe(0);
+  });
+
   it('revoking location erases the player’s traces and trimmed files, with the counts only', async () => {
     await owner.query(
       `update consent set revoked_at = now(), revoked_by = $3
         where club_id = $1 and player_id = $2 and type = 'location'`,
       [clubA, early, signer],
     );
-    const report = await runClubLocationErasures({ pool: worker, logger }, clubA);
+    const { rows: kept } = await owner.query<{ file_id: string }>(
+      'select file_id from pod_raw_trim where club_id = $1 and player_id = $2',
+      [clubA, early],
+    );
+    const report = await runClubLocationErasures({ pool: worker, logger, storage }, clubA);
     expect(report.completed).toBe(1);
     const { rows } = await owner.query<{ deleted_rows: Record<string, number> }>(
       `select deleted_rows from location_erasure where club_id = $1 and player_id = $2 and status = 'completed'`,
       [clubA, early],
     );
-    expect(rows[0]?.deleted_rows).toEqual({ 'public.pod_trace_segment': 1, 'file:pod_raw': 1 });
+    expect(rows[0]?.deleted_rows).toEqual({
+      'public.pod_trace_segment': 1,
+      'public.pod_raw_trim': 1,
+      'file:pod_raw': 1,
+    });
+    // The objects of the erased files go right after the commit.
+    for (const { file_id } of kept) {
+      expect(await storage.get(`clubs/${clubA}/pod_raw/${file_id}`, 1 << 30)).toBeNull();
+    }
     const { rows: left } = await owner.query<{ player_id: string }>(
       'select player_id from pod_trace_segment where club_id = $1',
       [clubA],

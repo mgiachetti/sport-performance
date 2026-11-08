@@ -1,5 +1,5 @@
 {
-  "id": "f28a3345-7155-4654-99ca-68df75f0708b",
+  "id": "aaaa6557-aeb0-4d7a-aad7-4ad17a824fcc",
   "prevId": "c3c00780-8c8f-44c6-a49b-751f016b280f",
   "version": "7",
   "dialect": "postgresql",
@@ -22274,6 +22274,486 @@
       },
       "isRLSEnabled": false
     },
+    "public.pod_command_audit": {
+      "name": "pod_command_audit",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "club_id": {
+          "name": "club_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "client_uuid": {
+          "name": "client_uuid",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "pod_raw_upload_id": {
+          "name": "pod_raw_upload_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "command": {
+          "name": "command",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key_id": {
+          "name": "key_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "command_sha256": {
+          "name": "command_sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_id": {
+          "name": "request_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "pod_command_audit_upload_idx": {
+          "name": "pod_command_audit_upload_idx",
+          "columns": [
+            {
+              "expression": "club_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "pod_raw_upload_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "pod_command_audit_club_id_club_id_fk": {
+          "name": "pod_command_audit_club_id_club_id_fk",
+          "tableFrom": "pod_command_audit",
+          "tableTo": "club",
+          "columnsFrom": [
+            "club_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "pod_command_audit_created_by_user_id_fk": {
+          "name": "pod_command_audit_created_by_user_id_fk",
+          "tableFrom": "pod_command_audit",
+          "tableTo": "user",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "pod_command_audit_updated_by_user_id_fk": {
+          "name": "pod_command_audit_updated_by_user_id_fk",
+          "tableFrom": "pod_command_audit",
+          "tableTo": "user",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "pod_command_audit_pod_raw_upload_id_fkey": {
+          "name": "pod_command_audit_pod_raw_upload_id_fkey",
+          "tableFrom": "pod_command_audit",
+          "tableTo": "pod_raw_upload",
+          "columnsFrom": [
+            "club_id",
+            "pod_raw_upload_id"
+          ],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "pod_command_audit_club_id_id_key": {
+          "name": "pod_command_audit_club_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "club_id",
+            "id"
+          ]
+        },
+        "pod_command_audit_club_id_client_uuid_key": {
+          "name": "pod_command_audit_club_id_client_uuid_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "pod_command_audit_command": {
+          "name": "pod_command_audit_command",
+          "value": "\"pod_command_audit\".\"command\" in ('erase')"
+        },
+        "pod_command_audit_sha256_format": {
+          "name": "pod_command_audit_sha256_format",
+          "value": "\"pod_command_audit\".\"command_sha256\" ~ '^[0-9a-f]{64}$'"
+        },
+        "pod_command_audit_key_id_format": {
+          "name": "pod_command_audit_key_id_format",
+          "value": "\"pod_command_audit\".\"key_id\" ~ '^[A-Za-z0-9._-]{1,64}$'"
+        },
+        "pod_command_audit_request_id_format": {
+          "name": "pod_command_audit_request_id_format",
+          "value": "\"pod_command_audit\".\"request_id\" is null or \"pod_command_audit\".\"request_id\" ~ '^[A-Za-z0-9._:-]{1,128}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.pod_raw_trim": {
+      "name": "pod_raw_trim",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "club_id": {
+          "name": "club_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "client_uuid": {
+          "name": "client_uuid",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "pod_raw_upload_id": {
+          "name": "pod_raw_upload_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "player_id": {
+          "name": "player_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "file_id": {
+          "name": "file_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "windows": {
+          "name": "windows",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pages": {
+          "name": "pages",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shared_pages_n": {
+          "name": "shared_pages_n",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "pod_raw_trim_player_key": {
+          "name": "pod_raw_trim_player_key",
+          "columns": [
+            {
+              "expression": "club_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "pod_raw_upload_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "player_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pod_raw_trim_player_idx": {
+          "name": "pod_raw_trim_player_idx",
+          "columns": [
+            {
+              "expression": "club_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "player_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pod_raw_trim_file_id_idx": {
+          "name": "pod_raw_trim_file_id_idx",
+          "columns": [
+            {
+              "expression": "club_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "file_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"pod_raw_trim\".\"file_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "pod_raw_trim_club_id_club_id_fk": {
+          "name": "pod_raw_trim_club_id_club_id_fk",
+          "tableFrom": "pod_raw_trim",
+          "tableTo": "club",
+          "columnsFrom": [
+            "club_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "pod_raw_trim_created_by_user_id_fk": {
+          "name": "pod_raw_trim_created_by_user_id_fk",
+          "tableFrom": "pod_raw_trim",
+          "tableTo": "user",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "pod_raw_trim_updated_by_user_id_fk": {
+          "name": "pod_raw_trim_updated_by_user_id_fk",
+          "tableFrom": "pod_raw_trim",
+          "tableTo": "user",
+          "columnsFrom": [
+            "updated_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "pod_raw_trim_pod_raw_upload_id_fkey": {
+          "name": "pod_raw_trim_pod_raw_upload_id_fkey",
+          "tableFrom": "pod_raw_trim",
+          "tableTo": "pod_raw_upload",
+          "columnsFrom": [
+            "club_id",
+            "pod_raw_upload_id"
+          ],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "pod_raw_trim_player_id_fkey": {
+          "name": "pod_raw_trim_player_id_fkey",
+          "tableFrom": "pod_raw_trim",
+          "tableTo": "player",
+          "columnsFrom": [
+            "club_id",
+            "player_id"
+          ],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "pod_raw_trim_file_id_fkey": {
+          "name": "pod_raw_trim_file_id_fkey",
+          "tableFrom": "pod_raw_trim",
+          "tableTo": "file",
+          "columnsFrom": [
+            "club_id",
+            "file_id"
+          ],
+          "columnsTo": [
+            "club_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "pod_raw_trim_club_id_id_key": {
+          "name": "pod_raw_trim_club_id_id_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "club_id",
+            "id"
+          ]
+        },
+        "pod_raw_trim_club_id_client_uuid_key": {
+          "name": "pod_raw_trim_club_id_client_uuid_key",
+          "nullsNotDistinct": false,
+          "columns": [
+            "club_id",
+            "client_uuid"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "pod_raw_trim_shape": {
+          "name": "pod_raw_trim_shape",
+          "value": "jsonb_typeof(\"pod_raw_trim\".\"windows\") = 'array' and jsonb_typeof(\"pod_raw_trim\".\"pages\") = 'array' and \"pod_raw_trim\".\"shared_pages_n\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.pod_raw_upload": {
       "name": "pod_raw_upload",
       "schema": "",
@@ -24189,7 +24669,9 @@
         "blocks_mismatch",
         "pages_not_authentic",
         "segment_not_closed",
-        "expired"
+        "expired",
+        "decode_failed",
+        "master_key_missing_expired"
       ]
     },
     "public.pod_raw_upload_state": {

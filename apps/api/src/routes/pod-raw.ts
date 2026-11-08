@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   confirmPodRawUpload,
   createPodRawUpload,
@@ -11,7 +11,7 @@ import {
   type PodRawManifestBody,
   type PodRawUpload,
 } from '@sport-performance/contracts';
-import { club, file, pod, podRawUpload } from '@sport-performance/db/schema';
+import { club, file, pod, podCommandAudit, podRawUpload } from '@sport-performance/db/schema';
 import {
   fileObjectKey,
   pendingUploadExpiresAt,
@@ -308,7 +308,8 @@ export function registerPodRawRoutes(
           contentType: CONTENT_TYPE,
           sizeBytes: manifest.sizeB,
           checksumSha256: checksumOf(manifest.sha256Hex),
-          fileName: `${ingestKey.replaceAll('/', '-')}.sprw`,
+          // Never the chip id (the keys are derived from it): only the boot and the segment.
+          fileName: `segment-${String(manifest.bootCounter)}-${String(manifest.segmentId)}.sprw`,
           expiresAt: pendingUploadExpiresAt(now),
           createdBy: caller.userId,
           updatedBy: caller.userId,
@@ -461,9 +462,10 @@ export function registerPodRawRoutes(
 
   registerEndpoint(app, getPodRawEraseCommand, {
     transaction: true,
-    handler: async ({ params }, { db, permissions, auth: caller }) => {
+    handler: async ({ params }, { db, permissions, auth: caller, request }) => {
       await permissions.authorize('pod', 'manage');
-      const row = await readUpload(db, caller.membership.clubId, params.podRawUploadId);
+      const { clubId } = caller.membership;
+      const row = await readUpload(db, clubId, params.podRawUploadId);
       const command = eraseCommandOf(row);
       if (command === null) {
         throw new HttpError(
@@ -477,10 +479,22 @@ export function registerPodRawRoutes(
         throw new HttpError('service_unavailable', 'Pod commands cannot be signed here');
       }
       const bytes = Buffer.from(command, 'hex');
+      const signature = options.signer.sign(bytes);
+      // Every signed command leaves its trace: who, which upload, which key, which bytes.
+      await db.insert(podCommandAudit).values({
+        clubId,
+        podRawUploadId: row.id,
+        command: 'erase',
+        keyId: options.signer.keyId,
+        commandSha256: createHash('sha256').update(bytes).digest('hex'),
+        requestId: /^[A-Za-z0-9._:-]{1,128}$/.test(request.id) ? request.id : null,
+        createdBy: caller.userId,
+        updatedBy: caller.userId,
+      });
       return {
         podRawUploadId: row.id,
         command: bytes.toString('base64'),
-        signature: Buffer.from(options.signer.sign(bytes)).toString('base64'),
+        signature: Buffer.from(signature).toString('base64'),
         algorithm: options.signer.algorithm,
         keyId: options.signer.keyId,
       };

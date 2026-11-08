@@ -55,7 +55,10 @@ export const parsePodRawUploadState = memberParser(
  * Why the worker rejected an upload: the object is missing or is not a
  * `pod_raw` container matching its manifest, or `verifyUploadForErase` of the
  * protocol said no (`segment_missing` … `segment_not_closed`), or it could not be
- * verified within its pending days (`expired`: no master key, for example).
+ * verified within its pending days (`expired`: no master key, for example),
+ * the decoder failed on it (`decode_failed`), or a verified one reached the
+ * end of its pending days while the club had no master key to trim it
+ * (`master_key_missing_expired`: nothing of it becomes data).
  */
 export const POD_RAW_REJECTION_REASONS = [
   'file_missing',
@@ -68,6 +71,8 @@ export const POD_RAW_REJECTION_REASONS = [
   'pages_not_authentic',
   'segment_not_closed',
   'expired',
+  'decode_failed',
+  'master_key_missing_expired',
 ] as const;
 export type PodRawRejectionReason = (typeof POD_RAW_REJECTION_REASONS)[number];
 export const isPodRawRejectionReason = memberGuard(POD_RAW_REJECTION_REASONS);
@@ -87,8 +92,14 @@ export const isPodRawRejectionReason = memberGuard(POD_RAW_REJECTION_REASONS);
  * - `page_issues`, `stream_gaps`, `record_issues`: pages or stream bytes lost.
  * - `untimed_pages`: pages with no record time could not be placed and are
  *   left out of the trim.
+ * - `shared_pages`: pages whose records overlap the windows of two players
+ *   (a vest handed over): they go to neither trimmed file.
+ * - `storage_unavailable`: the bucket failed while reading the file; it is
+ *   tried again on the next run, without blocking the others.
  * - `assignment_corrected_after_trim`: an assignment of the pod was corrected
- *   after the one-time trim: the data cannot move to another player.
+ *   after the one-time trim: what fell outside the corrected range was
+ *   deleted (`count`: samples deleted); the data never moves to another
+ *   player.
  */
 export const POD_RAW_ISSUE_CODES = [
   'master_key_missing',
@@ -100,6 +111,8 @@ export const POD_RAW_ISSUE_CODES = [
   'stream_gaps',
   'record_issues',
   'untimed_pages',
+  'shared_pages',
+  'storage_unavailable',
   'assignment_corrected_after_trim',
 ] as const;
 export type PodRawIssueCode = (typeof POD_RAW_ISSUE_CODES)[number];
@@ -354,9 +367,10 @@ export function podDataWindows(input: {
 
 /**
  * Whether a verified upload is trimmed now: every session it overlaps has
- * ended and every assignment of the pod in its time is closed and not
- * waiting to be reprocessed, with at least one session (a session loaded
- * late still counts); or its pending time is over, whatever the rest.
+ * ended and every assignment of the pod in its time is closed, with at least
+ * one session (a session loaded late still counts); or its pending time is
+ * over, whatever the rest. (A corrected assignment needs no wait: the trim
+ * reads the corrected ranges.)
  */
 export function podRawTrimDue(input: {
   readonly now: Date;
@@ -365,12 +379,10 @@ export function podRawTrimDue(input: {
   readonly sessionEnds: readonly Date[];
   /** An assignment of the pod in the recording's time is still open. */
   readonly openAssignment: boolean;
-  /** An assignment of the pod in the recording's time waits to be reprocessed. */
-  readonly reprocessPending: boolean;
 }): boolean {
   const now = input.now.getTime();
   if (now >= input.pendingUntil.getTime()) return true;
-  if (input.sessionEnds.length === 0 || input.openAssignment || input.reprocessPending) {
+  if (input.sessionEnds.length === 0 || input.openAssignment) {
     return false;
   }
   return input.sessionEnds.every((end) => end.getTime() <= now);

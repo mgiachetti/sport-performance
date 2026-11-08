@@ -7,7 +7,7 @@
  * manifest must be the pod's device; the erase command is signed only once
  * the worker verified the file, with a key generated for the run.
  */
-import { generateKeyPairSync, verify, type KeyObject } from 'node:crypto';
+import { createHash, generateKeyPairSync, verify, type KeyObject } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import type { ClubId } from '@sport-performance/domain';
@@ -28,7 +28,7 @@ import {
   type TestBucket,
 } from '@sport-performance/storage/testing';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { createFilesModule } from '../files/module.js';
+import { createFilesModule, type FilesModule } from '../files/module.js';
 import { createPodCommandSigner } from '../pods/command-signer.js';
 import {
   createCategory,
@@ -102,6 +102,7 @@ describeWithStorage('pod log ingestion (Postgres + MinIO)', (serverUrl, storageU
   let podId: string;
   let otherPodId: string;
   let publicKey: KeyObject;
+  let files: FilesModule;
 
   const request = (
     caller: SignedIn,
@@ -133,13 +134,14 @@ describeWithStorage('pod log ingestion (Postgres + MinIO)', (serverUrl, storageU
   beforeAll(async () => {
     database = await createTestDatabase(serverUrl);
     bucket = await createTestBucket(storageUrl);
-    const files = createFilesModule({
+    const module = createFilesModule({
       storage: bucket.config,
       uploadUrlTtlS: 900,
       downloadUrlTtlS: 120,
       logoUrlTtlS: 3600,
     });
-    if (files === undefined) throw new Error('the files module needs the bucket');
+    if (module === undefined) throw new Error('the files module needs the bucket');
+    files = module;
     // A key of this run only: no signing key is ever committed.
     const pair = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
     publicKey = pair.publicKey;
@@ -311,6 +313,66 @@ describeWithStorage('pod log ingestion (Postgres + MinIO)', (serverUrl, storageU
       blocks: manifest.blocks,
       sha256Hex: manifest.sha256Hex,
     });
+  });
+
+  it('records every signed command, with who, which key and the bytes', async () => {
+    const { rows } = await database.admin.query<{
+      command: string;
+      key_id: string;
+      command_sha256: string;
+      created_by: string;
+      request_id: string | null;
+    }>(
+      `select command, key_id, command_sha256, created_by, request_id from pod_command_audit
+        where pod_raw_upload_id = $1`,
+      [uploadId],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ command: 'erase', key_id: 'test-run', created_by: sc.userId });
+    const { rows: upload } = await database.admin.query<{ erase_command: string }>(
+      'select erase_command from pod_raw_upload where id = $1',
+      [uploadId],
+    );
+    expect(rows[0]?.command_sha256).toBe(
+      createHash('sha256')
+        .update(Buffer.from(upload[0]?.erase_command ?? '', 'hex'))
+        .digest('hex'),
+    );
+    expect(rows[0]?.request_id).not.toBeNull();
+  });
+
+  it('never signs for a rejected upload, and answers 503 without a signing key', async () => {
+    const created = await create(sc, podId, {
+      ...manifest,
+      segmentId: manifest.segmentId + 1,
+      sha256Hex: 'e'.repeat(64),
+    });
+    expect(created.statusCode, created.body).toBe(201);
+    const rejected = created.json<CreatedBody>().upload.id;
+    await database.admin.query(
+      `update pod_raw_upload set state = 'rejected', rejection_reason = 'pages_not_authentic',
+              rejected_at = now() where id = $1`,
+      [rejected],
+    );
+    const refused = await request(sc, 'GET', `/v1/pod-raw-uploads/${rejected}/erase-command`);
+    expect(refused.statusCode, refused.body).toBe(409);
+    // An API without the key: the verified upload stays on the pod.
+    const plain = await startIdentityApp(database, {
+      files,
+      routeClassLimits: { auth: { perIp: { name: 'api_auth_ip', max: 10_000, windowS: 60 } } },
+    });
+    try {
+      const scPlain = await signIn(plain, 'sc@podraw-a.example.com');
+      const unavailable = await plain.app.inject({
+        method: 'GET',
+        url: `/v1/pod-raw-uploads/${uploadId}/erase-command`,
+        headers: scPlain.headers,
+      });
+      expect(unavailable.statusCode, unavailable.body).toBe(503);
+    } finally {
+      await plain.close();
+    }
+    await database.admin.query(`delete from pod_raw_upload where id = $1`, [rejected]);
   });
 
   it('lists and reads the uploads for who runs the fleet', async () => {

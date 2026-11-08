@@ -50,6 +50,7 @@ const DELETABLE = {
     'player_load_daily',
     'player_wellness_daily',
     // Position traces: erased with the location consent and past their retention (ADR 0108).
+    'pod_raw_trim',
     'pod_trace_segment',
     'push_ticket',
     // Per-member usage past its retention, once folded into the weekly counts (ADR 0093).

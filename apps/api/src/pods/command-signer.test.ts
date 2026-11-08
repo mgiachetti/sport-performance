@@ -1,8 +1,10 @@
 import { generateKeyPairSync, verify } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
+  P256_ORDER,
   POD_COMMAND_SIGNATURE_LENGTH,
   createPodCommandSigner,
+  lowS,
   podCommandKeyProblem,
 } from './command-signer.js';
 
@@ -46,5 +48,31 @@ describe('pod command signer', () => {
     expect(() =>
       createPodCommandSigner({ privateKeyPkcs8Base64: testKey().pkcs8Base64, keyId: 'bad id' }),
     ).toThrow('key id');
+  });
+
+  it('always signs low-S (s ≤ n/2), still valid for the public key', () => {
+    const { pkcs8Base64, publicKey } = testKey();
+    const signer = createPodCommandSigner({ privateKeyPkcs8Base64: pkcs8Base64, keyId: 'k' });
+    for (let i = 0; i < 40; i += 1) {
+      const message = new TextEncoder().encode(`command ${String(i)}`);
+      const signature = signer.sign(message);
+      const s = BigInt(`0x${Buffer.from(signature.subarray(32)).toString('hex')}`);
+      expect(s <= P256_ORDER >> 1n).toBe(true);
+      expect(
+        verify('sha256', message, { key: publicKey, dsaEncoding: 'ieee-p1363' }, signature),
+      ).toBe(true);
+    }
+    // A high-S signature becomes n − s; a low one is untouched.
+    const high = new Uint8Array(64);
+    high.set(Buffer.from((P256_ORDER - 1n).toString(16).padStart(64, '0'), 'hex'), 32);
+    expect(Buffer.from(lowS(high).subarray(32)).toString('hex')).toBe('1'.padStart(64, '0'));
+    const low = new Uint8Array(64).fill(1);
+    expect(lowS(low)).toBe(low);
+  });
+
+  it('accepts the key with the whitespace of a wrapped base64', () => {
+    const { pkcs8Base64 } = testKey();
+    const wrapped = pkcs8Base64.replace(/(.{64})/g, '$1\n');
+    expect(podCommandKeyProblem(wrapped)).toBeNull();
   });
 });

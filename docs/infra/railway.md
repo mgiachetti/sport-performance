@@ -68,7 +68,7 @@ Una vez por ambiente; **nunca** el mismo valor en staging y production. Cargarlo
 | `api`, `worker` | `SENTRY_DSN` | Sentry → proyecto → Client Keys (opcional; vacío = apagado) |
 | `worker` | `EXPO_ACCESS_TOKEN` | Expo → Access tokens, solo si el proyecto exige "enhanced security" para push |
 | `worker` (solo staging) | `DEMO_NOTIFICATION_EMAIL_DOMAINS` | dominios catch-all del equipo, separados por coma (opcional) |
-| `api` | `POD_COMMAND_SIGNING_KEY` | `openssl ecparam -name prime256v1 -genkey -noout \| openssl pkcs8 -topk8 -nocrypt -outform DER \| base64` (opcional hasta tener pods; la pública, `openssl ec -pubout`, se graba en los pods) |
+| `api` | `POD_COMMAND_SIGNING_KEY` | `openssl ecparam -name prime256v1 -genkey -noout -out pod-command.pem`, después `openssl pkcs8 -topk8 -nocrypt -in pod-command.pem -outform DER \| openssl base64 -A` (opcional hasta tener pods). El PEM queda fuera de línea: de él sale la pública que se graba en los pods (`openssl ec -in pod-command.pem -pubout -outform DER \| openssl base64 -A`). Las firmas son low-S |
 | `api` | `POD_COMMAND_SIGNING_KEY_ID` | un id por clave, por ejemplo `srv-<ambiente>-1` (con la clave) |
 | `worker` | `POD_MASTER_KEYS` | por club con pods: `<id del club>:$(openssl rand -base64 32)`, separados por coma (opcional hasta tener pods) |
 
