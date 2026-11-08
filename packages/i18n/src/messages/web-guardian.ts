@@ -67,7 +67,7 @@ export const webGuardianMessagesEsAR = {
   'guardian.consents.typeHelp.menstrual_cycle':
     'Opcional, solo para jugadoras: lo activa ella si quiere y lo ve solo a quien ella elija. Quien firma no ve sus registros.',
   'guardian.consents.typeHelp.location':
-    'Trazas de posición y mapas de calor del pod GPS durante las sesiones del club. Sin este no recibe pod. Las ve el staff de su categoría; vos no ves la ubicación.',
+    'Trazas de posición y mapas de calor del pod GPS durante las sesiones del club. Sin este no recibe pod. Las ven el jugador o la jugadora, los entrenadores y preparadores físicos de su categoría y la administración del club; vos, el staff médico y el soporte no ven la ubicación.',
   'guardian.consents.state.granted': 'Vigente',
   'guardian.consents.state.outdated': 'Vigente sobre un texto anterior',
   'guardian.consents.state.adult_signature_required': 'Falta la firma del jugador/a',
@@ -78,6 +78,7 @@ export const webGuardianMessagesEsAR = {
     'El club publicó una versión nueva del texto. Lo firmado sigue valiendo, pero conviene firmar la nueva.',
   'guardian.consents.stateHelp.adult_signature_required':
     'Ya es mayor de edad: tu firma vale hasta el {date} y después tiene que firmar él o ella.',
+  'guardian.consents.state.outdatedGrantedOnly': 'No vale: hay un texto nuevo',
   'guardian.consents.stateHelp.outdatedLocation':
     'El club publicó una versión nueva del texto. Para la ubicación lo firmado antes ya no vale: hasta que se firme la nueva, no recibe pod.',
   'guardian.consents.stateHelp.adultLocation':

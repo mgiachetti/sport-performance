@@ -363,6 +363,31 @@ describe.skipIf(!hasDatabase)('location consent (Postgres 16)', () => {
           }) as unknown,
         },
       ]);
+      // Its history is the administration's: the staff of the player do not read it.
+      const history = (context: TestContext) =>
+        run(context, async (client) => {
+          const { rows: found } = await client.query(
+            `select 1 from change_history where table_name = 'location_erasure' and record_id = $1`,
+            [erasure],
+          );
+          return found.length;
+        });
+      expect(await history(as('admin'))).toBe(1);
+      for (const who of ['coach', 'sc', 'medical', 'parent', 'player'] as const) {
+        expect(await history(as(who)), who).toBe(0);
+      }
+      // Signing again and revoking after a completed erasure queues a new one.
+      const v1 = must(
+        (
+          await t.pool.query<{ id: string }>(
+            `select id from consent_document where club_id = $1 and type = 'location'`,
+            [a.clubId],
+          )
+        ).rows[0],
+      ).id;
+      await sign(v1, 'guardian', '2026-11');
+      await revoke('parent');
+      expect((await erasures()).map((r) => r.status)).toEqual(['completed', 'pending']);
       // A completed erasure has its counts; a pending one has none.
       expect(
         await pgCode(

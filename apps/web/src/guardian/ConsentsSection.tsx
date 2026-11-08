@@ -108,9 +108,16 @@ function ConsentRow(props: {
         <h3 id={titleId} className="sp-row__title">
           {typeLabel}
         </h3>
-        <StatusLabel level={CONSENT_STATE_LEVELS[status.state]}>
-          {t(`guardian.consents.state.${status.state}`)}
-        </StatusLabel>
+        {grantedOnly && status.state === 'outdated' ? (
+          // An older text does not count for location: never "vigente" (ADR 0106).
+          <StatusLabel level="critical">
+            {t('guardian.consents.state.outdatedGrantedOnly')}
+          </StatusLabel>
+        ) : (
+          <StatusLabel level={CONSENT_STATE_LEVELS[status.state]}>
+            {t(`guardian.consents.state.${status.state}`)}
+          </StatusLabel>
+        )}
       </div>
       <p className="sp-meta">{t(`guardian.consents.typeHelp.${status.type}`)}</p>
       {status.consent === null ? null : (

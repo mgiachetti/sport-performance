@@ -141,6 +141,8 @@ export const mobilePlayerMessagesEsAR = {
   'playerApp.consents.accept': 'Leí el texto y doy mi consentimiento.',
   'playerApp.consents.revokeConfirm':
     'Si lo revocás, desde ahora el club no puede cargar {type, select, data {tus datos personales ni de entrenamiento} image {tus imágenes ni videos} other {tus datos de salud}}. Lo cargado antes queda en tu historia. ¿Lo revocás?',
+  'playerApp.consents.typeHelpLocation':
+    'Trazas de posición y mapas de calor del pod GPS durante las sesiones del club. Sin este no recibís pod. Las ven vos, los entrenadores y preparadores físicos de tu categoría y la administración del club; nunca tu mamá, papá o tutor/a, el staff médico ni el soporte.',
   'playerApp.consents.revokeConfirmLocation':
     'Si lo revocás, no recibís más pod y se borran tus trazas de posición y los registros del pod. Las métricas que no son ubicación (distancia, velocidad, aceleraciones) quedan. El borrado no se deshace. ¿Lo revocás?',
   'playerApp.consents.outdatedLocation':

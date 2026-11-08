@@ -13,7 +13,11 @@ import {
 import type pg from 'pg';
 import { pino } from 'pino';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { listLocationErasureClubs, runClubLocationErasures } from './location-erasure.js';
+import {
+  LOCATION_ERASURE_BATCH,
+  listLocationErasureClubs,
+  runClubLocationErasures,
+} from './location-erasure.js';
 
 const serverUrl = process.env.DATABASE_URL;
 const hasDatabase = serverUrl !== undefined && serverUrl.trim() !== '';
@@ -126,6 +130,22 @@ describe.skipIf(!hasDatabase)('location erasure (Postgres 16)', () => {
       })),
     );
     expect(await listLocationErasureClubs(worker)).toEqual([clubB]);
+  });
+
+  it('completes a batch at a time and says when more are waiting', async () => {
+    const clubC = await club('location-c');
+    for (let i = 0; i <= LOCATION_ERASURE_BATCH; i += 1)
+      await player(clubC, `Jugador ${String(i)}`);
+    expect(await runClubLocationErasures({ pool: worker, logger }, clubC)).toEqual({
+      completed: LOCATION_ERASURE_BATCH,
+      deleted: 0,
+      more: true,
+    });
+    expect(await runClubLocationErasures({ pool: worker, logger }, clubC)).toEqual({
+      completed: 1,
+      deleted: 0,
+      more: false,
+    });
   });
 
   it('a second run of the same club finds nothing to do', async () => {

@@ -756,13 +756,16 @@ describe('PlayerConsentsScreen', () => {
     it('shows the location consent with its own name and help', () => {
       renderConsents(withLocation('granted'));
       expect(screen.getByText(t('guardian.consents.type.location'))).toBeDefined();
-      expect(screen.getByText(t('guardian.consents.typeHelp.location'))).toBeDefined();
+      expect(screen.getByText(t('playerApp.consents.typeHelpLocation'))).toBeDefined();
+      expect(screen.getByText(/la administración del club/)).toBeDefined();
       expect(screen.getByText(t('guardian.consents.state.granted'))).toBeDefined();
     });
 
     it('an older text no longer counts: never "lo firmado sigue valiendo"', () => {
       renderConsents(withLocation('outdated'));
       expect(screen.getByText(t('playerApp.consents.outdatedLocation'))).toBeDefined();
+      expect(screen.getByText(t('guardian.consents.state.outdatedGrantedOnly'))).toBeDefined();
+      expect(screen.queryByText(t('guardian.consents.state.outdated'))).toBeNull();
       expect(screen.queryByText(t('guardian.consents.stateHelp.outdated'))).toBeNull();
       expect(screen.getByRole('button', { name: t('guardian.consents.readNew') })).toBeDefined();
     });

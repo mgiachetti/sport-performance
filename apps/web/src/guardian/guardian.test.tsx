@@ -181,13 +181,19 @@ describe('family area: location consent (B-913)', () => {
     const location = await consentRow('location');
     expect(within(location).getByText('Sin firmar')).toBeVisible();
     expect(within(location).getByText(/Sin este no recibe pod/)).toBeVisible();
-    expect(within(location).getByText(/vos no ves la ubicación/)).toBeVisible();
+    // Every reader is named: the administration too; never the guardian, medical or support.
+    expect(within(location).getByText(/la administración del club/)).toBeVisible();
+    expect(
+      within(location).getByText(/vos, el staff médico y el soporte no ven la ubicación/),
+    ).toBeVisible();
     expect(within(location).getByRole('button', { name: 'Leer y firmar' })).toBeVisible();
   });
 
   it('an older text no longer counts: asks to sign the new version', async () => {
     renderApp({ path: childPath, handlers: withLocation('outdated') });
     const location = await consentRow('location');
+    expect(within(location).getByText('No vale: hay un texto nuevo')).toBeVisible();
+    expect(within(location).queryByText('Vigente sobre un texto anterior')).toBeNull();
     expect(within(location).getByText(/lo firmado antes ya no vale/)).toBeVisible();
     expect(within(location).queryByText(/Lo firmado sigue valiendo/)).toBeNull();
     expect(

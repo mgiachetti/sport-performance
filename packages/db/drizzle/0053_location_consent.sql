@@ -45,6 +45,18 @@ CREATE UNIQUE INDEX "location_erasure_pending_key" ON "location_erasure" USING b
 --
 -- The new enum value `location` of `consent_type` cannot be used in this transaction: the
 -- functions and the trigger compare the type as text.
+--
+-- The trigger and the functions below are SECURITY DEFINER and write tables with forced
+-- RLS: the owner has to bypass it.
+DO $$
+BEGIN
+  IF NOT (SELECT r.rolsuper OR r.rolbypassrls FROM pg_catalog.pg_roles r WHERE r.rolname = current_user) THEN
+    RAISE EXCEPTION 'Migrations must run as a superuser or a role with BYPASSRLS (connected as %)', current_user
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+END
+$$;
+--> statement-breakpoint
 
 CREATE TRIGGER "location_erasure_set_updated_at" BEFORE UPDATE ON "location_erasure" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();--> statement-breakpoint
 
@@ -97,6 +109,15 @@ $$;
 -- The completion is the record of the erasure in the change history (ADR 0030): status,
 -- time and counts are lifecycle columns written by the worker, never a correction.
 CREATE TRIGGER "location_erasure_change_history" AFTER UPDATE OR DELETE ON "location_erasure" FOR EACH ROW EXECUTE FUNCTION "public"."change_history_record"('player_id', '{status,completed_at,deleted_rows}');--> statement-breakpoint
+
+-- Its history is read like the erasures themselves: only the administration (the holder
+-- never reads the history). The rest of the staff, who read the history of their assigned
+-- players (0008), do not learn from it that a player revoked their location consent.
+CREATE POLICY "change_history_app_location_erasure" ON "public"."change_history" AS RESTRICTIVE
+  FOR SELECT TO "sport_performance_app"
+  USING (table_name::text <> 'location_erasure'
+         OR (SELECT "app"."current_role"()) IN ('admin', 'superadmin'));
+--> statement-breakpoint
 
 -- ─── Revoking queues the erasure ─────────────────────────────────────────────────────
 -- In the transaction of the revocation, whoever revokes it (the API's handler, an operator):

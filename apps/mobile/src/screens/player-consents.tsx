@@ -75,11 +75,20 @@ function TypeCard({
   return (
     <Card title={t(`guardian.consents.type.${status.type}`)}>
       <AppText role="bodySmall" tone="secondary">
-        {t(`guardian.consents.typeHelp.${status.type}`)}
+        {status.type === 'location'
+          ? t('playerApp.consents.typeHelpLocation')
+          : t(`guardian.consents.typeHelp.${status.type}`)}
       </AppText>
-      <StatusMessage level={STATE_LEVEL[status.state]}>
-        {t(`guardian.consents.state.${status.state}`)}
-      </StatusMessage>
+      {grantedOnly && status.state === 'outdated' ? (
+        // An older text does not count for location: never "vigente" (ADR 0106).
+        <StatusMessage level="critical">
+          {t('guardian.consents.state.outdatedGrantedOnly')}
+        </StatusMessage>
+      ) : (
+        <StatusMessage level={STATE_LEVEL[status.state]}>
+          {t(`guardian.consents.state.${status.state}`)}
+        </StatusMessage>
+      )}
       {status.consent !== null ? (
         <AppText role="caption" tone="secondary">
           {t('guardian.consents.signedBy', {
