@@ -401,6 +401,10 @@ export const PERMISSION_MATRIX: PermissionMatrix = {
     manage: { ...administration, sc: club },
     locate: { ...nobody, sc: club, admin: club },
   },
+  pod_device: {
+    read: { ...nobody, superadmin: platform },
+    manage: { ...nobody, superadmin: platform },
+  },
   pod_assignment: {
     read: { ...administration, player: self, coach: assigned, sc: assigned },
     assign: {

@@ -410,6 +410,8 @@ export * from './kiosk.js';
 export * from './menstrual-cycle/index.js';
 // Erasure of the position data when the location consent is revoked (B-913, ADR 0106).
 export * from './location-erasure.js';
+// The pod fleet and its assignment to players (B-912, ADR 0106).
+export * from './pods/index.js';
 // Usage metrics: surfaces, clients, retention and adoption rates (B-707).
 export * from './usage.js';
 

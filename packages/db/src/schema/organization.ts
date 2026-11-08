@@ -1,6 +1,7 @@
 import type { CategoryId } from '@sport-performance/domain';
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   foreignKey,
   index,
@@ -126,6 +127,12 @@ export const category = pgTable(
     /** Stage of the category before maturation (`AgeBand.defaultStage`, B-204). */
     defaultStage: stageEnum('default_stage').notNull(),
     sortOrder: smallint('sort_order').notNull().default(0),
+    /**
+     * Whether the category's players may be assigned a pod (B-912, ADR 0106):
+     * M19 by default (`DEFAULT_POD_AGE_BAND_CODES`, seeded by the bootstrap);
+     * the club turns it on or off per category.
+     */
+    podsEnabled: boolean('pods_enabled').notNull().default(false),
     archivedAt: timestamptz('archived_at'),
   },
   (t) => [

@@ -311,6 +311,30 @@ import {
   retireDevice,
   updateDevice,
 } from './devices.js';
+import {
+  listPodDevices,
+  registerPodDevice,
+  updatePodDevice,
+  listPods,
+  getPod,
+  registerPod,
+  updatePod,
+  markPodMissing,
+  recoverPod,
+  retirePod,
+  listPodCategories,
+  setPodCategory,
+  listPodLoans,
+  lendPod,
+  endPodLoan,
+  listPodAssignments,
+  getPodAssignment,
+  createPodAssignment,
+  endPodAssignment,
+  correctPodAssignment,
+  voidPodAssignment,
+  getSessionPods,
+} from './pods.js';
 
 export * from './alerts.js';
 export * from './anthropometry.js';
@@ -364,6 +388,7 @@ export * from './panel.js';
 export * from './test-definitions.js';
 export * from './test-day-sheet.js';
 export * from './devices.js';
+export * from './pods.js';
 export * from './usage.js';
 
 /**
@@ -527,6 +552,28 @@ export const apiEndpoints = {
   updateDevice,
   retireDevice,
   restoreDevice,
+  listPodDevices,
+  registerPodDevice,
+  updatePodDevice,
+  listPods,
+  getPod,
+  registerPod,
+  updatePod,
+  markPodMissing,
+  recoverPod,
+  retirePod,
+  listPodCategories,
+  setPodCategory,
+  listPodLoans,
+  lendPod,
+  endPodLoan,
+  listPodAssignments,
+  getPodAssignment,
+  createPodAssignment,
+  endPodAssignment,
+  correctPodAssignment,
+  voidPodAssignment,
+  getSessionPods,
   recordAnthroMeasurements,
   previewAnthroMeasurements,
   listAnthroMeasurements,

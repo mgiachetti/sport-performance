@@ -81,6 +81,7 @@ export const API_TAGS = {
   gym: 'Gimnasio: programas por etapa, series (peso × repeticiones × RIR) y e1RM (B-607).',
   devices:
     'Equipos del club con los que se mide (teléfonos, tablets y hardware compartido): el test de reacción solo se compara en el mismo equipo (B-606).',
+  pods: 'Pods GNSS + IMU (Fase 3): registro global de dispositivos, flota del club, préstamos y asignación pod → jugador con rangos sin superposición (B-912).',
   references: 'Referencias de primera por métrica, deporte, sexo y alcance (B-321).',
   configuration:
     'Configuración del club: batería de tests, zonas de velocidad, reglas de alerta y módulos activos.',

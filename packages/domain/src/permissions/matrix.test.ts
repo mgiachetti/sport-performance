@@ -115,6 +115,8 @@ menstrual_cycle.withdraw self                  -               -               -
 pod.read                 -                     -               club            club            -                club        club
 pod.manage               -                     -               -               club            -                club        club
 pod.locate               -                     -               -               club            -                club        -
+pod_device.read          -                     -               -               -               -                -           platform
+pod_device.manage        -                     -               -               -               -                -           platform
 pod_assignment.read      self                  -               assigned        assigned        -                club        club
 pod_assignment.assign    -                     -               assigned+data+location assigned+data+location - club+data+location -
 pod_live.read            -                     -               assigned        assigned        -                club        -
@@ -775,10 +777,11 @@ describe('privacy invariants (independent of the specification)', () => {
     }
   });
 
-  it('only the superadmin has platform scope, and only on the registry of clubs', () => {
+  it('only the superadmin has platform scope, and only on the registries of clubs and pod devices', () => {
     for (const cell of allowedCells) {
       if (cell.rule.effect === 'allow' && cell.rule.scope === 'platform') {
-        expect([cell.kind, cell.role]).toEqual(['club_registry', 'superadmin']);
+        expect(cell.role).toBe('superadmin');
+        expect(['club_registry', 'pod_device']).toContain(cell.kind);
       }
     }
   });

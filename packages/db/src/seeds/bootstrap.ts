@@ -1,6 +1,7 @@
 import { isDeepStrictEqual } from 'node:util';
 import {
   DEFAULT_AGE_BANDS,
+  podsEnabledByDefault,
   DEFAULT_ALERT_RULES,
   DEFAULT_POSITION_LINES,
   DEFAULT_SPEED_ZONE_SETS,
@@ -324,6 +325,7 @@ export async function bootstrapClub(
         name: defaultCategoryName(branch.sport, band.code),
         defaultStage: band.defaultStage,
         sortOrder: DEFAULT_AGE_BANDS.indexOf(band),
+        podsEnabled: podsEnabledByDefault(band.code),
       })),
     );
     const categories =

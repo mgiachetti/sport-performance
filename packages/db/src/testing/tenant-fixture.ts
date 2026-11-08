@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { ClubId, LocalDate, PlayerId } from '@sport-performance/domain';
 import { and, eq } from 'drizzle-orm';
 import type { Database } from '../client.js';
@@ -50,6 +50,10 @@ import {
   playerPosition,
   playerStage,
   playerWellnessDaily,
+  pod,
+  podAssignment,
+  podDevice,
+  podLoan,
   position,
   pushTicket,
   referenceValue,
@@ -619,6 +623,77 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         localDate: day('2026-03-10'),
       })
       .returning({ id: trainingSession.id }),
+  );
+  // The pod fleet (B-912, ADR 0106): two devices of the club, pod 1 worn by the assigned
+  // player in the session, pod 2 lent to a club of its own (the loan's other side).
+  const chipOf = (seed: string) => createHash('sha256').update(seed).digest('hex').slice(0, 16);
+  const serialOf = (seed: string) =>
+    `FX-${createHash('sha256').update(seed).digest('hex').slice(0, 12).toUpperCase()}`;
+  const devices = await db
+    .insert(podDevice)
+    .values([
+      {
+        serialNumber: serialOf(`${slug}-1`),
+        chipId: chipOf(`${slug}-1`),
+        hardwareRevision: 'v0',
+        provisioningState: 'provisioned',
+        ownerClubId: clubId,
+      },
+      {
+        serialNumber: serialOf(`${slug}-2`),
+        chipId: chipOf(`${slug}-2`),
+        hardwareRevision: 'v0',
+        provisioningState: 'provisioned',
+        ownerClubId: clubId,
+      },
+    ])
+    .returning({ id: podDevice.id });
+  rows.pod = await id(
+    db
+      .insert(pod)
+      .values({ ...base, deviceId: must(devices[0]).id, shortId: 1, number: 1 })
+      .returning({ id: pod.id }),
+  );
+  const lentPod = await id(
+    db
+      .insert(pod)
+      .values({ ...base, deviceId: must(devices[1]).id, shortId: 2, number: 2, status: 'lent' })
+      .returning({ id: pod.id }),
+  );
+  const borrower = must(
+    (
+      await db
+        .insert(club)
+        .values({ slug: `${slug}-borrower`, name: `Borrower ${slug}`, shortName: 'BRW' })
+        .returning({ id: club.id })
+    )[0],
+  ).id;
+  rows.pod_loan = await id(
+    db
+      .insert(podLoan)
+      .values({
+        ...base,
+        podId: lentPod,
+        deviceId: must(devices[1]).id,
+        borrowerClubId: borrower,
+        borrowerPodId: randomUUID(),
+        createdBy: users.sc,
+      })
+      .returning({ id: podLoan.id }),
+  );
+  rows.pod_assignment = await id(
+    db
+      .insert(podAssignment)
+      .values({
+        ...base,
+        podId: rows.pod,
+        playerId: assigned,
+        trainingSessionId: rows.training_session,
+        startsAt: new Date('2026-03-10T21:00:00Z'),
+        endsAt: new Date('2026-03-10T22:30:00Z'),
+        createdBy: users.coach,
+      })
+      .returning({ id: podAssignment.id }),
   );
   rows.fixture = await id(
     db

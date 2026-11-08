@@ -172,6 +172,13 @@ export const PERMISSION_RESOURCES = {
    */
   pod: { target: 'club', medical: false, actions: ['read', 'manage', 'locate'] },
   /**
+   * The global registry of pod devices (B-912, ADR 0106): serial number, chip
+   * id, hardware revision and owner club. Platform-wide, like the registry of
+   * clubs: only the superadmin (and the programming station) reads and
+   * registers devices; a club sees its own through its pods.
+   */
+  pod_device: { target: 'platform', medical: false, actions: ['read', 'manage'] },
+  /**
    * Which pod a player wears, with its time range (`pod_assignment`, ADR
    * 0106). `assign` creates and corrects one, and needs the player's
    * `location` consent `granted`: never on an older text (B-913).
