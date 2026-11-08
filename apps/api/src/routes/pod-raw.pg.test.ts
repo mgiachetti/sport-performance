@@ -123,7 +123,7 @@ describeWithStorage('pod log ingestion (Postgres + MinIO)', (serverUrl, storageU
       `with d as (
          insert into pod_device (serial_number, chip_id, hardware_revision, provisioning_state, owner_club_id)
          values ($1, $2, 'v0', 'provisioned', $3) returning id)
-       insert into pod (club_id, device_id, short_id, number) select $3, d.id, $4, $4 from d
+       insert into pod (club_id, device_id, short_id, number) select $3, d.id, $4::int, $4::int from d
        returning id`,
       [serial, chip, clubId, n],
     );
