@@ -220,7 +220,7 @@ PI, PO, IN, OUT, BI, PAS, TRI, OC, NC = (
 
 def ic_symbols() -> list:
     s = []
-    # Quectel LC29H: Hardware Design V1.0, table 5 (pin table copied in pod-v0.md, "Pines del LC29H"), checked
+    # Quectel LC29H: Hardware Design V1.4, table 6 (pin table in pod-v0.md, "Pines del LC29H"), checked
     # against Quectel's schematic part (Footprint&Part V1.4, 2026-07-03): same numbers and functions; names as
     # Quectel's, which lists each variant's function ("RSVD/FWD"...), except 18-21, named by their AA/EA use
     # (Quectel: I2C_SDA/SPI_CS/RSVD/URC_IND, I2C_SCL/SPI_CLK/RSVD, TXD1/SPI_MISO/TXD1, RXD1/SPI_MOSI/RXD1).

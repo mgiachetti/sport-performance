@@ -256,7 +256,7 @@ def dock_pads() -> Footprint:
 # y = -7.0, 3.0 mm gap between pins 7/8 and 17/18; solder mask 0.05 mm per pad (manual in the pad), paste
 # equal to the copper (rule of 0). Courtyard: Quectel's 15.1 x 16.4 mm boundary (Mechanical 5); silkscreen
 # as Quectel's: body top and bottom edges, corner ticks and the pin 1 triangle outside the body. The same
-# land pattern as the Hardware Design V1.3, figure 19 (p.47), from which this footprint was first drawn;
+# land pattern as the Hardware Design V1.3 and V1.4, figure 19 (p.47 and p.46), from which it was first drawn;
 # 3 mm from other parts (section 5.3).
 LC29H_TABLE = DATA / "Quectel_LC29H_Footprint_V1.4.csv"
 LC29H_SILK = [(-6.1, -8.0, 6.1, -8.0), (-6.1, 8.0, 6.1, 8.0),
