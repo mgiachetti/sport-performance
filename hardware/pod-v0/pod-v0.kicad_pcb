@@ -12,8 +12,10 @@
 		(date "2026-11-07")
 		(rev "v0")
 		(company "Sport Performance")
-		(comment 1 "Contorno provisorio de 45 x 65 mm; apilado de 4 capas a confirmar con PCBWay")
+		(comment 1 "Contorno provisorio de 45 x 65 mm; apilado de impedancia controlada a confirmar con PCBWay")
 		(comment 2 "Spec: docs/hardware/pod-v0.md")
+		(comment 3 "RF_50: CPWG 0,33 mm / 0,20 mm sobre L2; USB_90D: 0,25 mm / 0,15 mm (hardware/tools/impedancia.py)")
+		(comment 4 "Zonas BLE_ANTENA, GNSS_ANTENA y LORA_ANTENA provisorias: moverlas con la ubicación")
 	)
 	(layers
 		(0 "F.Cu" signal)
@@ -58,7 +60,7 @@
 			(layer "dielectric 1"
 				(type "prepreg")
 				(thickness 0.2)
-				(material "FR4")
+				(material "FR4 7628")
 				(epsilon_r 4.4)
 				(loss_tangent 0.02)
 			)
@@ -80,7 +82,7 @@
 			(layer "dielectric 3"
 				(type "prepreg")
 				(thickness 0.2)
-				(material "FR4")
+				(material "FR4 7628")
 				(epsilon_r 4.4)
 				(loss_tangent 0.02)
 			)
@@ -99,7 +101,7 @@
 				(type "Bottom Silk Screen")
 			)
 			(copper_finish "ENIG")
-			(dielectric_constraints no)
+			(dielectric_constraints yes)
 		)
 		(pad_to_mask_clearance 0)
 		(allow_soldermask_bridges_in_footprints no)
@@ -115,5 +117,92 @@
 		(fill none)
 		(layer "Edge.Cuts")
 		(uuid "cc057f46-d728-4fd9-ab25-05090af699f7")
+	)
+	(zone
+		(net 0)
+		(net_name "")
+		(layers "F.Cu" "In1.Cu" "In2.Cu" "B.Cu")
+		(uuid "59339bc1-693f-439b-8cbf-8128a718beac")
+		(name "BLE_ANTENA")
+		(hatch edge 0.5)
+		(connect_pads
+			(clearance 0)
+		)
+		(min_thickness 0.25)
+		(filled_areas_thickness no)
+		(keepout
+			(tracks not_allowed)
+			(vias not_allowed)
+			(pads not_allowed)
+			(copperpour not_allowed)
+			(footprints allowed)
+		)
+		(fill
+			(thermal_gap 0.5)
+			(thermal_bridge_width 0.5)
+		)
+		(polygon
+			(pts
+				(xy 100 137) (xy 103.5 137) (xy 103.5 148) (xy 100 148)
+			)
+		)
+	)
+	(zone
+		(net 0)
+		(net_name "")
+		(layers "F.Cu" "In1.Cu" "In2.Cu" "B.Cu")
+		(uuid "1435913e-c050-4cf3-acb8-4c0443e53a78")
+		(name "GNSS_ANTENA")
+		(hatch edge 0.5)
+		(connect_pads
+			(clearance 0)
+		)
+		(min_thickness 0.25)
+		(filled_areas_thickness no)
+		(keepout
+			(tracks allowed)
+			(vias allowed)
+			(pads allowed)
+			(copperpour allowed)
+			(footprints allowed)
+		)
+		(fill
+			(thermal_gap 0.5)
+			(thermal_bridge_width 0.5)
+		)
+		(polygon
+			(pts
+				(xy 105 101) (xy 140 101) (xy 140 136) (xy 105 136)
+			)
+		)
+	)
+	(zone
+		(net 0)
+		(net_name "")
+		(layers "F.Cu" "In1.Cu" "In2.Cu" "B.Cu")
+		(uuid "43087b07-618c-4de9-87db-79dc0d615842")
+		(name "LORA_ANTENA")
+		(hatch edge 0.5)
+		(connect_pads
+			(clearance 0)
+		)
+		(min_thickness 0.25)
+		(filled_areas_thickness no)
+		(keepout
+			(tracks allowed)
+			(vias allowed)
+			(pads allowed)
+			(copperpour allowed)
+			(footprints allowed)
+		)
+		(fill
+			(thermal_gap 0.5)
+			(thermal_bridge_width 0.5)
+		)
+		(polygon
+			(pts
+				(xy 125 150) (xy 145 150) (xy 145 165) (xy 125 165)
+			)
+		)
 	)
 )

@@ -71,10 +71,28 @@ jobs:
             kicad-cli pcb drc --exit-code-violations --severity-error --severity-warning \
               --output /out/drc.rpt pod-v0.kicad_pcb
 
+      # kicad-cli silently ignores a custom rule that does not parse, so on the empty board the
+      # DRC above stays green either way. This builds a probe board that breaks every rule of
+      # pod-v0.kicad_dru on purpose and checks that the report names each one, and a compliant
+      # board (negative control) that must have no rule violations.
+      - name: DRC rules self-test
+        run: |
+          set -euo pipefail
+          python3 hardware/tools/sonda_drc.py armar "$RUNNER_TEMP/sonda"
+          for board in sonda sonda_ok; do
+            docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+              -v "$RUNNER_TEMP:/out" -w /out/sonda "$KICAD_IMAGE" \
+              kicad-cli pcb drc --severity-all --all-track-errors --output "/out/$board.rpt" "$board.kicad_pcb"
+          done
+          rc=0
+          python3 hardware/tools/sonda_drc.py verificar "$RUNNER_TEMP/sonda.rpt" || rc=1
+          python3 hardware/tools/sonda_drc.py verificar-ok "$RUNNER_TEMP/sonda_ok.rpt" || rc=1
+          exit "$rc"
+
       - name: Show reports
         if: always()
         run: |
-          for report in "$RUNNER_TEMP/erc.rpt" "$RUNNER_TEMP/drc.rpt"; do
+          for report in "$RUNNER_TEMP/erc.rpt" "$RUNNER_TEMP/drc.rpt" "$RUNNER_TEMP/sonda.rpt" "$RUNNER_TEMP/sonda_ok.rpt"; do
             if [ -f "$report" ]; then
               echo "::group::$(basename "$report")"
               cat "$report"
@@ -90,4 +108,6 @@ jobs:
           path: |
             ${{ runner.temp }}/erc.rpt
             ${{ runner.temp }}/drc.rpt
+            ${{ runner.temp }}/sonda.rpt
+            ${{ runner.temp }}/sonda_ok.rpt
           retention-days: 7
