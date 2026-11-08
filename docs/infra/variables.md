@@ -46,6 +46,8 @@ Qué variable tiene cada servicio en `staging` y `production`, de dónde sale y 
 | `APP_LATEST_VERSION_ANDROID` | Operación | vacía hasta publicar | |
 | `APP_STORE_URL_IOS` | Operación | vacía hasta publicar | B-705. |
 | `APP_STORE_URL_ANDROID` | Operación | vacía hasta publicar | B-705. |
+| `POD_COMMAND_SIGNING_KEY` | Secreto | clave privada P-256 (PKCS#8 en base64) | Firma los comandos de los pods (el borrado de un tramo verificado, ADR 0108); su clave pública va grabada en cada pod. Vacía = el comando de borrado responde `503` y los pods conservan sus tramos. |
+| `POD_COMMAND_SIGNING_KEY_ID` | Secreto | id de esa clave (`srv-2026-1`) | Va con la clave: el pod elige la clave pública por este id. |
 
 ## `worker`
 
@@ -61,6 +63,7 @@ Qué variable tiene cada servicio en `staging` y `production`, de dónde sale y 
 | `EMAIL_FROM` | Referencia | `${{api.EMAIL_FROM}}` | |
 | `WEB_APP_URL` | Literal con referencias | `<web>` | Links de los emails. |
 | `EXPO_ACCESS_TOKEN` | Secreto | token de Expo | Solo si el proyecto de Expo exige "enhanced security" para push. |
+| `POD_MASTER_KEYS` | Secreto | `<club>:<clave>` por club | Claves maestras de los pods de cada club (ADR 0106, 0108): de ellas salen las de almacenamiento para decodificar el log subido. Un club sin clave deja sus subidas pendientes. |
 | `SENTRY_DSN` | Secreto | DSN del proyecto de Sentry del worker | |
 | `DEMO_NOTIFICATION_EMAIL_DOMAINS` | Operación (solo staging) | dominios catch-all del equipo | El club demo (ADR 0055) no entrega nada salvo a estos dominios. No existe en producción. |
 

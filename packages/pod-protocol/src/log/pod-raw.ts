@@ -14,6 +14,7 @@ import { fail } from '../errors.js';
 import { LOG_FORMAT_VERSION, LOG_PAGE_SIZE } from './constants.js';
 import { ECC_STATUSES, type DecodedLog, type EccStatus, type NandPageRead } from './decoder.js';
 import type { EraseCommand, SegmentSummary } from './nand.js';
+import { decodeLogPageHeader } from './page.js';
 
 /**
  * `pod_raw` file (ADR 0106, ADR 0044): the unit the dock uploads, one per
@@ -240,6 +241,59 @@ export function readPodRawFile(
     });
   }
   return { header, pages };
+}
+
+/** A `pod_raw` file cut down to some of its pages (`slicePodRawFile`). */
+export interface SlicedPodRaw {
+  bytes: Uint8Array;
+  firstPageSeq: number;
+  lastPageSeq: number;
+  pagesN: number;
+  sha256Hex: string;
+}
+
+/**
+ * The one-time trim of a pending `pod_raw` (ADR 0106, amendment to ADR
+ * 0005): a new container with only the entries of `keepPhysicalPages`, byte
+ * for byte as they were (still encrypted and MACed: nothing is re-sealed, so
+ * no CTR IV is ever reused), with the header's page range and count of what
+ * was kept. `null` when nothing is kept. Every kept page must have a
+ * readable header (the decoder already opened it).
+ */
+export function slicePodRawFile(
+  bytes: Uint8Array,
+  keepPhysicalPages: ReadonlySet<number>,
+): SlicedPodRaw | null {
+  const { pages } = readPodRawFile(bytes);
+  const kept: { index: number; pageSeq: number }[] = [];
+  pages.forEach((page, index) => {
+    if (keepPhysicalPages.has(page.physicalPage)) {
+      kept.push({ index, pageSeq: decodeLogPageHeader(page.data).pageSeq });
+    }
+  });
+  if (kept.length === 0) {
+    return null;
+  }
+  // A loop, not a spread: a whole NAND is 131 072 pages, past the arguments of a call.
+  let firstPageSeq = Number.POSITIVE_INFINITY;
+  let lastPageSeq = Number.NEGATIVE_INFINITY;
+  for (const k of kept) {
+    firstPageSeq = Math.min(firstPageSeq, k.pageSeq);
+    lastPageSeq = Math.max(lastPageSeq, k.pageSeq);
+  }
+  const out = new Uint8Array(POD_RAW_HEADER_LENGTH + kept.length * POD_RAW_ENTRY_LENGTH);
+  out.set(bytes.subarray(0, POD_RAW_HEADER_LENGTH), 0);
+  const w = new ByteWriter(12).u32(firstPageSeq).u32(lastPageSeq).u32(kept.length);
+  out.set(w.finish(), 24);
+  kept.forEach((k, i) => {
+    const at = POD_RAW_HEADER_LENGTH + k.index * POD_RAW_ENTRY_LENGTH;
+    out.set(
+      bytes.subarray(at, at + POD_RAW_ENTRY_LENGTH),
+      POD_RAW_HEADER_LENGTH + i * POD_RAW_ENTRY_LENGTH,
+    );
+  });
+  // Same device, boot and segment: the rest of the header is copied as it was.
+  return { bytes: out, firstPageSeq, lastPageSeq, pagesN: kept.length, sha256Hex: sha256Hex(out) };
 }
 
 /**

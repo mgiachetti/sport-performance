@@ -118,6 +118,7 @@ export const WATCH_PATTERNS = {
     'packages/domain/**',
     'packages/email/**',
     'packages/i18n/**',
+    'packages/pod-protocol/**',
     'packages/storage/**',
     'packages/ui-tokens/**',
     ...WORKSPACE_FILES,
@@ -221,6 +222,8 @@ export default defineRailway((ctx) => {
       WEB_APP_URL: webOrigin,
       EXPO_ACCESS_TOKEN: preserve(),
       SENTRY_DSN: preserve(),
+      // The clubs' master keys of the pods (B-916, ADR 0108): set per environment, never here.
+      POD_MASTER_KEYS: preserve(),
       ...(production ? {} : { DEMO_NOTIFICATION_EMAIL_DOMAINS: preserve() }),
     },
   });
@@ -269,6 +272,9 @@ export default defineRailway((ctx) => {
       APP_LATEST_VERSION_ANDROID: preserve(),
       APP_STORE_URL_IOS: preserve(),
       APP_STORE_URL_ANDROID: preserve(),
+      // The key that signs the pods' commands (B-916, ADR 0108): P-256, one per environment.
+      POD_COMMAND_SIGNING_KEY: preserve(),
+      POD_COMMAND_SIGNING_KEY_ID: preserve(),
     },
   });
 

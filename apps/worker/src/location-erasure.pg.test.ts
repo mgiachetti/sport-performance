@@ -103,7 +103,11 @@ describe.skipIf(!hasDatabase)('location erasure (Postgres 16)', () => {
         club_id: clubA,
         player_id: playerId,
         status: 'completed',
-        deleted_rows: {},
+        deleted_rows: {
+          'public.pod_trace_segment': 0,
+          'public.pod_raw_trim': 0,
+          'file:pod_raw': 0,
+        },
         completed: true,
       })),
     );

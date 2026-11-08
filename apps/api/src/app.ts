@@ -18,6 +18,7 @@ import type { RateLimiter } from './auth/rate-limit.js';
 import type { ApiConfig } from './config/env.js';
 import type { Database } from './db/database.js';
 import type { FilesModule } from './files/module.js';
+import type { PodCommandSigner } from './pods/command-signer.js';
 import { createAppVersionCheck } from './http/app-version.js';
 import { createErrorHandler, HttpError, notFoundHandler, sendError } from './http/errors.js';
 import { disabledErrorReporter, type ErrorReporter } from './observability/error-reporter.js';
@@ -70,6 +71,11 @@ export interface BuildAppOptions {
    * endpoints answer `503` and the club theme serves no crest.
    */
   files?: FilesModule;
+  /**
+   * Signs the commands of the pods (B-916, ADR 0106). Without it the erase
+   * command answers `503`.
+   */
+  podCommandSigner?: PodCommandSigner;
   /** Overrides how the caller is resolved (tests); defaults to the auth module's. */
   authenticate?: Authenticate;
   /**
@@ -221,6 +227,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     opsMonitorToken: config.health.opsMonitorToken ?? null,
     auth: options.auth,
     files: options.files,
+    podCommandSigner: options.podCommandSigner,
   });
   options.register?.(app);
 

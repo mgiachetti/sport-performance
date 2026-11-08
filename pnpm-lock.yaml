@@ -261,6 +261,9 @@ importers:
       '@sport-performance/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@sport-performance/pod-protocol':
+        specifier: workspace:*
+        version: link:../../packages/pod-protocol
       '@sport-performance/worker':
         specifier: workspace:*
         version: link:../worker
@@ -639,6 +642,9 @@ importers:
       '@sport-performance/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@sport-performance/pod-protocol':
+        specifier: workspace:*
+        version: link:../../packages/pod-protocol
       '@sport-performance/storage':
         specifier: workspace:*
         version: link:../../packages/storage

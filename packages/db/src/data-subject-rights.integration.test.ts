@@ -281,7 +281,8 @@ describe.skipIf(!hasDatabase)('rights of the data subject (Postgres 16)', () => 
       expect(files).toEqual([
         { status: 'deleted', player_id: null, file_name: null, waitsForUrls: true },
       ]);
-      expect(counts['public.file']).toBe(1);
+      // The CMJ video and the trimmed pod_raw of the player (B-916).
+      expect(counts['public.file']).toBe(2);
       expect(counts['medical.injury']).toBe(before['medical.injury']);
       expect(counts['public.wellness']).toBe(before['public.wellness']);
       expect(counts['public.change_history']).toBeGreaterThanOrEqual(

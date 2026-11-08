@@ -330,11 +330,20 @@ describe('queues', () => {
       QUEUES.filesDaily,
       QUEUES.playerReportsSweep,
       QUEUES.dataExportSweep,
+      QUEUES.podRawIngestSweep,
     ]);
     const exports = QUEUE_DEFINITIONS.find((q) => q.name === QUEUES.dataExportClub);
     expect(exports).toMatchObject({ policy: 'stately', deadLetter: QUEUES.dataExportClubDead });
     // pg-boss gives up on a stuck export job before another run may take the export over.
     expect(exports?.expireInSeconds).toBeLessThan(30 * 60);
+    // The pods' log (B-916) reads the bucket: with its dead letter queue first.
+    expect(QUEUE_DEFINITIONS.find((q) => q.name === QUEUES.podRawIngestClub)).toMatchObject({
+      policy: 'stately',
+      deadLetter: QUEUES.podRawIngestClubDead,
+    });
+    expect(names2.indexOf(QUEUES.podRawIngestClubDead)).toBeLessThan(
+      names2.indexOf(QUEUES.podRawIngestClub),
+    );
     expect(NOTIFICATION_SCHEDULES.map((s) => s.queue)).toEqual([QUEUES.notificationsSweep]);
     const notifications = QUEUE_DEFINITIONS.find((q) => q.name === QUEUES.notificationsClub);
     expect(notifications).toMatchObject({

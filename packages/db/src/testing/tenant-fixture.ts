@@ -54,6 +54,10 @@ import {
   podAssignment,
   podDevice,
   podLoan,
+  podCommandAudit,
+  podRawTrim,
+  podRawUpload,
+  podTraceSegment,
   position,
   pushTicket,
   referenceValue,
@@ -698,6 +702,145 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         createdBy: users.coach,
       })
       .returning({ id: podAssignment.id }),
+  );
+  // The pod's log of that session (B-916, ADR 0106): its upload, verified and trimmed once,
+  // the pending file (deleted by the trim), the trimmed file of the player and their trace.
+  const rawChecksum = '47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=';
+  const pendingRaw = await id(
+    db
+      .insert(file)
+      .values({
+        ...base,
+        kind: 'pod_raw',
+        status: 'deleted',
+        contentType: 'application/octet-stream',
+        sizeBytes: 10_344,
+        checksumSha256: rawChecksum,
+        uploadedAt: new Date('2026-03-10T23:00:00Z'),
+        deletedAt: new Date('2026-03-11T23:00:00Z'),
+        purgedAt: new Date('2026-03-12T00:00:00Z'),
+        expiresAt: new Date('2026-03-11T23:00:00Z'),
+        createdBy: users.sc,
+      })
+      .returning({ id: file.id }),
+  );
+  const chip = chipOf(`${slug}-1`);
+  rows.pod_raw_upload = await id(
+    db
+      .insert(podRawUpload)
+      .values({
+        ...base,
+        podId: rows.pod,
+        deviceId: must(devices[0]).id,
+        ingestKey: `${chip}/70000/5`,
+        chipId: chip,
+        podSerial: serialOf(`${slug}-1`),
+        bootCounter: 70_000,
+        segmentId: 5,
+        firstPageSeq: 4096,
+        lastPageSeq: 4100,
+        pagesN: 5,
+        validPagesN: 5,
+        blocks: [8],
+        keyEpochs: [2],
+        segmentClosed: true,
+        sizeBytes: 10_344,
+        sha256Hex: '94a52ed6eb76bb5be0dd6a57d12886904a94de01c6c2cc3f52c2d35019adb0dd',
+        fileId: pendingRaw,
+        state: 'trimmed',
+        confirmedAt: new Date('2026-03-10T23:00:00Z'),
+        pendingUntil: new Date('2026-03-17T23:00:00Z'),
+        verifiedAt: new Date('2026-03-10T23:01:00Z'),
+        eraseCommand: '5350455201',
+        recordedFrom: new Date('2026-03-10T21:00:00Z'),
+        recordedTo: new Date('2026-03-10T22:30:00Z'),
+        trimmedAt: new Date('2026-03-11T23:00:00Z'),
+        trimmedPlayersN: 1,
+        trimmedSamplesN: 2,
+        createdBy: users.sc,
+      })
+      .returning({ id: podRawUpload.id }),
+  );
+  const trimmedRaw = await id(
+    db
+      .insert(file)
+      .values({
+        ...base,
+        kind: 'pod_raw',
+        status: 'ready',
+        playerId: assigned,
+        contentType: 'application/octet-stream',
+        sizeBytes: 4_176,
+        checksumSha256: rawChecksum,
+        uploadedAt: new Date('2026-03-11T23:00:00Z'),
+        expiresAt: new Date('2027-03-11T23:00:00Z'),
+      })
+      .returning({ id: file.id }),
+  );
+  rows.pod_raw_trim = await id(
+    db
+      .insert(podRawTrim)
+      .values({
+        ...base,
+        podRawUploadId: rows.pod_raw_upload,
+        playerId: assigned,
+        fileId: trimmedRaw,
+        windows: [
+          {
+            startMs: Date.parse('2026-03-10T21:00:00Z'),
+            endMs: Date.parse('2026-03-10T22:30:00Z'),
+          },
+        ],
+        pages: [
+          {
+            physicalPage: 512,
+            fromMs: Date.parse('2026-03-10T21:00:00Z'),
+            toMs: Date.parse('2026-03-10T21:00:01Z'),
+          },
+        ],
+      })
+      .returning({ id: podRawTrim.id }),
+  );
+  rows.pod_command_audit = await id(
+    db
+      .insert(podCommandAudit)
+      .values({
+        ...base,
+        podRawUploadId: rows.pod_raw_upload,
+        command: 'erase',
+        keyId: 'fixture-1',
+        commandSha256: 'a'.repeat(64),
+        createdBy: users.sc,
+      })
+      .returning({ id: podCommandAudit.id }),
+  );
+  rows.pod_trace_segment = await id(
+    db
+      .insert(podTraceSegment)
+      .values({
+        ...base,
+        playerId: assigned,
+        trainingSessionId: rows.training_session,
+        podId: rows.pod,
+        podRawUploadId: rows.pod_raw_upload,
+        rawFileId: trimmedRaw,
+        chunkIndex: 0,
+        methodVariant: 'pod_log',
+        algorithmVersion: 'pod-log-trace/1',
+        firmwareVersion: '0.3.1',
+        startsAt: new Date('2026-03-10T21:00:00Z'),
+        endsAt: new Date('2026-03-10T21:00:02Z'),
+        samplesN: 2,
+        offsetsMs: [0, 1000],
+        latE7: [-345_123_456, -345_123_429],
+        lonE7: [-585_123_456, -585_123_451],
+        speedMmS: [3027, 3127],
+        hAccMm: [1400, 1400],
+        fixQuality: [3, 3],
+        timeLowConfidence: false,
+        expiresAt: new Date('2027-03-11T23:00:00Z'),
+      })
+      .returning({ id: podTraceSegment.id }),
   );
   rows.fixture = await id(
     db

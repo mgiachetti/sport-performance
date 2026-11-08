@@ -22,6 +22,8 @@ import { registerFileRoutes } from './files.js';
 import { registerClubDataExportRoutes } from './club-data-exports.js';
 import { registerDeviceRoutes } from './devices.js';
 import { registerPodRoutes } from './pods.js';
+import { registerPodRawRoutes } from './pod-raw.js';
+import type { PodCommandSigner } from '../pods/command-signer.js';
 import {
   registerAccountDeletionRoute,
   registerDataSubjectRightsRoutes,
@@ -365,6 +367,13 @@ export const IMPLEMENTED_ENDPOINTS = [
   'correctPodAssignment',
   'voidPodAssignment',
   'getSessionPods',
+  'createPodRawUpload',
+  'confirmPodRawUpload',
+  'getPodRawUpload',
+  'listPodRawUploads',
+  'getPodRawEraseCommand',
+  'getPodSettings',
+  'updatePodSettings',
   'getUsageSummary',
 ] as const satisfies readonly (keyof ApiEndpoints)[];
 
@@ -384,6 +393,8 @@ export interface RoutesOptions extends HealthOptions, AppCompatibilityOptions {
   auth?: AuthModule | undefined;
   /** The bucket (B-325); without it the file endpoints answer `503` and the theme has no crest. */
   files?: FilesModule | undefined;
+  /** Signs the pods' commands (B-916); without it the erase command answers `503`. */
+  podCommandSigner?: PodCommandSigner | undefined;
 }
 
 export function registerRoutes(app: FastifyInstance, options: RoutesOptions): void {
@@ -422,6 +433,7 @@ export function registerRoutes(app: FastifyInstance, options: RoutesOptions): vo
   registerTestImportRoutes(app);
   registerDeviceRoutes(app);
   registerPodRoutes(app);
+  registerPodRawRoutes(app, { files: options.files, signer: options.podCommandSigner });
   registerAnthropometryRoutes(app);
   registerTestDefinitionRoutes(app);
   registerReferenceValueRoutes(app);

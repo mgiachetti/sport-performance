@@ -14,6 +14,7 @@ import {
 } from '@sport-performance/db';
 import { createApiPool, databaseFromPool, type Database } from './db/database.js';
 import { createFilesModule } from './files/module.js';
+import { createPodCommandSigner } from './pods/command-signer.js';
 import { createMailer } from './email/mailer.js';
 import { ResendEmailTransport } from './email/resend.js';
 import { LogEmailTransport, type EmailTransport } from './email/transport.js';
@@ -126,6 +127,17 @@ async function main(): Promise<void> {
   // The bucket of uploaded files (B-325); required in production (validated with the env).
   const files = createFilesModule(config.files);
   if (files === undefined) logger.warn('file storage is not configured: file endpoints answer 503');
+  // The key that signs the pods' commands (B-916); without it the erase command answers 503.
+  const podCommandSigner =
+    config.podCommands === null
+      ? undefined
+      : createPodCommandSigner({
+          privateKeyPkcs8Base64: config.podCommands.signingKey,
+          keyId: config.podCommands.keyId,
+        });
+  if (podCommandSigner === undefined) {
+    logger.warn('no pod command signing key (POD_COMMAND_SIGNING_KEY): pods keep their segments');
+  }
   const app = await buildApp({
     config,
     db,
@@ -133,6 +145,7 @@ async function main(): Promise<void> {
     errorReporter: reporter,
     auth,
     ...(files !== undefined && { files }),
+    ...(podCommandSigner !== undefined && { podCommandSigner }),
   });
   const shutdown = createShutdown({
     app,

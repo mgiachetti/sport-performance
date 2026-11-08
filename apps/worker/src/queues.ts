@@ -48,6 +48,11 @@ export const QUEUES = {
   locationErasureClubDead: 'location-erasure-club-dead',
   /** Every minute: the clubs with a pending erasure (in case a notification was lost). */
   locationErasureSweep: 'location-erasure-sweep',
+  /** Verify, trim and expire the pods' log uploads of one club (B-916, ADR 0108). */
+  podRawIngestClub: 'pod-raw-ingest-club',
+  podRawIngestClubDead: 'pod-raw-ingest-club-dead',
+  /** Every minute: the clubs with ingestion work (sessions end, pending days run out). */
+  podRawIngestSweep: 'pod-raw-ingest-sweep',
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -210,6 +215,26 @@ export const QUEUE_DEFINITIONS: readonly Queue[] = [
     expireInSeconds: 2 * MINUTE,
     deleteAfterSeconds: DAY,
   },
+  { name: QUEUES.podRawIngestClubDead, policy: 'standard', deleteAfterSeconds: 30 * DAY },
+  {
+    // A run decodes a few files of up to hundreds of MiB: minutes at most.
+    name: QUEUES.podRawIngestClub,
+    policy: 'stately',
+    retryLimit: 5,
+    retryDelay: 60,
+    retryBackoff: true,
+    retryDelayMax: 60 * MINUTE,
+    expireInSeconds: 20 * MINUTE,
+    deleteAfterSeconds: 7 * DAY,
+    deadLetter: QUEUES.podRawIngestClubDead,
+  },
+  {
+    name: QUEUES.podRawIngestSweep,
+    policy: 'stately',
+    retryLimit: 0,
+    expireInSeconds: 2 * MINUTE,
+    deleteAfterSeconds: DAY,
+  },
   {
     // A missed pass is the heartbeat the API and Sentry Crons watch: no retry, the next
     // minute measures again.
@@ -252,6 +277,8 @@ export const FILE_SCHEDULES = [
   { queue: QUEUES.filesDaily, cron: '17 6 * * *' },
   { queue: QUEUES.playerReportsSweep, cron: '* * * * *' },
   { queue: QUEUES.dataExportSweep, cron: '* * * * *' },
+  // The pods' log (B-916): files in the bucket; a session that ends, within a minute.
+  { queue: QUEUES.podRawIngestSweep, cron: '* * * * *' },
 ] as const;
 
 export interface RefreshClubJob {

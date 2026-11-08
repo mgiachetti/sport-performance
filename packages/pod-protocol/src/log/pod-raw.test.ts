@@ -18,6 +18,7 @@ import {
   POD_RAW_ENTRY_LENGTH,
   POD_RAW_HEADER_LENGTH,
   readPodRawFile,
+  slicePodRawFile,
   type PodRawManifest,
 } from './pod-raw.js';
 import { gnssMsToUnixMs } from './timeline.js';
@@ -134,5 +135,42 @@ describe('pod_raw file', () => {
     expect(decoded.pageIssues).toEqual([
       { physicalPage: pages[3]?.physicalPage, reason: 'uncorrectable_ecc' },
     ]);
+  });
+
+  it('slices a file to some of its pages, byte for byte, for the one-time trim', () => {
+    const decoded = decodeLog({
+      pages: readPodRawFile(bytes, manifest).pages,
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+    });
+    const [full] = decoded.segments;
+    if (!full) throw new Error('no segment');
+    // Every decoded page has the ticks of the records in it, in stream order.
+    expect(full.pageTicks).toHaveLength(full.pagesN);
+    for (const span of full.pageTicks) {
+      expect(span.firstTick).not.toBeNull();
+      expect(span.lastTick ?? 0).toBeGreaterThanOrEqual(span.firstTick ?? 0);
+    }
+    const middle = full.pageTicks.slice(2, 5);
+    const keep = new Set(middle.map((p) => p.physicalPage));
+    const sliced = slicePodRawFile(bytes, keep);
+    if (!sliced) throw new Error('nothing kept');
+    expect(sliced.pagesN).toBe(3);
+    expect(sliced.firstPageSeq).toBe(middle[0]?.pageSeq);
+    expect(sliced.lastPageSeq).toBe(middle[2]?.pageSeq);
+    expect(sliced.sha256Hex).toBe(createHash('sha256').update(sliced.bytes).digest('hex'));
+    const read = readPodRawFile(sliced.bytes);
+    expect(read.header).toMatchObject({ bootCounter: 70_000, segmentId: 5, pagesN: 3 });
+    expect(read.pages.map((p) => p.physicalPage)).toEqual(middle.map((p) => p.physicalPage));
+    // Still the pages as on the NAND: they open with the same keys, with the gaps reported.
+    const again = decodeLog({
+      pages: read.pages,
+      deviceId: TEST_DEVICE_ID,
+      keyForEpoch: keysFor(2),
+    });
+    expect(again.pageIssues).toEqual([]);
+    expect(again.segments[0]?.pagesN).toBe(3);
+    expect(again.segments[0]?.closed).toBe(false);
+    expect(slicePodRawFile(bytes, new Set())).toBeNull();
   });
 });

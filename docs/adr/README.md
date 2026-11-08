@@ -111,6 +111,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0105](0105-pod-gnss-imu-con-telemetria-en-vivo.md) | Pod GNSS + IMU: doble banda L1/L5, telemetría en vivo por LoRa a un gateway en la cancha, cálculo en la tablet con el dominio y posprocesado después de la sesión | Propuesto |
 | [0106](0106-sistema-del-pod-flota-ubicacion-protocolo-seguridad-y-datos.md) | Sistema del pod: alcance M19 y primera, flota y asignación, consentimiento de ubicación, protocolo LoRa, seguridad, base de tiempo, log en la NAND y variantes del método | Propuesto |
 | [0107](0107-consentimiento-de-ubicacion.md) | Consentimiento de ubicación: vale solo `granted` en la base, se pide con el módulo `gps`, revocar encola un borrado que completa el worker y celdas del pod en la matriz | Aceptado |
+| [0108](0108-ingesta-del-log-del-pod.md) | Ingesta del log del pod: subida por la base, verificación con las claves, comando de borrado firmado, recorte único por jugador y trazas a 1 Hz | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla, que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR y que cada enlace de markdown a un ADR en el repo vaya a un archivo que existe, con el mismo número en el texto del enlace.
 

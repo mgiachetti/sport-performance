@@ -324,7 +324,7 @@ export function planRecoveryPage(input: {
   pages: readonly NandPageRead[];
 }): { physicalPage: number; location: RecoveryPageLocation } | null {
   const { pagesPerBlock } = input.scan.geometry;
-  const lastBlock = Math.max(...input.segment.blocks);
+  const lastBlock = input.segment.blocks.reduce((a, b) => Math.max(a, b), -1);
   const orphans = new Set(input.scan.orphanBlocks);
   /** Highest programmed page index per block, and whether all programmed pages are torn/CRC-failed. */
   const highest = new Map<number, number>();

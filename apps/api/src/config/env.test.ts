@@ -64,11 +64,48 @@ describe('loadConfig', () => {
       },
       email: { resendApiKey: null, from: 'Sport Performance <no-reply@localhost>' },
       files: { storage: null, uploadUrlTtlS: 900, downloadUrlTtlS: 300, logoUrlTtlS: 3600 },
+      podCommands: null,
       mobileApp: {
         ios: { minVersion: '0.0.0', latestVersion: null, storeUrl: null },
         android: { minVersion: '0.0.0', latestVersion: null, storeUrl: null },
       },
     });
+  });
+
+  it("takes the pods' command signing key with its id, only a P-256 one, never alone", async () => {
+    const { generateKeyPairSync } = await import('node:crypto');
+    const key = generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
+      .privateKey.export({ format: 'der', type: 'pkcs8' })
+      .toString('base64');
+    const base = { DATABASE_URL, AUTH_DATABASE_URL, AUTH_SECRET };
+    expect(
+      loadConfig({ ...base, POD_COMMAND_SIGNING_KEY: key, POD_COMMAND_SIGNING_KEY_ID: 'srv-1' })
+        .podCommands,
+    ).toEqual({ signingKey: key, keyId: 'srv-1' });
+    // Wrapped by `base64` or pasted with spaces: the whitespace is dropped.
+    const wrapped = `${key.slice(0, 64)}\n${key.slice(64, 100)} \n${key.slice(100)}\n`;
+    expect(
+      loadConfig({ ...base, POD_COMMAND_SIGNING_KEY: wrapped, POD_COMMAND_SIGNING_KEY_ID: 'srv-1' })
+        .podCommands,
+    ).toEqual({ signingKey: key, keyId: 'srv-1' });
+    expect(() => loadConfig({ ...base, POD_COMMAND_SIGNING_KEY: key })).toThrow(
+      'POD_COMMAND_SIGNING_KEY_ID',
+    );
+    expect(() => loadConfig({ ...base, POD_COMMAND_SIGNING_KEY_ID: 'srv-1' })).toThrow(
+      'POD_COMMAND_SIGNING_KEY',
+    );
+    const rsa = generateKeyPairSync('rsa', { modulusLength: 2048 })
+      .privateKey.export({ format: 'der', type: 'pkcs8' })
+      .toString('base64');
+    let message = '';
+    try {
+      loadConfig({ ...base, POD_COMMAND_SIGNING_KEY: rsa, POD_COMMAND_SIGNING_KEY_ID: 'srv-1' });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toContain('POD_COMMAND_SIGNING_KEY');
+    // The key never appears in the error.
+    expect(message).not.toContain(rsa.slice(0, 40));
   });
 
   it('coerces numbers and treats empty strings as unset', () => {
