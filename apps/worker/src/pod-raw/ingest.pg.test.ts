@@ -95,7 +95,7 @@ describe.skipIf(!hasDatabase || !hasBucket)('pod log ingestion (Postgres 16 + Mi
       `insert into consent (club_id, player_id, type, document_id, document_version, signer_kind,
                             signed_by, signed_at)
        select $1, $2, $3::consent_type, d.id, d.version, 'player', $5, $4
-         from consent_document d where d.club_id = $1 and d.type::text = $3
+         from consent_document d where d.club_id = $1 and d.type = $3::consent_type
         order by d.published_at desc limit 1`,
       [clubId, playerId, type, new Date(at), signer],
     );
