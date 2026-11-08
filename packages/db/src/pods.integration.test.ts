@@ -77,8 +77,8 @@ describe.skipIf(!hasDatabase)('pod fleet (Postgres 16)', () => {
     );
     const deviceId = must(devices[0]).id;
     const { rows } = await t.pool.query<{ id: string }>(
-      `insert into pod (club_id, device_id, short_id, number) values ($1, $2, $3, $3) returning id`,
-      [club.clubId, deviceId, n],
+      `insert into pod (club_id, device_id, short_id, number) values ($1, $2, $3, $4) returning id`,
+      [club.clubId, deviceId, n, n],
     );
     return { deviceId, podId: must(rows[0]).id };
   }
@@ -143,7 +143,7 @@ describe.skipIf(!hasDatabase)('pod fleet (Postgres 16)', () => {
 
   describe('pod_device (global registry)', () => {
     it('only a superadmin on the registry reads and registers devices', async () => {
-      const registry = { userId: superadminId };
+      const registry = { userId: superadminId, supportReason: 'Registro de pods' };
       expect(await count(registry, 'from pod_device')).toBeGreaterThanOrEqual(4);
       await run(registry, (client) =>
         client.query(
@@ -186,7 +186,7 @@ describe.skipIf(!hasDatabase)('pod fleet (Postgres 16)', () => {
     });
 
     it('serial number and chip id are unique and never change', async () => {
-      const registry = { userId: superadminId };
+      const registry = { userId: superadminId, supportReason: 'Registro de pods' };
       const [first] = (
         await t.pool.query<{ serial_number: string; chip_id: string }>(
           'select serial_number, chip_id from pod_device where owner_club_id = $1 limit 1',
