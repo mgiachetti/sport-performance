@@ -19,12 +19,13 @@ El contorno de 45 × 65 mm de `pod-v0.md` es provisorio. Antes de diseñar la pl
 | Placa | 4 capas, 1,6 mm, módulos de un solo lado | ≥ 45 × 65 mm (a revisar con la antena de 35 mm) | `pod-v0.md` |
 | Batería | LiPo de 500–600 mAh con PCM y NTC | Unos 40 × 30 × 5 mm (**no verificado**, según la celda elegida) | Proveedor |
 | Hueco de hinchazón | Espacio libre sobre la celda | ≥ 10 % del espesor de la celda (**no verificado**, lo pide el proveedor) | — |
-| Antena LoRa | FPC de **≤ 45 mm** (por ejemplo Ebyte TX915-FPC-4510, 45 × 10 mm): la de 65 mm es tan larga como la placa | 45 × 10 mm | Ebyte (**no verificado**) |
+| Antena LoRa | FPC de **≤ 45 mm** (por ejemplo Ebyte TX915-FPC-4510, 45 × 10 mm): la de 65 mm es tan larga como la placa. Más corta que un cuarto de onda a 915 MHz: su eficiencia y ganancia **no están verificadas** | 45 × 10 mm | Ebyte (**no verificado**) |
 | Tapa inferior | Cara contra el cuerpo, pines pogo y Hall | — | — |
 
 **Metas** (a contrastar con Catapult Vector, cuyo peso y espesor **no están verificados** en esta revisión):
 
-- Espesor total ≤ 15 mm y masa ≤ 50 g con el chaleco puesto. El Taoglas por sí solo pesa 18 g y mide 12 mm de alto: si la meta no cierra, la alternativa es un patch afinado para un plano de tierra chico.
+- **Suma de alturas con el Taoglas**: paredes (2 × 1,5–2 mm) + carcasa del Taoglas (12 mm) + placa (1,6 mm) + módulos (unos 2,5 mm) + batería (unos 5 mm) + hueco de hinchazón (unos 0,5 mm) ≈ **24–26 mm**. La masa queda en unos 50 g, justa.
+- **Meta propuesta: espesor ≤ 15 mm y masa ≤ 50 g.** Con el Taoglas de 12 mm de alto, **15 mm no se puede**. La alternativa es un **patch cerámico L1/L5 plano soldado en la placa** (unos 25 × 25 × 4 mm, **no verificado**) con la cadena de LNA y SAW de la placa (la que ya prevé `pod-v0.md` para la antena pasiva). **Es una decisión del usuario**: 24–26 mm con la antena de marca afinada, o unos 15–17 mm con el patch plano y su afinado propio.
 - Bordes redondeados (radio ≥ 3 mm) y sin aristas: va sobre la columna, debajo de los tackles.
 - La FPC de LoRa va pegada en la carcasa, en el borde opuesto a la antena GNSS, con su recorrido dibujado en el CAD (no a mano en cada pod).
 
@@ -37,8 +38,8 @@ El CAD se hace **antes** de diseñar la placa, junto con el bolsillo del chaleco
 - **Una sola interfaz externa: pines pogo.** Sin USB-C ni agujeros para botón. La guía de luz del LED va sellada (pieza transparente sobremoldeada o pegada con adhesivo estanco).
 - **El MJF PA12 es poroso**: se sella con alisado por vapor o con un recubrimiento, o se pasa a un sobremoldeo cuando haya serie. Sin sellar no cumple IP67.
 - **Ventilación del barómetro**: membrana de ePTFE con canal sellado hasta el sensor, **protegida de aplastamiento** por el bolsillo (rejilla o rebaje). El protector solar y los aceites ensucian la membrana y le hacen perder la clasificación: se prueba con sudor artificial.
-- **Pines pogo**: chapados en oro, al ras de la carcasa, con junta alrededor. El VBUS del pod solo tiene tensión en la base (ver sección 5), así nunca queda energizado con sudor.
-- **Prueba de estanqueidad en producción**: caída de presión de cada pod cerrado.
+- **Contactos del pod: pads planos chapados en oro**, al ras de la carcasa, con junta alrededor. **Los resortes (pogo) van en la base, no en el pod**: un resorte en algo que se usa en el cuerpo junta suciedad y se rompe (la referencia de `pod-f3.md` a pines pogo en el pod se corrige en otro PR). El VBUS del pod solo tiene tensión en la base (ver sección 5), así nunca queda energizado con sudor.
+- **Prueba de estanqueidad en producción**: caída de presión de cada pod cerrado, **con la ventilación tapada** (la membrana de ePTFE respira y haría fallar la prueba) o antes de montar la membrana, que se prueba aparte con su propia junta.
 
 **Especificación ambiental** (se prueba con la carcasa antes de comprometer la electrónica):
 
@@ -79,18 +80,18 @@ Una celda de hobby no sirve: sin informes, el courier no la acepta y la polarida
 
 **Carga:** ventana de temperatura de la celda aplicada por el NTC (JEITA del BQ25180, a configurar), corriente de carga de unos 300 mA (cargador lineal dentro de una carcasa cerrada; ver `pod-v0.md`), y control de temperatura dentro de la base.
 
-**Transporte:** cada pod lleva una celda de unos 2 Wh **contenida en el equipo**. Se confirma con el courier el régimen aplicable (UN3481) para las 5 placas, los 10 del piloto y los 100.
+**Transporte:** cada pod lleva una celda de unos 2 Wh **contenida en el equipo** (UN3481). **Celdas de repuesto o enviadas sueltas** son UN3480 (instrucción de embalaje 965), con estado de carga ≤ 30 % y muchas veces solo en avión de carga. Se confirma con el courier el régimen aplicable para las 5 placas, los 10 del piloto y los 100.
 
 ## 5. Base de carga y descarga (B-907)
 
 Una base de **20 lugares**.
 
 - **Contactos**: pogo con **clave mecánica** (patrón de pads asimétrico) y **imanes con polaridad**, para que un pod girado no entre. Sin esa clave, un pod al revés pone 5 V en un pin de datos.
-- **Por lugar**: load switch con límite de corriente, y VBUS habilitado **solo con un pod detectado** (así el contacto expuesto nunca queda energizado solo).
+- **Por lugar**: load switch con límite de corriente, y VBUS habilitado **solo con un pod detectado**, así el contacto expuesto nunca queda energizado solo. La detección usa un **quinto pad, DETECT**: el pod lo ata a GND (o a una resistencia que identifica la revisión) y la base habilita VBUS solo cuando lo ve. El pad se agrega en `pod-v0.md` en otro PR.
 - **USB**: el nRF52840 es full-speed (12 Mbps). 20 pods × 49 MB son cerca de 1 GB: con un hub de un solo TT se comparte un canal de 12 Mbps (más de 15 min). Hacen falta **hubs multi-TT**, respetando la cantidad de niveles.
 - **Fuente**: 20 pods a unos 300 mA son 6 A a 5 V, más los hubs y el host: fuente de unos 50 W con margen.
 - **Host**: una mini-PC o Raspberry Pi por base, con **cola de subida local** y reintentos (100 pods suben unos 5 GB por día; con la subida de un club puede llevar horas).
-- **Recuperación**: el watchdog del BQ25180 reinicia un pod colgado al conectarlo (ver `pod-v0.md`).
+- **Recuperación**: el watchdog del BQ25180 es un **tiempo límite de I2C** con un reinicio de hardware opcional (corta y vuelve a dar SYS) si el firmware no le habla después de conectar VIN. Así un pod colgado se recupera al ponerlo en la base (**no verificado** el detalle; se agrega a `pod-v0.md` en otro PR).
 - Costo y lista de partes propios (sección 10).
 
 ## 6. Prueba de fin de línea y plantilla
@@ -106,7 +107,7 @@ Cada pod pasa una prueba antes de cerrarse y otra después.
 | IMU | Autotest del LSM6DSV320X | Pasa |
 | Barómetro | Lectura contra una referencia | Dentro de la tolerancia |
 | LED, Hall | Patrones, imán de prueba | Pasa |
-| Estanqueidad | Caída de presión | Pasa |
+| Estanqueidad | Caída de presión con la ventilación tapada | Pasa |
 
 - **Plantilla de pogo** barata con agujeros de alineación: la placa necesita **agujeros y fiduciales** para la plantilla (y para el Tag-Connect sin patas), y eso entra en el contorno **antes** de diseñarla.
 - **Registro**: número de serie, resultado y valores medidos de cada pod.
@@ -116,26 +117,27 @@ Cada pod pasa una prueba antes de cerrarse y otra después.
 
 En este orden:
 
-1. Primera grabación por SWD con **APPROTECT activado**, la UICR con `NFCPINS` y `PSELRESET` (P0.18 como reset) y el número de serie en la UICR.
-2. **MCUboot con imágenes firmadas**; actualizaciones solo firmadas.
-3. **Claves por pod** derivadas del identificador del chip (FICR) y de la clave del club, inyectadas en la base; nunca una clave única para todo el club. El diseño del protocolo y de las claves va en el ADR de flota y protocolo.
-4. **Etiqueta** con el número de serie y un código QR, ligada al identificador del chip en la app.
-5. **Modo envío** como último paso antes de embalar.
-6. **VID/PID USB propio**: los de prueba de Nordic o Zephyr no sirven para distribuir.
+1. Primera grabación por SWD: la UICR con `NFCPINS` y `PSELRESET` (P0.18 como reset), el número de serie en la UICR, el bootloader y la imagen.
+2. **MCUboot con imágenes firmadas**; actualizaciones solo firmadas. La clave de firma la guardamos nosotros, nunca la clave de desarrollo por defecto (ADR 0106, en revisión).
+3. **Claves por pod** derivadas del identificador del chip (FICR) y de la clave del club, inyectadas en la base; nunca una clave única para todo el club (derivación en el ADR 0106, en revisión).
+4. **APPROTECT al final**, después de la UICR y de las imágenes, y el firmware lo mantiene bloqueado al arrancar (en el nRF Connect SDK, `CONFIG_NRF_APPROTECT_LOCK`): si el firmware no lo vuelve a bloquear, las revisiones nuevas del chip lo abren solas.
+5. **Etiqueta** con el número de serie y un código QR, ligada al identificador del chip en la app.
+6. **Modo envío** como último paso antes de embalar.
+7. **VID/PID USB propio**: los de prueba de Nordic o Zephyr no sirven para distribuir. Un VID propio de USB-IF cuesta unos US$ 6.000 (**no verificado**); pid.codes solo sirve para hardware abierto.
 
 Nota: hay revisiones viejas del nRF52840 con APPROTECT vulnerable a fallas inducidas; se pide la revisión de silicio actual (**no verificado** para el MDBT50Q).
 
 ## 8. Etiquetado y trazabilidad
 
 - Número de serie, QR, revisión de hardware y lote en cada pod (grabado láser o etiqueta resistente al agua), con el lugar reservado en el dibujo de la carcasa.
-- Marca de ENACOM y número de homologación, marcas de batería y de residuos electrónicos (WEEE).
+- Marca de ENACOM y número de homologación, marcas de batería y de residuos electrónicos según la norma local (RAEE; por ejemplo, la Ley 14.321 de la provincia de Buenos Aires, **no verificado**).
 - Declaraciones RoHS y REACH de los fabricantes de módulos y partes.
 
 ## 9. Fabricación en PCBWay
 
 Antes de pedir, se manda **el diseño (no solo los Gerbers)** para una revisión de fabricación (DFM):
 
-- **DSBGA de 0,4 mm** (BQ25180, TPS22916C): confirmar que lo arman; los rayos X ven poco en un DSBGA de 8 bolillas, así que se confía en la prueba funcional.
+- **DSBGA de 0,4 mm** (BQ25180, TPS22916C): confirmar que lo arman; los rayos X no ven bien las bolillas que apoyan sin fundirse (head-in-pillow) en un DSBGA de 8 bolillas, así que se confía en la prueba funcional.
 - **LGA** (LSM6DSV320X, BMP581) y los pads debajo del módulo Raytac (61 pads): plantilla de pasta escalonada o fina.
 - **Panel**: rieles lejos de la antena del Raytac y de la zona libre del borde; sin V-score ni puentes al lado de la antena.
 - **Una sola cara** con todo el SMT si se puede: el Hall en la cara de abajo obliga a una segunda pasada.
@@ -164,8 +166,8 @@ Antes de pedir, se manda **el diseño (no solo los Gerbers)** para una revisión
 
 - **Por pod**: todas las partes, incluidas las que faltan en la tabla de `pod-f3.md` (buck-boost, LDO, load switches, traductores, SAW, cristal de 32 kHz, TVS, U.FL, contactos pogo), PCB, armado, carcasa sellada, batería certificada y etiqueta. Estimación realista: **US$ 85–95 a nivel de placa** (contra US$ 75–85 de `pod-f3.md`; **no verificado**).
 - **Por chaleco**: chaleco con bolsillo e imán encapsulado.
-- **Infraestructura por lugar**: base de 20 lugares con host, **gateway de exterior con GPS** (el RAK7268V2 es de interior y no tiene PPS de GPS para la baliza; un modelo de exterior o un gabinete, con alimentación, puesta a tierra y protección contra robo), base GNSS de la cancha (LG290P).
-- **NRE**: vueltas de placa, plantilla de prueba, herramental de la carcasa si se sobremoldea, ensayo de laboratorio de ENACOM, importación y despachante.
+- **Infraestructura por lugar**: base de 20 lugares con host, **gateway de exterior con GPS**: el GPS alinea su propia transmisión (baliza y RTCM) con la hora del GNSS afuera; bajo techo manda la baliza. La elección del RAK7268V2 de `pod-f3.md` la reemplaza B-918 (ADR 0106, en revisión) (el RAK7268V2 es de interior y no tiene PPS de GPS para la baliza; un modelo de exterior o un gabinete, con alimentación, puesta a tierra y protección contra robo), base GNSS de la cancha (LG290P).
+- **NRE**: VID de USB-IF, custodia de la clave de firma de MCUboot, vueltas de placa, plantilla de prueba, herramental de la carcasa si se sobremoldea, ensayo de laboratorio de ENACOM, importación y despachante.
 - **Repuestos y rendimiento**: 10–15 % extra.
 - **Posventa**: devoluciones, etiquetas, esfuerzo de firmware.
 
