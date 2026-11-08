@@ -1,0 +1,10 @@
+{
+  "extends": "@sport-performance/config/tsconfig/node.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "types": []
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/testing/**"]
+}

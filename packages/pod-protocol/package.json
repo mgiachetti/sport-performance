@@ -1,0 +1,38 @@
+{
+  "name": "@sport-performance/pod-protocol",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pod LoRa protocol (ADR 0106): byte-level codecs for the live uplink and the beacon/downlink, nonces, AES-CCM sealing, key derivation, anti-replay and airtime. Platform-agnostic; golden fixtures shared with the firmware.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./fixtures/v1/vectors.json": "./fixtures/v1/vectors.json"
+  },
+  "files": [
+    "dist",
+    "fixtures"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "fixtures:update": "POD_PROTOCOL_UPDATE_FIXTURES=1 vitest run src/fixtures.test.ts && prettier --write fixtures"
+  },
+  "dependencies": {
+    "@noble/ciphers": "2.4.0",
+    "@noble/hashes": "2.4.0"
+  },
+  "devDependencies": {
+    "@sport-performance/config": "workspace:*",
+    "@types/node": "26.6.6",
+    "eslint": "10.14.0",
+    "typescript": "6.0.3",
+    "vitest": "5.0.5"
+  }
+}
