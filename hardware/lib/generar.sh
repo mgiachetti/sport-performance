@@ -34,10 +34,13 @@ done
 
 # easyeda2kicad guarda la ruta absoluta de cada modelo 3D. Se reemplaza por una ruta
 # relativa al proyecto, para que funcione en cualquier máquina y en el CI.
+# Según cómo se le pase --output, la ruta sale absoluta o relativa a la raíz del repo:
+# se cubren los dos casos.
 abs_3d="$PWD/hardware/lib/pod.3dshapes"
 for footprint in hardware/lib/pod.pretty/*.kicad_mod; do
   [ -e "$footprint" ] || continue
-  sed -i.bak "s|${abs_3d}|\${KIPRJMOD}/../lib/pod.3dshapes|g" "$footprint"
+  sed -i.bak -e "s|${abs_3d}|\${KIPRJMOD}/../lib/pod.3dshapes|g" \
+    -e "s|model \"hardware/lib/pod.3dshapes/|model \"\${KIPRJMOD}/../lib/pod.3dshapes/|g" "$footprint"
   rm -f "$footprint.bak"
 done
 
