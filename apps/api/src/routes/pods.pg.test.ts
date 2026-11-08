@@ -119,7 +119,7 @@ describeWithPostgres('pods (Postgres)', (serverUrl) => {
   async function newPlayer(categoryId: string, consents: ('data' | 'location')[]) {
     const { rows } = await database.admin.query<{ id: string }>(
       `insert into player (club_id, first_name, last_name, birth_date, sex, sport, joined_on)
-       values ($1, 'Juan', $2, '2008-03-01', 'male', 'rugby', '2020-01-01') returning id`,
+       values ($1, 'Juan', $2, '2009-06-01', 'male', 'rugby', '2020-01-01') returning id`,
       [clubA, `P${randomUUID().slice(0, 6)}`],
     );
     const id = rows[0]?.id ?? '';
