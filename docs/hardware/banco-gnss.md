@@ -42,8 +42,8 @@ Los precios son de listados de tiendas y agregadores, con fechas distintas y sin
   - USB-serie: US$ 20;
   - medidor: US$ 48;
   - trípodes: US$ 40.
-- **Con el EVK-F10N de u-blox** en vez de ArduSimple: unos US$ 885.
-- **Con la antena de topografía**: unos US$ 1.090.
+- **Con el EVK-F10N de u-blox** en vez de ArduSimple: unos US$ 870–885.
+- **Con la antena de topografía** (unos US$ 205 más): unos US$ 1.015 sobre el caso de ArduSimple, o unos US$ 1.090 sobre el del EVK.
 - Quedan afuera el envío y la importación.
 
 ### Envío a Argentina
