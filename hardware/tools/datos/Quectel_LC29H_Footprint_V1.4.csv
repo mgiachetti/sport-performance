@@ -1,0 +1,41 @@
+# source: Quectel_LC29H(AA,AI,BA,CA,DA,EA,TI)_PCB_Footprint_AD_20260703.PcbDoc (sha256 f6cd1565ac3779cb7de1f839077966afb0b28c3eae6d576649d3f54ddaa22825), read by hardware/tools/altium_pads.py
+# LC29H: GNSS MODULE LC29H Series LCC24 12.2x16.0mm H2.7mm RO; height 2.7 mm
+# rules: paste 0, mask 0.1016
+pad,layer,shape,x_mm,y_mm,w_mm,h_mm,rotation_deg,hole_mm,paste_margin_mm,mask_margin_mm
+1,top,round,-6.1,-7,2.5,0.8,0,0,0,0.05
+2,top,round,-6.1,-5.9,2.5,0.8,0,0,0,0.05
+3,top,round,-6.1,-4.8,2.5,0.8,0,0,0,0.05
+4,top,round,-6.1,-3.7,2.5,0.8,0,0,0,0.05
+5,top,round,-6.1,-2.6,2.5,0.8,0,0,0,0.05
+6,top,round,-6.1,-1.5,2.5,0.8,0,0,0,0.05
+7,top,round,-6.1,-0.4,2.5,0.8,0,0,0,0.05
+8,top,round,-6.1,2.6,2.5,0.8,0,0,0,0.05
+9,top,round,-6.1,3.7,2.5,0.8,0,0,0,0.05
+10,top,round,-6.1,4.8,2.5,0.8,0,0,0,0.05
+11,top,round,-6.1,5.9,2.5,0.8,0,0,0,0.05
+12,top,round,-6.1,7,2.5,0.8,0,0,0,0.05
+13,top,round,6.1,7,2.5,0.8,0,0,0,0.05
+14,top,round,6.1,5.9,2.5,0.8,0,0,0,0.05
+15,top,round,6.1,4.8,2.5,0.8,0,0,0,0.05
+16,top,round,6.1,3.7,2.5,0.8,0,0,0,0.05
+17,top,round,6.1,2.6,2.5,0.8,0,0,0,0.05
+18,top,round,6.1,-0.4,2.5,0.8,0,0,0,0.05
+19,top,round,6.1,-1.5,2.5,0.8,0,0,0,0.05
+20,top,round,6.1,-2.6,2.5,0.8,0,0,0,0.05
+21,top,round,6.1,-3.7,2.5,0.8,0,0,0,0.05
+22,top,round,6.1,-4.8,2.5,0.8,0,0,0,0.05
+23,top,round,6.1,-5.9,2.5,0.8,0,0,0,0.05
+24,top,round,6.1,-7,2.5,0.8,0,0,0,0.05
+# line top_overlay (6.1, -7.75) (6.1, -8) width 0.1
+# line top_overlay (6.1, 8) (6.1, 7.75) width 0.1
+# line top_overlay (-6.1, -7.75) (-6.1, -8) width 0.1
+# line top_overlay (-6.1, 8) (-6.1, 7.75) width 0.1
+# line top_overlay (-8.1035, -6.6465) (-8.1035, -7.3536) width 0.1
+# line top_overlay (-8.1035, -7.3536) (-7.75, -7) width 0.1
+# line top_overlay (-8.1035, -6.6465) (-7.75, -7) width 0.1
+# line top_overlay (-6.1, 8) (6.1, 8) width 0.1
+# line top_overlay (-6.1, -8) (6.1, -8) width 0.1
+# line mechanical5 (7.55, 8.2) (7.55, -8.2) width 0.01
+# line mechanical5 (-7.55, 8.2) (7.55, 8.2) width 0.01
+# line mechanical5 (-7.55, 8.2) (-7.55, -8.2) width 0.01
+# line mechanical5 (-7.55, -8.2) (7.55, -8.2) width 0.01

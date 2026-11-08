@@ -101,11 +101,25 @@ gnss_rf = Sheet("gnss_rf", "Pod v0: gnss_rf",
                                     "18": "GNSS_SDA", "19": "GNSS_SCL", "2": NC, "4": NC,
                                     "5": NC, "6": NC, "15": NC, "16": NC, "17": NC},
              POD + "Quectel_LC29H_LCC-24_12.2x16.0mm_P1.1mm", mpn="LC29HAAMD", lcsc="C22403415", manufacturer="Quectel",
-             note="Mismo lugar para la LC29H(EA) (C28453488). Footprint de la figura 19 del Hardware Design V1.3. FWD y WHEELTICK reservados en AA y EA"),
-        C("10u", "VCC_GNSS", footprint=C0603), C("100n", "VCC_GNSS"), C("1u", "V_BCKP"), C("100n", "VDD_EXT"),
+             note="Mismo lugar para la LC29H(EA) (C28453488). Footprint oficial de Quectel (Footprint&Part V1.4). FWD y WHEELTICK reservados en AA y EA"),
+        # Hardware Design V1.4, figures 6 and 7: 10 uF + 100 nF + 33 pF at VCC and 4.7 uF + 100 nF + 33 pF at
+        # V_BCKP, the smallest closest to the pin.
+        C("10u", "VCC_GNSS", footprint=C0603), C("100n", "VCC_GNSS"),
+        C("33p", "VCC_GNSS", note="Pegado al pin 23 (Hardware Design V1.4, figura 6)"),
+        C("4.7u", "V_BCKP", footprint=C0603), C("100n", "V_BCKP"),
+        C("33p", "V_BCKP", note="Pegado al pin 22 (Hardware Design V1.4, figura 7)"), C("100n", "VDD_EXT"),
+        # The TVS of figures 6 and 7, not mounted: VCC_GNSS and V_BCKP are outputs of LDOs on the board, never
+        # exposed; the place stays for the bench. VRWM 3.3-5 V (above the 3.25 V of VCC); the lower the clamp, the
+        # closer to the 4.3 V absolute maximum.
+        ESD("TVS VRWM 3,3–5 V", "VCC_GNSS", dnp=True,
+            note="TVS de la figura 6 de Quectel, sin montar: VCC_GNSS sale de un LDO de la placa y no está expuesto"),
+        ESD("TVS VRWM 3,3–5 V", "V_BCKP", dnp=True,
+            note="TVS de la figura 7 de Quectel, sin montar: V_BCKP sale de un LDO de la placa y no está expuesto"),
         R("10k", "GNSS_WAKEUP", "VCC_GNSS", dnp=True, note="Pull-up de respaldo del WAKEUP al VCC del GNSS"),
-        TP("GNSS_WAKEUP"), TP("GNSS_SDA"), TP("GNSS_SCL"), TP("GNSS_ANT_ON"), TP("VDD_EXT"),
-    ], ["WAKEUP (3,0–3,6 V) directo del nRF; I2C y ANT_ON del módulo solo a pads"]),
+        TP("GNSS_WAKEUP"), TP("GNSS_SDA", note="Solo punto de prueba (reservado en la EA)"),
+        TP("GNSS_SCL", note="Solo punto de prueba (reservado en la EA)"), TP("GNSS_ANT_ON"), TP("VDD_EXT"),
+    ], ["WAKEUP (3,0–3,6 V) directo del nRF; I2C y ANT_ON del módulo solo a pads",
+        "Pines 5, 6, 15 y 16 de 1,8 V (máx. 1,98 V): sin conectar, nunca a los traductores de 2,8 V"]),
     Group("Reset del GNSS", [
         NMOS("GNSS_RST", "GNSS_RESET_N", note="Drenador abierto como pide Quectel: RESET_N ≤ 0,1 V al menos 100 ms"),
         R("100k", "GNSS_RST", "GND"),

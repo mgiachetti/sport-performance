@@ -2,7 +2,9 @@
 
 For parts whose LCSC/EasyEDA footprint does not match the datasheet (or has none) and that the official
 KiCad libraries do not have, plus the dock pads (our own design). Each footprint cites the document,
-page and figure its numbers come from, and stays "Verificado: no" until someone compares it in KiCad.
+page and figure its numbers come from, and stays "Verificado: no" until someone compares it in KiCad or
+against the manufacturer's own footprint. The LC29H is built from the numeric pad table extracted from
+Quectel's official footprint (hardware/tools/datos/, written by altium_pads.py).
 Coordinates in mm, origin at the package centre, Y down, as seen from the top (KiCad's convention).
 
 Standard library only (Python 3.9 or newer).
@@ -14,12 +16,14 @@ Standard library only (Python 3.9 or newer).
 from __future__ import annotations
 
 import argparse
+import csv
 import math
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
 LIB = Path(__file__).resolve().parents[1] / "lib" / "pod.pretty"
+DATA = Path(__file__).resolve().parent / "datos"
 MODELS = "${KIPRJMOD}/../lib/pod.3dshapes"
 HEADER = "Generado por hardware/tools/footprints_hoja.py: no editar a mano"
 
@@ -47,7 +51,7 @@ class Footprint:
     pads: list
     body: tuple  # (half width, half height) of the package, for F.Fab
     courtyard: tuple  # (half width, half height)
-    pin1: tuple  # silk dot (x, y)
+    pin1: tuple | None  # silk dot (x, y), or None when ``silk`` draws the pin 1 mark
     attr: str = "smd"
     model: str = ""
     model_rotate: float = 0
@@ -56,6 +60,7 @@ class Footprint:
     keepouts: list = field(default_factory=list)  # (name, layers, allowed, [(x, y), ...]); pours never allowed
     body_y: float = 0  # centre of the body and of the courtyard, when not at the origin
     courtyard_y: float = 0
+    silk: list = field(default_factory=list)  # F.SilkS lines: (x0, y0, x1, y1, width)
 
 
 def n(v: float) -> str:
@@ -79,9 +84,13 @@ def render(fp: Footprint) -> str:
     for layer, (hw, hh), cy, width in (("F.Fab", (bw, bh), fp.body_y, 0.1), ("F.CrtYd", (cw, ch), fp.courtyard_y, 0.05)):
         out.append(f'\t(fp_rect (start {n(-hw)} {n(cy - hh)}) (end {n(hw)} {n(cy + hh)}) '
                    f'(stroke (width {n(width)}) (type solid)) (fill none) (layer "{layer}"))')
-    px, py = fp.pin1
-    out.append(f'\t(fp_circle (center {n(px)} {n(py)}) (end {n(px + 0.1)} {n(py)}) '
-               f'(stroke (width 0.2) (type solid)) (fill solid) (layer "F.SilkS"))')
+    if fp.pin1:
+        px, py = fp.pin1
+        out.append(f'\t(fp_circle (center {n(px)} {n(py)}) (end {n(px + 0.1)} {n(py)}) '
+                   f'(stroke (width 0.2) (type solid)) (fill solid) (layer "F.SilkS"))')
+    for x0, y0, x1, y1, width in fp.silk:
+        out.append(f'\t(fp_line (start {n(x0)} {n(y0)}) (end {n(x1)} {n(y1)}) '
+                   f'(stroke (width {n(width)}) (type solid)) (layer "F.SilkS"))')
     out.append(f'\t(fp_text user "${{REFERENCE}}" (at 0 0 0) (layer "F.Fab") {font(min(0.5, bw * 0.6))})')
     for text, x, y, size in fp.fab_texts:
         out.append(f'\t(fp_text user "{text}" (at {n(x)} {n(y)} 0) (layer "F.Fab") {font(size)})')
@@ -240,22 +249,43 @@ def dock_pads() -> Footprint:
                   ("text", "Resortes de la base: GND el más largo, DETECT el más corto", 0, 3.8)])
 
 
-# Quectel LC29H (AA, EA and the rest of the series), LCC-24, 12.2 x 16.0 x 2.5 mm. LC29H Series Hardware
-# Design V1.3 (2024-07-30), section 5.3, figure 19 "Recommended footprint" (doc p.47), and figure 20
-# (p.52): pads 2.5 x 0.8 with rounded ends centred on the module edges (x = -/+6.10), pitch 1.1, pin 1
-# at y = -7.0, 3.0 mm gap between pins 7/8 and 17/18; safe area 15.1 x 16.3 mm; 3 mm from other parts.
-# Same body and footprint for every variant (V1.3, section 1 and the specification table, p.15).
+# Quectel LC29H (AA, EA and the rest of the series), LCC-24, 12.2 x 16.0 mm (H2.7 mm in Quectel's part).
+# From Quectel's official footprint, "LC29H(AA,AI,BA,CA,DA,EA,TI) Footprint&Part V1.4" (2026-07-03, Altium
+# PcbDoc), through the numeric table datos/Quectel_LC29H_Footprint_V1.4.csv (altium_pads.py; the vendor file
+# is not committed). Pads 2.5 x 0.8 obround ("round" in Altium) at x = -/+6.10, pitch 1.1, pin 1 at
+# y = -7.0, 3.0 mm gap between pins 7/8 and 17/18; solder mask 0.05 mm per pad (manual in the pad), paste
+# equal to the copper (rule of 0). Courtyard: Quectel's 15.1 x 16.4 mm boundary (Mechanical 5); silkscreen
+# as Quectel's: body top and bottom edges, corner ticks and the pin 1 triangle outside the body. The same
+# land pattern as the Hardware Design V1.3 and V1.4, figure 19 (p.47 and p.46), from which it was first drawn;
+# 3 mm from other parts (section 5.3).
+LC29H_TABLE = DATA / "Quectel_LC29H_Footprint_V1.4.csv"
+LC29H_SILK = [(-6.1, -8.0, 6.1, -8.0), (-6.1, 8.0, 6.1, 8.0),
+              (-6.1, -7.75, -6.1, -8.0), (6.1, -7.75, 6.1, -8.0), (-6.1, 8.0, -6.1, 7.75), (6.1, 8.0, 6.1, 7.75),
+              (-8.1035, -6.6465, -8.1035, -7.3536), (-8.1035, -7.3536, -7.75, -7.0), (-8.1035, -6.6465, -7.75, -7.0)]
+
+
+def vendor_pads(path: Path) -> list:
+    """Pads from a table written by altium_pads.py (top-layer SMD, "round" = obround, paste = copper)."""
+    shapes = {"round": "oval", "rect": "rect"}
+    lines = [line for line in path.read_text(encoding="utf-8").splitlines() if not line.startswith("#")]
+    pads = []
+    for row in csv.DictReader(lines):
+        if row["layer"] != "top" or float(row["hole_mm"]) or float(row["rotation_deg"]) or float(row["paste_margin_mm"]):
+            raise ValueError(f"{path.name}: pad {row['pad']} fuera de lo soportado")
+        pads.append(Pad(row["pad"], shapes[row["shape"]], float(row["x_mm"]), float(row["y_mm"]),
+                        float(row["w_mm"]), float(row["h_mm"]), mask_margin=float(row["mask_margin_mm"])))
+    return pads
+
+
 def lc29h() -> Footprint:
-    left = [-7.0 + 1.1 * i for i in range(7)] + [2.6 + 1.1 * i for i in range(5)]  # pins 1-12, top down
-    pads = [Pad(str(i + 1), "roundrect", -6.10, y, 2.5, 0.8, rratio=0.5) for i, y in enumerate(left)]
-    pads += [Pad(str(24 - i), "roundrect", 6.10, y, 2.5, 0.8, rratio=0.5) for i, y in enumerate(left)]  # 24 top
     return Footprint(
         "Quectel_LC29H_LCC-24_12.2x16.0mm_P1.1mm",
-        "Quectel LC29H (todas las variantes), dibujado desde el Hardware Design V1.3, figura 19 (p.47): "
-        "pads de 2,5 x 0,8 mm, paso 1,1. Verificar",
-        "Quectel LC29H GNSS L1 L5 LCC", pads, (6.1, 8.0), (7.55, 8.15), (-6.1, -7.85),
+        "Quectel LC29H (todas las variantes), desde el footprint oficial de Quectel (Footprint&Part V1.4, "
+        "2026-07-03): pads ovalados de 2,5 x 0,8 mm, paso 1,1, máscara de 0,05 mm. Verificado",
+        "Quectel LC29H GNSS L1 L5 LCC", vendor_pads(LC29H_TABLE), (6.1, 8.0), (7.55, 8.2), None,
         model="GPSM-SMD_24P-L16.0-W12.2-P1.10-TL.wrl", model_rotate=270,
-        comments=[("text", "3 mm libres a otras partes (Quectel 5.3)", 0, 8.8)])
+        silk=[(*line, 0.1) for line in LC29H_SILK],
+        comments=[("text", "3 mm libres a otras partes (Quectel 5.3)", 0, 8.85)])
 
 
 # Qorvo DWM3000 (13.0 x 22.7 mm, 24 pads). Data sheet Rev B (May 2021), figure 14 "land pattern"
