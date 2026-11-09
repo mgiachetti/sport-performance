@@ -1,12 +1,13 @@
 /*
- * Pod v0 (B-909): Raytac MDBT50Q-P1MV2 (nRF52840), LC29H, E22-900M22S,
- * LSM6DSV320X, W25N02KV, BQ25180, MAX17048, BMP581. Every pin comes from
- * docs/hardware/pod-v0.md ("Pines del nRF52840"); keep both in sync.
+ * Pod v0 (B-909): u-blox BMD-340 (nRF52840), LC29H, Ai-Thinker Ra-01SH (SX1262),
+ * LSM6DSV32X, W25N02KV, BQ25180, MAX17048, BMP581 (in-stock redesign of
+ * 09/11/2026). Every pin comes from docs/hardware/pod-v0.md ("Pines del
+ * nRF52840"); keep both in sync. The nRF52840 port pins are the same as with
+ * the Raytac module: only the module pads in the comments changed.
  */
 
 /dts-v1/;
 #include <nordic/nrf52840_qiaa.dtsi>
-#include <zephyr/dt-bindings/lora/sx126x.h>
 #include "pod_v0_nrf52840-pinctrl.dtsi"
 
 / {
@@ -29,31 +30,31 @@
 	zephyr,user {
 		gnss-uart = <&uart0>;
 		/* EN of the 3,2 V LDO of the GNSS (active discharge): the GNSS power cut. */
-		gnss-en-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;	/* GNSS_EN, pad 6 */
+		gnss-en-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;	/* GNSS_EN, pad 62 */
 		/* NPN/NMOS open drain to RESET_N: high here = module in reset (≥ 100 ms). */
-		gnss-reset-gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;	/* GNSS_RST, pad 9 */
+		gnss-reset-gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;	/* GNSS_RST, pad 19 */
 		/* WAKEUP (3,0–3,6 V high): ≥ 10 ms pulse out of backup, input otherwise. */
-		gnss-wakeup-gpios = <&gpio0 9 GPIO_ACTIVE_HIGH>;	/* GNSS_WAKEUP, pad 52 (NFC1) */
+		gnss-wakeup-gpios = <&gpio0 9 GPIO_ACTIVE_HIGH>;	/* GNSS_WAKEUP, pad 25 (NFC1) */
 		/* 1PPS: GPIOTE → PPI → TIMER capture (app/src/time_base.c). */
-		gnss-pps-gpios = <&gpio1 10 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>;	/* pad 3 */
+		gnss-pps-gpios = <&gpio1 10 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>;	/* pad 53 */
 		/* DRV5032FA (or FB) push-pull through a series resistor: low = pod in the vest. */
-		hall-gpios = <&gpio0 10 GPIO_ACTIVE_LOW>;	/* HALL_INT, pad 54 (NFC2) */
+		hall-gpios = <&gpio0 10 GPIO_ACTIVE_LOW>;	/* HALL_INT, pad 26 (NFC2) */
 		/* BQ25180 /INT, open drain, 128 µs pulse. */
-		chg-int-gpios = <&gpio1 11 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;	/* pad 4 */
+		chg-int-gpios = <&gpio1 11 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;	/* pad 54 */
 		/* MAX17048 /ALRT, open drain. */
-		fg-alrt-gpios = <&gpio1 14 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;	/* pad 7 */
+		fg-alrt-gpios = <&gpio1 14 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;	/* pad 63 */
 		/* Bench button to GND. */
-		button-gpios = <&gpio1 15 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;	/* pad 8 */
-		/* EN of the TPS22916C load switch of the E22. */
-		lora-en-gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;	/* LORA_EN, pad 61 */
+		button-gpios = <&gpio1 15 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;	/* pad 64 */
+		/* ON of the TPS22919 load switch of the Ra-01SH (U303). */
+		lora-en-gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;	/* LORA_EN, pad 57 */
 		/* ADXL372 INT1 (not mounted) or NAND_EN by 0 Ω: one or the other. */
-		hg-int-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;	/* pad 60 */
+		hg-int-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;	/* pad 59 */
 		/* DWM3000 (not mounted). */
-		uwb-irq-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;	/* pad 50 */
-		uwb-reset-gpios = <&gpio1 7 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;	/* pad 58 */
-		uwb-wakeup-gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>;	/* pad 59 */
+		uwb-irq-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;	/* pad 58 */
+		uwb-reset-gpios = <&gpio1 7 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;	/* pad 50 */
+		uwb-wakeup-gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>;	/* pad 48 */
 		/* Divider from SYS (not mounted) on AIN4: rescue if the MAX17048 fails. */
-		io-channels = <&adc 4>;	/* VBAT_ADC = P0.28, pad 13 */
+		io-channels = <&adc 4>;	/* VBAT_ADC = P0.28, pad 9 */
 	};
 
 	pwmleds {
@@ -83,7 +84,10 @@
  * mode) and DCCH unconnected (pod-v0.md), so its DC/DC stays off. No &reg0 node.
  */
 
-/* VDD and VDDH tied to VREG (3,4 V): normal voltage mode, DC/DC of Reg1 on (coil inside the module). */
+/*
+ * VCC and VCCH of the BMD-340 tied to VREG (3,4 V): LV (normal) mode of its data
+ * sheet (table 8), DC/DC of Reg1 on (inductor inside the module).
+ */
 &reg1 {
 	regulator-initial-mode = <NRF5X_REG_MODE_DCDC>;
 };
@@ -167,7 +171,7 @@
 	baro: bmp581@47 {
 		compatible = "bosch,bmp581";
 		reg = <0x47>;
-		int-gpios = <&gpio1 12 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;	/* BARO_INT, pad 5 */
+		int-gpios = <&gpio1 12 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;	/* BARO_INT, pad 61 */
 	};
 };
 
@@ -177,16 +181,34 @@
 	pinctrl-0 = <&spi1_default>;
 	pinctrl-1 = <&spi1_sleep>;
 	pinctrl-names = "default", "sleep";
-	cs-gpios = <&gpio1 9 GPIO_ACTIVE_LOW>,	/* IMU_CS, pad 26 */
-		   <&gpio0 27 GPIO_ACTIVE_LOW>,	/* UWB_CS, pad 16 (static: next to XL1) */
-		   <&gpio0 26 GPIO_ACTIVE_LOW>;	/* HG_CS, pad 19 (static: next to XL2) */
+	cs-gpios = <&gpio1 9 GPIO_ACTIVE_LOW>,	/* IMU_CS, pad 52 */
+		   <&gpio0 27 GPIO_ACTIVE_LOW>,	/* UWB_CS, pad 8 (static CS) */
+		   <&gpio0 26 GPIO_ACTIVE_LOW>;	/* HG_CS, pad 7 (static CS) */
 
-	imu: lsm6dsv320x@0 {
-		compatible = "st,lsm6dsv320x";
+	/*
+	 * LSM6DSV32X (WHO_AM_I 0x70): driven by the lsm6dsv16x driver of NCS 3.4.1
+	 * (compatible st,lsm6dsv32x). Channel 1 at ±16 g for the run; the second
+	 * channel, fixed at ±32 g, is read by imu_batch (firmware/README.md).
+	 */
+	imu: lsm6dsv32x@0 {
+		compatible = "st,lsm6dsv32x";
 		reg = <0>;
 		spi-max-frequency = <8000000>;
-		int1-gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;	/* IMU_INT1, pad 56: motion wake-up */
-		int2-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;	/* IMU_INT2, pad 57 */
+		accel-range = <16>;
+		int1-gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;	/* IMU_INT1, pad 60: motion wake-up */
+		int2-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;	/* IMU_INT2, pad 49 */
+	};
+
+	/*
+	 * ADXL372 (±200 g, U403): mounted only on the pod-v0-highg assembly variant
+	 * (2 of the 5 v0 boards). Enable it there with boards/pod_v0_highg.overlay.
+	 */
+	hg_accel: adxl372@2 {
+		compatible = "adi,adxl372";
+		reg = <2>;
+		spi-max-frequency = <8000000>;
+		int1-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;	/* HG_INT, pad 59 */
+		status = "disabled";
 	};
 };
 
@@ -196,21 +218,23 @@
 	pinctrl-0 = <&spi2_default>;
 	pinctrl-1 = <&spi2_sleep>;
 	pinctrl-names = "default", "sleep";
-	cs-gpios = <&gpio0 16 GPIO_ACTIVE_LOW>;	/* LORA_NSS, pad 38 */
+	cs-gpios = <&gpio0 16 GPIO_ACTIVE_LOW>;	/* LORA_NSS, pad 34 */
 
-	lora: e22@0 {
+	/*
+	 * Ai-Thinker Ra-01SH: plain crystal, no TCXO (no dio3-tcxo-voltage). Its RF
+	 * switch follows DIO2 inside the module (TXEN tied to DIO2, module schematic);
+	 * RXEN is driven anyway, high to receive. Frequency error checked on the
+	 * bench (pod-v0.md); fallback with TCXO: NiceRF LoRa1262-915TCXO.
+	 */
+	lora: ra01sh@0 {
 		compatible = "semtech,sx1262";
 		reg = <0>;
 		spi-max-frequency = <8000000>;
 		reset-gpios = <&gpio0 31 GPIO_ACTIVE_LOW>;	/* LORA_NRST, pad 12 */
-		busy-gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;	/* LORA_BUSY, pad 11 */
+		busy-gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;	/* LORA_BUSY, pad 15 */
 		dio1-gpios = <&gpio0 29 GPIO_ACTIVE_HIGH>;	/* LORA_DIO1, pad 10 */
-		/* RXEN high to receive; TXEN on DIO2 by 0 Ω, as Ebyte suggests. */
-		rx-enable-gpios = <&gpio0 30 GPIO_ACTIVE_HIGH>;	/* LORA_RXEN, pad 14 */
+		rx-enable-gpios = <&gpio0 30 GPIO_ACTIVE_HIGH>;	/* LORA_RXEN, pad 11 */
 		dio2-tx-enable;
-		/* TCXO voltage and start-up of the E22 not verified (scanned manual): bench. */
-		dio3-tcxo-voltage = <SX126X_DIO3_TCXO_1V8>;
-		tcxo-power-startup-delay-ms = <5>;
 	};
 };
 
@@ -220,7 +244,7 @@
 	pinctrl-0 = <&spi3_default>;
 	pinctrl-1 = <&spi3_sleep>;
 	pinctrl-names = "default", "sleep";
-	cs-gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;	/* NAND_CS, pad 41 */
+	cs-gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;	/* NAND_CS, pad 35 */
 	/* Errata 198: the SPIM3 buffers live in their own RAM block (app/src/log_nand.c). */
 
 	nand: w25n02kv@0 {
@@ -284,7 +308,7 @@
 	};
 };
 
-/* USB through the dock pads (D± pads 34/35, VBUS after the input switch). */
+/* USB through the dock pads (D+/D- pads 68/67, VBUS pad 66 after the input switch). */
 zephyr_udc0: &usbd {
 	compatible = "nordic,nrf-usbd";
 	status = "okay";

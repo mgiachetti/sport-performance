@@ -1,5 +1,5 @@
 /*
- * IMU (LSM6DSV320X on SPIM1) and barometer (BMP581 on TWIM0) through the
+ * IMU (LSM6DSV32X on SPIM1) and barometer (BMP581 on TWIM0) through the
  * Zephyr sensor drivers.
  *
  * Stub status (B-904): presence check for the boot self-test and a simple

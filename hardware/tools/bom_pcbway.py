@@ -64,13 +64,19 @@ BOARDS = (5, 10, 100)
 # Bought for the build but not soldered by the assembler: (mpn, quantity per board, purpose)
 EXTRAS = [
     ("AGVLB.25B.07.0060A", 0.4, "Rescate y referencia de banco por el U.FL (2 por cada 5 placas); no se suelda"),
-    ("TX915-FPC-4510", 1, "Antena LoRa FPC pegada en la carcasa, al U.FL del E22; no se suelda"),
+    ("2111400100", 1, "Antena LoRa FPC pegada en la carcasa, al U.FL del Ra-01SH; no se suelda"),
     ("LQW15AN10NG00D", 2, "Kit de banco: L de entrada del LNA en alta ganancia"),
     ("LQW15AN12NG00D", 2, "Kit de banco: L de entrada del LNA en bajo consumo"),
     ("0402WGF374JTCE", 2, "Kit de banco: serie del atenuador de 6 dB con la Taoglas"),
     ("NCP15XH103F03RC", 2, "Kit de banco: NTC de 10 kΩ para el TS sin la celda"),
     ("PESD5V0F1BL,315", 2, "Kit de banco: ESD de silicio de 0,4 pF para el nodo del U.FL"),
 ]
+
+# Assembly variants: DNP places mounted only in some boards (``variants`` of the part in diseno.py). Each one
+# gets its own PCBWay BOM (bom-<name>.csv); the cost tables are the base. name -> (boards of the 5 of the v0, why)
+VARIANTS = {
+    "pod-v0-highg": (2, "ADXL372 de ±200 g montado, para medir cuánto satura ±32 g de la LSM6DSV32X en los contactos"),
+}
 
 COSTOS_MD = OUT / "costos.md"
 STOCK_MD = OUT / "stock.md"
@@ -114,7 +120,8 @@ def unit_price(steps: list, qty: int) -> tuple:
     return buy, price
 
 
-def collect():
+def collect(variant: str | None = None):
+    """Groups of parts by (DNP, MPN). With ``variant``, the DNP parts that name it in ``variants`` are mounted."""
     _, symbols = generar.build_library()
     design = generar.Design(diseno.SHEETS, symbols)
     if design.errors:
@@ -130,12 +137,64 @@ def collect():
                 if p.symbol in NO_PART:
                     features += 1
                     continue
-                key = (p.dnp, p.mpn or f"{p.symbol} {p.value}")
-                g = groups.setdefault(key, {"parts": [], "dnp": p.dnp, "mpn": p.mpn})
+                for v in p.variants:
+                    if v not in VARIANTS:
+                        raise SystemExit(f"{p.ref}: variante {v} desconocida (bom_pcbway.VARIANTS)")
+                dnp = p.dnp and variant not in p.variants
+                key = (dnp, p.mpn or f"{p.symbol} {p.value}")
+                g = groups.setdefault(key, {"parts": [], "dnp": dnp, "mpn": p.mpn})
                 g["parts"].append(p)
-                if not p.dnp:
+                if not dnp:
                     pads += len(p.nets)
     return groups, features, pads
+
+
+def pcbway_row(g: dict, parts: dict, errors: list) -> dict:
+    """One row of PCBWay's BOM for a group of parts (same MPN and DNP state)."""
+    ps = sorted(g["parts"], key=lambda p: natural(p.ref))
+    first = ps[0]
+    refs = ",".join(p.ref for p in ps)
+    mpn = g["mpn"]
+    info = parts.get(mpn, {}) if mpn else {}
+    if mpn and not info:
+        errors.append(f"{refs}: {mpn} no está en {PARTS_CSV.name}")
+    if not mpn and not (g["dnp"] and first.value == "DNP"):
+        errors.append(f"{refs}: {first.symbol} {first.value} sin MPN")
+    distributor = info.get("digikey") if info.get("fuente_precio") == "digikey" else info.get("lcsc", first.lcsc)
+    variants = sorted({v for p in ps for v in p.variants})
+    instructions = info.get("instrucciones", "")
+    if g["dnp"]:
+        instructions = "Do not populate" + (f" (mounted only in variant {', '.join(variants)})" if variants else "")
+    return {
+        "Reference Designator": refs, "Quantity": len(ps), "Manufacturer": info.get("fabricante", first.manufacturer),
+        "Manufacturer Part Number": mpn or "(sin valor: lugar de ajuste)", "Distributor Part Number": distributor or "",
+        "Description": info.get("descripcion") or f"{first.symbol} {first.value}",
+        "Package": first.footprint.split(":")[-1], "Type": "Thru-hole" if first.symbol in THT else "SMT",
+        "Instructions": instructions,
+        "DNP": "yes" if g["dnp"] else "no", "LCSC": info.get("lcsc", first.lcsc),
+        "DigiKey": info.get("digikey", ""), "Mouser": info.get("mouser", ""),
+        "Customer Supplied": {"sí": "yes", "posible": "maybe"}.get(info.get("consignado", ""), ""),
+        "Approved Alternate": alternate(parts, info, errors),
+    }
+
+
+def sorted_groups(groups: OrderedDict) -> list:
+    return sorted(groups.values(), key=lambda g: natural(sorted((p.ref for p in g["parts"]), key=natural)[0]))
+
+
+def variant_extra(parts: dict, variant: str, boards: int) -> float:
+    """Part cost per board that ``variant`` adds over the base, built on ``boards`` boards."""
+    total = 0.0
+    for g in collect(variant)[0].values():
+        if g["dnp"]:
+            continue
+        extra = [p for p in g["parts"] if p.dnp and variant in p.variants]
+        if not extra:
+            continue
+        need = len(extra) * boards + (ATTRITION if extra[0].symbol in SMALL else 0)
+        buy, price = unit_price(ladder(parts.get(g["mpn"], {})), need)
+        total += 0.0 if price is None else buy * price
+    return total / boards
 
 
 def alternate(parts: dict, info: dict, errors: list) -> str:
@@ -167,30 +226,14 @@ def build():
     bom, dnp, jlc, cost, stock = [], [], [], [], []
     totals = {n: 0.0 for n in BOARDS}
     unpriced = []
-    mounted_sorted = sorted(groups.values(), key=lambda g: natural(sorted((p.ref for p in g["parts"]), key=natural)[0]))
-    for g in mounted_sorted:
+    for g in sorted_groups(groups):
         ps = sorted(g["parts"], key=lambda p: natural(p.ref))
         first = ps[0]
         refs = ",".join(p.ref for p in ps)
         footprint = first.footprint.split(":")[-1]
         mpn = g["mpn"]
         info = parts.get(mpn, {}) if mpn else {}
-        if mpn and not info:
-            errors.append(f"{refs}: {mpn} no está en {PARTS_CSV.name}")
-        if not mpn and not (g["dnp"] and first.value == "DNP"):
-            errors.append(f"{refs}: {first.symbol} {first.value} sin MPN")
-        distributor = info.get("digikey") if info.get("fuente_precio") == "digikey" else info.get("lcsc", first.lcsc)
-        row = {
-            "Reference Designator": refs, "Quantity": len(ps), "Manufacturer": info.get("fabricante", first.manufacturer),
-            "Manufacturer Part Number": mpn or "(sin valor: lugar de ajuste)", "Distributor Part Number": distributor or "",
-            "Description": info.get("descripcion") or f"{first.symbol} {first.value}",
-            "Package": footprint, "Type": "Thru-hole" if first.symbol in THT else "SMT",
-            "Instructions": "Do not populate" if g["dnp"] else info.get("instrucciones", ""),
-            "DNP": "yes" if g["dnp"] else "no", "LCSC": info.get("lcsc", first.lcsc),
-            "DigiKey": info.get("digikey", ""), "Mouser": info.get("mouser", ""),
-            "Customer Supplied": {"sí": "yes", "posible": "maybe"}.get(info.get("consignado", ""), ""),
-            "Approved Alternate": alternate(parts, info, errors),
-        }
+        row = pcbway_row(g, parts, errors)
         if g["dnp"]:
             dnp.append(row)
             continue
@@ -248,7 +291,16 @@ def build():
         OUT / "bom-pod-v0-extras.csv": write_csv(extras, list(extras[0]) if extras else ["MPN"]),
         OUT / "costo-partes-pod-v0.csv": write_csv(cost, cost_cols),
     }
-    files[COSTOS_MD] = costos_md(cost[:-2], totals, extras)
+    variants = []
+    for name, (v0_boards, purpose) in VARIANTS.items():
+        rows = [pcbway_row(g, parts, errors) for g in sorted_groups(collect(name)[0]) if not g["dnp"]]
+        for i, r in enumerate(rows, 1):
+            r["Line #"] = i
+        files[OUT / f"bom-{name}.csv"] = write_csv(rows, PCBWAY_COLS)
+        added = sorted((p.ref for g in groups.values() for p in g["parts"] if name in p.variants), key=natural)
+        variants.append((name, v0_boards, purpose, added, variant_extra(parts, name, v0_boards),
+                         variant_extra(parts, name, BOARDS[-1])))
+    files[COSTOS_MD] = costos_md(cost[:-2], totals, extras, variants)
     files[STOCK_MD] = stock_md(stock, parts, errors)
     summary = {
         "filas montadas": len(bom), "componentes montados": sum(r["Quantity"] for r in bom),
@@ -265,10 +317,16 @@ def money(x: float) -> str:
     return f"{x:,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
 
 
-def costos_md(lines: list, totals: dict, extras: list) -> str:
-    """costos.md with the generated block (part totals, cost drivers, extras) replaced."""
+def costos_md(lines: list, totals: dict, extras: list, variants: list) -> str:
+    """costos.md with the generated block (part totals, cost drivers, variants, extras) replaced."""
     out = ["| Placas | Partes por placa | Total de partes |", "|---|---|---|"]
     out += [f"| {n} | **{money(totals[n] / n)}** | {money(totals[n])} |" for n in BOARDS]
+    out += ["", "**Variantes de armado** (BOM aparte para PCBWay, `bom-<variante>.csv`; lo de arriba es la base):", "",
+            "| Variante | Para qué | Lugares que se montan | Placas de la v0 | Partes por placa en la v0 | Si fuera en las 100 |",
+            "|---|---|---|---|---|---|"]
+    for name, v0_boards, purpose, added, extra_v0, extra_100 in variants:
+        out.append(f"| `{name}` | {purpose} | {', '.join(added)} | {v0_boards} de {BOARDS[0]} | "
+                   f"+{money(extra_v0)} | +{money(extra_100)} |")
     n = BOARDS[-1]
     top = sorted(lines, key=lambda r: -float(r[f"US$ total {n}"] or 0))
     out += ["", f"**Lo que más pesa** (a {n} placas, por placa):", "", "| Parte | Cant. | US$ por placa | Fuente |", "|---|---|---|---|"]

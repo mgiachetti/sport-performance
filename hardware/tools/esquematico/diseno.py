@@ -9,7 +9,8 @@ the rails in ``simbolos.POWER_NETS`` get power symbols, everything else gets loc
 from __future__ import annotations
 
 import catalogo
-from modelo import (C0402, C0603, C1206, D0402, JUMPER_CLOSED, R0805, SOD123F, SOD323, SOT23, SOT23_5, SOT23_6,
+import simbolos
+from modelo import (C0402, C0603, C1206, D0402, JUMPER_CLOSED, R0805, SC70_6, SOD123F, SOD323, SOT23, SOT23_5, SOT23_6,
                     TP_PAD, UFL, C, D, ESD, FLAG, L, NC, NMOS, R, R0, TP, Group, Sheet, part)
 
 POD = "pod:"
@@ -72,9 +73,9 @@ power = Sheet("power", "Pod v0: power",
         R0("GNSS_EN", "GNSS_LDO_EN", note="EN desde GNSS_EN (P1.13)"),
         R0("VREG", "GNSS_LDO_EN", dnp=True, note="EN atado a VREG"),
         R("100k", "GNSS_EN", "GND", note="Pull-down: GNSS apagado con el nRF en reset o en la DFU"),
-        part("TPS22916", "TPS22916C", {"A2": "VGNSS_LDO", "B2": "GNSS_EN", "A1": "VGNSS_SW", "B1": "GND"},
-             POD + "Texas_YFP0004_DSBGA-4_0.78x0.78mm_Layout2x2_P0.4mm", dnp=True, mpn="TPS22916CYFPR", lcsc="C2680319",
-             manufacturer="Texas Instruments", note="Load switch del GNSS sin montar (el EN del LDO hace el corte)"),
+        part("TPS22919", "TPS22919", {"1": "VGNSS_LDO", "3": "GNSS_EN", "4": NC, "5": "VGNSS_SW", "6": "VGNSS_SW", "2": "GND"},
+             SC70_6, dnp=True, mpn="TPS22919DCKR", lcsc="C2149796", manufacturer="Texas Instruments",
+             note="Load switch del GNSS sin montar (el EN del LDO hace el corte). QOD (pin 5) atado a VOUT: descarga de 24 Ω"),
         R0("VGNSS_LDO", "VGNSS_SW", note="Puente del load switch del GNSS"),
         R0("VGNSS_SW", "VCC_GNSS", note="Medición de corriente del GNSS"),
         R0("VREG", "VCC_GNSS", dnp=True,
@@ -152,10 +153,10 @@ gnss_rf = Sheet("gnss_rf", "Pod v0: gnss_rf",
              note="Se corta para desconectar el nRF"),
     ]),
     Group("Antena: patch pasivo (principal) y U.FL de rescate", [
-        part("Antenna", "Patch L1/L5", {"1": "GNSS_ANT_PATCH"}, POD + "Taoglas_GVLB208.A_20x20mm",
-             mpn="GVLB208.A", manufacturer="Taoglas",
-             note="Principal (decisión del usuario): patch pasivo apilado L1 + L5 de 20 × 20 × 8,8 mm; alternativa de 25 × 25 × 8 mm "
-                  "(por ejemplo Quectel YFGC000WWAM, no verificada). Pide 70 × 70 mm de tierra. Nunca ve DC"),
+        part("Antenna", "Patch L1/L5", {"1": "GNSS_ANT_PATCH"}, POD + "Taoglas_GVLB258.A_25x25mm",
+             mpn="GVLB258.A", manufacturer="Taoglas",
+             note="Principal (decisión del usuario, 09/11/2026): patch pasivo apilado L1 + L5 de 25 × 25 × 8,12 mm, 18 g, un pin "
+                  "a 2,5 mm del centro (a verificar contra el DXF de Taoglas). Pide 70 × 70 mm de tierra. La carcasa lo aprieta. Nunca ve DC"),
         R0("GNSS_ANT_PATCH", "GNSS_ANT", note="Selector de antena: patch (montado). Se saca al usar la Taoglas"),
         part("Conn_Coax", "U.FL Taoglas", {"1": "GNSS_ANT_UFL", "2": "GND"}, UFL, mpn="U.FL-R-SMT-1(10)", lcsc="C88373", manufacturer="Hirose",
              note="Rescate y referencia de banco: Taoglas AGVLB.25B.07.0060A (activa) por cable de 60 mm"),
@@ -224,32 +225,41 @@ gnss_rf = Sheet("gnss_rf", "Pod v0: gnss_rf",
 ])
 
 # ---------------------------------------------------------------------------
-NRF_PINS = {
-    "1": "GND", "2": "GND", "15": "GND", "33": "GND", "55": "GND",
-    "28": "VREG", "30": "VREG", "31": NC, "32": "VBUS", "34": "USB_D_N", "35": "USB_D_P",
-    "3": "GNSS_PPS", "4": "CHG_INT", "5": "BARO_INT", "6": "GNSS_EN", "7": "FG_ALRT", "8": "BTN",
-    "9": "GNSS_RST", "10": "LORA_DIO1", "11": "LORA_BUSY", "12": "LORA_NRST", "13": "VBAT_ADC", "14": "LORA_RXEN",
-    "16": "UWB_CS", "17": "XL1", "18": "XL2", "19": "HG_CS", "20": "BUZZER", "21": "LED_G", "22": "GNSS_TX",
-    "23": "I2C_SCL", "24": "GNSS_RX", "25": "LED_B", "26": "IMU_CS", "27": "LED_R", "29": "I2C_SDA",
-    "36": "SENS_SCK", "37": "SENS_MOSI", "38": "LORA_NSS", "39": "SENS_MISO", "40": "NRESET", "41": "NAND_CS",
-    "42": "NAND_SCK_MCU", "43": "NAND_MISO", "44": "NAND_MOSI", "45": "DBG_RX", "46": "DBG_TX", "47": "LORA_MISO",
-    "48": "LORA_SCK", "49": "LORA_MOSI", "50": "UWB_IRQ", "51": "SWDIO", "52": "GNSS_WAKEUP", "53": "SWDCLK",
-    "54": "HALL_INT", "56": "IMU_INT1", "57": "IMU_INT2", "58": "UWB_RST", "59": "UWB_WAKEUP", "60": "HG_INT",
-    "61": "LORA_EN",
+# Signal of each nRF52840 port pin (docs/hardware/pod-v0.md, "Pines del nRF52840"): the same assignment as with
+# the Raytac module, so the firmware's pinctrl does not change. The pad of each port pin on the BMD-340 comes
+# from its pin table (simbolos.BMD340_P0 / BMD340_P1, UBX-19033353 R13 table 2).
+NRF_GPIO = {
+    "P0.00": "XL1", "P0.01": "XL2", "P0.02": "LORA_BUSY", "P0.03": "GNSS_RST", "P0.04": "BUZZER", "P0.05": "LED_G",
+    "P0.06": "GNSS_TX", "P0.07": "I2C_SCL", "P0.08": "GNSS_RX", "P0.09": "GNSS_WAKEUP", "P0.10": "HALL_INT",
+    "P0.11": "LED_R", "P0.12": "I2C_SDA", "P0.13": "SENS_MOSI", "P0.14": "SENS_SCK", "P0.15": "SENS_MISO",
+    "P0.16": "LORA_NSS", "P0.17": "NAND_CS", "P0.18": "NRESET", "P0.19": "NAND_SCK_MCU", "P0.20": "NAND_MOSI",
+    "P0.21": "NAND_MISO", "P0.22": "DBG_TX", "P0.23": "DBG_RX", "P0.24": "LORA_SCK", "P0.25": "LORA_MOSI",
+    "P0.26": "HG_CS", "P0.27": "UWB_CS", "P0.28": "VBAT_ADC", "P0.29": "LORA_DIO1", "P0.30": "LORA_RXEN",
+    "P0.31": "LORA_NRST",
+    "P1.00": "LORA_MISO", "P1.01": "LORA_EN", "P1.02": "UWB_IRQ", "P1.03": "HG_INT", "P1.04": "IMU_INT1",
+    "P1.05": "UWB_WAKEUP", "P1.06": "IMU_INT2", "P1.07": "UWB_RST", "P1.08": "LED_B", "P1.09": "IMU_CS",
+    "P1.10": "GNSS_PPS", "P1.11": "CHG_INT", "P1.12": "BARO_INT", "P1.13": "GNSS_EN", "P1.14": "FG_ALRT",
+    "P1.15": "BTN",
 }
+NRF_PINS = {pad: NRF_GPIO[f"P0.{i:02d}"] for i, pad in enumerate(simbolos.BMD340_P0)}
+NRF_PINS.update({pad: NRF_GPIO[f"P1.{i:02d}"] for i, pad in enumerate(simbolos.BMD340_P1)})
+NRF_PINS.update({pad: "GND" for pad in simbolos.BMD340_GND})
+# LV (normal) mode, table 8 of the sheet: VCC and VCCH on the same 1.7-3.6 V source (VREG, 3.4 V).
+NRF_PINS.update({"17": "VREG", "65": "VREG", "66": "VBUS", "67": "USB_D_N", "68": "USB_D_P", "43": "SWDCLK", "44": "SWDIO"})
 
-E22_PINS = {
-    "1": "GND", "2": "GND", "3": "GND", "4": "GND", "5": "GND", "10": "GND", "11": "GND", "12": "GND", "20": "GND", "22": "GND",
-    "6": "LORA_RXEN", "7": "LORA_TXEN", "8": "LORA_DIO2", "9": "VCC_LORA", "13": "LORA_DIO1", "14": "LORA_BUSY",
-    "15": "LORA_NRST", "16": "LORA_MISO", "17": "LORA_MOSI", "18": "LORA_SCK", "19": "LORA_NSS", "21": "LORA_ANT",
+# Ai-Thinker Ra-01SH, specification V1.1, section 4. DIO3 has no use (crystal, no TCXO).
+RA01SH_PINS = {
+    "1": "LORA_ANT", "2": "GND", "3": "VCC_LORA", "4": "LORA_NRST", "5": "LORA_TXEN", "6": "LORA_DIO1",
+    "7": "LORA_DIO2", "8": NC, "9": "GND", "10": "LORA_BUSY", "11": "LORA_RXEN", "12": "LORA_SCK",
+    "13": "LORA_MISO", "14": "LORA_MOSI", "15": "LORA_NSS", "16": "GND",
 }
 
 mcu_radio = Sheet("mcu_radio", "Pod v0: mcu_radio",
-                  "nRF52840 (Raytac MDBT50Q-P1MV2), LoRa E22-900M22S, LED de estado, depuración y fabricación", 300, [
-    Group("nRF52840 en el MDBT50Q-P1MV2", [
-        part("MDBT50Q-P1MV2", "MDBT50Q-P1MV2", NRF_PINS, POD + "COMM-SMD_MDBT50Q-1MV2", mpn="MDBT50Q-P1MV2", lcsc="C5119772",
-             manufacturer="Raytac",
-             note="Modo de tensión normal: VDD y VDDH a VREG, DCCH sin conectar. Keep-out de la antena PCB según la sección 2.3"),
+                  "nRF52840 (u-blox BMD-340), LoRa Ra-01SH, LED de estado, depuración y fabricación", 300, [
+    Group("nRF52840 en el BMD-340", [
+        part("BMD-340", "BMD-340", NRF_PINS, POD + "u-blox_BMD-340_15.0x10.2mm", mpn="BMD-340-A-R", manufacturer="u-blox",
+             note="Revisión de producción BMD-340-A-R-10 (nRF52840 rev. 2). Modo LV: VCC (17) y VCCH (65) a VREG. "
+                  "Keep-out de la antena PCB según la figura 12 de UBX-19033353; al borde, antena hacia afuera"),
         C("4.7u", "VREG", footprint=C0603), C("100n", "VREG"), C("4.7u", "VBUS", footprint=C0603),
         part("Crystal", "32,768 kHz", {"1": "XL1", "2": "XL2"}, "Crystal:Crystal_SMD_2012-2Pin_2.0x1.2mm",
              mpn="CM8V-T1A-32.768KHZ-12.5PF-20PPM-TA-QC", lcsc="C5341285", manufacturer="Micro Crystal",
@@ -257,7 +267,8 @@ mcu_radio = Sheet("mcu_radio", "Pod v0: mcu_radio",
                   "no verificados). Alternativa: Abracon ABS06-32.768KHZ-T (90 kΩ). Se saca para usar el RC calibrado"),
         C("18p", "XL1", note="C = 2 × (CL − C parásita) = 2 × (12,5 − 3,5) = 18 pF; se ajusta midiendo la frecuencia"),
         C("18p", "XL2", note="C = 2 × (CL − C parásita) = 2 × (12,5 − 3,5) = 18 pF; se ajusta midiendo la frecuencia"),
-    ], ["Asignación de pines: docs/hardware/pod-v0.md, \"Pines del nRF52840\". P0.26 y P0.27, vecinos del cristal, solo con CS estáticos"]),
+    ], ["Asignación de pines: docs/hardware/pod-v0.md, \"Pines del nRF52840\" (los mismos P0.x/P1.x que con el Raytac)",
+        "Vecinos de XL1/XL2 (pads 13/14) en el módulo: pad 12 (P0.31, LORA_NRST) y pad 15 (P0.02, LORA_BUSY), sin PWM"]),
     Group("Pull-ups, botón y lectura de SYS", [
         R("4.7k", "I2C_SDA", "VREG"), R("4.7k", "I2C_SCL", "VREG"),
         R("100k", "CHG_INT", "VREG", note="/INT del BQ25180, drenador abierto (pulso de 128 µs)"),
@@ -301,24 +312,27 @@ mcu_radio = Sheet("mcu_radio", "Pod v0: mcu_radio",
         NMOS("BUZZER", "BUZ_D", dnp=True),
         R("100k", "BUZZER", "GND", note="Pull-down del gate, montada"),
     ]),
-    Group("LoRa E22-900M22S", [
-        part("E22-900M22S", "E22-900M22S", E22_PINS, POD + "WIRELM-SMD_E22-900M22S", mpn="E22-900M22S", lcsc="C411293",
-             manufacturer="Ebyte", note="SX1262 con TCXO de 32 MHz; RXEN y TXEN activos en alto"),
-        R0("LORA_DIO2", "LORA_TXEN", note="TXEN desde DIO2 (por defecto) o desde el pad"),
+    Group("LoRa Ra-01SH", [
+        part("RA-01SH", "Ra-01SH", RA01SH_PINS, POD + "WIRELM-SMD_RA-01SH", mpn="Ra-01SH", lcsc="C2764087",
+             manufacturer="Ai-Thinker",
+             note="SX1262 con cristal común (sin TCXO: DIO3 sin conectar). VDD 2,7–3,6 V. Según el esquema de la hoja (sección 5) "
+                  "el conmutador de RF lo maneja DIO2 adentro (TXEN unido a DIO2 por un 0 Ω interno); RXEN se maneja igual. "
+                  "Puerta de banco de frecuencia (10 muestras) antes de las 100; respaldo: NiceRF LoRa1262-915TCXO"),
+        R0("LORA_DIO2", "LORA_TXEN", note="TXEN desde DIO2 (ya unidos dentro del módulo); se saca para medir"),
         TP("LORA_TXEN"),
-        R("100k", "LORA_NSS", "VCC_LORA", note="Pull-up al riel del E22, nunca a VREG"),
+        R("100k", "LORA_NSS", "VCC_LORA", note="Pull-up al riel del LoRa, nunca a VREG"),
         C("10u", "VCC_LORA", footprint=C0603), C("100n", "VCC_LORA"),
         C("47u", "VCC_LORA", footprint=C1206, dnp=True, note="Lugar para un capacitor grande (picos de TX)"),
         TP("VCC_LORA"),
     ]),
-    Group("Load switch del E22", [
-        part("TPS22916", "TPS22916C", {"A2": "VREG_LORA", "B2": "LORA_EN", "A1": "VCC_LORA", "B1": "GND"},
-             POD + "Texas_YFP0004_DSBGA-4_0.78x0.78mm_Layout2x2_P0.4mm", mpn="TPS22916CYFPR", lcsc="C2680319",
-             manufacturer="Texas Instruments",
-             note="Variante C: descarga rápida de la salida. DSBGA de 0,4 mm: confirmar que PCBWay lo arma (o TPS22917/18 en SOT-23)"),
+    Group("Load switch del LoRa", [
+        part("TPS22919", "TPS22919", {"1": "VREG_LORA", "3": "LORA_EN", "4": NC, "5": "VCC_LORA", "6": "VCC_LORA", "2": "GND"},
+             SC70_6, mpn="TPS22919DCKR", lcsc="C2149796", manufacturer="Texas Instruments",
+             note="Encendido lento (1,75 ms a 3,6 V); QOD (pin 5) atado a VOUT: descarga de 24 Ω al apagar. "
+                  "Corta los 1,6 mA de standby del Ra-01SH en System OFF"),
         R0("VREG", "VREG_LORA", note="Medición de corriente del LoRa"),
-        R0("VREG_LORA", "VCC_LORA", dnp=True, note="Puente del load switch (E22 siempre alimentado)"),
-        R("100k", "LORA_EN", "GND", note="Pull-down: el E22 arranca apagado"),
+        R0("VREG_LORA", "VCC_LORA", dnp=True, note="Puente del load switch (Ra-01SH siempre alimentado)"),
+        R("100k", "LORA_EN", "GND", note="Pull-down: el Ra-01SH arranca apagado"),
         C("1u", "VREG_LORA"),
         FLAG("VREG_LORA"), FLAG("VCC_LORA"),
     ]),
@@ -327,7 +341,7 @@ mcu_radio = Sheet("mcu_radio", "Pod v0: mcu_radio",
         R0("LORA_ANT", "LORA_RF", note="Puente del pasabajos (lugar de su L serie)"),
         C("DNP", "LORA_RF", dnp=True, note="Pasabajos, paralelo de salida"),
         part("Conn_Coax", "U.FL LoRa", {"1": "LORA_RF", "2": "GND"}, UFL, mpn="U.FL-R-SMT-1(10)", lcsc="C88373", manufacturer="Hirose",
-             note="FPC de 915 MHz de 45 × 10 mm (Ebyte TX915-FPC-4510) en la carcasa"),
+             note="FPC de 868/915 MHz de 38 × 10 mm con cable de 100 mm (Molex 2111400100) en la carcasa"),
     ]),
     Group("Fabricación (solo footprint)", [
         part("Fiducial", "Fiducial", {}, "Fiducial:Fiducial_1mm_Mask2mm"),
@@ -340,13 +354,14 @@ mcu_radio = Sheet("mcu_radio", "Pod v0: mcu_radio",
 
 # ---------------------------------------------------------------------------
 sensors = Sheet("sensors", "Pod v0: sensors",
-                "IMU LSM6DSV320X (+ ICM-42688-P y ADXL372 sin montar), barómetro BMP581 (+ DPS368 sin montar), Hall DRV5032FA", 400, [
-    Group("IMU LSM6DSV320X", [
-        part("LSM6DSV320XTR", "LSM6DSV320X", {"14": "SENS_MOSI", "13": "SENS_SCK", "12": "IMU_CS", "11": NC, "10": NC,
-                                              "9": "IMU_INT2", "8": "VREG", "7": "GND", "6": "GND", "5": "VREG", "4": "IMU_INT1",
-                                              "3": "GND", "2": "GND", "1": "SENS_MISO"},
-             POD + "LGA-14_L3.0-W2.5-P0.50-TL", mpn="LSM6DSV320XTR", lcsc="C26633007", manufacturer="STMicroelectronics",
-             note="SPI de 4 hilos en el SPIM1; SDx/SCx (I2C maestro) a GND y OSC_AUX/SDO_AUX sin conectar: verificar con la hoja de ST"),
+                "IMU LSM6DSV32X (+ ADXL372 en la variante pod-v0-highg, ICM-42688-P sin montar), barómetro BMP581 (+ DPS368 sin montar), Hall DRV5032FA", 400, [
+    Group("IMU LSM6DSV32X", [
+        part("LSM6DSV32XTR", "LSM6DSV32X", {"14": "SENS_MOSI", "13": "SENS_SCK", "12": "IMU_CS", "11": NC, "10": NC,
+                                            "9": "IMU_INT2", "8": "VREG", "7": "GND", "6": "GND", "5": "VREG", "4": "IMU_INT1",
+                                            "3": "GND", "2": "GND", "1": "SENS_MISO"},
+             POD + "LGA-14_L3.0-W2.5-P0.50-TL", mpn="LSM6DSV32XTR", lcsc="C22461202", manufacturer="STMicroelectronics",
+             note="±32 g de doble canal (DS13511 Rev 2). SPI de 4 hilos en el SPIM1; SDx/SCx (I2C maestro) a GND y OCS_Aux/SDO_Aux "
+                  "sin conectar (tabla 2). Pin a pin con la LSM6DSV320X/80X/16X (mismo LGA-14L)"),
         C("100n", "VREG"), C("100n", "VREG"),
     ], ["Cerca del centro del pod"]),
     Group("ICM-42688-P (sin montar)", [
@@ -355,19 +370,20 @@ sensors = Sheet("sensors", "Pod v0: sensors",
                                             "7": "GND", "2": NC, "3": NC, "10": NC, "11": NC},
              "Package_LGA:LGA-14_3x2.5mm_P0.5mm_LayoutBorder3x4y", dnp=True, mpn="ICM-42688-P", lcsc="C1850418", manufacturer="TDK InvenSense",
              note="Pines según la tabla 9 de DS-000347 rev. 1.2 (pin 7 RESV a GND); el LGA-14 genérico de KiCad coincide con el paquete (p.54-55)"),
-        R0("IMU_CS", "ICM_CS", dnp=True, note="CS compartido con el LSM6DSV320X"),
-        R0("ICM_INT1", "IMU_INT1", dnp=True, note="INT1 compartida con el LSM6DSV320X"),
+        R0("IMU_CS", "ICM_CS", dnp=True, note="CS compartido con el LSM6DSV32X"),
+        R0("ICM_INT1", "IMU_INT1", dnp=True, note="INT1 compartida con el LSM6DSV32X"),
         C("100n", "VREG", dnp=True),
     ]),
-    Group("ADXL372 (sin montar)", [
+    Group("ADXL372 (variante pod-v0-highg)", [
         part("ADXL372", "ADXL372", {"14": "VREG", "1": "VREG", "12": "GND", "13": "GND", "16": "GND", "11": "HG_INT", "9": NC,
                                     "8": "HG_CS", "4": "SENS_SCK", "6": "SENS_MOSI", "7": "SENS_MISO",
                                     "2": NC, "3": NC, "5": NC, "10": NC, "15": NC},
-             POD + "Analog_CC-16-4_LGA-16_3.25x3mm_P0.5mm", dnp=True, mpn="ADXL372BCCZ-RL7", lcsc="C579465",
-             manufacturer="Analog Devices",
-             note="Pines según la tabla 5 de la hoja Rev. B (3, 5 y 10 reservados, 2 y 15 NIC); footprint de la figura 54"),
-        C("100n", "VREG", dnp=True),
-        R0("HG_INT", "IMU_INT2", dnp=True, note="HG_INT a INT2 del LSM6DSV320X"),
+             POD + "Analog_CC-16-4_LGA-16_3.25x3mm_P0.5mm", dnp=True, variants=("pod-v0-highg",), mpn="ADXL372BCCZ-RL7",
+             lcsc="C579465", manufacturer="Analog Devices",
+             note="Pines según la tabla 5 de la hoja Rev. B (3, 5 y 10 reservados, 2 y 15 NIC); footprint de la figura 54. "
+                  "Montado solo en la variante pod-v0-highg (2 de las 5 placas de la v0): mide cuánto satura ±32 g en los contactos"),
+        C("100n", "VREG", dnp=True, variants=("pod-v0-highg",), note="Desacople del ADXL372: va con él en la variante pod-v0-highg"),
+        R0("HG_INT", "IMU_INT2", dnp=True, note="HG_INT a INT2 del LSM6DSV32X"),
     ]),
     Group("Barómetro BMP581", [
         part("BMP581", "BMP581", {"1": "VREG", "10": "VREG", "3": "GND", "8": "GND", "9": "GND", "2": "I2C_SCL", "4": "I2C_SDA",
@@ -414,9 +430,9 @@ storage = Sheet("storage", "Pod v0: storage", "NAND W25N02KV en el SPIM3, con lo
         TP("VCC_NAND"),
     ]),
     Group("Load switch de la NAND (sin montar)", [
-        part("TPS22916", "TPS22916C", {"A2": "VREG", "B2": "NAND_SW_ON", "A1": "VCC_NAND", "B1": "GND"},
-             POD + "Texas_YFP0004_DSBGA-4_0.78x0.78mm_Layout2x2_P0.4mm", dnp=True,
-             mpn="TPS22916CYFPR", lcsc="C2680319", manufacturer="Texas Instruments", note="Solo si el reposo de la NAND pesa en el banco"),
+        part("TPS22919", "TPS22919", {"1": "VREG", "3": "NAND_SW_ON", "4": NC, "5": "VCC_NAND", "6": "VCC_NAND", "2": "GND"},
+             SC70_6, dnp=True, mpn="TPS22919DCKR", lcsc="C2149796", manufacturer="Texas Instruments",
+             note="Solo si el reposo de la NAND pesa en el banco. QOD (pin 5) atado a VOUT"),
         R0("VREG", "VCC_NAND", note="Puente del load switch, montado"),
         R0("NAND_SW_ON", "VREG", note="EN al riel de entrada, montado"),
         R0("NAND_SW_ON", "HG_INT", dnp=True, note="EN desde NAND_EN en P1.03 (en lugar del ADXL372)"),

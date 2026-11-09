@@ -34,7 +34,7 @@ config POD_MAIN_LOOP_MS
 	default 100
 
 config POD_LORA
-	bool "LoRa link (E22-900M22S)"
+	bool "LoRa link (Ra-01SH, SX1262)"
 	default y
 	depends on LORA
 

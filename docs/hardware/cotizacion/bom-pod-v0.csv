@@ -1,5 +1,5 @@
 Line #,Reference Designator,Quantity,Manufacturer,Manufacturer Part Number,Distributor Part Number,Description,Package,Type,Instructions,DNP,LCSC,DigiKey,Mouser,Customer Supplied,Approved Alternate
-1,AE201,1,Taoglas,GVLB208.A,931-GVLB208.A-ND,"Patch cerámico pasivo apilado L1 + L5, 20 × 20 × 8,8 mm, 1 pin",Taoglas_GVLB208.A_20x20mm,Thru-hole,"Customer-supplied (or buy at DigiKey 931-GVLB208.A-ND). Through-hole pin, hand-solder on bottom AFTER reflow; do not reflow",no,,931-GVLB208.A-ND,,yes,
+1,AE201,1,Taoglas,GVLB258.A,,"Patch cerámico pasivo apilado L1 + L5, 25 × 25 × 8,12 mm, 1 pin",Taoglas_GVLB258.A_25x25mm,Thru-hole,"Customer-supplied (or buy at DigiKey: GVLB258.A). Through-hole pin, hand-solder on bottom AFTER reflow; do not reflow",no,C3285465,,,yes,
 2,"C101,C103,C104,C107,C108,C109,C110,C309,C502",9,Samsung Electro-Mechanics,CL05A105KA5NQNC,C52923,Capacitor 1 µF 25 V X5R 0402,C_0402_1005Metric,SMT,,no,C52923,,,,
 3,"C102,C105,C201,C306",4,Samsung Electro-Mechanics,CL10A106KP8NNNC,C19702,Capacitor 10 µF 10 V X5R 0603,C_0603_1608Metric,SMT,,no,C19702,,,,
 4,C106,1,Samsung Electro-Mechanics,CL10A226MQ8NRNC,C59461,"Capacitor 22 µF 6,3 V X5R 0603",C_0603_1608Metric,SMT,,no,C59461,,,,
@@ -44,10 +44,10 @@ Line #,Reference Designator,Quantity,Manufacturer,Manufacturer Part Number,Distr
 43,U201,1,Quectel,LC29HAAMD,2958-LC29HAAMDCT-ND,"Módulo GNSS L1+L5 LC29H(AA), LCC-24 12,2 × 16,0",Quectel_LC29H_LCC-24_12.2x16.0mm_P1.1mm,SMT,,no,C22403415,2958-LC29HAAMDCT-ND,,,
 44,"U202,U203,U204",3,Texas Instruments,SN74LVC1T45DBVR,C7843,"Traductor de nivel 1 bit con Ioff, SOT-23-6",SOT-23-6,SMT,,no,C7843,296-16843-1-ND,,,
 45,U205,1,Infineon,BGA525N6E6327XTSA1,C18337445,"LNA GNSS L1/L2/L5, TSNP-6-10 1,1 × 0,7",Infineon_PG-TSNP-6-10_1.1x0.7mm_P0.4mm,SMT,,no,C18337445,448-BGA525N6E6327XTSA1CT-ND,,,
-46,U301,1,Raytac,MDBT50Q-P1MV2,3271-MDBT50Q-P1MV2-ND,"Módulo BLE nRF52840, antena PCB, 61 pads, 10,5 × 15,5 mm",COMM-SMD_MDBT50Q-1MV2,SMT,61 bottom pads; X-ray inspection please,no,C5119772,3271-MDBT50Q-P1MV2-ND,,maybe,MDBT50Q-1MV2 (LCSC C5118826): only with our written OK (antenna keep-out differs)
-47,U302,1,Ebyte,E22-900M22S,C411293,"Módulo LoRa SX1262 22 dBm 915 MHz, 14 × 20 mm",WIRELM-SMD_E22-900M22S,SMT,,no,C411293,,,,
-48,U303,1,Texas Instruments,TPS22916CYFPR,C2680319,"Load switch 2 A 60 mΩ, descarga rápida, DSBGA-4 0,4 mm",Texas_YFP0004_DSBGA-4_0.78x0.78mm_Layout2x2_P0.4mm,SMT,DSBGA 0.4 mm pitch; X-ray inspection please,no,C2680319,296-50065-1-ND,,,
-49,U401,1,STMicroelectronics,LSM6DSV320XTR,497-LSM6DSV320XTRCT-ND,"IMU 6 ejes + acelerómetro de 320 g, LGA-14 3 × 2,5",LGA-14_L3.0-W2.5-P0.50-TL,SMT,LGA; X-ray inspection please,no,C26633007,497-LSM6DSV320XTRCT-ND,,,
+46,U301,1,u-blox,BMD-340-A-R,BMD-340-A-R,"Módulo BLE nRF52840, antena PCB, 10,2 × 15,0 mm",u-blox_BMD-340_15.0x10.2mm,SMT,68 bottom pads (0.5 mm square); X-ray inspection please. Order type number BMD-340-A-R-10,no,,BMD-340-A-R,,,
+47,U302,1,Ai-Thinker,Ra-01SH,C2764087,"Módulo LoRa SX1262 22 dBm, 17 × 16 × 3,2 mm, 16 pads, RXEN y TXEN externos",WIRELM-SMD_RA-01SH,SMT,"Castellated module, 16 pads; pad 1 is the antenna",no,C2764087,,,,
+48,U303,1,Texas Instruments,TPS22919DCKR,C2149796,"Load switch 1,5 A 90 mΩ, encendido controlado, QOD, SC-70-6",SOT-363_SC-70-6,SMT,,no,C2149796,,,,
+49,U401,1,STMicroelectronics,LSM6DSV32XTR,C22461202,"IMU 6 ejes ±32 g de doble canal, LGA-14L 2,5 × 3",LGA-14_L3.0-W2.5-P0.50-TL,SMT,LGA; X-ray inspection please,no,C22461202,497-LSM6DSV32XTRCT-ND,,,
 50,U404,1,Bosch Sensortec,BMP581,C5362283,"Barómetro, LGA-10 2 × 2",LGA-10_L2.0-W2.0-P0.50-TL_BMP581,SMT,"LGA vented package; no-clean flux, do not wash",no,C5362283,828-BMP581CT-ND,,,
 51,U406,1,Texas Instruments,DRV5032FADBZR,C140921,"Hall omnipolar 20 Hz push-pull, SOT-23",SOT-23_L2.9-W1.3-P1.90-LS2.4-BR,SMT,,no,C140921,,,,DRV5032FBDBZR (LCSC C2655033)
 52,U501,1,Winbond,W25N02KVZEIR,C3010298,"NAND SPI 2 Gbit, WSON-8 8 × 6",WSON-8_L8.0-W6.0-P1.27-TL-EP-1,SMT,,no,C3010298,,,,

@@ -108,7 +108,7 @@ Qué cubren:
 
 ## Cableado del DK
 
-Banco antes de la placa: DK nRF52840 (PCA10056) con un breakout del LC29H, un E22-900M22S, la placa de evaluación de la LSM6DSV320X y un breakout de W25N02KV (con uno de W25N04KV, cambiar `blocks` y `jedec-device-id` en el overlay). Todo en los headers del DK (los nombres Arduino están serigrafiados). **Los niveles**: el LC29H es de 2,8 V (traductor 3,3 V ↔ 2,8 V en TXD, RXD y 1PPS, como en la v0); el E22, la IMU y la W25N andan a 3,3 V.
+Banco antes de la placa: DK nRF52840 (PCA10056) con un breakout del LC29H, un Ai-Thinker Ra-01SH, la placa de evaluación de la LSM6DSV32X y un breakout de W25N02KV (con uno de W25N04KV, cambiar `blocks` y `jedec-device-id` en el overlay). Todo en los headers del DK (los nombres Arduino están serigrafiados). **Los niveles**: el LC29H es de 2,8 V (traductor 3,3 V ↔ 2,8 V en TXD, RXD y 1PPS, como en la v0); el Ra-01SH, la IMU y la W25N andan a 3,3 V.
 
 | Señal | Pin del DK | Header | A dónde va |
 |---|---|---|---|
@@ -118,15 +118,15 @@ Banco antes de la placa: DK nRF52840 (PCA10056) con un breakout del LC29H, un E2
 | GNSS EN | P1.04 | D3 | EN del regulador del breakout (si lo tiene) |
 | GNSS RESET | P1.05 | D4 | gate de un NMOS a RESET_N (drenador abierto) |
 | GNSS WAKEUP | P1.06 | D5 | WAKEUP (alto de 3,0–3,6 V) |
-| LoRa SCK / MISO / MOSI | P1.15 / P1.14 / P1.13 | D13 / D12 / D11 | E22 SCK / MISO / MOSI |
-| LoRa NSS | P1.12 | D10 | E22 NSS |
-| LoRa BUSY | P1.11 | D9 | E22 BUSY |
-| LoRa DIO1 | P1.10 | D8 | E22 DIO1 |
-| LoRa NRST | P0.03 | A0 | E22 NRST |
-| LoRa RXEN | P0.04 | A1 | E22 RXEN (TXEN a DIO2, como en la v0) |
-| IMU CS | P0.28 | A2 | LSM6DSV320X CS |
-| IMU MISO / MOSI / SCK | P0.29 / P0.30 / P0.31 | A3 / A4 / A5 | LSM6DSV320X SDO / SDA / SCL |
-| IMU INT1 | P0.02 | AREF | LSM6DSV320X INT1 |
+| LoRa SCK / MISO / MOSI | P1.15 / P1.14 / P1.13 | D13 / D12 / D11 | Ra-01SH SCK / MISO / MOSI |
+| LoRa NSS | P1.12 | D10 | Ra-01SH NSS |
+| LoRa BUSY | P1.11 | D9 | Ra-01SH BUSY |
+| LoRa DIO1 | P1.10 | D8 | Ra-01SH DIO1 |
+| LoRa NRST | P0.03 | A0 | Ra-01SH RESET |
+| LoRa RXEN | P0.04 | A1 | Ra-01SH RXEN (TXEN unido a DIO2 dentro del módulo) |
+| IMU CS | P0.28 | A2 | LSM6DSV32X CS |
+| IMU MISO / MOSI / SCK | P0.29 / P0.30 / P0.31 | A3 / A4 / A5 | LSM6DSV32X SDO / SDA / SCL |
+| IMU INT1 | P0.02 | AREF | LSM6DSV32X INT1 |
 | I2C SDA / SCL | P0.26 / P0.27 | D14 / D15 | BMP581 (0x47), y MAX17048 o BQ25180 si se suman |
 | NAND SCK / MOSI | P1.07 / P1.08 | D6 / D7 | W25N CLK / DI |
 | NAND MISO | P1.09 | P24 | W25N DO |
@@ -135,18 +135,28 @@ Banco antes de la placa: DK nRF52840 (PCA10056) con un breakout del LC29H, un E2
 | Botón de banco | P0.12 | Botón 2 | — |
 | LED rojo / verde / azul | P0.13 / P0.14 / P0.15 | LED 1 / 2 / 3 | LED del DK (PWM0) |
 
-El E22 y los breakouts se alimentan del VDD del DK (sin load switch: `LORA_EN` no existe en el DK). La NAND del DK (MX25R64 por QSPI) queda sin usar. Los pines del header P24 (P1.00 y P1.09) se confirman con la serigrafía del DK antes de soldar.
+El Ra-01SH y los breakouts se alimentan del VDD del DK (sin load switch: `LORA_EN` no existe en el DK). La NAND del DK (MX25R64 por QSPI) queda sin usar. Los pines del header P24 (P1.00 y P1.09) se confirman con la serigrafía del DK antes de soldar.
+
+## Placa `pod_v0` (rediseño en stock del 09/11/2026)
+
+La placa `app/boards/pod/pod_v0` sigue a [`pod-v0.md`](../docs/hardware/pod-v0.md) ("Pines del nRF52840") y al ADR 0105 ("Registro de decisiones"):
+
+- **u-blox BMD-340** (nRF52840) en lugar del Raytac MDBT50Q: **los mismos P0.x/P1.x** para cada señal, así el `pinctrl` no cambió; solo los números de pad de los comentarios (tabla 2 de la hoja del BMD-340). VCC y VCCH a VREG (modo LV): `&reg1` en DC/DC como antes.
+- **Ai-Thinker Ra-01SH** (SX1262) en lugar del E22: nodo `semtech,sx1262` **sin `dio3-tcxo-voltage`** (cristal común, sin TCXO), con `dio2-tx-enable` (dentro del módulo TXEN ya va a DIO2) y `rx-enable-gpios` en P0.30; BUSY en P0.02, DIO1 en P0.29, RESET en P0.31. El corte de la radio es el load switch **TPS22919** por `lora-en-gpios` (P1.01).
+- **LSM6DSV32X** en lugar de la LSM6DSV320X: `compatible = "st,lsm6dsv32x"` (binding del NCS v3.4.1, lo maneja el driver `lsm6dsv16x`, que acepta el WHO_AM_I **0x70**), `accel-range = <16>` para la carrera. El segundo canal (fijo en ±32 g) lo va a leer `imu_batch`; que entre en la FIFO a 1,6 kHz o más está **no verificado** (DS13511).
+- **ADXL372** (`hg_accel`, CS en P0.26, INT1 en P1.03): en el devicetree con `status = "disabled"`; solo las 2 placas de la variante de armado `pod-v0-highg` lo tienen montado. Para esas: `west build -b pod_v0/nrf52840 sport-performance/firmware/app -- -DBOARD_ROOT=. -DEXTRA_DTC_OVERLAY_FILE=boards/pod_v0_highg.overlay` (el overlay solo lo habilita; el CI no lo compila).
+- **Pendiente (otro PR)**: el código de sensor del log (`IMU_SENSORS` de `packages/pod-protocol`, `lsm6dsv320x` / `icm42688p` / `adxl372`) no tiene un valor para la LSM6DSV32X. Hay que agregar `lsm6dsv32x` al final de la lista (para no mover los códigos que ya existen), regenerar los vectores y `tools/gen_fixtures.py`, antes de que `imu_batch` grabe.
 
 ## Qué está hecho y qué es stub
 
 | Módulo | Hecho | Stub / TODO |
 |---|---|---|
-| `lora_link` (`lib/radio.c`, `app/src/lora_link.c`) | Formato v1 completo: encabezado, carga útil del resumen en vivo (con y sin posiciones), pedido de turno, nonces, AES-CCM de 4 B, apertura de baliza y fragmento RTCM, KDF, regla del contador; probado contra los vectores. Configuración de la radio (SF7, 125 kHz, CR 4/5) y envío de una subida, que se niega sin contador de arranques guardado o con la clave en cero (pod sin aprovisionar) | Plan de canales por `channelPlanId`, recepción de la baliza en su ventana de 120 ms, turnos, contienda, TX en el tick del turno, holdover, registro `radio_tx`, secuencia para cortar el E22. Las claves llegan de la base (aprovisionamiento): hasta entonces son cero y no se sella nada |
+| `lora_link` (`lib/radio.c`, `app/src/lora_link.c`) | Formato v1 completo: encabezado, carga útil del resumen en vivo (con y sin posiciones), pedido de turno, nonces, AES-CCM de 4 B, apertura de baliza y fragmento RTCM, KDF, regla del contador; probado contra los vectores. Configuración de la radio (SF7, 125 kHz, CR 4/5) y envío de una subida, que se niega sin contador de arranques guardado o con la clave en cero (pod sin aprovisionar) | Plan de canales por `channelPlanId`, recepción de la baliza en su ventana de 120 ms, turnos, contienda, TX en el tick del turno, holdover, registro `radio_tx`, secuencia para cortar el LoRa. Las claves llegan de la base (aprovisionamiento): hasta entonces son cero y no se sella nada |
 | `log_nand` (`lib/log.c`, `app/src/log_nand.c`) | Formato v1 completo: los 12 registros, encabezado, IV, CTR, CMAC truncado, CRC-32, escritor con páginas que cruzan registros, rotación de clave, cierre y cierre de recuperación; probado contra las páginas de TypeScript (también el `recovery_close`). La secuencia de página la entrega el módulo de contadores página por página; sin secuencia o con la clave en cero no se sella nada y el tramo se detiene. Comandos de la W25N (reset, JEDEC con el ID del devicetree, lectura a caché, carga y programa, borrado, estado), con la dirección de página de 24 bits de la hoja de Winbond (W25N02KV: 2048 bloques; W25N04KV: 4096) | Tabla de bloques malos (también dentro de los 8 bloques reservados: solo el bloque 0 viene garantizado), estado del ECC por lectura (el 3 es legible, aviso de desgaste: refrescar/reubicar, nunca como el 2), índice de tramos en los bloques reservados, `scanNand` al arrancar, reserva de un bloque, `mayAppend`, buffers del SPIM3 en su bloque de RAM (errata 198), bajo consumo profundo (B9h/ABh) |
 | `gnss_lc29h` (`lib/gnss.c`, `app/src/gnss_lc29h.c`) | Checksum y armado de comandos, secuencia de arranque de la AA (pasos 2–4) y de backup como datos, espera de `$PAIR001` / `,OK` con reintento en "ocupado", parsers de `$PQTMPVT` (+ VEL, EPE) a enteros, separador NMEA / RTCM3 con CRC-24Q, UART por interrupciones; un hilo propio es el único que maneja el módulo (el lazo principal solo pide prender o apagar, nunca en la base); la parte que escribe la NVM (`$PAIR513`) corre solo si las consultas no coinciden con la configuración esperada | Orden de los campos de `$PQTMPVT` y formato de las respuestas de las consultas **a confirmar en el banco** (si no coinciden, se escribe la NVM una vez), renegociación a 115200, registro `gnss_pvt` y crudo a 1 Hz en `gnss_raw`, emparejar el PPS con la época, variante EA |
 | `power` (`lib/power.c`, `app/src/power.c`) | Máquina de estados (base, activo, espera, System OFF, envío) con la precedencia y las horas de cierre de pod-v0.md, plan de despertares (Hall en el nivel opuesto), plan del BQ25180 (EN_PUSH en 0, watchdog de 15 s, 300 mA), modo envío, lectura del MAX17048, VBUS, servicio del BQ25180 desde el lazo (STAT0 cada 30 s como mucho, y cada 1 s hasta 20 s después de entrar en la base, hasta que VIN_PGOOD lee 1, plan de nuevo si cambia VIN_PGOOD o se reinician los registros), guarda contra el lazo de despertares antes de System OFF | Leer y limpiar el despertar retenido de la IMU antes de dormir, MAX17048 en sleep antes del envío, tiempos de la configuración del club (hoy valores de relleno), pedido de cierre y de envío desde la app |
 | `time_base` (`lib/time_base.c`, `app/src/time_base.c`) | RTC2 de 48 bits, captura del PPS por GPIOTE → PPI → TIMER2 y del TICK del RTC, ancla con resolución de 62,5 ns, ritmo del cristal, tick de cada turno; canales de GPIOTE y PPI de los asignadores de nrfx; HFXO pedido mientras el GNSS está prendido | Medir el consumo en el banco, registros `time_anchor` y `sensor_sync`, baliza como fuente bajo techo |
-| `sensors` (`app/src/sensors.c`) | LSM6DSV320X y BMP581 con los drivers de Zephyr, autotest de presencia, movimiento simple | FIFO en `imu_batch` (dos canales, marcas del sensor), ráfagas de impacto, despertar retenido en INT1, actividad e inactividad, lotes del barómetro |
+| `sensors` (`app/src/sensors.c`) | LSM6DSV32X (compatible `st,lsm6dsv32x`, driver de la familia LSM6DSV16X, WHO_AM_I 0x70) y BMP581 con los drivers de Zephyr, autotest de presencia, movimiento simple | FIFO en `imu_batch` (dos canales, marcas del sensor), ráfagas de impacto, despertar retenido en INT1, actividad e inactividad, lotes del barómetro |
 | `led` (`lib/led.c`, `app/src/led.c`) | Tabla de pod-v0.md con un patrón único por estado, PWM0, atenuación por SYS, código de error del autotest | Modo partido desde la baliza, buzzer |
 | `hall` (`app/src/hall.c`) | Lectura del DRV5032FA (o la FB) y SENSE en el nivel opuesto | — |
 | `wdt` (`app/src/wdt.c`) | WDT del nRF obligatorio, alimentado en el lazo principal | — |

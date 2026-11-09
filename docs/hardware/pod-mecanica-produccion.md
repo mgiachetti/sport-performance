@@ -15,20 +15,20 @@ El contorno de 45 × 65 mm de `pod-v0.md` es provisorio. Antes de diseñar la pl
 | Capa | Qué | Medida | Fuente |
 |---|---|---|---|
 | Tapa superior | Carcasa con la ventana de la antena GNSS | Pared de 1,5–2 mm (a validar en el impacto) | — |
-| Antena GNSS | **Patch pasivo apilado L1 + L5 soldado en la placa** (decisión del usuario): Taoglas GVLB208.A de 20 × 20 × 8,8 mm, o una opción de 25 × 25 × 8 mm (Quectel YFGC000WWAM, **no verificada**). La Taoglas AGVLB.25B activa (carcasa de 35 × 35 × 12 mm, 18 g) queda como rescate por U.FL y no entra en la envolvente | 8,8 mm de alto | [Hoja del GVLB208.A](https://www.taoglas.com/datasheets/GVLB208.A.pdf) |
+| Antena GNSS | **Patch pasivo apilado L1 + L5 soldado en la placa** (decisión del usuario): **Taoglas GVLB258.A** de 25 × 25 × 8,12 mm y 18 g, un pin a 2,5 mm del centro (desde el 09/11/2026; antes la GVLB208.A de 20 × 20 × 8,8 mm). La Taoglas AGVLB.25B activa (carcasa de 35 × 35 × 12 mm, 18 g) queda como rescate por U.FL y no entra en la envolvente | 25 × 25 mm de base (elemento de arriba de 18 × 18), **8,12 ± 0,4 mm** de alto | [Hoja del GVLB258.A, SPE-21-8-082-H](https://www.taoglas.com/datasheets/GVLB258.A.pdf), sección 3 |
 | Placa | 4 capas, 1,6 mm, módulos de un solo lado | ≥ 45 × 65 mm (zona del patch de 30 × 30 mm) | `pod-v0.md` |
 | Batería | LiPo de 500–600 mAh con PCM y NTC | Unos 40 × 30 × 5 mm (**no verificado**, según la celda elegida) | Proveedor |
 | Hueco de hinchazón | Espacio libre sobre la celda | ≥ 10 % del espesor de la celda (**no verificado**, lo pide el proveedor) | — |
-| Antena LoRa | FPC de **≤ 45 mm** (por ejemplo Ebyte TX915-FPC-4510, 45 × 10 mm): la de 65 mm es tan larga como la placa. Más corta que un cuarto de onda a 915 MHz: su eficiencia y ganancia **no están verificadas** | 45 × 10 mm | Ebyte (**no verificado**) |
+| Antena LoRa | FPC **Molex 2111400100** de 868/915 MHz (desde el 09/11/2026; antes la Ebyte TX915-FPC-4510 de 45 × 10 mm, sin stock confirmado), con cable de 100 mm al U.FL: 1,0 dBi y más de 60 % de eficiencia a 902 MHz según el distribuidor, **no verificado** dentro de la carcasa ni en el cuerpo | 38 × 10 × 0,1 mm | [DigiKey](https://www.digikey.com/en/products/detail/molex/2111400100/9953925) |
 | Tapa inferior | Cara contra el cuerpo, contactos (pads) para la base de pogo y Hall | — | — |
 
 **Metas** (a contrastar con Catapult Vector, cuyo peso y espesor **no están verificados** en esta revisión):
 
 - **Decisión del usuario (08/11/2026): patch pasivo apilado L1 + L5 en la placa, sin solo L1.** Un patch plano de una capa (unos 4 mm) pierde alrededor de 6 dB en L5, así que **≤ 15 mm con L5 no se puede**.
-- **Suma de alturas con el patch** (estimación): paredes (2 × 1,5–2 mm) + patch (8,8 mm; los módulos van al lado y no suman: el LC29H se toma de **2,7 mm**, el máximo de 2,5 ± 0,2 mm del Hardware Design V1.4 y el alto del archivo oficial de Quectel) + placa (1,6 mm) + partes de abajo (Hall y pasivos, alrededor de 1 mm) + batería (unos 5 mm) + hueco de hinchazón (unos 0,5 mm) ≈ **19–21 mm**. Con la Taoglas pegada arriba eran unos 24–26 mm.
+- **Suma de alturas con el patch** (estimación): paredes (2 × 1,5–2 mm) + patch (8,12 mm el GVLB258.A, 8,8 mm el GVLB208.A anterior; los módulos van al lado y no suman: el LC29H se toma de **2,7 mm**, el máximo de 2,5 ± 0,2 mm del Hardware Design V1.4 y el alto del archivo oficial de Quectel) + placa (1,6 mm) + partes de abajo (Hall y pasivos, alrededor de 1 mm) + batería (unos 5 mm) + hueco de hinchazón (unos 0,5 mm) ≈ **19–21 mm**. Con la Taoglas pegada arriba eran unos 24–26 mm.
 - **Meta: espesor de unos 19–21 mm y masa ≤ 50 g.** El patch con su cadena pesa unos 5–8 g menos que la Taoglas (estimación, `pod-f3.md`): la masa baja a unos 42–45 g (**no verificado**: sale del CAD y de la celda real).
-- **Abajo del patch**: el pin del GVLB208.A atraviesa la placa y deja su soldadura (y el pad de Ø2,2 mm) en la cara de abajo, sobre la batería: un **despeje de al menos 1 mm** entre esa gota y la celda, o una lámina aislante, para que no la marque ni la pinche (medida a confirmar con la pieza real, **no verificada**).
-- **Patch contra los tackles**: la cerámica de 8,8 mm queda como la parte más alta: la tapa lleva un **apoyo de presión** (nervio o almohadilla de elastómero contra el borde de la cerámica, no contra su cara radiante) para que un golpe no la despegue ni le cargue el pin, y la pared de arriba no apoya directo sobre ella. Su efecto sobre la sintonía se mide con la carcasa puesta. Con el patch de 25 × 25 mm (Taoglas GVLB258.A, 18 g sobre un solo pin, candidato de [`cotizacion/alternativas-en-stock.md`](cotizacion/alternativas-en-stock.md)) la sujeción es **obligatoria**: con impactos de 30–50 g, la espuma o el nervio de la tapa aprieta la cerámica contra la placa para que el golpe no cargue el pin.
+- **Abajo del patch**: el pin del GVLB258.A atraviesa la placa y deja su soldadura (y el pad de Ø2,2 mm) en la cara de abajo, sobre la batería: un **despeje de al menos 1 mm** entre esa gota y la celda, o una lámina aislante, para que no la marque ni la pinche (medida a confirmar con la pieza real, **no verificada**).
+- **Patch contra los tackles**: la cerámica de 8,12 mm queda como la parte más alta. El GVLB258.A son **18 g de cerámica sobre un solo pin**, con impactos de 30–50 g: la sujeción es **obligatoria**. La tapa lleva un **apoyo de presión** (nervio o almohadilla de espuma o elastómero contra el **borde de la base de 25 × 25 mm**, fuera del elemento radiante de 18 × 18 de arriba) que aprieta la cerámica contra la placa, para que un golpe no la despegue ni le cargue el pin; la pared de arriba no apoya directo sobre la cara radiante. Además del adhesivo de la base (21,5 × 21,5 mm, sección 3 de la hoja), que no alcanza solo. La carcasa deja el hueco de **25 × 25 mm más la tolerancia de ±0,4 mm** (unos 26 × 26 mm) y la lengüeta del liner del adhesivo se saca antes de montar (detalle A, a confirmar contra el DXF). Su efecto sobre la sintonía se mide con la carcasa puesta.
 - Bordes redondeados (radio ≥ 3 mm) y sin aristas: va sobre la columna, debajo de los tackles.
 - La FPC de LoRa va pegada en la carcasa, en el borde opuesto a la antena GNSS, con su recorrido dibujado en el CAD (no a mano en cada pod).
 
@@ -109,7 +109,7 @@ Cada pod pasa una prueba antes de cerrarse y otra después.
 | LoRa | Potencia conducida (antes de cerrar) y radiada (después) | A definir con el banco |
 | GNSS | Caja blindada con repetidor, o cielo abierto | C/N0 mínimo a definir |
 | Corriente | En cada estado (activo, espera, System OFF, envío) | Contra el presupuesto de `pod-v0.md` |
-| IMU | Autotest del LSM6DSV320X | Pasa |
+| IMU | Autotest de la LSM6DSV32X (WHO_AM_I 70h) | Pasa |
 | Barómetro | Lectura contra una referencia | Dentro de la tolerancia |
 | LED, Hall | Patrones, imán de prueba | Pasa |
 | Estanqueidad | Caída de presión con la ventilación tapada | Pasa |
@@ -130,7 +130,7 @@ En este orden:
 6. **Modo envío** como último paso antes de embalar.
 7. **VID/PID USB propio**: los de prueba de Nordic o Zephyr no sirven para distribuir. Un VID propio de USB-IF cuesta unos US$ 6.000 (**no verificado**); pid.codes solo sirve para hardware abierto.
 
-Nota: hay revisiones viejas del nRF52840 con APPROTECT vulnerable a fallas inducidas; se pide la revisión de silicio actual (**no verificado** para el MDBT50Q).
+Nota: hay revisiones viejas del nRF52840 con APPROTECT vulnerable a fallas inducidas; se pide la revisión de silicio actual: el BMD-340-A-R-10 trae el nRF52840 rev. 2 o posterior (tabla 9 de su hoja).
 
 ## 8. Etiquetado y trazabilidad
 
@@ -142,13 +142,13 @@ Nota: hay revisiones viejas del nRF52840 con APPROTECT vulnerable a fallas induc
 
 Antes de pedir, se manda **el diseño (no solo los Gerbers)** para una revisión de fabricación (DFM):
 
-- **DSBGA de 0,4 mm** (BQ25180, TPS22916C): confirmar que lo arman; los rayos X no ven bien las bolillas que apoyan sin fundirse (head-in-pillow) en un DSBGA de 8 bolillas, así que se confía en la prueba funcional.
-- **LGA** (LSM6DSV320X, BMP581) y los pads debajo del módulo Raytac (61 pads): plantilla de pasta escalonada o fina.
-- **Panel**: rieles lejos de la antena del Raytac y de la zona libre del borde; sin V-score ni puentes al lado de la antena.
+- **DSBGA de 0,4 mm** (BQ25180; los load switches pasaron a TPS22919 en SC-70-6 el 09/11/2026): confirmar que lo arman; los rayos X no ven bien las bolillas que apoyan sin fundirse (head-in-pillow) en un DSBGA de 8 bolillas, así que se confía en la prueba funcional.
+- **LGA** (LSM6DSV32X, BMP581) y los pads debajo del módulo BMD-340 (68 pads de 0,5 × 0,5 mm): plantilla de pasta escalonada o fina.
+- **Panel**: rieles lejos de la antena del BMD-340 y de la zona libre del borde (4,4 mm); sin V-score ni puentes al lado de la antena.
 - **Una sola cara** con todo el SMT si se puede: el Hall en la cara de abajo obliga a una segunda pasada.
 - Reglas de vías en el pad, puentes de máscara y apilado confirmados por PCBWay (las del `.kicad_dru` son valores iniciales).
 - **Nota de fabricación de los pads de la base**: oro duro electrolítico **selectivo** de ≥ 0,5 µm solo en los 5 pads (el resto con el acabado normal); costo y si lo hacen con la placa armada, **no verificados**.
-- **Patch GVLB208.A**: es de un pin por agujero metalizado (Ø1,0 mm) soldado abajo; PCBWay lo compra afuera de LCSC y lo suelda después del SMT.
+- **Patch GVLB258.A**: es de un pin por agujero metalizado (Ø1,0 mm) soldado abajo; PCBWay lo compra afuera de LCSC y lo suelda después del SMT.
 - Flux sin limpieza debajo de los LGA.
 
 ## 10. Riesgos de la lista de partes y costo
@@ -157,10 +157,10 @@ Antes de pedir, se manda **el diseño (no solo los Gerbers)** para una revisión
 
 | Parte | Riesgo | Acción |
 |---|---|---|
-| LSM6DSV320X | Poco stock (45 en LCSC) | Reservar cantidad para 100 + repuestos; respaldo ICM-42688-P + ADXL372 |
-| Patch GVLB208.A | Una sola fuente, fuera de LCSC; ajuste sobre una tierra chica | Cotizar; segunda fuente de 25 × 25 × 8 mm (Quectel YFGC000WWAM, **no verificada**); la Taoglas AGVLB.25B por U.FL como rescate |
+| LSM6DSV32X | Resuelto (09/11/2026): reemplaza a la LSM6DSV320X sin stock (LCSC 3.032, DigiKey 24.971) | ±32 g en lugar de ±320 g: el ADXL372 se monta en 2 placas de la v0 (variante `pod-v0-highg`) para medir la saturación |
+| Patch GVLB258.A | DigiKey 895 (09/11/2026), fuera de LCSC; ajuste sobre una tierra chica; posición del pin a verificar contra el DXF | Comprar 150 ya; la Taoglas AGVLB.25B por U.FL como rescate |
 | LC29H (EA) | Sin stock ni precio | Preguntar a Quectel |
-| MDBT50Q-P1MV2 | Precio sin verificar; certificaciones a confirmar | Cotizar a 100 |
+| BMD-340 | Resuelto (09/11/2026): DigiKey 10.055, FCC 2AA9B10, IC 12208A-10, CE | Pedir la revisión -10 |
 | XL-1615RGBC-RF | Parte poco conocida, hoja sin verificar | Alternativa conocida |
 | DW3110 / DWM3000 | Sin stock | Sin montar en la v0 |
 | W25N02 vs W25N04 | Resuelto (09/11/2026): la v0 monta la W25N02KV de 2 Gbit (unas 8 sesiones de 3 h, 7,81 a 100) | La W25N04KV de 4 Gbit (14,59 a 100) en el mismo lugar si hace falta más capacidad |
@@ -186,7 +186,7 @@ Una primera placa con GNSS, LoRa y BLE en 4 capas rara vez sale bien de entrada.
 2. **CAD de la envolvente** y prueba de la carcasa (estanqueidad, caída).
 3. **Revisión previa al pedido** de la v0:
    - esquemático y diseño revisados por alguien que no sea el autor;
-   - cada footprint comparado con el dibujo del fabricante (`hardware/lib/README.md`), con un segundo revisor para el LC29H, el MDBT50Q, el E22, el BQ25180, el LSM6DSV320X y el BMP581;
+   - cada footprint comparado con el dibujo del fabricante (`hardware/lib/README.md`), con un segundo revisor para el LC29H, el BMD-340, el Ra-01SH, el BQ25180, la LSM6DSV32X y el BMP581;
    - los puntos abiertos de `pod-v0.md` cerrados o aceptados por escrito;
    - revisión de fabricación de PCBWay (sección 9).
 4. **v0**: 10 placas, 5 armadas, puesta en marcha de `pod-v0.md`.

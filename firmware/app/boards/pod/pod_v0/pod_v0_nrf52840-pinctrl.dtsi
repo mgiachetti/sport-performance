@@ -1,6 +1,6 @@
 /*
  * Pin assignment of the pod v0, from the table "Asignación" of
- * docs/hardware/pod-v0.md (Raytac MDBT50Q-P1MV2 pads in the comments).
+ * docs/hardware/pod-v0.md (u-blox BMD-340 pads in the comments).
  */
 
 &pinctrl {
@@ -27,10 +27,10 @@
 	/* UARTE1: backup console pad (the main console is RTT). */
 	uart1_default: uart1_default {
 		group1 {
-			psels = <NRF_PSEL(UART_TX, 0, 22)>;	/* DBG_TX, pad 46 */
+			psels = <NRF_PSEL(UART_TX, 0, 22)>;	/* DBG_TX, pad 40 */
 		};
 		group2 {
-			psels = <NRF_PSEL(UART_RX, 0, 23)>;	/* DBG_RX, pad 45 */
+			psels = <NRF_PSEL(UART_RX, 0, 23)>;	/* DBG_RX, pad 41 */
 			bias-pull-up;
 		};
 	};
@@ -46,7 +46,7 @@
 	/* TWIM0: BQ25180, MAX17048, BMP581 (DPS368 not mounted). 4,7 kΩ pull-ups on the board. */
 	i2c0_default: i2c0_default {
 		group1 {
-			psels = <NRF_PSEL(TWIM_SDA, 0, 12)>,	/* I2C_SDA, pad 29 */
+			psels = <NRF_PSEL(TWIM_SDA, 0, 12)>,	/* I2C_SDA, pad 28 */
 				<NRF_PSEL(TWIM_SCL, 0, 7)>;	/* I2C_SCL, pad 23 */
 		};
 	};
@@ -59,12 +59,12 @@
 		};
 	};
 
-	/* SPIM1: sensor bus (LSM6DSV320X, DWM3000; ICM-42688-P and ADXL372 not mounted), 8 MHz. */
+	/* SPIM1: sensor bus (LSM6DSV32X; ADXL372 on pod-v0-highg; DWM3000 and ICM-42688-P not mounted), 8 MHz. */
 	spi1_default: spi1_default {
 		group1 {
-			psels = <NRF_PSEL(SPIM_SCK, 0, 14)>,	/* SENS_SCK, pad 36 */
-				<NRF_PSEL(SPIM_MOSI, 0, 13)>,	/* SENS_MOSI, pad 37 */
-				<NRF_PSEL(SPIM_MISO, 0, 15)>;	/* SENS_MISO, pad 39 */
+			psels = <NRF_PSEL(SPIM_SCK, 0, 14)>,	/* SENS_SCK, pad 32 */
+				<NRF_PSEL(SPIM_MOSI, 0, 13)>,	/* SENS_MOSI, pad 31 */
+				<NRF_PSEL(SPIM_MISO, 0, 15)>;	/* SENS_MISO, pad 33 */
 		};
 	};
 
@@ -77,12 +77,12 @@
 		};
 	};
 
-	/* SPIM2: own bus of the E22-900M22S (SX1262), 8 MHz. */
+	/* SPIM2: own bus of the Ra-01SH (SX1262), 8 MHz. */
 	spi2_default: spi2_default {
 		group1 {
-			psels = <NRF_PSEL(SPIM_SCK, 0, 24)>,	/* LORA_SCK, pad 48 */
-				<NRF_PSEL(SPIM_MOSI, 0, 25)>,	/* LORA_MOSI, pad 49 */
-				<NRF_PSEL(SPIM_MISO, 1, 0)>;	/* LORA_MISO, pad 47 */
+			psels = <NRF_PSEL(SPIM_SCK, 0, 24)>,	/* LORA_SCK, pad 42 */
+				<NRF_PSEL(SPIM_MOSI, 0, 25)>,	/* LORA_MOSI, pad 6 */
+				<NRF_PSEL(SPIM_MISO, 1, 0)>;	/* LORA_MISO, pad 56 */
 		};
 	};
 
@@ -101,9 +101,9 @@
 	 */
 	spi3_default: spi3_default {
 		group1 {
-			psels = <NRF_PSEL(SPIM_SCK, 0, 19)>,	/* NAND_SCK, pad 42 */
-				<NRF_PSEL(SPIM_MOSI, 0, 20)>,	/* NAND_MOSI, pad 44 */
-				<NRF_PSEL(SPIM_MISO, 0, 21)>;	/* NAND_MISO, pad 43 */
+			psels = <NRF_PSEL(SPIM_SCK, 0, 19)>,	/* NAND_SCK, pad 37 */
+				<NRF_PSEL(SPIM_MOSI, 0, 20)>,	/* NAND_MOSI, pad 38 */
+				<NRF_PSEL(SPIM_MISO, 0, 21)>;	/* NAND_MISO, pad 36 */
 			nordic,drive-mode = <NRF_DRIVE_H0H1>;
 		};
 	};
@@ -122,7 +122,7 @@
 		group1 {
 			psels = <NRF_PSEL(PWM_OUT0, 0, 11)>,	/* LED_R, pad 27 */
 				<NRF_PSEL(PWM_OUT1, 0, 5)>,	/* LED_G, pad 21 */
-				<NRF_PSEL(PWM_OUT2, 1, 8)>;	/* LED_B, pad 25 */
+				<NRF_PSEL(PWM_OUT2, 1, 8)>;	/* LED_B, pad 51 */
 		};
 	};
 

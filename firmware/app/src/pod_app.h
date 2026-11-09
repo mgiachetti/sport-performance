@@ -96,7 +96,7 @@ int pod_lora_power(bool on);
 int pod_lora_send_uplink(const struct pod_uplink_counters *c,
 			 const struct pod_live_summary *summary, bool with_position, uint8_t channel);
 
-/* sensors.c: LSM6DSV320X and BMP581. */
+/* sensors.c: LSM6DSV32X and BMP581. */
 int pod_sensors_init(void);
 bool pod_sensors_moving(void);
 int pod_sensors_low_power(bool low);

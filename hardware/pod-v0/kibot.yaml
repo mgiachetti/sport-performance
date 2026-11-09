@@ -9,7 +9,8 @@
 # Notas de fabricación que van con el pedido a PCBWay (hardware/README.md):
 # - Pads de la base (Pod_Dock_Pads_5P_D2.0mm_P3.0mm_Keyed): oro duro electrolítico selectivo
 #   de 0,5 um o más, solo en esos 5 pads.
-# - Patch GVLB208.A (AE201): un pin por agujero metalizado de 1,0 mm, soldado abajo después del SMT.
+# - Patch GVLB258.A (AE201): un pin por agujero metalizado de 1,0 mm, soldado abajo después del SMT.
+# - Variante pod-v0-highg (2 de las 5): ADXL372 (U403) y su capacitor montados (bom-pod-v0-highg.csv).
 # - Impedancia controlada: RF_50 (CPWG de 50 ohm en L1) y USB_90D (par de 90 ohm).
 kibot:
   version: 1

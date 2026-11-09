@@ -16,6 +16,7 @@ L0402 = "Inductor_SMD:L_0402_1005Metric"
 SOT23 = "Package_TO_SOT_SMD:SOT-23"
 SOT23_5 = "Package_TO_SOT_SMD:SOT-23-5"
 SOT23_6 = "Package_TO_SOT_SMD:SOT-23-6"
+SC70_6 = "Package_TO_SOT_SMD:SOT-363_SC-70-6"
 SOD323 = "Diode_SMD:D_SOD-323"
 SOD123F = "Diode_SMD:D_SOD-123F"
 SOD882 = "Diode_SMD:D_SOD-882"
@@ -38,6 +39,7 @@ class Part:
     note: str = ""
     ref: str = ""  # assigned by the generator (per sheet, in declaration order)
     kind: str = "part"  # "part" or "flag" (PWR_FLAG block)
+    variants: tuple = ()  # BOM variants (bom_pcbway.VARIANTS) in which a DNP part is mounted
 
 
 @dataclass

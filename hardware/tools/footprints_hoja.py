@@ -145,19 +145,53 @@ def aperture(x, y, w, h, rratio=0.0) -> Pad:
 
 
 # ---------------------------------------------------------------------------
-# TI TPS22916 (YFP0004, DSBGA-4). SLVSDO5F, p.25 "Example board layout" (4223507/A): pitch 0.4,
-# Ø0.23 NSMD copper, mask opening up to 0.05 per side; p.26 stencil: 0.25 square, R0.05, 0.1 mm thick.
-# Pins (p.3, table 5-1): A1 VOUT, A2 VIN, B1 GND, B2 ON; top view with A1 top left, A2 to its right.
-def yfp0004() -> Footprint:
-    balls = {"A1": (-0.2, -0.2), "A2": (0.2, -0.2), "B1": (-0.2, 0.2), "B2": (0.2, 0.2)}
-    pads = [Pad(b, "circle", x, y, 0.23, 0.23, ("F.Cu", "F.Mask"), mask_margin=0.05) for b, (x, y) in balls.items()]
-    pads += [aperture(x, y, 0.25, 0.25, 0.2) for x, y in balls.values()]
+# u-blox BMD-340 (nRF52840 module, 15.0 x 10.2 x 1.9 mm, 68 pads). Data sheet UBX-19033353 R13,
+# section 5.2, figure 12 "Recommended PCB land pads" (p.23), numbered as figure 2 "Pin assignment (Top
+# view)" (p.9); both drawn with the antenna to the left. Square pads of 0.50 x 0.50 mm on a 0.55 mm grid
+# (rows 1.10 apart, the inner ones offset half a step), origin at the centre of the 15.0 x 10.2 body: the
+# figure's dimensions are 15.00, 7.50, 6.85, 5.95, 4.85, 4.30 and 2.85 across, and 10.20, 5.10, 4.40,
+# 3.85, 3.50, 3.30, 1.65 and 1.10 down. The pad centres were also read from the vector drawing of figure
+# 12 (all 68 within 0.005 mm of these). RF KEEPOUT (hatched in figure 12): from the module's antenna edge
+# (x = -7.50) to x = -3.10 (the "4.40" dimension), over the full height of the hatch (+/-7.50), on every
+# copper layer; the module goes at the board edge with the antenna facing out (section 6.1, figure 16:
+# 4.4 mm without copper along the board edge). Paste equal to the copper (no stencil data in the sheet).
+BMD340_ROWS = [  # (y, first x, step, pads left to right), Y down as seen from the top
+    (-4.40, -2.85, 1.10, ["45", "43", "41", "39", "37", "35", "33", "31", "30"]),
+    (-3.50, -2.30, 1.10, ["44", "42", "40", "38", "36", "34", "32"]),
+    (-2.60, -1.75, 1.10, ["60", "59", "58", "57", "56"]),
+    (-1.65, -2.85, 0, ["46"]),
+    (1.65, -2.85, 0, ["47"]),
+    (2.60, -1.75, 1.10, ["48", "49", "50", "51", "52"]),
+    (3.50, -2.30, 1.10, ["2", "4", "6", "8", "10", "12", "14"]),
+    (4.40, -2.85, 1.10, ["1", "3", "5", "7", "9", "11", "13", "15", "16"]),
+]
+BMD340_COLS = [  # (x, first y, step, pads top to bottom)
+    (6.85, -3.85, 1.10, ["68", "67", "66", "65", "64", "63", "62", "61"]),
+    (5.95, -3.30, 1.10, ["29", "27", "25", "23", "21", "19", "17"]),
+    (5.05, -2.75, 1.10, ["28", "26", "24", "22", "20", "18"]),
+    (4.15, -1.10, 1.10, ["55", "54", "53"]),
+]
+
+
+def bmd340() -> Footprint:
+    pads = []
+    for y, x0, step, nums in BMD340_ROWS:
+        pads += [Pad(num, "rect", x0 + step * i, y, 0.5, 0.5) for i, num in enumerate(nums)]
+    for x, y0, step, nums in BMD340_COLS:
+        pads += [Pad(num, "rect", x, y0 + step * i, 0.5, 0.5) for i, num in enumerate(nums)]
+    numbers = sorted(int(p.number) for p in pads)
+    if numbers != list(range(1, 69)):
+        raise ValueError("BMD-340: los pads tienen que ser 1 a 68, una vez cada uno")
+    keepout = [(-7.5, -7.5), (-3.1, -7.5), (-3.1, 7.5), (-7.5, 7.5)]
     return Footprint(
-        "Texas_YFP0004_DSBGA-4_0.78x0.78mm_Layout2x2_P0.4mm",
-        "TI DSBGA-4 YFP0004 (TPS22916), dibujado desde la hoja SLVSDO5F p.25-26 (4223507/A): "
-        "bolas de 0,23 mm NSMD, pasta 0,25 mm. Verificar",
-        "DSBGA YFP0004 TPS22916", pads, (0.39, 0.39), (0.6, 0.6), (-0.55, -0.55),
-        model="DSBGA-4_L0.8-W0.8-H0.5-R2-C2-P0.40-BL.wrl", model_rotate=-90)
+        "u-blox_BMD-340_15.0x10.2mm",
+        "u-blox BMD-340 (nRF52840), dibujado desde la hoja UBX-19033353 R13, figura 12 (p.23) y figura 2 (p.9): "
+        "68 pads de 0,5 x 0,5 mm, keep-out de la antena PCB en todas las capas de cobre. Módulo al borde de la placa, "
+        "antena hacia afuera (sección 6.1). Verificar",
+        "u-blox BMD-340 nRF52840 BLE module", pads, (7.5, 5.1), (7.75, 5.35), (-3.45, 4.95),
+        keepouts=[("BMD340_ANTENA", ("*.Cu",), (), keepout)],
+        comments=[("line", -7.5, -7.5, -7.5, 7.5), ("text", "Borde de la placa: antena hacia afuera", -5.3, -8.1),
+                  ("text", "RF KEEPOUT (UBX-19033353 fig. 12)", -5.3, 0)])
 
 
 # TI TPS25947 / TPS259470A (RPW0010A, VQFN-HR-10, 2 x 2 mm). SLVSFC9C, PDF p.73 "Example board layout"
@@ -358,33 +392,43 @@ def bga525n6() -> Footprint:
         model="TSNP-6_L1.1-W0.7-H0.4-P0.40-BL.wrl")
 
 
-# Taoglas GVLB208.A (passive stacked L1 + L5 patch, 20 x 20 x 8.8 mm, one Ø0.8 pin). Data sheet,
-# section 3 (p.6, drawing: pin 1.2 mm from the centre, towards the side opposite the chamfered corner)
-# and section 4.3 "Copper clearance" (p.10): plated hole Ø1.0, top pad Ø1.2 with Ø3.0 without copper on
-# the top and the inner layers, bottom pad Ø2.2 with Ø3.5 without copper on the bottom. Origin at the pin.
-# The clearances are keep-outs for pours, tracks and vias (the pin's own pad stays allowed). The feed
-# leaves on B.Cu from the Ø2.2 pad (the ceramic covers the top and its ground), so the bottom one has to
-# let that one track through: KiCad keep-outs cannot filter by net, so on B.Cu only tracks are allowed and
-# the RF_50 rules keep other nets 0.5 mm from the feed (hardware/README.md).
-def gvlb208() -> Footprint:
+# Taoglas GVLB258.A (passive stacked L1 + L5 patch, 25 x 25 x 8.12 mm, one Ø0.8 pin). Data sheet
+# SPE-21-8-082-H: section 3 "Mechanical Drawing" (p.6: 25 x 25 base, 18 x 18 top element with the
+# chamfered corner at the top right, pin 2.5 +/- 0.3 mm from the centre towards the bottom of the front
+# view, Ø0.8 +/- 0.1), 4.2 "Antenna Footprint" (p.9: plated hole Ø1.0, top pad Ø1.2, bottom pad Ø2.2) and
+# 4.3 "Copper Clearance" (p.10: Ø3.0 without copper on the top and every other layer, Ø3.5 on the
+# bottom). The pin position comes from the drawing of section 3, not from Taoglas' DXF/STEP (their
+# download page answered 403): to check against the DXF. Origin at the pin. The clearances are keep-outs
+# for pours, tracks and vias (the pin's own pad stays allowed). The feed leaves on B.Cu from the Ø2.2 pad
+# (the ceramic covers the top and its ground), so the bottom one has to let that one track through: KiCad
+# keep-outs cannot filter by net, so on B.Cu only tracks are allowed and the RF_50 rules keep other nets
+# 0.5 mm from the feed (hardware/README.md).
+GVLB258_PIN_Y = 2.5  # pin below the centre of the body, front view (section 3)
+
+
+def gvlb258() -> Footprint:
     def circle(r, steps=24):
         return [(r * math.cos(2 * math.pi * k / steps), r * math.sin(2 * math.pi * k / steps)) for k in range(steps)]
     pads = [Pad("1", "circle", 0, 0, 1.2, 1.2, ("*.Cu", "*.Mask"), drill=1.0),
             Pad("1", "circle", 0, 0, 2.2, 2.2, ("B.Cu", "B.Mask"))]
+    cy = -GVLB258_PIN_Y
     return Footprint(
-        "Taoglas_GVLB208.A_20x20mm",
-        "Patch pasivo L1 + L5 Taoglas GVLB208.A, dibujado desde la hoja (secciones 3 y 4.3). Pide un plano de "
-        "tierra de 70 x 70 mm. Verificar",
-        "antena patch GNSS L1 L5 Taoglas GVLB208", pads, (10, 10), (10.25, 10.25), (8.5, -10.5),
-        attr="through_hole", body_y=-1.2, courtyard_y=-1.2,
-        keepouts=[("GVLB208_DESPEJE_SUP", ("F.Cu", "In1.Cu", "In2.Cu"), ("pads",), circle(1.5)),
-                  ("GVLB208_DESPEJE_INF", ("B.Cu",), ("pads", "tracks"), circle(1.75))],
-        comments=[("text", "Esquina chaflanada arriba a la derecha", 0, -8.5),
-                  ("text", "Plano de tierra recomendado 70 x 70 mm", 0, 6),
-                  ("text", "Alimentación por B.Cu desde el pad de 2,2 mm; nunca DC", 0, 7)])
+        "Taoglas_GVLB258.A_25x25mm",
+        "Patch pasivo L1 + L5 Taoglas GVLB258.A, dibujado desde la hoja SPE-21-8-082-H (secciones 3, 4.2 y 4.3). "
+        "Posición del pin desde el dibujo de la sección 3: a verificar contra el DXF de Taoglas. "
+        "Pide un plano de tierra de 70 x 70 mm. Verificar",
+        "antena patch GNSS L1 L5 Taoglas GVLB258", pads, (12.5, 12.5), (12.75, 12.75), None,
+        attr="through_hole", body_y=cy, courtyard_y=cy,
+        keepouts=[("GVLB258_DESPEJE_SUP", ("F.Cu", "In1.Cu", "In2.Cu"), ("pads",), circle(1.5)),
+                  ("GVLB258_DESPEJE_INF", ("B.Cu",), ("pads", "tracks"), circle(1.75))],
+        fab_texts=[("Elemento superior 18 x 18", 0, cy - 7.5, 0.6)],
+        comments=[("text", "Esquina chaflanada arriba a la derecha (sección 3)", 0, cy - 10.5),
+                  ("text", "Pin a 2,5 mm del centro: verificar contra el DXF", 0, 1.5),
+                  ("text", "Plano de tierra recomendado 70 x 70 mm", 0, cy + 9),
+                  ("text", "Alimentación por B.Cu desde el pad de 2,2 mm; nunca DC", 0, cy + 10)])
 
 
-FOOTPRINTS = [yfp0004, rpw0010a, dsk0010a, dock_pads, lc29h, dwm3000, adxl372, b8389, bga525n6, gvlb208]
+FOOTPRINTS = [bmd340, rpw0010a, dsk0010a, dock_pads, lc29h, dwm3000, adxl372, b8389, bga525n6, gvlb258]
 
 
 def main() -> int:
