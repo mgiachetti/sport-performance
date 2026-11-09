@@ -1,0 +1,67 @@
+# Application options of the pod firmware (B-904).
+
+menu "Pod firmware"
+
+config POD_HW_REVISION
+	int "Hardware revision written in firmware_info"
+	default 0
+
+config POD_GNSS_BAUD
+	int "LC29H UART speed"
+	default 921600
+	help
+	  The firmware starts at this speed and falls back to 115200 to reconfigure
+	  the module (docs/hardware/lc29h-protocolo.md, "UART").
+
+config POD_GNSS_FALLBACK_BAUD
+	int "LC29H factory UART speed (not stated in the specification)"
+	default 115200
+
+config POD_CHARGE_CURRENT_MA
+	int "BQ25180 charge current"
+	default 300
+	range 10 350
+	help
+	  300–350 mA: the BQ25180 is linear; more would fold back on temperature
+	  inside the closed case (pod-v0.md).
+
+config POD_WDT_TIMEOUT_MS
+	int "nRF watchdog timeout"
+	default 4000
+
+config POD_MAIN_LOOP_MS
+	int "Period of the power / LED loop"
+	default 100
+
+config POD_PPS_GPIOTE_CHANNEL
+	int "GPIOTE channel of the PPS capture"
+	default 7
+	help
+	  TODO(B-904): allocate it from nrfx_gpiote once the BLE stack is in (the
+	  GPIO driver allocates channels dynamically too).
+
+config POD_PPS_PPI_CHANNEL_PPS
+	int "PPI channel PPS edge → TIMER capture"
+	default 8
+
+config POD_PPS_PPI_CHANNEL_TICK
+	int "PPI channel RTC TICK → TIMER capture"
+	default 9
+
+config POD_LORA
+	bool "LoRa link (E22-900M22S)"
+	default y
+	depends on LORA
+
+config POD_SENSORS
+	bool "IMU and barometer through the Zephyr sensor API"
+	default y
+	depends on SENSOR
+
+endmenu
+
+module = POD
+module-str = pod
+source "subsys/logging/Kconfig.template.log_config"
+
+source "Kconfig.zephyr"

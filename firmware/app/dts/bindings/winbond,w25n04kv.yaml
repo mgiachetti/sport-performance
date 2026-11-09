@@ -1,0 +1,26 @@
+description: |
+  Winbond W25N04KV / W25N02KV serial NAND (2048 B pages, 64 pages per block) on
+  SPI, driven by the pod firmware itself (app/src/log_nand.c): the log format
+  needs the page ECC status and the bad-block marker, which the generic flash
+  API does not expose.
+
+compatible: 'winbond,w25n04kv'
+
+include: spi-device.yaml
+
+properties:
+  blocks:
+    type: int
+    required: true
+    description: Erase blocks (4096 in the W25N04KV, 2048 in the W25N02KV).
+
+  pages-per-block:
+    type: int
+    default: 64
+    description: Pages per erase block.
+
+  enable-gpios:
+    type: phandle-array
+    description: |
+      EN of the optional load switch of the NAND rail (NAND_EN, not mounted on
+      the v0). Never cut during a program or an erase.

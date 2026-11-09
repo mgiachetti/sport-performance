@@ -1,0 +1,10 @@
+# Sysbuild options of the pod firmware.
+
+source "share/sysbuild/Kconfig"
+
+config POD_RELEASE_BUILD
+	bool "Release build of the pod firmware"
+	help
+	  A release image must be signed with the production key (kept outside the
+	  repository). With this option the build fails if the MCUboot signing key is
+	  still the public development key (see sysbuild.cmake).
