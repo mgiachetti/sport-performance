@@ -37,6 +37,7 @@ export {
   loadKhamisRocheTable,
 } from './khamis-roche.js';
 export { catapultAliasesOf, metricDefinitionSeeds, type ClubSeedRow } from './metrics.js';
+export { DEFAULT_POD_METRIC_CONFIG_NOTES, podMetricConfigSeed } from './pod-metrics.js';
 export {
   DERIVED_TEST_METRIC_CODES,
   SEEDED_PROTOCOL_VERSION,

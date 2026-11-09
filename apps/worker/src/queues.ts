@@ -53,6 +53,11 @@ export const QUEUES = {
   podRawIngestClubDead: 'pod-raw-ingest-club-dead',
   /** Every minute: the clubs with ingestion work (sessions end, pending days run out). */
   podRawIngestSweep: 'pod-raw-ingest-sweep',
+  /** Compute the pods' field metrics of one club from the trimmed logs (B-919, ADR 0110). */
+  podMetricsClub: 'pod-metrics-club',
+  podMetricsClubDead: 'pod-metrics-club-dead',
+  /** Every 15 minutes: the clubs with pod traces (definitions or references may have changed). */
+  podMetricsSweep: 'pod-metrics-sweep',
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -235,6 +240,26 @@ export const QUEUE_DEFINITIONS: readonly Queue[] = [
     expireInSeconds: 2 * MINUTE,
     deleteAfterSeconds: DAY,
   },
+  { name: QUEUES.podMetricsClubDead, policy: 'standard', deleteAfterSeconds: 30 * DAY },
+  {
+    // A run decodes the trimmed files of a few sessions: minutes at most.
+    name: QUEUES.podMetricsClub,
+    policy: 'stately',
+    retryLimit: 5,
+    retryDelay: 60,
+    retryBackoff: true,
+    retryDelayMax: 60 * MINUTE,
+    expireInSeconds: 20 * MINUTE,
+    deleteAfterSeconds: 7 * DAY,
+    deadLetter: QUEUES.podMetricsClubDead,
+  },
+  {
+    name: QUEUES.podMetricsSweep,
+    policy: 'stately',
+    retryLimit: 0,
+    expireInSeconds: 5 * MINUTE,
+    deleteAfterSeconds: DAY,
+  },
   {
     // A missed pass is the heartbeat the API and Sentry Crons watch: no retry, the next
     // minute measures again.
@@ -279,6 +304,8 @@ export const FILE_SCHEDULES = [
   { queue: QUEUES.dataExportSweep, cron: '* * * * *' },
   // The pods' log (B-916): files in the bucket; a session that ends, within a minute.
   { queue: QUEUES.podRawIngestSweep, cron: '* * * * *' },
+  // The pods' metrics (B-919): a changed definition or reference, within 15 minutes.
+  { queue: QUEUES.podMetricsSweep, cron: '*/15 * * * *' },
 ] as const;
 
 export interface RefreshClubJob {

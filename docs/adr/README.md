@@ -113,6 +113,7 @@ Una decisión por archivo, numerados `NNNN-titulo-corto.md`. Un ADR aceptado no 
 | [0107](0107-consentimiento-de-ubicacion.md) | Consentimiento de ubicación: vale solo `granted` en la base, se pide con el módulo `gps`, revocar encola un borrado que completa el worker y celdas del pod en la matriz | Aceptado |
 | [0108](0108-ingesta-del-log-del-pod.md) | Ingesta del log del pod: subida por la base, verificación con las claves, comando de borrado firmado, recorte único por jugador y trazas a 1 Hz | Aceptado |
 | [0109](0109-firmware-del-pod-zephyr-ncs-y-tests-de-host.md) | Firmware del pod: Zephyr sobre el nRF Connect SDK, workspace de west en el repo, biblioteca portable con tests de host contra los vectores de TypeScript y CI en la imagen oficial | Aceptado |
+| [0110](0110-metricas-del-pod-y-senales-en-vivo.md) | Métricas del pod: definiciones como datos del club, cálculo desde el log recortado, Vmax de referencia y señales en vivo | Aceptado |
 
 `pnpm docs:check` valida que este índice coincida con los archivos, que cada ADR siga la plantilla, que cada decisión de la tabla de arquitectura de `CLAUDE.md` tenga su ADR y que cada enlace de markdown a un ADR en el repo vaya a un archivo que existe, con el mismo número en el texto del enlace.
 

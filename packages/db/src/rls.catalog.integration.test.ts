@@ -46,10 +46,14 @@ const DELETABLE = {
   // The deliveries of notifications past their retention (ADR 0054).
   [DATABASE_ROLES.worker]: [
     'derived_refresh',
+    // Pod values its definitions no longer give (restricted to `source = 'pod'` by a
+    // policy) and their runs (ADR 0110).
+    'external_metric',
     'notification',
     'player_load_daily',
     'player_wellness_daily',
     // Position traces: erased with the location consent and past their retention (ADR 0108).
+    'pod_metric_run',
     'pod_raw_trim',
     'pod_trace_segment',
     'push_ticket',
@@ -294,6 +298,7 @@ describe.skipIf(!hasDatabase)('RLS, roles and grants in the catalog (Postgres 16
       'app.worker_forget_push_token',
       'app.worker_location_erasure_clubs',
       'app.worker_ops_backlog',
+      'app.worker_pod_metric_clubs',
       'app.worker_pod_raw_clubs',
       'app.worker_push_tokens',
       'app.worker_record_ops_checks',

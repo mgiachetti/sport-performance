@@ -331,6 +331,7 @@ describe('queues', () => {
       QUEUES.playerReportsSweep,
       QUEUES.dataExportSweep,
       QUEUES.podRawIngestSweep,
+      QUEUES.podMetricsSweep,
     ]);
     const exports = QUEUE_DEFINITIONS.find((q) => q.name === QUEUES.dataExportClub);
     expect(exports).toMatchObject({ policy: 'stately', deadLetter: QUEUES.dataExportClubDead });
@@ -343,6 +344,14 @@ describe('queues', () => {
     });
     expect(names2.indexOf(QUEUES.podRawIngestClubDead)).toBeLessThan(
       names2.indexOf(QUEUES.podRawIngestClub),
+    );
+    // The pods' metrics (B-919) decode the trimmed files: with their dead letter queue first.
+    expect(QUEUE_DEFINITIONS.find((q) => q.name === QUEUES.podMetricsClub)).toMatchObject({
+      policy: 'stately',
+      deadLetter: QUEUES.podMetricsClubDead,
+    });
+    expect(names2.indexOf(QUEUES.podMetricsClubDead)).toBeLessThan(
+      names2.indexOf(QUEUES.podMetricsClub),
     );
     expect(NOTIFICATION_SCHEDULES.map((s) => s.queue)).toEqual([QUEUES.notificationsSweep]);
     const notifications = QUEUE_DEFINITIONS.find((q) => q.name === QUEUES.notificationsClub);

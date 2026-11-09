@@ -2,6 +2,7 @@ import {
   PROTOCOL_MEDIA_CAPTION_MAX_LENGTH,
   type CategoryId,
   type PlayerId,
+  type PodMetricParams,
   type SpeedZoneSet,
 } from '@sport-performance/domain';
 import { sql } from 'drizzle-orm';
@@ -27,6 +28,7 @@ import {
   measurementMethodEnum,
   metricDirectionEnum,
   metricSourceEnum,
+  podMetricConfigVerificationEnum,
   sexEnum,
   speedZoneKindEnum,
   sportEnum,
@@ -341,6 +343,49 @@ export const speedZoneConfig = pgTable(
     index('speed_zone_config_lookup_idx').on(t.clubId, t.kind, t.validFrom),
     check('speed_zone_config_kind_matches', sql`${t.zoneSet} ->> 'kind' = ${t.kind}::text`),
     validityCheck('speed_zone_config_validity', t.validFrom, t.validTo),
+  ],
+);
+
+/**
+ * The pod's metric definitions with scope and validity (B-919, ADR 0110,
+ * `PodMetricConfig` in the domain): filters, thresholds, dwell times, the
+ * `accel_load_au` formula, the reference Vmax rule and the live signal rules
+ * as club data. `params` is a `PodMetricParams`, parsed by the domain before
+ * it is written; `algorithm_version` is the server algorithm they are for.
+ * Like the speed zones (ADR 0041): changing definitions in force closes the
+ * row and opens another, so a past session is recomputed with what it had.
+ * `verification` is `unverified` for the seeded defaults until the club
+ * loads its OpenField settings (B-002).
+ */
+export const podMetricConfig = pgTable(
+  'pod_metric_config',
+  {
+    ...tenantColumns(),
+    sport: sportEnum('sport'),
+    sex: sexEnum('sex'),
+    algorithmVersion: text('algorithm_version').notNull(),
+    params: jsonb('params').notNull().$type<PodMetricParams>(),
+    verification: podMetricConfigVerificationEnum('verification').notNull().default('unverified'),
+    /** Where the values come from (an OpenField export, a decision of the staff). */
+    notes: text('notes'),
+    validFrom: localDate('valid_from').notNull(),
+    validTo: localDate('valid_to'),
+    /** Withdrawn before it ever applied (ADR 0041); one in force is closed instead. */
+    archivedAt: timestamptz('archived_at'),
+  },
+  (t) => [
+    ...tenantConstraints('pod_metric_config', t),
+    index('pod_metric_config_lookup_idx').on(t.clubId, t.validFrom),
+    validityCheck('pod_metric_config_validity', t.validFrom, t.validTo),
+    check('pod_metric_config_params_object', sql`jsonb_typeof(${t.params}) = 'object'`),
+    check(
+      'pod_metric_config_algorithm_version',
+      sql`${t.algorithmVersion} ~ '^[a-z][a-z0-9-]*/[0-9]+$'`,
+    ),
+    check(
+      'pod_metric_config_notes',
+      sql`${t.notes} is null or char_length(${t.notes}) between 1 and 2000`,
+    ),
   ],
 );
 

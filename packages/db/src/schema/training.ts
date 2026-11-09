@@ -22,13 +22,15 @@ import {
   gymLoadKindEnum,
   externalLoadActivityEnum,
   externalMetricSourceEnum,
+  podMethodVariantEnum,
+  referenceVmaxSourceEnum,
   participationStatusEnum,
   sessionKindEnum,
   sportEnum,
   stageEnum,
   unitEnum,
 } from './enums.js';
-import { device, metricDefinition } from './catalog.js';
+import { device, metricDefinition, podMetricConfig } from './catalog.js';
 import { category } from './organization.js';
 import { player } from './players.js';
 import {
@@ -254,6 +256,78 @@ export const externalLoad = pgTable(
 );
 
 /**
+ * One computation of the pod's field metrics of a player in a session
+ * (B-919, ADR 0110): which variant and algorithm, which definitions
+ * (`pod_metric_config_id`, and `definition_hash` over everything that shapes
+ * a value: algorithm, parameters, thresholds and reference Vmax), which
+ * inputs (`inputs_hash` over the trimmed files and windows, and the uploads
+ * and firmware versions they came from), which reference Vmax and by which
+ * rule, and the statistics of the computation (samples kept and dropped by
+ * the plausibility filter, impacts of the high-g channel, metrics left out
+ * and why). Its values are the `external_metric` rows with
+ * `pod_metric_run_id`. The worker writes it and recomputes it when the
+ * definitions or the inputs change (`stale` after a correction of an
+ * assignment); the application only reads it, like the values.
+ */
+export const podMetricRun = pgTable(
+  'pod_metric_run',
+  {
+    ...tenantColumns(),
+    playerId: uuid('player_id').notNull().$type<PlayerId>(),
+    trainingSessionId: uuid('training_session_id').notNull(),
+    /** The session's club day (the reference Vmax looks back from it). */
+    localDate: localDate('local_date').notNull(),
+    methodVariant: podMethodVariantEnum('method_variant').notNull(),
+    algorithmVersion: text('algorithm_version').notNull(),
+    /** `NULL`: the code's defaults (a club without definitions). */
+    podMetricConfigId: uuid('pod_metric_config_id'),
+    definitionHash: text('definition_hash').notNull(),
+    inputsHash: text('inputs_hash').notNull(),
+    podRawUploadIds: uuid('pod_raw_upload_ids').array().notNull(),
+    firmwareVersions: text('firmware_versions').array().notNull(),
+    gnssFirmwareVersions: text('gnss_firmware_versions').array().notNull(),
+    /** The session's own peak (the reference of later sessions reads it). */
+    sessionVmaxMs: doublePrecision('session_vmax_ms'),
+    referenceVmaxMs: doublePrecision('reference_vmax_ms'),
+    referenceVmaxSource: referenceVmaxSourceEnum('reference_vmax_source'),
+    stats: jsonb('stats').notNull().$type<Readonly<Record<string, unknown>>>(),
+    /** An assignment was corrected after the trim: recompute, or delete if nothing is left. */
+    stale: boolean('stale').notNull().default(false),
+    computedAt: timestamptz('computed_at').notNull(),
+  },
+  (t) => [
+    ...tenantConstraints('pod_metric_run', t),
+    tenantReference('pod_metric_run', t.clubId, t.playerId, player),
+    tenantReference('pod_metric_run', t.clubId, t.trainingSessionId, trainingSession),
+    tenantReference('pod_metric_run', t.clubId, t.podMetricConfigId, podMetricConfig),
+    tenantReferenceIndex('pod_metric_run', t.clubId, t.podMetricConfigId),
+    uniqueIndex('pod_metric_run_key').on(
+      t.clubId,
+      t.playerId,
+      t.trainingSessionId,
+      t.methodVariant,
+    ),
+    index('pod_metric_run_session_idx').on(t.clubId, t.trainingSessionId),
+    index('pod_metric_run_player_date_idx').on(t.clubId, t.playerId, t.localDate),
+    check(
+      'pod_metric_run_hashes',
+      sql`${t.definitionHash} ~ '^[0-9a-f]{64}$' and ${t.inputsHash} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      'pod_metric_run_algorithm_version',
+      sql`char_length(${t.algorithmVersion}) between 1 and 64`,
+    ),
+    check(
+      'pod_metric_run_reference',
+      sql`(${t.referenceVmaxMs} is null) = (${t.referenceVmaxSource} is null)
+          and (${t.referenceVmaxMs} is null or ${t.referenceVmaxMs} > 0)
+          and (${t.sessionVmaxMs} is null or ${t.sessionVmaxMs} >= 0)`,
+    ),
+    check('pod_metric_run_stats_object', sql`jsonb_typeof(${t.stats}) = 'object'`),
+  ],
+);
+
+/**
  * Field metric values per player and session: Catapult imports (B-601),
  * heart-rate bands (Phase 2) and the pod's derived metrics (Phase 3; the raw
  * stream goes to storage, ADR 0005). `external_ref` identifies the source row
@@ -276,6 +350,11 @@ export const externalMetric = pgTable(
     externalRef: text('external_ref'),
     /** Import that produced it (B-601 adds the import table and its foreign key). */
     importId: uuid('import_id'),
+    /** Pod values (ADR 0106): the variant and the server algorithm that computed them. */
+    methodVariant: podMethodVariantEnum('method_variant'),
+    algorithmVersion: text('algorithm_version'),
+    /** The computation of a pod value (definitions, inputs, firmware, reference Vmax). */
+    podMetricRunId: uuid('pod_metric_run_id'),
   },
   (t) => [
     ...tenantConstraints('external_metric', t),
@@ -293,6 +372,14 @@ export const externalMetric = pgTable(
       .on(t.clubId, t.source, t.externalRef, t.playerId, t.metricDefinitionId)
       .where(sql`${t.externalRef} is not null`),
     check('external_metric_value_finite', finite(t.value)),
+    tenantReference('external_metric', t.clubId, t.podMetricRunId, podMetricRun),
+    tenantReferenceIndex('external_metric', t.clubId, t.podMetricRunId),
+    check(
+      'external_metric_pod_method',
+      sql`(${t.source} = 'pod') = (${t.methodVariant} is not null)
+          and (${t.methodVariant} is null) = (${t.algorithmVersion} is null)
+          and (${t.podMetricRunId} is null or ${t.methodVariant} is not null)`,
+    ),
   ],
 );
 

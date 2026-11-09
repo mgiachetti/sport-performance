@@ -8,6 +8,8 @@ import { refreshClub, type RefreshDependencies } from './derived/refresh.js';
 import { listExportClubs, runClubExports } from './exports/process.js';
 import { purgeClubFiles } from './files.js';
 import { listLocationErasureClubs, runClubLocationErasures } from './location-erasure.js';
+import { PodMetricsBackoff } from './pod-metrics/batch.js';
+import { listPodMetricClubs, runClubPodMetrics } from './pod-metrics/run.js';
 import { listPodRawClubs, runClubPodRawIngest } from './pod-raw/ingest.js';
 import type { PodKeyProvider } from './pod-raw/keys.js';
 import { runClubNotifications, type DeliveryDependencies } from './notifications/index.js';
@@ -304,6 +306,10 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
         try {
           const report = await runClubPodRawIngest(ingestDeps, clubId, { jobId: job.id });
           if (report.more) await enqueueClubJob(boss, QUEUES.podRawIngestClub, clubId);
+          // New or corrected data of the club: its pod metrics (B-919).
+          if (report.trimmed + report.reprocessed > 0) {
+            await enqueueClubJob(boss, QUEUES.podMetricsClub, clubId);
+          }
         } catch (error) {
           logger.error({ err: error, clubId, jobId: job.id }, 'pod_raw ingestion failed');
           reporter.capture(error, { job: QUEUES.podRawIngestClub, jobId: job.id, clubId });
@@ -314,6 +320,50 @@ export async function startWorker(options: StartWorkerOptions): Promise<RunningW
     await boss.work(QUEUES.podRawIngestSweep, { pollingIntervalSeconds }, async () => {
       for (const clubId of await listPodRawClubs(options.pool)) {
         await enqueueClubJob(boss, QUEUES.podRawIngestClub, clubId);
+      }
+    });
+
+    // The pods' field metrics (B-919, ADR 0110): from the trimmed files, idempotent. The
+    // failing sessions of every club wait with a backoff kept by this process.
+    const podMetricsBackoff = new PodMetricsBackoff();
+    await boss.work(
+      QUEUES.podMetricsClub,
+      { localConcurrency: options.clubConcurrency, pollingIntervalSeconds },
+      async ([job]: Job<unknown>[]) => {
+        if (job === undefined) return;
+        const { clubId } = parseRefreshClubJob(job.data);
+        try {
+          const report = await runClubPodMetrics(
+            { ...ingestDeps, backoff: podMetricsBackoff },
+            clubId,
+            { jobId: job.id },
+          );
+          // Only after progress: a club whose pending sessions keep failing waits for the sweep.
+          if (report.more) await enqueueClubJob(boss, QUEUES.podMetricsClub, clubId);
+          // A failing session never holds back the club and never fails the job (that would
+          // retry it at once): it waits with its backoff, and is reported once per window.
+          for (const failure of report.failures) {
+            reporter.capture(
+              new Error(`pod metrics failed for a session (${String(failure.failures)} in a row)`),
+              {
+                job: QUEUES.podMetricsClub,
+                jobId: job.id,
+                clubId,
+                playerId: failure.playerId,
+                source: `session:${failure.sessionId}`,
+              },
+            );
+          }
+        } catch (error) {
+          logger.error({ err: error, clubId, jobId: job.id }, 'pod metrics failed');
+          reporter.capture(error, { job: QUEUES.podMetricsClub, jobId: job.id, clubId });
+          throw error;
+        }
+      },
+    );
+    await boss.work(QUEUES.podMetricsSweep, { pollingIntervalSeconds }, async () => {
+      for (const clubId of await listPodMetricClubs(options.pool)) {
+        await enqueueClubJob(boss, QUEUES.podMetricsClub, clubId);
       }
     });
   }

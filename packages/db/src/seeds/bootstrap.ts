@@ -25,6 +25,7 @@ import { alertRule } from '../schema/alerts.js';
 import {
   batteryConfig,
   metricDefinition,
+  podMetricConfig,
   speedZoneConfig,
   testDefinition,
   testDefinitionMetric,
@@ -42,6 +43,7 @@ import {
   khamisRocheTableSeed,
 } from './khamis-roche.js';
 import { metricDefinitionSeeds } from './metrics.js';
+import { podMetricConfigSeed } from './pod-metrics.js';
 import {
   SEEDED_PROTOCOL_VERSION,
   isDerivedTestMetric,
@@ -100,6 +102,7 @@ export interface BootstrapClubReport {
   readonly batteryConfigs: number;
   readonly alertRules: number;
   readonly speedZoneConfigs: number;
+  readonly podMetricConfigs: number;
   readonly khamisRocheTables: number;
   readonly khamisRocheCoefficients: number;
   readonly consentDocuments: number;
@@ -466,6 +469,19 @@ export async function bootstrapClub(
     zoneRows.push(...sexZoneRows);
     if (zoneRows.length > 0) await tx.insert(speedZoneConfig).values(zoneRows);
 
+    // The pod's metric definitions (B-919): the defaults, unless the club has any row
+    // (current, closed or archived): a re-run never reopens what the club replaced.
+    const [anyPodConfig] = await tx
+      .select({ id: podMetricConfig.id })
+      .from(podMetricConfig)
+      .where(eq(podMetricConfig.clubId, clubId))
+      .limit(1);
+    let podMetricConfigs = 0;
+    if (anyPodConfig === undefined) {
+      await tx.insert(podMetricConfig).values({ clubId, ...podMetricConfigSeed(validFrom) });
+      podMetricConfigs = 1;
+    }
+
     // Khamis-Roche coefficient tables (reference data, copied from the domain).
     let khamisRocheTables = 0;
     let khamisRocheCoefficients = 0;
@@ -524,6 +540,7 @@ export async function bootstrapClub(
       batteryConfigs: batteryRows.length,
       alertRules: insertedRules.length,
       speedZoneConfigs: zoneRows.length,
+      podMetricConfigs,
       khamisRocheTables,
       khamisRocheCoefficients,
       consentDocuments: consentDocuments.length,

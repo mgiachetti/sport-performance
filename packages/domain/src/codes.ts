@@ -123,6 +123,14 @@ export const CANONICAL_METRICS = {
   vmax_pct: field('pct', 'neutral', "Session peak speed as % of the player's Vmax."),
   acc_n: field('n', 'neutral', 'Accelerations above the threshold (default 2 m/s²).'),
   dec_n: field('n', 'neutral', 'Decelerations above the threshold (default 2 m/s²).'),
+  // Sprints (B-919): proposed codes, to confirm with the club against the first team's
+  // OpenField sprint band (threshold from the absolute zones, dwell time as club data).
+  sprints_n: field(
+    'n',
+    'neutral',
+    'Sprint efforts: at or above the sprint zone for the dwell time.',
+  ),
+  sprint_dist_m: field('m', 'higher_is_better', 'Distance covered inside sprint efforts.'),
   accel_load_au: field('au', 'neutral', 'Accelerometer load (never called "PlayerLoad").'),
   contacts_n: field('n', 'neutral', 'Contacts.', ['rugby']),
   scrums_n: field('n', 'neutral', 'Scrums.', ['rugby']),

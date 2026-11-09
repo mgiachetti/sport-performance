@@ -105,6 +105,8 @@ export const webFieldSessionMessagesEsAR = {
   'fieldSession.metric.vmax_pct': '% de su Vmax',
   'fieldSession.metric.acc_n': 'Aceleraciones',
   'fieldSession.metric.dec_n': 'Desaceleraciones',
+  'fieldSession.metric.sprints_n': 'Sprints',
+  'fieldSession.metric.sprint_dist_m': 'Distancia en sprints',
   'fieldSession.metric.accel_load_au': 'Carga acelerométrica',
   'fieldSession.metric.contacts_n': 'Contactos',
   'fieldSession.metric.scrums_n': 'Scrums',

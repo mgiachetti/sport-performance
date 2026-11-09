@@ -32,6 +32,9 @@ export const DEFAULT_CATAPULT_ALIASES = {
   vmax_pct: ['Max Vel (% Max)', 'Percentage Max Velocity', '% Max Velocity'],
   acc_n: ['Acceleration B3 Efforts (Gen 2)', 'Acceleration B3 Efforts', 'Accelerations'],
   dec_n: ['Deceleration B3 Efforts (Gen 2)', 'Deceleration B3 Efforts', 'Decelerations'],
+  // Sprints (B-919): the names of OpenField's sprint band columns, to confirm with the export.
+  sprints_n: ['Sprint Efforts', 'Sprint Count'],
+  sprint_dist_m: ['Sprint Distance'],
   accel_load_au: ['Total Player Load', 'Player Load'],
   contacts_n: ['Contact Involvements', 'Total Contacts', 'Contacts'],
   scrums_n: ['Scrum Count', 'Scrums'],
