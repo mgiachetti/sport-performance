@@ -226,7 +226,7 @@ EP_PASTE_Y = (-0.545, 0.545)  # centres of the two 1.13 x 0.89 apertures (p.39, 
 # electroplated hard gold of 0.5 um or more on these pads (fab note). The base's springs make in this order:
 # GND longest (first to make, last to break), then VBUS, D+ and D-, and DETECT shortest (VBUS only once the
 # pod is seated). The Hall sensor goes 15 mm or more from either magnet: a D5 x 2 mm N35 magnet still gives
-# about 4.8 mT (the DRV5032FB maximum operate point) at roughly 9-10 mm on its axis. To confirm with the base
+# about 4.8 mT (the DRV5032FA/FB maximum operate point) at roughly 9-10 mm on its axis. To confirm with the base
 # (spring tip, tolerance, magnet size).
 def dock_pads() -> Footprint:
     order = [("1", "VBUS"), ("4", "GND"), ("2", "D+"), ("3", "D-"), ("5", "DET")]

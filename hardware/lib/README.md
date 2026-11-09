@@ -115,7 +115,7 @@ Además de las 10 partes de easyeda2kicad, `pod.kicad_sym` tiene los símbolos q
 | Infineon BGA525N6 (LNA, candidato, sin montar) | Footprint dibujado desde la hoja (ver arriba); modelo 3D de EasyEDA | C18337445 | `easyeda2kicad --3d --lcsc_id=C18337445 --output hardware/lib/pod` | no |
 | Taoglas GVLB208.A (patch, candidato, sin montar) | Footprint dibujado desde la hoja (ver arriba); sin modelo 3D | Sin número LCSC | — | no |
 | Würth 36103205S (tapa blindada, sin montar) | Librería oficial de KiCad: `RF_Shielding:Wuerth_36103205_20x20mm` | C7386558 | — | no |
-| TI DRV5032FB (Hall del chaleco, montado) | easyeda2kicad | C2655033 (DRV5032FBDBZR, SOT-23) | — | no |
+| TI DRV5032FA (Hall del chaleco, montado; el símbolo se importó de la FB, mismos pines) | easyeda2kicad | C2655033 (DRV5032FBDBZR, SOT-23) | — | no |
 
 Los números LCSC salen del relevamiento de `docs/hardware/pod-f3.md` y de `docs/hardware/pod-v0.md`.
 

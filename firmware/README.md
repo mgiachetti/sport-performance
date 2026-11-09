@@ -148,7 +148,7 @@ El E22 y los breakouts se alimentan del VDD del DK (sin load switch: `LORA_EN` n
 | `time_base` (`lib/time_base.c`, `app/src/time_base.c`) | RTC2 de 48 bits, captura del PPS por GPIOTE → PPI → TIMER2 y del TICK del RTC, ancla con resolución de 62,5 ns, ritmo del cristal, tick de cada turno; canales de GPIOTE y PPI de los asignadores de nrfx; HFXO pedido mientras el GNSS está prendido | Medir el consumo en el banco, registros `time_anchor` y `sensor_sync`, baliza como fuente bajo techo |
 | `sensors` (`app/src/sensors.c`) | LSM6DSV320X y BMP581 con los drivers de Zephyr, autotest de presencia, movimiento simple | FIFO en `imu_batch` (dos canales, marcas del sensor), ráfagas de impacto, despertar retenido en INT1, actividad e inactividad, lotes del barómetro |
 | `led` (`lib/led.c`, `app/src/led.c`) | Tabla de pod-v0.md con un patrón único por estado, PWM0, atenuación por SYS, código de error del autotest | Modo partido desde la baliza, buzzer |
-| `hall` (`app/src/hall.c`) | Lectura del DRV5032FB y SENSE en el nivel opuesto | — |
+| `hall` (`app/src/hall.c`) | Lectura del DRV5032FA (o la FB) y SENSE en el nivel opuesto | — |
 | `wdt` (`app/src/wdt.c`) | WDT del nRF obligatorio, alimentado en el lazo principal | — |
 | Contadores (`lib/counters.c`, `app/src/boot_counter.c`) | Contador de arranques que se confirma recién después de guardarlo (sin eso el pod no transmite ni graba); secuencia de página entregada de a una, reservando de a 1024 antes de usar el bloque, compartida por todos los tramos del arranque; id de tramo; probado con un almacén falso (mismo arranque, más de una reserva, reinicio a mitad, falla al guardar) | Pasar al contador la secuencia más alta que encuentre el escaneo de la NAND (`pod_counters_observe_page_seq`) |
 

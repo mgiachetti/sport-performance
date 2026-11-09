@@ -8,7 +8,7 @@ Todo lo que PCBWay necesita para cotizar la placa y el armado, las preguntas que
 
 | Archivo | Qué es | Estado |
 |---|---|---|
-| [`bom-pod-v0.csv`](bom-pod-v0.csv) | Lista de armado en las columnas de PCBWay (línea, designadores, cantidad, fabricante, MPN, número de distribuidor, descripción, encapsulado, SMT o THT, instrucciones), con LCSC, DigiKey y la marca de lo que mandamos nosotros. 55 filas, 139 componentes | Listo. Las columnas siguen la página de requisitos de armado de PCBWay; que coincidan con su planilla de ejemplo (`Sample_BOM_PCBWay.xlsx`) está **no verificado**: si la piden, se pasan las mismas columnas a esa planilla |
+| [`bom-pod-v0.csv`](bom-pod-v0.csv) | Lista de armado en las columnas de PCBWay (línea, designadores, cantidad, fabricante, MPN, número de distribuidor, descripción, encapsulado, SMT o THT, instrucciones), con LCSC, DigiKey, la marca de lo que mandamos nosotros y la **alternativa aprobada** de cada fila que la tiene (`Approved Alternate`, de [`stock.md`](stock.md)). 55 filas, 139 componentes | Listo. Las columnas siguen la página de requisitos de armado de PCBWay; que coincidan con su planilla de ejemplo (`Sample_BOM_PCBWay.xlsx`) está **no verificado**: si la piden, se pasan las mismas columnas a esa planilla |
 | [`bom-pod-v0-sin-montar.csv`](bom-pod-v0-sin-montar.csv) | Los 27 lugares sin montar (72 componentes): no se arman, pero el armador los ve en el pick and place | Listo |
 | [`bom-pod-v0-extras.csv`](bom-pod-v0-extras.csv) | Lo que se compra y no se suelda (Taoglas de rescate, FPC de LoRa, kit de banco) | Listo; no va a PCBWay |
 | Gerbers, taladros, pick and place, PDF del esquemático, dibujo de fabricación | KiBot desde `hardware/pod-v0/` | Con la placa ruteada |
@@ -59,7 +59,7 @@ El "Design 1" es el apilado de 1,6 mm que PCBWay publica en su [página de apila
 | Inspección | **Rayos X** de los DSBGA, el TSNP, los LGA y los módulos; AOI del resto |
 | Stencil | Con marco; **escalonado o de 0,1 mm** si lo recomiendan por el DSBGA al lado de los pads grandes de los módulos |
 | Después del reflujo | **Patch GVLB208.A (`AE201`)**: un pin por agujero metalizado de Ø1,0 mm, soldado a mano desde abajo **después** del SMT. No pasa por el horno |
-| Lo que mandamos | `AE201` GVLB208.A (o que lo compren en DigiKey, 931-GVLB208.A-ND, si les conviene). **Quizás** ("maybe" en la lista): el MDBT50Q-P1MV2 (`U301`), si lo compramos a Raytac; y el DRV5032FB (`U406`), si lo compramos en ti.com (plan de stock de [`costos.md`](costos.md)) |
+| Lo que mandamos | `AE201` GVLB208.A (o que lo compren en DigiKey, 931-GVLB208.A-ND, si les conviene). **Quizás** ("maybe" en la lista): el MDBT50Q-P1MV2 (`U301`), si lo compramos a Raytac o TME (plan de stock de [`costos.md`](costos.md) y [`stock.md`](stock.md)) |
 | Humedad (MSL) | **Hornear según su nivel MSL** las partes sensibles antes del reflujo si estuvieron fuera de la bolsa: módulos (MDBT50Q, LC29H, E22), LGA, DSBGA y el SAW |
 | Limpieza | Flux sin limpieza; **no lavar** el BMP581 (encapsulado con ventilación) |
 | Programación | No: se graba por el Tag-Connect en Buenos Aires |
@@ -79,7 +79,7 @@ El "Design 1" es el apilado de 1,6 mm que PCBWay publica en su [página de apila
 11. **Panel:** ¿hace falta con 50 × 70 mm? Si lo arman ellos, rieles y puentes lejos del borde izquierdo (antena del Raytac).
 12. **Revisión de fabricación (DFM)** de los Gerbers y del armado antes de fabricar: ¿gratis?, ¿cuánto tarda?
 13. **Plazos y precios** de placa y de armado para 5 armadas (de 10 placas), 10 y 100, con el envío por DHL o FedEx a Buenos Aires (sin batería).
-14. **Partes con poco stock** (LSM6DSV320X, BGA525N6, DRV5032FB, TPS7A2032P): ¿las consiguen?, ¿pueden reservarlas para 100?
+14. **Partes con poco stock** (LSM6DSV320X, DRV5032FB, TPS22916C, BGA525N6, TPS7A2032P, LC29H, E22, GVLB208.A; [`stock.md`](stock.md)): ¿las consiguen?, ¿pueden reservarlas para 100? Las **alternativas aprobadas** de la columna `Approved Alternate` (la DRV5032FB en `U406`, la de 22 Ω, el cristal y la bobina) se pueden montar sin consultarnos; la MDBT50Q-1MV2 solo con nuestro OK por escrito; cualquier otro cambio, no
 
 ## Mail para PCBWay (inglés)
 
@@ -106,7 +106,7 @@ El "Design 1" es el apilado de 1,6 mm que PCBWay publica en su [página de apila
 > - After reflow: one through-hole ceramic patch antenna (Taoglas GVLB208.A, 20 × 20 mm, single pin) hand-soldered from the bottom. It must not go through reflow. We can ship it to you, or you can buy it at DigiKey (931-GVLB208.A-ND).
 > - No-clean flux; please do not wash the board (the barometer has a vent hole). Please bake moisture-sensitive parts (modules, LGA, DSBGA) per their MSL before reflow.
 > - Solder-mask dams between 0.4 mm-pitch pads if your process allows it; please tell us your minimum dam and the finished-thickness tolerance.
-> - Some parts have low stock (LSM6DSV320XTR, BGA525N6E6327XTSA1, DRV5032FBDBZR, TPS7A2032PDBVR): please confirm availability, and whether you can reserve them for a later run of 100.
+> - Some parts have low stock (LSM6DSV320XTR, DRV5032FBDBZR, TPS22916CYFPR, BGA525N6E6327XTSA1, TPS7A2032PDBVR, LC29HAAMD, E22-900M22S, GVLB208.A): please confirm availability, and whether you can reserve them for a later run of 100. The "Approved Alternate" column lists drop-in substitutes you may use without asking (e.g. DRV5032FBDBZR for U406; MDBT50Q-1MV2 for U301 only with our written OK); please do not substitute anything else without our written approval.
 >
 > **Please quote**
 > 1. PCB and assembly for 5 / 10 / 100 boards, with lead times, X-ray, hand soldering, via-in-pad and hard gold as separate lines if possible.

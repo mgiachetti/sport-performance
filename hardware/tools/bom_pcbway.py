@@ -26,6 +26,9 @@ Outputs (``docs/hardware/cotizacion/``):
   step, the minimum order).
 * ``costos.md``: the block between its markers (part totals per board, cost drivers, extras with
   their cost), so the document says the same numbers as the CSV.
+* ``stock.md``: the block between its markers (stock status of every mounted part and extra for the
+  run of 100 pods plus the 5 v0 boards, with sources, lead time and alternatives), from the stock
+  columns of the CSV.
 
 Board features with no part (test points, fiducials, tooling holes, solder jumpers, the Tag-Connect
 footprint and the dock pads) are not in the BOMs.
@@ -70,6 +73,9 @@ EXTRAS = [
 ]
 
 COSTOS_MD = OUT / "costos.md"
+STOCK_MD = OUT / "stock.md"
+RUN = 105  # boards the stock audit covers: the run of 100 pods plus the 5 v0 boards
+STATES = ("OK", "LIMITADO", "SIN STOCK")
 BEGIN = "<!-- generado por hardware/tools/bom_pcbway.py: no editar a mano -->"
 END = "<!-- fin de lo generado -->"
 TOP = 6  # rows of the cost drivers table
@@ -79,7 +85,7 @@ TOP = 6  # rows of the cost drivers table
 # the notes for the assembler, the DNP flag, the supplier numbers and the customer-supplied flag.
 PCBWAY_COLS = ["Line #", "Reference Designator", "Quantity", "Manufacturer", "Manufacturer Part Number",
                "Distributor Part Number", "Description", "Package", "Type", "Instructions", "DNP", "LCSC", "DigiKey", "Mouser",
-               "Customer Supplied"]
+               "Customer Supplied", "Approved Alternate"]
 
 
 def natural(ref: str):
@@ -132,6 +138,20 @@ def collect():
     return groups, features, pads
 
 
+def alternate(parts: dict, info: dict, errors: list) -> str:
+    """Approved drop-in alternate for the assembler ("MPN (LCSC Cxxx)", plus its condition), checked against the CSV."""
+    alt = info.get("alternativa_directa", "")
+    if not alt:
+        return ""
+    other = parts.get(alt)
+    if not other:
+        errors.append(f"{info['mpn']}: la alternativa {alt} no está en {PARTS_CSV.name}")
+        return alt
+    text = f"{alt} (LCSC {other['lcsc']})" if other.get("lcsc") else alt
+    cond = info.get("alternativa_condicion", "")
+    return f"{text}: {cond}" if cond else text
+
+
 def write_csv(rows: list, cols: list) -> str:
     buf = io.StringIO()
     w = csv.DictWriter(buf, fieldnames=cols, lineterminator="\n")
@@ -144,7 +164,7 @@ def build():
     parts = load_parts()
     groups, features, pads = collect()
     errors = []
-    bom, dnp, jlc, cost = [], [], [], []
+    bom, dnp, jlc, cost, stock = [], [], [], [], []
     totals = {n: 0.0 for n in BOARDS}
     unpriced = []
     mounted_sorted = sorted(groups.values(), key=lambda g: natural(sorted((p.ref for p in g["parts"]), key=natural)[0]))
@@ -169,6 +189,7 @@ def build():
             "DNP": "yes" if g["dnp"] else "no", "LCSC": info.get("lcsc", first.lcsc),
             "DigiKey": info.get("digikey", ""), "Mouser": info.get("mouser", ""),
             "Customer Supplied": {"sí": "yes", "posible": "maybe"}.get(info.get("consignado", ""), ""),
+            "Approved Alternate": alternate(parts, info, errors),
         }
         if g["dnp"]:
             dnp.append(row)
@@ -176,6 +197,7 @@ def build():
         bom.append(row)
         jlc.append({"Comment": f"{mpn} {first.value}".strip() if first.value not in mpn else mpn, "Designator": refs,
                     "Footprint": footprint, "LCSC Part #": info.get("lcsc", "")})
+        stock.append((refs, len(ps), first.symbol in SMALL, info))
         steps = ladder(info)
         line = {"MPN": mpn, "Designadores": refs, "Cant. por placa": len(ps), "Fuente": info.get("fuente_precio", ""),
                 "Fecha": info.get("fecha", "")}
@@ -227,6 +249,7 @@ def build():
         OUT / "costo-partes-pod-v0.csv": write_csv(cost, cost_cols),
     }
     files[COSTOS_MD] = costos_md(cost[:-2], totals, extras)
+    files[STOCK_MD] = stock_md(stock, parts, errors)
     summary = {
         "filas montadas": len(bom), "componentes montados": sum(r["Quantity"] for r in bom),
         "filas sin montar": len(dnp), "componentes sin montar": sum(r["Quantity"] for r in dnp),
@@ -244,9 +267,6 @@ def money(x: float) -> str:
 
 def costos_md(lines: list, totals: dict, extras: list) -> str:
     """costos.md with the generated block (part totals, cost drivers, extras) replaced."""
-    text = COSTOS_MD.read_text(encoding="utf-8")
-    if text.count(BEGIN) != 1 or text.count(END) != 1:
-        raise SystemExit(f"{COSTOS_MD.name}: faltan los marcadores del bloque generado")
     out = ["| Placas | Partes por placa | Total de partes |", "|---|---|---|"]
     out += [f"| {n} | **{money(totals[n] / n)}** | {money(totals[n])} |" for n in BOARDS]
     n = BOARDS[-1]
@@ -262,9 +282,47 @@ def costos_md(lines: list, totals: dict, extras: list) -> str:
         out.append(f"| {e['MPN']} | {e['Para qué']} | " + " | ".join(cells) + " |")
     sums = [sum(float(e[f"US$ total {b}"] or 0) for e in extras) for b in BOARDS]
     out.append("| **Total** | | " + " | ".join(f"**{money(x)}**" for x in sums) + " |")
+    return replace_block(COSTOS_MD, out)
+
+
+def replace_block(path: Path, lines: list) -> str:
+    """``path`` with the text between its generated-block markers replaced by ``lines``."""
+    text = path.read_text(encoding="utf-8")
+    if text.count(BEGIN) != 1 or text.count(END) != 1:
+        raise SystemExit(f"{path.name}: faltan los marcadores del bloque generado")
     head, rest_text = text.split(BEGIN)
     _, tail = rest_text.split(END)
-    return head + BEGIN + "\n\n" + "\n".join(out) + "\n\n" + END + tail
+    return head + BEGIN + "\n\n" + "\n".join(lines) + "\n\n" + END + tail
+
+
+def stock_md(stock: list, parts: dict, errors: list) -> str:
+    """stock.md with the generated table (stock status per mounted part and extra) replaced."""
+    def num(x: str) -> str:
+        return f"{int(x):,}".replace(",", ".") if x.isdigit() else (x or "—")
+
+    rows = [(refs, qty, small, info) for refs, qty, small, info in stock]
+    rows += [("(no se suelda)", per_board, False, parts[mpn]) for mpn, per_board, _ in EXTRAS if mpn in parts]
+    order = {s: i for i, s in enumerate(STATES[::-1])}
+    rows.sort(key=lambda r: (order.get(r[3].get("estado_stock", ""), 9), natural(r[0])))
+    out = [f"| Parte | Lugar | Hacen falta ({RUN} placas) | Estado | LCSC | DigiKey | JLCPCB | Otras fuentes | Plazo | "
+           "Alternativa directa | Otras alternativas |", "|---|---|---|---|---|---|---|---|---|---|---|"]
+    for refs, qty, small, info in rows:
+        state = info.get("estado_stock", "")
+        if state not in STATES:
+            errors.append(f"{info['mpn']}: estado_stock '{state}' (tiene que ser {', '.join(STATES)})")
+        need = math.ceil(qty * RUN) + (ATTRITION if small else 0)
+        mark = {"OK": "✓ OK", "LIMITADO": "⚠ LIMITADO", "SIN STOCK": "✗ SIN STOCK"}.get(state, state)
+        cells = [f"`{info['mpn']}`", refs.replace(",", ", ") if len(refs) <= 24 else f"{refs.split(',')[0]} y otros",
+                 num(str(need)), mark, num(info.get("stock_lcsc", "")), num(info.get("stock_digikey", "")),
+                 num(info.get("stock_jlcpcb", "")), info.get("stock_otras") or "—", info.get("plazo") or "—",
+                 (f"`{info['alternativa_directa']}`" + (f" ({info['alternativa_condicion']})" if info.get("alternativa_condicion") else ""))
+                 if info.get("alternativa_directa") else "—",
+                 info.get("alternativas_otras") or "—"]
+        out.append("| " + " | ".join(c.replace("|", "/") for c in cells) + " |")
+    dates = sorted({info.get("fecha_stock", "") for *_, info in rows} - {""})
+    out += ["", f"Stock leído el {', '.join('/'.join(d.split('-')[::-1]) for d in dates)} (columnas de stock de "
+            "[`partes_pod_v0.csv`](../../../hardware/tools/datos/partes_pod_v0.csv))."]
+    return replace_block(STOCK_MD, out)
 
 
 def main() -> int:

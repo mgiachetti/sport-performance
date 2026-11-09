@@ -63,7 +63,7 @@ Los usuarios son M19 y plantel superior, pero un imán de neodimio suelto sigue 
 
 - **Imán encapsulado** (por ejemplo, dentro de un disco de silicona o TPU) y **retenido** (cosido en un bolsillo propio o pegado con refuerzo), nunca suelto en la tela.
 - **Prueba de lavado**: ciclos de lavado y secado en las condiciones del club, midiendo el campo después.
-- **Campo medido**: el que se necesita para detectar con el DRV5032FB a la distancia del bolsillo, y el que no dispara el Hall de otro pod cercano (bolsos, la base).
+- **Campo medido**: el que se necesita para detectar con el DRV5032FA (o la FB) a la distancia del bolsillo, y el que no dispara el Hall de otro pod cercano (bolsos, la base).
 - **Tolerancia de alineación por talle**: el bolsillo fija la posición del pod frente al imán en todos los talles.
 - **Envío**: verificar si el campo de 100+ imanes los vuelve carga peligrosa en avión (**no verificado**).
 

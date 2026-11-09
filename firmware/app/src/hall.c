@@ -1,7 +1,8 @@
 /*
- * Vest detection: DRV5032FB (omnipolar, push-pull, 5 Hz) on HALL_INT, low with
- * the pocket magnet. The System OFF SENSE is armed on the level opposite to the
- * current one (app/src/power.c), so it is never active when the pod sleeps.
+ * Vest detection: DRV5032FA (omnipolar, push-pull, 20 Hz; the FB at 5 Hz is the
+ * approved alternate) on HALL_INT, low with the pocket magnet. The System OFF
+ * SENSE is armed on the level opposite to the current one (app/src/power.c), so
+ * it is never active when the pod sleeps.
  */
 #include <zephyr/drivers/gpio.h>
 

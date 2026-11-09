@@ -20,9 +20,9 @@ Las tablas de abajo las escribe `bom_pcbway.py` en este archivo (entre los marca
 
 | Placas | Partes por placa | Total de partes |
 |---|---|---|
-| 5 | **85,12** | 425,61 |
-| 10 | **74,27** | 742,73 |
-| 100 | **61,95** | 6.194,52 |
+| 5 | **84,08** | 420,42 |
+| 10 | **73,44** | 734,36 |
+| 100 | **61,30** | 6.130,44 |
 
 **Lo que más pesa** (a 100 placas, por placa):
 
@@ -34,7 +34,7 @@ Las tablas de abajo las escribe `bom_pcbway.py` en este archivo (entre los marca
 | LSM6DSV320XTR | 1 | 6,72 | digikey |
 | MDBT50Q-P1MV2 | 1 | 6,00 | digikey |
 | E22-900M22S | 1 | 5,11 | jlcpcb |
-| Las otras 49 filas | — | 12,25 | — |
+| Las otras 49 filas | — | 11,61 | — |
 
 **Lo que no se suelda** ([`bom-pod-v0-extras.csv`](bom-pod-v0-extras.csv)), total del pedido:
 
@@ -59,17 +59,23 @@ Notas a las tablas:
 
 ## Plan de stock
 
-Para los 5 y los 10 alcanza con lo que hay; para los 100 hay que comprar o reservar **al pedir la v0** (detalle por parte en `partes_pod_v0.csv`):
+Auditoría completa, parte por parte, en [`stock.md`](stock.md) (leída el **09/11/2026** para 100 pods más las 5 de la v0). Para la v0 alcanza con lo que hay; para las 100 se compra ya lo barato que depende de una sola fuente y se reserva lo caro al aprobar la v0:
 
-| Parte | Stock el 08/11/2026 | Plan | Respaldo |
+| Parte | Estado el 09/11/2026 | Plan | Respaldo |
 |---|---|---|---|
-| **LSM6DSV320X** (`U401`) | LCSC 0, JLCPCB 3, DigiKey 0 (24 semanas, admite pedido pendiente) | Pedido pendiente de **130** en DigiKey o Mouser ya; preguntar al eStore de ST. v0: las 3 de JLCPCB + 2 de otra fuente | **LSM6DSV16X** (LCSC C5267406, 11.056 en stock, 2,43 a 100) en el mismo lugar, sin el canal de 320 g, con el **ADXL372** montado para el alto rango. Que el 16X sea pin a pin con el 320X: **no verificado** (contra las dos hojas de ST). El ICM-42688-P también escasea (DigiKey en agosto de 2027) |
-| **DRV5032FB** (`U406`) | LCSC 0, DigiKey 0 (julio de 2027), JLCPCB 286 | Comprar unas **150 en ti.com** y consignarlas a PCBWay | Calificar ya la **DRV5032FA** (20 Hz, 1,6 µA; LCSC C140921, 47.210 en stock) en el mismo lugar |
-| **BGA525N6** (`U205`) | LCSC 1.801, DigiKey 0 (40 semanas) | **Reservar 150 en LCSC** ya; consultar Mouser y Arrow | Ninguno pin a pin: con la Taoglas activa por el U.FL se puentea |
-| **MDBT50Q-P1MV2** (`U301`) | LCSC 0, DigiKey Marketplace 37 | Pedir **120 a Raytac** en el mismo mail de la revisión del layout (consulta 1); PCBWay puede recibirlo consignado ("maybe" en la lista) | **MDBT50Q-1MV2** (antena chip, mismo footprint de EasyEDA) |
-| TPS7A2032P (`U104`) | LCSC 0, DigiKey 3.358 | Comprar en DigiKey | — |
-| TPS22916C (`U303`) | LCSC 1.060, DigiKey en diciembre | LCSC | TPS22917/18 en SOT-23-6 (otro footprint) |
-| SAW B39162B8389P810 (`FL201`, `FL202`) | LCSC 218, DigiKey 7.710 | DigiKey | — |
+| **LSM6DSV320X** (`U401`) | ✗ Sin stock: LCSC 0, JLCPCB 3, DigiKey 0 (24 semanas), eStore de ST 26 | v0: **10 del eStore de ST** ya. Las 100: **pedido pendiente de 110** en DigiKey; si al cerrar la v0 no tiene fecha, los respaldos | Dos, **pin a pin verificados** (tabla 2 de cada hoja, mismo LGA-14L): 1.º **LSM6DSV80X** (mismo die y driver, ±80 g; hoy eStore de ST 34 + IBS 160, este no verificado), si se confirman 110; 2.º **LSM6DSV16X** con el **ADXL372** en `U403` (en stock; reservar 110 + 110 en LCSC): +10,7 por placa a 100 y otro driver |
+| **DRV5032FB** (`U406`) | ✗ Sin stock: LCSC 0, DigiKey 0 (julio de 2027), ti.com agotado; JLCPCB 271 | **La DRV5032FA pasa a ser la del diseño** (misma hoja, pines, umbrales y footprint; 20 Hz y +0,9 µA): **150 en LCSC** ya | La **FB**, alternativa aprobada cuando vuelva |
+| **TPS22916C** (`U303`) | ⚠ LCSC 1.040, DigiKey en diciembre | **150 en LCSC** ya | TPS22916B (encendido rápido) o CN (sin QOD), mismos pines: a probar en el banco |
+| **MDBT50Q-P1MV2** (`U301`) | ⚠ LCSC 0, DigiKey Marketplace 37, TME 1.239 (Findchips) | **120 a Raytac o TME** con la revisión del layout (consulta 1); consignadas a PCBWay | MDBT50Q-1MV2 (antena chip): pines verificados (hoja Ver.K común), alternativa aprobada con la condición del keep-out |
+| **LC29H(AA)** (`U201`) | ⚠ DigiKey 522 | Reservar **110 en DigiKey** al aprobar la v0 | LC29H(EA) en el mismo lugar (+12,41) |
+| **GVLB208.A** (`AE201`) | ⚠ DigiKey 271 | Reservar **110** en DigiKey o Taoglas al aprobar la v0 | Taoglas AGVLB.25B activa por el U.FL |
+| **E22-900M22S** (`U302`) | ⚠ LCSC 517 | Reservar **110 en LCSC** al aprobar la v0 | — |
+| **TX915-FPC-4510** | ⚠ Sin cifra; Ebyte la publica en 5–12 días | Muestras de Ebyte (consulta 7) | Molex 2111400100 (U.FL, otro tamaño; DigiKey 5.706): 10 para el banco |
+| BGA525N6 (`U205`) | ✓ LCSC 1.801; DigiKey 0 (40 semanas) | **150 en LCSC** ya | Ninguno pin a pin con L1 + L5: con la Taoglas activa se puentea |
+| TPS7A2032P (`U104`) | ✓ DigiKey 3.348; LCSC 0 | **120 en DigiKey** ya | TPS7A2033P (mismos pines, 3,3 V): no aprobada |
+| SAW B39162B8389P810 (`FL201`, `FL202`) | ✓ DigiKey 7.710, LCSC 218 | 230 en DigiKey al aprobar la v0 | — |
+
+Lo que se compra ya suma unos **US$ 265** (detalle en `stock.md`).
 
 ## 2. Placa desnuda (estimación)
 
@@ -114,7 +120,7 @@ Placa armada en origen, sin batería, carcasa ni importación (variante base AA;
 
 | | 5 placas | 10 placas | 100 placas |
 |---|---|---|---|
-| Partes (tabla generada de la sección 1) | 85,12 | 74,27 | 61,95 |
+| Partes (tabla generada de la sección 1) | 84,08 | 73,44 | 61,30 |
 | Placa desnuda (se piden 10 para armar 5) | 28–70 | 14–35 | 4–9 |
 | Armado | 30–70 | 20–35 | 12–20 |
 | Envío desde China y consignados | 14–28 | 8–15 | 2–4 |
