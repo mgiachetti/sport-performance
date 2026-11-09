@@ -22,7 +22,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@fastify/cors": "11.3.1",
+    "@fastify/cors": "11.4.0",
     "@react-email/components": "1.0.12",
     "@react-email/render": "2.2.0",
     "@sentry/node": "11.10.0",
@@ -33,7 +33,7 @@
     "@sport-performance/i18n": "workspace:*",
     "@sport-performance/storage": "workspace:*",
     "@sport-performance/ui-tokens": "workspace:*",
-    "better-auth": "1.7.14",
+    "better-auth": "1.7.15",
     "drizzle-orm": "0.45.4",
     "fastify": "5.12.7",
     "pg": "8.23.1",
