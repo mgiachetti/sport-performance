@@ -2,7 +2,7 @@
 
 Auditoría de stock de cada parte de la lista de armado ([`bom-pod-v0.csv`](bom-pod-v0.csv)) y de lo que no se suelda ([`bom-pod-v0-extras.csv`](bom-pod-v0-extras.csv)), leída el **09/11/2026** para la corrida de **100 pods más las 5 placas de la v0** (105 placas). Responde dos preguntas: si hoy hay stock de todo (o se consigue en pocas semanas) y, para lo que no, qué alternativas hay y si entran en la placa tal como está.
 
-Parte del paquete de cotización: los precios están en [`costos.md`](costos.md), el pedido en [`pedido-pcbway.md`](pedido-pcbway.md) y los mails en [`consultas.md`](consultas.md).
+Parte del paquete de cotización: los precios están en [`costos.md`](costos.md), el pedido en [`pedido-pcbway.md`](pedido-pcbway.md) y los mails en [`consultas.md`](consultas.md). Las alternativas del bloque MCU + radio (otros módulos BLE y LoRa, otra MCU, la antena LoRa), con la regla de 150 unidades disponibles ya, están en [`alternativas-mcu-radio.md`](alternativas-mcu-radio.md).
 
 ## Cómo se leyó
 
@@ -42,11 +42,11 @@ La genera `hardware/tools/bom_pcbway.py` desde las columnas de stock de [`partes
 | Parte | Lugar | Hacen falta (105 placas) | Estado | LCSC | DigiKey | JLCPCB | Otras fuentes | Plazo | Alternativa directa | Otras alternativas |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `LSM6DSV320XTR` | U401 | 105 | ✗ SIN STOCK | 0 | 0 | 3 | ST eStore 26 | DigiKey 24 semanas (admite pedido pendiente) | — | 1.ª LSM6DSV80XTR (pin a pin, mismo die y WHO_AM_I 73h, ±80 g; ST eStore 34 + IBS 160); 2.ª LSM6DSV16XTR (pin a pin, ±16 g) con el ADXL372 montado en U403 |
-| `TX915-FPC-4510` | (no se suelda) | 105 | ⚠ LIMITADO | — | — | 0 | Tienda de Ebyte en Alibaba: 5 días hasta 50, 12 días hasta 1.000 (sin cifra de stock; no verificado) | — | — | Molex 2111400100 (U.FL, otro tamaño; DigiKey 5.706) |
+| `TX915-FPC-4510` | (no se suelda) | 105 | ⚠ LIMITADO | — | — | 0 | Tienda de Ebyte en Alibaba: 5 días hasta 50, 12 días hasta 1.000 (sin cifra de stock; no verificado) | — | — | Molex 2111400100 (U.FL, otro tamaño; DigiKey 5.706); Taoglas FXP890.07.0100C (U.FL; DigiKey 197) |
 | `GVLB208.A` | AE201 | 105 | ⚠ LIMITADO | — | 271 | — | Taoglas directo (a consultar) | DigiKey 16 semanas | — | Ninguna en el mismo footprint; patch de 25 × 25 mm con otro footprint, o la AGVLB.25B activa por el U.FL |
 | `LC29HAAMD` | U201 | 105 | ⚠ LIMITADO | 91 | 522 | 91 | — | DigiKey 14 semanas | — | LC29HEAMD en el mismo footprint (RTK, +12,41 a 100) |
-| `MDBT50Q-P1MV2` | U301 | 105 | ⚠ LIMITADO | 0 | 37 | 0 | TME 1.239 (Findchips; la página de TME no abre); Raytac directo | DigiKey Marketplace unos 14 días | `MDBT50Q-1MV2` (only with our written OK (antenna keep-out differs)) | — |
-| `E22-900M22S` | U302 | 105 | ⚠ LIMITADO | 517 | — | 517 | Tienda de Ebyte (sin cifra de stock) | — | — | Ninguna en el mismo footprint (otro módulo SX1262 cambia la placa) |
+| `MDBT50Q-P1MV2` | U301 | 105 | ⚠ LIMITADO | 0 | 37 | 0 | TME 1.239 (Findchips; la página de TME no abre); Raytac directo | DigiKey Marketplace unos 14 días | `MDBT50Q-1MV2` (only with our written OK (antenna keep-out differs)) | Fanstel BT840 (otro footprint; DigiKey 10.247, 8,93 a 100) o u-blox BMD-340-A-R (otro footprint; DigiKey 10.055): alternativas-mcu-radio.md |
+| `E22-900M22S` | U302 | 105 | ⚠ LIMITADO | 517 | — | 517 | Tienda de Ebyte (sin cifra de stock) | — | — | Ninguna en el mismo footprint; Ai-Thinker Ra-01SH (LCSC 2.239, 2,99 a 100) o NiceRF LORA1262-915TCXO (LCSC 1.232), con otro footprint: alternativas-mcu-radio.md |
 | `TPS22916CYFPR` | U303 | 105 | ⚠ LIMITADO | 1.040 | 0 | 1.042 | Brokers (Bristol 270) | DigiKey: 3.000 el 07/12/2026 (26 semanas) | — | TPS22916BYFPR (mismos pines, encendido rápido); TPS22916CNYFPR (mismos pines, sin QOD) |
 | `AGVLB.25B.07.0060A` | (no se suelda) | 42 | ✓ OK | — | 558 | — | — | DigiKey 16 semanas | — | — |
 | `LQW15AN10NG00D` | (no se suelda) | 210 | ✓ OK | 88.800 | 1.233 | — | — | — | — | — |
@@ -167,7 +167,7 @@ Ninguna se aprueba sin el banco. **Recomendación**: comprar **150 TPS22916C en 
 
 ### Módulo MDBT50Q-P1MV2 (`U301`): limitado
 
-**Stock**: LCSC 0, JLCPCB 0, DigiKey Marketplace (Raytac) 37 en unos 14 días a US$ 6,00, **TME 1.239** según Findchips (US$ 6,50 desde 88; la página de TME no abrió). **Alternativa aprobada con condición: MDBT50Q-1MV2** (antena chip; DigiKey Marketplace 50, LCSC 0). **Pines verificados**: la hoja de Raytac Ver.K es común a las dos (una sola tabla de pines, sección 2.5, y el mismo módulo de 15,5 × 10,5 mm), y el footprint de la biblioteca (`COMM-SMD_MDBT50Q-1MV2`) es el de la -1MV2. Falta confirmar el **keep-out** de la antena chip (secciones 2.2 y 2.3) y que el FCC ID SH6MDBT50Q la cubra con nuestro layout: por eso en la lista dice "only with our written OK". Tampoco tiene más stock. **Recomendación**: pedir **120 a Raytac** (consulta 1) o a TME con la revisión del layout; PCBWay puede recibirlas consignadas.
+**Stock**: LCSC 0, JLCPCB 0, DigiKey Marketplace (Raytac) 37 en unos 14 días a US$ 6,00, **TME 1.239** según Findchips (US$ 6,50 desde 88; la página de TME no abrió). **Alternativa aprobada con condición: MDBT50Q-1MV2** (antena chip; DigiKey Marketplace 50, LCSC 0). **Pines verificados**: la hoja de Raytac Ver.K es común a las dos (una sola tabla de pines, sección 2.5, y el mismo módulo de 15,5 × 10,5 mm), y el footprint de la biblioteca (`COMM-SMD_MDBT50Q-1MV2`) es el de la -1MV2. Falta confirmar el **keep-out** de la antena chip (secciones 2.2 y 2.3) y que el FCC ID SH6MDBT50Q la cubra con nuestro layout: por eso en la lista dice "only with our written OK". Tampoco tiene más stock. **Recomendación**: pedir **120 a Raytac** (consulta 1) o a TME con la revisión del layout; PCBWay puede recibirlas consignadas. Con la regla de 150 disponibles ya, las alternativas con otro footprint (Fanstel BT840, u-blox BMD-340) están en [`alternativas-mcu-radio.md`](alternativas-mcu-radio.md).
 
 ### GNSS LC29H(AA) (`U201`): limitado
 
@@ -179,7 +179,7 @@ Ninguna se aprueba sin el banco. **Recomendación**: comprar **150 TPS22916C en 
 
 ### LoRa E22-900M22S (`U302`): limitado
 
-**Stock**: LCSC y JLCPCB 517, no está en DigiKey. **Sin alternativa en el mismo footprint**: otro módulo SX1262 cambia la placa. **Recomendación**: reservar **110 en LCSC** al aprobar la v0 y pedir precio a 100 y 500 a Ebyte (consulta 7).
+**Stock**: LCSC y JLCPCB 517, no está en DigiKey. **Sin alternativa en el mismo footprint**: otro módulo SX1262 cambia la placa. **Recomendación**: reservar **110 en LCSC** al aprobar la v0 y pedir precio a 100 y 500 a Ebyte (consulta 7). Alternativas con otro footprint (Ai-Thinker Ra-01SH, NiceRF LoRa1262) y la antena Molex como principal: [`alternativas-mcu-radio.md`](alternativas-mcu-radio.md).
 
 ### Antena LoRa TX915-FPC-4510 (no se suelda): limitado
 
