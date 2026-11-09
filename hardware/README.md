@@ -30,6 +30,7 @@ Proyectos de KiCad del pod GNSS + IMU (Fase 3). El diseño está en [`docs/hardw
 |---|---|
 | `diseno.py` | **La netlist**: por hoja, grupos de partes con referencia automática (R101…, R201…), valor, footprint, MPN, LCSC, fabricante, sin montar y la red de cada pin (`NC` = sin conectar) |
 | `simbolos.py` | Símbolos genéricos (R, C, L, diodos, cristal, pads de prueba, conectores, MOSFET, fiduciales, agujeros), los de los integrados sin símbolo de easyeda2kicad (dibujados desde la tabla de pines de `pod-v0.md` o de la hoja citada), los de alimentación y el tipo eléctrico de cada pin de los símbolos de easyeda2kicad |
+| `catalogo.py` | La parte que se compra (MPN, fabricante y LCSC) de cada resistencia, capacitor y bobina genérica de la netlist, por valor y footprint; `diseno.py` la aplica al final, así el esquemático y las listas de materiales dicen lo mismo |
 | `modelo.py` | Las clases y atajos de la netlist (`R`, `R0`, `C`, `TP`, `FLAG`…) y los nombres de los footprints oficiales de KiCad que se usan (verificados contra la etiqueta 10.0.8 de `kicad-footprints`) |
 | `generar.py` | Valida la netlist (pines sin asignar, redes de un solo pin, rieles sin fuente o con dos), ubica las partes en una grilla por grupos, escribe los archivos y **los vuelve a leer** para verificar la conectividad contra la netlist |
 
@@ -52,6 +53,24 @@ python3 hardware/tools/footprints_hoja.py --check  # falla si alguno quedó desa
 ```
 
 **Lo que el generador no dibuja**: el lugar para una antena chip o SMA de LoRa y el área de la etiqueta (son de la placa). El puente USB-UART del GNSS salió del diseño: para hablar con QGNSS está el conector de 4 pines.
+
+## Paquete de cotización
+
+Para pedir a PCBWay (y comparar con JLCPCB) y a los demás proveedores, en [`docs/hardware/cotizacion/`](../docs/hardware/cotizacion/costos.md):
+
+| Archivo | Qué hay |
+|---|---|
+| [`costos.md`](../docs/hardware/cotizacion/costos.md) | Costo por parte a 5, 10 y 100 placas, placa, armado, envío, NRE y costo por pod |
+| [`pedido-pcbway.md`](../docs/hardware/cotizacion/pedido-pcbway.md) | Lo que necesita PCBWay (placa, apilado e impedancia, oro duro, vías en el pad, armado), las preguntas y el mail; la versión corta para JLCPCB |
+| [`consultas.md`](../docs/hardware/cotizacion/consultas.md) | Mails para Raytac, el proveedor de baterías, ENACOM, el despachante, Quectel y Taoglas |
+| `bom-pod-v0.csv`, `bom-pod-v0-sin-montar.csv`, `bom-pod-v0-jlcpcb.csv`, `bom-pod-v0-extras.csv`, `costo-partes-pod-v0.csv` | Listas de materiales (formato de PCBWay y de JLCPCB, montadas y sin montar, lo que no se suelda) y costo por parte, **generadas** |
+
+Las listas las genera `tools/bom_pcbway.py` (biblioteca estándar) desde la netlist y [`tools/datos/partes_pod_v0.csv`](tools/datos/partes_pod_v0.csv), que tiene por MPN el número de LCSC y de DigiKey, el stock, los escalones de precio con su fuente y fecha, si la mandamos nosotros y las instrucciones para el armador:
+
+```sh
+python3 hardware/tools/bom_pcbway.py          # reescribe las listas y muestra el costo de partes por placa
+python3 hardware/tools/bom_pcbway.py --check  # falla si una parte no tiene datos o una lista quedó vieja (lo corre el CI)
+```
 
 ## Reglas de diseño de la placa
 
@@ -140,7 +159,7 @@ Las reglas propias y el keep-out del BLE se prueban en el CI con `tools/sonda_dr
 
 ## Controles y salidas
 
-- **CI** (`.github/workflows/hardware.yml`): en cada PR que toca `hardware/`, corre `generar.py --check`, `footprints_hoja.py --check`, exporta cada footprint de `lib/pod.pretty` con `kicad-cli fp export svg` (falla si alguno no carga), `kicad-cli sch erc` y `kicad-cli pcb drc` y falla si hay alguna violación (errores o advertencias). Después corre la **prueba de las reglas propias** (`tools/sonda_drc.py`): kicad-cli ignora sin avisar una regla de `pod-v0.kicad_dru` que no se lee, así que arma dos placas de prueba con el proyecto, las reglas y las zonas del pod: una con un objeto que rompe cada regla a propósito, que falla si el reporte no nombra cada una, y un control negativo que cumple todo (CPWG de 0,33 mm con GND a 0,20 mm, otra red a 0,6 mm, el par USB con su geometría, SYS de 1,5 mm en L3, pads de RF a 0,4 mm entre sí, una vía de GND y el patch en la zona GNSS, la alimentación del patch por L4 con su vía de RF y una zona de GND en L3 debajo, un componente abajo; en la placa mala, además, una pista de VREG en L3 debajo de la alimentación del patch y la alimentación del patch en L3, que tiene que seguir prohibida), que falla si tiene alguna violación de reglas. El DRC de las pruebas corre con `--all-track-errors` (sin eso KiCad informa un solo error por pista). Al agregar una regla, se agregan sus dos casos ahí. Los reportes quedan en el log y, si falla, como artefacto.
+- **CI** (`.github/workflows/hardware.yml`): en cada PR que toca `hardware/` o `docs/hardware/cotizacion/`, corre `generar.py --check`, `footprints_hoja.py --check`, `bom_pcbway.py --check`, exporta cada footprint de `lib/pod.pretty` con `kicad-cli fp export svg` (falla si alguno no carga), `kicad-cli sch erc` y `kicad-cli pcb drc` y falla si hay alguna violación (errores o advertencias). Después corre la **prueba de las reglas propias** (`tools/sonda_drc.py`): kicad-cli ignora sin avisar una regla de `pod-v0.kicad_dru` que no se lee, así que arma dos placas de prueba con el proyecto, las reglas y las zonas del pod: una con un objeto que rompe cada regla a propósito, que falla si el reporte no nombra cada una, y un control negativo que cumple todo (CPWG de 0,33 mm con GND a 0,20 mm, otra red a 0,6 mm, el par USB con su geometría, SYS de 1,5 mm en L3, pads de RF a 0,4 mm entre sí, una vía de GND y el patch en la zona GNSS, la alimentación del patch por L4 con su vía de RF y una zona de GND en L3 debajo, un componente abajo; en la placa mala, además, una pista de VREG en L3 debajo de la alimentación del patch y la alimentación del patch en L3, que tiene que seguir prohibida), que falla si tiene alguna violación de reglas. El DRC de las pruebas corre con `--all-track-errors` (sin eso KiCad informa un solo error por pista). Al agregar una regla, se agregan sus dos casos ahí. Los reportes quedan en el log y, si falla, como artefacto.
 - **Salidas de fabricación** (PDF del esquemático, BOM con MPN, LCSC y sin montar, Gerbers, taladros y pick and place para PCBWay), con KiBot desde `hardware/pod-v0/`:
 
   ```sh

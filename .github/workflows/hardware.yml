@@ -6,11 +6,13 @@ on:
   pull_request:
     paths:
       - 'hardware/**'
+      - 'docs/hardware/cotizacion/**'
       - '.github/workflows/hardware.yml'
   push:
     branches: [main]
     paths:
       - 'hardware/**'
+      - 'docs/hardware/cotizacion/**'
       - '.github/workflows/hardware.yml'
   workflow_dispatch:
 
@@ -43,6 +45,11 @@ jobs:
       # Footprints drawn from the datasheets (hardware/tools/footprints_hoja.py).
       - name: Footprint generator up to date
         run: python3 hardware/tools/footprints_hoja.py --check
+
+      # BOMs and part cost of the quote package (docs/hardware/cotizacion), from the netlist and
+      # hardware/tools/datos/partes_pod_v0.csv: fail if a part has no data or a file is stale.
+      - name: Quote BOMs up to date
+        run: python3 hardware/tools/bom_pcbway.py --check
 
       - name: Pull KiCad image
         run: docker pull "$KICAD_IMAGE"
