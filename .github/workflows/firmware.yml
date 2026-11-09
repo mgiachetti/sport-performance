@@ -110,7 +110,12 @@ jobs:
             echo "::error::A release build signed with the development key was accepted"
             exit 1
           fi
-          grep -q "Release build signed with the MCUboot development key" release-guard.log
+          # CMake wraps long messages: compare with the whitespace collapsed.
+          if ! tr -s ' \n' '  ' < release-guard.log | grep -q "signed with the MCUboot development key"; then
+            tail -n 60 release-guard.log
+            echo "::error::The release build failed for another reason"
+            exit 1
+          fi
 
       - name: Size
         env:
