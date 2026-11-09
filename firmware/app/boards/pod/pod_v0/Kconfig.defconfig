@@ -1,0 +1,8 @@
+# Pod v0 board defaults.
+
+if BOARD_POD_V0
+
+config HW_STACK_PROTECTION
+	default ARCH_HAS_STACK_PROTECTION
+
+endif # BOARD_POD_V0

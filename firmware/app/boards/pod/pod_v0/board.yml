@@ -1,0 +1,5 @@
+board:
+  name: pod_v0
+  full_name: Pod v0 (sport-performance, B-909)
+  socs:
+    - name: nrf52840

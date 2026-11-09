@@ -1,0 +1,35 @@
+# West manifest of the pod firmware (B-904). The repository is the manifest repository
+# (west "T2" topology) and this file lives in firmware/: see firmware/README.md for the
+# workspace layout (`west init -l sport-performance --mf firmware/west.yml`).
+#
+# nRF Connect SDK pinned to a release tag; only the projects the pod builds with are
+# fetched (name-allowlist), so `west update` stays small in CI.
+manifest:
+  version: '0.13'
+
+  remotes:
+    - name: ncs
+      url-base: https://github.com/nrfconnect
+
+  projects:
+    - name: nrf
+      remote: ncs
+      repo-path: sdk-nrf
+      revision: v3.4.1
+      import:
+        name-allowlist:
+          - zephyr
+          - cmsis
+          - cmsis_6
+          - hal_nordic
+          - hal_st
+          - loramac-node
+          - mcuboot
+          - mbedtls
+          - oberon-psa-crypto
+          - tf-psa-crypto
+          - nrfxlib
+          - picolibc
+          - segger
+          - zcbor
+          - nrf_hw_models

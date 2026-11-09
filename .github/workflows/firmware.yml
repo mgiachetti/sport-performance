@@ -1,0 +1,148 @@
+# Pod firmware (B-904): host tests of the portable library against the golden fixtures of
+# packages/pod-protocol, and the Zephyr build of both boards inside the official nRF Connect
+# SDK toolchain image pinned by digest. Runs only when the firmware or the fixtures change.
+name: firmware
+
+on:
+  pull_request:
+    paths:
+      - 'firmware/**'
+      - 'packages/pod-protocol/fixtures/**'
+      - '.github/workflows/firmware.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'firmware/**'
+      - 'packages/pod-protocol/fixtures/**'
+      - '.github/workflows/firmware.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firmware-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  host-tests:
+    name: firmware (host tests)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Plain C with the runner's gcc and CMake, AddressSanitizer and UBSan on.
+      - name: Configure
+        run: cmake -S firmware/tests/host -B "$RUNNER_TEMP/host" -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build "$RUNNER_TEMP/host" --parallel
+
+      - name: Test
+        run: ctest --test-dir "$RUNNER_TEMP/host" --output-on-failure
+
+  build:
+    name: firmware (${{ matrix.board }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        board: [nrf52840dk/nrf52840, pod_v0/nrf52840]
+    container:
+      # ghcr.io/nrfconnect/sdk-nrf-toolchain:v3.4.1 (Nordic's official image, linux/amd64
+      # manifest digest, 2026-09-17), matching the NCS revision of firmware/west.yml.
+      image: ghcr.io/nrfconnect/sdk-nrf-toolchain:v3.4.1@sha256:45b97cad97a9967c52d77d1d1a0f7dd8fe027edd17c05c3eda2eeadc23729418
+    defaults:
+      run:
+        # The image sets up the toolchain through BASH_ENV, read by non-interactive bash.
+        shell: bash
+    steps:
+      # The repository is the west manifest repository (firmware/west.yml); the workspace
+      # top directory is $GITHUB_WORKSPACE, so the checkout goes one level down.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          path: sport-performance
+
+      - name: Cache the west projects
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            nrf
+            zephyr
+            nrfxlib
+            bootloader
+            modules
+          key: west-${{ hashFiles('sport-performance/firmware/west.yml') }}
+
+      # The container runs as root on a workspace the runner owns.
+      - name: West workspace
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory '*'
+          rm -rf .west
+          west init -l sport-performance --mf firmware/west.yml
+          west update --narrow -o=--depth=1
+          west list
+
+      - name: Build
+        env:
+          BOARD: ${{ matrix.board }}
+        run: |
+          set -euo pipefail
+          out="build/${BOARD%%/*}"
+          # The pod board lives in the application (app/boards): BOARD_ROOT is relative to it.
+          west build --pristine -b "$BOARD" -d "$out" sport-performance/firmware/app -- -DBOARD_ROOT=.
+          ls -la "$out"
+
+      # A release build must refuse MCUboot's public development keys and lock APPROTECT in
+      # both images (sysbuild.cmake). The accepted case signs with a throwaway key generated
+      # here and never stored.
+      - name: Release guard
+        if: matrix.board == 'pod_v0/nrf52840'
+        run: |
+          if west build --pristine --cmake-only -b pod_v0/nrf52840 -d build/release-guard \
+            sport-performance/firmware/app -- -DBOARD_ROOT=. -DSB_CONFIG_POD_RELEASE_BUILD=y \
+            > release-guard.log 2>&1; then
+            cat release-guard.log
+            echo "::error::A release build signed with the development key was accepted"
+            exit 1
+          fi
+          # CMake wraps long messages: compare with the whitespace collapsed.
+          if ! tr -s ' \n' '  ' < release-guard.log | grep -q "signed with the MCUboot development key"; then
+            tail -n 60 release-guard.log
+            echo "::error::The release build failed for another reason"
+            exit 1
+          fi
+          key="$RUNNER_TEMP/throwaway-release-key.pem"
+          openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out "$key"
+          west build --pristine --cmake-only -b pod_v0/nrf52840 -d build/release-ok \
+            sport-performance/firmware/app -- -DBOARD_ROOT=. -DSB_CONFIG_POD_RELEASE_BUILD=y \
+            "-DSB_CONFIG_BOOT_SIGNATURE_KEY_FILE=\"$key\""
+          rm -f "$key"
+          grep -q '^CONFIG_NRF_APPROTECT_LOCK=y' build/release-ok/app/zephyr/.config
+          grep -q '^CONFIG_NRF_APPROTECT_LOCK=y' build/release-ok/mcuboot/zephyr/.config
+
+      - name: Prepare the artifacts
+        env:
+          BOARD: ${{ matrix.board }}
+        run: |
+          set -euo pipefail
+          name="${BOARD%%/*}"
+          mkdir -p "artifacts/$name"
+          cp "build/$name/mcuboot/zephyr/zephyr.hex" "artifacts/$name/mcuboot.hex"
+          cp "build/$name/app/zephyr/zephyr.signed.hex" "build/$name/app/zephyr/zephyr.signed.bin" \
+            "build/$name/app/zephyr/zephyr.elf" "artifacts/$name/"
+          echo "ARTIFACT_NAME=firmware-$name" >> "$GITHUB_ENV"
+
+      # Development images, signed with MCUboot's public development key: never for the field.
+      - name: Upload the images
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: artifacts
+          retention-days: 7
