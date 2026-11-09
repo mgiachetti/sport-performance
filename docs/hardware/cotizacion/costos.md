@@ -10,7 +10,7 @@ Todo en US$, sin IVA ni impuestos argentinos.
 
 Reglas del cálculo:
 
-- **Cantidad comprada** = cantidad por placa × placas, más **10 de desperdicio** por fila en resistencias, capacitores, bobinas y ESD (lo que suele pedir el armador). Si queda por debajo del mínimo de venta, se paga el mínimo (por eso a 5 placas sobran, por ejemplo, 5 NAND: LCSC vende de a 10).
+- **Cantidad comprada** = cantidad por placa × placas, más **10 de desperdicio** por fila en resistencias, capacitores, bobinas y ESD (lo que suele pedir el armador). Si queda por debajo del mínimo de venta, se paga el mínimo (el primer escalón de la planilla).
 - **Precio** del escalón que corresponde a esa cantidad, de la fuente con stock y menor precio (la columna `fuente_precio`). DigiKey solo muestra el precio de Marketplace de la -P1MV2 a 1 unidad: a 100 se usa ese mismo (**no verificado** a volumen).
 - **Variante base**: LC29H(AA), sin UWB, con el patch pasivo. Las variantes, abajo.
 
@@ -20,17 +20,17 @@ Las tablas de abajo las escribe `bom_pcbway.py` en este archivo (entre los marca
 
 | Placas | Partes por placa | Total de partes |
 |---|---|---|
-| 5 | **104,60** | 522,99 |
-| 10 | **79,57** | 795,68 |
-| 100 | **68,72** | 6.872,19 |
+| 5 | **85,12** | 425,61 |
+| 10 | **74,27** | 742,73 |
+| 100 | **61,95** | 6.194,52 |
 
 **Lo que más pesa** (a 100 placas, por placa):
 
 | Parte | Cant. | US$ por placa | Fuente |
 |---|---|---|---|
-| W25N04KVZEIR | 1 | 14,59 | lcsc |
 | LC29HAAMD | 1 | 12,25 | digikey |
 | GVLB208.A | 1 | 11,79 | digikey |
+| W25N02KVZEIR | 1 | 7,81 | lcsc |
 | LSM6DSV320XTR | 1 | 6,72 | digikey |
 | MDBT50Q-P1MV2 | 1 | 6,00 | digikey |
 | E22-900M22S | 1 | 5,11 | jlcpcb |
@@ -53,7 +53,7 @@ Las tablas de abajo las escribe `bom_pcbway.py` en este archivo (entre los marca
 
 Notas a las tablas:
 
-- **NAND**: la W25N02KVZEIR (2 Gbit) entra en el mismo lugar a 7,81 a 100: ahorra **6,78** por placa. La GigaDevice **GD5F4GQ6UEYIGR** (4 Gbit, WSON-8 de 8 × 6) sería la segunda fuente de 4 Gbit, pero hoy **no ahorra**: sin stock en LCSC (14,46 a 100 sin stock) ni en DigiKey (solo el carrete de 3.000 a 20,33, sin pedido pendiente). Sus pines y su juego de comandos (ECC, lectura continua, registros de estado) difieren en detalle de la W25N: si se suma, el driver del firmware tiene que soportar las dos (**no verificado**).
+- **NAND**: la del diseño es la **W25N02KVZEIR** (2 Gbit, unas 8 sesiones de 3 h; `pod-f3.md`), a 7,81 a 100. Contra la W25N04KVZEIR (4 Gbit, 14,59 a 100) ahorra **6,78** por placa a 100, 5,29 a 10 y 19,48 a 5 (LCSC vende la de 4 Gbit de a 10 y la de 2 Gbit de a 1). La W25N04KVZEIR queda como alternativa en el mismo lugar para una variante de más capacidad (mismos pines y comandos según las hojas de Winbond). La GigaDevice **GD5F4GQ6UEYIGR** (4 Gbit, WSON-8 de 8 × 6) sería la segunda fuente de esa variante, pero hoy **no ahorra**: sin stock en LCSC (14,46 a 100 sin stock) ni en DigiKey (solo el carrete de 3.000 a 20,33, sin pedido pendiente). Sus pines y su juego de comandos (ECC, lectura continua, registros de estado) difieren en detalle de la W25N: si se suma, el driver del firmware tiene que soportar las dos (**no verificado**).
 - **Variantes** (a 100 placas, por placa): LC29H(EA) en lugar de la AA, **+12,41** (24,66 en LCSC contra 12,25); UWB DWM3000 montado, **+19,84** más dos capacitores (DigiKey). En el pedido de 5 (3 AA, 2 EA, una con UWB) las partes suben unos **+11,0 por placa** promedio: (2 × (31,78 − 16,04) + 23,46) / 5, con los precios a 1 unidad.
 - **Antena LoRa TX915-FPC-4510**: **cotización abierta** (sin precio ni stock en LCSC); se pide a Ebyte (consulta 7 de [`consultas.md`](consultas.md)).
 
@@ -114,15 +114,15 @@ Placa armada en origen, sin batería, carcasa ni importación (variante base AA;
 
 | | 5 placas | 10 placas | 100 placas |
 |---|---|---|---|
-| Partes (tabla generada de la sección 1) | 104,60 | 79,57 | 68,72 |
+| Partes (tabla generada de la sección 1) | 85,12 | 74,27 | 61,95 |
 | Placa desnuda (se piden 10 para armar 5) | 28–70 | 14–35 | 4–9 |
 | Armado | 30–70 | 20–35 | 12–20 |
 | Envío desde China y consignados | 14–28 | 8–15 | 2–4 |
-| **Placa armada en Buenos Aires, sin impuestos** | **unos 175–275** | **unos 120–165** | **unos 87–102** |
+| **Placa armada en Buenos Aires, sin impuestos** | **unos 155–255** | **unos 115–160** | **unos 80–95** |
 | Batería certificada, carcasa MJF con junta y etiqueta (de `pod-f3.md`, **no verificado**) | 12–18 | 12–18 | 11–16 |
-| **Pod completo, sin impuestos** | **unos 189–291** | **unos 134–183** | **unos 98–118** |
+| **Pod completo, sin impuestos** | **unos 169–271** | **unos 128–177** | **unos 91–111** |
 
-- A 100, el pod queda **arriba de los US$ 80** del ADR 0105 y de los 85–95 a nivel de placa de `pod-mecanica-produccion.md`. Lo que más mueve: la **NAND de 4 Gbit** (−6,78 con la de 2 Gbit), el **patch** (11,79 de DigiKey; con Taoglas directo a 500 o más, unos 10,8) y el armado.
+- A 100, la placa armada (80–95) queda en el orden de los 85–95 a nivel de placa de `pod-mecanica-produccion.md`, y el pod completo, **arriba de los US$ 80** del ADR 0105. Lo que más mueve: el **patch** (11,79 de DigiKey; con Taoglas directo a 500 o más, unos 10,8), el armado y la NAND (la de 2 Gbit ya está en el diseño; la variante de 4 Gbit suma **+6,78**).
 - Con la EA en todas: **+12,41** por pod a 100.
 - Con los impuestos argentinos (supuesto de 50 %), multiplicar por 1,5 lo que viene de afuera.
 

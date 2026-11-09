@@ -163,7 +163,7 @@ Antes de pedir, se manda **el diseño (no solo los Gerbers)** para una revisión
 | MDBT50Q-P1MV2 | Precio sin verificar; certificaciones a confirmar | Cotizar a 100 |
 | XL-1615RGBC-RF | Parte poco conocida, hoja sin verificar | Alternativa conocida |
 | DW3110 / DWM3000 | Sin stock | Sin montar en la v0 |
-| W25N02 vs W25N04 | El costo usa la de 2 Gbit y la decisión es la de 4 Gbit | Cotizar la de 4 Gbit |
+| W25N02 vs W25N04 | Resuelto (09/11/2026): la v0 monta la W25N02KV de 2 Gbit (unas 8 sesiones de 3 h, 7,81 a 100) | La W25N04KV de 4 Gbit (14,59 a 100) en el mismo lugar si hace falta más capacidad |
 | Partes de alimentación | Todavía candidatas | Elegir y cotizar |
 
 - **Cotizaciones vivas** a cantidad 5, 10 y 100, con plazos de entrega.

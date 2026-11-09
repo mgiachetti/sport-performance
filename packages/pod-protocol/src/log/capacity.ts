@@ -1,11 +1,12 @@
-import { LOG_PAGE_PAYLOAD_CAPACITY, W25N04KV, type NandGeometry } from './constants.js';
+import { LOG_PAGE_PAYLOAD_CAPACITY, POD_NAND, type NandGeometry } from './constants.js';
 import { RECORD_HEADER_LENGTH, recordBodyLength, type KnownLogRecord } from './records.js';
 
 /**
  * Size math of the log: how many pages and blocks a rate of record stream
  * takes, and how many sessions fit in a chip. docs/hardware/pod-f3.md estimates
  * the sensor data at ≈ 2,5 kB/s (≈ 4,5 kB/s with raw GNSS at 1 Hz); the format
- * adds record headers and timestamps (`profileStreamRateBps`).
+ * adds record headers and timestamps (`profileStreamRateBps`). The chip defaults
+ * to the one the pod v0 mounts (`POD_NAND`, the 2 Gbit W25N02KV).
  */
 
 export function pagesForStreamBytes(streamBytes: number): number {
@@ -20,13 +21,13 @@ export function pagesPerHour(streamRateBps: number): number {
 export function segmentBlocks(
   streamRateBps: number,
   durationS: number,
-  geometry: NandGeometry = W25N04KV,
+  geometry: NandGeometry = POD_NAND,
 ): number {
   return Math.ceil(pagesForStreamBytes(streamRateBps * durationS) / geometry.pagesPerBlock);
 }
 
 /** Blocks for log pages: all minus the index blocks and the bad-block budget. */
-export function usableBlocks(geometry: NandGeometry = W25N04KV): number {
+export function usableBlocks(geometry: NandGeometry = POD_NAND): number {
   return geometry.blocks - geometry.reservedBlocks - geometry.badBlockAllowance;
 }
 
@@ -35,13 +36,13 @@ export function sessionsPerChip(input: {
   sessionDurationS: number;
   geometry?: NandGeometry;
 }): number {
-  const geometry = input.geometry ?? W25N04KV;
+  const geometry = input.geometry ?? POD_NAND;
   return Math.floor(
     usableBlocks(geometry) / segmentBlocks(input.streamRateBps, input.sessionDurationS, geometry),
   );
 }
 
-export function hoursPerChip(streamRateBps: number, geometry: NandGeometry = W25N04KV): number {
+export function hoursPerChip(streamRateBps: number, geometry: NandGeometry = POD_NAND): number {
   return (usableBlocks(geometry) * geometry.pagesPerBlock) / pagesPerHour(streamRateBps);
 }
 

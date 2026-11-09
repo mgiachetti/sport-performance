@@ -14,7 +14,7 @@ Los símbolos y footprints no se dibujan a mano a partir de una tabla de pines i
 | LSM6DSV320X (C26633007) | `LGA-14_L3.0-W2.5-P0.50-TL` | 14 | Orientación (el modelo 3D se llama L2.5-W3.0) y pin 1. |
 | BMP581 (C5362283) | `LGA-10_L2.0-W2.0-P0.50-TL_BMP581` | 10 | Pin 1 y que el agujero de presión quede del lado correcto. |
 | DPS368 (C3232508, sin montar) | `LGA-8_L2.5-W2.0-P0.65-TR_DPS368` | 8 | — |
-| W25N02KVZEIR (C3010298) | `WSON-8_L8.0-W6.0-P1.27-TL-EP-1` | 9 | Pad expuesto y que la W25N04KV use el mismo. |
+| W25N02KVZEIR (C3010298, la NAND de la v0) | `WSON-8_L8.0-W6.0-P1.27-TL-EP-1` | 9 | Contra las hojas de Winbond (W25N02KV Rev. G y W25N04KV Rev. C, sección 11.1): las dos tienen el mismo encapsulado ZE y la misma tabla de pads, y el pad expuesto del footprint (4,30 × 3,40 mm) es el nominal D2 × E2 de la hoja. El pad expuesto no está conectado adentro (puede ir a GND) y la hoja pide no poner vías expuestas debajo. Falta revisar el largo de los pads contra el patrón recomendado. |
 | BQ25180 (C3682423) | `DSBGA-8_L1.6-W0.9-R2-C4-P0.40-BL` | 8 | Mapa de bolas contra la hoja de TI (A1 /INT … D2 GND). |
 | MAX17048G+T10 (C2682616) | `TDFN-8_L2.0-W2.0-P0.50-BL-EP1.2` | 9 | Pad expuesto. |
 | DRV5032FBDBZR (C2655033) | `SOT-23_L2.9-W1.3-P1.90-LS2.4-BR` | 3 | — |
@@ -100,7 +100,7 @@ Además de las 10 partes de easyeda2kicad, `pod.kicad_sym` tiene los símbolos q
 | Bosch BMP581 | easyeda2kicad | C5362283 | `easyeda2kicad --full --lcsc_id=C5362283 --output hardware/lib/pod` | no |
 | Infineon DPS368 (sin montar) | easyeda2kicad | C3232508 | `easyeda2kicad --full --lcsc_id=C3232508 --output hardware/lib/pod` | no |
 | Winbond W25N02KVZEIR | easyeda2kicad | C3010298 | `easyeda2kicad --full --lcsc_id=C3010298 --output hardware/lib/pod` | no |
-| Winbond W25N04KV | Mismo footprint WSON-8 de 8 × 6 mm que el W25N02KV | Número LCSC no encontrado | — | no |
+| Winbond W25N04KVZEIR (alternativa de 4 Gbit, no se monta) | Mismo footprint WSON-8 de 8 × 6 mm que la W25N02KV (mismo encapsulado ZE según las hojas de Winbond) | C6750381 | — | no |
 | TI BQ25180 | easyeda2kicad | C3682423 | `easyeda2kicad --full --lcsc_id=C3682423 --output hardware/lib/pod` | no |
 | Analog Devices MAX17048G+T10 | easyeda2kicad | C2682616 | `easyeda2kicad --full --lcsc_id=C2682616 --output hardware/lib/pod` | no |
 | Taoglas AGVLB.25B.07.0060A | No lleva footprint: es una antena con cable que entra por un U.FL | [DigiKey](https://www.digikey.ie/en/products/detail/taoglas-limited/AGVLB-25B-07-0060A/21777673) | — | no |

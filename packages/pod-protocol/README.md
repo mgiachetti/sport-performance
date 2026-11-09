@@ -194,7 +194,7 @@ El ADR no fijaba estos puntos; se eligieron acá y el ADR los resume:
 
 ## Log en la NAND (formato v1)
 
-El pod graba todo en la W25N04KV (4 Gbit; la W25N02KV de 2 Gbit tiene la misma geometría con la mitad de bloques): **páginas de 2048 B** más un área de repuesto (la usan el ECC interno y la marca de bloque malo de fábrica; el formato no la toca) y **64 páginas por bloque**. Se borra por bloque. Todo entero va en **little-endian**, como en la radio.
+El pod v0 graba todo en la **W25N02KV** (2 Gbit, 2048 bloques; `POD_NAND`): **páginas de 2048 B** más 128 B de repuesto (los usan el ECC interno y la marca de bloque malo de fábrica; el formato no los toca) y **64 páginas por bloque**. La W25N04KV (4 Gbit, 4096 bloques) entra en el mismo lugar para una variante de más capacidad, con la misma geometría de página y los mismos comandos (hojas de Winbond W25N02KVxxIR/U Rev. G y W25N04KVxxIR/U Rev. C). Se borra por bloque. Todo entero va en **little-endian**, como en la radio.
 
 ### Página (2048 B)
 
@@ -272,8 +272,8 @@ Un decodificador **saltea por el largo** un tipo que no conoce, así un tipo nue
 - **Nunca se pisa lo que no se descargó**: los bloques salen solo de los libres (`nextWritableBlock`), y un bloque es libre solo si **se leyeron todas sus páginas y están borradas**; una página que no se leyó nunca se supone borrada. Un bloque del que no se leyeron las 64 páginas, programado o no, queda como **desconocido** (`unknownBlocks`): no se escribe ni se borra, y un tramo con un bloque así no es `fullyRead`, así que la base no arma su `pod_raw` y el pod no lo borra.
 - **Memoria llena, siempre con lugar para el cierre**: el pod guarda **un bloque de reserva** borrado (`DEFAULT_RESERVE_BLOCKS`) que la grabación nunca usa: un tramo nuevo empieza solo con un bloque libre más allá de la reserva (`canStartSegment`) y `nextWritableBlock` no entrega la reserva. Antes de cada registro, el pod compara las páginas que sellaría (`LogWriter.pagesSealedBy`) con las que le quedan al tramo (`remainingSegmentPages`: lo que queda del bloque actual más los bloques libres después de la reserva) y solo agrega si **queda una página para el cierre** (`mayAppend`). Si no, deja de grabar, escribe el fin del tramo en esa página, lo avisa con el LED y la app lo muestra. La reserva queda para el cierre de recuperación de un tramo cuyo último bloque se llenó (un corte justo en la última página); hasta que se borre algo, no se graba otro tramo. **`mayAppend` vale también antes de `flush()`**: si el buffer no está vacío, `flush()` sella una página, así que el firmware solo la llama si después sigue quedando la página del cierre (si no, llama a `close()` directamente).
 - **Dónde va el cierre de recuperación** (`planRecoveryPage`), siempre después de la última página programada del bloque: primero la página siguiente del último bloque del propio tramo; si está lleno, la próxima página borrada de un **bloque huérfano cuyas páginas programadas son todas cortadas o con CRC malo** (restos ilegibles; la página de recuperación válida lo une al tramo, así un cierre de recuperación cortado en la reserva se reintenta ahí y la memoria nunca queda trabada); y solo como último recurso un bloque libre (la reserva, 128 KiB por corte).
-- **Bloques malos**: la marca de fábrica (byte 0 del repuesto de la página 0 del bloque), la LUT del W25N y los que fallan al programar o borrar. El firmware no los usa; si falla un programa, marca el bloque y reescribe la página en el siguiente bloque bueno con una secuencia nueva (el decodificador descarta la copia repetida por su posición en el flujo).
-- **ECC**: el estado de cada lectura viaja con la página (`ok`, `corrected`, `uncorrectable`). Una página incorregible se marca, se saltea y se informa, y el flujo sigue en la próxima.
+- **Bloques malos**: la marca de fábrica (un byte distinto de FFh en el byte 0 del área principal o del repuesto de la página 0 del bloque, según la hoja de Winbond) y los que fallan al programar o borrar. La W25N-KV no tiene tabla de bloques malos (LUT) en el chip. El firmware no los usa; si falla un programa, marca el bloque y reescribe la página en el siguiente bloque bueno con una secuencia nueva (el decodificador descarta la copia repetida por su posición en el flujo).
+- **ECC**: el estado de cada lectura viaja con la página (`ok`, `corrected`, `uncorrectable`). Una página incorregible se marca, se saltea y se informa, y el flujo sigue en la próxima. La W25N-KV tiene un cuarto estado (ECC-1:0 = 3, corregido por encima del umbral de bits): es **legible, aviso de desgaste (refrescar/reubicar)**, y el pod lo informa como `corrected` (1), nunca como incorregible.
 - **Índice de tramos**: el pod lo guarda en los 8 bloques reservados del principio, pero es una caché: `scanNand` lo reconstruye sin clave (tramos, páginas, bloques, si se cerraron, bloques libres, huérfanos y mezclados) y `decodeLog`, con las claves, agrega el rango de tiempo.
 - **Borrado atado a lo subido y verificado**:
   1. La base sube el `pod_raw` del tramo con su manifiesto.
@@ -299,7 +299,7 @@ Lo que sube la base por cada tramo: las páginas **tal como están en la NAND** 
 | 24–31 | Primera y última secuencia de página (2 × u32) |
 | 32–35 | Cantidad de páginas N (u32) |
 | 36–63 | Reservado = 0 |
-| 64… | N × { página física (u32), estado del ECC (u8: 0 bien, 1 corregido, 2 incorregible), 3 B reservados, los 2048 B de la página } |
+| 64… | N × { página física (u32), estado del ECC (u8: 0 bien, 1 corregido, también el 3 de la W25N-KV, legible con aviso de desgaste; 2 incorregible), 3 B reservados, los 2048 B de la página } |
 
 Van todas las páginas programadas de los bloques del tramo, válidas o no, en orden físico, para que el worker informe lo que se perdió. El **manifiesto** (`PodRawManifest`, los metadatos del archivo) lleva el DEVICEID, el número de serie del pod, el arranque, el tramo, el rango de páginas, las entradas del archivo (`pagesN`) y las páginas válidas del escaneo (`validPagesN`), los bloques, las épocas de clave, si se cerró, el rango de tiempo en UTC (del índice del pod), el tamaño y el **SHA-256**. `readPodRawFile` lo verifica antes de confirmar, y `verifyUploadForErase` decide si el servidor puede firmar el borrado. Para el recorte, cada tramo decodificado trae `pageTicks`: los ticks de los registros que tienen bytes en cada página, así el worker ubica cada página en el tiempo y `slicePodRawFile` arma el archivo de un jugador con las páginas de sus ventanas (sin volver a sellar nada: nunca se reusa un IV).
 
@@ -315,14 +315,14 @@ Van todas las páginas programadas de los bloques del tramo, válidas o no, en o
 
 ### Tamaño
 
-La carga útil es el 97,5 % de la página. Se reservan 8 bloques para el índice y unos 82 (2 %) para bloques malos, cifra **no verificada** contra la hoja de Winbond.
+La carga útil es el 97,5 % de la página. Se reservan 8 bloques para el índice y, para bloques malos, los que admite la hoja de Winbond: 40 en la W25N02KV (mínimo de 2008 bloques válidos de 2048) y 80 en la W25N04KV (4016 de 4096), unos 2 %. Quedan 2000 y 4008 bloques para el log. Cada sesión empieza en un bloque nuevo.
 
-| Flujo | Páginas por hora | Bloques por sesión de 3 h | Sesiones de 3 h en 4 Gbit | En 2 Gbit |
-|---|---|---|---|---|
-| 2,5 kB/s (sensores, pod-f3.md) | 4510 | 212 | 18 | 9 |
-| 4,5 kB/s (con crudo GNSS a 1 Hz) | 8117 | 381 | 10 | 5 |
-| 2,86 kB/s (registros v1, perfil por defecto) | 5159 | 242 | 16 | 8 |
-| 4,88 kB/s (registros v1, con crudo) | 8795 | 413 | 9 | 4 |
+| Flujo | Páginas por hora | Bloques por sesión de 3 h | Sesiones de 3 h en 2 Gbit (v0) | Horas en 2 Gbit | En 4 Gbit |
+|---|---|---|---|---|---|
+| 2,5 kB/s (sensores, pod-f3.md) | 4510 | 212 | 9 | 28,4 | 18 |
+| 4,5 kB/s (con crudo GNSS a 1 Hz) | 8117 | 381 | 5 | 15,8 | 10 |
+| 2,86 kB/s (registros v1, perfil por defecto) | 5159 | 242 | **8** | 24,8 | 16 |
+| 4,88 kB/s (registros v1, con crudo) | 8795 | 413 | **4** | 14,6 | 9 |
 
 Los encabezados y las marcas de tiempo de los registros suman un 14 % a la estimación de pod-f3.md (`profileStreamRateBps`). Las ráfagas de impacto del canal de alto rango suben la tasa mientras duran, así que en rugby el margen real es algo menor.
 

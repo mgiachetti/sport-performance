@@ -1,5 +1,6 @@
 /*
- * W25N04KV / W25N02KV on SPIM3 and the recording segment writer.
+ * W25N02KV (pod v0; the W25N04KV fits with the same commands) on SPIM3 and
+ * the recording segment writer.
  *
  * The page format (header, CTR, CMAC, CRC, record stream) is
  * firmware/lib/src/log.c, checked byte for byte against the TypeScript golden
@@ -7,7 +8,8 @@
  *
  * Stub status (B-904): command set wired (reset, JEDEC ID, page read to cache,
  * read from cache, program load + execute, block erase, status polling); TODO:
- * bad-block table (factory marker and the W25N LUT), ECC status per read,
+ * bad-block table (factory marker: non-FFh in byte 0 of the main or spare area
+ * of page 0; the W25N-KV has no on-chip LUT), ECC status per read,
  * the segment index in the 8 reserved blocks, scanNand at boot, recovery close,
  * free-block allocation with the reserve block, and placing the SPIM3 buffers
  * in their own RAM block (errata 198).
@@ -39,12 +41,24 @@ LOG_MODULE_REGISTER(pod_nand, CONFIG_POD_LOG_LEVEL);
 #define W25N_SR3_E_FAIL 0x04
 #define W25N_SR3_P_FAIL 0x08
 #define W25N_SR3_ECC_MASK 0x30
-/* Blocks at the start that hold the segment index (a cache: scanNand rebuilds it). */
+/*
+ * Blocks at the start that hold the segment index (a cache: scanNand rebuilds it).
+ * TODO(B-904): only block 0 is guaranteed valid at shipment (W25N-KV datasheet,
+ * 10.1), so any of these 8 may carry the factory bad-block marker (non-FFh in
+ * byte 0 of the main or spare area of page 0). Read the marker of each reserved
+ * block before using it and lay the index out over the good ones only, skipping
+ * the marked blocks inside the reserved range.
+ */
 #define RESERVED_INDEX_BLOCKS 8u
 
 static const struct spi_dt_spec nand =
 	SPI_DT_SPEC_GET(NAND_NODE, SPI_OP_MODE_MASTER | SPI_TRANSFER_MSB | SPI_WORD_SET(8));
 static const uint32_t pages_per_block = DT_PROP(NAND_NODE, pages_per_block);
+
+/* Every page must fit the 24-bit page address of the 10h / 13h / D8h commands. */
+BUILD_ASSERT((uint64_t)DT_PROP(NAND_NODE, blocks) * DT_PROP(NAND_NODE, pages_per_block) <=
+		     (1u << 24),
+	     "NAND larger than the 24-bit page address");
 
 static struct pod_log_writer writer;
 static bool segment_open;
@@ -95,9 +109,11 @@ static int write_enable(void)
 }
 
 /*
- * Page address of the W25N: 24 bits (8 dummy bits + 16 on the W25N01; the
- * W25N02KV/04KV need more than 16 bits). TODO(B-904): confirm the page address
- * format of the 2/4 Gbit parts against the Winbond sheet before the bench.
+ * Page address of Program Execute (10h), Page Data Read (13h) and Block Erase
+ * (D8h): 24 bits, MSB first. The W25N02KV uses PA[16:0] (PA[16:6] block,
+ * PA[5:0] page) and ignores PA[23:17]; the W25N04KV uses PA[17:0] (Winbond
+ * datasheets W25N02KVxxIR/U Rev. G and W25N04KVxxIR/U Rev. C, sections 8.1.2,
+ * 8.2.7, 8.2.10 and 8.2.11).
  */
 static void page_address(uint8_t *out, uint32_t page)
 {
@@ -133,7 +149,13 @@ static int program_page(uint32_t page, const uint8_t data[POD_LOG_PAGE_SIZE])
 	return rc;
 }
 
-/** Reads a page; `ecc` gets bits ECC-1:0 of SR3 (0 ok, 1 corrected, 2 uncorrectable). */
+/**
+ * Reads a page; `ecc` gets bits ECC-1:0 of SR3 (W25N-KV datasheet, 7.3.1):
+ * 0 ok, 1 corrected, 2 uncorrectable, 3 corrected above the bit-flip threshold.
+ * 3 is legible data with a wear warning (refresh or relocate the block); it is
+ * never handled like 2 (uncorrectable). TODO(B-904): report it as corrected in
+ * pod_raw and count it for the refresh.
+ */
 int pod_nand_read_page(uint32_t page, uint8_t data[POD_LOG_PAGE_SIZE], uint8_t *ecc)
 {
 	uint8_t load[4] = {W25N_PAGE_DATA_READ};
@@ -183,6 +205,7 @@ int pod_log_init(void)
 {
 	const uint8_t reset = W25N_RESET;
 	const uint8_t id_cmd[2] = {W25N_JEDEC_ID, 0x00};
+	const uint16_t device_id_expected = DT_PROP(NAND_NODE, jedec_device_id);
 	uint8_t id[3];
 	uint8_t status;
 	int rc;
@@ -202,7 +225,8 @@ int pod_log_init(void)
 		return rc;
 	}
 	LOG_INF("NAND JEDEC %02x %02x %02x", id[0], id[1], id[2]);
-	if (id[0] != 0xEF) { /* Winbond */
+	if (id[0] != 0xEF || ((uint16_t)(id[1] << 8) | id[2]) != device_id_expected) {
+		/* Not Winbond, or not the chip of the devicetree (its block count would be wrong). */
 		return -ENODEV;
 	}
 	/* TODO(B-904): clear the block protection bits (SR1) and run scanNand. */

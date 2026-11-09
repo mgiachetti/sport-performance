@@ -171,7 +171,8 @@ export const FILE_KIND_POLICIES = {
   },
   pod_raw: {
     // The SPRW container (`@sport-performance/pod-protocol`): pages as on the NAND. A whole
-    // 4 Gbit NAND is 512 MiB; a 3 h session is about 30 MiB (55 MiB with raw GNSS).
+    // NAND is 256 MiB on the 2 Gbit W25N02KV of the v0 and 512 MiB on the 4 Gbit variant (the
+    // limit covers both); a 3 h session is about 30 MiB (55 MiB with raw GNSS).
     contentTypes: ['application/octet-stream'],
     maxSizeBytes: 512 * MIB,
     subject: 'player_optional',

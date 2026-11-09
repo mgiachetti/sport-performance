@@ -398,12 +398,13 @@ sensors = Sheet("sensors", "Pod v0: sensors",
 ])
 
 # ---------------------------------------------------------------------------
-storage = Sheet("storage", "Pod v0: storage", "NAND W25N04KV en el SPIM3, con load switch sin montar", 500, [
-    Group("NAND W25N04KV", [
-        part("W25N02KVZEIR", "W25N04KVZEIR", {"1": "NAND_CS", "2": "NAND_MISO", "3": "NAND_WP", "4": "GND", "5": "NAND_MOSI",
+storage = Sheet("storage", "Pod v0: storage", "NAND W25N02KV en el SPIM3, con load switch sin montar", 500, [
+    Group("NAND W25N02KV", [
+        part("W25N02KVZEIR", "W25N02KVZEIR", {"1": "NAND_CS", "2": "NAND_MISO", "3": "NAND_WP", "4": "GND", "5": "NAND_MOSI",
                                               "6": "NAND_SCK", "7": "NAND_HOLD", "8": "VCC_NAND", "9": "GND"},
-             POD + "WSON-8_L8.0-W6.0-P1.27-TL-EP-1", mpn="W25N04KVZEIR", lcsc="C6750381", manufacturer="Winbond",
-             note="W25N02KVZEIR (C3010298) en el mismo lugar; pines idénticos no verificados"),
+             POD + "WSON-8_L8.0-W6.0-P1.27-TL-EP-1", mpn="W25N02KVZEIR", lcsc="C3010298", manufacturer="Winbond",
+             note="2 Gbit, unas 8 sesiones de 3 h; W25N04KVZEIR (C6750381, 4 Gbit) en el mismo lugar para una variante "
+                  "de más capacidad (mismos pines según las hojas de Winbond)"),
         R("22", "NAND_SCK_MCU", "NAND_SCK", note="Serie de 22–33 Ω en el reloj de 32 MHz, a ajustar"),
         R("10k", "NAND_WP", "VCC_NAND", note="Pull-up al riel de la NAND, nunca a VREG"),
         R("10k", "NAND_HOLD", "VCC_NAND"),

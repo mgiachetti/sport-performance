@@ -10,7 +10,7 @@ import {
   writeSegment,
 } from '../testing/log-samples.js';
 import { decodeLog } from './decoder.js';
-import { LOG_PAGE_CRC_OFFSET, W25N04KV } from './constants.js';
+import { LOG_PAGE_CRC_OFFSET, POD_NAND } from './constants.js';
 import {
   canStartSegment,
   DEFAULT_RESERVE_BLOCKS,
@@ -131,7 +131,7 @@ describe('scanNand', () => {
   it('a page that was not read is never assumed erased', () => {
     const empty = scanNand({ pages: [] });
     expect(empty.freeBlocks).toEqual([]);
-    expect(empty.unknownBlocks).toHaveLength(W25N04KV.blocks - W25N04KV.reservedBlocks);
+    expect(empty.unknownBlocks).toHaveLength(POD_NAND.blocks - POD_NAND.reservedBlocks);
     expect(nextWritableBlock(empty)).toBeNull();
 
     // A block read except one page: unknown, not free, and never erased.
