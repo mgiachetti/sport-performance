@@ -182,9 +182,13 @@ describeWithPostgres('field sessions (Postgres)', (serverUrl) => {
     await database.admin.query(
       `insert into external_metric
          (club_id, player_id, training_session_id, drill_id, metric_definition_id, local_date,
-          value, unit, source, external_ref, created_at, updated_at)
-       select $1, $2, s.id, $3, d.id, s.local_date, $5, d.unit, $6, $7,
-              coalesce($8::timestamptz, now()), coalesce($8::timestamptz, now())
+          value, unit, source, external_ref, created_at, updated_at, method_variant,
+          algorithm_version)
+       select $1, $2, s.id, $3, d.id, s.local_date, $5, d.unit, $6::external_metric_source, $7,
+              coalesce($8::timestamptz, now()), coalesce($8::timestamptz, now()),
+              -- A pod value carries its variant and algorithm (B-919).
+              case when $6::external_metric_source = 'pod' then 'pod_log'::pod_method_variant end,
+              case when $6::external_metric_source = 'pod' then 'pod-metrics/1' end
          from training_session s, metric_definition d
         where s.club_id = $1 and s.id = $9 and d.club_id = $1 and d.code = $4`,
       [

@@ -60,12 +60,24 @@ export interface RecordingOptions {
   readonly maxAnchors?: number;
   readonly firstBlock?: number;
   readonly podSerial?: string;
+  /** Doppler ground speed at `tS` seconds from the start, mm/s (default 3 m/s). */
+  readonly speedMmS?: (tS: number) => number;
+  /**
+   * IMU batches (B-919): every 0.25 s, 25 samples at 100 Hz of the `accel_gyro`
+   * channel (±16 g) with `xG(t)` on x and `zG` on z; and a high-g batch (±320 g)
+   * with a 12 g spike at each of `impactsAtS`.
+   */
+  readonly imu?: {
+    readonly xG: (tS: number) => number;
+    readonly zG?: number;
+    readonly impactsAtS?: readonly number[];
+  };
 }
 
 /**
  * A closed segment of `durationS` seconds: versions, PPS anchors, PVT at
- * 10 Hz moving north at 3 m/s and the recording markers, as a `pod_raw`
- * file with its manifest.
+ * 10 Hz moving north at 3 m/s (or `speedMmS`), optional IMU batches and the
+ * recording markers, as a `pod_raw` file with its manifest.
  */
 export function podRecording(options: RecordingOptions): {
   bytes: Uint8Array;
@@ -117,8 +129,10 @@ export function podRecording(options: RecordingOptions): {
       2,
     );
   }
+  const speedAt = options.speedMmS ?? (() => 3000);
   for (let k = 0; k < options.durationS * 10; k += 1) {
     const s = k / 10;
+    const speed = Math.round(speedAt(s));
     at(s, {
       type: 'gnss_pvt',
       tick: tickAt(s),
@@ -126,10 +140,10 @@ export function podRecording(options: RecordingOptions): {
       latE7: -345_123_456 + k * 27,
       lonE7: -585_123_456,
       heightEllipsoidMm: 21_300,
-      velNorthMmS: 3000,
+      velNorthMmS: speed,
       velEastMmS: 0,
       velDownMmS: 0,
-      groundSpeedMmS: 3000,
+      groundSpeedMmS: speed,
       headingCentiDeg: 0,
       hAccMm: 1400,
       vAccMm: 2100,
@@ -137,6 +151,55 @@ export function podRecording(options: RecordingOptions): {
       fixQuality: 'fix_3d',
       satellitesN: 24,
     });
+  }
+  if (options.imu !== undefined) {
+    const imu = options.imu;
+    const lsb = (g: number, rangeG: number) => Math.round((g * 32768) / rangeG);
+    const sensorAt = (tS: number) => Math.round((tS * 1e9) / 21_750);
+    for (let b = 0; b < options.durationS * 4; b += 1) {
+      const firstT = b / 4;
+      const lastT = firstT + 0.24;
+      // The record's tick is the FIFO read: its last sample (the decoder places the rest back).
+      at(lastT, {
+        type: 'imu_batch',
+        tick: tickAt(lastT),
+        sensor: 'lsm6dsv320x',
+        channel: 'accel_gyro',
+        fifoOverrun: false,
+        impactBurst: false,
+        accelRangeG: 16,
+        gyroRangeDps: 2000,
+        odrMilliHz: 100_000,
+        sensorTickPeriodNs: 21_750,
+        firstSensorTimestamp: sensorAt(firstT),
+        lastSensorTimestamp: sensorAt(lastT),
+        samples: Array.from({ length: 25 }, (_, i) => [
+          lsb(imu.xG(firstT + i / 100), 16),
+          0,
+          lsb(imu.zG ?? 1, 16),
+          0,
+          0,
+          0,
+        ]),
+      });
+    }
+    for (const impactS of imu.impactsAtS ?? []) {
+      at(impactS + 0.04, {
+        type: 'imu_batch',
+        tick: tickAt(impactS + 0.04),
+        sensor: 'adxl372',
+        channel: 'high_g',
+        fifoOverrun: false,
+        impactBurst: true,
+        accelRangeG: 320,
+        gyroRangeDps: 0,
+        odrMilliHz: 100_000,
+        sensorTickPeriodNs: 21_750,
+        firstSensorTimestamp: sensorAt(impactS),
+        lastSensorTimestamp: sensorAt(impactS + 0.04),
+        samples: [1, 12, 12, 2, 1].map((g) => [lsb(g, 320), 0, 0]),
+      });
+    }
   }
   at(
     options.durationS,

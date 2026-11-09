@@ -284,3 +284,4 @@ export function podAssignmentNeedsReprocess(
 }
 
 export * from './pod-raw.js';
+export * from './metrics/index.js';

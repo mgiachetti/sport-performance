@@ -34,6 +34,7 @@ import { webMessagesEsAR } from './web.js';
 import { webTrainingMessagesEsAR } from './web-training.js';
 import { webFieldSessionMessagesEsAR } from './web-field-session.js';
 import { webConfigurationMessagesEsAR } from './web-configuration.js';
+import { podLiveMessagesEsAR } from './pod-live.js';
 
 /**
  * Source catalog: Rioplatense Spanish (vos). Every key exists here first; other locales and club
@@ -485,6 +486,7 @@ export const sourceMessageFiles = {
   'web-configuration.ts': webConfigurationMessagesEsAR,
   'web-admin.ts': webAdminMessagesEsAR,
   'web-pods.ts': webPodsMessagesEsAR,
+  'pod-live.ts': podLiveMessagesEsAR,
   'anthropometry.ts': anthropometryMessagesEsAR,
   'menarche.ts': menarcheMessagesEsAR,
   'web-guardian.ts': webGuardianMessagesEsAR,
@@ -527,6 +529,8 @@ export const esAR = {
   ...webAdminMessagesEsAR,
   // The pod fleet and its assignment on a session (B-912)
   ...webPodsMessagesEsAR,
+  // The live screen of the pods: effort signals (B-906)
+  ...podLiveMessagesEsAR,
   // Anthropometry, shared by the web and the field sheet of the app (B-412, B-508)
   ...anthropometryMessagesEsAR,
   // Menarche, health data of the player, her guardian and the medical staff (B-805)

@@ -1,5 +1,4 @@
 import {
-  POD_METHOD_VARIANTS,
   POD_RAW_REJECTION_REASONS,
   POD_RAW_UPLOAD_STATES,
   POD_TRACE_CHUNK_MAX_SAMPLES,
@@ -22,6 +21,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { timestamptz } from './columns.js';
+import { podMethodVariantEnum } from './enums.js';
 import { file } from './files.js';
 import { player } from './players.js';
 import { pod, podDevice } from './pods.js';
@@ -39,7 +39,6 @@ export const podRawRejectionReasonEnum = pgEnum(
   'pod_raw_rejection_reason',
   POD_RAW_REJECTION_REASONS,
 );
-export const podMethodVariantEnum = pgEnum('pod_method_variant', POD_METHOD_VARIANTS);
 
 /**
  * One recording segment of a pod uploaded by the dock (`pod_raw`, ADR 0106):

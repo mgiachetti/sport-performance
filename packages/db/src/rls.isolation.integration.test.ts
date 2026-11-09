@@ -60,6 +60,8 @@ const APPEND_ONLY_TABLES = [
   'pod_loan',
   // The audit of the commands the server signed: insert only (ADR 0108).
   'pod_command_audit',
+  // How the pod values were computed: written by the worker only (ADR 0110).
+  'pod_metric_run',
   // A player's trimmed file and its windows: written by the worker only (ADR 0108).
   'pod_raw_trim',
   // Position traces: the worker writes them once and deletes them (erasure, retention) (ADR 0106).

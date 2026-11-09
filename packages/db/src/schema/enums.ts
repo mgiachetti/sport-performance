@@ -55,6 +55,9 @@ import {
   type MetricDirection,
   type MetricSource,
   type UnitCode,
+  POD_METHOD_VARIANTS,
+  POD_METRIC_CONFIG_VERIFICATIONS,
+  REFERENCE_VMAX_SOURCES,
 } from '@sport-performance/domain';
 import { pgEnum } from 'drizzle-orm/pg-core';
 
@@ -237,3 +240,13 @@ export const monotonyStatusEnum = pgEnum('monotony_status', MONOTONY_STATUSES);
 /** Surface and client of a recorded use (B-707, `usage_activity`, `usage_weekly`). */
 export const usageSurfaceEnum = pgEnum('usage_surface', USAGE_SURFACES);
 export const usageClientEnum = pgEnum('usage_client', USAGE_CLIENTS);
+
+/** Variant of the pod method (ADR 0106), stored with every pod value. */
+export const podMethodVariantEnum = pgEnum('pod_method_variant', POD_METHOD_VARIANTS);
+/** Whether pod metric definitions are the seeded defaults or the club's OpenField (B-919). */
+export const podMetricConfigVerificationEnum = pgEnum(
+  'pod_metric_config_verification',
+  POD_METRIC_CONFIG_VERIFICATIONS,
+);
+/** The rule that gave a run its reference Vmax (B-919). */
+export const referenceVmaxSourceEnum = pgEnum('reference_vmax_source', REFERENCE_VMAX_SOURCES);

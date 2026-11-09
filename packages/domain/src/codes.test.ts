@@ -107,6 +107,8 @@ describe('canonical metrics', () => {
       'vmax_pct',
       'acc_n',
       'dec_n',
+      'sprints_n',
+      'sprint_dist_m',
       'accel_load_au',
       'contacts_n',
       'scrums_n',

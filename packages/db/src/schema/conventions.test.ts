@@ -95,6 +95,8 @@ describe('schema conventions', () => {
         'pod_command_audit',
         'pod_device',
         'pod_loan',
+        'pod_metric_config',
+        'pod_metric_run',
         'pod_raw_trim',
         'pod_raw_upload',
         'pod_trace_segment',

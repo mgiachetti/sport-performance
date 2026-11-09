@@ -113,9 +113,8 @@ function otherRanges(ranges: ReadonlyMap<string, readonly TimeInterval[]>, playe
  * again next run; a file that does not open is rejected; an unexpected error
  * is logged, the upload skipped, and the job fails at the end so it retries.
  * Idempotent: each step moves rows forward under `FOR UPDATE SKIP LOCKED`
- * and a re-run finds nothing to do. No metric is computed here (speed bands,
- * HSR, accelerations and `accel_load_au` come with B-919 and B-906, from the
- * trimmed raw). Files are read whole into memory (a 3 h session is about
+ * and a re-run finds nothing to do. No metric is computed here: the
+ * `pod-metrics-club` job (B-919) computes them from the trimmed files. Files are read whole into memory (a 3 h session is about
  * 30 MiB). Logs carry ids and counts, never a position.
  */
 
@@ -1257,6 +1256,13 @@ async function cutPlayer(
       [clubId, trim.id, fileId, JSON.stringify(kept), JSON.stringify(pages)],
     );
   }
+  // The player's pod metrics from this upload are computed again from what is left, or
+  // deleted with their values when nothing is (B-919, `pod-metrics-club`).
+  await tx.client.query(
+    `update pod_metric_run set stale = true
+      where club_id = $1 and player_id = $2 and $3 = any (pod_raw_upload_ids)`,
+    [clubId, trim.player_id, upload.id],
+  );
   return { samplesDeleted, remove };
 }
 

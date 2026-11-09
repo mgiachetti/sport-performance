@@ -252,6 +252,8 @@ export const webConfigurationMessagesEsAR = {
   'configuration.metric.vmax_pct': 'Velocidad máxima (% de la Vmax)',
   'configuration.metric.acc_n': 'Aceleraciones',
   'configuration.metric.dec_n': 'Desaceleraciones',
+  'configuration.metric.sprints_n': 'Sprints',
+  'configuration.metric.sprint_dist_m': 'Distancia en sprints',
   'configuration.metric.accel_load_au': 'Carga del acelerómetro',
   'configuration.metric.contacts_n': 'Contactos',
   'configuration.metric.scrums_n': 'Scrums',

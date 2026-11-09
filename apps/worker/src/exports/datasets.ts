@@ -721,10 +721,23 @@ const fieldMetrics: DatasetDefinition = {
       type: 'text',
       description: 'Fila de origen (actividad y período de OpenField).',
     },
+    {
+      key: 'method_variant',
+      header: 'variante',
+      type: 'code',
+      description: 'Variante del pod (`pod_log`, `pod_live`…); vacía para otras fuentes.',
+    },
+    {
+      key: 'algorithm_version',
+      header: 'version_algoritmo',
+      type: 'code',
+      description: 'Versión del algoritmo del servidor que calculó un valor del pod.',
+    },
   ],
   query: `select x.player_id, p.last_name, p.first_name, x.local_date::text as local_date,
        x.training_session_id as session_id, dr.name as drill, md.code as metric_code, x.value,
-       x.unit::text as unit, x.source::text as source, d.label as device, x.external_ref
+       x.unit::text as unit, x.source::text as source, d.label as device, x.external_ref,
+       x.method_variant::text as method_variant, x.algorithm_version
   from external_metric x
   cross join args a
   ${PLAYER_JOIN}

@@ -55,6 +55,8 @@ import {
   podDevice,
   podLoan,
   podCommandAudit,
+  podMetricConfig,
+  podMetricRun,
   podRawTrim,
   podRawUpload,
   podTraceSegment,
@@ -472,6 +474,18 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
       })
       .returning({ id: speedZoneConfig.id }),
   );
+  // The pod's metric definitions (B-919): club configuration, like the zones.
+  rows.pod_metric_config = await id(
+    db
+      .insert(podMetricConfig)
+      .values({
+        ...base,
+        algorithmVersion: 'pod-metrics/1',
+        params: {} as never,
+        validFrom: FROM,
+      })
+      .returning({ id: podMetricConfig.id }),
+  );
   rows.device = await id(
     db
       .insert(device)
@@ -841,6 +855,31 @@ export async function seedClubFixture(db: Database, slug: string): Promise<ClubF
         expiresAt: new Date('2027-03-11T23:00:00Z'),
       })
       .returning({ id: podTraceSegment.id }),
+  );
+  // How the assigned player's pod values of the session were computed (B-919).
+  rows.pod_metric_run = await id(
+    db
+      .insert(podMetricRun)
+      .values({
+        ...base,
+        playerId: assigned,
+        trainingSessionId: rows.training_session,
+        localDate: day('2026-03-10'),
+        methodVariant: 'pod_log',
+        algorithmVersion: 'pod-metrics/1',
+        podMetricConfigId: rows.pod_metric_config,
+        definitionHash: 'a'.repeat(64),
+        inputsHash: 'b'.repeat(64),
+        podRawUploadIds: [],
+        firmwareVersions: ['0.3.1'],
+        gnssFirmwareVersions: [],
+        sessionVmaxMs: 7.9,
+        referenceVmaxMs: 8.1,
+        referenceVmaxSource: 'pod_rolling_max',
+        stats: {},
+        computedAt: new Date('2026-03-11T22:00:00Z'),
+      })
+      .returning({ id: podMetricRun.id }),
   );
   rows.fixture = await id(
     db
