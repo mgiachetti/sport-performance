@@ -12,6 +12,8 @@ Datos del pod que se repiten: placa de 4 capas de unos 50 × 70 mm, nRF52840 en 
 | 4 | Despachante de aduana | Importación de prototipos con radio y baterías | Castellano | Al que se elija |
 | 5 | Quectel | Notas de aplicación, firmware y stock de la LC29H(EA) | Inglés | support@quectel.com (la que figura en el Hardware Design del LC29H) |
 | 6 | Taoglas | Ajuste del GVLB208.A en una tierra chica | Inglés | Formulario de [taoglas.com/support-center](https://taoglas.com/support-center) (no publican un mail) |
+| 7 | Ebyte | Cotización de la FPC de 915 MHz TX915-FPC-4510 (cotización abierta) | Inglés | support@cdebyte.com (de los manuales de Ebyte, **no verificada**) |
+| 8 | Distribuidores (Mouser, Arrow, ST, TI, LCSC) | Stock y reservas de las partes escasas | Inglés | Por sus portales; mail genérico abajo |
 
 ## 1. Raytac: revisión del layout
 
@@ -28,7 +30,7 @@ Raytac revisa el esquemático y el layout de las placas que usan sus módulos (q
 > Design summary:
 > - 4-layer, 1.6 mm FR4 board, about 50 × 70 mm. L2 is a solid ground plane.
 > - MDBT50Q-P1MV2 on the left board edge, antenna tip pointing out, with a keep-out of 3.5 × 11 mm in all four layers following section 2.3 of the datasheet (Ver. K). The first pads of the module start 3.8 mm from the antenna end in your footprint.
-> - Normal voltage mode: VDD and VDDH at 3.4 V from a buck-boost, DCCH not connected. External 32.768 kHz crystal (Abracon ABS06, CL 12.5 pF, 18 pF load caps).
+> - Normal voltage mode: VDD and VDDH at 3.4 V from a buck-boost, DCCH not connected. External 32.768 kHz crystal (Micro Crystal CM8V-T1A, CL 12.5 pF, ESR 70 kΩ, 18 pF load caps).
 > - USB through dock pads (D+/D−, 90 Ω pair), no USB connector.
 > - Next to it: a LoRa SX1262 module at 915 MHz (22 dBm) with its own antenna at the opposite edge, and a GNSS L1/L5 receiver with a ceramic patch on top of the board. The board sits inside a plastic enclosure on the player's back.
 >
@@ -36,7 +38,7 @@ Raytac revisa el esquemático y el layout de las placas que usan sus módulos (q
 > 1. Is the 3.5 mm keep-out depth enough with the module flush to the edge, or do you recommend a larger clearance or moving the module inwards?
 > 2. Does the FCC ID SH6MDBT50Q (and CE/IC) cover the MDBT50Q-P1MV2, and can you send the certificates and test reports for it?
 > 3. What antenna detuning should we expect with a human body 10–20 mm behind the board, and do you recommend the -U1MV2 (U.FL) variant for that case? We would also need the -U1MV2 datasheet and footprint (Ver. K does not cover it).
-> 4. Price and lead time for the MDBT50Q-P1MV2 at 10, 100 and 500 units, and your recommended distributor (LCSC shows no stock today).
+> 4. We would like to order 120 pcs of the MDBT50Q-P1MV2 (5 for the prototypes now, the rest for the pilot and the first series): please quote price and lead time for 120 and 500 pcs, and tell us if you ship directly or through a distributor (LCSC shows no stock today). As a fallback we would use the MDBT50Q-1MV2: is it a drop-in replacement on the same footprint?
 > 5. Silicon revision of the nRF52840 in current production lots (we rely on the APPROTECT fixes of the newer revisions).
 >
 > Attached: schematic, layout of the four layers around the module and stack-up.
@@ -155,3 +157,36 @@ Raytac revisa el esquemático y el layout de las placas que usan sus módulos (q
 >
 > Best regards,
 > [Name] · [Company] · Buenos Aires, Argentina
+
+## 7. Ebyte: antena FPC de LoRa
+
+La TX915-FPC-4510 no tiene precio ni stock en LCSC: es una **cotización abierta** de [`costos.md`](costos.md).
+
+> **Subject:** RFQ: TX915-FPC-4510 antenna (and E22-900M22S) for a wearable, 10 / 100 / 500 pcs
+>
+> Hello Ebyte team,
+>
+> We use the E22-900M22S in a wearable tracker and plan to use your TX915-FPC-4510 flexible antenna (915 MHz, 45 × 10 mm, IPEX), stuck to the inside of a plastic enclosure worn on a player's back. Could you please send:
+> 1. Price, MOQ and lead time of the TX915-FPC-4510 at 10, 100 and 500 pcs, with the cable length and connector options (U.FL / IPEX MHF1).
+> 2. Its datasheet: gain, efficiency and VSWR at 915–928 MHz, and the recommended mounting (distance to the body, to metal and to the PCB ground).
+> 3. The E22-900M22S at 100 and 500 pcs, and its full datasheet (TCXO control voltage for `SetDIO3AsTCXOCtrl`, pin 12 function, and the FCC/CE certificates).
+>
+> Best regards,
+> [Name] · [Company] · Buenos Aires, Argentina
+
+## 8. Distribuidores: partes escasas
+
+Plan de stock en [`costos.md`](costos.md). Se hace casi todo por los portales: **pedido pendiente** de 130 LSM6DSV320XTR en DigiKey o Mouser, consulta en el **eStore de ST**, compra de unas 150 **DRV5032FBDBZR en ti.com** (para consignar a PCBWay), **reserva de 150 BGA525N6E6327XTSA1 en LCSC**. Para Mouser y Arrow (BGA525N6 y LSM6DSV320X), este mail:
+
+> **Subject:** Stock and lead time: LSM6DSV320XTR and BGA525N6E6327XTSA1, 130–150 pcs
+>
+> Hello,
+>
+> Could you please confirm stock, factory lead time and price for:
+> - STMicroelectronics LSM6DSV320XTR: 130 pcs (cut tape), and whether a backorder is possible.
+> - Infineon BGA525N6E6327XTSA1: 150 pcs (cut tape).
+>
+> We can take a partial delivery now (5–10 pcs) and the rest later. Shipping to Buenos Aires, Argentina.
+>
+> Best regards,
+> [Name] · [Company]

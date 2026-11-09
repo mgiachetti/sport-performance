@@ -14,28 +14,62 @@ Reglas del cálculo:
 - **Precio** del escalón que corresponde a esa cantidad, de la fuente con stock y menor precio (la columna `fuente_precio`). DigiKey solo muestra el precio de Marketplace de la -P1MV2 a 1 unidad: a 100 se usa ese mismo (**no verificado** a volumen).
 - **Variante base**: LC29H(AA), sin UWB, con el patch pasivo. Las variantes, abajo.
 
+Las tablas de abajo las escribe `bom_pcbway.py` en este archivo (entre los marcadores), con los mismos números de [`costo-partes-pod-v0.csv`](costo-partes-pod-v0.csv): no se editan a mano.
+
+<!-- generado por hardware/tools/bom_pcbway.py: no editar a mano -->
+
 | Placas | Partes por placa | Total de partes |
 |---|---|---|
-| 5 | **104,73** | 523,66 |
-| 10 | **79,68** | 796,85 |
-| 100 | **68,83** | 6.883,01 |
+| 5 | **104,60** | 522,99 |
+| 10 | **79,57** | 795,68 |
+| 100 | **68,72** | 6.872,19 |
 
 **Lo que más pesa** (a 100 placas, por placa):
 
-| Parte | US$ | Fuente | Nota |
+| Parte | Cant. | US$ por placa | Fuente |
 |---|---|---|---|
-| NAND W25N04KVZEIR | 14,59 | LCSC | La W25N02KVZEIR (2 Gbit) entra en el mismo lugar a 7,81: ahorra 6,78 |
-| GNSS LC29H(AA) | 12,25 | DigiKey | 523 en stock; JLCPCB 91 |
-| Patch Taoglas GVLB208.A | 11,79 | DigiKey | Solo DigiKey; va consignado o lo compra PCBWay |
-| IMU LSM6DSV320X | 6,72 | DigiKey | **Sin stock** en DigiKey y LCSC (JLCPCB 3): riesgo principal |
-| Raytac MDBT50Q-P1MV2 | 6,00 | DigiKey Marketplace | 37 en stock; LCSC sin stock |
-| LoRa E22-900M22S | 5,11 | JLCPCB | No está en DigiKey |
-| BMP581, MAX17048, 2 SAW, BQ25180 | 6,66 | LCSC y DigiKey | — |
-| Las otras 44 filas | 5,71 | — | Alimentación, ESD, conectores, pasivos |
+| W25N04KVZEIR | 1 | 14,59 | lcsc |
+| LC29HAAMD | 1 | 12,25 | digikey |
+| GVLB208.A | 1 | 11,79 | digikey |
+| LSM6DSV320XTR | 1 | 6,72 | digikey |
+| MDBT50Q-P1MV2 | 1 | 6,00 | digikey |
+| E22-900M22S | 1 | 5,11 | jlcpcb |
+| Las otras 49 filas | — | 12,25 | — |
 
-**Variantes** (a 100 placas, por placa): LC29H(EA) en lugar de la AA, **+12,41** (24,66 en LCSC contra 12,25); UWB DWM3000 montado, **+19,84** más dos capacitores (DigiKey). Con la W25N02 en lugar de la W25N04, **−6,78**. En el pedido de 5 (3 AA, 2 EA, una con UWB) las partes suben unos **+11,0 por placa** promedio: (2 × (31,78 − 16,04) + 23,46) / 5, con los precios a 1 unidad.
+**Lo que no se suelda** ([`bom-pod-v0-extras.csv`](bom-pod-v0-extras.csv)), total del pedido:
 
-**Riesgos de stock** (detalle en `partes_pod_v0.csv`): LSM6DSV320X (24 semanas en DigiKey), DRV5032FB (solo JLCPCB, 286; DigiKey en julio de 2027), BGA525N6 (solo LCSC, 1.801; DigiKey 40 semanas), TPS7A2032P (solo DigiKey, 3.358), MDBT50Q-P1MV2 (DigiKey Marketplace, 37), TPS22916C (LCSC 1.060, DigiKey en diciembre), SAW (LCSC 218, DigiKey 7.710). Para los 5 y los 10 alcanza; para los 100 hay que **reservar** el LSM6DSV320X, el BGA525N6 y el DRV5032FB al pedir la v0.
+| Parte | Para qué | 5 placas | 10 placas | 100 placas |
+|---|---|---|---|---|
+| AGVLB.25B.07.0060A | Rescate y referencia de banco por el U.FL (2 por cada 5 placas); no se suelda | 62,18 | 124,36 | 1.031,70 |
+| TX915-FPC-4510 | Antena LoRa FPC pegada en la carcasa, al U.FL del E22; no se suelda | sin precio | sin precio | sin precio |
+| LQW15AN10NG00D | Kit de banco: L de entrada del LNA en alta ganancia | 0,48 | 0,96 | 7,90 |
+| LQW15AN12NG00D | Kit de banco: L de entrada del LNA en bajo consumo | 0,89 | 0,89 | 7,28 |
+| 0402WGF374JTCE | Kit de banco: serie del atenuador de 6 dB con la Taoglas | 0,14 | 0,14 | 0,28 |
+| NCP15XH103F03RC | Kit de banco: NTC de 10 kΩ para el TS sin la celda | 0,84 | 0,84 | 3,38 |
+| PESD5V0F1BL,315 | Kit de banco: ESD de silicio de 0,4 pF para el nodo del U.FL | 0,86 | 1,72 | 11,70 |
+| **Total** | | **65,39** | **128,91** | **1.062,24** |
+
+<!-- fin de lo generado -->
+
+Notas a las tablas:
+
+- **NAND**: la W25N02KVZEIR (2 Gbit) entra en el mismo lugar a 7,81 a 100: ahorra **6,78** por placa. La GigaDevice **GD5F4GQ6UEYIGR** (4 Gbit, WSON-8 de 8 × 6) sería la segunda fuente de 4 Gbit, pero hoy **no ahorra**: sin stock en LCSC (14,46 a 100 sin stock) ni en DigiKey (solo el carrete de 3.000 a 20,33, sin pedido pendiente). Sus pines y su juego de comandos (ECC, lectura continua, registros de estado) difieren en detalle de la W25N: si se suma, el driver del firmware tiene que soportar las dos (**no verificado**).
+- **Variantes** (a 100 placas, por placa): LC29H(EA) en lugar de la AA, **+12,41** (24,66 en LCSC contra 12,25); UWB DWM3000 montado, **+19,84** más dos capacitores (DigiKey). En el pedido de 5 (3 AA, 2 EA, una con UWB) las partes suben unos **+11,0 por placa** promedio: (2 × (31,78 − 16,04) + 23,46) / 5, con los precios a 1 unidad.
+- **Antena LoRa TX915-FPC-4510**: **cotización abierta** (sin precio ni stock en LCSC); se pide a Ebyte (consulta 7 de [`consultas.md`](consultas.md)).
+
+## Plan de stock
+
+Para los 5 y los 10 alcanza con lo que hay; para los 100 hay que comprar o reservar **al pedir la v0** (detalle por parte en `partes_pod_v0.csv`):
+
+| Parte | Stock el 08/11/2026 | Plan | Respaldo |
+|---|---|---|---|
+| **LSM6DSV320X** (`U401`) | LCSC 0, JLCPCB 3, DigiKey 0 (24 semanas, admite pedido pendiente) | Pedido pendiente de **130** en DigiKey o Mouser ya; preguntar al eStore de ST. v0: las 3 de JLCPCB + 2 de otra fuente | **LSM6DSV16X** (LCSC C5267406, 11.056 en stock, 2,43 a 100) en el mismo lugar, sin el canal de 320 g, con el **ADXL372** montado para el alto rango. Que el 16X sea pin a pin con el 320X: **no verificado** (contra las dos hojas de ST). El ICM-42688-P también escasea (DigiKey en agosto de 2027) |
+| **DRV5032FB** (`U406`) | LCSC 0, DigiKey 0 (julio de 2027), JLCPCB 286 | Comprar unas **150 en ti.com** y consignarlas a PCBWay | Calificar ya la **DRV5032FA** (20 Hz, 1,6 µA; LCSC C140921, 47.210 en stock) en el mismo lugar |
+| **BGA525N6** (`U205`) | LCSC 1.801, DigiKey 0 (40 semanas) | **Reservar 150 en LCSC** ya; consultar Mouser y Arrow | Ninguno pin a pin: con la Taoglas activa por el U.FL se puentea |
+| **MDBT50Q-P1MV2** (`U301`) | LCSC 0, DigiKey Marketplace 37 | Pedir **120 a Raytac** en el mismo mail de la revisión del layout (consulta 1); PCBWay puede recibirlo consignado ("maybe" en la lista) | **MDBT50Q-1MV2** (antena chip, mismo footprint de EasyEDA) |
+| TPS7A2032P (`U104`) | LCSC 0, DigiKey 3.358 | Comprar en DigiKey | — |
+| TPS22916C (`U303`) | LCSC 1.060, DigiKey en diciembre | LCSC | TPS22917/18 en SOT-23-6 (otro footprint) |
+| SAW B39162B8389P810 (`FL201`, `FL202`) | LCSC 218, DigiKey 7.710 | DigiKey | — |
 
 ## 2. Placa desnuda (estimación)
 
@@ -80,7 +114,7 @@ Placa armada en origen, sin batería, carcasa ni importación (variante base AA;
 
 | | 5 placas | 10 placas | 100 placas |
 |---|---|---|---|
-| Partes | 104,73 | 79,68 | 68,83 |
+| Partes (tabla generada de la sección 1) | 104,60 | 79,57 | 68,72 |
 | Placa desnuda (se piden 10 para armar 5) | 28–70 | 14–35 | 4–9 |
 | Armado | 30–70 | 20–35 | 12–20 |
 | Envío desde China y consignados | 14–28 | 8–15 | 2–4 |
@@ -97,6 +131,7 @@ Placa armada en origen, sin batería, carcasa ni importación (variante base AA;
 | Concepto | US$ | Nota |
 |---|---|---|
 | v0: 10 placas, 5 armadas, partes y envío | 1.000–1.500 | Secciones 1–4 con 5 placas |
+| v0: lo que no se suelda (2 Taoglas AGVLB.25B de rescate y el kit de banco) | unos 65 | Tabla generada de la sección 1 (las Taoglas, 62,18); falta la FPC de LoRa, cotización abierta |
 | v0.1: segunda vuelta igual | 800–1.300 | Dos vueltas antes del piloto (sección 11 de `pod-mecanica-produccion.md`) |
 | Plantilla de prueba con pogo (fin de línea) | 300–800 | **No verificado** |
 | Base de carga de prueba (B-907) | 200–500 | **No verificado** |
@@ -109,4 +144,4 @@ Placa armada en origen, sin batería, carcasa ni importación (variante base AA;
 
 1. Cambiar el precio o la fuente de una parte en `hardware/tools/datos/partes_pod_v0.csv` (escalones `cantidad:precio` separados por `;`, con la fecha).
 2. Correr `python3 hardware/tools/bom_pcbway.py`: reescribe las listas y [`costo-partes-pod-v0.csv`](costo-partes-pod-v0.csv), y muestra los totales por placa.
-3. Actualizar las tablas de este archivo con los totales nuevos y las cotizaciones de PCBWay y JLCPCB.
+3. Las tablas de la sección 1 (entre los marcadores) se reescriben solas en el paso 2. A mano: la sección 5 con los totales nuevos y las secciones 2–4 con las cotizaciones de PCBWay y JLCPCB.

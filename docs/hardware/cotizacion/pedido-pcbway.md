@@ -29,7 +29,8 @@ Las listas salen de la netlist con `python3 hardware/tools/bom_pcbway.py` (el CI
 | Vías en el pad | **Sí, rellenas con resina y tapadas con cobre** (VIPPO/POFV): las 4 vías térmicas del pad expuesto del TPS63900 (WSON-10) y las vías de los pads de la cadena RF si hace falta |
 | Acabado | **ENIG** en toda la placa |
 | Oro duro | **Electrolítico selectivo de ≥ 0,5 µm (20 µin) solo en los 5 pads de la base** (`J601`, pads de Ø2,0 mm), sobre níquel; el resto en ENIG. Los resortes pogo de la base hacen miles de ciclos |
-| Máscara y serigrafía | Verde y blanca; máscara entre pads de 0,4 mm donde se pueda |
+| Máscara y serigrafía | Verde y blanca; **puente de máscara entre los pads de 0,4 mm** (DSBGA, TSNP) si su mínimo lo permite, y si no, que lo digan (queda una ventana común) |
+| Tolerancia de espesor | 1,6 mm ± 10 % (publican ± 0,18 mm en multicapa): que la confirmen, porque fija el alto de los resortes de la base |
 | Impedancia controlada | **Sí**: CPWG de 50 Ω en L1 referida a L2 (GNSS 1176/1575 MHz y LoRa 915 MHz) y par diferencial de 90 Ω (USB) en L1, con su cupón de prueba |
 | Agujeros | El pin del patch: agujero metalizado de Ø1,0 mm; dos agujeros de herramienta de 2,1 mm sin metalizar; los agujeros del Tag-Connect TC2030-NL |
 | Panel | Si lo piden: rieles con fiduciales y agujeros, **lejos de la antena del Raytac** (borde izquierdo) y **sin V-score ni puentes en ese borde** |
@@ -58,7 +59,8 @@ El "Design 1" es el apilado de 1,6 mm que PCBWay publica en su [página de apila
 | Inspección | **Rayos X** de los DSBGA, el TSNP, los LGA y los módulos; AOI del resto |
 | Stencil | Con marco; **escalonado o de 0,1 mm** si lo recomiendan por el DSBGA al lado de los pads grandes de los módulos |
 | Después del reflujo | **Patch GVLB208.A (`AE201`)**: un pin por agujero metalizado de Ø1,0 mm, soldado a mano desde abajo **después** del SMT. No pasa por el horno |
-| Lo que mandamos | `AE201` GVLB208.A (o que lo compren en DigiKey, 931-GVLB208.A-ND, si les conviene). Posible: el MDBT50Q-P1MV2 si no lo consiguen (DigiKey Marketplace) |
+| Lo que mandamos | `AE201` GVLB208.A (o que lo compren en DigiKey, 931-GVLB208.A-ND, si les conviene). **Quizás** ("maybe" en la lista): el MDBT50Q-P1MV2 (`U301`), si lo compramos a Raytac; y el DRV5032FB (`U406`), si lo compramos en ti.com (plan de stock de [`costos.md`](costos.md)) |
+| Humedad (MSL) | **Hornear según su nivel MSL** las partes sensibles antes del reflujo si estuvieron fuera de la bolsa: módulos (MDBT50Q, LC29H, E22), LGA, DSBGA y el SAW |
 | Limpieza | Flux sin limpieza; **no lavar** el BMP581 (encapsulado con ventilación) |
 | Programación | No: se graba por el Tag-Connect en Buenos Aires |
 
@@ -66,17 +68,18 @@ El "Design 1" es el apilado de 1,6 mm que PCBWay publica en su [página de apila
 
 1. **Apilado:** materiales, espesores, εr del prepreg y del núcleo a 1–1,5 GHz, espesor y εr de la máscara sobre la pista y en la ranura. Con eso, el ancho y la ranura de la CPWG de 50 Ω en L1 referida a L2, y la pista y la separación del par de 90 Ω, con la tolerancia. ¿Incluyen el cupón y el informe de impedancia?
 2. **Cobre de L2 y L3:** ¿0,5 oz o 1 oz con ese apilado? (fija el ancho de las pistas de potencia en capas internas).
-3. **Mínimos** que pueden hacer sin recargo: pista/separación, vía (0,45/0,2), anillo, agujero a agujero, cobre al borde, puente de máscara entre pads de 0,4 mm.
+3. **Mínimos** que pueden hacer sin recargo: pista/separación, vía (0,45/0,2), anillo, agujero a agujero, cobre al borde, puente de máscara entre pads de 0,4 mm, y la tolerancia del espesor terminado.
 4. **Vías en el pad rellenas y tapadas** en 4 capas: costo y plazo extra. ¿Lo hacen en todas las vías o solo en las marcadas?
 5. **Oro duro selectivo** de ≥ 0,5 µm en 5 pads planos que no están en el borde, con ENIG en el resto: ¿lo hacen?, ¿cómo lo marcamos (capa de dibujo, máscara de plateado)?, ¿necesita un bus de plateado que después cortan?, costo.
 6. **DSBGA de 0,4 mm y TSNP de 0,4 mm:** ¿los arman sin problema?, ¿qué apertura de stencil y qué pad recomiendan (NSMD)?, ¿stencil escalonado?
 7. **Rayos X:** ¿está incluido?, ¿cuánto cuesta por placa o por componente?
 8. **Patch soldado a mano después del reflujo:** ¿lo hacen?, costo.
 9. **Partes que mandamos:** dirección, cómo rotular, sobrante que piden (1–5 integrados).
-10. **Panel:** ¿hace falta con 50 × 70 mm? Si lo arman ellos, rieles y puentes lejos del borde izquierdo (antena del Raytac).
-11. **Revisión de fabricación (DFM)** de los Gerbers y del armado antes de fabricar: ¿gratis?, ¿cuánto tarda?
-12. **Plazos y precios** de placa y de armado para 5 armadas (de 10 placas), 10 y 100, con el envío por DHL o FedEx a Buenos Aires (sin batería).
-13. **Partes con poco stock** (LSM6DSV320X, BGA525N6, DRV5032FB, TPS7A2032P): ¿las consiguen?, ¿pueden reservarlas para 100?
+10. **Humedad:** ¿hornean según el MSL las partes abiertas (módulos, LGA, DSBGA) antes del reflujo?
+11. **Panel:** ¿hace falta con 50 × 70 mm? Si lo arman ellos, rieles y puentes lejos del borde izquierdo (antena del Raytac).
+12. **Revisión de fabricación (DFM)** de los Gerbers y del armado antes de fabricar: ¿gratis?, ¿cuánto tarda?
+13. **Plazos y precios** de placa y de armado para 5 armadas (de 10 placas), 10 y 100, con el envío por DHL o FedEx a Buenos Aires (sin batería).
+14. **Partes con poco stock** (LSM6DSV320X, BGA525N6, DRV5032FB, TPS7A2032P): ¿las consiguen?, ¿pueden reservarlas para 100?
 
 ## Mail para PCBWay (inglés)
 
@@ -101,7 +104,8 @@ El "Design 1" es el apilado de 1,6 mm que PCBWay publica en su [página de apila
 > - Single-side SMT, about 140 parts and 480 pads per board, 55 unique parts. BOM attached (MPN, LCSC and DigiKey numbers). Two variants: 3 boards with Quectel LC29HAAMD and 2 boards with LC29HEAMD in the same position; one board also with the Qorvo DWM3000TR13 module.
 > - Fine pitch: 0.4 mm DSBGA (TI BQ25180YBGR, TPS22916CYFPR), 0.4 mm TSNP-6 (Infineon BGA525N6), 1.4 × 1.1 mm SAW filters, LGA sensors (ST LSM6DSV320XTR, Bosch BMP581), WSON with exposed pad, modules with bottom pads (Raytac MDBT50Q-P1MV2 61 pads, Quectel LC29H, Ebyte E22-900M22S). We would like X-ray inspection of the BGA/LGA/module joints. Please advise on stencil thickness or a step stencil.
 > - After reflow: one through-hole ceramic patch antenna (Taoglas GVLB208.A, 20 × 20 mm, single pin) hand-soldered from the bottom. It must not go through reflow. We can ship it to you, or you can buy it at DigiKey (931-GVLB208.A-ND).
-> - No-clean flux; please do not wash the board (the barometer has a vent hole).
+> - No-clean flux; please do not wash the board (the barometer has a vent hole). Please bake moisture-sensitive parts (modules, LGA, DSBGA) per their MSL before reflow.
+> - Solder-mask dams between 0.4 mm-pitch pads if your process allows it; please tell us your minimum dam and the finished-thickness tolerance.
 > - Some parts have low stock (LSM6DSV320XTR, BGA525N6E6327XTSA1, DRV5032FBDBZR, TPS7A2032PDBVR): please confirm availability, and whether you can reserve them for a later run of 100.
 >
 > **Please quote**

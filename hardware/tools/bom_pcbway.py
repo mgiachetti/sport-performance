@@ -24,6 +24,8 @@ Outputs (``docs/hardware/cotizacion/``):
 * ``costo-partes-pod-v0.csv``: per row, the buy quantity, unit price and extended cost for 5, 10
   and 100 boards, using the ladder of the CSV (a buy quantity below the first step pays the first
   step, the minimum order).
+* ``costos.md``: the block between its markers (part totals per board, cost drivers, extras with
+  their cost), so the document says the same numbers as the CSV.
 
 Board features with no part (test points, fiducials, tooling holes, solder jumpers, the Tag-Connect
 footprint and the dock pads) are not in the BOMs.
@@ -64,7 +66,13 @@ EXTRAS = [
     ("LQW15AN12NG00D", 2, "Kit de banco: L de entrada del LNA en bajo consumo"),
     ("0402WGF374JTCE", 2, "Kit de banco: serie del atenuador de 6 dB con la Taoglas"),
     ("NCP15XH103F03RC", 2, "Kit de banco: NTC de 10 kΩ para el TS sin la celda"),
+    ("PESD5V0F1BL,315", 2, "Kit de banco: ESD de silicio de 0,4 pF para el nodo del U.FL"),
 ]
+
+COSTOS_MD = OUT / "costos.md"
+BEGIN = "<!-- generado por hardware/tools/bom_pcbway.py: no editar a mano -->"
+END = "<!-- fin de lo generado -->"
+TOP = 6  # rows of the cost drivers table
 
 # Columns of PCBWay's turnkey BOM (assembly-file-requirements: line, quantity, designators, manufacturer,
 # manufacturer part number, distributor part number, description, package, type SMT/Thru-hole), plus
@@ -160,7 +168,7 @@ def build():
             "Instructions": "Do not populate" if g["dnp"] else info.get("instrucciones", ""),
             "DNP": "yes" if g["dnp"] else "no", "LCSC": info.get("lcsc", first.lcsc),
             "DigiKey": info.get("digikey", ""), "Mouser": info.get("mouser", ""),
-            "Customer Supplied": "yes" if info.get("consignado") == "sí" else "",
+            "Customer Supplied": {"sí": "yes", "posible": "maybe"}.get(info.get("consignado", ""), ""),
         }
         if g["dnp"]:
             dnp.append(row)
@@ -199,10 +207,14 @@ def build():
         if not info:
             errors.append(f"extra {mpn} no está en {PARTS_CSV.name}")
             continue
-        extras.append({"MPN": mpn, "Fabricante": info["fabricante"], "Descripción": info["descripcion"],
-                       "Cant. por placa": per_board, "Para qué": purpose, "LCSC": info["lcsc"], "DigiKey": info["digikey"],
-                       "Lo mandamos nosotros": "sí" if info.get("consignado") == "sí" else "",
-                       "Escalones US$": info["escalones_usd"], "Fuente": info["fuente_precio"]})
+        row = {"MPN": mpn, "Fabricante": info["fabricante"], "Descripción": info["descripcion"],
+               "Cant. por placa": per_board, "Para qué": purpose, "LCSC": info["lcsc"], "DigiKey": info["digikey"],
+               "Lo mandamos nosotros": "sí" if info.get("consignado") == "sí" else "",
+               "Escalones US$": info["escalones_usd"], "Fuente": info["fuente_precio"]}
+        for n in BOARDS:
+            buy, price = unit_price(ladder(info), math.ceil(per_board * n))
+            row[f"US$ total {n}"] = "" if price is None else f"{buy * price:.2f}"
+        extras.append(row)
 
     cost_cols = ["MPN", "Designadores", "Cant. por placa", "Fuente", "Fecha"]
     for n in BOARDS:
@@ -214,6 +226,7 @@ def build():
         OUT / "bom-pod-v0-extras.csv": write_csv(extras, list(extras[0]) if extras else ["MPN"]),
         OUT / "costo-partes-pod-v0.csv": write_csv(cost, cost_cols),
     }
+    files[COSTOS_MD] = costos_md(cost[:-2], totals, extras)
     summary = {
         "filas montadas": len(bom), "componentes montados": sum(r["Quantity"] for r in bom),
         "filas sin montar": len(dnp), "componentes sin montar": sum(r["Quantity"] for r in dnp),
@@ -222,6 +235,36 @@ def build():
     }
     summary.update({f"partes por placa con {n} placas (US$)": f"{totals[n] / n:.2f}" for n in BOARDS})
     return files, summary, errors
+
+
+def money(x: float) -> str:
+    """US$ amount in es-AR format (1.234,56)."""
+    return f"{x:,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
+
+
+def costos_md(lines: list, totals: dict, extras: list) -> str:
+    """costos.md with the generated block (part totals, cost drivers, extras) replaced."""
+    text = COSTOS_MD.read_text(encoding="utf-8")
+    if text.count(BEGIN) != 1 or text.count(END) != 1:
+        raise SystemExit(f"{COSTOS_MD.name}: faltan los marcadores del bloque generado")
+    out = ["| Placas | Partes por placa | Total de partes |", "|---|---|---|"]
+    out += [f"| {n} | **{money(totals[n] / n)}** | {money(totals[n])} |" for n in BOARDS]
+    n = BOARDS[-1]
+    top = sorted(lines, key=lambda r: -float(r[f"US$ total {n}"] or 0))
+    out += ["", f"**Lo que más pesa** (a {n} placas, por placa):", "", "| Parte | Cant. | US$ por placa | Fuente |", "|---|---|---|---|"]
+    out += [f"| {r['MPN']} | {r['Cant. por placa']} | {money(float(r[f'US$ total {n}']) / n)} | {r['Fuente']} |" for r in top[:TOP]]
+    rest = sum(float(r[f"US$ total {n}"] or 0) for r in top[TOP:]) / n
+    out += [f"| Las otras {len(top) - TOP} filas | — | {money(rest)} | — |"]
+    out += ["", "**Lo que no se suelda** ([`bom-pod-v0-extras.csv`](bom-pod-v0-extras.csv)), total del pedido:", "",
+            "| Parte | Para qué | " + " | ".join(f"{b} placas" for b in BOARDS) + " |", "|---|---|" + "---|" * len(BOARDS)]
+    for e in extras:
+        cells = [money(float(e[f"US$ total {b}"])) if e[f"US$ total {b}"] else "sin precio" for b in BOARDS]
+        out.append(f"| {e['MPN']} | {e['Para qué']} | " + " | ".join(cells) + " |")
+    sums = [sum(float(e[f"US$ total {b}"] or 0) for e in extras) for b in BOARDS]
+    out.append("| **Total** | | " + " | ".join(f"**{money(x)}**" for x in sums) + " |")
+    head, rest_text = text.split(BEGIN)
+    _, tail = rest_text.split(END)
+    return head + BEGIN + "\n\n" + "\n".join(out) + "\n\n" + END + tail
 
 
 def main() -> int:
