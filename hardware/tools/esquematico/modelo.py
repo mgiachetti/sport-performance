@@ -91,8 +91,11 @@ def TP(net, **kw) -> Part:
 
 
 def NMOS(gate, drain, source="GND", **kw) -> Part:
-    kw.setdefault("note", "NMOS de nivel lógico, Vgs(th) de alrededor de 1 V (parte por elegir)")
-    return Part("Q_NMOS_GSD", "NMOS", {"1": gate, "3": drain, "2": source}, SOT23, **kw)
+    kw.setdefault("note", "NMOS de nivel lógico AO3400A: Vgs(th) de 0,65–1,45 V, 48 mΩ con 2,5 V de gate")
+    kw.setdefault("mpn", "AO3400A")
+    kw.setdefault("manufacturer", "Alpha & Omega Semiconductor")
+    kw.setdefault("lcsc", "C20917")
+    return Part("Q_NMOS_GSD", "AO3400A", {"1": gate, "3": drain, "2": source}, SOT23, **kw)
 
 
 def FLAG(net) -> Part:
