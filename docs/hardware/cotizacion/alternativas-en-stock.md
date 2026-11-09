@@ -84,10 +84,12 @@ Fuentes: LCSC [C22461202](https://www.lcsc.com/product-detail/C22461202.html) (L
 
 **Firmware**: en el devicetree cambia el `compatible` a `st,lsm6dsv32x` (binding en el NCS v3.4.1; lo maneja el driver `lsm6dsv16x`) y el autotest de presencia acepta 70h. La lectura de los dos canales por la FIFO (`imu_batch`, todavía pendiente en `firmware/README.md`) se escribe contra el canal 2 de ±32 g en lugar del de alto rango de la 320X. El formato del log no cambia: guarda la escala.
 
+**A confirmar en DS13511 antes de escribir `imu_batch` contra el canal 2**: que el canal fijo de ±32 g se pueda guardar en la FIFO (el bit `XL_DualC_BATCH_FROM_IF` y su tag) y a qué ODR, porque el canal 2 está pensado para la lectura por registros (`UI_OUTX_L_A_OIS_DualC`, 34h–39h). Si no entra en la FIFO a 1,6 kHz o más, el plan es el canal 1 en ±32 g para todo (con menos resolución en la carrera) o el ADXL372.
+
 ### ¿Alcanza ±32 g?
 
 - Las referencias que usa el club son de equipos de **±16 g a 100 Hz** en la espalda alta (Catapult y GPSports): las zonas de impacto de la bibliografía llegan a "más de 10 g" con esos equipos, y la validación de un acelerómetro de tronco contra captura de movimiento en tackles y choques ([Wundersitz y col. 2015](https://www.pubmed.gov/25849648/)) trabaja en ese rango, con la señal filtrada a 20 Hz. Con ±32 g el pod **duplica el techo** de esos equipos, y las métricas comparables con primera (las del diccionario, a la frecuencia de primera) no saturan.
-- Lo que sí puede saturar a 32 g son los **picos crudos a 1,6 kHz o más**, sin filtrar: un golpe del propio pod contra el piso o un choque de espalda puede pasar de 32 g (**no verificado**: no encontramos mediciones de tronco con rango alto). Saturar recorta el pico, **no el conteo**: `contacts_n` y `scrums_n` se cuentan igual con el umbral debajo de 32 g; lo que se pierde es la intensidad de los impactos más fuertes.
+- Lo que sí puede saturar a 32 g son los **picos crudos a 1,6 kHz o más**, sin filtrar: un golpe del propio pod contra el piso o un choque de espalda puede pasar de 32 g (**no verificado**: no encontramos mediciones de tronco con rango alto). Saturar recorta el pico, **no el conteo**: `contacts_n` y `scrums_n` se cuentan igual con el umbral debajo de 32 g, y siguen comparables con los equipos de ±16 g de primera; lo que se pierde es solo la punta de la distribución de intensidad cruda.
 - **Plan**: en la v0 se monta el **ADXL372 en `U403` en 2 de las 5 placas** (el lugar, su capacitor y el 0 Ω de `HG_INT` ya están) y se mide, en entrenamientos con contacto, qué fracción de los impactos pasa de 32 g. Si es relevante para las métricas que se definan con el club, las 100 llevan el ADXL372 (+15,00) o la 320X/80X si vuelven con fecha.
 
 **Recomendación**: **LSM6DSV32XTR** en `U401` para la v0 y las 100 (comprar **150 en LCSC** ya, unos US$ 435); 10 ADXL372 para las placas de medición. La 320X pasa a alternativa cuando vuelva. Segunda fuente de ±32 g: la LSM6DSO32X, si se confirman sus pines contra su hoja.
@@ -125,10 +127,10 @@ Fuentes: DigiKey [GVLB208.A](https://www.digikey.com/en/products/detail/taoglas-
 
 **Lo que cambia con la GVLB258.A**:
 
-- **Footprint**: 25 × 25 mm en lugar de 20 × 20, un pin de alimentación con despeje de Ø3 mm en la cara de arriba y Ø3,5 mm en la de abajo (sección 4 de su hoja). La posición del pin está en el dibujo de la sección 3 (**a leer del dibujo**, es una imagen). La zona de la antena en la placa (`GNSS_ANTENA`, 30 × 30 mm) ya se dibujó para un patch de 25 × 25, así que **no crece la placa**; la carcasa sí tiene que dejar los 25 × 25 × 8,12.
-- **Plano de tierra**: las dos se ajustan sobre 70 × 70 mm. En la placa de unos 45 × 65 mm, la tierra chica desafina primero la L5 en las dos (`pod-v0.md`); un patch más grande sobre la misma tierra queda **relativamente más cerca** del ajuste de 70 × 70 que uno de 20 × 20 (**no verificado**: se mide en la v0, con el servicio de ajuste de Taoglas de la consulta 6).
+- **Footprint**: 25 × 25 mm en lugar de 20 × 20, un pin de alimentación con despeje de Ø3 mm en la cara de arriba y Ø3,5 mm en la de abajo (sección 4 de su hoja). La posición del pin se toma del **DXF o el STEP que publica Taoglas** para la GVLB258.A, no de la imagen del dibujo de la sección 3. El despeje de Ø3 mm va también en las capas internas. La zona de la antena en la placa (`GNSS_ANTENA`, 30 × 30 mm) ya se dibujó para un patch de 25 × 25, así que **no crece la placa**; la carcasa tiene que dejar los 25 × 25, pero el alto (8,12 mm) es **menor** que los 8,8 mm de la GVLB208.A: el espesor del pod no cambia.
+- **Plano de tierra**: las dos se ajustan sobre 70 × 70 mm. En la placa de unos 45 × 65 mm, la tierra chica desafina primero la L5 en las dos (`pod-v0.md`); un patch más grande sobre la misma tierra queda **relativamente más cerca** del ajuste de 70 × 70 que uno de 20 × 20 (**no verificado**). Sobre la tierra de 45 × 65 mm hay que esperar de **−1 a −3 dB** y un corrimiento de unos pocos MHz hacia arriba, primero en L5: en la v0 se mide la pérdida de retorno y, si hace falta, se pide el ajuste de Taoglas (consulta 6).
 - **Cadena RF y firmware**: no cambian (mismo 50 Ω, mismas bandas, pasivo).
-- **Peso**: +2 g (18 g contra 16 g).
+- **Peso y sujeción**: +2 g (18 g contra 16 g). Son 18 g de cerámica sobre **un solo pin** con impactos de 30–50 g: la carcasa tiene que **apretar el patch** (almohadilla de espuma o nervio contra el borde de la cerámica) para que el golpe no lo cargue sobre el pin (`pod-mecanica-produccion.md`).
 
 **Recomendación**: **GVLB258.A** en `AE201` (comprar **150 en DigiKey** ya, unos US$ 1.060). Es la que más baja el costo de toda la lista y la que más mejora la señal en L1.
 
@@ -147,18 +149,18 @@ Fuentes: DigiKey [GVLB208.A](https://www.digikey.com/en/products/detail/taoglas-
 | Parte (lugar) | Stock hoy | Alternativa | Pines | Datos eléctricos | US$ a 100 | Veredicto |
 |---|---|---|---|---|---|---|
 | **TPS22916C** (`U303`; `U105` y `U502` sin montar) | LCSC 1.040 ([C2680319](https://www.lcsc.com/product-detail/C2680319.html)); DigiKey 0, 3.000 el 07/12/2026 ([búsqueda](https://www.digikey.com/en/products/result?keywords=TPS22916CYFPR)) | — | DSBGA-4 de 0,4 mm | Encendido lento, QOD de 150 Ω | 0,32 | **Cumple**: comprar 150 en LCSC ya |
-| ↳ **TPS22919DCKR** | LCSC **20.375** ([C2149796](https://www.lcsc.com/product-detail/C2149796.html)) | Reemplazo con otro footprint | SC-70-6: 1 IN, 2 GND, 3 ON, 4 NC, 5 QOD, 6 VOUT (SLVSEN5B, "Pin Functions") | 1,6–5,5 V, 1,5 A, 90 mΩ; encendido de 1,75 ms a 3,6 V; **QOD de 24 Ω** (QOD atado a VOUT); pull-down inteligente de 530 kΩ en ON; protección de cortocircuito; 2 nA apagado ([ti.com](https://www.ti.com/product/TPS22919)) | **0,10** | Más barata, más stock y saca un DSBGA de 0,4 mm del armado. El pull-down de 100 kΩ de cada EN sigue igual |
+| ↳ **TPS22919DCKR** | LCSC **20.375** ([C2149796](https://www.lcsc.com/product-detail/C2149796.html)) | Reemplazo con otro footprint | SC-70-6: 1 IN, 2 GND, 3 ON, 4 NC, 5 QOD, 6 VOUT (SLVSEN5B, "Pin Functions") | 1,6–5,5 V, 1,5 A, 90 mΩ; encendido de 1,75 ms a 3,6 V; **QOD de 24 Ω** (QOD atado a VOUT); pull-down inteligente de 530 kΩ en ON; protección de cortocircuito; 2 nA apagado ([ti.com](https://www.ti.com/product/TPS22919)) | **0,10** | Más barata, más stock y saca un DSBGA de 0,4 mm del armado. El pull-down de 100 kΩ de cada EN sigue igual. **El QOD es un pin**: en `diseno.py` el pin 5 va atado a VOUT en los tres lugares (si queda sin conectar, la salida puede no descargarse); en la TPS22916C era interno. Arranque: unos 27 mA de pico al cargar los 10,1 µF del E22 (unos 154 mA con el de 47 µF sin montar), sin problema |
 | ↳ TPS22918DBVR / TPS22917DBVR | LCSC 69.875 / 2.315 | Otro footprint (SOT-23-6) | — | Tiempo de subida ajustable con capacitor; QOD | 0,25 / 0,28 | Sirven, pero la TPS22919 es más chica y barata |
 | ↳ TPS22916B / CN | LCSC 12.240 / 9.108 | Mismos pines | DSBGA-4 | B: encendido rápido; CN: sin QOD (`stock.md`) | 0,14 / 0,24 | No se aprueban sin el banco |
 | **TPS7A2032P** (`U104`) | DigiKey 3.348 (26 semanas detrás), LCSC 0 | — | SOT-23-5: 1 IN, 2 GND, 3 EN, 4 NC, 5 OUT (SBVS338H) | 300 mA, 7 µVrms, descarga de 150 Ω, pull-down de 500 kΩ en EN | 0,20 | **Cumple**: comprar 150 en DigiKey ya |
-| ↳ **LP5907MFX-3.2/NOPB** | **DigiKey 3.883** ([búsqueda](https://www.digikey.com/en/products/result?keywords=LP5907MFX-3.2%2FNOPB)), LCSC 48 ([C2832238](https://www.lcsc.com/product-detail/C2832238.html)) | **Pin a pin** | SOT-23-5: 1 IN, 2 GND, 3 EN, 4 N/C, 5 OUT (SNVS798Q, tabla 4-2): igual que la TPS7A20 | 2,2–5,5 V, 250 mA, < 6,5 µVrms, PSRR de 82 dB a 1 kHz, caída de 120 mV típica a plena carga, **descarga de 230 Ω** y pull-down de 1 MΩ en EN | 0,32 | **Segunda fuente** en el mismo lugar: con unos 45 mA del GNSS y el LNA la caída queda muy por debajo de los 170 mV de margen (3,37 → 3,2 V). Candidata a alternativa aprobada |
+| ↳ **LP5907MFX-3.2/NOPB** | **DigiKey 3.883** ([búsqueda](https://www.digikey.com/en/products/result?keywords=LP5907MFX-3.2%2FNOPB)), LCSC 48 ([C2832238](https://www.lcsc.com/product-detail/C2832238.html)) | **Pin a pin** | SOT-23-5: 1 IN, 2 GND, 3 EN, 4 N/C, 5 OUT (SNVS798Q, tabla 4-2): igual que la TPS7A20 | 2,2–5,5 V, 250 mA, < 6,5 µVrms, PSRR de 82 dB a 1 kHz, IQ de 12 µA, ruido de 10 / 6,5 µVrms, PSRR de 90 / 82 / 65 / 60 dB, EN de 1,2 / 0,4 V con pull-down de 1 MΩ, **descarga de 230 Ω**; caída de **50 mV típica a 100 mA en SOT-23** (los 120 mV son del DSBGA): unos 25 mV con nuestros 45 mA, muy por debajo de los 170 mV de margen (3,37 → 3,2 V) | 0,32 | **Segunda fuente** en el mismo lugar, con una condición: su hoja pide **0,7 µF < COUT < 10 µF**, y el riel de 3,2 V suma hoy unos **11,1 µF** nominales (1 µF del LDO + 10 µF en 0603 y 100 nF del LC29H por los 0 Ω, más el desacople del LNA). Antes de aprobarla hay que bajar el 10 µF (por ejemplo a 4,7 µF) o confirmar la capacidad efectiva con la tensión |
 | TPS63900 (`U103`) | LCSC 9.616 | TPS63802 (con divisor, `pod-v0.md`) | — | — | 0,66 | Cumple |
 | BQ25180 (`U101`) | LCSC 5.836, DigiKey 2.902 | — | — | — | 1,20 | Cumple, dos fuentes |
 | MAX17048 (`U102`) | LCSC 22.150, DigiKey 22.120 | — | — | — | 1,43 | Cumple, dos fuentes |
 | TPS259470A (`U602`) | LCSC 3.421; DigiKey 0 hasta el 01/02/2027 | — | — | — | 0,83 | Cumple (22 veces) |
 | TPS7A0230P (`U106`) | LCSC 27.633, DigiKey 5.363 | — | — | — | 0,22 | Cumple |
 
-**Recomendación**: comprar ya **150 TPS22916C** (LCSC) y **150 TPS7A2032P** (DigiKey). Si la placa se toca por el patch, pasar los tres lugares del load switch a **TPS22919DCKR** (−0,22 por placa y un DSBGA de 0,4 mm menos para los rayos X). Sumar la **LP5907MFX-3.2** como alternativa aprobada de `U104` (pines verificados en las dos hojas).
+**Recomendación**: comprar ya **150 TPS22916C** (LCSC) y **150 TPS7A2032P** (DigiKey). Si la placa se toca por el patch, pasar los tres lugares del load switch a **TPS22919DCKR** (−0,22 por placa y un DSBGA de 0,4 mm menos para los rayos X). Sumar la **LP5907MFX-3.2** como alternativa aprobada de `U104` solo después de ajustar la capacidad del riel de 3,2 V a su rango de COUT (pines verificados en las dos hojas).
 
 ## 6. Lo demás
 
@@ -188,7 +190,7 @@ Tres niveles, del menos al más invasivo. Precios a 5, 10 y 100 placas por placa
 |---|---|---|---|
 | **A** | IMU **LSM6DSV32X** | No | El `compatible` y el WHO_AM_I |
 | **B (recomendado)** | A + patch **GVLB258.A** + load switch **TPS22919DCKR** | Sí: footprint del patch y de los tres load switch | Igual que A |
-| C | B + NAND **GD5F2GM7UEYIGR** | No (mismo WSON-8, a confirmar el pad) | Sí: el driver de la NAND con las dos memorias |
+| C | B + NAND **GD5F2GM7UEYIGR** | No (mismo WSON-8, a confirmar el pad) | Sí: el driver de la NAND con las dos memorias (otro ID JEDEC, 0xAA22 en la W25N02KV, y otra semántica del estado del ECC). **Opcional, fuera de las 100** |
 
 **Costo de las partes por placa** (US$; el bloque de MCU y LoRa es el MDBT50Q-P1MV2 y el E22-900M22S a los precios de `costos.md`):
 
@@ -229,7 +231,7 @@ Si el usuario prefiere el nivel A (sin tocar la placa), en lugar de la GVLB258.A
 1. **IMU**: ¿LSM6DSV32X (±32 g) en `U401` y el ADXL372 en 2 placas de la v0 para medir? Es el único cambio sin costo de placa y el que destraba la compra.
 2. **Patch**: ¿GVLB258.A de 25 × 25 en `AE201`? Cambia el footprint y la carcasa, baja 4,75 y mejora L1.
 3. **Load switch**: ¿TPS22919DCKR en los tres lugares, o se queda la TPS22916C con las 150 de LCSC?
-4. **LDO**: ¿la LP5907MFX-3.2 como alternativa aprobada de `U104`?
+4. **LDO**: ¿la LP5907MFX-3.2 como alternativa aprobada de `U104`, bajando el 10 µF del riel de 3,2 V a su rango de COUT?
 5. **NAND**: ¿sumar la GD5F2GM7 al driver para bajar 1,78 más, o se queda solo la W25N?
 6. **Compra anticipada** de la LC29H(AA) y la BGA525N6 antes de aprobar la v0.
 
