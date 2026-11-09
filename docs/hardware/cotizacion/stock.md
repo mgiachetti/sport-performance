@@ -4,6 +4,8 @@ Auditoría de stock de cada parte de la lista de armado ([`bom-pod-v0.csv`](bom-
 
 Parte del paquete de cotización: los precios están en [`costos.md`](costos.md), el pedido en [`pedido-pcbway.md`](pedido-pcbway.md) y los mails en [`consultas.md`](consultas.md).
 
+Con la regla de que cada parte tiene que estar disponible **hoy** (al menos 150 comprables, sin esperar plazos de fábrica), las alternativas en stock para todo lo que no es el bloque de MCU y LoRa, con su costo, están en [`alternativas-en-stock.md`](alternativas-en-stock.md): entre ellas la **LSM6DSV32X** pin a pin en lugar de la LSM6DSV320X y el patch **GVLB258.A** en lugar del GVLB208.A.
+
 ## Cómo se leyó
 
 | Fuente | Cómo | Resultado |
