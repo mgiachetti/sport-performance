@@ -43,6 +43,9 @@ int pod_counters_set_boot(struct pod_counters *c, uint32_t boot_counter)
 	if (!c->ready) {
 		return POD_ERR_STATE;
 	}
+	if (boot_counter <= c->boot) {
+		return POD_ERR_RANGE; /* the boot counter only moves forward */
+	}
 	if (c->store.save(c->store.ctx, POD_COUNTER_BOOT, boot_counter) != 0) {
 		/* The nonce could repeat after a reset: stop until it is saved. */
 		c->ready = false;

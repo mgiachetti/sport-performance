@@ -283,17 +283,50 @@ static void bq25180_watchdog_service(void)
 
 	CHECK(pod_bq25180_service_due(&w, 0));
 	CHECK(!pod_bq25180_after_read(&w, 0, 0x00, sys_ok)); /* first read, plan intact */
-	CHECK(!pod_bq25180_service_due(&w, 59999));
-	CHECK(pod_bq25180_service_due(&w, 60000)); /* well inside the 160 s watchdog */
-	CHECK(!pod_bq25180_after_read(&w, 60000, 0x00, sys_ok));
-	/* Dock in: VIN_PGOOD changes → write the plan again. */
-	CHECK(pod_bq25180_after_read(&w, 61000, POD_BQ25180_STAT0_VIN_PGOOD, sys_ok));
-	CHECK(!pod_bq25180_after_read(&w, 62000, POD_BQ25180_STAT0_VIN_PGOOD, sys_ok));
+	CHECK(!pod_bq25180_service_due(&w, 29999));
+	CHECK(pod_bq25180_service_due(&w, 30000)); /* inside the shorter (50 s) watchdog */
+	CHECK(!pod_bq25180_after_read(&w, 30000, 0x00, sys_ok));
+	/* VIN_PGOOD changes outside a VBUS edge → write the plan again. */
+	CHECK(pod_bq25180_after_read(&w, 31000, POD_BQ25180_STAT0_VIN_PGOOD, sys_ok));
+	CHECK(!pod_bq25180_after_read(&w, 32000, POD_BQ25180_STAT0_VIN_PGOOD, sys_ok));
 	/* Registers back to their defaults (watchdog reset): WATCHDOG_15S_ENABLE reads 0. */
-	CHECK(pod_bq25180_after_read(&w, 63000, POD_BQ25180_STAT0_VIN_PGOOD, 0x40));
+	CHECK(pod_bq25180_after_read(&w, 33000, POD_BQ25180_STAT0_VIN_PGOOD, 0x40));
 	/* Wraps of the ms counter keep the period. */
 	w.last_service_ms = 0xFFFFFF00u;
 	CHECK(!pod_bq25180_service_due(&w, 0x00000100u));
+}
+
+static void bq25180_fast_poll_after_vbus(void)
+{
+	struct pod_bq25180_watch w = {0};
+	const uint8_t sys_ok = POD_BQ25180_SYS_REG_WATCHDOG_15S;
+	uint32_t t = 100000;
+
+	(void)pod_bq25180_after_read(&w, t, 0x00, sys_ok);
+	/* VBUS seen by the nRF; PGOOD comes 3 s later. */
+	pod_bq25180_vbus_edge(&w, t);
+	CHECK(!pod_bq25180_service_due(&w, t + 999));
+	CHECK(pod_bq25180_service_due(&w, t + 1000)); /* 1 s, not 30 s */
+	CHECK(!pod_bq25180_after_read(&w, t + 1000, 0x00, sys_ok));
+	CHECK(!pod_bq25180_after_read(&w, t + 2000, 0x00, sys_ok));
+	/* PGOOD: plan written within ~1 s of the start of its 15 s, back to the slow period. */
+	CHECK(pod_bq25180_after_read(&w, t + 3000, POD_BQ25180_STAT0_VIN_PGOOD, sys_ok));
+	CHECK(!w.fast);
+	CHECK(!pod_bq25180_service_due(&w, t + 4000));
+	CHECK(pod_bq25180_service_due(&w, t + 33000));
+
+	/* VBUS without PGOOD (adapter that does not qualify): the fast window ends at 20 s. */
+	w = (struct pod_bq25180_watch){0};
+	(void)pod_bq25180_after_read(&w, 0, 0x00, sys_ok);
+	pod_bq25180_vbus_edge(&w, 0);
+	for (uint32_t ms = 1000; ms < 20000; ms += 1000) {
+		CHECK(pod_bq25180_service_due(&w, ms));
+		CHECK(!pod_bq25180_after_read(&w, ms, 0x00, sys_ok));
+		CHECK(w.fast);
+	}
+	CHECK(!pod_bq25180_after_read(&w, 20000, 0x00, sys_ok));
+	CHECK(!w.fast);
+	CHECK(!pod_bq25180_service_due(&w, 21000));
 }
 
 static void wake_loop_guard(void)
@@ -338,6 +371,7 @@ void run_power_tests(void)
 	RUN(wake_plan);
 	RUN(bq25180_plan);
 	RUN(bq25180_watchdog_service);
+	RUN(bq25180_fast_poll_after_vbus);
 	RUN(wake_loop_guard);
 	RUN(max17048);
 }

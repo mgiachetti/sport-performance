@@ -56,7 +56,10 @@ int pod_counters_boot(struct pod_counters *c, const struct pod_counter_store *st
 
 bool pod_counters_ready(const struct pod_counters *c);
 
-/** Saves a new boot counter (frame-number wrap); commits only after the save. */
+/**
+ * Saves a new boot counter (frame-number wrap); commits only after the save.
+ * POD_ERR_RANGE for a value not above the current one.
+ */
 int pod_counters_set_boot(struct pod_counters *c, uint32_t boot_counter);
 
 /** Moves the next page sequence above one seen on the NAND (boot scan). */

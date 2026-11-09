@@ -366,7 +366,11 @@ int pod_log_writer_flush(struct pod_log_writer *w);
 /** Closes the segment with a segment-end page (empty on a page boundary). */
 int pod_log_writer_close(struct pod_log_writer *w);
 
-/** Recovery close of a segment a power loss left open (writer.ts `sealRecoveryPage`). */
+/**
+ * Recovery close of a segment a power loss left open (writer.ts `sealRecoveryPage`).
+ * `page_seq` must come from the same source as every other page
+ * (pod_counters_take_page_seq on the pod), never be computed by the caller.
+ */
 int pod_log_seal_recovery_page(const uint8_t device_id[POD_DEVICE_ID_LEN], uint32_t boot_counter,
 			       uint32_t segment_id, uint32_t stream_offset, uint32_t page_seq,
 			       uint8_t key_epoch, const uint8_t storage_key[16],

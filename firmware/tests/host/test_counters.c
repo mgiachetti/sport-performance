@@ -73,6 +73,11 @@ static void boot_counter_committed_after_save(void)
 	CHECK_EQ(pod_counters_boot(&c, &st), POD_OK);
 	CHECK_EQ(c.boot, 43);
 
+	/* The boot counter only moves forward. */
+	CHECK_EQ(pod_counters_set_boot(&c, 43), POD_ERR_RANGE);
+	CHECK_EQ(pod_counters_set_boot(&c, 10), POD_ERR_RANGE);
+	CHECK(pod_counters_ready(&c));
+
 	/* Frame-number wrap: a failed save stops the pod. */
 	s.fail_save[POD_COUNTER_BOOT] = true;
 	CHECK_EQ(pod_counters_set_boot(&c, 44), POD_ERR_STATE);

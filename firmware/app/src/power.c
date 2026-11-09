@@ -83,18 +83,21 @@ void pod_power_service(uint32_t now_ms)
 	uint8_t stat0, sys_reg;
 
 	/*
-	 * Every I2C transaction restarts the BQ25180 watchdogs: the 160 s host-mode
-	 * one (that would reset ICHG, EN_PUSH and WATCHDOG_15S_ENABLE) and the 15 s
+	 * Every I2C transaction restarts the BQ25180 watchdogs: the host-mode one
+	 * (160 s or 50 s: see pod-v0.md) (that would reset ICHG, EN_PUSH and WATCHDOG_15S_ENABLE) and the 15 s
 	 * one after each VIN insertion.
 	 */
 	static bool last_vbus;
 	bool vbus = pod_power_vbus();
 
-	/* A dock insertion is serviced at once: the 15 s watchdog counts from VIN. */
-	if (vbus == last_vbus && !pod_bq25180_service_due(&watch, now_ms)) {
-		return;
+	/* The 15 s watchdog counts from VIN_PGOOD: poll fast after a dock insertion. */
+	if (vbus && !last_vbus) {
+		pod_bq25180_vbus_edge(&watch, now_ms);
 	}
 	last_vbus = vbus;
+	if (!pod_bq25180_service_due(&watch, now_ms)) {
+		return;
+	}
 	if (i2c_reg_read_byte_dt(&charger, POD_BQ25180_REG_STAT0, &stat0) != 0 ||
 	    i2c_reg_read_byte_dt(&charger, POD_BQ25180_REG_SYS_REG, &sys_reg) != 0) {
 		LOG_WRN("BQ25180 not answering");

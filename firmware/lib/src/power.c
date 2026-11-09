@@ -235,17 +235,34 @@ struct pod_reg_update pod_bq25180_ship_update(void)
 	return u;
 }
 
+void pod_bq25180_vbus_edge(struct pod_bq25180_watch *w, uint32_t now_ms)
+{
+	w->fast = true;
+	w->fast_since_ms = now_ms;
+}
+
 bool pod_bq25180_service_due(const struct pod_bq25180_watch *w, uint32_t now_ms)
 {
-	return !w->have_stat0 || now_ms - w->last_service_ms >= POD_BQ25180_SERVICE_PERIOD_MS;
+	uint32_t period = w->fast ? POD_BQ25180_FAST_PERIOD_MS : POD_BQ25180_SERVICE_PERIOD_MS;
+
+	return !w->have_stat0 || now_ms - w->last_service_ms >= period;
 }
 
 bool pod_bq25180_after_read(struct pod_bq25180_watch *w, uint32_t now_ms, uint8_t stat0,
 			    uint8_t sys_reg)
 {
+	bool pgood = (stat0 & POD_BQ25180_STAT0_VIN_PGOOD) != 0;
 	bool reapply = (sys_reg & POD_BQ25180_SYS_REG_WATCHDOG_15S) == 0 ||
 		       (w->have_stat0 && ((w->last_stat0 ^ stat0) & POD_BQ25180_STAT0_VIN_PGOOD));
 
+	if (w->fast) {
+		if (pgood) {
+			reapply = true; /* talk to it inside its 15 s from PGOOD */
+			w->fast = false;
+		} else if (now_ms - w->fast_since_ms >= POD_BQ25180_FAST_WINDOW_MS) {
+			w->fast = false; /* VBUS without PGOOD (bad adapter): back to the slow period */
+		}
+	}
 	w->have_stat0 = true;
 	w->last_stat0 = stat0;
 	w->last_service_ms = now_ms;

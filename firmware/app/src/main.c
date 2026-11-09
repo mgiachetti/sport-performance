@@ -156,15 +156,15 @@ int main(void)
 	if (rc != 0) {
 		fail_forever(rc > 0 ? rc : POD_SELFTEST_CCM);
 	}
-	/*
-	 * The image passed its self-test: confirm it, so MCUboot keeps it after a
-	 * test swap instead of reverting at the next reset.
-	 */
-	if (!boot_is_img_confirmed() && boot_write_img_confirmed() != 0) {
-		LOG_ERR("image not confirmed: MCUboot will revert it");
-	}
 	if (pod_persist_init() != 0) {
+		/*
+		 * Not confirmed: an update that cannot use its counters (NVS) is
+		 * reverted by MCUboot at the next reset.
+		 */
 		LOG_ERR("persistent counters: the pod will neither transmit nor record");
+	} else if (!boot_is_img_confirmed() && boot_write_img_confirmed() != 0) {
+		/* Self-test passed and counters committed: keep this image after a test swap. */
+		LOG_ERR("image not confirmed: MCUboot will revert it");
 	}
 	if (pod_power_hw_init() != 0) {
 		LOG_WRN("charger not configured");

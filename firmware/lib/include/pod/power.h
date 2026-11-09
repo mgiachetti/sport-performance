@@ -171,25 +171,42 @@ struct pod_reg_update {
 /** STAT0[0] VIN_PGOOD_STAT. */
 #define POD_BQ25180_STAT0_VIN_PGOOD (1u << 0)
 /**
- * The BQ25180 I2C watchdog (IC_CTRL WATCHDOG_SEL, 160 s by default in host
- * mode) resets ICHG, EN_PUSH and WATCHDOG_15S_ENABLE to their defaults when the
- * host goes quiet: the firmware talks to it at most this often.
+ * Service of the BQ25180 watchdogs:
+ *
+ * - The I2C watchdog of host mode (IC_CTRL WATCHDOG_SEL; the datasheet gives
+ *   160 s in the register table and "50 s" for the normal watchdog in the text:
+ *   not verified, the shorter one is assumed) resets ICHG, EN_PUSH and
+ *   WATCHDOG_15S_ENABLE when the host goes quiet: STAT0 is read at least every
+ *   `POD_BQ25180_SERVICE_PERIOD_MS`.
+ * - The 15 s watchdog counts from VIN_PGOOD, which can come after the nRF sees
+ *   VBUS: after a VBUS edge STAT0 is polled every `POD_BQ25180_FAST_PERIOD_MS`
+ *   for up to `POD_BQ25180_FAST_WINDOW_MS`, until PGOOD reads 1 and the plan is
+ *   written.
  */
-#define POD_BQ25180_SERVICE_PERIOD_MS 60000u
+#define POD_BQ25180_SERVICE_PERIOD_MS 30000u
+#define POD_BQ25180_FAST_PERIOD_MS 1000u
+#define POD_BQ25180_FAST_WINDOW_MS 20000u
 
 struct pod_bq25180_watch {
 	bool have_stat0;
 	uint8_t last_stat0;
 	uint32_t last_service_ms;
+	/** Fast polling after a VBUS edge, until PGOOD and the plan, or the window ends. */
+	bool fast;
+	uint32_t fast_since_ms;
 };
 
-/** True when STAT0 has to be read now (never started or ≥ the service period). */
+/** The nRF saw VBUS appear: start the fast polling window. */
+void pod_bq25180_vbus_edge(struct pod_bq25180_watch *w, uint32_t now_ms);
+
+/** True when STAT0 has to be read now. */
 bool pod_bq25180_service_due(const struct pod_bq25180_watch *w, uint32_t now_ms);
 
 /**
  * Records a service read (STAT0 and SYS_REG) and tells whether the boot plan
- * has to be written again: VIN_PGOOD changed (dock in or out) or SYS_REG lost
- * WATCHDOG_15S_ENABLE (the registers went back to their defaults).
+ * has to be written again: VIN_PGOOD changed, SYS_REG lost WATCHDOG_15S_ENABLE
+ * (the registers went back to their defaults), or PGOOD reads 1 during the fast
+ * window (the 15 s watchdog has just started: answer it).
  */
 bool pod_bq25180_after_read(struct pod_bq25180_watch *w, uint32_t now_ms, uint8_t stat0,
 			    uint8_t sys_reg);
