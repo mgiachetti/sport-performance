@@ -127,6 +127,16 @@ jobs:
           grep -q '^CONFIG_NRF_APPROTECT_LOCK=y' build/release-ok/app/zephyr/.config
           grep -q '^CONFIG_NRF_APPROTECT_LOCK=y' build/release-ok/mcuboot/zephyr/.config
 
+      # Assembly variant pod-v0-highg (2 of the 5 v0 boards): the ADXL372 (U403) is mounted and
+      # boards/pod_v0_highg.overlay enables its node. Build it so the ADXL372 path compiles.
+      - name: High-g variant (pod-v0-highg)
+        if: matrix.board == 'pod_v0/nrf52840'
+        run: |
+          set -euo pipefail
+          west build --pristine -b pod_v0/nrf52840 -d build/pod_v0_highg sport-performance/firmware/app -- \
+            -DBOARD_ROOT=. "-DEXTRA_DTC_OVERLAY_FILE=$PWD/sport-performance/firmware/app/boards/pod_v0_highg.overlay"
+          grep -q '^CONFIG_ADXL372=y' build/pod_v0_highg/app/zephyr/.config
+
       - name: Prepare the artifacts
         env:
           BOARD: ${{ matrix.board }}

@@ -35,7 +35,7 @@ NS = uuid.UUID("2f1c5a0e-6b1d-4c39-9a57-1f4b8f3c0a11")
 NETS = ["GND", "/gnss_rf/GNSS_RF_A", "/power/BB_LX1", "USB_D_P", "USB_D_N", "SYS", "GNSS_PPS",
         "/mcu_radio/LED_R", "/mcu_radio/LED_G", "/gnss_rf/GNSS_RF_B", "/gnss_rf/GNSS_ANT_PATCH", "VREG"]
 
-# Coordinates in mm on the 45 x 65 mm outline (100..145, 100..165). Zones: BLE_ANTENA x 100-104.4,
+# Coordinates in mm on the 45 x 65 mm outline (100..145, 100..165). Zones: BLE_ANTENA x 100-104.35,
 # y 135-150; GNSS_ANTENA x 107.5-137.5, y 101-131; PATCH_FEED (In2.Cu) x 120.5-124.5, y 117-133;
 # LORA_ANTENA x 125-145, y 150-165.
 # Track: (net, layer, x0, y0, x1, y1, width). Via: (net, x, y). Footprint: (ref, x, y, side, pads),

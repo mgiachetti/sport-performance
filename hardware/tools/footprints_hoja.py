@@ -182,7 +182,9 @@ def bmd340() -> Footprint:
     numbers = sorted(int(p.number) for p in pads)
     if numbers != list(range(1, 69)):
         raise ValueError("BMD-340: los pads tienen que ser 1 a 68, una vez cada uno")
-    keepout = [(-7.5, -7.5), (-3.1, -7.5), (-3.1, 7.5), (-7.5, 7.5)]
+    # The hatch ends at x = -3.10, exactly the outer edge of the module's own GND pads 1, 45, 46 and 47: the
+    # keep-out (pads not allowed) stops 0.05 mm short of them, at -3.15.
+    keepout = [(-7.5, -7.5), (-3.15, -7.5), (-3.15, 7.5), (-7.5, 7.5)]
     return Footprint(
         "u-blox_BMD-340_15.0x10.2mm",
         "u-blox BMD-340 (nRF52840), dibujado desde la hoja UBX-19033353 R13, figura 12 (p.23) y figura 2 (p.9): "

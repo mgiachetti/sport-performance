@@ -101,7 +101,7 @@ La genera `hardware/tools/bom_pcbway.py` desde las columnas de stock de [`partes
 | `BGA525N6E6327XTSA1` | U205 | 105 | ✓ OK | 1.801 | 0 | 1.801 | Farnell: sin stock | DigiKey 40 semanas, sin fecha | — | Ninguna pin a pin con L1 + L5: BGA524N6 y BGA123N6 son solo L1 (y sin stock); con la Taoglas activa por el U.FL se puentea |
 | `BMD-340-A-R` | U301 | 105 | ✓ OK | — | 10.055 | — | — | DigiKey: stock propio (fábrica 20 semanas) | — | Fanstel BT840 (otro footprint; DigiKey 10.247, 8,93 a 100); Raytac MDBT50Q-P1MV2 (otro footprint; DigiKey Marketplace 37, TME sin confirmar): alternativas-mcu-radio.md |
 | `Ra-01SH` | U302 | 105 | ✓ OK | 2.239 | 0 | — | — | DigiKey 8 semanas | — | NiceRF LORA1262-915TCXO (otro footprint, con TCXO; LCSC 1.232): respaldo si falla la puerta de banco de frecuencia |
-| `TPS22919DCKR` | U303 | 105 | ✓ OK | 20.375 | — | 20.369 | — | — | — | TPS22918DBVR / TPS22917DBVR (SOT-23-6, otro footprint) |
+| `TPS22919DCKR` | U303 | 105 | ✓ OK | 19.720 | — | 20.369 | — | — | — | TPS22918DBVR / TPS22917DBVR (SOT-23-6, otro footprint) |
 | `LSM6DSV32XTR` | U401 | 105 | ✓ OK | 3.032 | 24.971 | 3.198 | — | DigiKey 24 semanas | — | LSM6DSV320XTR (pin a pin, ±320 g; sin stock) o LSM6DSV16XTR (pin a pin, ±16 g): otro compatible en el devicetree |
 | `BMP581` | U404 | 105 | ✓ OK | 9.291 | 0 | — | — | — | — | DPS368 en su lugar sin montar (otro footprint, ya en la placa) |
 | `DRV5032FADBZR` | U406 | 105 | ✓ OK | 47.205 | 2.156 | 47.105 | — | DigiKey 26 semanas | `DRV5032FBDBZR` | TMAG5231C1DQDBZR (mismos pines, otro umbral y 2 µA) |

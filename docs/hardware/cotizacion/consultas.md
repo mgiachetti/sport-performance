@@ -12,7 +12,7 @@ Datos del pod que se repiten: placa de 4 capas de unos 50 × 70 mm, nRF52840 en 
 | 4 | Despachante de aduana | Importación de prototipos con radio y baterías | Castellano | Al que se elija |
 | 5 | Quectel | Notas de aplicación, firmware y stock de la LC29H(EA) | Inglés | support@quectel.com (la que figura en el Hardware Design del LC29H) |
 | 6 | Taoglas | Ajuste del GVLB258.A en una tierra chica y su DXF | Inglés | Formulario de [taoglas.com/support-center](https://taoglas.com/support-center) (no publican un mail) |
-| 7 | Ebyte | **Ya no va** (09/11/2026: la antena LoRa es la Molex 2111400100 y el módulo el Ra-01SH). Queda como registro | Inglés | support@cdebyte.com (de los manuales de Ebyte, **no verificada**) |
+| 7 | Ebyte / Ai-Thinker y LCSC | Ebyte **ya no va** (09/11/2026: la antena LoRa es la Molex 2111400100 y el módulo el Ra-01SH). **Ai-Thinker / LCSC**: Ra-01SH con o sin IPEX, cristal y certificados (abajo) | Inglés | support@cdebyte.com (de los manuales de Ebyte, **no verificada**) |
 | 8 | Distribuidores (Mouser, Arrow, ST, TI, LCSC) | Stock y reservas de las partes escasas | Inglés | Por sus portales; mail genérico abajo |
 
 ## 1. Raytac: revisión del layout
@@ -160,9 +160,24 @@ Desde el 09/11/2026 el patch es el **GVLB258.A**. Además del ajuste, se pide su
 > Best regards,
 > [Name] · [Company] · Buenos Aires, Argentina
 
-## 7. Ebyte: antena FPC de LoRa
+## 7. Ai-Thinker y LCSC: Ra-01SH (y Ebyte, ya no va)
 
-**Ya no va** desde el 09/11/2026 (Molex 2111400100 y Ra-01SH en stock). Queda como registro: la TX915-FPC-4510 no tenía precio ni stock en LCSC.
+Desde el 09/11/2026 el LoRa es el **Ai-Thinker Ra-01SH** (LCSC C2764087). Su hoja muestra un IPEX propio en el mismo nodo que el pad 1 (`pod-v0.md`, "Salida de RF del Ra-01SH y su IPEX"). Por el portal de LCSC o a Ai-Thinker (support@aithinker.com, de su hoja):
+
+> **Subject:** Ra-01SH: version without the IPEX connector, crystal tolerance and certificates
+>
+> Hello,
+>
+> We are using the Ra-01SH (LCSC C2764087) at 915 MHz with the RF taken from pad 1 (ANT) to our own U.FL connector.
+> 1. Does the module ship with the on-module IPEX socket fitted? Is there a version without it (or with pad 1 disconnected from the IPEX), and its part number at LCSC?
+> 2. Frequency tolerance and temperature drift of the 32 MHz crystal (the module has no TCXO).
+> 3. Sleep current, and the FCC / CE (RED) certificate numbers of the Ra-01SH.
+> 4. Price for 150 and 500 pcs.
+>
+> Best regards,
+> [Name] · [Company] · Buenos Aires, Argentina
+
+El mail de Ebyte de abajo **ya no va**; queda como registro (la TX915-FPC-4510 no tenía precio ni stock en LCSC).
 
 > **Subject:** RFQ: TX915-FPC-4510 antenna (and E22-900M22S) for a wearable, 10 / 100 / 500 pcs
 >

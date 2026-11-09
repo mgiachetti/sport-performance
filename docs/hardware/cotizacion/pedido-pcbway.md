@@ -59,7 +59,8 @@ El "Design 1" es el apilado de 1,6 mm que PCBWay publica en su [página de apila
 | Inspección | **Rayos X** de los DSBGA, el TSNP, los LGA y los módulos; AOI del resto |
 | Stencil | Con marco; **escalonado o de 0,1 mm** si lo recomiendan por el DSBGA al lado de los pads grandes de los módulos |
 | Después del reflujo | **Patch GVLB258.A (`AE201`)**: un pin por agujero metalizado de Ø1,0 mm, soldado a mano desde abajo **después** del SMT. No pasa por el horno |
-| Lo que mandamos | `AE201` GVLB258.A (o que lo compren en DigiKey, GVLB258.A, si les conviene). Ya no hay "maybe": el MCU es el BMD-340 (`U301`, DigiKey) y no hace falta comprarlo a Raytac o TME (plan de stock de [`costos.md`](costos.md) y [`stock.md`](stock.md)) |
+| Lo que mandamos | `AE201` GVLB258.A (o que lo compren en DigiKey, 931-GVLB258.A-ND, si les conviene). Ya no hay "maybe": el MCU es el BMD-340 (`U301`, DigiKey) y no hace falta comprarlo a Raytac o TME (plan de stock de [`costos.md`](costos.md) y [`stock.md`](stock.md)) |
+| Antena LoRa | El Ra-01SH (`U302`) puede venir con un **IPEX propio** en paralelo con su pad 1: preguntar si hay variante sin IPEX; si no, la FPC va al IPEX del módulo y `J302` y su 0 Ω serie quedan sin montar (lo indicamos al pedir) |
 | Humedad (MSL) | **Hornear según su nivel MSL** las partes sensibles antes del reflujo si estuvieron fuera de la bolsa: módulos (BMD-340, LC29H, Ra-01SH), LGA, DSBGA y el SAW |
 | Limpieza | Flux sin limpieza; **no lavar** el BMP581 (encapsulado con ventilación) |
 | Programación | No: se graba por el Tag-Connect en Buenos Aires |
@@ -79,7 +80,7 @@ El "Design 1" es el apilado de 1,6 mm que PCBWay publica en su [página de apila
 11. **Panel:** ¿hace falta con 50 × 70 mm? Si lo arman ellos, rieles y puentes lejos del borde izquierdo (antena del BMD-340).
 12. **Revisión de fabricación (DFM)** de los Gerbers y del armado antes de fabricar: ¿gratis?, ¿cuánto tarda?
 13. **Plazos y precios** de placa y de armado para 5 armadas (de 10 placas), 10 y 100, con el envío por DHL o FedEx a Buenos Aires (sin batería).
-14. **Partes de una sola fuente** (LC29H, BGA525N6, TPS7A2032P, GVLB258.A; desde el 09/11/2026 todo lo demás tiene stock de sobra; [`stock.md`](stock.md)): ¿las consiguen?, ¿pueden reservarlas para 100? Las **alternativas aprobadas** de la columna `Approved Alternate` (la DRV5032FB en `U406`, la de 22 Ω, el cristal y la bobina) se pueden montar sin consultarnos; la MDBT50Q-1MV2 solo con nuestro OK por escrito; cualquier otro cambio, no
+14. **Partes de una sola fuente** (LC29H, BGA525N6, TPS7A2032P, GVLB258.A; desde el 09/11/2026 todo lo demás tiene stock de sobra; [`stock.md`](stock.md)): ¿las consiguen?, ¿pueden reservarlas para 100? Las **alternativas aprobadas** de la columna `Approved Alternate` (la DRV5032FB en `U406`, la de 22 Ω, el cristal y la bobina) se pueden montar sin consultarnos; **`U301` (BMD-340) no tiene alternativa** (el Fanstel BT840 es otro footprint: solo con otra placa); cualquier otro cambio, no
 
 ## Mail para PCBWay (inglés)
 
@@ -103,10 +104,10 @@ El "Design 1" es el apilado de 1,6 mm que PCBWay publica en su [página de apila
 > - 5 boards assembled out of 10 bare boards; also please quote 10 and 100 assembled.
 > - Single-side SMT, about 140 parts and 484 pads per board, 55 unique parts. BOM attached (MPN, LCSC and DigiKey numbers). Two assembly variants: 3 boards per bom-pod-v0.csv and 2 boards per bom-pod-v0-highg.csv (adds the ADXL372, U403, and its capacitor). Optionally, LC29HEAMD instead of LC29HAAMD in the same position and the Qorvo DWM3000TR13 module on one board.
 > - Fine pitch: 0.4 mm DSBGA (TI BQ25180YBGR), 0.4 mm TSNP-6 (Infineon BGA525N6), 1.4 × 1.1 mm SAW filters, LGA sensors (ST LSM6DSV32XTR, Bosch BMP581; Analog Devices ADXL372 on variant pod-v0-highg), WSON with exposed pad, modules with bottom pads (u-blox BMD-340 68 pads of 0.5 mm, Quectel LC29H, castellated Ai-Thinker Ra-01SH). We would like X-ray inspection of the BGA/LGA/module joints. Please advise on stencil thickness or a step stencil.
-> - After reflow: one through-hole ceramic patch antenna (Taoglas GVLB258.A, 25 × 25 mm, single pin) hand-soldered from the bottom. It must not go through reflow. We can ship it to you, or you can buy it at DigiKey (931-GVLB208.A-ND).
+> - After reflow: one through-hole ceramic patch antenna (Taoglas GVLB258.A, 25 × 25 mm, single pin) hand-soldered from the bottom. It must not go through reflow. We can ship it to you, or you can buy it at DigiKey (931-GVLB258.A-ND).
 > - No-clean flux; please do not wash the board (the barometer has a vent hole). Please bake moisture-sensitive parts (modules, LGA, DSBGA) per their MSL before reflow.
 > - Solder-mask dams between 0.4 mm-pitch pads if your process allows it; please tell us your minimum dam and the finished-thickness tolerance.
-> - Some parts have a single source (LC29HAAMD, BGA525N6E6327XTSA1, TPS7A2032PDBVR, GVLB258.A): please confirm availability, and whether you can reserve them for a later run of 100. The "Approved Alternate" column lists drop-in substitutes you may use without asking (e.g. DRV5032FBDBZR for U406; MDBT50Q-1MV2 for U301 only with our written OK); please do not substitute anything else without our written approval.
+> - Some parts have a single source (LC29HAAMD, BGA525N6E6327XTSA1, TPS7A2032PDBVR, GVLB258.A): please confirm availability, and whether you can reserve them for a later run of 100. The "Approved Alternate" column lists drop-in substitutes you may use without asking (e.g. DRV5032FBDBZR for U406; there is no alternate for U301, the u-blox BMD-340); please do not substitute anything else without our written approval.
 >
 > **Please quote**
 > 1. PCB and assembly for 5 / 10 / 100 boards, with lead times, X-ray, hand soldering, via-in-pad and hard gold as separate lines if possible.
@@ -137,7 +138,7 @@ JLCPCB publica sus apilados y tarifas, así que sirve de referencia de precio. *
 > 1. Can you plate selective electrolytic hard gold (≥ 0.5 µm) on 5 flat pads that are not on the board edge, with ENIG on the rest?
 > 2. The price of resin-filled, capped via-in-pad (POFV) on a 4-layer board, for 4 vias under a WSON exposed pad.
 > 3. That Standard PCBA assembles 0.4 mm-pitch DSBGA (TI YBG and YFP packages) and a 0.4 mm TSNP-6, with X-ray.
-> 4. Hand soldering of one through-hole antenna pin after reflow, with the part supplied through Global Sourcing (DigiKey GVLB258.A).
+> 4. Hand soldering of one through-hole antenna pin after reflow, with the part supplied through Global Sourcing (DigiKey 931-GVLB258.A-ND).
 > 5. Whether you can reserve low-stock parts (C18337445 BGA525N6, C2764087 Ra-01SH) for a run of 100.
 >
 > Thank you,
