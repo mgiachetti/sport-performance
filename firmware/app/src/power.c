@@ -165,7 +165,7 @@ int pod_power_system_off(const struct pod_wake_plan *plan)
 	/*
 	 * Rule before System OFF (pod-v0.md): no SENSE source may already be at its
 	 * wake level, or the nRF wakes at once in a loop. TODO(B-904): read and
-	 * clear the latched LSM6DSV320X wake-up first.
+	 * clear the latched LSM6DSV32X wake-up first.
 	 */
 	if (!pod_wake_plan_safe(plan, &levels)) {
 		LOG_WRN("wake source active: staying in standby");

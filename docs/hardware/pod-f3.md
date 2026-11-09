@@ -6,6 +6,9 @@ Este documento acompaña al [ADR 0105](../adr/0105-pod-gnss-imu-con-telemetria-e
 
 ## Partes por pod (100 unidades, US$)
 
+
+> **Actualización del 09/11/2026**: la placa v0 usa ahora solo partes en stock: u-blox **BMD-340** en lugar del Raytac MDBT50Q, Ai-Thinker **Ra-01SH** en lugar del E22, **LSM6DSV32X** en lugar de la LSM6DSV320X (con el ADXL372 en 2 placas), patch **GVLB258.A**, load switches **TPS22919** y la antena LoRa **Molex 2111400100**. La tabla de abajo es el relevamiento original: lo vigente está en el "Registro de decisiones" del [ADR 0105](../adr/0105-pod-gnss-imu-con-telemetria-en-vivo.md) y en [`pod-v0.md`](pod-v0.md).
+
 | Parte | Elegida | Alternativa | Precio @100 | Fuente | Verificado |
 |---|---|---|---|---|---|
 | GNSS L1 + L5 | **Quectel LC29H(AA)** (principal; placa lista para la EA) | LC29H(EA) para RTK en vivo; u-blox NEO-F10N-00B-20 solo como comparación en el banco | F10N-20: US$ 18,69–21,36. LC29H(AA): US$ 7,40 | [findchips NEO-F10N](https://www.findchips.com/search/NEO-F10N-00B) · [Ozdisan LC29H(AA)](https://www.ozdisan.com/en/p/gsm-and-gnss-modules-650/quectel-lc29haamd-1574222) | Sí (F10N por agregador) |

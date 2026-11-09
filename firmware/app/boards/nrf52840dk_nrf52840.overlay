@@ -1,11 +1,11 @@
 /*
  * Bench setup on the nRF52840 DK (PCA10056) before the pod v0 PCB exists:
- * LC29H breakout, Ebyte E22-900M22S, LSM6DSV320X evaluation board and a W25N
+ * LC29H breakout, Ai-Thinker Ra-01SH, LSM6DSV32X evaluation board and a W25N
  * breakout wired to the DK headers. The wiring table is in firmware/README.md
  * ("Cableado del DK"); keep both in sync.
  *
  * Low-frequency pins: the Arduino SPI header of the DK (P1.13–P1.15) and the
- * A0–A5 / D8–D9 pins used here for the IMU and the E22 are "low frequency" pins
+ * A0–A5 / D8–D9 pins used here for the IMU and the LoRa are "low frequency" pins
  * of the nRF52840 (pod-v0.md); they are fine for the bench at reduced SPI speed
  * (1 MHz below) and the pod v0 keeps every SPI on fast pins.
  *
@@ -14,8 +14,6 @@
  * vest) and LEDs 1–3 for the RGB LED. There is no load switch, charger nor
  * fuel gauge unless their breakouts are wired to the I2C header.
  */
-
-#include <zephyr/dt-bindings/lora/sx126x.h>
 
 / {
 	zephyr,user {
@@ -171,7 +169,7 @@
 	};
 };
 
-/* LSM6DSV320X evaluation board. */
+/* LSM6DSV32X evaluation board (the IMU of the pod v0, WHO_AM_I 0x70). */
 &spi1 {
 	compatible = "nordic,nrf-spim";
 	status = "okay";
@@ -180,15 +178,15 @@
 	pinctrl-names = "default", "sleep";
 	cs-gpios = <&gpio0 28 GPIO_ACTIVE_LOW>;	/* A2 */
 
-	imu: lsm6dsv320x@0 {
-		compatible = "st,lsm6dsv320x";
+	imu: lsm6dsv32x@0 {
+		compatible = "st,lsm6dsv32x";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
 		int1-gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;	/* P0.02 (AREF pin) */
 	};
 };
 
-/* E22-900M22S. */
+/* Ra-01SH (SX1262 with a plain crystal: no TCXO on DIO3). */
 &spi2 {
 	compatible = "nordic,nrf-spim";
 	status = "okay";
@@ -197,7 +195,7 @@
 	pinctrl-names = "default", "sleep";
 	cs-gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;	/* D10 → NSS */
 
-	lora: e22@0 {
+	lora: ra01sh@0 {
 		compatible = "semtech,sx1262";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
@@ -206,8 +204,6 @@
 		dio1-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;	/* D8 ← DIO1 */
 		rx-enable-gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;	/* A1 → RXEN */
 		dio2-tx-enable;
-		dio3-tcxo-voltage = <SX126X_DIO3_TCXO_1V8>;
-		tcxo-power-startup-delay-ms = <5>;
 	};
 };
 

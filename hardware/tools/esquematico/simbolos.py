@@ -214,6 +214,15 @@ def block(name: str, ref: str, left: list, right: list, *, description: str = ""
                   ref_at=(-half, body_top + 1.27), value_at=(-half, body_bottom - 1.27))
 
 
+# u-blox BMD-340 pads (UBX-19033353 R13, table 2): the pad of P0.00..P0.31 and of P1.00..P1.15, in port
+# order, and the ground pads. The footprint (footprints_hoja.py) uses the same numbers.
+BMD340_P0 = ["13", "14", "15", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "31", "32", "33",
+             "34", "35", "39", "37", "38", "36", "40", "41", "42", "6", "7", "8", "9", "10", "11", "12"]
+BMD340_P1 = ["56", "57", "58", "59", "60", "48", "49", "50", "51", "52", "53", "54", "61", "62", "63", "64"]
+BMD340_GND = ["1", "2", "3", "4", "5", "16", "18", "29", "30", "45", "46", "47", "55"]
+BMD340_ALT = {0: "/XL1", 1: "/XL2", 2: "/AIN0", 3: "/AIN1", 4: "/AIN2", 5: "/AIN3", 9: "/NFC1", 10: "/NFC2",
+              18: "/~{RESET}", 28: "/AIN4", 29: "/AIN5", 30: "/AIN6", 31: "/AIN7"}
+
 PI, PO, IN, OUT, BI, PAS, TRI, OC, NC = (
     "power_in", "power_out", "input", "output", "bidirectional", "passive", "tri_state", "open_collector", "no_connect")
 
@@ -255,10 +264,24 @@ def ic_symbols() -> list:
                            ("TPS7A02_DBV", "LDO de 25 nA, EN con pull-down interno", "https://www.ti.com/lit/ds/symlink/tps7a02.pdf")):
         s.append(block(name, "U", [("1", "IN", PI), ("3", "EN", IN), ("4", "NC", NC)], [("5", "OUT", PO), ("2", "GND", PI)],
                        description=desc, datasheet=ds))
-    # TI TPS22916 YFP (DSBGA-4), SLVSDO5F table 5-1. VOUT drawn as passive: it is a switch, and the rail
-    # after it carries its own PWR_FLAG (so a not-mounted switch never ends up as a rail's only driver).
-    s.append(block("TPS22916", "U", [("A2", "VIN", PI), ("B2", "ON", IN)], [("A1", "VOUT", PAS), ("B1", "GND", PI)],
-                   description="Load switch de 2 A, 1–5,5 V", datasheet="https://www.ti.com/lit/ds/symlink/tps22916.pdf"))
+    # TI TPS22919 DCK (SC-70-6), SLVSEN5B "Pin Functions": 1 IN, 2 GND, 3 ON, 4 NC, 5 QOD, 6 VOUT. VOUT and
+    # QOD drawn as passive: it is a switch, and the rail after it carries its own PWR_FLAG (so a not-mounted
+    # switch never ends up as a rail's only driver). QOD goes to VOUT in every place (24 ohm discharge).
+    s.append(block("TPS22919", "U", [("1", "IN", PI), ("3", "ON", IN), ("4", "NC", NC)],
+                   [("6", "VOUT", PAS), ("5", "QOD", PAS), ("2", "GND", PI)],
+                   description="Load switch de 1,5 A, 1,6–5,5 V, encendido lento, QOD de 24 Ω con el pin QOD a VOUT",
+                   datasheet="https://www.ti.com/lit/ds/symlink/tps22919.pdf"))
+    # u-blox BMD-340 (nRF52840 module), data sheet UBX-19033353 R13, table 2 "BMD-340 pin-out" (p.9-11):
+    # 68 pads, the 48 GPIO named by their nRF52840 port pin, VCC 17, VCCH 65, VBUS 66, D- 67, D+ 68,
+    # SWCLK 43, SWDIO 44 and 13 grounds.
+    left = [("17", "VCC", PI), ("65", "VCCH", PI), ("66", "VBUS", PI), ("68", "USB_D+", BI), ("67", "USB_D-", BI),
+            ("44", "SWDIO", BI), ("43", "SWCLK", IN), None]
+    left += [(pad, f"P1.{i:02d}", BI) for i, pad in enumerate(BMD340_P1)]
+    left += [None] + [(pad, "GND", PI) for pad in BMD340_GND]
+    right = [(pad, f"P0.{i:02d}" + BMD340_ALT.get(i, ""), PAS if i in (0, 1) else BI) for i, pad in enumerate(BMD340_P0)]
+    s.append(block("BMD-340", "U", left, right,
+                   description="Módulo BLE u-blox BMD-340 (nRF52840, antena PCB, 15,0 × 10,2 × 1,9 mm), pines de UBX-19033353 R13, tabla 2",
+                   datasheet="https://content.u-blox.com/sites/default/files/BMD-340_DataSheet_UBX-19033353.pdf"))
     # TI SN74LVC1T45 DBV/DCK, SCES515N table 4-1. DIR high: A -> B; low: B -> A.
     s.append(block("SN74LVC1T45", "U", [("1", "VCCA", PI), ("3", "A", BI), ("5", "DIR", IN)], [("6", "VCCB", PI), ("4", "B", BI), ("2", "GND", PI)],
                    description="Traductor de un bit, DIR alto = A a B", datasheet="https://www.ti.com/lit/ds/symlink/sn74lvc1t45.pdf"))
@@ -344,13 +367,15 @@ def power_symbols(names) -> list:
 # Electrical types for the easyeda2kicad symbols: {symbol: {pin number: type}}; default ``bidirectional``
 # for GPIO-like pins is given per symbol with "*".
 EASYEDA_PIN_TYPES = {
-    "MDBT50Q-P1MV2": {"*": BI, "1": PI, "2": PI, "15": PI, "33": PI, "55": PI, "28": PI, "30": PI, "32": PI,
-                      "31": PAS, "17": PAS, "18": PAS, "53": IN},
     "XL-1615RGBC-RF": {"*": PAS},
-    "E22-900M22S": {"*": PI, "21": PAS, "19": IN, "18": IN, "17": IN, "16": TRI, "15": IN, "14": OUT, "13": OUT,
-                    "8": OUT, "7": IN, "6": IN},
-    "LSM6DSV320XTR": {"14": BI, "13": IN, "12": IN, "11": PAS, "10": PAS, "9": OUT, "8": PI, "7": PI, "6": PI,
-                      "5": PI, "4": OUT, "3": PAS, "2": PAS, "1": TRI},
+    # Ai-Thinker Ra-01SH, specification V1.1, section 4 (pin table): 1 ANT, 2/9/16 GND, 3 3V3, 4 RESET,
+    # 5 TXEN, 6-8 DIO1-3, 10 BUSY, 11 RXEN, 12 SCK, 13 MISO, 14 MOSI, 15 NSS. TXEN is tied to DIO2 inside the
+    # module (R8, 0 ohm, in its schematic, section 5): passive here.
+    "RA-01SH": {"1": PAS, "2": PI, "9": PI, "16": PI, "3": PI, "4": IN, "5": PAS, "6": OUT, "7": OUT, "8": OUT,
+                "10": OUT, "11": IN, "12": IN, "13": TRI, "14": IN, "15": IN},
+    # ST LSM6DSV32X, DS13511 Rev 2 table 2 (the same pin table as the LSM6DSV16X and LSM6DSV320X).
+    "LSM6DSV32XTR": {"14": BI, "13": IN, "12": IN, "11": PAS, "10": PAS, "9": OUT, "8": PI, "7": PI, "6": PI,
+                     "5": PI, "4": OUT, "3": PAS, "2": PAS, "1": TRI},
     "BMP581": {"1": PI, "2": IN, "3": PI, "4": BI, "5": BI, "6": IN, "7": OUT, "8": PI, "9": PI, "10": PI},
     "DPS368XTSA1": {"1": PI, "2": IN, "3": BI, "4": IN, "5": BI, "6": PI, "7": PI, "8": PI},
     "W25N02KVZEIR": {"9": PAS, "8": PI, "7": IN, "6": IN, "5": BI, "4": PI, "3": IN, "2": TRI, "1": IN},
@@ -358,6 +383,9 @@ EASYEDA_PIN_TYPES = {
     "MAX17048G+T10": {"1": PAS, "2": PI, "3": PI, "4": PI, "5": OC, "6": IN, "7": IN, "8": BI, "9": PAS},
     "DRV5032FBDBZR": {"1": PI, "2": OUT, "3": PI},
 }
+
+# Reference prefix of the easyeda2kicad symbols that come with a wrong one (the Ra-01SH comes as "L").
+EASYEDA_REF = {"RA-01SH": "U"}
 
 POWER_NETS = ["GND", "VBUS", "SYS", "BAT", "VREG", "VCC_GNSS", "V_BCKP", "VDD_EXT"]
 

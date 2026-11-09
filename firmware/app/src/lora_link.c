@@ -1,5 +1,5 @@
 /*
- * LoRa link on the E22-900M22S (SX1262) through the Zephyr LoRa API.
+ * LoRa link on the Ai-Thinker Ra-01SH (SX1262) through the Zephyr LoRa API.
  *
  * The frame format, nonces and AES-CCM are firmware/lib/src/radio.c (checked
  * against the TypeScript golden fixtures); the slot timing is
@@ -10,7 +10,7 @@
  * TODO: channel plan per `channelPlanId` (frequencies not defined yet), beacon
  * reception in the 120 ms window and slot grants, contention slot request,
  * scheduling the TX on the RTC tick of the slot (pod_tdma_slot_tick), holdover,
- * `radio_tx` records and the power cut sequence of pod-v0.md ("Cortar el E22").
+ * `radio_tx` records and the power cut sequence of pod-v0.md ("Cortar el LoRa").
  */
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/lora.h>
@@ -47,7 +47,7 @@ int pod_lora_power(bool on)
 	}
 	/*
 	 * TODO(B-904): off = finish TX/RX, wait BUSY low, disable SPIM2, pins to
-	 * disconnected inputs, then LORA_EN low; on = the reverse plus TCXO and
+	 * disconnected inputs, then LORA_EN low; on = the reverse plus
 	 * calibration (pod-v0.md).
 	 */
 	return gpio_pin_set_dt(&lora_en, on ? 1 : 0);

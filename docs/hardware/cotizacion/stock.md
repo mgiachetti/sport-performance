@@ -6,6 +6,10 @@ Parte del paquete de cotización: los precios están en [`costos.md`](costos.md)
 
 Con la regla de que cada parte tiene que estar disponible **hoy** (al menos 150 comprables, sin esperar plazos de fábrica), las alternativas en stock para todo lo que no es el bloque de MCU y LoRa, con su costo, están en [`alternativas-en-stock.md`](alternativas-en-stock.md): entre ellas la **LSM6DSV32X** pin a pin en lugar de la LSM6DSV320X y el patch **GVLB258.A** en lugar del GVLB208.A.
 
+## Después del rediseño en stock (09/11/2026)
+
+El usuario eligió las alternativas en stock y el diseño ya las tiene (ADR 0105, "Registro de decisiones"): **BMD-340-A-R** en `U301`, **Ra-01SH** en `U302`, **LSM6DSV32XTR** en `U401` (con el **ADXL372** en `U403` en la variante de armado `pod-v0-highg`, 2 de las 5 placas de la v0), **GVLB258.A** en `AE201`, **TPS22919DCKR** en `U105`, `U303` y `U502`, y la antena LoRa **Molex 2111400100**. **La tabla generada de abajo ya es la de la placa nueva**: todo lo montado está en **OK**, salvo la **LC29H(AA)** (DigiKey 522, una sola fuente: se compran 150 ya). Las secciones "Resumen" y "Las partes con riesgo" son la auditoría de la placa anterior, el mismo día, y quedan como registro de por qué se cambió. El plan de compra vigente está en [`costos.md`](costos.md) ("Plan de stock").
+
 ## Cómo se leyó
 
 | Fuente | Cómo | Resultado |
@@ -43,19 +47,15 @@ La genera `hardware/tools/bom_pcbway.py` desde las columnas de stock de [`partes
 
 | Parte | Lugar | Hacen falta (105 placas) | Estado | LCSC | DigiKey | JLCPCB | Otras fuentes | Plazo | Alternativa directa | Otras alternativas |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `LSM6DSV320XTR` | U401 | 105 | ✗ SIN STOCK | 0 | 0 | 3 | ST eStore 26 | DigiKey 24 semanas (admite pedido pendiente) | — | 1.ª LSM6DSV80XTR (pin a pin, mismo die y WHO_AM_I 73h, ±80 g; ST eStore 34 + IBS 160); 2.ª LSM6DSV16XTR (pin a pin, ±16 g) con el ADXL372 montado en U403 |
-| `TX915-FPC-4510` | (no se suelda) | 105 | ⚠ LIMITADO | — | — | 0 | Tienda de Ebyte en Alibaba: 5 días hasta 50, 12 días hasta 1.000 (sin cifra de stock; no verificado) | — | — | Molex 2111400100 (U.FL, otro tamaño; DigiKey 5.706); Taoglas FXP890.07.0100C (U.FL; DigiKey 197) |
-| `GVLB208.A` | AE201 | 105 | ⚠ LIMITADO | — | 271 | — | Taoglas directo (a consultar) | DigiKey 16 semanas | — | Ninguna en el mismo footprint; patch de 25 × 25 mm con otro footprint, o la AGVLB.25B activa por el U.FL |
 | `LC29HAAMD` | U201 | 105 | ⚠ LIMITADO | 91 | 522 | 91 | — | DigiKey 14 semanas | — | LC29HEAMD en el mismo footprint (RTK, +12,41 a 100) |
-| `MDBT50Q-P1MV2` | U301 | 105 | ⚠ LIMITADO | 0 | 37 | 0 | TME 1.239 (Findchips; la página de TME no abre); Raytac directo | DigiKey Marketplace unos 14 días | `MDBT50Q-1MV2` (only with our written OK (antenna keep-out differs)) | u-blox BMD-340-A-R-10 (otro footprint; DigiKey 10.055) o Fanstel BT840 (otro footprint; DigiKey 10.247, 8,93 a 100): alternativas-mcu-radio.md |
-| `E22-900M22S` | U302 | 105 | ⚠ LIMITADO | 517 | — | 517 | Tienda de Ebyte (sin cifra de stock) | — | — | Ninguna en el mismo footprint; Ai-Thinker Ra-01SH (LCSC 2.239, 2,99 a 100) o NiceRF LORA1262-915TCXO (LCSC 1.232, con TCXO), con otro footprint: alternativas-mcu-radio.md |
-| `TPS22916CYFPR` | U303 | 105 | ⚠ LIMITADO | 1.040 | 0 | 1.042 | Brokers (Bristol 270) | DigiKey: 3.000 el 07/12/2026 (26 semanas) | — | TPS22916BYFPR (mismos pines, encendido rápido); TPS22916CNYFPR (mismos pines, sin QOD) |
 | `AGVLB.25B.07.0060A` | (no se suelda) | 42 | ✓ OK | — | 558 | — | — | DigiKey 16 semanas | — | — |
+| `2111400100` | (no se suelda) | 105 | ✓ OK | — | — | — | — | — | — | — |
 | `LQW15AN10NG00D` | (no se suelda) | 210 | ✓ OK | 88.800 | 1.233 | — | — | — | — | — |
 | `LQW15AN12NG00D` | (no se suelda) | 210 | ✓ OK | 17.800 | 88.904 | — | — | — | — | — |
 | `0402WGF374JTCE` | (no se suelda) | 210 | ✓ OK | 7.300 | — | — | — | — | — | — |
 | `NCP15XH103F03RC` | (no se suelda) | 210 | ✓ OK | 281.050 | — | — | — | — | — | — |
 | `PESD5V0F1BL,315` | (no se suelda) | 210 | ✓ OK | 62.835 | — | — | — | — | — | — |
+| `GVLB258.A` | AE201 | 105 | ✓ OK | 0 | 895 | — | — | DigiKey 16 semanas | — | GVLB208.A (20 × 20, otro footprint; DigiKey 271) o la AGVLB.25B activa por el U.FL |
 | `CL05A105KA5NQNC` | C101 y otros | 955 | ✓ OK | 2.908.400 | — | — | — | — | — | — |
 | `CL10A106KP8NNNC` | C102, C105, C201, C306 | 430 | ✓ OK | 1.019.720 | — | — | — | — | — | — |
 | `CL10A226MQ8NRNC` | C106 | 115 | ✓ OK | 3.991.780 | — | — | — | — | — | — |
@@ -99,6 +99,10 @@ La genera `hardware/tools/bom_pcbway.py` desde las columnas de stock de [`partes
 | `TPS7A0230PDBVR` | U106 | 105 | ✓ OK | 27.633 | 5.363 | — | — | — | — | — |
 | `SN74LVC1T45DBVR` | U202, U203, U204 | 315 | ✓ OK | 240.085 | 93.678 | — | — | — | — | — |
 | `BGA525N6E6327XTSA1` | U205 | 105 | ✓ OK | 1.801 | 0 | 1.801 | Farnell: sin stock | DigiKey 40 semanas, sin fecha | — | Ninguna pin a pin con L1 + L5: BGA524N6 y BGA123N6 son solo L1 (y sin stock); con la Taoglas activa por el U.FL se puentea |
+| `BMD-340-A-R` | U301 | 105 | ✓ OK | — | 10.055 | — | — | DigiKey: stock propio (fábrica 20 semanas) | — | Fanstel BT840 (otro footprint; DigiKey 10.247, 8,93 a 100); Raytac MDBT50Q-P1MV2 (otro footprint; DigiKey Marketplace 37, TME sin confirmar): alternativas-mcu-radio.md |
+| `Ra-01SH` | U302 | 105 | ✓ OK | 2.239 | 0 | — | — | DigiKey 8 semanas | — | NiceRF LORA1262-915TCXO (otro footprint, con TCXO; LCSC 1.232): respaldo si falla la puerta de banco de frecuencia |
+| `TPS22919DCKR` | U303 | 105 | ✓ OK | 19.720 | — | 20.369 | — | — | — | TPS22918DBVR / TPS22917DBVR (SOT-23-6, otro footprint) |
+| `LSM6DSV32XTR` | U401 | 105 | ✓ OK | 3.032 | 24.971 | 3.198 | — | DigiKey 24 semanas | — | LSM6DSV320XTR (pin a pin, ±320 g; sin stock) o LSM6DSV16XTR (pin a pin, ±16 g): otro compatible en el devicetree |
 | `BMP581` | U404 | 105 | ✓ OK | 9.291 | 0 | — | — | — | — | DPS368 en su lugar sin montar (otro footprint, ya en la placa) |
 | `DRV5032FADBZR` | U406 | 105 | ✓ OK | 47.205 | 2.156 | 47.105 | — | DigiKey 26 semanas | `DRV5032FBDBZR` | TMAG5231C1DQDBZR (mismos pines, otro umbral y 2 µA) |
 | `W25N02KVZEIR` | U501 | 105 | ✓ OK | 1.660 | — | 2.169 | LCSC C17626844 (mismo MPN): 7.267 | — | — | — |

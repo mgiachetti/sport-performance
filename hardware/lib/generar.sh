@@ -16,10 +16,8 @@ python3 -m venv "$tmp/venv"
 "$tmp/venv/bin/pip" install --quiet "easyeda2kicad==${EASYEDA2KICAD_VERSION}"
 
 parts=(
-  C5119772  # Raytac MDBT50Q-P1MV2 (nRF52840, antena PCB)
   C965840   # XINGLIGHT XL-1615RGBC-RF (LED RGB)
-  C411293   # Ebyte E22-900M22S (SX1262)
-  C26633007 # ST LSM6DSV320X
+  C2764087  # Ai-Thinker Ra-01SH (SX1262; LoRa de la v0 desde el 09/11/2026)
   C5362283  # Bosch BMP581
   C3232508  # Infineon DPS368 (sin montar)
   C3010298  # Winbond W25N02KVZEIR (NAND de la v0; la W25N04KVZEIR, C6750381, usa el mismo footprint WSON-8)
@@ -32,11 +30,15 @@ for part in "${parts[@]}"; do
   "$tmp/venv/bin/easyeda2kicad" --full --lcsc_id="$part" --output hardware/lib/pod --overwrite
 done
 
+# Solo el símbolo: ST LSM6DSV32XTR (IMU de la v0 desde el 09/11/2026). Su footprint es el LGA-14L de la
+# LSM6DSV320X (mismo encapsulado y pines, DS13511 tabla 2), que sigue saliendo de C26633007.
+"$tmp/venv/bin/easyeda2kicad" --symbol --lcsc_id=C22461202 --output hardware/lib/pod --overwrite
+"$tmp/venv/bin/easyeda2kicad" --footprint --3d --lcsc_id=C26633007 --output hardware/lib/pod --overwrite
+
 # Solo el modelo 3D: el footprint sale de la hoja del fabricante (../tools/footprints_hoja.py) y
 # referencia estos modelos.
 model_parts=(
   C22403415 # Quectel LC29HAAMD
-  C2680319  # TI TPS22916CYFPR (DSBGA-4)
   C3662799  # TI TPS259470ARPWR (VQFN-HR-10)
   C1518762  # TI TPS63900DSKR (WSON-10)
   C579465   # Analog Devices ADXL372BCCZ-RL7 (LGA-16)

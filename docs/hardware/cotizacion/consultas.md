@@ -2,17 +2,17 @@
 
 Borradores listos para mandar, parte del paquete de cotización ([`costos.md`](costos.md), [`pedido-pcbway.md`](pedido-pcbway.md)). Van en inglés a los proveedores de afuera y en castellano a los de acá. Antes de mandar cada uno: completar lo que está entre corchetes (nombre, empresa, CUIT) y adjuntar lo que dice "Adjuntos". Las direcciones que dicen **no verificada** salen de una búsqueda y hay que confirmarlas en la página del proveedor.
 
-Datos del pod que se repiten: placa de 4 capas de unos 50 × 70 mm, nRF52840 en un Raytac MDBT50Q-P1MV2, LoRa Ebyte E22-900M22S (SX1262, 915 MHz), GNSS Quectel LC29H(AA) o (EA) L1 + L5 con patch pasivo apilado Taoglas GVLB208.A en la placa, IMU LSM6DSV320X, LiPo de 500–600 mAh. Prototipos: 5 armados, después 10 de piloto y 100 de serie, para un club de rugby (lo usa un jugador en un chaleco, entre los omóplatos).
+Datos del pod que se repiten: placa de 4 capas de unos 50 × 70 mm, nRF52840 en un u-blox BMD-340, LoRa Ai-Thinker Ra-01SH (SX1262, 915 MHz), GNSS Quectel LC29H(AA) o (EA) L1 + L5 con patch pasivo apilado Taoglas GVLB258.A en la placa, IMU LSM6DSV32X, LiPo de 500–600 mAh. Prototipos: 5 armados, después 10 de piloto y 100 de serie, para un club de rugby (lo usa un jugador en un chaleco, entre los omóplatos).
 
 | # | A quién | Para qué | Idioma | Dirección |
 |---|---|---|---|---|
-| 1 | Raytac | Revisión del layout del MDBT50Q y keep-out de la antena | Inglés | service@raytac.com (**no verificada**), con copia a sales@raytac.com (la que publica [su página de contacto](https://www.raytac.com/contact/)) |
+| 1 | Raytac | **Ya no va** (09/11/2026: el MCU es el u-blox BMD-340, con el keep-out en su hoja). Queda como registro | Inglés | service@raytac.com (**no verificada**), con copia a sales@raytac.com (la que publica [su página de contacto](https://www.raytac.com/contact/)) |
 | 2 | Proveedor de baterías | Cotización de la celda con PCM, NTC, conector GH e informes | Inglés | Dos o tres proveedores a elegir |
 | 3 | ENACOM | Potencia, salto de canal y homologación en 915–928 MHz | Castellano | hertz@enacom.gob.ar (homologación y RAMATEL; de un aviso de 2019, **no verificada** hoy) o un trámite por TAD |
 | 4 | Despachante de aduana | Importación de prototipos con radio y baterías | Castellano | Al que se elija |
 | 5 | Quectel | Notas de aplicación, firmware y stock de la LC29H(EA) | Inglés | support@quectel.com (la que figura en el Hardware Design del LC29H) |
-| 6 | Taoglas | Ajuste del GVLB208.A en una tierra chica | Inglés | Formulario de [taoglas.com/support-center](https://taoglas.com/support-center) (no publican un mail) |
-| 7 | Ebyte | Cotización de la FPC de 915 MHz TX915-FPC-4510 (cotización abierta) | Inglés | support@cdebyte.com (de los manuales de Ebyte, **no verificada**) |
+| 6 | Taoglas | Ajuste del GVLB258.A en una tierra chica y su DXF | Inglés | Formulario de [taoglas.com/support-center](https://taoglas.com/support-center) (no publican un mail) |
+| 7 | Ebyte / Ai-Thinker y LCSC | Ebyte **ya no va** (09/11/2026: la antena LoRa es la Molex 2111400100 y el módulo el Ra-01SH). **Ai-Thinker / LCSC**: Ra-01SH con o sin IPEX, cristal y certificados (abajo) | Inglés | support@cdebyte.com (de los manuales de Ebyte, **no verificada**) |
 | 8 | Distribuidores (Mouser, Arrow, ST, TI, LCSC) | Stock y reservas de las partes escasas | Inglés | Por sus portales; mail genérico abajo |
 
 ## 1. Raytac: revisión del layout
@@ -140,27 +140,44 @@ Raytac revisa el esquemático y el layout de las placas que usan sus módulos (q
 > Best regards,
 > [Name] · [Company] · Buenos Aires, Argentina
 
-## 6. Taoglas: GVLB208.A en una tierra chica
+## 6. Taoglas: GVLB258.A en una tierra chica
 
-> **Subject:** GVLB208.A tuning on a 50 × 70 mm ground plane (L1 + L5)
+Desde el 09/11/2026 el patch es el **GVLB258.A**. Además del ajuste, se pide su **DXF**: la posición del pin del footprint sale hoy del dibujo de la sección 3 de la hoja.
+
+> **Subject:** GVLB258.A tuning on a 50 × 70 mm ground plane (L1 + L5) and its DXF
 >
 > Hello Taoglas team,
 >
-> We plan to use the GVLB208.A stacked L1/L5 passive patch (20 × 20 × 8.8 mm) on a 4-layer, 50 × 70 mm board inside a plastic enclosure worn on a player's back, followed by our own SAW + LNA chain. The datasheet characterises the patch on a 70 × 70 mm ground plane, and we expect L5 to detune first on our smaller plane. Our bench reference is your AGVLB.25B.07.0060A.
+> We plan to use the GVLB258.A stacked L1/L5 passive patch (25 × 25 × 8.12 mm) on a 4-layer, 50 × 70 mm board inside a plastic enclosure worn on a player's back, followed by our own SAW + LNA chain. The datasheet characterises the patch on a 70 × 70 mm ground plane, and we expect L5 to detune first on our smaller plane. Our bench reference is your AGVLB.25B.07.0060A.
 >
 > Questions:
 > 1. What centre-frequency shift and efficiency loss do you expect at L1 and L5 on a 50 × 70 mm ground plane (patch centred near the top edge), and with a body 10–20 mm behind the board?
-> 2. Do you offer the GVLB208.A tuned for a smaller ground plane, or a variant with a different tuning, and at what MOQ?
+> 2. Do you offer the GVLB258.A tuned for a smaller ground plane, or a variant with a different tuning, and at what MOQ?
 > 3. Your CSA.20 (passive antenna test, matching and fine tuning) and ISA.10 (integration review) services look like what we need: what do they cost, what do we send (2 sample boards?), and how long do they take?
-> 4. Recommended pad, through-hole and keep-out geometry (we follow section 4.3 of the datasheet), soldering profile for the pin, and whether the patch can go through reflow.
-> 5. Price and lead time at 10 / 100 / 500 units (DigiKey shows 271 in stock today).
+> 4. The DXF (or STEP) of the GVLB258.A footprint: we placed the pin 2.5 mm from the centre from the drawing in section 3 and would like to confirm it. Also the soldering profile for the pin, whether the patch can go through reflow, and how you recommend clamping it in an enclosure that sees 30–50 g impacts.
+> 5. Price and lead time at 10 / 100 / 500 units (DigiKey shows 895 in stock today).
 >
 > Best regards,
 > [Name] · [Company] · Buenos Aires, Argentina
 
-## 7. Ebyte: antena FPC de LoRa
+## 7. Ai-Thinker y LCSC: Ra-01SH (y Ebyte, ya no va)
 
-La TX915-FPC-4510 no tiene precio ni stock en LCSC: es una **cotización abierta** de [`costos.md`](costos.md).
+Desde el 09/11/2026 el LoRa es el **Ai-Thinker Ra-01SH** (LCSC C2764087). Su hoja muestra un IPEX propio en el mismo nodo que el pad 1 (`pod-v0.md`, "Salida de RF del Ra-01SH y su IPEX"). Por el portal de LCSC o a Ai-Thinker (support@aithinker.com, de su hoja):
+
+> **Subject:** Ra-01SH: version without the IPEX connector, crystal tolerance and certificates
+>
+> Hello,
+>
+> We are using the Ra-01SH (LCSC C2764087) at 915 MHz with the RF taken from pad 1 (ANT) to our own U.FL connector.
+> 1. Does the module ship with the on-module IPEX socket fitted? Is there a version without it (or with pad 1 disconnected from the IPEX), and its part number at LCSC?
+> 2. Frequency tolerance and temperature drift of the 32 MHz crystal (the module has no TCXO).
+> 3. Sleep current, and the FCC / CE (RED) certificate numbers of the Ra-01SH.
+> 4. Price for 150 and 500 pcs.
+>
+> Best regards,
+> [Name] · [Company] · Buenos Aires, Argentina
+
+El mail de Ebyte de abajo **ya no va**; queda como registro (la TX915-FPC-4510 no tenía precio ni stock en LCSC).
 
 > **Subject:** RFQ: TX915-FPC-4510 antenna (and E22-900M22S) for a wearable, 10 / 100 / 500 pcs
 >
@@ -176,7 +193,7 @@ La TX915-FPC-4510 no tiene precio ni stock en LCSC: es una **cotización abierta
 
 ## 8. Distribuidores: partes escasas
 
-Plan de stock en [`costos.md`](costos.md) y auditoría parte por parte en [`stock.md`](stock.md) (09/11/2026). Se hace casi todo por los portales: **10 LSM6DSV320XTR del eStore de ST** para la v0 y **pedido pendiente de 110** en DigiKey para las 100; **150 DRV5032FADBZR**, **150 BGA525N6E6327XTSA1** y **150 TPS22916CYFPR en LCSC**; **120 TPS7A2032PDBVR en DigiKey**. Mouser no se pudo leer en línea ("Access Denied"): para Mouser y Arrow (LSM6DSV320X y BGA525N6), este mail:
+Plan de stock en [`costos.md`](costos.md) y auditoría parte por parte en [`stock.md`](stock.md) (09/11/2026). Desde el 09/11/2026 todo se compra por los portales (plan vigente en [`costos.md`](costos.md)): **150 LSM6DSV32XTR**, **150 DRV5032FADBZR**, **150 BGA525N6E6327XTSA1** y **150 TPS22919DCKR en LCSC**; **150 BMD-340-A-R**, **150 LC29HAAMD**, **150 GVLB258.A** y **150 TPS7A2032PDBVR en DigiKey**. El mail de abajo (de antes del rediseño) queda solo para una segunda fuente del BGA525N6 en Mouser o Arrow:
 
 > **Subject:** Stock and lead time: LSM6DSV320XTR and BGA525N6E6327XTSA1, 130–150 pcs
 >

@@ -35,8 +35,8 @@ NS = uuid.UUID("2f1c5a0e-6b1d-4c39-9a57-1f4b8f3c0a11")
 NETS = ["GND", "/gnss_rf/GNSS_RF_A", "/power/BB_LX1", "USB_D_P", "USB_D_N", "SYS", "GNSS_PPS",
         "/mcu_radio/LED_R", "/mcu_radio/LED_G", "/gnss_rf/GNSS_RF_B", "/gnss_rf/GNSS_ANT_PATCH", "VREG"]
 
-# Coordinates in mm on the 45 x 65 mm outline (100..145, 100..165). Zones: BLE_ANTENA x 100-103.5,
-# y 137-148; GNSS_ANTENA x 107.5-137.5, y 101-131; PATCH_FEED (In2.Cu) x 111-127, y 110-114;
+# Coordinates in mm on the 45 x 65 mm outline (100..145, 100..165). Zones: BLE_ANTENA x 100-104.35,
+# y 135-150; GNSS_ANTENA x 107.5-137.5, y 101-131; PATCH_FEED (In2.Cu) x 120.5-124.5, y 117-133;
 # LORA_ANTENA x 125-145, y 150-165.
 # Track: (net, layer, x0, y0, x1, y1, width). Via: (net, x, y). Footprint: (ref, x, y, side, pads),
 # pad: (number, dx, dy, width, height, net or None). Zone: (net, layer, [(x, y), ...]), outline only.
@@ -61,7 +61,7 @@ BAD = {
         ("/mcu_radio/LED_R", "F.Cu", 110, 110, 120, 110, 0.2),  # inside GNSS_ANTENA on L1
         ("/mcu_radio/LED_R", "F.Cu", 101, 140, 104, 140, 0.2),  # inside BLE_ANTENA
         ("/gnss_rf/GNSS_RF_A", "F.Cu", 128, 140.5, 138, 140.5, 0.33),  # 0.3 mm from the pad of J1
-        ("VREG", "In2.Cu", 113, 112, 118, 112, 0.3),  # not GND on L3 under the patch feed
+        ("VREG", "In2.Cu", 122.5, 120, 122.5, 126, 0.3),  # not GND on L3 under the patch feed
         ("/gnss_rf/GNSS_ANT_PATCH", "In2.Cu", 128, 146, 138, 146, 0.33),  # patch feed on L3: still forbidden
     ],
     "vias": [("/gnss_rf/GNSS_RF_A", 120, 140)],  # via on an RF net
@@ -109,12 +109,12 @@ OK = {
         ("/mcu_radio/LED_G", "F.Cu", 108, 158.5, 118, 158.5, 0.2),  # 0.3 mm from PPS
         ("/power/BB_LX1", "F.Cu", 128, 145, 138, 145, 0.4),  # switch node far from RF and zones
         ("/gnss_rf/GNSS_RF_A", "F.Cu", 115, 120, 125, 120, 0.33),  # RF inside the GNSS zone
-        ("/gnss_rf/GNSS_ANT_PATCH", "B.Cu", 112, 112, 120, 112, 0.33),  # patch feed on L4 (the one exception)
-        ("/gnss_rf/GNSS_ANT_PATCH", "F.Cu", 120, 112, 126, 112, 0.33),  # and back on L1 after its via
+        ("/gnss_rf/GNSS_ANT_PATCH", "B.Cu", 122.5, 119, 122.5, 127, 0.33),  # patch feed on L4 (the one exception)
+        ("/gnss_rf/GNSS_ANT_PATCH", "F.Cu", 122.5, 127, 122.5, 132, 0.33),  # and back on L1 after its via
     ],
     "vias": [("GND", 120, 125),  # stitching via inside the GNSS zone
-             ("/gnss_rf/GNSS_ANT_PATCH", 120, 112)],  # the patch feed's RF via
-    "zones": [("GND", "In2.Cu", [(112, 110.5), (119, 110.5), (119, 113.5), (112, 113.5)])],  # GND island on L3
+             ("/gnss_rf/GNSS_ANT_PATCH", 122.5, 127)],  # the patch feed's RF via
+    "zones": [("GND", "In2.Cu", [(121, 118), (124, 118), (124, 128), (121, 128)])],  # GND island on L3
     "footprints": [
         ("AE201", 115, 130, "F", PAD),  # the patch may sit in the GNSS zone
         ("R2", 130, 125, "B", PAD),  # bottom-side part under the GNSS zone

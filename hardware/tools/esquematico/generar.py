@@ -85,6 +85,9 @@ def build_library() -> tuple[list, dict]:
             if kind is None:
                 raise SystemExit(f"{sym[1]}: falta el tipo del pin {number}")
             p[1] = kind
+        ref = simbolos.EASYEDA_REF.get(sym[1])
+        if ref:
+            find(sym, "property")[2] = Str(ref)  # the first property is "Reference"
         easyeda.append(sym)
     header = [x for x in lib if not (isinstance(x, list) and x and x[0] == "symbol")]
     symbols = sorted(easyeda + list(owned.values()), key=lambda s: s[1])
@@ -391,6 +394,8 @@ class SheetWriter:
         field("Verificado", "no", ox, oy, hide=True)
         if p.note:
             field("Nota", p.note, ox, oy, hide=True)
+        if p.variants:
+            field("Variante", "montada en " + ", ".join(p.variants), ox, oy, hide=True)
 
         node = ["symbol", ["lib_id", Str(f"{LIB}:{p.symbol}")], ["at", n(ox), n(oy), "0"], ["unit", "1"],
                 ["exclude_from_sim", "no"], ["in_bom", "no" if p.symbol in ("Fiducial", "MountingHole") else "yes"],

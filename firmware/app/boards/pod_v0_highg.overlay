@@ -1,0 +1,15 @@
+/*
+ * Pod v0, assembly variant pod-v0-highg (B-909): the ADXL372 (U403, ±200 g) is
+ * mounted, on 2 of the 5 v0 boards, to measure how often the ±32 g of the
+ * LSM6DSV32X saturate in contacts (docs/hardware/cotizacion/costos.md). Build:
+ *
+ *   west build -b pod_v0/nrf52840 sport-performance/firmware/app -- -DBOARD_ROOT=. \
+ *     -DEXTRA_DTC_OVERLAY_FILE=boards/pod_v0_highg.overlay
+ *
+ * HG_INT (P1.03) then belongs to the ADXL372: the NAND load switch (U502, which
+ * could use it as NAND_EN) is not mounted on this variant.
+ */
+
+&hg_accel {
+	status = "okay";
+};
