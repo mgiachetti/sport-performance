@@ -117,16 +117,6 @@ jobs:
             exit 1
           fi
 
-      - name: Size
-        env:
-          BOARD: ${{ matrix.board }}
-        run: |
-          out="build/${BOARD%%/*}"
-          size_tool="$(find / -name 'arm-zephyr-eabi-size' -type f 2>/dev/null | head -n 1)"
-          if [ -n "$size_tool" ]; then
-            "$size_tool" "$out/app/zephyr/zephyr.elf" "$out/mcuboot/zephyr/zephyr.elf"
-          fi
-
       - name: Prepare the artifacts
         env:
           BOARD: ${{ matrix.board }}
