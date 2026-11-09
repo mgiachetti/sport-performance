@@ -51,8 +51,8 @@ Las cifras de un buscador o de una copia vieja de LCSC no cuentan como stock de 
 | Módulo | Antena · tamaño | GPIO · USB | US$ a 100 | Stock (09/11/2026) | Certificaciones | Qué cambia en la placa | Port de firmware | Riesgo de RF |
 |---|---|---|---|---|---|---|---|---|
 | Raytac MDBT50Q-P1MV2 / -1MV2 | PCB / chip · 10,5 × 15,5 | 48 · sí | 6,00–6,50 | TME 1.239 / 1.274 sin confirmar; resto < 150 | FCC SH6MDBT50Q; IC, CE y TELEC por la familia, números **no verificados** | Nada (la -1MV2: keep-out de la antena chip, sección 2.3 de la hoja) | Ninguno | Bajo |
-| **Fanstel BT840** ([DigiKey](https://www.digikey.com/en/products/detail/fanstel-corp/BT840/8323661)) | PCB · 14 × 16 × 1,9 | 48 (16 almenados + LGA) · sí | **8,93** (500: 8,18) | **DigiKey 10.247** (stock propio, activo; fábrica 10 semanas) | FCC **X8WBT840**; IC y CE **no verificados** | Footprint nuevo (unos +61 mm²), módulo en el borde con el keep-out de Fanstel. Si trae el cristal de 32,768 kHz adentro (**no verificado**), sobran `Y301` y sus dos capacitores | **S**: devicetree de la placa con los pines nuevos; mismo SoC, mismo NCS | Bajo |
-| u-blox BMD-340-A-R ([DigiKey](https://www.digikey.com/en/products/result?keywords=BMD-340-A-R)) | PCB · 10,2 × 15,0 | 48 · sí (**no verificado** en la hoja) | 9,60 (a 1; 1.000: 9,66) | **DigiKey 10.055** (activo; fábrica 20 semanas) | FCC probablemente 2AA9B10 (**no verificado**) | Footprint nuevo, del tamaño del Raytac | **S** | Bajo |
+| **Fanstel BT840** ([DigiKey](https://www.digikey.com/en/products/detail/fanstel-corp/BT840/8323661)) | PCB · 14 × 16 × 1,9 | 48 (16 almenados + LGA) · sí (USB en los LGA E4/E5; VDDH F4, DCCH F5, VBUS F6) | **8,93** (500: 8,18) | **DigiKey 10.247** (stock propio, activo; fábrica 10 semanas) | FCC **X8WBT840F** e IC **4100A-BT840F** (compartidos por BT840, BT840F y BT840E) | Footprint nuevo (unos +61 mm²), módulo en el borde. El cristal de 32,768 kHz es **externo** (solo el BT840X y el XE lo traen adentro): `Y301` y sus capacitores quedan. Es la variante de **corto alcance** de Fanstel (+4,9 dBm como máximo; 150 m contra 1.000 m del BT840F, según Fanstel), de sobra para pod ↔ celular. El keep-out con medidas solo está publicado para el BT840F: para el BT840, del Gerber del EV-BT840 o preguntando a Fanstel | **S**: devicetree de la placa con los pines nuevos; mismo SoC, mismo NCS | Bajo |
+| u-blox BMD-340-A-R ([DigiKey](https://www.digikey.com/en/products/result?keywords=BMD-340-A-R)) | PCB · 15,0 × 10,2 × 1,9 | 48 · sí (D+, D− y VBUS en los pines 66–68); VCC 1,7–3,6 V y VCCH en el pin 65 | 9,60 (a 1; 1.000: 9,66) | **DigiKey 10.055** (activo; fábrica 20 semanas) | FCC **2AA9B10**, IC **12208A-10**, CE (RED), MIC **R204-B00161** | Footprint nuevo, del tamaño del Raytac. Cristal de 32,768 kHz **externo**: `Y301` queda. Se pide la revisión de producción **BMD-340-A-R-10** (la -00 y la -01 están obsoletas) | **S** | Bajo |
 | Minew MS88SF3 | PCB · 18,5 × 12,5 | 48 según LCSC · sí | 7,50 (a 1) | DigiKey Marketplace 1.791, unos 7 días desde Minew, **con límite de compra** sin cifra | FCC 2ABU6-MS88SF3 | Footprint nuevo | **S** | Bajo |
 | Minew MS88SF2 | PCB o U.FL · 23,2 × 17,4 | **24** · sí | 6,80–7,50 (a 1) | DigiKey Marketplace 1.051–1.962 | FCC 2ABU6-MS88SF2 | No entra: pocos GPIO | — | — |
 | Insight SiP ISP1807 | Integrada · 8 × 8 × 1 | **no verificado** | 13,65 (mínimo 50; 500: 11,15) | DigiKey Marketplace 11.350 | FCC 2AAQS-ISP1807 | Footprint nuevo, más chico | **S** | Bajo |
@@ -103,20 +103,34 @@ Todos con SX1262 (o LLCC68), SPI, BUSY y DIO1: el driver de Zephyr (`semtech,sx1
 | Módulo | Chip · tamaño | Conmutador de RF · oscilador | US$ a 100 | Stock (09/11/2026) | Certificaciones | Qué cambia | Port | Veredicto |
 |---|---|---|---|---|---|---|---|---|
 | Ebyte E22-900M22S (hoy) | SX1262 · 14 × 20 × 2,8, 22 pads | RXEN y TXEN externos (TXEN desde DIO2) · TCXO por DIO3 | 5,11 | LCSC 517 (de [`stock.md`](stock.md)); relectura de la API vacía | Ebyte dice CE y FCC; FCC ID **no verificado** (el código de Ebyte es 2ALPH; no aparece el del E22-900M22S) | Nada | Ninguno | **Limitado**: una sola fuente, 3,4 veces lo necesario |
-| **Ai-Thinker Ra-01SH** ([LCSC C2764087](https://www.lcsc.com/product-detail/C2764087.html)) | SX1262 · 16 pads almenados (la -P mide 17 × 16 × 3,2; la plana, **no verificado**) | RXEN y TXEN externos, como el E22 · TCXO o cristal **no verificado** | **2,99** (500: 2,81) | **LCSC 2.239**; DigiKey 0 (8 semanas) | Ai-Thinker publica CE (RED) y FCC; números **no verificados** | Footprint nuevo (un poco menos de área que el E22) | **S**: devicetree (RXEN, TXEN, DIO2, DIO3) | **Medio**: fabricante de menos trayectoria; medir potencia, sensibilidad y espurias en el banco |
-| NiceRF LoRa1262-915TCXO ([LCSC C5356643](https://www.lcsc.com/product-detail/C5356643.html)) | SX1262 · 16 × 16 | **no verificado** · TCXO de 0,5 ppm | 7,36 (a 10) | **LCSC 1.232** | NiceRF dice FCC; número **no verificado** | Footprint nuevo | **S** | Bajo–medio; más caro que el E22 |
+| **Ai-Thinker Ra-01SH** ([LCSC C2764087](https://www.lcsc.com/product-detail/C2764087.html)) | SX1262 · 17 × 16 × 3,2, 16 pads almenados (1 ANT … 16 GND); VDD 2,7–3,6 V | RXEN y TXEN externos, como el E22 · la hoja no dice el oscilador; lo que publica la comunidad indica **cristal común** (sin TCXO): devicetree **sin** `dio3-tcxo-voltage` | **2,99** (500: 2,81) | **LCSC 2.239**; DigiKey 0 (8 semanas) | Ai-Thinker dice CE (RED) y FCC; la hoja dice "Certificate: /": números **no verificados** | Footprint nuevo (un poco menos de área que el E22) | **S**: devicetree (RXEN, TXEN, DIO2) | **Medio**: hoja descuidada (rango de 410–525 MHz copiado, tablas del SX127x, standby de 1,6 mA y el sleep sin especificar; queda detrás de `U303`). Puerta de banco con 10 muestras antes de las 100 (ver "Presupuesto de frecuencia") |
+| NiceRF LoRa1262-915TCXO ([LCSC C5356643](https://www.lcsc.com/product-detail/C5356643.html)) | SX1262 · 16 × 16 | **no verificado** · TCXO de 0,5 ppm | 7,36 (a 10) | **LCSC 1.232** | NiceRF dice FCC; número **no verificado** | Footprint nuevo | **S** (con `dio3-tcxo-voltage` si el TCXO va por DIO3, **no verificado**) | **Bajo**: el respaldo sin riesgo de frecuencia (TCXO), a +4,37 contra el Ra-01SH |
 | Seeed Wio-SX1262 (114993390) | SX1262 · 12 pads | DIO2 interno (sin RXEN/TXEN) · TCXO por DIO3 | 4,86 (a 1.000) | DigiKey 7; Seeed sin cifra | CE, FCC, TELEC (números **no verificados**) | Footprint nuevo | S | No cumple stock |
 | Ebyte E22-900MM22S | SX1262 · 10 × 10 | **no verificado** | **no verificado** | API de LCSC vacía | — | Footprint nuevo | S | Sin stock confirmado |
 | Ebyte E220-900M22S, Ai-Thinker Ra-01SCH | **LLCC68** · cristal (no TCXO) | — | 4,19 (Ra-01SCH a 1, OpenELAB) | **no verificado** | — | Footprint nuevo | S (`semtech,llcc68`) | El LLCC68 llega a **SF5–SF9 con 125 kHz, SF5–SF10 con 250 kHz y SF5–SF11 con 500 kHz** (binding de Zephyr; la tabla de la hoja de Semtech, **no verificada**): **SF7 / 125 kHz y la rama de 500 kHz entran**. Se pierde SF10–SF12 para un alcance largo que hoy no se usa. Sin stock confirmado: no |
 | HopeRF RFM95W-915 | **SX1276** | — | — | DigiKey ya no lo vende | — | Otro driver (`semtech,sx1276`) | M | La misma subida dura lo mismo en el aire (SF7 / 125 kHz), pero recibe con unos 10 mA contra unos 5 del SX1262 y no tiene SF5/6. Sin stock: no |
 | RAK3172 como radio | STM32WLE5 | — | 7,80 | DigiKey 769 | FCC 2AF6B-RAK3172 | Footprint nuevo y un segundo firmware (módem) | L | No: más caro y dos firmwares |
 
+### Presupuesto de frecuencia con un cristal común
+
+LoRa tolera un error de frecuencia entre transmisor y receptor de unos **±25 % del ancho de banda**: con 125 kHz son **±31 kHz**, unos **±34 ppm a 915 MHz** sumando los dos lados. El gateway (SX1302) tiene TCXO, así que el cristal del pod se lleva casi todo el presupuesto:
+
+| Cristal del pod | Error a 915 MHz | Veredicto con SF7 / 125 kHz |
+|---|---|---|
+| ±10 ppm | ±9 kHz | Bien |
+| ±20 ppm | ±18 kHz | Bien, con margen para el gateway |
+| ±30 ppm o más (con temperatura y envejecimiento) | ±27 kHz o más | Marginal |
+
+- La rama de **500 kHz** tolera cuatro veces más: sin problema.
+- Si hiciera falta, el pod puede corregir con la **baliza** del gateway: el SX126x mide el error de frecuencia de cada paquete recibido (registros FEI 0x076B–0x076D) y se compensa al transmitir (AFC por firmware).
+- **Puerta de banco** antes de comprar las 100: 10 módulos a 0, 25 y 50 °C, leyendo en el gateway el error de frecuencia de cada paquete. Si alguno pasa de ±20 ppm, se cambia al **NiceRF LoRa1262-915TCXO** (respaldo sin riesgo, LCSC 1.232, +4,37 por pod) o se suma el AFC.
+
 ## Antena LoRa (no se suelda)
 
 | Antena | Tipo · conector | US$ a 100 | Stock (09/11/2026) | Veredicto |
 |---|---|---|---|---|
 | Ebyte TX915-FPC-4510 (hoy) | FPC 45 × 10 · IPEX | sin precio | Sin cifra | No se puede confirmar |
-| **Molex 2111400100** ([DigiKey](https://www.digikey.com/en/products/detail/molex/2111400100/9953925)) | FPC 868/915, cable de 100 mm · U.FL (MHF1) | **1,96** | **DigiKey 5.706** (fábrica 13 semanas) | **La que cumple**: mismo conector, otro tamaño (ajustar el lugar en la carcasa y medir la sintonía) |
+| **Molex 2111400100** ([DigiKey](https://www.digikey.com/en/products/detail/molex/2111400100/9953925)) | FPC 868/915 de 38 × 10 × 0,1 mm, cable de 100 mm · U.FL (MHF1); 1,0 dBi y más de 60 % de eficiencia a 902 MHz (datos del distribuidor) | **1,96** | **DigiKey 5.706** (fábrica 13 semanas) | **La que cumple**: mismo conector, otro tamaño (ajustar el lugar en la carcasa). Depende del plano de tierra: medir la sintonía y la eficiencia dentro de la carcasa |
 | Taoglas FXP890.07.0100C | FPC 860–928 compacta, 100 mm · MHF1/U.FL | 3,67 | DigiKey 197 | Segunda fuente (justo arriba de 150) |
 | Taoglas FXP290.07.0100A | FPC 915, 100 mm · **MHF2** (no U.FL) | 8,39 | DigiKey 1.280 | Otro conector: no |
 | Ignion NN03-310 | Chip para la placa, 400 MHz–8 GHz, con red de adaptación | 1,91 | DigiKey 53.129 | Cambia la placa: la antena LoRa pasaría a la placa, cerca del GNSS (contra la separación del ADR 0105). No para la v0 |
@@ -128,9 +142,9 @@ Todos con SX1262 (o LLCC68), SPI, BUSY y DIO1: el driver de Zephyr (`semtech,sx1
 |---|---|---|---|---|---|---|---|
 | Hoy | MDBT50Q-P1MV2 + E22 + TX915 | 11,11 + antena | **No** (Raytac 37, antena sin cifra) | FCC del Raytac; E22 sin ID verificado | — | Bajo | — |
 | **A. Raytac por TME** | MDBT50Q-P1MV2 o -1MV2 + E22 + Molex | **13,57** (Raytac a 6,50 en TME, **no verificado**) | **Solo si TME confirma** (1.239 / 1.274 por Findchips); E22 limitado | FCC SH6MDBT50Q | Ninguno | Bajo | Ninguno |
-| **B. BT840 + E22** | BT840 + E22 + Molex | **16,00** | BT840 sí (10.247); E22 limitado (517) | FCC X8WBT840; E22 sin ID | **S** | Bajo | Footprint del MCU |
-| **C. BT840 + Ra-01SH** | BT840 + Ra-01SH + Molex | **13,88** | **Sí, las tres** (DigiKey 10.247, LCSC 2.239, DigiKey 5.706) | FCC X8WBT840; Ra-01SH FCC y CE sin número verificado | **S + S** | Bajo (MCU) · medio (LoRa) | Footprints del MCU y del LoRa |
-| D. BMD-340 + Ra-01SH | BMD-340 + Ra-01SH + Molex | **14,55** | Sí (10.055, 2.239, 5.706) | FCC 2AA9B10 (**no verificado**) | S + S | Bajo · medio | Footprints del MCU (del tamaño del Raytac) y del LoRa |
+| **B. BT840 + E22** | BT840 + E22 + Molex | **16,00** | BT840 sí (10.247); E22 limitado (517) | FCC X8WBT840F; E22 sin ID | **S** | Bajo | Footprint del MCU |
+| **C. BT840 + Ra-01SH** | BT840 + Ra-01SH + Molex | **13,88** | **Sí, las tres** (DigiKey 10.247, LCSC 2.239, DigiKey 5.706) | FCC X8WBT840F, IC 4100A-BT840F; Ra-01SH FCC y CE sin número verificado | **S + S** | Bajo (MCU) · medio (LoRa) | Footprints del MCU y del LoRa |
+| **D. BMD-340 + Ra-01SH** | BMD-340 + Ra-01SH + Molex | **14,55** | **Sí, las tres** (10.055, 2.239, 5.706) | FCC 2AA9B10, IC 12208A-10, CE, MIC; Ra-01SH sin número verificado | S + S | Bajo · medio | Footprints del MCU (del tamaño del Raytac) y del LoRa |
 | E. Raytac por TME + Ra-01SH | MDBT50Q + Ra-01SH + Molex | **11,45** | Solo si TME confirma | FCC SH6MDBT50Q | S | Bajo · medio | Footprint del LoRa |
 | F. BT840 + NiceRF LoRa1262 | BT840 + LoRa1262 + Molex | 18,25 | Sí (10.247, 1.232, 5.706) | NiceRF dice FCC | S + S | Bajo | Footprints del MCU y del LoRa |
 | G. RAK4630 | RAK4630 + Molex + antena BLE | **unos 28** | **No** (100, 12 semanas) | FCC 2AF6B-RAK4630 | S | Bajo | Todo el bloque; no alcanzan los GPIO |
@@ -141,20 +155,21 @@ Todos con SX1262 (o LLCC68), SPI, BUSY y DIO1: el driver de Zephyr (`semtech,sx1
 
 ## Recomendación
 
-**1.ª: opción C, Fanstel BT840 + Ai-Thinker Ra-01SH + Molex 2111400100, a US$ 13,88 por pod a 100 (+0,81 contra hoy con la Molex).**
+**1.ª: opción D, u-blox BMD-340 + Ai-Thinker Ra-01SH + Molex 2111400100, a US$ 14,55 por pod a 100 (+1,48 contra hoy con la Molex).**
 
-- **Es la única con todo confirmado hoy**: las tres partes tienen stock propio de un distribuidor que PCBWay compra, con más de 10 veces lo que hace falta (DigiKey 10.247, LCSC 2.239 y DigiKey 5.706). Ninguna depende de un Marketplace, de TME sin confirmar o de una sola fuente con 3 veces lo necesario.
-- **Mismo SoC**: el BT840 es un nRF52840 con los 48 GPIO y USB. El firmware, NCS 3.4.1, el CryptoCell-310, MCUboot, el PPS por PPI y el presupuesto de System OFF no cambian; solo el devicetree de `pod_v0` (pines nuevos) y el bring-up. El Ra-01SH tiene RXEN y TXEN externos como el E22: el driver y la lógica del conmutador quedan igual.
-- **El ahorro del LoRa paga casi todo el sobreprecio del BT840**: el Ra-01SH cuesta 2,12 menos que el E22 y el BT840 2,93 más que el Raytac.
-- **Lo que cambia en `diseno.py`** (cuando el usuario lo decida): `NRF_PINS` pasa al pinout del BT840 (otro footprint, 16 almenados y el resto LGA: rayos X como hoy); `E22_PINS` pasa a los 16 pads del Ra-01SH (ANT, 3V3, RESET, TXEN, DIO1, DIO2, DIO3, BUSY, RXEN, SCK, MISO, MOSI, NSS, GND); el load switch, el pull-up de NSS y el pull-down del EN quedan; la placa crece unos 53 mm².
-- **Riesgos y qué verificar antes de cerrar** (en la hoja impresa o con el fabricante, antes del layout):
-  - BT840: keep-out de la antena y lugar en el borde, si trae el cristal de 32,768 kHz (si lo trae, se sacan `Y301` y sus capacitores), los números de IC y CE, y si el FCC X8WBT840 cubre nuestro uso.
-  - Ra-01SH: TCXO o cristal (con SF7 / 125 kHz un cristal alcanza: el error tolerado es mucho mayor que en SF11–12), corriente en reposo, número de FCC y CE, y el tamaño exacto de la versión plana. En el banco, medir potencia de salida, sensibilidad y espurias en las bandas del GNSS (L1 y L5) antes de las 100.
-  - Comprar **10 BT840 y 10 Ra-01SH ya** para el banco (unos US$ 150).
+- **Todo confirmado hoy**: las tres partes tienen stock propio de un distribuidor que PCBWay compra, con más de 10 veces lo que hace falta (DigiKey 10.055, LCSC 2.239 y DigiKey 5.706). Ninguna depende de un Marketplace, de TME sin confirmar o de una sola fuente con 3 veces lo necesario.
+- **La placa no crece**: el BMD-340 mide 15,0 × 10,2 mm, casi el lugar del Raytac (10,5 × 15,5).
+- **Hoja completa con los números de certificación** (FCC 2AA9B10, IC 12208A-10, CE RED, MIC R204-B00161), que es lo que pide el camino de ENACOM. Se pide la revisión de producción **BMD-340-A-R-10**.
+- **Mismo SoC**: nRF52840 con los 48 GPIO y USB (pines 66–68). El firmware, NCS 3.4.1, el CryptoCell-310, MCUboot, el PPS por PPI y el presupuesto de System OFF no cambian; solo el devicetree de `pod_v0` (pines nuevos) y el bring-up. El Ra-01SH tiene RXEN y TXEN externos como el E22: el driver y la lógica del conmutador quedan iguales (sin `dio3-tcxo-voltage`).
+- **El ahorro del LoRa paga más de la mitad del sobreprecio del MCU**: el Ra-01SH cuesta 2,12 menos que el E22 y el BMD-340 3,60 más que el Raytac.
+- **Lo que cambia en `diseno.py`** (cuando el usuario lo decida): `NRF_PINS` pasa al pinout del BMD-340 (VCC y VCCH al riel, USB en 66–68; rayos X como hoy); `Y301` y sus capacitores quedan (el cristal de 32,768 kHz es externo); `E22_PINS` pasa a los 16 pads del Ra-01SH (1 ANT … 16 GND: ANT, GND, 3V3, RESET, TXEN, DIO1, DIO2, DIO3, GND, BUSY, RXEN, SCK, MISO, MOSI, NSS, GND); el load switch `U303`, el pull-up de NSS y el pull-down del EN quedan.
+- **Antes del layout**: el keep-out de la antena del BMD-340 en su hoja, y la puerta de banco del Ra-01SH (10 muestras a 0, 25 y 50 °C con el error de frecuencia por paquete, más potencia, sensibilidad y espurias en L1 y L5). Comprar **10 BMD-340 y 10 Ra-01SH ya** (unos US$ 136).
 
-**2.ª: opción D, u-blox BMD-340 + Ra-01SH + Molex, a US$ 14,55.** Igual que la C, también con todo confirmado, pero con un módulo de 10,2 × 15,0 mm (casi el lugar del Raytac, sin agrandar la placa) a cambio de 0,67 más por pod. Conviene si el área manda; falta confirmar el FCC ID y sus GPIO en la hoja.
+**2.ª: opción C, Fanstel BT840 en lugar del BMD-340, a US$ 13,88** (0,67 menos). También con todo confirmado (DigiKey 10.247), con FCC X8WBT840F e IC 4100A-BT840F. La placa crece unos 53 mm², el cristal de 32,768 kHz también es externo, y el keep-out con medidas solo está publicado para el BT840F: para el BT840 hay que sacarlo del Gerber del EV-BT840 o pedirlo a Fanstel. Es la variante de corto alcance (+4,9 dBm), de sobra para pod ↔ celular.
 
-**Si TME confirma por escrito 150 Raytac en menos de 2 semanas**, la **opción E** (Raytac + Ra-01SH + Molex, **11,45**) pasa a primera: deja el footprint del MCU como está y es la más barata con módulos de nRF52840. Es un mail a TME (o un carrito en su página) antes de tocar el layout; si no responde en 48 horas, se sigue con la C. Con el E22 en lugar del Ra-01SH (opción A), solo si LCSC sigue mostrando los 517 al reservar.
+**Respaldo del LoRa sin riesgo de frecuencia**: **NiceRF LoRa1262-915TCXO** (LCSC 1.232, +4,37 por pod), si la puerta de banco del Ra-01SH falla.
+
+**Si TME confirma por escrito 150 Raytac en menos de 2 semanas**, la **opción E** (Raytac + Ra-01SH + Molex, **11,45**) pasa a primera: deja el footprint del MCU como está y es la más barata con módulos de nRF52840. Es un mail a TME (o un carrito en su página) antes de tocar el layout; si no responde en 48 horas, se sigue con la D. Con el E22 en lugar del Ra-01SH (opción A), solo si LCSC sigue mostrando los 517 al reservar.
 
 **Descartadas y por qué**: el RAK4630 (sin stock, 12 semanas, el doble de precio y pocos GPIO); el nRF54L15 (sin USB y con 31–32 GPIO: rediseña la base; queda para una placa futura con el nRF54LM20, que tiene USB); las divididas con STM32 (más caras, dos firmwares y dos certificaciones); los LLCC68 y el RFM95 (sin stock confirmado, aunque el LLCC68 cumple SF7 / 125 kHz); el nRF52840 suelto (RF y certificación propios).
 
