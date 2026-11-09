@@ -344,7 +344,12 @@ void pod_log_page_iv(uint8_t key_epoch, uint32_t page_seq, uint8_t iv[16])
 
 int pod_log_derive_page_keys(const uint8_t storage_key[16], struct pod_log_page_keys *keys)
 {
-	int rc = pod_hkdf_sha256(storage_key, 16, (const uint8_t *)LOG_KEY_INFO_CTR,
+	int rc;
+
+	if (pod_key_is_zero(storage_key, 16)) {
+		return POD_ERR_STATE; /* not provisioned: never record with it */
+	}
+	rc = pod_hkdf_sha256(storage_key, 16, (const uint8_t *)LOG_KEY_INFO_CTR,
 				 strlen(LOG_KEY_INFO_CTR), keys->enc_key, 16);
 
 	if (rc != POD_OK) {
@@ -434,6 +439,8 @@ int pod_log_page_seal(const struct pod_log_page_header *h, const uint8_t *payloa
 int pod_log_writer_init(struct pod_log_writer *w, const struct pod_log_writer_options *opt,
 			const uint8_t storage_key[16], pod_log_page_sink_t sink, void *sink_ctx)
 {
+	int rc;
+
 	memset(w, 0, sizeof(*w));
 	w->opt = *opt;
 	w->key_epoch = opt->key_epoch;
@@ -441,7 +448,11 @@ int pod_log_writer_init(struct pod_log_writer *w, const struct pod_log_writer_op
 	w->first_record_offset = POD_LOG_NO_RECORD_START;
 	w->sink = sink;
 	w->sink_ctx = sink_ctx;
-	return pod_log_derive_page_keys(storage_key, &w->keys);
+	rc = pod_log_derive_page_keys(storage_key, &w->keys);
+	if (rc != POD_OK) {
+		w->closed = true; /* unusable: every append returns POD_ERR_STATE */
+	}
+	return rc;
 }
 
 int pod_log_writer_rotate_key(struct pod_log_writer *w, uint8_t key_epoch,
@@ -463,10 +474,19 @@ unsigned int pod_log_writer_pages_sealed_by(const struct pod_log_writer *w, size
 static int writer_seal(struct pod_log_writer *w, bool continues, bool segment_end)
 {
 	struct pod_log_page_header h;
+	uint32_t page_seq;
 	int rc;
 
-	if (w->next_page_seq > 0xffffffffull) {
-		return POD_ERR_EXHAUSTED;
+	if (w->opt.seq_source != NULL) {
+		rc = w->opt.seq_source(w->opt.seq_ctx, &page_seq);
+		if (rc != POD_OK) {
+			return rc; /* no sequence, no page: the data stays buffered */
+		}
+	} else {
+		if (w->next_page_seq > 0xffffffffull) {
+			return POD_ERR_EXHAUSTED;
+		}
+		page_seq = (uint32_t)w->next_page_seq;
 	}
 	memset(&h, 0, sizeof(h));
 	h.key_epoch = w->key_epoch;
@@ -476,7 +496,7 @@ static int writer_seal(struct pod_log_writer *w, bool continues, bool segment_en
 	memcpy(h.device_id, w->opt.device_id, POD_DEVICE_ID_LEN);
 	h.boot_counter = w->opt.boot_counter;
 	h.segment_id = w->opt.segment_id;
-	h.page_seq = (uint32_t)w->next_page_seq;
+	h.page_seq = page_seq;
 	h.stream_offset = w->stream_offset;
 	h.payload_len = w->length;
 	h.first_record_offset = w->first_record_offset;
@@ -518,6 +538,12 @@ int pod_log_writer_append_bytes(struct pod_log_writer *w, const uint8_t *record,
 			int rc = writer_seal(w, offset < len, false);
 
 			if (rc != POD_OK) {
+				/*
+				 * No page sequence (reservation not saved) or the NAND
+				 * refused the page: stop recording this segment. The pod
+				 * closes it with a recovery page at the next boot.
+				 */
+				w->closed = true;
 				return rc;
 			}
 		}

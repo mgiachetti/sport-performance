@@ -71,6 +71,7 @@ void check_hex(const char *file, int line, const char *what, const uint8_t *buf,
 }
 
 void run_crypto_tests(void);
+void run_counters_tests(void);
 void run_radio_tests(void);
 void run_log_tests(void);
 void run_gnss_tests(void);
@@ -86,6 +87,7 @@ int main(void)
 	}
 	run_crypto_tests();
 	run_radio_tests();
+	run_counters_tests();
 	run_log_tests();
 	run_gnss_tests();
 	run_led_tests();

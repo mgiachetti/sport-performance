@@ -135,13 +135,38 @@ struct pod_gnss_command {
 	uint16_t delay_after_ms;
 };
 
-/** LC29H(AA) boot configuration: steps 2–4 of the document (10 Hz, L1+L5, MSM7, PPS). */
-extern const struct pod_gnss_command pod_lc29h_aa_boot[];
-extern const size_t pod_lc29h_aa_boot_len;
+/**
+ * LC29H(AA) configuration that writes the NVM: steps 2–3 of the document (GNSS
+ * off, 10 Hz, L1+L5, constellations, protocol, $PAIR513, GNSS on). Sent only
+ * when the step 1 answers differ from `pod_lc29h_aa_expected`, so the NVM is
+ * not worn at every boot.
+ */
+extern const struct pod_gnss_command pod_lc29h_aa_nvm[];
+extern const size_t pod_lc29h_aa_nvm_len;
 
-/** Queries of step 1: if every answer matches, steps 2–3 (that write the NVM) are skipped. */
+/** Step 4, with the GNSS on, at every boot: messages, raw, PPS, interference. */
+extern const struct pod_gnss_command pod_lc29h_aa_runtime[];
+extern const size_t pod_lc29h_aa_runtime_len;
+
+/** Queries of step 1 (version, id and the configuration to compare). */
 extern const struct pod_gnss_command pod_lc29h_aa_queries[];
 extern const size_t pod_lc29h_aa_queries_len;
+
+/** Expected answer body (between `$` and `*`) of each configuration query. */
+struct pod_gnss_expected {
+	const char *query;
+	const char *answer;
+};
+extern const struct pod_gnss_expected pod_lc29h_aa_expected[];
+extern const size_t pod_lc29h_aa_expected_len;
+
+/**
+ * Index in `pod_lc29h_aa_expected` of the query this answer belongs to, or -1.
+ * `*matches` says whether it is the expected configuration. TODO(B-901): the
+ * exact answer formats come from the bench; an unknown format reads as "does
+ * not match", which only costs one NVM write.
+ */
+int pod_lc29h_check_answer(const char *body, size_t len, bool *matches);
 
 /** Enter backup: `$PAIR650,0`, wait `$PAIR001,650,0` (~100 ms); then GNSS_EN low. */
 extern const struct pod_gnss_command pod_lc29h_enter_backup[];

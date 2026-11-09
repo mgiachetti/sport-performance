@@ -36,7 +36,7 @@ static const struct gpio_dt_spec lora_en = GPIO_DT_SPEC_GET_OR(USER_NODE, lora_e
 
 /*
  * TODO(B-904): the link key of the epoch arrives wrapped from the dock (ADR
- * 0106); zero until provisioning, so nothing real is ever sent with it.
+ * 0106). All zero until then, and pod_uplink_seal refuses an all-zero key.
  */
 static uint8_t link_key[16];
 
@@ -76,9 +76,14 @@ int pod_lora_send_uplink(const struct pod_uplink_counters *c,
 			 const struct pod_live_summary *summary, bool with_position, uint8_t channel)
 {
 	uint8_t packet[POD_LIVE_PACKET_LEN];
-	int n = pod_uplink_seal(link_key, c, summary, with_position, packet, sizeof(packet));
+	int n;
 	int rc;
 
+	if (!pod_persist_ready()) {
+		return -EACCES; /* boot counter not saved: the nonce could repeat */
+	}
+	/* POD_ERR_STATE with the all-zero key of an unprovisioned pod: nothing is sent. */
+	n = pod_uplink_seal(link_key, c, summary, with_position, packet, sizeof(packet));
 	if (n < 0) {
 		return n;
 	}

@@ -6,7 +6,6 @@
 
 /dts-v1/;
 #include <nordic/nrf52840_qiaa.dtsi>
-#include <nordic/nrf52840_partition.dtsi>
 #include <zephyr/dt-bindings/lora/sx126x.h>
 #include "pod_v0_nrf52840-pinctrl.dtsi"
 
@@ -79,9 +78,10 @@
 	};
 };
 
-&reg0 {
-	status = "okay";
-};
+/*
+ * REG0 (the VDDH stage) is not used: VDD and VDDH both on VREG (normal voltage
+ * mode) and DCCH unconnected (pod-v0.md), so its DC/DC stays off. No &reg0 node.
+ */
 
 /* VDD and VDDH tied to VREG (3,4 V): normal voltage mode, DC/DC of Reg1 on (coil inside the module). */
 &reg1 {
@@ -155,7 +155,6 @@
 	charger: bq25180@6a {
 		compatible = "ti,bq25180";
 		reg = <0x6a>;
-		constant-charge-current-max-microamp = <300000>;
 	};
 
 	/* VDD and CELL on the cell: measures even with SYS cut. Address not verified. */
@@ -246,6 +245,42 @@
 	pinctrl-0 = <&pwm1_default>;
 	pinctrl-1 = <&pwm1_sleep>;
 	pinctrl-names = "default", "sleep";
+};
+
+/*
+ * Flash layout, pinned here (no Partition Manager, SB_CONFIG_PARTITION_MANAGER=n):
+ * MCUboot, two application slots of 472 KB for the swap (ADR 0106: about
+ * 450 KB each) and the NVS of the persistent counters at the end. Changing
+ * these addresses in an update would lose the boot counter and the page
+ * sequence reservation: never move `storage_partition`.
+ */
+&flash0 {
+	partitions {
+		ranges;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		boot_partition: partition@0 {
+			compatible = "zephyr,mapped-partition";
+			label = "mcuboot";
+			reg = <0x00000000 0x0000c000>;
+		};
+		slot0_partition: partition@c000 {
+			compatible = "zephyr,mapped-partition";
+			label = "image-0";
+			reg = <0x0000c000 0x00076000>;
+		};
+		slot1_partition: partition@82000 {
+			compatible = "zephyr,mapped-partition";
+			label = "image-1";
+			reg = <0x00082000 0x00076000>;
+		};
+		storage_partition: partition@f8000 {
+			compatible = "zephyr,mapped-partition";
+			label = "storage";
+			reg = <0x000f8000 0x00008000>;
+		};
+	};
 };
 
 /* USB through the dock pads (D± pads 34/35, VBUS after the input switch). */

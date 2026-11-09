@@ -276,6 +276,47 @@ static void bq25180_plan(void)
 	CHECK_EQ(ship.mask, 0x60);
 }
 
+static void bq25180_watchdog_service(void)
+{
+	struct pod_bq25180_watch w = {0};
+	const uint8_t sys_ok = POD_BQ25180_SYS_REG_WATCHDOG_15S;
+
+	CHECK(pod_bq25180_service_due(&w, 0));
+	CHECK(!pod_bq25180_after_read(&w, 0, 0x00, sys_ok)); /* first read, plan intact */
+	CHECK(!pod_bq25180_service_due(&w, 59999));
+	CHECK(pod_bq25180_service_due(&w, 60000)); /* well inside the 160 s watchdog */
+	CHECK(!pod_bq25180_after_read(&w, 60000, 0x00, sys_ok));
+	/* Dock in: VIN_PGOOD changes → write the plan again. */
+	CHECK(pod_bq25180_after_read(&w, 61000, POD_BQ25180_STAT0_VIN_PGOOD, sys_ok));
+	CHECK(!pod_bq25180_after_read(&w, 62000, POD_BQ25180_STAT0_VIN_PGOOD, sys_ok));
+	/* Registers back to their defaults (watchdog reset): WATCHDOG_15S_ENABLE reads 0. */
+	CHECK(pod_bq25180_after_read(&w, 63000, POD_BQ25180_STAT0_VIN_PGOOD, 0x40));
+	/* Wraps of the ms counter keep the period. */
+	w.last_service_ms = 0xFFFFFF00u;
+	CHECK(!pod_bq25180_service_due(&w, 0x00000100u));
+}
+
+static void wake_loop_guard(void)
+{
+	struct pod_power_config c = cfg();
+	struct pod_wake_plan in_vest = pod_power_wake_plan(&c, true);
+	struct pod_wake_plan out = pod_power_wake_plan(&c, false);
+	struct pod_wake_levels l = {.hall_high = false, .imu_int1_high = false, .chg_int_low = false};
+
+	CHECK(pod_wake_plan_safe(&in_vest, &l)); /* in the vest the Hall reads low */
+	CHECK(!pod_wake_plan_safe(&out, &l));     /* armed on low while it is low: loop */
+	l.hall_high = true;
+	CHECK(pod_wake_plan_safe(&out, &l));
+	l.chg_int_low = true;
+	CHECK(!pod_wake_plan_safe(&out, &l));
+	l.chg_int_low = false;
+	l.hall_high = false;
+	l.imu_int1_high = true;
+	CHECK(!pod_wake_plan_safe(&in_vest, &l)); /* latched motion not cleared */
+	l.hall_high = true;
+	CHECK(pod_wake_plan_safe(&out, &l)); /* IMU not armed out of the vest */
+}
+
 static void max17048(void)
 {
 	CHECK_EQ(pod_max17048_vcell_mv(0xD000), 4160);
@@ -296,5 +337,7 @@ void run_power_tests(void)
 	RUN(critical_battery_waits_for_nand_then_ships);
 	RUN(wake_plan);
 	RUN(bq25180_plan);
+	RUN(bq25180_watchdog_service);
+	RUN(wake_loop_guard);
 	RUN(max17048);
 }

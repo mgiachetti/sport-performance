@@ -99,8 +99,10 @@ jobs:
           west build --pristine -b "$BOARD" -d "$out" sport-performance/firmware/app -- -DBOARD_ROOT=.
           ls -la "$out"
 
-      # A release build must refuse MCUboot's public development key (sysbuild.cmake).
-      - name: Release guard refuses the development key
+      # A release build must refuse MCUboot's public development keys and lock APPROTECT in
+      # both images (sysbuild.cmake). The accepted case signs with a throwaway key generated
+      # here and never stored.
+      - name: Release guard
         if: matrix.board == 'pod_v0/nrf52840'
         run: |
           if west build --pristine --cmake-only -b pod_v0/nrf52840 -d build/release-guard \
@@ -116,6 +118,14 @@ jobs:
             echo "::error::The release build failed for another reason"
             exit 1
           fi
+          key="$RUNNER_TEMP/throwaway-release-key.pem"
+          openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out "$key"
+          west build --pristine --cmake-only -b pod_v0/nrf52840 -d build/release-ok \
+            sport-performance/firmware/app -- -DBOARD_ROOT=. -DSB_CONFIG_POD_RELEASE_BUILD=y \
+            "-DSB_CONFIG_BOOT_SIGNATURE_KEY_FILE=\"$key\""
+          rm -f "$key"
+          grep -q '^CONFIG_NRF_APPROTECT_LOCK=y' build/release-ok/app/zephyr/.config
+          grep -q '^CONFIG_NRF_APPROTECT_LOCK=y' build/release-ok/mcuboot/zephyr/.config
 
       - name: Prepare the artifacts
         env:

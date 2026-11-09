@@ -1,8 +1,12 @@
 /*
- * Persistent counters in NVS (ADR 0106): the boot counter is incremented and
- * saved before the first transmission of every boot (System OFF wake-ups and
- * resets included), so (boot, frame) never repeats as a CCM nonce. The page
- * sequence of the NAND log is reserved in blocks so a reset never reuses a CTR IV.
+ * Settings (NVS) backend of the persistent counters. The rules (commit after
+ * save, page-sequence reservation, never reuse) are pure in
+ * firmware/lib/src/counters.c and host-tested with a fake store.
+ *
+ * The NVS lives in `storage_partition`, pinned in the devicetree of the board
+ * so a firmware update never moves it. A chip erase or a recover wipes it:
+ * the counters restart, so the pod must be re-keyed (new key epoch) at the
+ * dock before it transmits or records again (firmware/README.md).
  */
 #include <errno.h>
 
@@ -10,39 +14,56 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/settings/settings.h>
 
+#include "pod/counters.h"
 #include "pod_app.h"
 
 LOG_MODULE_REGISTER(pod_counters, CONFIG_POD_LOG_LEVEL);
 
-/** Page sequences reserved per NVS write (README of pod-protocol: "de a 1024"). */
-#define PAGE_SEQ_RESERVATION 1024u
+static const char *const names[] = {
+	[POD_COUNTER_BOOT] = "pod/boot",
+	[POD_COUNTER_PAGE_SEQ_RESERVED] = "pod/pageseq",
+	[POD_COUNTER_SEGMENT_ID] = "pod/segment",
+};
 
-static uint32_t boot_counter;
-static uint32_t page_seq_reserved; /* first sequence NOT yet reserved */
-static uint32_t page_seq_next;
-static uint32_t segment_id;
+static uint32_t loaded[3];
+static struct pod_counters counters;
+static K_MUTEX_DEFINE(lock);
 
 static int set(const char *name, size_t len, settings_read_cb read_cb, void *cb_arg)
 {
-	uint32_t *target = NULL;
+	static const char *const keys[] = {"boot", "pageseq", "segment"};
 
-	if (settings_name_steq(name, "boot", NULL)) {
-		target = &boot_counter;
-	} else if (settings_name_steq(name, "pageseq", NULL)) {
-		target = &page_seq_reserved;
-	} else if (settings_name_steq(name, "segment", NULL)) {
-		target = &segment_id;
+	for (size_t i = 0; i < ARRAY_SIZE(keys); i++) {
+		if (settings_name_steq(name, keys[i], NULL)) {
+			if (len != sizeof(uint32_t)) {
+				return -EINVAL;
+			}
+			return read_cb(cb_arg, &loaded[i], sizeof(uint32_t)) == sizeof(uint32_t)
+				       ? 0
+				       : -EIO;
+		}
 	}
-	if (target == NULL || len != sizeof(*target)) {
-		return -ENOENT;
-	}
-	return read_cb(cb_arg, target, sizeof(*target)) == sizeof(*target) ? 0 : -EIO;
+	return -ENOENT;
 }
 
 SETTINGS_STATIC_HANDLER_DEFINE(pod, "pod", NULL, set, NULL, NULL);
 
-int pod_counters_init(void)
+static int store_load(void *ctx, enum pod_counter_key key, uint32_t *value)
 {
+	ARG_UNUSED(ctx);
+	*value = loaded[key];
+	return 0;
+}
+
+static int store_save(void *ctx, enum pod_counter_key key, uint32_t value)
+{
+	ARG_UNUSED(ctx);
+	return settings_save_one(names[key], &value, sizeof(value));
+}
+
+int pod_persist_init(void)
+{
+	const struct pod_counter_store store = {.load = store_load, .save = store_save};
 	int rc = settings_subsys_init();
 
 	if (rc == 0) {
@@ -52,51 +73,55 @@ int pod_counters_init(void)
 		LOG_ERR("settings: %d", rc);
 		return rc;
 	}
-	if (boot_counter == UINT32_MAX) {
-		/* boot_counter_exhausted: never transmit until the keys rotate at the dock. */
-		LOG_ERR("boot counter exhausted");
-		return -ENOSPC;
+	k_mutex_lock(&lock, K_FOREVER);
+	rc = pod_counters_boot(&counters, &store);
+	k_mutex_unlock(&lock);
+	if (rc != POD_OK) {
+		/* Not ready: the pod neither transmits nor records (nonce / IV safety). */
+		LOG_ERR("counters not committed (%d)", rc);
+		return -EIO;
 	}
-	boot_counter++;
-	rc = settings_save_one("pod/boot", &boot_counter, sizeof(boot_counter));
-	if (rc != 0) {
-		return rc;
-	}
-	/*
-	 * Start above everything reserved before. TODO(B-904): also above the highest
-	 * sequence found by the NAND scan (scanNand) at boot.
-	 */
-	page_seq_next = page_seq_reserved;
-	LOG_INF("boot %u", boot_counter);
+	LOG_INF("boot %u, page sequence from %u", counters.boot, counters.page_seq_next);
 	return 0;
 }
 
-uint32_t pod_counters_boot(void)
+bool pod_persist_ready(void)
 {
-	return boot_counter;
+	return pod_counters_ready(&counters);
 }
 
-int pod_counters_persist_boot(uint32_t value)
+uint32_t pod_persist_boot(void)
 {
-	boot_counter = value;
-	return settings_save_one("pod/boot", &boot_counter, sizeof(boot_counter));
+	return counters.boot;
 }
 
-uint32_t pod_counters_next_page_seq(void)
+int pod_persist_set_boot(uint32_t boot_counter)
 {
-	if (page_seq_next >= page_seq_reserved) {
-		uint32_t reserve = page_seq_next + PAGE_SEQ_RESERVATION;
+	int rc;
 
-		if (settings_save_one("pod/pageseq", &reserve, sizeof(reserve)) == 0) {
-			page_seq_reserved = reserve;
-		}
-	}
-	return page_seq_next;
+	k_mutex_lock(&lock, K_FOREVER);
+	rc = pod_counters_set_boot(&counters, boot_counter);
+	k_mutex_unlock(&lock);
+	return rc;
 }
 
-uint32_t pod_counters_next_segment_id(void)
+int pod_persist_take_page_seq(void *ctx, uint32_t *page_seq)
 {
-	segment_id++;
-	(void)settings_save_one("pod/segment", &segment_id, sizeof(segment_id));
-	return segment_id;
+	int rc;
+
+	ARG_UNUSED(ctx);
+	k_mutex_lock(&lock, K_FOREVER);
+	rc = pod_counters_take_page_seq(&counters, page_seq);
+	k_mutex_unlock(&lock);
+	return rc;
+}
+
+int pod_persist_next_segment(uint32_t *segment_id)
+{
+	int rc;
+
+	k_mutex_lock(&lock, K_FOREVER);
+	rc = pod_counters_next_segment(&counters, segment_id);
+	k_mutex_unlock(&lock);
+	return rc;
 }

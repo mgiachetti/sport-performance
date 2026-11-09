@@ -131,6 +131,20 @@ struct pod_wake_plan {
 
 struct pod_wake_plan pod_power_wake_plan(const struct pod_power_config *cfg, bool in_vest);
 
+/** Physical levels of the wake pins, read right before System OFF. */
+struct pod_wake_levels {
+	bool hall_high;
+	bool imu_int1_high;
+	bool chg_int_low;
+};
+
+/**
+ * Wake-loop guard (pod-v0.md, "Regla antes de System OFF"): true only when no
+ * armed SENSE source is already at its wake level. Otherwise the nRF would
+ * wake at once and loop; the pod stays in standby and tries again later.
+ */
+bool pod_wake_plan_safe(const struct pod_wake_plan *plan, const struct pod_wake_levels *levels);
+
 /* ---------------------------------------------------------------------- */
 /* BQ25180 (TI SLUSE99C; register map as in Zephyr's charger_bq2518x.c). */
 
@@ -153,6 +167,32 @@ struct pod_reg_update {
 	uint8_t mask;
 	uint8_t value;
 };
+
+/** STAT0[0] VIN_PGOOD_STAT. */
+#define POD_BQ25180_STAT0_VIN_PGOOD (1u << 0)
+/**
+ * The BQ25180 I2C watchdog (IC_CTRL WATCHDOG_SEL, 160 s by default in host
+ * mode) resets ICHG, EN_PUSH and WATCHDOG_15S_ENABLE to their defaults when the
+ * host goes quiet: the firmware talks to it at most this often.
+ */
+#define POD_BQ25180_SERVICE_PERIOD_MS 60000u
+
+struct pod_bq25180_watch {
+	bool have_stat0;
+	uint8_t last_stat0;
+	uint32_t last_service_ms;
+};
+
+/** True when STAT0 has to be read now (never started or ≥ the service period). */
+bool pod_bq25180_service_due(const struct pod_bq25180_watch *w, uint32_t now_ms);
+
+/**
+ * Records a service read (STAT0 and SYS_REG) and tells whether the boot plan
+ * has to be written again: VIN_PGOOD changed (dock in or out) or SYS_REG lost
+ * WATCHDOG_15S_ENABLE (the registers went back to their defaults).
+ */
+bool pod_bq25180_after_read(struct pod_bq25180_watch *w, uint32_t now_ms, uint8_t stat0,
+			    uint8_t sys_reg);
 
 /** ICHG code for a charge current (5–35 mA in 1 mA steps, then 10 mA steps up to 1 A). */
 uint8_t pod_bq25180_ichg_code(uint16_t charge_ma);

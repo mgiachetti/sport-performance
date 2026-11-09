@@ -59,7 +59,11 @@ int pod_aes128_ctr(const uint8_t key[POD_AES_KEY_LEN], const uint8_t iv[POD_AES_
 		psa_cipher_abort(&op);
 	}
 	psa_destroy_key(id);
-	return st == PSA_SUCCESS && n + tail == len ? POD_OK : POD_ERR_CRYPTO;
+	if (st != PSA_SUCCESS || n + tail != len) {
+		memset(out, 0, len);
+		return POD_ERR_CRYPTO;
+	}
+	return POD_OK;
 }
 
 int pod_aes128_cmac(const uint8_t key[POD_AES_KEY_LEN], const uint8_t *msg, size_t len,
@@ -74,7 +78,11 @@ int pod_aes128_cmac(const uint8_t key[POD_AES_KEY_LEN], const uint8_t *msg, size
 	}
 	st = psa_mac_compute(id, PSA_ALG_CMAC, msg, len, mac, POD_AES_BLOCK_LEN, &n);
 	psa_destroy_key(id);
-	return st == PSA_SUCCESS && n == POD_AES_BLOCK_LEN ? POD_OK : POD_ERR_CRYPTO;
+	if (st != PSA_SUCCESS || n != POD_AES_BLOCK_LEN) {
+		memset(mac, 0, POD_AES_BLOCK_LEN);
+		return POD_ERR_CRYPTO;
+	}
+	return POD_OK;
 }
 
 int pod_aes128_ccm_seal(const uint8_t key[POD_AES_KEY_LEN], const uint8_t nonce[POD_CCM_NONCE_LEN],
@@ -92,7 +100,11 @@ int pod_aes128_ccm_seal(const uint8_t key[POD_AES_KEY_LEN], const uint8_t nonce[
 	st = psa_aead_encrypt(id, alg, nonce, POD_CCM_NONCE_LEN, aad, aad_len, pt, pt_len, out,
 			      pt_len + tag_len, &n);
 	psa_destroy_key(id);
-	return st == PSA_SUCCESS && n == pt_len + tag_len ? POD_OK : POD_ERR_CRYPTO;
+	if (st != PSA_SUCCESS || n != pt_len + tag_len) {
+		memset(out, 0, pt_len + tag_len);
+		return POD_ERR_CRYPTO;
+	}
+	return POD_OK;
 }
 
 int pod_aes128_ccm_open(const uint8_t key[POD_AES_KEY_LEN], const uint8_t nonce[POD_CCM_NONCE_LEN],
@@ -113,11 +125,12 @@ int pod_aes128_ccm_open(const uint8_t key[POD_AES_KEY_LEN], const uint8_t nonce[
 	st = psa_aead_decrypt(id, alg, nonce, POD_CCM_NONCE_LEN, aad, aad_len, sealed, sealed_len,
 			      out, sealed_len - tag_len, &n);
 	psa_destroy_key(id);
-	if (st == PSA_ERROR_INVALID_SIGNATURE) {
+	if (st != PSA_SUCCESS) {
+		/* Never hand back unauthenticated plaintext. */
 		memset(out, 0, sealed_len - tag_len);
-		return POD_ERR_AUTH;
+		return st == PSA_ERROR_INVALID_SIGNATURE ? POD_ERR_AUTH : POD_ERR_CRYPTO;
 	}
-	return st == PSA_SUCCESS ? POD_OK : POD_ERR_CRYPTO;
+	return POD_OK;
 }
 
 int pod_hkdf_sha256(const uint8_t *ikm, size_t ikm_len, const uint8_t *info, size_t info_len,
@@ -144,7 +157,11 @@ int pod_hkdf_sha256(const uint8_t *ikm, size_t ikm_len, const uint8_t *info, siz
 		st = psa_key_derivation_output_bytes(&op, out, out_len);
 	}
 	psa_key_derivation_abort(&op);
-	return st == PSA_SUCCESS ? POD_OK : POD_ERR_CRYPTO;
+	if (st != PSA_SUCCESS) {
+		memset(out, 0, out_len);
+		return POD_ERR_CRYPTO;
+	}
+	return POD_OK;
 }
 
 int pod_ct_compare(const uint8_t *a, const uint8_t *b, size_t len)

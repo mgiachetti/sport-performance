@@ -19,6 +19,7 @@ target_sources(app PRIVATE
   ${POD_LIB_DIR}/src/crypto_psa.c
   ${POD_LIB_DIR}/src/crypto_selftest.c
   ${POD_LIB_DIR}/src/radio.c
+  ${POD_LIB_DIR}/src/counters.c
   ${POD_LIB_DIR}/src/log.c
   ${POD_LIB_DIR}/src/gnss.c
   ${POD_LIB_DIR}/src/led.c

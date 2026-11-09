@@ -10,18 +10,33 @@
  *
  * The format code (uplink, beacon, log page) only calls these functions, so the
  * host tests prove the byte layout and the target build proves the PSA calls
- * compile; the PSA path itself is exercised by the self-test at boot (TODO B-904)
- * against the same vectors.
+ * compile; the PSA path itself is exercised by the boot self-test
+ * (crypto_selftest.c) against the same vectors the host tests run.
  */
 #ifndef POD_CRYPTO_H_
 #define POD_CRYPTO_H_
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #define POD_AES_KEY_LEN 16
 #define POD_AES_BLOCK_LEN 16
 #define POD_CCM_NONCE_LEN 13
+
+/**
+ * True for an all-zero key: what the pod holds before the dock provisions it
+ * (ADR 0106). Nothing is sealed with such a key (`POD_ERR_STATE`).
+ */
+static inline bool pod_key_is_zero(const uint8_t *key, size_t len)
+{
+	uint8_t acc = 0;
+
+	for (size_t i = 0; i < len; i++) {
+		acc |= key[i];
+	}
+	return acc == 0;
+}
 
 /** Must be called once before any other function (PSA: `psa_crypto_init`). */
 int pod_crypto_init(void);

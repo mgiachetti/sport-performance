@@ -52,7 +52,8 @@ static uint32_t next_page;
 static uint8_t device_id[POD_DEVICE_ID_LEN];
 /*
  * TODO(B-904): the storage key of the current epoch arrives wrapped from the
- * dock (ADR 0106) and lives in protected storage; zero until provisioning.
+ * dock (ADR 0106) and lives in protected storage. All zero until then, and the
+ * writer refuses an all-zero key: an unprovisioned pod records nothing.
  */
 static uint8_t storage_key[16];
 static uint8_t storage_epoch;
@@ -212,17 +213,25 @@ int pod_log_init(void)
 int pod_log_start_segment(void)
 {
 	struct pod_log_writer_options opt = {
-		.boot_counter = pod_counters_boot(),
-		.segment_id = pod_counters_next_segment_id(),
-		.first_page_seq = pod_counters_next_page_seq(),
+		.boot_counter = pod_persist_boot(),
 		.key_epoch = storage_epoch,
+		.seq_source = pod_persist_take_page_seq,
 	};
 	int rc;
 
+	segment_open = false;
+	if (!pod_persist_ready()) {
+		return -EACCES; /* boot counter not saved: no time epoch, no IV guarantee */
+	}
+	rc = pod_persist_next_segment(&opt.segment_id);
+	if (rc != POD_OK) {
+		return -EIO;
+	}
 	memcpy(opt.device_id, device_id, sizeof(opt.device_id));
+	/* POD_ERR_STATE with the all-zero key of an unprovisioned pod: nothing is recorded. */
 	rc = pod_log_writer_init(&writer, &opt, storage_key, sink, NULL);
 	segment_open = rc == POD_OK;
-	return rc;
+	return rc == POD_OK ? 0 : -EACCES;
 }
 
 int pod_log_append(const struct pod_log_record *record)

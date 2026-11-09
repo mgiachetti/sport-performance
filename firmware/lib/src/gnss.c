@@ -528,7 +528,7 @@ const struct pod_gnss_command pod_lc29h_aa_queries[] = {
 const size_t pod_lc29h_aa_queries_len =
 	sizeof(pod_lc29h_aa_queries) / sizeof(pod_lc29h_aa_queries[0]);
 
-const struct pod_gnss_command pod_lc29h_aa_boot[] = {
+const struct pod_gnss_command pod_lc29h_aa_nvm[] = {
 	/* 2. GNSS off, commands still enabled. */
 	PAIR("PAIR382,1", 0),
 	/* At least 2 s between $PAIR003 and $PAIR002. */
@@ -544,6 +544,10 @@ const struct pod_gnss_command pod_lc29h_aa_boot[] = {
 	PQTM("PQTMCFGPROT,W,1,1,1,5"),  /* UART1: NMEA in, NMEA + RTCM3 out */
 	PAIR("PAIR513", 0),             /* save to NVM */
 	PAIR("PAIR002", 0),             /* GNSS on */
+};
+const size_t pod_lc29h_aa_nvm_len = sizeof(pod_lc29h_aa_nvm) / sizeof(pod_lc29h_aa_nvm[0]);
+
+const struct pod_gnss_command pod_lc29h_aa_runtime[] = {
 	/* 4. Messages, raw, PPS and interference, with the GNSS on. */
 	PAIR("PAIR062,0,0", 0),
 	PAIR("PAIR062,1,0", 0),
@@ -568,7 +572,39 @@ const struct pod_gnss_command pod_lc29h_aa_boot[] = {
 	PAIR("PAIR391,1", 0),
 	PAIR("PAIR074,1", 0),
 };
-const size_t pod_lc29h_aa_boot_len = sizeof(pod_lc29h_aa_boot) / sizeof(pod_lc29h_aa_boot[0]);
+const size_t pod_lc29h_aa_runtime_len =
+	sizeof(pod_lc29h_aa_runtime) / sizeof(pod_lc29h_aa_runtime[0]);
+
+/* Answers as the specification describes them; formats to confirm at the bench. */
+const struct pod_gnss_expected pod_lc29h_aa_expected[] = {
+	{"PAIR051", "PAIR051,100"},
+	{"PAIR105", "PAIR105,1"},
+	{"PAIR067", "PAIR067,1,1,1,1,1,0"},
+	{"PAIR081", "PAIR081,0"},
+	{"PAIR071", "PAIR071,0"},
+	{"PAIR433", "PAIR433,1"},
+	{"PAIR437", "PAIR437,1"},
+	{"PQTMCFGPROT", "PQTMCFGPROT,OK,1,1,00000001,00000005"},
+};
+const size_t pod_lc29h_aa_expected_len =
+	sizeof(pod_lc29h_aa_expected) / sizeof(pod_lc29h_aa_expected[0]);
+
+int pod_lc29h_check_answer(const char *body, size_t len, bool *matches)
+{
+	for (size_t i = 0; i < pod_lc29h_aa_expected_len; i++) {
+		const char *q = pod_lc29h_aa_expected[i].query;
+		size_t n = strlen(q);
+
+		if (len > n && memcmp(body, q, n) == 0 && body[n] == ',') {
+			const char *a = pod_lc29h_aa_expected[i].answer;
+
+			*matches = strlen(a) == len && memcmp(a, body, len) == 0;
+			return (int)i;
+		}
+	}
+	*matches = false;
+	return -1;
+}
 
 const struct pod_gnss_command pod_lc29h_enter_backup[] = {
 	/* Answers $PAIR001,650,0 and then $PAIR650,0; about 100 ms. */

@@ -137,22 +137,54 @@ static void boot_sequence_is_the_documented_one(void)
 {
 	char built[80];
 	uint32_t waited_after_off = 0;
+	size_t total = pod_lc29h_aa_nvm_len + pod_lc29h_aa_runtime_len;
 
-	CHECK_EQ(pod_lc29h_aa_boot_len, COUNT(boot_lines));
-	for (size_t i = 0; i < pod_lc29h_aa_boot_len && i < COUNT(boot_lines); i++) {
-		pod_nmea_build(pod_lc29h_aa_boot[i].body, built, sizeof(built));
+	CHECK_EQ(total, COUNT(boot_lines));
+	for (size_t i = 0; i < total && i < COUNT(boot_lines); i++) {
+		const struct pod_gnss_command *cmd = i < pod_lc29h_aa_nvm_len
+							     ? &pod_lc29h_aa_nvm[i]
+							     : &pod_lc29h_aa_runtime[i - pod_lc29h_aa_nvm_len];
+
+		pod_nmea_build(cmd->body, built, sizeof(built));
 		test_current = boot_lines[i];
 		CHECK(strncmp(built, boot_lines[i], strlen(boot_lines[i])) == 0);
-		CHECK(pod_lc29h_aa_boot[i].timeout_ms > 0);
-		if (strcmp(pod_lc29h_aa_boot[i].body, "PAIR003") == 0) {
-			waited_after_off = pod_lc29h_aa_boot[i].delay_after_ms;
+		CHECK(cmd->timeout_ms > 0);
+		if (strcmp(cmd->body, "PAIR003") == 0) {
+			waited_after_off = cmd->delay_after_ms;
 		}
 	}
 	test_current = "boot_sequence_is_the_documented_one";
-	/* At least 2 s between $PAIR003 and $PAIR002. */
+	/* At least 2 s between $PAIR003 and $PAIR002; the NVM save is only in the NVM part. */
 	CHECK(waited_after_off >= 2000);
+	CHECK(strcmp(pod_lc29h_aa_nvm[pod_lc29h_aa_nvm_len - 2].body, "PAIR513") == 0);
+	for (size_t i = 0; i < pod_lc29h_aa_runtime_len; i++) {
+		CHECK(strcmp(pod_lc29h_aa_runtime[i].body, "PAIR513") != 0);
+	}
 	CHECK_EQ(pod_lc29h_enter_backup_len, 1);
 	CHECK(strcmp(pod_lc29h_enter_backup[0].body, "PAIR650,0") == 0);
+}
+
+static void config_answers(void)
+{
+	bool matches;
+
+	CHECK_EQ(pod_lc29h_check_answer("PAIR051,100", 11, &matches), 0);
+	CHECK(matches);
+	CHECK_EQ(pod_lc29h_check_answer("PAIR051,1000", 12, &matches), 0);
+	CHECK(!matches); /* module at 1 Hz: the NVM part runs */
+	CHECK(pod_lc29h_check_answer("PAIR001,051,0", 13, &matches) < 0);
+	/* Every configuration query of step 1 has an expected answer. */
+	for (size_t i = 0; i < pod_lc29h_aa_expected_len; i++) {
+		bool found = false;
+
+		for (size_t q = 0; q < pod_lc29h_aa_queries_len; q++) {
+			size_t n = strlen(pod_lc29h_aa_expected[i].query);
+
+			found = found || strncmp(pod_lc29h_aa_queries[q].body,
+						 pod_lc29h_aa_expected[i].query, n) == 0;
+		}
+		CHECK(found);
+	}
 }
 
 static void backup_exit_keeps_wakeup_high_10ms(void)
@@ -313,6 +345,7 @@ void run_gnss_tests(void)
 {
 	RUN(checksums_match_the_document);
 	RUN(boot_sequence_is_the_documented_one);
+	RUN(config_answers);
 	RUN(backup_exit_keeps_wakeup_high_10ms);
 	RUN(verify_and_responses);
 	RUN(pvt_parse);

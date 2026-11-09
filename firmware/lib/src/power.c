@@ -182,6 +182,20 @@ struct pod_wake_plan pod_power_wake_plan(const struct pod_power_config *cfg, boo
 	return p;
 }
 
+bool pod_wake_plan_safe(const struct pod_wake_plan *plan, const struct pod_wake_levels *levels)
+{
+	if (plan->hall_sense_high == levels->hall_high) {
+		return false; /* the Hall SENSE would fire immediately */
+	}
+	if (plan->imu_motion && levels->imu_int1_high) {
+		return false; /* motion interrupt still latched: read and clear it first */
+	}
+	if (plan->charger_int && levels->chg_int_low) {
+		return false;
+	}
+	return true;
+}
+
 uint8_t pod_bq25180_ichg_code(uint16_t charge_ma)
 {
 	if (charge_ma < 5) {
@@ -219,6 +233,23 @@ struct pod_reg_update pod_bq25180_ship_update(void)
 				   POD_BQ25180_SHIP_RST_SHUTDOWN_ADAPTER};
 
 	return u;
+}
+
+bool pod_bq25180_service_due(const struct pod_bq25180_watch *w, uint32_t now_ms)
+{
+	return !w->have_stat0 || now_ms - w->last_service_ms >= POD_BQ25180_SERVICE_PERIOD_MS;
+}
+
+bool pod_bq25180_after_read(struct pod_bq25180_watch *w, uint32_t now_ms, uint8_t stat0,
+			    uint8_t sys_reg)
+{
+	bool reapply = (sys_reg & POD_BQ25180_SYS_REG_WATCHDOG_15S) == 0 ||
+		       (w->have_stat0 && ((w->last_stat0 ^ stat0) & POD_BQ25180_STAT0_VIN_PGOOD));
+
+	w->have_stat0 = true;
+	w->last_stat0 = stat0;
+	w->last_service_ms = now_ms;
+	return reapply;
 }
 
 uint16_t pod_max17048_vcell_mv(uint16_t reg)

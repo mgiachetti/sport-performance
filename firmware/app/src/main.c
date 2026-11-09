@@ -10,6 +10,7 @@
  * The loop feeds the inputs (VBUS, Hall, motion, battery) to the power state
  * machine of firmware/lib/src/power.c and executes its actions.
  */
+#include <zephyr/dfu/mcuboot.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
@@ -74,13 +75,15 @@ static enum pod_led_state led_for(enum pod_power_state state, bool vbus, uint8_t
 	}
 }
 
-static void execute(const struct pod_power_result *r, bool in_vest)
+static void execute(struct pod_power_machine *machine, const struct pod_power_inputs *in,
+		    const struct pod_power_result *r)
 {
 	if (r->actions & POD_PWR_ACT_CLOSE_SESSION) {
 		(void)pod_log_close_segment();
 	}
 	if (r->actions & POD_PWR_ACT_GNSS_BACKUP) {
 		(void)pod_gnss_power(false);
+		(void)pod_time_base_capture(false);
 	}
 	if (r->actions & POD_PWR_ACT_LORA_OFF) {
 		(void)pod_lora_power(false);
@@ -89,6 +92,7 @@ static void execute(const struct pod_power_result *r, bool in_vest)
 		(void)pod_sensors_low_power(true);
 	}
 	if (r->actions & POD_PWR_ACT_GNSS_ON) {
+		(void)pod_time_base_capture(true);
 		(void)pod_gnss_power(true);
 	}
 	if (r->actions & POD_PWR_ACT_LORA_ON) {
@@ -111,8 +115,11 @@ static void execute(const struct pod_power_result *r, bool in_vest)
 
 		/* TODO(B-904): the club configuration replaces the placeholder defaults. */
 		pod_power_config_defaults(&cfg);
-		plan = pod_power_wake_plan(&cfg, in_vest);
-		pod_power_system_off(&plan);
+		plan = pod_power_wake_plan(&cfg, in->in_vest);
+		if (pod_power_system_off(&plan) != 0) {
+			/* A wake source is active: stay in standby and let the machine retry. */
+			pod_power_init(machine, &cfg, in);
+		}
 	}
 }
 
@@ -149,8 +156,15 @@ int main(void)
 	if (rc != 0) {
 		fail_forever(rc > 0 ? rc : POD_SELFTEST_CCM);
 	}
-	if (pod_counters_init() != 0) {
-		LOG_ERR("persistent counters: the pod will not transmit");
+	/*
+	 * The image passed its self-test: confirm it, so MCUboot keeps it after a
+	 * test swap instead of reverting at the next reset.
+	 */
+	if (!boot_is_img_confirmed() && boot_write_img_confirmed() != 0) {
+		LOG_ERR("image not confirmed: MCUboot will revert it");
+	}
+	if (pod_persist_init() != 0) {
+		LOG_ERR("persistent counters: the pod will neither transmit nor record");
 	}
 	if (pod_power_hw_init() != 0) {
 		LOG_WRN("charger not configured");
@@ -181,7 +195,8 @@ int main(void)
 
 		in = read_inputs();
 		r = pod_power_step(&machine, &in);
-		execute(&r, in.in_vest);
+		execute(&machine, &in, &r);
+		pod_power_service(in.now_ms);
 		if (pod_time_base_poll_pps(&anchor)) {
 			/* TODO(B-904): pair with the GNSS second of the epoch → `time_anchor` record. */
 			LOG_DBG("PPS at tick %llu + %u ns", (unsigned long long)anchor.tick,

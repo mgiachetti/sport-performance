@@ -33,21 +33,6 @@ config POD_MAIN_LOOP_MS
 	int "Period of the power / LED loop"
 	default 100
 
-config POD_PPS_GPIOTE_CHANNEL
-	int "GPIOTE channel of the PPS capture"
-	default 7
-	help
-	  TODO(B-904): allocate it from nrfx_gpiote once the BLE stack is in (the
-	  GPIO driver allocates channels dynamically too).
-
-config POD_PPS_PPI_CHANNEL_PPS
-	int "PPI channel PPS edge → TIMER capture"
-	default 8
-
-config POD_PPS_PPI_CHANNEL_TICK
-	int "PPI channel RTC TICK → TIMER capture"
-	default 9
-
 config POD_LORA
 	bool "LoRa link (E22-900M22S)"
 	default y

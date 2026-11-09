@@ -125,26 +125,25 @@ static void segment_vectors(void)
 static void recovery_page(void)
 {
 	uint8_t device[8], key[16], page[POD_LOG_PAGE_SIZE];
-	uint32_t crc;
+	const struct fx_storage_key *k = storage_key(FX_RECOVERY_KEY_EPOCH);
 
 	hex_decode(FX_LOG_DEVICE_ID_HEX, device, sizeof(device));
-	hex_decode(fx_storage_keys[0].key_hex, key, sizeof(key));
-	CHECK_EQ(pod_log_seal_recovery_page(device, 70000, 7, 1234, 9000, fx_storage_keys[0].epoch,
-					    key, page),
+	hex_decode(k->key_hex, key, sizeof(key));
+	CHECK_EQ(pod_log_seal_recovery_page(device, FX_RECOVERY_BOOT_COUNTER, FX_RECOVERY_SEGMENT_ID,
+					    FX_RECOVERY_STREAM_OFFSET, FX_RECOVERY_PAGE_SEQ,
+					    FX_RECOVERY_KEY_EPOCH, key, page),
 		 POD_OK);
-	CHECK(memcmp(page, "SPLG", 4) == 0);
+	/* damaged.recovery_close of log-vectors.json, byte for byte. */
+	CHECK_HEX(page, sizeof(page), FX_RECOVERY_PAGE_HEX);
 	CHECK_EQ(page[6], POD_PAGE_FLAG_SEGMENT_END | POD_PAGE_FLAG_RECOVERED);
-	CHECK_EQ(pod_get_u16(&page[32]), 0);
-	CHECK_EQ(pod_get_u16(&page[34]), POD_LOG_NO_RECORD_START);
-	crc = pod_crc32(page, POD_LOG_PAGE_CRC_OFFSET);
-	CHECK_EQ(pod_get_u32(&page[POD_LOG_PAGE_CRC_OFFSET]), crc);
+	CHECK_EQ(pod_get_u32(&page[POD_LOG_PAGE_CRC_OFFSET]), pod_crc32(page, POD_LOG_PAGE_CRC_OFFSET));
 }
 
 static void pages_sealed_by(void)
 {
 	static struct pod_log_writer w;
 	struct pod_log_writer_options opt = {.key_epoch = 2};
-	uint8_t key[16] = {0};
+	uint8_t key[16] = {1};
 	uint8_t record[POD_RECORD_HEADER_LEN + 100] = {POD_REC_EVENT};
 
 	CHECK_EQ(pod_log_writer_init(&w, &opt, key, NULL, NULL), POD_OK);

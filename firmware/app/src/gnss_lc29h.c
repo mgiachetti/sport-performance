@@ -37,9 +37,19 @@ static struct pod_gnss_pvt latest;
 static struct pod_gnss_pvt building;
 static char version[65];
 
-/* What the command runner is waiting for. */
+/*
+ * What the command runner (the GNSS worker thread, the only one that writes to
+ * the UART) is waiting for; read by the RX thread under `wait_lock`.
+ */
+static struct k_spinlock wait_lock;
 static const struct pod_gnss_command *waiting;
 static int waiting_result;
+/* Configuration answers of step 1 that match `pod_lc29h_aa_expected` (bitmask). */
+static uint32_t answers_matching;
+
+/* Power wanted by the main loop; the worker applies it. */
+static atomic_t want_on;
+static K_SEM_DEFINE(request_sem, 0, 1);
 
 static void uart_isr(const struct device *dev, void *user_data)
 {
@@ -65,16 +75,12 @@ static bool starts_with(const char *body, size_t len, const char *name)
 	return len >= n && memcmp(body, name, n) == 0 && (len == n || body[n] == ',');
 }
 
-static void handle_ack(const char *body, size_t len)
+static void handle_ack_locked(const struct pod_gnss_command *cmd, const char *body, size_t len)
 {
-	const struct pod_gnss_command *cmd = waiting;
 	char name[32];
 	const char *comma;
 	size_t name_len;
 
-	if (cmd == NULL) {
-		return;
-	}
 	comma = strchr(cmd->body, ',');
 	name_len = comma ? (size_t)(comma - cmd->body) : strlen(cmd->body);
 	if (name_len >= sizeof(name)) {
@@ -106,6 +112,12 @@ static void handle_ack(const char *body, size_t len)
 	}
 	case POD_GNSS_EXPECT_RESPONSE:
 		if (starts_with(body, len, name)) {
+			bool matches;
+			int idx = pod_lc29h_check_answer(body, len, &matches);
+
+			if (idx >= 0 && matches) {
+				answers_matching |= BIT(idx);
+			}
 			if (strcmp(name, "PQTMVERNO") == 0) {
 				size_t n = MIN(len - name_len - 1, sizeof(version) - 1);
 
@@ -119,6 +131,24 @@ static void handle_ack(const char *body, size_t len)
 	default:
 		break;
 	}
+}
+
+static void handle_ack(const char *body, size_t len)
+{
+	k_spinlock_key_t key = k_spin_lock(&wait_lock);
+
+	if (waiting != NULL) {
+		handle_ack_locked(waiting, body, len);
+	}
+	k_spin_unlock(&wait_lock, key);
+}
+
+static void set_waiting(const struct pod_gnss_command *cmd)
+{
+	k_spinlock_key_t key = k_spin_lock(&wait_lock);
+
+	waiting = cmd;
+	k_spin_unlock(&wait_lock, key);
 }
 
 static void on_nmea(void *ctx, const char *line, size_t len)
@@ -168,20 +198,20 @@ static int send_command(const struct pod_gnss_command *cmd)
 	}
 	for (int attempt = 0; attempt < 3; attempt++) {
 		k_sem_reset(&ack_sem);
-		waiting = cmd;
+		set_waiting(cmd);
 		for (int i = 0; i < n; i++) {
 			uart_poll_out(uart, line[i]);
 		}
 		if (cmd->expect == POD_GNSS_EXPECT_NONE) {
-			waiting = NULL;
+			set_waiting(NULL);
 			break;
 		}
 		if (k_sem_take(&ack_sem, K_MSEC(cmd->timeout_ms)) != 0) {
-			waiting = NULL;
+			set_waiting(NULL);
 			LOG_WRN("%s: no answer", cmd->body);
 			return -ETIMEDOUT;
 		}
-		waiting = NULL;
+		set_waiting(NULL);
 		if (cmd->expect == POD_GNSS_EXPECT_PAIR_ACK && waiting_result == POD_PAIR_BUSY) {
 			continue; /* retry on "busy" */
 		}
@@ -257,48 +287,68 @@ static void pin_actions(const struct pod_gnss_pin_action *actions, size_t n)
 	}
 }
 
-int pod_gnss_power(bool on)
-{
-	if (en.port == NULL) {
-		return -ENODEV;
-	}
-	if (on) {
-		pin_actions(pod_lc29h_backup_exit_actions, pod_lc29h_backup_exit_actions_len);
-	} else {
-		pin_actions(pod_lc29h_backup_enter_actions, pod_lc29h_backup_enter_actions_len);
-	}
-	return 0;
-}
-
 /*
- * The boot sequence takes seconds (2 s between $PAIR003 and $PAIR002, up to
- * 500 ms per command): it runs in its own thread so the main loop keeps
- * feeding the watchdog.
+ * GNSS worker: the only thread that drives the module (pins and commands), so
+ * the main loop never blocks on it and nothing is sent concurrently. It powers
+ * the module only when asked (the power machine asks in ACTIVE, never on the
+ * dock), and on every power-on sends the queries, the NVM part only if the
+ * configuration differs, and the runtime part.
  */
-static void boot_thread(void *a, void *b, void *c)
+static void configure(void)
 {
 	int rc;
 
-	ARG_UNUSED(a);
-	ARG_UNUSED(b);
-	ARG_UNUSED(c);
-	(void)pod_gnss_power(true);
+	answers_matching = 0;
 	/*
 	 * TODO(B-904): if $PQTMVERNO does not answer at CONFIG_POD_GNSS_BAUD, reopen
 	 * at CONFIG_POD_GNSS_FALLBACK_BAUD, send $PAIR864,0,0,921600, save and reboot
 	 * the module (lc29h-protocolo.md, step 0).
 	 */
-	rc = run_sequence(pod_lc29h_aa_queries, pod_lc29h_aa_queries_len);
-	if (rc != 0) {
-		LOG_WRN("GNSS queries incomplete");
+	(void)run_sequence(pod_lc29h_aa_queries, pod_lc29h_aa_queries_len);
+	if (answers_matching != BIT_MASK(pod_lc29h_aa_expected_len)) {
+		/* Something differs (or did not answer): write and save the NVM once. */
+		LOG_INF("GNSS configuration differs (0x%x): writing the NVM", answers_matching);
+		(void)run_sequence(pod_lc29h_aa_nvm, pod_lc29h_aa_nvm_len);
 	}
-	/* TODO(B-904): compare the answers and skip the NVM writes when nothing changed. */
-	rc = run_sequence(pod_lc29h_aa_boot, pod_lc29h_aa_boot_len);
-	LOG_INF("GNSS %s, boot sequence %s", version[0] ? version : "?",
+	rc = run_sequence(pod_lc29h_aa_runtime, pod_lc29h_aa_runtime_len);
+	LOG_INF("GNSS %s, configuration %s", version[0] ? version : "?",
 		rc == 0 ? "ok" : "with errors");
 }
 
-K_THREAD_DEFINE(gnss_boot, 2048, boot_thread, NULL, NULL, NULL, 6, 0, SYS_FOREVER_MS);
+static void worker(void *a, void *b, void *c)
+{
+	bool powered = false;
+
+	ARG_UNUSED(a);
+	ARG_UNUSED(b);
+	ARG_UNUSED(c);
+	for (;;) {
+		bool on;
+
+		k_sem_take(&request_sem, K_FOREVER);
+		on = atomic_get(&want_on) != 0;
+		if (on && !powered) {
+			pin_actions(pod_lc29h_backup_exit_actions, pod_lc29h_backup_exit_actions_len);
+			powered = true;
+			configure();
+		} else if (!on && powered) {
+			pin_actions(pod_lc29h_backup_enter_actions, pod_lc29h_backup_enter_actions_len);
+			powered = false;
+		}
+	}
+}
+
+K_THREAD_DEFINE(gnss_worker, 2048, worker, NULL, NULL, NULL, 6, 0, SYS_FOREVER_MS);
+
+int pod_gnss_power(bool on)
+{
+	if (en.port == NULL) {
+		return -ENODEV;
+	}
+	atomic_set(&want_on, on ? 1 : 0);
+	k_sem_give(&request_sem);
+	return 0;
+}
 
 int pod_gnss_init(void)
 {
@@ -307,6 +357,7 @@ int pod_gnss_init(void)
 	}
 	pod_gnss_stream_init(&stream, on_nmea, on_rtcm, NULL);
 	if (en.port != NULL) {
+		/* Off until the power machine asks (100 kΩ pull-down keeps it off in reset). */
 		(void)gpio_pin_configure_dt(&en, GPIO_OUTPUT_INACTIVE);
 	}
 	if (reset.port != NULL) {
@@ -317,7 +368,7 @@ int pod_gnss_init(void)
 	}
 	uart_irq_callback_user_data_set(uart, uart_isr, NULL);
 	uart_irq_rx_enable(uart);
-	k_thread_start(gnss_boot);
+	k_thread_start(gnss_worker);
 	return 0;
 }
 

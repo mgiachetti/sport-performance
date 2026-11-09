@@ -135,6 +135,9 @@ int pod_uplink_seal(const uint8_t link_key[16], const struct pod_uplink_counters
 	int pt_len = 0;
 	int rc;
 
+	if (pod_key_is_zero(link_key, 16)) {
+		return POD_ERR_STATE; /* not provisioned: never transmit */
+	}
 	if (summary == NULL) {
 		type = POD_MSG_SLOT_REQUEST;
 	} else {

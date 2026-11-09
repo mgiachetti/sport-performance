@@ -28,6 +28,7 @@ add_custom_command(
 add_executable(pod_host_tests
   main.c
   test_crypto.c
+  test_counters.c
   test_radio.c
   test_log.c
   test_gnss.c
@@ -38,6 +39,7 @@ add_executable(pod_host_tests
   "${FIRMWARE_DIR}/lib/src/crypto_soft.c"
   "${FIRMWARE_DIR}/lib/src/crypto_selftest.c"
   "${FIRMWARE_DIR}/lib/src/radio.c"
+  "${FIRMWARE_DIR}/lib/src/counters.c"
   "${FIRMWARE_DIR}/lib/src/log.c"
   "${FIRMWARE_DIR}/lib/src/gnss.c"
   "${FIRMWARE_DIR}/lib/src/led.c"

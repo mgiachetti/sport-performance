@@ -456,6 +456,18 @@ def main():
         emit_pages(e, f"{prefix}_pages", case["pages"])
         e.out()
 
+    # Recovery close the pod writes at the next boot (damaged.recovery_close).
+    case = next(d for d in log["damaged"] if d["name"] == "recovery_close")
+    page = next(p for p in case["pages"] if "pageHex" in p and bytes.fromhex(p["pageHex"])[6] & 0x08)
+    raw = bytes.fromhex(page["pageHex"])
+    e.out(f"#define FX_RECOVERY_KEY_EPOCH {raw[5]}")
+    e.out(f"#define FX_RECOVERY_BOOT_COUNTER {int.from_bytes(raw[16:20], 'little')}u")
+    e.out(f"#define FX_RECOVERY_SEGMENT_ID {int.from_bytes(raw[20:24], 'little')}u")
+    e.out(f"#define FX_RECOVERY_PAGE_SEQ {int.from_bytes(raw[24:28], 'little')}u")
+    e.out(f"#define FX_RECOVERY_STREAM_OFFSET {int.from_bytes(raw[28:32], 'little')}u")
+    e.out(f"#define FX_RECOVERY_PAGE_HEX {cstr(page['pageHex'])}")
+    e.out()
+
     e.out("#endif /* POD_FIXTURES_V1_H_ */")
     Path(sys.argv[2]).write_text("\n".join(e.lines) + "\n")
 

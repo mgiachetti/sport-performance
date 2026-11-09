@@ -308,12 +308,22 @@ int pod_log_page_seal(const struct pod_log_page_header *h, const uint8_t *payloa
 /** Receives every sealed page, in order; the caller programs it into the NAND. */
 typedef int (*pod_log_page_sink_t)(void *ctx, const uint8_t page[POD_LOG_PAGE_SIZE]);
 
+/**
+ * Hands out the page sequence of the next sealed page (pod_counters_take_page_seq
+ * on the pod). An error stops the seal: the page stays buffered, nothing is written.
+ */
+typedef int (*pod_log_seq_source_t)(void *ctx, uint32_t *page_seq);
+
 struct pod_log_writer_options {
 	uint8_t device_id[POD_DEVICE_ID_LEN];
 	uint32_t boot_counter;
 	uint32_t segment_id;
+	/** Used only without `seq_source` (reference encoder, fixtures). */
 	uint32_t first_page_seq;
 	uint8_t key_epoch;
+	/** Source of page sequences shared by every segment of the pod (never reused). */
+	pod_log_seq_source_t seq_source;
+	void *seq_ctx;
 };
 
 struct pod_log_writer {
@@ -333,6 +343,7 @@ struct pod_log_writer {
 	uint8_t scratch[POD_LOG_MAX_RECORD_LEN];
 };
 
+/** POD_ERR_STATE with an all-zero (unprovisioned) storage key. */
 int pod_log_writer_init(struct pod_log_writer *w, const struct pod_log_writer_options *opt,
 			const uint8_t storage_key[16], pod_log_page_sink_t sink, void *sink_ctx);
 

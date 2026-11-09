@@ -8,19 +8,22 @@
  *   captures TIMER2 into CC[0] (GPIOTE → PPI): no CPU on the edge. The main
  *   loop polls CC[0]; the arithmetic is firmware/lib/src/time_base.c.
  *
- * TODO(B-904): keep the HFXO on while capturing (onoff request of the clock
- * control), allocate the GPIOTE and PPI channels from nrfx instead of fixed
- * numbers once the BLE stack is in, and measure the cost of the TICK event
- * routing on the bench.
+ * The GPIOTE channel and the two PPI channels come from the nrfx allocators
+ * (shared with the GPIO driver and the BLE controller), and the HFXO is
+ * requested while the GNSS is on (pod_time_base_capture): the 16 MHz TIMER is
+ * only as good as its clock. TODO(B-904): measure the current of the TICK event
+ * routing and the HFXO on the bench.
  */
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/util.h>
 
-#include <hal/nrf_gpiote.h>
-#include <hal/nrf_ppi.h>
+#include <zephyr/drivers/clock_control/nrf_clock_control.h>
+
+#include <gpiote_nrfx.h>
 #include <hal/nrf_rtc.h>
+#include <helpers/nrfx_gppi.h>
 #include <hal/nrf_timer.h>
 #include <soc.h>
 
@@ -33,9 +36,10 @@ LOG_MODULE_REGISTER(pod_time, CONFIG_POD_LOG_LEVEL);
 
 #define TICK_RTC NRF_RTC2
 #define CAPTURE_TIMER NRF_TIMER2
-#define GPIOTE_CH CONFIG_POD_PPS_GPIOTE_CHANNEL
-#define PPI_PPS ((nrf_ppi_channel_t)CONFIG_POD_PPS_PPI_CHANNEL_PPS)
-#define PPI_TICK ((nrf_ppi_channel_t)CONFIG_POD_PPS_PPI_CHANNEL_TICK)
+#define GPIOTE_INST (&GPIOTE_NRFX_INST_BY_NODE(DT_NODELABEL(gpiote)))
+
+static struct onoff_client hfxo_client;
+static bool hfxo_requested;
 
 static struct k_spinlock lock;
 static uint64_t last_tick48;
@@ -56,22 +60,68 @@ int pod_time_base_init(void)
 	nrf_timer_task_trigger(CAPTURE_TIMER, NRF_TIMER_TASK_CLEAR);
 	nrf_timer_task_trigger(CAPTURE_TIMER, NRF_TIMER_TASK_START);
 
-	/* PPS rising edge → GPIOTE IN event (the translator keeps the polarity: high pulse). */
-	nrf_gpiote_event_configure(NRF_GPIOTE, GPIOTE_CH, PPS_PSEL, NRF_GPIOTE_POLARITY_LOTOHI);
-	nrf_gpiote_event_enable(NRF_GPIOTE, GPIOTE_CH);
+	/* PPS rising edge → GPIOTE IN event (no interrupt), channel from the allocator. */
+	{
+		uint8_t ch;
+		nrf_gpio_pin_pull_t pull = NRF_GPIO_PIN_PULLUP;
+		nrfx_gpiote_trigger_config_t trigger = {
+			.trigger = NRFX_GPIOTE_TRIGGER_LOTOHI,
+			.p_in_channel = &ch,
+		};
+		nrfx_gpiote_input_pin_config_t input = {
+			.p_pull_config = &pull,
+			.p_trigger_config = &trigger,
+			.p_handler_config = NULL,
+		};
+		nrfx_gppi_handle_t pps_conn, tick_conn;
+		int rc = nrfx_gpiote_channel_alloc(GPIOTE_INST, &ch);
 
-	nrf_ppi_channel_endpoint_setup(
-		NRF_PPI, PPI_PPS,
-		nrf_gpiote_event_address_get(NRF_GPIOTE, nrf_gpiote_in_event_get(GPIOTE_CH)),
-		nrf_timer_task_address_get(CAPTURE_TIMER, NRF_TIMER_TASK_CAPTURE0));
-	nrf_ppi_channel_endpoint_setup(
-		NRF_PPI, PPI_TICK, nrf_rtc_event_address_get(TICK_RTC, NRF_RTC_EVENT_TICK),
-		nrf_timer_task_address_get(CAPTURE_TIMER, NRF_TIMER_TASK_CAPTURE1));
-	nrf_ppi_channel_enable(NRF_PPI, PPI_PPS);
-	nrf_ppi_channel_enable(NRF_PPI, PPI_TICK);
+		if (rc < 0) {
+			LOG_ERR("no GPIOTE channel for the PPS");
+			return rc;
+		}
+		rc = nrfx_gpiote_input_configure(GPIOTE_INST, PPS_PSEL, &input);
+		if (rc < 0) {
+			return rc;
+		}
+		nrfx_gpiote_trigger_enable(GPIOTE_INST, PPS_PSEL, false);
+
+		rc = nrfx_gppi_conn_alloc(
+			nrfx_gpiote_in_event_address_get(GPIOTE_INST, PPS_PSEL),
+			nrf_timer_task_address_get(CAPTURE_TIMER, NRF_TIMER_TASK_CAPTURE0), &pps_conn);
+		if (rc < 0) {
+			LOG_ERR("no PPI channel for the PPS");
+			return rc;
+		}
+		rc = nrfx_gppi_conn_alloc(
+			nrf_rtc_event_address_get(TICK_RTC, NRF_RTC_EVENT_TICK),
+			nrf_timer_task_address_get(CAPTURE_TIMER, NRF_TIMER_TASK_CAPTURE1), &tick_conn);
+		if (rc < 0) {
+			LOG_ERR("no PPI channel for the RTC tick");
+			return rc;
+		}
+		nrfx_gppi_conn_enable(pps_conn);
+		nrfx_gppi_conn_enable(tick_conn);
+	}
 
 	last_pps_capture = nrf_timer_cc_get(CAPTURE_TIMER, NRF_TIMER_CC_CHANNEL0);
 	return 0;
+}
+
+int pod_time_base_capture(bool on)
+{
+	struct onoff_manager *mgr = z_nrf_clock_control_get_onoff(CLOCK_CONTROL_NRF_SUBSYS_HF);
+	int rc = 0;
+
+	if (on && !hfxo_requested) {
+		sys_notify_init_spinwait(&hfxo_client.notify);
+		rc = onoff_request(mgr, &hfxo_client);
+		hfxo_requested = rc >= 0;
+	} else if (!on && hfxo_requested) {
+		rc = onoff_release(mgr);
+		hfxo_requested = false;
+	}
+	return rc < 0 ? rc : 0;
 }
 
 uint64_t pod_tick_now(void)

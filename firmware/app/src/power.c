@@ -42,15 +42,14 @@ static const struct gpio_dt_spec imu_int1 = GPIO_DT_SPEC_GET(DT_NODELABEL(imu), 
 static const struct gpio_dt_spec imu_int1 = {0};
 #endif
 
-int pod_power_hw_init(void)
-{
 #if HAVE_CHARGER
+static struct pod_bq25180_watch watch;
+
+static int apply_plan(void)
+{
 	struct pod_reg_update plan[4];
 	size_t n = pod_bq25180_boot_plan(CONFIG_POD_CHARGE_CURRENT_MA, plan, ARRAY_SIZE(plan));
 
-	if (!i2c_is_ready_dt(&charger)) {
-		return -ENODEV;
-	}
 	for (size_t i = 0; i < n; i++) {
 		int rc = i2c_reg_update_byte_dt(&charger, plan[i].reg, plan[i].mask, plan[i].value);
 
@@ -59,16 +58,55 @@ int pod_power_hw_init(void)
 			return rc;
 		}
 	}
-	/*
-	 * TODO(B-904): talk to the BQ25180 within 15 s of every VIN insertion (its
-	 * watchdog resets the pod otherwise) and service the 160 s host-mode
-	 * watchdog of IC_CTRL from the main loop.
-	 */
+	return 0;
+}
 #endif
+
+int pod_power_hw_init(void)
+{
 	if (chg_int.port != NULL) {
 		(void)gpio_pin_configure_dt(&chg_int, GPIO_INPUT);
 	}
+#if HAVE_CHARGER
+	if (!i2c_is_ready_dt(&charger)) {
+		return -ENODEV;
+	}
+	return apply_plan();
+#else
 	return 0;
+#endif
+}
+
+void pod_power_service(uint32_t now_ms)
+{
+#if HAVE_CHARGER
+	uint8_t stat0, sys_reg;
+
+	/*
+	 * Every I2C transaction restarts the BQ25180 watchdogs: the 160 s host-mode
+	 * one (that would reset ICHG, EN_PUSH and WATCHDOG_15S_ENABLE) and the 15 s
+	 * one after each VIN insertion.
+	 */
+	static bool last_vbus;
+	bool vbus = pod_power_vbus();
+
+	/* A dock insertion is serviced at once: the 15 s watchdog counts from VIN. */
+	if (vbus == last_vbus && !pod_bq25180_service_due(&watch, now_ms)) {
+		return;
+	}
+	last_vbus = vbus;
+	if (i2c_reg_read_byte_dt(&charger, POD_BQ25180_REG_STAT0, &stat0) != 0 ||
+	    i2c_reg_read_byte_dt(&charger, POD_BQ25180_REG_SYS_REG, &sys_reg) != 0) {
+		LOG_WRN("BQ25180 not answering");
+		return;
+	}
+	if (pod_bq25180_after_read(&watch, now_ms, stat0, sys_reg)) {
+		LOG_INF("BQ25180 plan re-applied (STAT0 0x%02x)", stat0);
+		(void)apply_plan();
+	}
+#else
+	ARG_UNUSED(now_ms);
+#endif
 }
 
 bool pod_power_vbus(void)
@@ -112,17 +150,28 @@ uint16_t pod_power_vsys_mv(void)
 							       : POD_LED_VREF_MV;
 }
 
-void pod_power_system_off(const struct pod_wake_plan *plan)
+int pod_power_system_off(const struct pod_wake_plan *plan)
 {
+	struct pod_wake_levels levels = {
+		.hall_high = gpio_pin_get_raw(hall.port, hall.pin) == 1,
+		.imu_int1_high = imu_int1.port != NULL && gpio_pin_get_raw(imu_int1.port,
+									   imu_int1.pin) == 1,
+		.chg_int_low = chg_int.port != NULL && gpio_pin_get_raw(chg_int.port, chg_int.pin) == 0,
+	};
+
 	/*
-	 * Rule before System OFF (pod-v0.md): read and clear every SENSE source and
-	 * confirm none is active, or the nRF wakes at once in a loop. Level SENSE
-	 * on the nRF52840: the GPIO driver arms SENSE for level interrupts.
+	 * Rule before System OFF (pod-v0.md): no SENSE source may already be at its
+	 * wake level, or the nRF wakes at once in a loop. TODO(B-904): read and
+	 * clear the latched LSM6DSV320X wake-up first.
 	 */
+	if (!pod_wake_plan_safe(plan, &levels)) {
+		LOG_WRN("wake source active: staying in standby");
+		return -EBUSY;
+	}
+	/* Level SENSE on the nRF52840: the GPIO driver arms SENSE for level interrupts. */
 	(void)gpio_pin_interrupt_configure_dt(&hall, plan->hall_sense_high ? GPIO_INT_LEVEL_INACTIVE
 									   : GPIO_INT_LEVEL_ACTIVE);
 	if (plan->imu_motion && imu_int1.port != NULL) {
-		/* TODO(B-904): arm the LSM6DSV320X wake-up (latched) and clear it first. */
 		(void)gpio_pin_interrupt_configure_dt(&imu_int1, GPIO_INT_LEVEL_ACTIVE);
 	}
 	if (plan->charger_int && chg_int.port != NULL) {
@@ -130,6 +179,7 @@ void pod_power_system_off(const struct pod_wake_plan *plan)
 	}
 	LOG_INF("System OFF");
 	sys_poweroff();
+	return 0;
 }
 
 int pod_power_ship_mode(void)

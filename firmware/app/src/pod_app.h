@@ -17,15 +17,16 @@
 #include "pod/radio.h"
 #include "pod/time_base.h"
 
-/* boot_counter.c: persistent counters in NVS (ADR 0106). */
-int pod_counters_init(void);
-/** Boot counter of this boot (incremented and saved before the first TX). */
-uint32_t pod_counters_boot(void);
+/* boot_counter.c: persistent counters in NVS (rules in firmware/lib/src/counters.c). */
+int pod_persist_init(void);
+/** False until the boot counter is saved: nothing is transmitted nor recorded. */
+bool pod_persist_ready(void);
+uint32_t pod_persist_boot(void);
 /** Saves a new boot counter (frame number wrap, `pod_next_link_counter`). */
-int pod_counters_persist_boot(uint32_t boot_counter);
-/** First page sequence of a new segment, above the NVS reservation. */
-uint32_t pod_counters_next_page_seq(void);
-uint32_t pod_counters_next_segment_id(void);
+int pod_persist_set_boot(uint32_t boot_counter);
+/** `pod_log_seq_source_t`: next page sequence, reserved in NVS before use. */
+int pod_persist_take_page_seq(void *ctx, uint32_t *page_seq);
+int pod_persist_next_segment(uint32_t *segment_id);
 
 /* wdt.c: nRF WDT, mandatory. */
 int pod_wdt_init(void);
@@ -47,13 +48,20 @@ bool pod_power_vbus(void);
 uint8_t pod_power_battery_pct(void);
 /** SYS estimate for the LED dimming (mV). */
 uint16_t pod_power_vsys_mv(void);
-/** Arms the wake sources of `plan` and enters System OFF (never returns). */
-void pod_power_system_off(const struct pod_wake_plan *plan);
+/**
+ * Arms the wake sources of `plan` and enters System OFF. Returns -EBUSY (and
+ * stays awake) when a source is already at its wake level (wake-loop guard).
+ */
+int pod_power_system_off(const struct pod_wake_plan *plan);
+/** BQ25180 service from the main loop: STAT0 every ≤ 60 s, plan re-applied on reset or VIN. */
+void pod_power_service(uint32_t now_ms);
 /** Enters BQ25180 shutdown mode (wakes only with VBUS). */
 int pod_power_ship_mode(void);
 
 /* time_base.c: RTC2 tick + PPS capture through GPIOTE → PPI → TIMER2. */
 int pod_time_base_init(void);
+/** Keeps the HFXO on (16 MHz TIMER accuracy) while the PPS is captured. */
+int pod_time_base_capture(bool on);
 /** 48-bit record tick (RTC on the LFXO since boot). */
 uint64_t pod_tick_now(void);
 /** True once per new PPS edge; fills the anchor. */
@@ -61,6 +69,7 @@ bool pod_time_base_poll_pps(struct pod_pps_anchor *anchor);
 
 /* gnss_lc29h.c: UART, boot sequence, PVT and RTCM. */
 int pod_gnss_init(void);
+/** Asks the GNSS worker to power the module on (boot sequence) or to backup. Non-blocking. */
 int pod_gnss_power(bool on);
 /** Latest PVT (valid = false when none). */
 void pod_gnss_latest(struct pod_gnss_pvt *pvt);

@@ -4,6 +4,11 @@
  * breakout wired to the DK headers. The wiring table is in firmware/README.md
  * ("Cableado del DK"); keep both in sync.
  *
+ * Low-frequency pins: the Arduino SPI header of the DK (P1.13–P1.15) and the
+ * A0–A5 / D8–D9 pins used here for the IMU and the E22 are "low frequency" pins
+ * of the nRF52840 (pod-v0.md); they are fine for the bench at reduced SPI speed
+ * (1 MHz below) and the pod v0 keeps every SPI on fast pins.
+ *
  * Differences with the pod: the console stays on UARTE0 (J-Link VCOM) and the
  * GNSS goes to UARTE1; button 1 stands in for the Hall sensor (pressed = in the
  * vest) and LEDs 1–3 for the RGB LED. There is no load switch, charger nor
@@ -178,7 +183,7 @@
 	imu: lsm6dsv320x@0 {
 		compatible = "st,lsm6dsv320x";
 		reg = <0>;
-		spi-max-frequency = <8000000>;
+		spi-max-frequency = <1000000>;
 		int1-gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;	/* P0.02 (AREF pin) */
 	};
 };
@@ -195,7 +200,7 @@
 	lora: e22@0 {
 		compatible = "semtech,sx1262";
 		reg = <0>;
-		spi-max-frequency = <8000000>;
+		spi-max-frequency = <1000000>;
 		reset-gpios = <&gpio0 3 GPIO_ACTIVE_LOW>;	/* A0 → NRST */
 		busy-gpios = <&gpio1 11 GPIO_ACTIVE_HIGH>;	/* D9 ← BUSY */
 		dio1-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;	/* D8 ← DIO1 */
@@ -218,7 +223,7 @@
 	nand: w25n04kv@0 {
 		compatible = "winbond,w25n04kv";
 		reg = <0>;
-		spi-max-frequency = <8000000>;
+		spi-max-frequency = <1000000>;
 		blocks = <4096>;
 		pages-per-block = <64>;
 	};
