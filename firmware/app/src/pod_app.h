@@ -82,7 +82,10 @@ int pod_log_start_segment(void);
 int pod_log_append(const struct pod_log_record *record);
 int pod_log_close_segment(void);
 bool pod_log_idle(void);
-/** Raw W25N access (`ecc`: 0 ok, 1 corrected, 2 uncorrectable, 3 corrected above threshold). */
+/**
+ * Raw W25N access (`ecc`: 0 ok, 1 corrected, 2 uncorrectable, 3 legible with a wear
+ * warning: refresh or relocate, never handled like 2).
+ */
 int pod_nand_read_page(uint32_t page, uint8_t data[POD_LOG_PAGE_SIZE], uint8_t *ecc);
 int pod_nand_erase_block(uint32_t block);
 

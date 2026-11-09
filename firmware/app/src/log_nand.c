@@ -41,7 +41,14 @@ LOG_MODULE_REGISTER(pod_nand, CONFIG_POD_LOG_LEVEL);
 #define W25N_SR3_E_FAIL 0x04
 #define W25N_SR3_P_FAIL 0x08
 #define W25N_SR3_ECC_MASK 0x30
-/* Blocks at the start that hold the segment index (a cache: scanNand rebuilds it). */
+/*
+ * Blocks at the start that hold the segment index (a cache: scanNand rebuilds it).
+ * TODO(B-904): only block 0 is guaranteed valid at shipment (W25N-KV datasheet,
+ * 10.1), so any of these 8 may carry the factory bad-block marker (non-FFh in
+ * byte 0 of the main or spare area of page 0). Read the marker of each reserved
+ * block before using it and lay the index out over the good ones only, skipping
+ * the marked blocks inside the reserved range.
+ */
 #define RESERVED_INDEX_BLOCKS 8u
 
 static const struct spi_dt_spec nand =
@@ -143,8 +150,11 @@ static int program_page(uint32_t page, const uint8_t data[POD_LOG_PAGE_SIZE])
 }
 
 /**
- * Reads a page; `ecc` gets bits ECC-1:0 of SR3: 0 ok, 1 corrected, 2 uncorrectable,
- * 3 corrected above the bit-flip threshold (W25N-KV datasheet, 7.3.1).
+ * Reads a page; `ecc` gets bits ECC-1:0 of SR3 (W25N-KV datasheet, 7.3.1):
+ * 0 ok, 1 corrected, 2 uncorrectable, 3 corrected above the bit-flip threshold.
+ * 3 is legible data with a wear warning (refresh or relocate the block); it is
+ * never handled like 2 (uncorrectable). TODO(B-904): report it as corrected in
+ * pod_raw and count it for the refresh.
  */
 int pod_nand_read_page(uint32_t page, uint8_t data[POD_LOG_PAGE_SIZE], uint8_t *ecc)
 {
