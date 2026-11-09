@@ -211,7 +211,7 @@
 	};
 };
 
-/* W25N breakout (the DK's own QSPI NOR stays on its QSPI pins). */
+/* W25N02KV breakout (the DK's own QSPI NOR stays on its QSPI pins). */
 &spi3 {
 	compatible = "nordic,nrf-spim";
 	status = "okay";
@@ -220,12 +220,13 @@
 	pinctrl-names = "default", "sleep";
 	cs-gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;	/* P1.00 (P24 header) */
 
-	nand: w25n04kv@0 {
-		compatible = "winbond,w25n04kv";
+	nand: w25n02kv@0 {
+		compatible = "winbond,w25n02kv";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
-		blocks = <4096>;
+		blocks = <2048>;
 		pages-per-block = <64>;
+		jedec-device-id = <0xaa22>;
 	};
 };
 

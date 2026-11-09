@@ -1,6 +1,6 @@
 import { fromHex } from '../bytes.js';
 import { deriveStorageKey } from '../crypto.js';
-import { RTC_TICK_HZ, W25N04KV, type NandGeometry } from '../log/constants.js';
+import { POD_NAND, RTC_TICK_HZ, type NandGeometry } from '../log/constants.js';
 import type { NandPageRead } from '../log/decoder.js';
 import type { LogRecord } from '../log/records.js';
 import { LogWriter } from '../log/writer.js';
@@ -347,7 +347,7 @@ export class NandSimulator {
   readonly pages = new Map<number, NandPageRead>();
   readonly badBlocks = new Set<number>();
 
-  constructor(readonly geometry: NandGeometry = { ...W25N04KV, blocks: 32 }) {}
+  constructor(readonly geometry: NandGeometry = { ...POD_NAND, blocks: 32 }) {}
 
   private blockIsErased(block: number): boolean {
     for (let p = 0; p < this.geometry.pagesPerBlock; p += 1) {

@@ -1,6 +1,6 @@
 /*
  * Pod v0 (B-909): Raytac MDBT50Q-P1MV2 (nRF52840), LC29H, E22-900M22S,
- * LSM6DSV320X, W25N04KV, BQ25180, MAX17048, BMP581. Every pin comes from
+ * LSM6DSV320X, W25N02KV, BQ25180, MAX17048, BMP581. Every pin comes from
  * docs/hardware/pod-v0.md ("Pines del nRF52840"); keep both in sync.
  */
 
@@ -223,12 +223,13 @@
 	cs-gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;	/* NAND_CS, pad 41 */
 	/* Errata 198: the SPIM3 buffers live in their own RAM block (app/src/log_nand.c). */
 
-	nand: w25n04kv@0 {
-		compatible = "winbond,w25n04kv";
+	nand: w25n02kv@0 {
+		compatible = "winbond,w25n02kv";
 		reg = <0>;
 		spi-max-frequency = <32000000>;
-		blocks = <4096>;
+		blocks = <2048>;
 		pages-per-block = <64>;
+		jedec-device-id = <0xaa22>;
 	};
 };
 

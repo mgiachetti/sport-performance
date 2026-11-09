@@ -29,6 +29,7 @@ import {
   LOG_PAGE_MAC_LENGTH,
   LOG_PAGE_PAYLOAD_CAPACITY,
   LOG_PAGE_SIZE,
+  POD_NAND,
   W25N02KV,
   W25N04KV,
 } from './constants.js';
@@ -487,16 +488,18 @@ function buildVectors() {
     ...c,
     pagesPerHour: pagesPerHour(c.streamRateBps),
     blocksPer3hSession: segmentBlocks(c.streamRateBps, 3 * 3600),
-    sessions3hW25N04KV: sessionsPerChip({
-      streamRateBps: c.streamRateBps,
-      sessionDurationS: 3 * 3600,
-    }),
     sessions3hW25N02KV: sessionsPerChip({
       streamRateBps: c.streamRateBps,
       sessionDurationS: 3 * 3600,
       geometry: W25N02KV,
     }),
-    hoursW25N04KV: Math.round(hoursPerChip(c.streamRateBps) * 100) / 100,
+    hoursW25N02KV: Math.round(hoursPerChip(c.streamRateBps, W25N02KV) * 100) / 100,
+    sessions3hW25N04KV: sessionsPerChip({
+      streamRateBps: c.streamRateBps,
+      sessionDurationS: 3 * 3600,
+      geometry: W25N04KV,
+    }),
+    hoursW25N04KV: Math.round(hoursPerChip(c.streamRateBps, W25N04KV) * 100) / 100,
   }));
 
   return {
@@ -512,7 +515,7 @@ function buildVectors() {
         macB: LOG_PAGE_MAC_LENGTH,
         crcB: 4,
         recordHeaderB: RECORD_HEADER_LENGTH,
-        pagesPerBlock: W25N04KV.pagesPerBlock,
+        pagesPerBlock: POD_NAND.pagesPerBlock,
       },
       keys: {
         masterKeyHex: toHex(TEST_MASTER_KEY),
@@ -749,11 +752,13 @@ describe('golden log fixtures v1', () => {
   });
 
   it('capacity table', () => {
-    expect(vectors.capacity.map((c) => [c.pagesPerHour, c.sessions3hW25N04KV])).toEqual([
-      [4510, 18],
-      [8117, 10],
-      [5159, 16],
-      [8795, 9],
+    expect(
+      vectors.capacity.map((c) => [c.pagesPerHour, c.sessions3hW25N02KV, c.sessions3hW25N04KV]),
+    ).toEqual([
+      [4510, 9, 18],
+      [8117, 5, 10],
+      [5159, 8, 16],
+      [8795, 4, 9],
     ]);
   });
 });

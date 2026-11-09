@@ -46,8 +46,12 @@ export const PAGE_FLAGS_RESERVED_MASK = 0xf0;
 export const ERASED_BYTE = 0xff;
 
 /**
- * NAND geometry. The W25N04KV / W25N02KV have 2048 B pages (plus a spare area
- * the internal ECC uses) and 64 pages per block (ADR 0106, docs/hardware/pod-v0.md).
+ * NAND geometry. The W25N02KV / W25N04KV have 2048 B pages (plus a 128 B spare
+ * area the internal ECC and the factory bad-block marker use) and 64 pages per
+ * block (ADR 0106, docs/hardware/pod-v0.md). Verified against the Winbond
+ * datasheets W25N02KVxxIR/U Rev. G (2021-06-25) and W25N04KVxxIR/U Rev. C
+ * (2022-02-07): same pads, commands and 24-bit page address (17 bits used on
+ * the 2 Gbit part, 18 on the 4 Gbit one).
  */
 export interface NandGeometry {
   readonly name: string;
@@ -60,29 +64,34 @@ export interface NandGeometry {
    */
   readonly reservedBlocks: number;
   /**
-   * Bad blocks to budget for over the life of the chip (factory plus grown).
-   * **Not verified** against the Winbond datasheet: ~2 % (82 of 4096).
+   * Bad blocks to budget for over the life of the chip (factory plus grown):
+   * blocks minus the datasheet's minimum of valid blocks (Nvb), about 2 %.
    */
   readonly badBlockAllowance: number;
 }
 
-export const W25N04KV: NandGeometry = {
-  name: 'W25N04KV',
-  pageSizeB: LOG_PAGE_SIZE,
-  pagesPerBlock: 64,
-  blocks: 4096,
-  reservedBlocks: 8,
-  badBlockAllowance: 82,
-};
-
+/** 2 Gbit: the NAND of the pod v0 (decision of 2026-11-09). Nvb ≥ 2008 of 2048. */
 export const W25N02KV: NandGeometry = {
   name: 'W25N02KV',
   pageSizeB: LOG_PAGE_SIZE,
   pagesPerBlock: 64,
   blocks: 2048,
   reservedBlocks: 8,
-  badBlockAllowance: 41,
+  badBlockAllowance: 40,
 };
+
+/** 4 Gbit in the same place and with the same driver: a higher-capacity variant. Nvb ≥ 4016 of 4096. */
+export const W25N04KV: NandGeometry = {
+  name: 'W25N04KV',
+  pageSizeB: LOG_PAGE_SIZE,
+  pagesPerBlock: 64,
+  blocks: 4096,
+  reservedBlocks: 8,
+  badBlockAllowance: 80,
+};
+
+/** The NAND the pod v0 mounts: the default geometry of the size math and the scan. */
+export const POD_NAND: NandGeometry = W25N02KV;
 
 /** RTC of the nRF52840 on the 32,768 kHz crystal (LFXO): 1 tick ≈ 30,52 µs. */
 export const RTC_TICK_HZ = 32_768;

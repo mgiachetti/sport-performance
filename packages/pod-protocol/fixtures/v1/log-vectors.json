@@ -8540,36 +8540,40 @@
       "streamRateBps": 2500,
       "pagesPerHour": 4510,
       "blocksPer3hSession": 212,
-      "sessions3hW25N04KV": 18,
       "sessions3hW25N02KV": 9,
-      "hoursW25N04KV": 56.85
+      "hoursW25N02KV": 28.38,
+      "sessions3hW25N04KV": 18,
+      "hoursW25N04KV": 56.88
     },
     {
       "name": "sensors + raw GNSS 1 Hz (pod-f3.md)",
       "streamRateBps": 4500,
       "pagesPerHour": 8117,
       "blocksPer3hSession": 381,
-      "sessions3hW25N04KV": 10,
       "sessions3hW25N02KV": 5,
-      "hoursW25N04KV": 31.59
+      "hoursW25N02KV": 15.77,
+      "sessions3hW25N04KV": 10,
+      "hoursW25N04KV": 31.6
     },
     {
       "name": "v1 records, default profile",
       "streamRateBps": 2859.9,
       "pagesPerHour": 5159,
       "blocksPer3hSession": 242,
-      "sessions3hW25N04KV": 16,
       "sessions3hW25N02KV": 8,
-      "hoursW25N04KV": 49.7
+      "hoursW25N02KV": 24.81,
+      "sessions3hW25N04KV": 16,
+      "hoursW25N04KV": 49.72
     },
     {
       "name": "v1 records, raw GNSS 1 Hz",
       "streamRateBps": 4875.9,
       "pagesPerHour": 8795,
       "blocksPer3hSession": 413,
-      "sessions3hW25N04KV": 9,
       "sessions3hW25N02KV": 4,
-      "hoursW25N04KV": 29.15
+      "hoursW25N02KV": 14.55,
+      "sessions3hW25N04KV": 9,
+      "hoursW25N04KV": 29.17
     }
   ]
 }

@@ -8,7 +8,7 @@ import {
   toHex,
 } from '../bytes.js';
 import { fail } from '../errors.js';
-import { W25N04KV, type NandGeometry } from './constants.js';
+import { POD_NAND, type NandGeometry } from './constants.js';
 import type { NandPageRead } from './decoder.js';
 import type { LogPageKeys } from './integrity.js';
 import { inspectLogPage, openLogPage } from './page.js';
@@ -26,7 +26,7 @@ import { inspectLogPage, openLogPage } from './page.js';
  *   segment the pod still sees and the SHA-256 of the uploaded `pod_raw`,
  *   with one exception: a segment that overlaps no session is erased without
  *   upload after N days;
- * - bad blocks (factory marker, W25N LUT or grown) are never written or read.
+ * - bad blocks (factory marker or grown; the W25N-KV has no on-chip LUT) are never written or read.
  */
 
 export type PageScanStatus =
@@ -97,7 +97,7 @@ export function scanNand(input: {
   geometry?: NandGeometry;
   badBlocks?: readonly number[];
 }): NandScan {
-  const geometry = input.geometry ?? W25N04KV;
+  const geometry = input.geometry ?? POD_NAND;
   const bad = new Set(input.badBlocks ?? []);
   const counts: Record<PageScanStatus, number> = {
     valid: 0,
