@@ -28,10 +28,10 @@ Lo que hace falta es la cantidad por placa × 105, más 10 por fila en las pasiv
 
 ## Resumen
 
-- **Dos partes sin stock**: la IMU **LSM6DSV320X** (`U401`) y el Hall **DRV5032FB** (`U406`). El Hall tiene una **alternativa directa verificada** (DRV5032FA); la IMU tiene dos pin a pin (LSM6DSV80X, también sin stock, y LSM6DSV16X con el ADXL372, en stock) pero ninguna hace lo mismo sin cambios.
+- **Dos partes sin stock**: la IMU **LSM6DSV320X** (`U401`) y el Hall **DRV5032FB** (`U406`). El Hall se resuelve en el diseño: **la DRV5032FA pasa a ser la montada** (misma hoja, pines, umbrales y footprint; +0,9 µA) y la FB queda como alternativa aprobada para cuando vuelva. La IMU tiene dos respaldos pin a pin, en este orden: la **LSM6DSV80X** (mismo die, ±80 g; hoy 194 entre el eStore de ST y un distribuidor no verificado) y la **LSM6DSV16X con el ADXL372** (en stock); ninguno se monta sin decidirlo al cerrar la v0.
 - **Seis limitadas**: el patch **GVLB208.A**, el GNSS **LC29H(AA)**, el **MDBT50Q-P1MV2**, el **E22-900M22S**, el load switch **TPS22916C** y la FPC de LoRa **TX915-FPC-4510**. Todas tienen stock para las 105 hoy, pero en una sola fuente o sin cifra: se reservan.
 - **El resto, OK**. El **BGA525N6** y el **TPS7A2032P** dan OK por cantidad pero dependen de **una sola fuente** (LCSC y DigiKey) y no tienen alternativa directa: se compran ya.
-- **La placa no cambia**: ninguna parte sin stock obliga a otro footprint. Se agregan como **alternativas aprobadas** para el armador (columna `Approved Alternate` de la lista) solo las verificadas pin a pin, en el mismo footprint y con la misma función: DRV5032FA, Yageo RC0402FR-0722RL (22 Ω), el cristal ABS06 y la bobina DFE201610E. Las demás quedan documentadas con lo que cambia.
+- **La placa no cambia de footprint ni de netlist**: solo cambia el número de parte del Hall (`U406`). Se agregan como **alternativas aprobadas** para el armador (columna `Approved Alternate` de la lista) solo las verificadas pin a pin, en el mismo footprint y con la misma función: DRV5032FB (de la FA), Yageo RC0402FR-0722RL (22 Ω), el cristal ABS06 y la bobina DFE201610E; y la **MDBT50Q-1MV2** con una condición (solo con nuestro OK, por el keep-out de la antena). Las demás quedan documentadas con lo que cambia.
 
 ## Tabla por parte
 
@@ -41,12 +41,11 @@ La genera `hardware/tools/bom_pcbway.py` desde las columnas de stock de [`partes
 
 | Parte | Lugar | Hacen falta (105 placas) | Estado | LCSC | DigiKey | JLCPCB | Otras fuentes | Plazo | Alternativa directa | Otras alternativas |
 |---|---|---|---|---|---|---|---|---|---|---|
-| `LSM6DSV320XTR` | U401 | 105 | ✗ SIN STOCK | 0 | 0 | 3 | ST eStore 26 | DigiKey 24 semanas (admite pedido pendiente) | — | LSM6DSV80XTR (pin a pin, 80 g, también sin stock); LSM6DSV16XTR (pin a pin, ±16 g) con el ADXL372 montado en U403 |
-| `DRV5032FBDBZR` | U406 | 105 | ✗ SIN STOCK | 0 | 0 | 271 | ti.com: agotado; solo brokers (Bristol 557) | DigiKey: 33 el 08/03/2027 y 2.967 el 12/07/2027 (26 semanas) | `DRV5032FADBZR` | TMAG5231C1DQDBZR (mismos pines, otro umbral y 2 µA) |
+| `LSM6DSV320XTR` | U401 | 105 | ✗ SIN STOCK | 0 | 0 | 3 | ST eStore 26 | DigiKey 24 semanas (admite pedido pendiente) | — | 1.ª LSM6DSV80XTR (pin a pin, mismo die y WHO_AM_I 73h, ±80 g; ST eStore 34 + IBS 160); 2.ª LSM6DSV16XTR (pin a pin, ±16 g) con el ADXL372 montado en U403 |
 | `TX915-FPC-4510` | (no se suelda) | 105 | ⚠ LIMITADO | — | — | 0 | Tienda de Ebyte en Alibaba: 5 días hasta 50, 12 días hasta 1.000 (sin cifra de stock; no verificado) | — | — | Molex 2111400100 (U.FL, otro tamaño; DigiKey 5.706) |
 | `GVLB208.A` | AE201 | 105 | ⚠ LIMITADO | — | 271 | — | Taoglas directo (a consultar) | DigiKey 16 semanas | — | Ninguna en el mismo footprint; patch de 25 × 25 mm con otro footprint, o la AGVLB.25B activa por el U.FL |
 | `LC29HAAMD` | U201 | 105 | ⚠ LIMITADO | 91 | 522 | 91 | — | DigiKey 14 semanas | — | LC29HEAMD en el mismo footprint (RTK, +12,41 a 100) |
-| `MDBT50Q-P1MV2` | U301 | 105 | ⚠ LIMITADO | 0 | 37 | 0 | TME 1.239 (Findchips; la página de TME no abre); Raytac directo | DigiKey Marketplace unos 14 días | — | MDBT50Q-1MV2 (antena chip, mismo footprint; no verificado): DigiKey Marketplace 50, LCSC 0 |
+| `MDBT50Q-P1MV2` | U301 | 105 | ⚠ LIMITADO | 0 | 37 | 0 | TME 1.239 (Findchips; la página de TME no abre); Raytac directo | DigiKey Marketplace unos 14 días | `MDBT50Q-1MV2` (only with our written OK (antenna keep-out differs)) | — |
 | `E22-900M22S` | U302 | 105 | ⚠ LIMITADO | 517 | — | 517 | Tienda de Ebyte (sin cifra de stock) | — | — | Ninguna en el mismo footprint (otro módulo SX1262 cambia la placa) |
 | `TPS22916CYFPR` | U303 | 105 | ⚠ LIMITADO | 1.040 | 0 | 1.042 | Brokers (Bristol 270) | DigiKey: 3.000 el 07/12/2026 (26 semanas) | — | TPS22916BYFPR (mismos pines, encendido rápido); TPS22916CNYFPR (mismos pines, sin QOD) |
 | `AGVLB.25B.07.0060A` | (no se suelda) | 42 | ✓ OK | — | 558 | — | — | DigiKey 16 semanas | — | — |
@@ -99,6 +98,7 @@ La genera `hardware/tools/bom_pcbway.py` desde las columnas de stock de [`partes
 | `SN74LVC1T45DBVR` | U202, U203, U204 | 315 | ✓ OK | 240.085 | 93.678 | — | — | — | — | — |
 | `BGA525N6E6327XTSA1` | U205 | 105 | ✓ OK | 1.801 | 0 | 1.801 | Farnell: sin stock | DigiKey 40 semanas, sin fecha | — | Ninguna pin a pin con L1 + L5: BGA524N6 y BGA123N6 son solo L1 (y sin stock); con la Taoglas activa por el U.FL se puentea |
 | `BMP581` | U404 | 105 | ✓ OK | 9.291 | 0 | — | — | — | — | DPS368 en su lugar sin montar (otro footprint, ya en la placa) |
+| `DRV5032FADBZR` | U406 | 105 | ✓ OK | 47.205 | 2.156 | 47.105 | — | DigiKey 26 semanas | `DRV5032FBDBZR` | TMAG5231C1DQDBZR (mismos pines, otro umbral y 2 µA) |
 | `W25N02KVZEIR` | U501 | 105 | ✓ OK | 1.660 | — | 2.169 | LCSC C17626844 (mismo MPN): 7.267 | — | — | — |
 | `USBLC6-2SC6` | U601 | 105 | ✓ OK | 33.195 | 29.057 | — | — | — | — | — |
 | `TPS259470ARPWR` | U602 | 105 | ✓ OK | 3.818 | 0 | — | — | DigiKey: 3.000 el 01/02/2027 | — | — |
@@ -133,18 +133,18 @@ Stock leído el 09/11/2026 (columnas de stock de [`partes_pod_v0.csv`](../../../
 | 14 | SDA/SDI | SDA/SDI | SDA/SDI | SENS_MOSI |
 
 - **Encapsulado**: el mismo LGA-14L de 2,5 × 3,0 mm con 14 pads de 0,25 × 0,475 mm a 0,5 mm de paso: figura 32 de DS14623 y figura 25 de DS14764 (el mismo dibujo, DM01021587_2, 0,83 mm de alto) y figura 33 de DS13510 (DM00249496_5, 0,86 mm). El footprint `LGA-14_L3.0-W2.5-P0.50-TL` sirve para las tres.
-- **LSM6DSV80X** (C46898862): pin a pin y de la misma familia (WHO_AM_I 73h, igual que la 320X), con el canal de alto rango hasta **±80 g** en lugar de ±320 g. **También sin stock**: LCSC 0, JLCPCB 0, DigiKey 0 (24 semanas), eStore de ST 34. No resuelve las 100.
-- **LSM6DSV16X** (C5267406): pin a pin, **en stock** (LCSC 11.047, DigiKey 9.682, eStore de ST 4.247; US$ 2,43 a 100), pero **solo ±16 g**: el alto rango lo da el **ADXL372** en su lugar sin montar (`U403`, con su capacitor y el 0 Ω de `HG_INT`; LCSC 1.534, DigiKey 232, US$ 15,00 a 100). Firmware: otro driver de Zephyr (WHO_AM_I 70h) y el alto rango por el ADXL372 en `HG_CS`/`HG_INT`. Costo a 100: **+10,7 por placa** (2,43 + 15,00 contra 6,72).
+- **LSM6DSV80X** (C46898862): pin a pin y del mismo die que la 320X (WHO_AM_I 73h: el mismo driver, `st,lsm6dsv320x`, con el alto rango a escala de ±80 g en lugar de ±320 g). ±80 g alcanza para los contactos a la altura de la espalda alta según la revisión del diseño (**a confirmar** con los datos de la v0: cuántas muestras saturan a 80 g). **Stock re-leído el 09/11/2026**: eStore de ST **34** ("in stock", US$ 5,48 de 100 a 250), **IBS Electronics 160** (por Findchips, US$ 9,83 a 100; que sea distribuidor autorizado de ST está **no verificado**), DigiKey 0 (24 semanas, también en digikey.co.uk, sin fecha), LCSC 0, JLCPCB 0; Arrow, Future y Mouser no respondieron. Son **194**: llega a las 110 solo con IBS.
+- **LSM6DSV16X** (C5267406): pin a pin, **en stock** (LCSC 11.047, DigiKey 9.682, eStore de ST 4.247; US$ 2,43 a 100), pero **solo ±16 g**: el alto rango lo da el **ADXL372** en su lugar sin montar (`U403`, con su capacitor y el 0 Ω de `HG_INT`; LCSC 1.534, DigiKey 232, US$ 15,00 a 100). Los dos tienen driver en Zephyr (`st,lsm6dsv16x` y `adi,adxl372`); la IMU tiene otro WHO_AM_I (70h). El ADXL372 opera con VS de 1,6 a 3,5 V (hoja Rev. B; 3,6 V absoluto): con VREG de 3,4 V ± 1,5 % del TPS63900 llega a 3,45 V, bien; con la alternativa TPS63802 (unos ±2 %, **no verificado**) llegaría a 3,47 V, prácticamente sin margen, y no se combina. Costo a 100: **+10,7 por placa** (2,43 + 15,00 contra 6,72).
 
-**Recomendación**: la v0 con la LSM6DSV320X (comprar **10 en el eStore de ST** ya: 5 placas y repuestos). Para las 100, **pedido pendiente de 110** en DigiKey (o en un distribuidor de ST que confirme fecha). Si al cerrar la v0 no hay fecha, las 100 salen con **LSM6DSV16X + ADXL372**, que entran en la placa sin tocarla. No se agrega como alternativa aprobada para el armador porque cambia lo que se monta y el firmware.
+**Recomendación**: la v0 con la LSM6DSV320X (comprar **10 en el eStore de ST** ya: 5 placas y repuestos). Para las 100, **pedido pendiente de 110** en DigiKey (o en un distribuidor de ST que confirme fecha). **Al cerrar la v0**, si el pedido no tiene fecha: 1.º **LSM6DSV80X** si se consiguen 110 de fuentes confirmadas (eStore de ST, IBS si confirma que es autorizado, Arrow o Future), sin cambios de placa ni de driver; 2.º **LSM6DSV16X + ADXL372** (reservar 110 de cada una en LCSC), que entran en la placa sin tocarla pero cambian el montaje y el firmware. Por eso ninguna va como alternativa aprobada para el armador.
 
-### Hall DRV5032FB (`U406`): sin stock, con alternativa directa
+### Hall DRV5032FB (`U406`): sin stock, la FA pasa a ser la montada
 
 **Stock**: LCSC 0 ([C2655033](https://www.lcsc.com/product-detail/C2655033.html)), DigiKey 0 (33 el 08/03/2027 y 2.967 el 12/07/2027; 26 semanas), ti.com agotado; JLCPCB 271 (solo para armar allá) y brokers (Bristol 557, no autorizado).
 
-**Alternativa directa: DRV5032FADBZR** (LCSC [C140921](https://www.lcsc.com/product-detail/C140921.html) 47.205, DigiKey 2.156; US$ 0,12 a 150). Es la misma hoja (SLVSDC7H): tabla 4-1, las dos omnipolares push-pull; figura 5-1 y tabla 5-1, el mismo SOT-23 DBZ con VCC 1, OUT 2 y GND 3; los mismos umbrales (BOP máximo de 4,8 mT para FA, FB, FC y FD, sección 6.6). Lo único que cambia es la frecuencia de muestreo, **20 Hz** contra 5 Hz, y el consumo, **1,6 µA** típicos (3,5 máx.) contra 0,69 µA (1,8 máx.) a 3 V (sección 6.5): **+0,9 µA** en todos los estados, unos 8 mAh por año sobre la celda de 500–600 mAh. El firmware no cambia (misma salida, mismo nivel: bajo con el imán).
+**La que se monta ahora: DRV5032FADBZR** (LCSC [C140921](https://www.lcsc.com/product-detail/C140921.html) 47.205, DigiKey 2.156; US$ 0,12 a 150). Es la misma hoja (SLVSDC7H): tabla 4-1, las dos omnipolares push-pull; figura 5-1 y tabla 5-1, el mismo SOT-23 DBZ con VCC 1, OUT 2 y GND 3; los mismos umbrales (BOP máximo de 4,8 mT para FA, FB, FC y FD, sección 6.6). Lo único que cambia es la frecuencia de muestreo, **20 Hz** contra 5 Hz, y el consumo, **1,6 µA** típicos (3,5 máx.) contra 0,69 µA (1,8 máx.) a 3 V (sección 6.5): **+0,9 µA** en todos los estados (el presupuesto de System OFF de `pod-v0.md` sube de 50–70 a 51–71 µA), unos 8 mAh por año sobre la celda de 500–600 mAh. El firmware no cambia (misma salida, mismo nivel: bajo con el imán) y el símbolo de la biblioteca es el mismo.
 
-**Recomendación**: queda como **alternativa aprobada** en la lista (PCBWay la monta si no consigue la FB) y se compran **150 DRV5032FA en LCSC** ya. La FB sigue siendo la del diseño por su consumo; si DigiKey cumple julio de 2027, vuelve en las corridas siguientes. Otra opción con los mismos pines, **TMAG5231C1DQDBZR** (LCSC 3.195; tabla 6-1 de ZHCSOO8D), queda como respaldo: activa en bajo como la DRV5032, pero con BOP típico de 3 mT y 2 µA, que hay que medir con el imán del chaleco.
+**Recomendación**: `diseno.py` monta la **DRV5032FA** en `U406` y la lista la pide a ella; se compran **150 en LCSC** ya. La **FB** queda como **alternativa aprobada** (columna `Approved Alternate`) para las corridas siguientes, si DigiKey cumple julio de 2027. Otra opción con los mismos pines, **TMAG5231C1DQDBZR** (LCSC 3.195; tabla 6-1 de ZHCSOO8D), queda como respaldo: activa en bajo como la DRV5032, pero con BOP típico de 3 mT y 2 µA, que hay que medir con el imán del chaleco.
 
 ### Load switch TPS22916C (`U303`): limitado
 
@@ -167,7 +167,7 @@ Ninguna se aprueba sin el banco. **Recomendación**: comprar **150 TPS22916C en 
 
 ### Módulo MDBT50Q-P1MV2 (`U301`): limitado
 
-**Stock**: LCSC 0, JLCPCB 0, DigiKey Marketplace (Raytac) 37 en unos 14 días a US$ 6,00, **TME 1.239** según Findchips (US$ 6,50 desde 88; la página de TME no abrió). **Alternativa**: MDBT50Q-1MV2 (antena chip; DigiKey Marketplace 50, LCSC 0), con el mismo footprint de EasyEDA que usa la placa (`COMM-SMD_MDBT50Q-1MV2`); pines y keep-out contra la hoja de Raytac **no verificados**, y tampoco tiene más stock. **Recomendación**: pedir **120 a Raytac** (consulta 1) o a TME con la revisión del layout; PCBWay puede recibirlas consignadas.
+**Stock**: LCSC 0, JLCPCB 0, DigiKey Marketplace (Raytac) 37 en unos 14 días a US$ 6,00, **TME 1.239** según Findchips (US$ 6,50 desde 88; la página de TME no abrió). **Alternativa aprobada con condición: MDBT50Q-1MV2** (antena chip; DigiKey Marketplace 50, LCSC 0). **Pines verificados**: la hoja de Raytac Ver.K es común a las dos (una sola tabla de pines, sección 2.5, y el mismo módulo de 15,5 × 10,5 mm), y el footprint de la biblioteca (`COMM-SMD_MDBT50Q-1MV2`) es el de la -1MV2. Falta confirmar el **keep-out** de la antena chip (secciones 2.2 y 2.3) y que el FCC ID SH6MDBT50Q la cubra con nuestro layout: por eso en la lista dice "only with our written OK". Tampoco tiene más stock. **Recomendación**: pedir **120 a Raytac** (consulta 1) o a TME con la revisión del layout; PCBWay puede recibirlas consignadas.
 
 ### GNSS LC29H(AA) (`U201`): limitado
 
@@ -192,8 +192,9 @@ Ninguna se aprueba sin el banco. **Recomendación**: comprar **150 TPS22916C en 
 - **Bobinas**: DFE201612E OK (LCSC 12.480), alternativa aprobada DFE201610E (mismo land pattern, 1,0 mm de alto); LQW15AN5N1C OK (LCSC 8.280, DigiKey 60.810), LQW15AN11NG OK (LCSC 40.680).
 - **NAND W25N02KV** (`U501`): OK, dos códigos de LCSC del mismo MPN (C3010298 con 1.660 y C17626844 con 7.267).
 - **Conector de batería JST SM03B-GHS-TB** (`J101`): OK en LCSC (25.545); DigiKey 0.
-- **Resistencia de 22 Ω** (`R501`): LCSC 0 hoy (JLCPCB 3.280.248). Alternativa aprobada: Yageo **RC0402FR-0722RL** (LCSC C114765, 5.100.700): mismo valor, 1 %, 62,5 mW y 0402.
+- **Resistencia de 22 Ω** (`R501`): LCSC 0 hoy (JLCPCB 3.280.248): el **OK descansa en la alternativa aprobada** Yageo **RC0402FR-0722RL** (LCSC C114765, 5.100.700): mismo valor, 1 %, 62,5 mW y 0402.
 - **TPS63900** (DigiKey 0, 3.000 para hoy), **TPS259470A** (DigiKey 0 hasta el 01/02/2027) y **BMP581** (DigiKey 0): OK por LCSC con más de 10 veces lo que hace falta.
+- **ICM-42688-P** (`U402`, sin montar): **sin stock** (LCSC 0, DigiKey 0): no cuenta como rescate de la IMU.
 
 ## Qué comprar o reservar ahora
 
@@ -212,7 +213,9 @@ Ninguna se aprueba sin el banco. **Recomendación**: comprar **150 TPS22916C en 
 
 | Parte | Cantidad | Dónde | Nota |
 |---|---|---|---|
-| LSM6DSV320XTR | 110 | Pedido pendiente en DigiKey (24 semanas) | Si no hay fecha: LSM6DSV16X + ADXL372 (en stock) |
+| LSM6DSV320XTR | 110 | Pedido pendiente en DigiKey (24 semanas) | Se decide al cerrar la v0: si no tiene fecha, el 1.er respaldo |
+| LSM6DSV80XTR | 110 | eStore de ST (34), IBS (160, a confirmar), Arrow o Future | 1.er respaldo: solo si se confirman 110 de fuentes autorizadas |
+| LSM6DSV16XTR + ADXL372BCCZ-RL7 | 110 + 110 | LCSC (11.047 y 1.534) | 2.º respaldo, en stock: reservar al cerrar la v0 si el 1.º no alcanza |
 | LC29HAAMD | 110 | DigiKey | 522 hoy |
 | GVLB208.A | 110 | DigiKey o Taoglas | 271 hoy |
 | MDBT50Q-P1MV2 | 120 | Raytac o TME | Consignado a PCBWay |
@@ -220,7 +223,7 @@ Ninguna se aprueba sin el banco. **Recomendación**: comprar **150 TPS22916C en 
 | B39162B8389P810 | 230 | DigiKey | 7.710 hoy |
 | TX915-FPC-4510 | 110 | Ebyte | Cotización abierta |
 
-Para las 5 placas de la v0 alcanza con lo que hay hoy en todas las partes, con la LSM6DSV320X del eStore de ST y la DRV5032FA si PCBWay no consigue la FB.
+Para las 5 placas de la v0 alcanza con lo que hay hoy en todas las partes, con la LSM6DSV320X del eStore de ST y la DRV5032FA.
 
 ## Cómo actualizar
 

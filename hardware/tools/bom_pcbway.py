@@ -139,7 +139,7 @@ def collect():
 
 
 def alternate(parts: dict, info: dict, errors: list) -> str:
-    """Approved drop-in alternate for the assembler ("MPN (LCSC Cxxx)"), checked against the CSV."""
+    """Approved drop-in alternate for the assembler ("MPN (LCSC Cxxx)", plus its condition), checked against the CSV."""
     alt = info.get("alternativa_directa", "")
     if not alt:
         return ""
@@ -147,7 +147,9 @@ def alternate(parts: dict, info: dict, errors: list) -> str:
     if not other:
         errors.append(f"{info['mpn']}: la alternativa {alt} no está en {PARTS_CSV.name}")
         return alt
-    return f"{alt} (LCSC {other['lcsc']})" if other.get("lcsc") else alt
+    text = f"{alt} (LCSC {other['lcsc']})" if other.get("lcsc") else alt
+    cond = info.get("alternativa_condicion", "")
+    return f"{text}: {cond}" if cond else text
 
 
 def write_csv(rows: list, cols: list) -> str:
@@ -313,7 +315,8 @@ def stock_md(stock: list, parts: dict, errors: list) -> str:
         cells = [f"`{info['mpn']}`", refs.replace(",", ", ") if len(refs) <= 24 else f"{refs.split(',')[0]} y otros",
                  num(str(need)), mark, num(info.get("stock_lcsc", "")), num(info.get("stock_digikey", "")),
                  num(info.get("stock_jlcpcb", "")), info.get("stock_otras") or "—", info.get("plazo") or "—",
-                 f"`{info['alternativa_directa']}`" if info.get("alternativa_directa") else "—",
+                 (f"`{info['alternativa_directa']}`" + (f" ({info['alternativa_condicion']})" if info.get("alternativa_condicion") else ""))
+                 if info.get("alternativa_directa") else "—",
                  info.get("alternativas_otras") or "—"]
         out.append("| " + " | ".join(c.replace("|", "/") for c in cells) + " |")
     dates = sorted({info.get("fecha_stock", "") for *_, info in rows} - {""})

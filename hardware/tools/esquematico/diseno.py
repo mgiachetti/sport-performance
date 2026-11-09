@@ -340,7 +340,7 @@ mcu_radio = Sheet("mcu_radio", "Pod v0: mcu_radio",
 
 # ---------------------------------------------------------------------------
 sensors = Sheet("sensors", "Pod v0: sensors",
-                "IMU LSM6DSV320X (+ ICM-42688-P y ADXL372 sin montar), barómetro BMP581 (+ DPS368 sin montar), Hall DRV5032FB", 400, [
+                "IMU LSM6DSV320X (+ ICM-42688-P y ADXL372 sin montar), barómetro BMP581 (+ DPS368 sin montar), Hall DRV5032FA", 400, [
     Group("IMU LSM6DSV320X", [
         part("LSM6DSV320XTR", "LSM6DSV320X", {"14": "SENS_MOSI", "13": "SENS_SCK", "12": "IMU_CS", "11": NC, "10": NC,
                                               "9": "IMU_INT2", "8": "VREG", "7": "GND", "6": "GND", "5": "VREG", "4": "IMU_INT1",
@@ -388,10 +388,11 @@ sensors = Sheet("sensors", "Pod v0: sensors",
         R0("DPS_SDO", "BARO_INT", dnp=True, note="Interrupción del DPS368 a BARO_INT"),
         C("100n", "VREG", dnp=True),
     ]),
-    Group("Hall del chaleco DRV5032FB", [
-        part("DRV5032FBDBZR", "DRV5032FB", {"1": "VREG", "2": "HALL_OUT", "3": "GND"},
-             POD + "SOT-23_L2.9-W1.3-P1.90-LS2.4-BR", mpn="DRV5032FBDBZR", lcsc="C2655033", manufacturer="Texas Instruments",
-             note="Omnipolar, push-pull, 5 Hz; en la cara que apoya contra el bolsillo, lejos de los pads y sus imanes"),
+    Group("Hall del chaleco DRV5032FA", [
+        part("DRV5032FBDBZR", "DRV5032FA", {"1": "VREG", "2": "HALL_OUT", "3": "GND"},
+             POD + "SOT-23_L2.9-W1.3-P1.90-LS2.4-BR", mpn="DRV5032FADBZR", lcsc="C140921", manufacturer="Texas Instruments",
+             note="Omnipolar, push-pull, 20 Hz, 1,6 µA; en la cara que apoya contra el bolsillo, lejos de los pads y sus imanes. "
+                  "La FB (5 Hz, 0,69 µA) sin stock el 09/11/2026: alternativa aprobada cuando vuelva (misma hoja, pines y símbolo)"),
         R("47k", "HALL_OUT", "HALL_INT", note="Serie de 10–100 kΩ (valor no verificado): protege el pad NFC antes de escribir NFCPINS"),
         C("100n", "VREG"),
     ]),

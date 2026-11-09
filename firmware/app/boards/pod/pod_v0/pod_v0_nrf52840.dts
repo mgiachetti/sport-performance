@@ -36,7 +36,7 @@
 		gnss-wakeup-gpios = <&gpio0 9 GPIO_ACTIVE_HIGH>;	/* GNSS_WAKEUP, pad 52 (NFC1) */
 		/* 1PPS: GPIOTE → PPI → TIMER capture (app/src/time_base.c). */
 		gnss-pps-gpios = <&gpio1 10 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>;	/* pad 3 */
-		/* DRV5032FB push-pull through a series resistor: low = pod in the vest. */
+		/* DRV5032FA (or FB) push-pull through a series resistor: low = pod in the vest. */
 		hall-gpios = <&gpio0 10 GPIO_ACTIVE_LOW>;	/* HALL_INT, pad 54 (NFC2) */
 		/* BQ25180 /INT, open drain, 128 µs pulse. */
 		chg-int-gpios = <&gpio1 11 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;	/* pad 4 */
