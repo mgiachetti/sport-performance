@@ -176,14 +176,14 @@ La TX915-FPC-4510 no tiene precio ni stock en LCSC: es una **cotización abierta
 
 ## 8. Distribuidores: partes escasas
 
-Plan de stock en [`costos.md`](costos.md). Se hace casi todo por los portales: **pedido pendiente** de 130 LSM6DSV320XTR en DigiKey o Mouser, consulta en el **eStore de ST**, compra de unas 150 **DRV5032FBDBZR en ti.com** (para consignar a PCBWay), **reserva de 150 BGA525N6E6327XTSA1 en LCSC**. Para Mouser y Arrow (BGA525N6 y LSM6DSV320X), este mail:
+Plan de stock en [`costos.md`](costos.md) y auditoría parte por parte en [`stock.md`](stock.md) (09/11/2026). Se hace casi todo por los portales: **10 LSM6DSV320XTR del eStore de ST** para la v0 y **pedido pendiente de 110** en DigiKey para las 100; **150 DRV5032FADBZR**, **150 BGA525N6E6327XTSA1** y **150 TPS22916CYFPR en LCSC**; **120 TPS7A2032PDBVR en DigiKey**. Mouser no se pudo leer en línea ("Access Denied"): para Mouser y Arrow (LSM6DSV320X y BGA525N6), este mail:
 
 > **Subject:** Stock and lead time: LSM6DSV320XTR and BGA525N6E6327XTSA1, 130–150 pcs
 >
 > Hello,
 >
 > Could you please confirm stock, factory lead time and price for:
-> - STMicroelectronics LSM6DSV320XTR: 130 pcs (cut tape), and whether a backorder is possible.
+> - STMicroelectronics LSM6DSV320XTR: 110 pcs (cut tape), and whether a backorder is possible with a confirmed date.
 > - Infineon BGA525N6E6327XTSA1: 150 pcs (cut tape).
 >
 > We can take a partial delivery now (5–10 pcs) and the rest later. Shipping to Buenos Aires, Argentina.

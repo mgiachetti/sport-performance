@@ -65,7 +65,7 @@ Para pedir a PCBWay (y comparar con JLCPCB) y a los demás proveedores, en [`doc
 | [`consultas.md`](../docs/hardware/cotizacion/consultas.md) | Mails para Raytac, el proveedor de baterías, ENACOM, el despachante, Quectel y Taoglas |
 | `bom-pod-v0.csv`, `bom-pod-v0-sin-montar.csv`, `bom-pod-v0-jlcpcb.csv`, `bom-pod-v0-extras.csv`, `costo-partes-pod-v0.csv` | Listas de materiales (formato de PCBWay y de JLCPCB, montadas y sin montar, lo que no se suelda) y costo por parte, **generadas** |
 
-Las listas las genera `tools/bom_pcbway.py` (biblioteca estándar) desde la netlist y [`tools/datos/partes_pod_v0.csv`](tools/datos/partes_pod_v0.csv), que tiene por MPN el número de LCSC y de DigiKey, el stock, los escalones de precio con su fuente y fecha, si la mandamos nosotros y las instrucciones para el armador:
+Las listas las genera `tools/bom_pcbway.py` (biblioteca estándar) desde la netlist y [`tools/datos/partes_pod_v0.csv`](tools/datos/partes_pod_v0.csv), que tiene por MPN el número de LCSC y de DigiKey, el stock por fuente con el plazo y su estado (OK, LIMITADO, SIN STOCK), la alternativa aprobada y las otras, los escalones de precio con su fuente y fecha, si la mandamos nosotros y las instrucciones para el armador. También escribe la tabla de [`stock.md`](../docs/hardware/cotizacion/stock.md):
 
 ```sh
 python3 hardware/tools/bom_pcbway.py          # reescribe las listas y muestra el costo de partes por placa
