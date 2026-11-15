@@ -47,8 +47,8 @@
 		button-gpios = <&gpio1 15 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;	/* pad 64 */
 		/* ON of the TPS22919 load switch of the Ra-01SH (U303). */
 		lora-en-gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;	/* LORA_EN, pad 57 */
-		/* ADXL372 INT1 (not mounted) or NAND_EN by 0 Ω: one or the other. */
-		hg-int-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;	/* pad 59 */
+		/* EN of the NAND load switch (U502, not mounted) by 0 Ω, 100 kΩ pull-down. */
+		nand-en-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;	/* NAND_EN, pad 59 */
 		/* DWM3000 (not mounted). */
 		uwb-irq-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;	/* pad 58 */
 		uwb-reset-gpios = <&gpio1 7 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;	/* pad 50 */
@@ -182,8 +182,7 @@
 	pinctrl-1 = <&spi1_sleep>;
 	pinctrl-names = "default", "sleep";
 	cs-gpios = <&gpio1 9 GPIO_ACTIVE_LOW>,	/* IMU_CS, pad 52 */
-		   <&gpio0 27 GPIO_ACTIVE_LOW>,	/* UWB_CS, pad 8 (static CS) */
-		   <&gpio0 26 GPIO_ACTIVE_LOW>;	/* HG_CS, pad 7 (static CS) */
+		   <&gpio0 27 GPIO_ACTIVE_LOW>;	/* UWB_CS, pad 8 (static CS) */
 
 	/*
 	 * LSM6DSV32X (WHO_AM_I 0x70): driven by the lsm6dsv16x driver of NCS 3.4.1
@@ -197,18 +196,6 @@
 		accel-range = <16>;
 		int1-gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;	/* IMU_INT1, pad 60: motion wake-up */
 		int2-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;	/* IMU_INT2, pad 49 */
-	};
-
-	/*
-	 * ADXL372 (±200 g, U403): mounted only on the pod-v0-highg assembly variant
-	 * (2 of the 5 v0 boards). Enable it there with boards/pod_v0_highg.overlay.
-	 */
-	hg_accel: adxl372@2 {
-		compatible = "adi,adxl372";
-		reg = <2>;
-		spi-max-frequency = <8000000>;
-		int1-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;	/* HG_INT, pad 59 */
-		status = "disabled";
 	};
 };
 

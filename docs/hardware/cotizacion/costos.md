@@ -12,7 +12,7 @@ Reglas del cálculo:
 
 - **Cantidad comprada** = cantidad por placa × placas, más **10 de desperdicio** por fila en resistencias, capacitores, bobinas y ESD (lo que suele pedir el armador). Si queda por debajo del mínimo de venta, se paga el mínimo (el primer escalón de la planilla).
 - **Precio** del escalón que corresponde a esa cantidad, de la fuente con stock y menor precio (la columna `fuente_precio`). DigiKey da el BMD-340 a 9,60 a 1 y 9,66 a 1.000: a 100 se usa el de 1 unidad.
-- **Variante base**: LC29H(AA), sin UWB ni ADXL372, con el patch pasivo. La **variante de armado `pod-v0-highg`** (ADXL372 montado, 2 de las 5 placas de la v0) tiene su propia lista para PCBWay ([`bom-pod-v0-highg.csv`](bom-pod-v0-highg.csv)) y su costo en la tabla generada. Las otras variantes, abajo.
+- **Variante base**: LC29H(AA), sin UWB, con el patch pasivo. Las 5 placas de la v0 se arman **iguales** (una sola lista para PCBWay): el ADXL372 y la variante `pod-v0-highg` salieron de la v0 el 14/11/2026 (ADR 0105, "Registro de decisiones"). Las otras variantes, abajo.
 
 Las tablas de abajo las escribe `bom_pcbway.py` en este archivo (entre los marcadores), con los mismos números de [`costo-partes-pod-v0.csv`](costo-partes-pod-v0.csv): no se editan a mano.
 
@@ -23,12 +23,6 @@ Las tablas de abajo las escribe `bom_pcbway.py` en este archivo (entre los marca
 | 5 | **74,05** | 370,24 |
 | 10 | **65,13** | 651,31 |
 | 100 | **53,98** | 5.398,41 |
-
-**Variantes de armado** (BOM aparte para PCBWay, `bom-<variante>.csv`; lo de arriba es la base):
-
-| Variante | Para qué | Lugares que se montan | Placas de la v0 | Partes por placa en la v0 | Si fuera en las 100 |
-|---|---|---|---|---|---|
-| `pod-v0-highg` | ADXL372 de ±200 g montado, para medir cuánto satura ±32 g de la LSM6DSV32X en los contactos | C404, U403 | 2 de 5 | +19,61 | +15,01 |
 
 **Lo que más pesa** (a 100 placas, por placa):
 
@@ -73,7 +67,6 @@ Auditoría completa, parte por parte, en [`stock.md`](stock.md) (leída el **09/
 | **BMD-340-A-R** (`U301`) | ✓ DigiKey 10.055 (stock propio; fábrica 20 semanas) | **150 en DigiKey** (revisión -10) | Fanstel BT840 (otro footprint; DigiKey 10.247) |
 | **Ra-01SH** (`U302`) | ✓ LCSC 2.239 | **10 ya** para la puerta de banco de frecuencia; **150** al pasarla | NiceRF LoRa1262-915TCXO (otro footprint, con TCXO; LCSC 1.232) |
 | **LSM6DSV32XTR** (`U401`) | ✓ LCSC 3.032, DigiKey 24.971 | **150 en LCSC** ya | LSM6DSV320X o 80X pin a pin cuando vuelvan (otro `compatible`) |
-| **ADXL372** (`U403`, variante `pod-v0-highg`) | ✓ LCSC 1.534 | **10 en LCSC** para las 2 placas de medición | — |
 | **GVLB258.A** (`AE201`) | ✓ DigiKey 895 | **150 en DigiKey** ya | Taoglas AGVLB.25B activa por el U.FL |
 | **LC29H(AA)** (`U201`) | ⚠ DigiKey 522, una sola fuente | **150 en DigiKey** ya | LC29H(EA) en el mismo lugar (+12,41) |
 | **TPS22919DCKR** (`U303`; `U105` y `U502` sin montar) | ✓ LCSC 19.720 | 150 en LCSC (450 si se montan los tres) | TPS22918 / TPS22917 (otro footprint) |
@@ -83,22 +76,21 @@ Auditoría completa, parte por parte, en [`stock.md`](stock.md) (leída el **09/
 | TPS7A2032P (`U104`) | ✓ DigiKey 3.348; LCSC 0 | **150 en DigiKey** ya | Ninguna aprobada: la LP5907MFX-3.2 queda pendiente (pide menos de 10 µF a la salida; ADR 0105) |
 | SAW B39162B8389P810 (`FL201`, `FL202`) | ✓ DigiKey 7.710, LCSC 218 | 300 en DigiKey al aprobar la v0 | — |
 
-Lo que se compra ya (BMD-340, LSM6DSV32X, GVLB258.A, LC29H, BGA525N6, TPS7A2032P, 10 Ra-01SH y 10 ADXL372) suma unos **US$ 5.100** (detalle en `stock.md` y en [`alternativas-en-stock.md`](alternativas-en-stock.md)).
+Lo que se compra ya (BMD-340, LSM6DSV32X, GVLB258.A, LC29H, BGA525N6, TPS7A2032P y 10 Ra-01SH) suma unos **US$ 4.920** (ya sin las 10 ADXL372, unos 177; detalle en `stock.md` y en [`alternativas-en-stock.md`](alternativas-en-stock.md)).
 
 ## 2. Placa desnuda (estimación)
 
-Placa de 4 capas, 1,6 mm, unos 50 × 70 mm, FR4 Tg 150+, ENIG, máscara verde, impedancia controlada, **vías en el pad rellenas y tapadas** (las 4 del pad expuesto del TPS63900), **oro duro electrolítico selectivo** en los 5 pads de la base, vía mínima de 0,45/0,2 mm. Ninguno de los dos calculadores se pudo leer en línea: **no verificado**.
+Placa de 4 capas, 1,6 mm, unos 50 × 70 mm, FR4 Tg 150+, ENIG, máscara verde, impedancia controlada, **vías en el pad rellenas y tapadas** (las 4 del pad expuesto del TPS63900), ENIG también en los 5 pads de los resortes del inserto (el oro duro pasó a los pines del inserto, 14/11/2026), vía mínima de 0,45/0,2 mm. Ninguno de los dos calculadores se pudo leer en línea: **no verificado**.
 
 | Concepto | 10 placas (para 5 armadas) | 100 placas | Base de la estimación |
 |---|---|---|---|
 | 4 capas, ENIG, impedancia | 60–120 | 250–450 | Rango habitual de prototipos de 4 capas en PCBWay y JLCPCB; JLCPCB no cobra el control de impedancia |
 | Vías en el pad rellenas y tapadas | 30–80 | 60–150 | JLCPCB lo cobra en 4 capas (gratis desde 6) sin publicar el monto; PCBWay dice "puede ser más caro" |
-| Oro duro selectivo en 5 pads | 50–150 | 100–300 | Necesita bus de plateado o un proceso aparte; JLCPCB probablemente no lo hace en pads que no están en el borde |
-| **Total** | **140–350** | **410–900** | Por placa: 14–35 con 10 y 4–9 con 100 |
+| **Total** | **90–200** | **310–600** | Por placa: 9–20 con 10 y 3–6 con 100 |
 
 ## 3. Armado (estimación)
 
-Datos de la placa (de `bom_pcbway.py`): **55 partes distintas**, **139 componentes**, unos **484 pads** soldados, todo SMT de un lado salvo el pin del patch (a mano, después del reflujo) y quizás el Hall, si se lo pone en la cara de abajo (segunda pasada). Encapsulados de riesgo: **DSBGA de 0,4 mm** (BQ25180; los load switches pasaron a SC-70-6), **LGA** (LSM6DSV32X, BMP581; el ADXL372 en la variante `pod-v0-highg`), TSNP-6 de 0,4 mm (BGA525N6), SAW de 1,4 × 1,1 mm, WSON con pad expuesto (TPS63900, NAND), módulos con pads abajo (BMD-340 de 68, LC29H) y el Ra-01SH almenado: rayos X en unos 8 por placa.
+Datos de la placa (de `bom_pcbway.py`): **55 partes distintas**, **139 componentes**, unos **484 pads** soldados, todo SMT de un lado salvo el pin del patch (a mano, después del reflujo) y quizás el Hall, si se lo pone en la cara de abajo (segunda pasada). Encapsulados de riesgo: **DSBGA de 0,4 mm** (BQ25180; los load switches pasaron a SC-70-6), **LGA** (LSM6DSV32X, BMP581), TSNP-6 de 0,4 mm (BGA525N6), SAW de 1,4 × 1,1 mm, WSON con pad expuesto (TPS63900, NAND), módulos con pads abajo (BMD-340 de 68, LC29H) y el Ra-01SH almenado: rayos X en unos 8 por placa.
 
 Con las tarifas publicadas de JLCPCB (Standard PCBA, la única que arma 0,4 mm; [tarifas](https://jlcpcb.com/help/article/pcb-assembly-price), leídas el 08/11/2026) como referencia:
 
@@ -129,14 +121,14 @@ Placa armada en origen, sin batería, carcasa ni importación (variante base AA;
 | | 5 placas | 10 placas | 100 placas |
 |---|---|---|---|
 | Partes (tabla generada de la sección 1) | 74,05 | 65,13 | 53,98 |
-| Placa desnuda (se piden 10 para armar 5) | 28–70 | 14–35 | 4–9 |
+| Placa desnuda (se piden 10 para armar 5) | 18–40 | 9–20 | 3–6 |
 | Armado | 30–70 | 20–35 | 12–20 |
 | Envío desde China y consignados | 14–28 | 8–15 | 2–4 |
-| **Placa armada en Buenos Aires, sin impuestos** | **unos 145–245** | **unos 105–150** | **unos 72–87** |
+| **Placa armada en Buenos Aires, sin impuestos** | **unos 135–210** | **unos 100–135** | **unos 71–84** |
 | Batería certificada, carcasa MJF con junta y etiqueta (de `pod-f3.md`, **no verificado**) | 12–18 | 12–18 | 11–16 |
-| **Pod completo, sin impuestos** | **unos 157–263** | **unos 117–168** | **unos 83–103** |
+| **Pod completo, sin impuestos** | **unos 148–230** | **unos 114–153** | **unos 82–100** |
 
-- A 100, la placa armada (72–87) queda en el orden de los 85–95 a nivel de placa de `pod-mecanica-produccion.md`, y el pod completo, **arriba de los US$ 80** del ADR 0105. Lo que más mueve: la **LC29H** (12,25), el **BMD-340** (9,60), el armado, la NAND y el **patch** (7,05 la GVLB258.A) (la de 2 Gbit ya está en el diseño; la variante de 4 Gbit suma **+6,78**).
+- A 100, la placa armada (71–84, sin el oro duro selectivo desde el 14/11/2026) queda en el orden de los 85–95 a nivel de placa de `pod-mecanica-produccion.md`, y el pod completo, **arriba de los US$ 80** del ADR 0105. Lo que más mueve: la **LC29H** (12,25), el **BMD-340** (9,60), el armado, la NAND y el **patch** (7,05 la GVLB258.A) (la de 2 Gbit ya está en el diseño; la variante de 4 Gbit suma **+6,78**).
 - Con la EA en todas: **+12,41** por pod a 100.
 - Con los impuestos argentinos (supuesto de 50 %), multiplicar por 1,5 lo que viene de afuera.
 

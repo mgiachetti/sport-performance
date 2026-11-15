@@ -14,6 +14,7 @@ from modelo import (C0402, C0603, C1206, D0402, JUMPER_CLOSED, R0805, SC70_6, SO
                     TP_PAD, UFL, C, D, ESD, FLAG, L, NC, NMOS, R, R0, TP, Group, Sheet, part)
 
 POD = "pod:"
+M2_HOLE = "MountingHole:MountingHole_2.2mm_M2_Pad_Via"  # board screws: plated, ring of vias, to GND
 
 # ---------------------------------------------------------------------------
 power = Sheet("power", "Pod v0: power",
@@ -228,15 +229,17 @@ gnss_rf = Sheet("gnss_rf", "Pod v0: gnss_rf",
 # Signal of each nRF52840 port pin (docs/hardware/pod-v0.md, "Pines del nRF52840"): the same assignment as with
 # the Raytac module, so the firmware's pinctrl does not change. The pad of each port pin on the BMD-340 comes
 # from its pin table (simbolos.BMD340_P0 / BMD340_P1, UBX-19033353 R13 table 2).
+# P0.26 is a spare GPIO (it was the CS of the ADXL372, out of the v0 since 14/11/2026) and P1.03 only reaches the
+# unmounted NAND load switch (NAND_EN): both stay free for the bench and for a v2.
 NRF_GPIO = {
     "P0.00": "XL1", "P0.01": "XL2", "P0.02": "LORA_BUSY", "P0.03": "GNSS_RST", "P0.04": "BUZZER", "P0.05": "LED_G",
     "P0.06": "GNSS_TX", "P0.07": "I2C_SCL", "P0.08": "GNSS_RX", "P0.09": "GNSS_WAKEUP", "P0.10": "HALL_INT",
     "P0.11": "LED_R", "P0.12": "I2C_SDA", "P0.13": "SENS_MOSI", "P0.14": "SENS_SCK", "P0.15": "SENS_MISO",
     "P0.16": "LORA_NSS", "P0.17": "NAND_CS", "P0.18": "NRESET", "P0.19": "NAND_SCK_MCU", "P0.20": "NAND_MOSI",
     "P0.21": "NAND_MISO", "P0.22": "DBG_TX", "P0.23": "DBG_RX", "P0.24": "LORA_SCK", "P0.25": "LORA_MOSI",
-    "P0.26": "HG_CS", "P0.27": "UWB_CS", "P0.28": "VBAT_ADC", "P0.29": "LORA_DIO1", "P0.30": "LORA_RXEN",
+    "P0.26": NC, "P0.27": "UWB_CS", "P0.28": "VBAT_ADC", "P0.29": "LORA_DIO1", "P0.30": "LORA_RXEN",
     "P0.31": "LORA_NRST",
-    "P1.00": "LORA_MISO", "P1.01": "LORA_EN", "P1.02": "UWB_IRQ", "P1.03": "HG_INT", "P1.04": "IMU_INT1",
+    "P1.00": "LORA_MISO", "P1.01": "LORA_EN", "P1.02": "UWB_IRQ", "P1.03": "NAND_EN", "P1.04": "IMU_INT1",
     "P1.05": "UWB_WAKEUP", "P1.06": "IMU_INT2", "P1.07": "UWB_RST", "P1.08": "LED_B", "P1.09": "IMU_CS",
     "P1.10": "GNSS_PPS", "P1.11": "CHG_INT", "P1.12": "BARO_INT", "P1.13": "GNSS_EN", "P1.14": "FG_ALRT",
     "P1.15": "BTN",
@@ -350,11 +353,15 @@ mcu_radio = Sheet("mcu_radio", "Pod v0: mcu_radio",
         part("MountingHole", "Herramienta", {}, "MountingHole:MountingHole_2.1mm", note="Agujero de herramienta del jig (diámetro a confirmar)"),
         part("MountingHole", "Herramienta", {}, "MountingHole:MountingHole_2.1mm", note="Agujero de herramienta del jig (diámetro a confirmar)"),
     ], ["Área libre para la etiqueta con número de serie y QR: se reserva en la placa"]),
+    Group("Fijación de la placa", [
+        part("MountingHole_Pad", "M2 a GND", {"1": "GND"}, M2_HOLE, note=f"Tornillo de la placa en {xy}: poste de la tapa inferior"
+             " (pod-v0-ubicacion-y-carcasa.md, sección 4)") for xy in ("(6; 8)", "(44; 8)", "(25; 66)")
+    ], ["Tres tornillos M2 en triángulo, metalizados a GND; ubicados en la placa (contorno con muescas en las esquinas)"]),
 ])
 
 # ---------------------------------------------------------------------------
 sensors = Sheet("sensors", "Pod v0: sensors",
-                "IMU LSM6DSV32X (+ ADXL372 en la variante pod-v0-highg, ICM-42688-P sin montar), barómetro BMP581 (+ DPS368 sin montar), Hall DRV5032FA", 400, [
+                "IMU LSM6DSV32X (+ ICM-42688-P sin montar), barómetro BMP581 (+ DPS368 sin montar), Hall DRV5032FA", 400, [
     Group("IMU LSM6DSV32X", [
         part("LSM6DSV32XTR", "LSM6DSV32X", {"14": "SENS_MOSI", "13": "SENS_SCK", "12": "IMU_CS", "11": NC, "10": NC,
                                             "9": "IMU_INT2", "8": "VREG", "7": "GND", "6": "GND", "5": "VREG", "4": "IMU_INT1",
@@ -373,17 +380,6 @@ sensors = Sheet("sensors", "Pod v0: sensors",
         R0("IMU_CS", "ICM_CS", dnp=True, note="CS compartido con el LSM6DSV32X"),
         R0("ICM_INT1", "IMU_INT1", dnp=True, note="INT1 compartida con el LSM6DSV32X"),
         C("100n", "VREG", dnp=True),
-    ]),
-    Group("ADXL372 (variante pod-v0-highg)", [
-        part("ADXL372", "ADXL372", {"14": "VREG", "1": "VREG", "12": "GND", "13": "GND", "16": "GND", "11": "HG_INT", "9": NC,
-                                    "8": "HG_CS", "4": "SENS_SCK", "6": "SENS_MOSI", "7": "SENS_MISO",
-                                    "2": NC, "3": NC, "5": NC, "10": NC, "15": NC},
-             POD + "Analog_CC-16-4_LGA-16_3.25x3mm_P0.5mm", dnp=True, variants=("pod-v0-highg",), mpn="ADXL372BCCZ-RL7",
-             lcsc="C579465", manufacturer="Analog Devices",
-             note="Pines según la tabla 5 de la hoja Rev. B (3, 5 y 10 reservados, 2 y 15 NIC); footprint de la figura 54. "
-                  "Montado solo en la variante pod-v0-highg (2 de las 5 placas de la v0): mide cuánto satura ±32 g en los contactos"),
-        C("100n", "VREG", dnp=True, variants=("pod-v0-highg",), note="Desacople del ADXL372: va con él en la variante pod-v0-highg"),
-        R0("HG_INT", "IMU_INT2", dnp=True, note="HG_INT a INT2 del LSM6DSV32X"),
     ]),
     Group("Barómetro BMP581", [
         part("BMP581", "BMP581", {"1": "VREG", "10": "VREG", "3": "GND", "8": "GND", "9": "GND", "2": "I2C_SCL", "4": "I2C_SDA",
@@ -412,7 +408,7 @@ sensors = Sheet("sensors", "Pod v0: sensors",
         R("47k", "HALL_OUT", "HALL_INT", note="Serie de 10–100 kΩ (valor no verificado): protege el pad NFC antes de escribir NFCPINS"),
         C("100n", "VREG"),
     ]),
-])
+], retired=("U403", "C404", "R403"))  # ADXL372, its capacitor and its 0 Ω to IMU_INT2: out of the v0 (14/11/2026)
 
 # ---------------------------------------------------------------------------
 storage = Sheet("storage", "Pod v0: storage", "NAND W25N02KV en el SPIM3, con load switch sin montar", 500, [
@@ -435,8 +431,8 @@ storage = Sheet("storage", "Pod v0: storage", "NAND W25N02KV en el SPIM3, con lo
              note="Solo si el reposo de la NAND pesa en el banco. QOD (pin 5) atado a VOUT"),
         R0("VREG", "VCC_NAND", note="Puente del load switch, montado"),
         R0("NAND_SW_ON", "VREG", note="EN al riel de entrada, montado"),
-        R0("NAND_SW_ON", "HG_INT", dnp=True, note="EN desde NAND_EN en P1.03 (en lugar del ADXL372)"),
-        R("100k", "HG_INT", "GND", dnp=True, note="Pull-down de NAND_EN: montarlo junto con el load switch"),
+        R0("NAND_SW_ON", "NAND_EN", dnp=True, note="EN desde NAND_EN en P1.03"),
+        R("100k", "NAND_EN", "GND", dnp=True, note="Pull-down de NAND_EN: montarlo junto con el load switch"),
         FLAG("VCC_NAND"),
     ]),
 ])
@@ -464,8 +460,9 @@ uwb = Sheet("uwb", "Pod v0: uwb", "UWB DWM3000 sin montar, en el bus de sensores
 usb_dock = Sheet("usb_dock", "Pod v0: usb_dock", "Pads de la base (VBUS, D+, D−, GND, DETECT), switch de entrada con OVP y ESD", 600, [
     Group("Pads de la base", [
         part("Pads_Base", "Pads de la base", {"1": "VBUS_PAD", "2": "DOCK_D_P", "3": "DOCK_D_N", "4": "GND", "5": "DOCK_DET"},
-             POD + "Pod_Dock_Pads_5P_D2.0mm_P3.0mm_Keyed",
-             note="5 pads planos dorados, diseño propio: fila 4 mm fuera del eje de los imanes (llave); medidas a confirmar con la base"),
+             POD + "Pod_Insert_Springs_5P_D2.0mm_P3.5mm",
+             note="Pads de los 5 resortes internos del inserto de contactos (cara de abajo): D+, D-, GND, DETECT y VBUS "
+                  "de izquierda a derecha, a 3,5 mm de paso (pod-v0-ubicacion-y-carcasa.md, sección 6)"),
         R("10k", "DOCK_DET", "GND", note="DETECT a GND: la base habilita VBUS solo con un pod asentado (valor a definir)"),
         D("SMF12A", "GND", "VBUS_PAD", SOD123F, symbol="D_TVS", mpn="SMF12A", lcsc="C207255", manufacturer="Littelfuse",
           note="TVS de 12–13 V de stand-off (clase SMF12A o SMAJ12A, engrape de unos 20 V con 8/20 µs); aguas abajo protege el OVLO"),

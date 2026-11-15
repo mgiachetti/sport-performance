@@ -53,6 +53,12 @@
 	(layer "F.Cu")
 	(condition "A.NetClass == 'RF_50'")
 	(constraint track_width (min 0.31mm) (opt 0.33mm) (max 0.35mm)))
+# La alimentación del patch (única RF en L4) es la misma CPWG espejada: L4 se refiere a L3 por el
+# prepreg de 0,2 mm, igual que L1 a L2, así que 0,33 mm con 0,20 mm a GND dan los mismos 51–52 ohm.
+(rule "RF_50: ancho de 50 ohm en L4 (alimentación del patch)"
+	(layer "B.Cu")
+	(condition "A.NetName == '/gnss_rf/GNSS_ANT_PATCH'")
+	(constraint track_width (min 0.31mm) (opt 0.33mm) (max 0.35mm)))
 (rule "RF_50: solo en L1 (internas)"
 	(layer inner)
 	(condition "A.NetClass == 'RF_50'")
@@ -123,11 +129,12 @@
 	(condition "A.intersectsArea('GNSS_ANTENA') && A.Reference != 'AE201'")
 	(constraint disallow footprint))
 
-# --- Alimentación del patch por L4 (zona PATCH_FEED, sobre el tramo de L4 y su vía de RF) ---
-# El tramo de L4 se refiere a L3: ahí L3 tiene que ser una isla de GND maciza, cosida a L2 con
-# vías de GND. Ninguna pista ni zona de otra red en In2.Cu dentro de la zona (las rule areas, sin
-# red, no cuentan). La zona es provisoria: se mueve con la ubicación del patch.
-(rule "PATCH_FEED: L3 solo GND debajo de la alimentación del patch"
+# --- L3 de GND debajo de lo que corre por L4 (zona L3_GND) ---
+# Todo el tercio de arriba (y < 33: el patch, su alimentación, el inserto de contactos con el eFuse y
+# los ESD) más la franja por donde bajan D+ y D− hasta el BMD-340. Ahí lo de L4 (la alimentación del
+# patch, el par USB, VBUS) se refiere a L3, que tiene que ser GND macizo cosido a L2. Ninguna pista ni
+# zona de otra red en In2.Cu dentro de la zona (las rule areas, sin red, no cuentan; las vías sí pasan).
+(rule "L3_GND: L3 solo GND debajo de L4"
 	(layer "In2.Cu")
-	(condition "A.intersectsArea('PATCH_FEED') && A.NetName != 'GND' && A.NetName != ''")
+	(condition "A.intersectsArea('L3_GND') && A.NetName != 'GND' && A.NetName != ''")
 	(constraint disallow track zone))

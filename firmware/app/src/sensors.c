@@ -5,8 +5,8 @@
  * Stub status (B-904): presence check for the boot self-test and a simple
  * motion estimate from one accelerometer sample. TODO: FIFO batches into
  * `imu_batch` records (both channels, sensor timestamps, `sensor_sync` at each
- * PPS), the ±320 g channel and impact bursts, the latched wake-up interrupt on
- * INT1 for System OFF (high-g channel off first, AN6119), the activity /
+ * PPS), the second (±32 g) channel and impact bursts, the latched wake-up
+ * interrupt on INT1 for System OFF (second channel off first, AN6119), the activity /
  * inactivity function as the `moving` input, and 25–50 Hz barometer batches.
  */
 #include <zephyr/device.h>

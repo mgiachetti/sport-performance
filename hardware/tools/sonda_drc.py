@@ -35,9 +35,12 @@ NS = uuid.UUID("2f1c5a0e-6b1d-4c39-9a57-1f4b8f3c0a11")
 NETS = ["GND", "/gnss_rf/GNSS_RF_A", "/power/BB_LX1", "USB_D_P", "USB_D_N", "SYS", "GNSS_PPS",
         "/mcu_radio/LED_R", "/mcu_radio/LED_G", "/gnss_rf/GNSS_RF_B", "/gnss_rf/GNSS_ANT_PATCH", "VREG"]
 
-# Coordinates in mm on the 45 x 65 mm outline (100..145, 100..165). Zones: BLE_ANTENA x 100-104.35,
-# y 135-150; GNSS_ANTENA x 107.5-137.5, y 101-131; PATCH_FEED (In2.Cu) x 120.5-124.5, y 117-133;
-# LORA_ANTENA x 125-145, y 150-165.
+# Coordinates in mm on the 50 x 70 mm outline (100..150, 100..170; doc origin (0; 0) = (100; 100)).
+# Zones: BLE_ANTENA x 100-104.35, y 147.6-162.6; GNSS_ANTENA x 110-140, y 102-132; L3_GND (In2.Cu) the
+# top third (y < 133) plus x 105-117, y 133-155; LORA_ANTENA x 125.5-130.5, y 160-170; UWB_ANTENA
+# x 146.2-150, y 133-146.
+# Board screws (GND) at (106; 108), (144; 108) and (125; 166). The L2_GND plane is left out of the
+# probes: its fill was computed without them.
 # Track: (net, layer, x0, y0, x1, y1, width). Via: (net, x, y). Footprint: (ref, x, y, side, pads),
 # pad: (number, dx, dy, width, height, net or None). Zone: (net, layer, [(x, y), ...]), outline only.
 PAD = (("1", 0, 0, 0.8, 0.8, None),)
@@ -57,11 +60,13 @@ BAD = {
         ("GNSS_PPS", "F.Cu", 108, 158, 118, 158, 0.2),
         ("/mcu_radio/LED_G", "F.Cu", 108, 158.4, 118, 158.4, 0.2),  # 0.2 mm from PPS
         ("/mcu_radio/LED_G", "In1.Cu", 108, 162, 118, 162, 0.2),  # not GND on L2
-        ("GNSS_PPS", "F.Cu", 130, 158, 140, 158, 0.2),  # inside LORA_ANTENA
+        ("GNSS_PPS", "F.Cu", 126, 161.5, 130, 161.5, 0.2),  # inside LORA_ANTENA
         ("/mcu_radio/LED_R", "F.Cu", 110, 110, 120, 110, 0.2),  # inside GNSS_ANTENA on L1
-        ("/mcu_radio/LED_R", "F.Cu", 101, 140, 104, 140, 0.2),  # inside BLE_ANTENA
+        ("/mcu_radio/LED_R", "F.Cu", 101, 155, 104, 155, 0.2),  # inside BLE_ANTENA
+        ("/mcu_radio/LED_R", "F.Cu", 147, 140, 149, 140, 0.2),  # inside UWB_ANTENA
         ("/gnss_rf/GNSS_RF_A", "F.Cu", 128, 140.5, 138, 140.5, 0.33),  # 0.3 mm from the pad of J1
-        ("VREG", "In2.Cu", 122.5, 120, 122.5, 126, 0.3),  # not GND on L3 under the patch feed
+        ("VREG", "In2.Cu", 125, 120, 125, 126, 0.3),  # not GND on L3 under the patch feed
+        ("/gnss_rf/GNSS_ANT_PATCH", "B.Cu", 128, 125, 138, 125, 0.2),  # patch feed too narrow on L4
         ("/gnss_rf/GNSS_ANT_PATCH", "In2.Cu", 128, 146, 138, 146, 0.33),  # patch feed on L3: still forbidden
     ],
     "vias": [("/gnss_rf/GNSS_RF_A", 120, 140)],  # via on an RF net
@@ -89,13 +94,15 @@ EXPECTED = [
     "GNSS_SENSITIVE: fuera de la zona de LoRa",
     "GNSS_ANTENA: solo GND y RF en L1",
     "GNSS_ANTENA: sin componentes debajo de la antena",
-    "PATCH_FEED: L3 solo GND debajo de la alimentación del patch",
+    "L3_GND: L3 solo GND debajo de L4",
+    "RF_50: ancho de 50 ohm en L4 (alimentación del patch)",
 ]
 # The GNSS_ANT_PATCH exception covers L4 and its via only: the inner-layer rule must still flag it.
 PATCH_INNER = ("RF_50: solo en L1 (internas)", "GNSS_ANT_PATCH")
 # The native keep-out of BLE_ANTENA is reported without its name ("Local override"): look for
 # an items_not_allowed violation at the track placed inside it.
-BLE_KEEPOUT_AT = "@(101.0000 mm, 140.0000 mm)"
+BLE_KEEPOUT_AT = "@(101.0000 mm, 155.0000 mm)"
+UWB_KEEPOUT_AT = "@(147.0000 mm, 140.0000 mm)"  # same for UWB_ANTENA
 
 OK = {
     "tracks": [
@@ -104,17 +111,17 @@ OK = {
         ("/mcu_radio/LED_R", "F.Cu", 108, 140.865, 118, 140.865, 0.2),  # other net 0.6 mm away
         ("USB_D_P", "F.Cu", 108, 150, 118, 150, 0.25),  # pair 0.25 mm, 0.15 mm apart
         ("USB_D_N", "F.Cu", 108, 150.4, 118, 150.4, 0.25),
-        ("SYS", "In2.Cu", 108, 154, 118, 154, 1.5),  # 1 A rail on an inner layer
+        ("SYS", "In2.Cu", 108, 157, 118, 157, 1.5),  # 1 A rail on an inner layer, below L3_GND
         ("GNSS_PPS", "F.Cu", 108, 158, 118, 158, 0.2),
         ("/mcu_radio/LED_G", "F.Cu", 108, 158.5, 118, 158.5, 0.2),  # 0.3 mm from PPS
         ("/power/BB_LX1", "F.Cu", 128, 145, 138, 145, 0.4),  # switch node far from RF and zones
         ("/gnss_rf/GNSS_RF_A", "F.Cu", 115, 120, 125, 120, 0.33),  # RF inside the GNSS zone
-        ("/gnss_rf/GNSS_ANT_PATCH", "B.Cu", 122.5, 119, 122.5, 127, 0.33),  # patch feed on L4 (the one exception)
-        ("/gnss_rf/GNSS_ANT_PATCH", "F.Cu", 122.5, 127, 122.5, 132, 0.33),  # and back on L1 after its via
+        ("/gnss_rf/GNSS_ANT_PATCH", "B.Cu", 125, 119.5, 125, 131, 0.33),  # patch feed on L4 (the one exception)
+        ("/gnss_rf/GNSS_ANT_PATCH", "F.Cu", 125, 131, 125, 134, 0.33),  # and back on L1 after its via
     ],
     "vias": [("GND", 120, 125),  # stitching via inside the GNSS zone
-             ("/gnss_rf/GNSS_ANT_PATCH", 122.5, 127)],  # the patch feed's RF via
-    "zones": [("GND", "In2.Cu", [(121, 118), (124, 118), (124, 128), (121, 128)])],  # GND island on L3
+             ("/gnss_rf/GNSS_ANT_PATCH", 125, 131)],  # the patch feed's RF via
+    "zones": [("GND", "In2.Cu", [(123.5, 118.5), (126.5, 118.5), (126.5, 132), (123.5, 132)])],  # GND island on L3
     "footprints": [
         ("AE201", 115, 130, "F", PAD),  # the patch may sit in the GNSS zone
         ("R2", 130, 125, "B", PAD),  # bottom-side part under the GNSS zone
@@ -131,7 +138,7 @@ def uid(*parts: object) -> str:
     return str(uuid.uuid5(NS, "/".join(map(str, parts))))
 
 
-def footprint(ref: str, x: float, y: float, side: str, pads: tuple, code: dict) -> str:
+def footprint(ref: str, x: float, y: float, side: str, pads: tuple) -> str:
     cu, silk, crt, paste, mask = (f"{side}.{n}" for n in ("Cu", "SilkS", "CrtYd", "Paste", "Mask"))
     font = "(effects (font (size 1 1) (thickness 0.15))" + (" (justify mirror)" if side == "B" else "") + ")"
     out = (f'\t(footprint "sonda:{ref}" (layer "{cu}") (uuid "{uid("fp", ref)}") (at {x} {y})\n'
@@ -141,28 +148,27 @@ def footprint(ref: str, x: float, y: float, side: str, pads: tuple, code: dict) 
            f'\t\t(fp_rect (start -1 -1) (end 1 1) (stroke (width 0.05) (type default)) (fill none) '
            f'(layer "{crt}") (uuid "{uid("crt", ref)}"))\n')
     for num, dx, dy, w, h, net in pads:
-        net_s = f' (net {code[net]} "{net}")' if net else ""
+        net_s = f' (net "{net}")' if net else ""
         out += (f'\t\t(pad "{num}" smd rect (at {dx} {dy}) (size {w} {h}) (layers "{cu}" "{paste}" "{mask}")'
                 f'{net_s} (uuid "{uid("pad", ref, num)}"))\n')
     return out + "\t)\n"
 
 
 def write_board(out: Path, stem: str, spec: dict) -> None:
-    board = (POD / "pod-v0.kicad_pcb").read_text(encoding="utf-8")
-    code = {name: i for i, name in enumerate(NETS, start=1)}
-    nets = '(net 0 "")\n' + "".join(f'\t(net {i} "{name}")\n' for name, i in code.items())
-    assert board.count('(net 0 "")\n') == 1, "pod-v0.kicad_pcb: expected only the empty net"
-    board = board.replace('(net 0 "")\n', nets, 1)
-    items = "".join(footprint(*f, code) for f in spec["footprints"])
+    board = without_zone((POD / "pod-v0.kicad_pcb").read_text(encoding="utf-8"), "L2_GND")
+    known = set(NETS)
+    for item in spec["tracks"] + spec["vias"] + spec["zones"]:
+        assert item[0] in known, f"{item[0]}: not in NETS"
+    items = "".join(footprint(*f) for f in spec["footprints"])
     for i, (net, layer, x0, y0, x1, y1, w) in enumerate(spec["tracks"]):
         items += (f'\t(segment (start {x0} {y0}) (end {x1} {y1}) (width {w}) (layer "{layer}") '
-                  f'(net {code[net]}) (uuid "{uid(stem, "seg", i)}"))\n')
+                  f'(net "{net}") (uuid "{uid(stem, "seg", i)}"))\n')
     for i, (net, x, y) in enumerate(spec["vias"]):
         items += (f'\t(via (at {x} {y}) (size 0.6) (drill 0.3) (layers "F.Cu" "B.Cu") '
-                  f'(net {code[net]}) (uuid "{uid(stem, "via", i)}"))\n')
+                  f'(net "{net}") (uuid "{uid(stem, "via", i)}"))\n')
     for i, (net, layer, pts) in enumerate(spec["zones"]):
         xy = " ".join(f"(xy {x} {y})" for x, y in pts)
-        items += (f'\t(zone (net {code[net]}) (net_name "{net}") (layer "{layer}") (uuid "{uid(stem, "zone", i)}") '
+        items += (f'\t(zone (net "{net}") (layer "{layer}") (uuid "{uid(stem, "zone", i)}") '
                   f'(hatch edge 0.5) (connect_pads (clearance 0.2)) (min_thickness 0.2) (filled_areas_thickness no) '
                   f'(fill (thermal_gap 0.5) (thermal_bridge_width 0.5)) (polygon (pts {xy})))\n')
     end = board.rstrip().rfind(")")
@@ -170,6 +176,20 @@ def write_board(out: Path, stem: str, spec: dict) -> None:
     shutil.copyfile(POD / "pod-v0.kicad_pro", out / f"{stem}.kicad_pro")
     shutil.copyfile(POD / "pod-v0.kicad_dru", out / f"{stem}.kicad_dru")
     print(f"Placa de prueba en {out / (stem + '.kicad_pcb')}")
+
+
+def without_zone(board: str, name: str) -> str:
+    """``board`` without the top-level zone called ``name`` (KiCad 10 writes one zone per block)."""
+    start = board.find(f'(name "{name}")')
+    if start < 0:
+        return board
+    begin = board.rfind("\n\t(zone", 0, start)
+    depth, i = 0, begin + 2
+    while True:
+        depth += {"(": 1, ")": -1}.get(board[i], 0)
+        i += 1
+        if depth == 0:
+            return board[:begin] + board[i:]
 
 
 def blocks_of(report: Path) -> list[str]:
@@ -189,6 +209,8 @@ def verify(report: Path) -> int:
     found = {name: name in text for name in EXPECTED}
     found["BLE_ANTENA (keep-out nativo)"] = any(
         b.startswith("[items_not_allowed]") and BLE_KEEPOUT_AT in b for b in blocks)
+    found["UWB_ANTENA (keep-out nativo)"] = any(
+        b.startswith("[items_not_allowed]") and UWB_KEEPOUT_AT in b for b in blocks)
     found["GNSS_ANT_PATCH sigue prohibida en capas internas"] = any(all(t in b for t in PATCH_INNER) for b in blocks)
     for name, ok in found.items():
         print(("ok    " if ok else "FALTA ") + name)

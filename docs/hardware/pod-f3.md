@@ -7,7 +7,9 @@ Este documento acompaña al [ADR 0105](../adr/0105-pod-gnss-imu-con-telemetria-e
 ## Partes por pod (100 unidades, US$)
 
 
-> **Actualización del 09/11/2026**: la placa v0 usa ahora solo partes en stock: u-blox **BMD-340** en lugar del Raytac MDBT50Q, Ai-Thinker **Ra-01SH** en lugar del E22, **LSM6DSV32X** en lugar de la LSM6DSV320X (con el ADXL372 en 2 placas), patch **GVLB258.A**, load switches **TPS22919** y la antena LoRa **Molex 2111400100**. La tabla de abajo es el relevamiento original: lo vigente está en el "Registro de decisiones" del [ADR 0105](../adr/0105-pod-gnss-imu-con-telemetria-en-vivo.md) y en [`pod-v0.md`](pod-v0.md).
+> **Actualización del 09/11/2026**: la placa v0 usa ahora solo partes en stock: u-blox **BMD-340** en lugar del Raytac MDBT50Q, Ai-Thinker **Ra-01SH** en lugar del E22, **LSM6DSV32X** en lugar de la LSM6DSV320X (sin acelerómetro de alto rango aparte: el ADXL372 salió de la v0 el 14/11/2026), patch **GVLB258.A**, load switches **TPS22919** y la antena LoRa **Molex 2111400100**. La tabla de abajo es el relevamiento original: lo vigente está en el "Registro de decisiones" del [ADR 0105](../adr/0105-pod-gnss-imu-con-telemetria-en-vivo.md) y en [`pod-v0.md`](pod-v0.md).
+
+> **Actualización del 14/11/2026** (ADR 0105, "Registro de decisiones"; [`pod-v0-ubicacion-y-carcasa.md`](pod-v0-ubicacion-y-carcasa.md)): la batería pasa a la celda **503048** de unos 720 mAh (5 × 30 × 48 mm, mismo espesor; unas 16–20 h en Activo con el patch, estimación). Los contactos de la base pasan a un **inserto de cinco pines en la tapa inferior** con resortes internos hasta la placa, y la base lleva el pod parado en una ranura con contactos de lámina, sin imanes en el pod (B-907). Queda el patch **GVLB258.A**, el ADXL372 sale de la v0 y la placa es de 50 × 70 mm. Las filas de batería y contactos de abajo son el relevamiento original.
 
 | Parte | Elegida | Alternativa | Precio @100 | Fuente | Verificado |
 |---|---|---|---|---|---|

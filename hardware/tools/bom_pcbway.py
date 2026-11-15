@@ -55,7 +55,7 @@ REPO = HERE.parents[1]
 PARTS_CSV = HERE / "datos" / "partes_pod_v0.csv"
 OUT = REPO / "docs" / "hardware" / "cotizacion"
 
-NO_PART = {"TestPoint", "Fiducial", "MountingHole", "SolderJumper_Bridged", "TC2030-NL", "Pads_Base"}
+NO_PART = {"TestPoint", "Fiducial", "MountingHole", "MountingHole_Pad", "SolderJumper_Bridged", "TC2030-NL", "Pads_Base"}
 THT = {"Antenna"}
 SMALL = {"R", "C", "L", "D_ESD"}  # small passives: the assembler adds attrition
 ATTRITION = 10  # extra pieces per small-passive row and order (assembler losses)
@@ -73,10 +73,9 @@ EXTRAS = [
 ]
 
 # Assembly variants: DNP places mounted only in some boards (``variants`` of the part in diseno.py). Each one
-# gets its own PCBWay BOM (bom-<name>.csv); the cost tables are the base. name -> (boards of the 5 of the v0, why)
-VARIANTS = {
-    "pod-v0-highg": (2, "ADXL372 de ±200 g montado, para medir cuánto satura ±32 g de la LSM6DSV32X en los contactos"),
-}
+# gets its own PCBWay BOM (bom-<name>.csv); the cost tables are the base. name -> (boards of the 5 of the v0, why).
+# None since 14/11/2026: pod-v0-highg (ADXL372) left the v0 (ADR 0105, decision register), one assembly for all.
+VARIANTS: dict = {}
 
 COSTOS_MD = OUT / "costos.md"
 STOCK_MD = OUT / "stock.md"
@@ -321,9 +320,10 @@ def costos_md(lines: list, totals: dict, extras: list, variants: list) -> str:
     """costos.md with the generated block (part totals, cost drivers, variants, extras) replaced."""
     out = ["| Placas | Partes por placa | Total de partes |", "|---|---|---|"]
     out += [f"| {n} | **{money(totals[n] / n)}** | {money(totals[n])} |" for n in BOARDS]
-    out += ["", "**Variantes de armado** (BOM aparte para PCBWay, `bom-<variante>.csv`; lo de arriba es la base):", "",
-            "| Variante | Para qué | Lugares que se montan | Placas de la v0 | Partes por placa en la v0 | Si fuera en las 100 |",
-            "|---|---|---|---|---|---|"]
+    if variants:
+        out += ["", "**Variantes de armado** (BOM aparte para PCBWay, `bom-<variante>.csv`; lo de arriba es la base):", "",
+                "| Variante | Para qué | Lugares que se montan | Placas de la v0 | Partes por placa en la v0 | Si fuera en las 100 |",
+                "|---|---|---|---|---|---|"]
     for name, v0_boards, purpose, added, extra_v0, extra_100 in variants:
         out.append(f"| `{name}` | {purpose} | {', '.join(added)} | {v0_boards} de {BOARDS[0]} | "
                    f"+{money(extra_v0)} | +{money(extra_100)} |")

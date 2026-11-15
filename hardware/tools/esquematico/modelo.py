@@ -57,6 +57,7 @@ class Sheet:
     comment: str
     base: int  # reference numbers start here (R101, C101...)
     groups: list
+    retired: tuple = ()  # references of removed parts, never reused (U403 of the ADXL372...)
 
 
 def part(symbol, value, nets, footprint="", **kw) -> Part:
