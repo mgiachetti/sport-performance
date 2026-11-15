@@ -5,7 +5,7 @@
 	(layer "F.Cu")
 	(descr "SAW L1 + L5 Qualcomm RF360 B39162B8389P810, dibujado desde la hoja (p.5, figura 2). Verificar")
 	(tags "SAW GNSS L1 L5 B8389")
-	(property "Reference" "REF**" (at 0 -1.45 0) (layer "F.SilkS") (effects (font (size 0.6 0.6) (thickness 0.09))))
+	(property "Reference" "REF**" (at 0 -1.45 0) (layer "F.SilkS") (effects (font (size 0.8 0.8) (thickness 0.12))))
 	(property "Value" "Qualcomm_B39162B8389P810_1.4x1.1mm" (at 0 1.45 0) (layer "F.Fab") (effects (font (size 0.4 0.4) (thickness 0.06))))
 	(property "Description" "Generado por hardware/tools/footprints_hoja.py: no editar a mano" (at 0 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (effects (font (size 1 1) (thickness 0.15))))
 	(attr smd)

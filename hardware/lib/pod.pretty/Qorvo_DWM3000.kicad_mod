@@ -5,7 +5,7 @@
 	(layer "F.Cu")
 	(descr "Qorvo DWM3000, dibujado desde la hoja Rev B (figuras 13 y 14) y el land pattern del foro de Qorvo, con el keep-out de la antena en todas las capas. Verificar")
 	(tags "Qorvo DWM3000 UWB")
-	(property "Reference" "REF**" (at 0 -17.4 0) (layer "F.SilkS") (effects (font (size 0.6 0.6) (thickness 0.09))))
+	(property "Reference" "REF**" (at 0 -17.4 0) (layer "F.SilkS") (effects (font (size 0.8 0.8) (thickness 0.12))))
 	(property "Value" "Qorvo_DWM3000" (at 0 8.05 0) (layer "F.Fab") (effects (font (size 0.4 0.4) (thickness 0.06))))
 	(property "Description" "Generado por hardware/tools/footprints_hoja.py: no editar a mano" (at 0 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (effects (font (size 1 1) (thickness 0.15))))
 	(attr smd)

@@ -64,7 +64,8 @@ BOARDS = (5, 10, 100)
 # Bought for the build but not soldered by the assembler: (mpn, quantity per board, purpose)
 EXTRAS = [
     ("AGVLB.25B.07.0060A", 0.4, "Rescate y referencia de banco por el U.FL (2 por cada 5 placas); no se suelda"),
-    ("2111400100", 1, "Antena LoRa FPC pegada en la carcasa, al U.FL del Ra-01SH; no se suelda"),
+    ("2111400100", 0.4, "Kit de banco: FPC LoRa para el A/B de RSSI contra la antena chip, por el U.FL de prueba (2 por cada 5 placas)"),
+    ("U.FL-R-SMT-1(10)", 0.4, "Kit de banco: J302, puerto de prueba de LoRa sin montar, a mano en las placas de medición"),
     ("LQW15AN10NG00D", 2, "Kit de banco: L de entrada del LNA en alta ganancia"),
     ("LQW15AN12NG00D", 2, "Kit de banco: L de entrada del LNA en bajo consumo"),
     ("0402WGF374JTCE", 2, "Kit de banco: serie del atenuador de 6 dB con la Taoglas"),

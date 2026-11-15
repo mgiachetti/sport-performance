@@ -6,7 +6,7 @@ Todo en US$, sin IVA ni impuestos argentinos.
 
 ## 1. Partes
 
-**Desde el 09/11/2026 la placa usa solo partes en stock** (BMD-340, Ra-01SH, LSM6DSV32X, GVLB258.A y TPS22919; ADR 0105, "Registro de decisiones"). [`costo-partes-pod-v0.csv`](costo-partes-pod-v0.csv) tiene cada fila de la lista (55 partes distintas, 139 componentes montados por placa) con la cantidad que se compra, el precio unitario y el total para 5, 10 y 100 placas. La genera `hardware/tools/bom_pcbway.py` desde la netlist y la planilla de partes, y el CI falla si queda desactualizada.
+**Desde el 09/11/2026 la placa usa solo partes en stock** (BMD-340, Ra-01SH, LSM6DSV32X, GVLB258.A y TPS22919; ADR 0105, "Registro de decisiones"). [`costo-partes-pod-v0.csv`](costo-partes-pod-v0.csv) tiene cada fila de la lista (58 partes distintas, 142 componentes montados por placa desde el 15/11/2026) con la cantidad que se compra, el precio unitario y el total para 5, 10 y 100 placas. La genera `hardware/tools/bom_pcbway.py` desde la netlist y la planilla de partes, y el CI falla si queda desactualizada.
 
 Reglas del cálculo:
 
@@ -20,9 +20,9 @@ Las tablas de abajo las escribe `bom_pcbway.py` en este archivo (entre los marca
 
 | Placas | Partes por placa | Total de partes |
 |---|---|---|
-| 5 | **74,05** | 370,24 |
-| 10 | **65,13** | 651,31 |
-| 100 | **53,98** | 5.398,41 |
+| 5 | **76,08** | 380,39 |
+| 10 | **66,75** | 667,53 |
+| 100 | **55,28** | 5.528,33 |
 
 **Lo que más pesa** (a 100 placas, por placa):
 
@@ -34,28 +34,30 @@ Las tablas de abajo las escribe `bom_pcbway.py` en este archivo (entre los marca
 | GVLB258.A | 1 | 7,05 | digikey |
 | Ra-01SH | 1 | 2,99 | lcsc |
 | LSM6DSV32XTR | 1 | 2,90 | lcsc |
-| Las otras 49 filas | — | 11,39 | — |
+| Las otras 52 filas | — | 12,69 | — |
 
 **Lo que no se suelda** ([`bom-pod-v0-extras.csv`](bom-pod-v0-extras.csv)), total del pedido:
 
 | Parte | Para qué | 5 placas | 10 placas | 100 placas |
 |---|---|---|---|---|
 | AGVLB.25B.07.0060A | Rescate y referencia de banco por el U.FL (2 por cada 5 placas); no se suelda | 62,18 | 124,36 | 1.031,70 |
-| 2111400100 | Antena LoRa FPC pegada en la carcasa, al U.FL del Ra-01SH; no se suelda | 13,05 | 22,54 | 195,70 |
+| 2111400100 | Kit de banco: FPC LoRa para el A/B de RSSI contra la antena chip, por el U.FL de prueba (2 por cada 5 placas) | 5,22 | 10,44 | 85,17 |
+| U.FL-R-SMT-1(10) | Kit de banco: J302, puerto de prueba de LoRa sin montar, a mano en las placas de medición | 1,16 | 1,16 | 9,24 |
 | LQW15AN10NG00D | Kit de banco: L de entrada del LNA en alta ganancia | 0,48 | 0,96 | 7,90 |
 | LQW15AN12NG00D | Kit de banco: L de entrada del LNA en bajo consumo | 0,89 | 0,89 | 7,28 |
 | 0402WGF374JTCE | Kit de banco: serie del atenuador de 6 dB con la Taoglas | 0,14 | 0,14 | 0,28 |
 | NCP15XH103F03RC | Kit de banco: NTC de 10 kΩ para el TS sin la celda | 0,84 | 0,84 | 3,38 |
 | PESD5V0F1BL,315 | Kit de banco: ESD de silicio de 0,4 pF para el nodo del U.FL | 0,86 | 1,72 | 11,70 |
-| **Total** | | **78,44** | **151,45** | **1.257,94** |
+| **Total** | | **71,77** | **140,51** | **1.156,65** |
 
 <!-- fin de lo generado -->
 
 Notas a las tablas:
 
 - **NAND**: la del diseño es la **W25N02KVZEIR** (2 Gbit, unas 8 sesiones de 3 h; `pod-f3.md`), a 7,81 a 100. Contra la W25N04KVZEIR (4 Gbit, 14,59 a 100) ahorra **6,78** por placa a 100, 5,29 a 10 y 19,48 a 5 (LCSC vende la de 4 Gbit de a 10 y la de 2 Gbit de a 1). La W25N04KVZEIR queda como alternativa en el mismo lugar para una variante de más capacidad (mismos pines y comandos según las hojas de Winbond). La GigaDevice **GD5F4GQ6UEYIGR** (4 Gbit, WSON-8 de 8 × 6) sería la segunda fuente de esa variante, pero hoy **no ahorra**: sin stock en LCSC (14,46 a 100 sin stock) ni en DigiKey (solo el carrete de 3.000 a 20,33, sin pedido pendiente). Sus pines y su juego de comandos (ECC, lectura continua, registros de estado) difieren en detalle de la W25N: si se suma, el driver del firmware tiene que soportar las dos (**no verificado**).
-- **Variantes** (a 100 placas, por placa): LC29H(EA) en lugar de la AA, **+12,41** (24,66 en LCSC contra 12,25); UWB DWM3000 montado, **+19,84** más dos capacitores (DigiKey). En el pedido de 5 (3 AA, 2 EA, una con UWB) las partes suben unos **+11,0 por placa** promedio: (2 × (31,78 − 16,04) + 23,46) / 5, con los precios a 1 unidad.
-- **Antena LoRa**: la **Molex 2111400100** (DigiKey 5.706, 1,96 a 100) reemplaza a la Ebyte TX915-FPC-4510, que no tenía precio ni stock confirmados.
+- **Variantes** (a 100 placas, por placa): LC29H(EA) en lugar de la AA, **+12,41** (24,66 en LCSC contra 12,25). En el pedido de 5 (3 AA, 2 EA) las partes suben unos **+6,3 por placa** promedio: 2 × (31,78 − 16,04) / 5, con los precios a 1 unidad. El UWB DWM3000 salió de la v0 el 15/11/2026 (ADR 0105): el banco de UWB usa un DWM3000EVB, fuera de este pedido.
+- **Antena LoRa**: desde el 15/11/2026 la **KYOCERA AVX M620720** en la placa (`AE301`, DigiKey 37.777, 1,33 a 100; fábrica 20 semanas) con sus dos capacitores Murata GJM de alto Q (`C313`, `C314`): unos **+1,30 por placa a 100** en las partes soldadas. La **Molex 2111400100** (que había reemplazado a la Ebyte TX915-FPC-4510) pasa al kit de banco para el A/B por el U.FL de prueba: sale de cada pod (1,96 a 100 que no se compran).
+- **Contra el 09/11/2026**: **74,05 / 65,13 / 53,98** antes, **76,08 / 66,75 / 55,28** desde el 15/11/2026 (+2,03 / +1,62 / +1,30): la antena chip y sus capacitores ahora se sueldan.
 - **Contra el diseño anterior** (MDBT50Q, E22, LSM6DSV320X, GVLB208.A, TPS22916C y TX915): **84,08 / 73,44 / 61,30** por placa a 5 / 10 / 100 antes, **74,05 / 65,13 / 53,98** ahora (−10,03 / −8,31 / −7,32).
 
 ## Plan de stock
@@ -71,7 +73,8 @@ Auditoría completa, parte por parte, en [`stock.md`](stock.md) (leída el **09/
 | **LC29H(AA)** (`U201`) | ⚠ DigiKey 522, una sola fuente | **150 en DigiKey** ya | LC29H(EA) en el mismo lugar (+12,41) |
 | **TPS22919DCKR** (`U303`; `U105` y `U502` sin montar) | ✓ LCSC 19.720 | 150 en LCSC (450 si se montan los tres) | TPS22918 / TPS22917 (otro footprint) |
 | **DRV5032FA** (`U406`) | ✓ LCSC 47.200 | **150 en LCSC** ya | La **FB**, alternativa aprobada cuando vuelva |
-| **2111400100** (antena LoRa, no se suelda) | ✓ DigiKey 5.706 | 150 en DigiKey | Taoglas FXP890.07.0100C (DigiKey 197) |
+| **M620720** (`AE301`, antena LoRa en la placa, desde el 15/11/2026) | ✓ DigiKey 37.777 (15/11/2026; fábrica 20 semanas) | **150 en DigiKey** al aprobar la v0 (10 para la v0 y el banco) | La Molex 2111400100 por el U.FL de prueba (kit de banco) |
+| 2111400100 (antena LoRa FPC, kit de banco desde el 15/11/2026) | ✓ DigiKey 5.706 | **10 en DigiKey** para el A/B | Taoglas FXP890.07.0100C (DigiKey 197) |
 | BGA525N6 (`U205`) | ✓ LCSC 1.801; DigiKey 0 (40 semanas) | **150 en LCSC** ya | Ninguno pin a pin con L1 + L5: con la Taoglas activa se puentea |
 | TPS7A2032P (`U104`) | ✓ DigiKey 3.348; LCSC 0 | **150 en DigiKey** ya | Ninguna aprobada: la LP5907MFX-3.2 queda pendiente (pide menos de 10 µF a la salida; ADR 0105) |
 | SAW B39162B8389P810 (`FL201`, `FL202`) | ✓ DigiKey 7.710, LCSC 218 | 300 en DigiKey al aprobar la v0 | — |
@@ -90,7 +93,7 @@ Placa de 4 capas, 1,6 mm, unos 50 × 70 mm, FR4 Tg 150+, ENIG, máscara verde, i
 
 ## 3. Armado (estimación)
 
-Datos de la placa (de `bom_pcbway.py`): **55 partes distintas**, **139 componentes**, unos **484 pads** soldados, todo SMT de un lado salvo el pin del patch (a mano, después del reflujo) y quizás el Hall, si se lo pone en la cara de abajo (segunda pasada). Encapsulados de riesgo: **DSBGA de 0,4 mm** (BQ25180; los load switches pasaron a SC-70-6), **LGA** (LSM6DSV32X, BMP581), TSNP-6 de 0,4 mm (BGA525N6), SAW de 1,4 × 1,1 mm, WSON con pad expuesto (TPS63900, NAND), módulos con pads abajo (BMD-340 de 68, LC29H) y el Ra-01SH almenado: rayos X en unos 8 por placa.
+Datos de la placa (de `bom_pcbway.py`): **58 partes distintas**, **142 componentes**, unos **491 pads** soldados, todo SMT de un lado salvo el pin del patch (a mano, después del reflujo) y quizás el Hall, si se lo pone en la cara de abajo (segunda pasada). Encapsulados de riesgo: **DSBGA de 0,4 mm** (BQ25180; los load switches pasaron a SC-70-6), **LGA** (LSM6DSV32X, BMP581), TSNP-6 de 0,4 mm (BGA525N6), SAW de 1,4 × 1,1 mm, WSON con pad expuesto (TPS63900, NAND), módulos con pads abajo (BMD-340 de 68, LC29H) y el Ra-01SH almenado: rayos X en unos 8 por placa.
 
 Con las tarifas publicadas de JLCPCB (Standard PCBA, la única que arma 0,4 mm; [tarifas](https://jlcpcb.com/help/article/pcb-assembly-price), leídas el 08/11/2026) como referencia:
 
@@ -137,7 +140,7 @@ Placa armada en origen, sin batería, carcasa ni importación (variante base AA;
 | Concepto | US$ | Nota |
 |---|---|---|
 | v0: 10 placas, 5 armadas, partes y envío | 1.000–1.500 | Secciones 1–4 con 5 placas |
-| v0: lo que no se suelda (2 Taoglas AGVLB.25B de rescate, las FPC de LoRa y el kit de banco) | unos 78 | Tabla generada de la sección 1 |
+| v0: lo que no se suelda (2 Taoglas AGVLB.25B de rescate y el kit de banco, con 2 FPC Molex para el A/B de LoRa) | unos 72 | Tabla generada de la sección 1 |
 | v0.1: segunda vuelta igual | 800–1.300 | Dos vueltas antes del piloto (sección 11 de `pod-mecanica-produccion.md`) |
 | Plantilla de prueba con pogo (fin de línea) | 300–800 | **No verificado** |
 | Base de carga de prueba (B-907) | 200–500 | **No verificado** |

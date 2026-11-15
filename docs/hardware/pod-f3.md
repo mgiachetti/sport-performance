@@ -11,6 +11,8 @@ Este documento acompaña al [ADR 0105](../adr/0105-pod-gnss-imu-con-telemetria-e
 
 > **Actualización del 14/11/2026** (ADR 0105, "Registro de decisiones"; [`pod-v0-ubicacion-y-carcasa.md`](pod-v0-ubicacion-y-carcasa.md)): la batería pasa a la celda **503048** de unos 720 mAh (5 × 30 × 48 mm, mismo espesor; unas 16–20 h en Activo con el patch, estimación). Los contactos de la base pasan a un **inserto de cinco pines en la tapa inferior** con resortes internos hasta la placa, y la base lleva el pod parado en una ranura con contactos de lámina, sin imanes en el pod (B-907). Queda el patch **GVLB258.A**, el ADXL372 sale de la v0 y la placa es de 50 × 70 mm. Las filas de batería y contactos de abajo son el relevamiento original.
 
+> **Actualización del 15/11/2026** (ADR 0105, "Registro de decisiones"; [`pod-v0-ubicacion-y-carcasa.md`](pod-v0-ubicacion-y-carcasa.md)): la antena LoRa pasa a una **antena chip KYOCERA AVX M620720 en la placa** (US$ 1,33 a 100 en DigiKey), al borde de abajo, en lugar de la FPC Molex 2111400100 en la carcasa, que queda en el kit de banco. TX a +14 dBm por defecto, +22 dBm de reserva. El **DWM3000 sale de la v0**: el UWB se estudia con un DWM3000EVB de banco (B-911). Las filas de antena LoRa y UWB de abajo son el relevamiento original.
+
 | Parte | Elegida | Alternativa | Precio @100 | Fuente | Verificado |
 |---|---|---|---|---|---|
 | GNSS L1 + L5 | **Quectel LC29H(AA)** (principal; placa lista para la EA) | LC29H(EA) para RTK en vivo; u-blox NEO-F10N-00B-20 solo como comparación en el banco | F10N-20: US$ 18,69–21,36. LC29H(AA): US$ 7,40 | [findchips NEO-F10N](https://www.findchips.com/search/NEO-F10N-00B) · [Ozdisan LC29H(AA)](https://www.ozdisan.com/en/p/gsm-and-gnss-modules-650/quectel-lc29haamd-1574222) | Sí (F10N por agregador) |
@@ -52,6 +54,7 @@ Sin pasivos de detalle, chaleco ni banda de FC:
 |---|---|---|---|
 | Gateway LoRa de 8 canales SX1302: RAK7268V2 (alternativa: RAK2287 + Raspberry Pi) | 1 por cancha | US$ 139; versión US915 sin LTE, US$ 169,99. RAK2287: US$ 84–99 | [hackster](https://hackster.io/products/buy/97716) · [RAK](https://store.rakwireless.com/products/wislink-concentrator-module-sx1302-rak2287-lorawan) |
 | Mástil de 3–5 m para el gateway | 1 por cancha | — | **No verificado** |
+| Opcional: segundo gateway en el costado opuesto y antena colineal de 6–8 dBi | Por cancha, si el RSSI de la v0 lo pide | **No verificado** | Ideas del estudio de enlace del 15/11/2026 ([`pod-v0.md`](pod-v0.md), "Antena LoRa en la placa"): con un gateway por costado, cada pod tiene casi siempre uno sin el cuerpo en el medio |
 | Bases de carga y descarga (resortes pogo contra los pads del pod; VBUS solo con DETECT) | ~5 de 20 lugares | Diseño propio: costo **no verificado** | — |
 | Base de la cancha y referencia: **Quectel LG290P** (4 bandas, crudo a 10–20 Hz según el foro, **no verificado**) con antena L1/L2/L5 | 1 por cancha | Módulo US$ 67–107 en DigiKey; breakout de Waveshare unos US$ 90 | [DigiKey](https://www.digikey.bg/en/product-highlight/q/quectel/lg290p-03-gnss-module) · [CNX Software](https://www.cnx-software.com/2025/11/25/waveshare-low-cost-lg290p-gnss-rtk-breakout-board-rtc-battery-support/) |
 | Chalecos con bolsillo entre los omóplatos | 100 o más (talles) | **No verificado** | — |

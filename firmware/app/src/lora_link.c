@@ -32,6 +32,11 @@ static const struct gpio_dt_spec lora_en = GPIO_DT_SPEC_GET_OR(USER_NODE, lora_e
 /* Placeholder until the channel plans exist (B-905): first uplink channel of AU915. */
 #define PLACEHOLDER_FREQUENCY_HZ 915200000u
 #define CHANNEL_STEP_HZ 200000u
+/*
+ * +14 dBm by default since the antenna moved onto the board (15/11/2026, ADR 0105): it keeps the PA's
+ * broadband noise away from the GNSS L5; +22 dBm stays as a reserve. Per-pod power from the beacon RSSI
+ * is a follow-up (issue #325).
+ */
 #define TX_POWER_DBM 14
 
 /*

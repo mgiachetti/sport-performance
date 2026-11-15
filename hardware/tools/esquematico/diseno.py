@@ -339,13 +339,27 @@ mcu_radio = Sheet("mcu_radio", "Pod v0: mcu_radio",
         C("1u", "VREG_LORA"),
         FLAG("VREG_LORA"), FLAG("VCC_LORA"),
     ]),
-    Group("Antena LoRa", [
+    Group("Antena LoRa: chip en la placa y puerto de prueba", [
         C("DNP", "LORA_ANT", dnp=True, note="Pasabajos o trampa sin montar, paralelo de entrada"),
         R0("LORA_ANT", "LORA_RF", note="Puente del pasabajos (lugar de su L serie)"),
         C("DNP", "LORA_RF", dnp=True, note="Pasabajos, paralelo de salida"),
-        part("Conn_Coax", "U.FL LoRa", {"1": "LORA_RF", "2": "GND"}, UFL, mpn="U.FL-R-SMT-1(10)", lcsc="C88373", manufacturer="Hirose",
-             note="FPC de 868/915 MHz de 38 × 10 mm con cable de 100 mm (Molex 2111400100) en la carcasa"),
-    ]),
+        part("Conn_Coax", "U.FL LoRa", {"1": "LORA_UFL", "2": "GND"}, UFL, dnp=True, mpn="U.FL-R-SMT-1(10)", lcsc="C88373",
+             manufacturer="Hirose",
+             note="Puerto de prueba sin montar: S11 con el NanoVNA, medidas conducidas y A/B contra la FPC Molex 2111400100 en el banco"),
+        R0("LORA_RF", "LORA_ANT_CHIP", note="Selector: hacia la antena chip, montado"),
+        R0("LORA_RF", "LORA_UFL", dnp=True, note="Selector: hacia el U.FL de prueba (sacar el de la antena chip)"),
+        C("DNP", "LORA_ANT_CHIP", dnp=True, note="Adaptación en pi: paralelo del lado del Ra-01SH, C0G de alto Q"),
+        R0("LORA_ANT_CHIP", "LORA_FEED", note="Adaptación en pi: lugar del elemento serie (L o C de alto Q), 0 Ω de arranque"),
+        C("4.1p", "LORA_FEED", note="Adaptación en pi: paralelo junto al pin 1 (P2 de la placa de demostración de AVX, "
+          "902–928 MHz); el valor final sale del S11 en el banco"),
+        C("3.1p", "LORA_ANT_TUNE", note="Sintonía de la antena: del brazo del pin 3 a GND (P1 de la placa de demostración de AVX); "
+          "valor de arranque, se ajusta con el S11"),
+        part("M620720", "M620720", {"1": "LORA_FEED", "2": NC, "3": "LORA_ANT_TUNE"}, POD + "KyoceraAVX_M620720_6.0x2.0mm",
+             mpn="M620720", manufacturer="KYOCERA AVX",
+             note="Antena chip cerámica ISM 868/915 MHz de 6,0 × 2,0 × 1,08 mm (TDS-ANT-0048 rev. 4), al borde de abajo con su "
+                  "despeje en todas las capas (zona LORA_ANTENA). Desde el 15/11/2026 reemplaza a la FPC Molex 2111400100"),
+    ], ["Ra-01SH → pasabajos → selector (0 Ω) → adaptación en pi → antena chip; el U.FL de prueba por el otro 0 Ω",
+        "Pin 2 de la antena (Dummy) sin conectar; pin 3 a GND por el capacitor de sintonía, al final del brazo de cobre"]),
     Group("Fabricación (solo footprint)", [
         part("Fiducial", "Fiducial", {}, "Fiducial:Fiducial_1mm_Mask2mm"),
         part("Fiducial", "Fiducial", {}, "Fiducial:Fiducial_1mm_Mask2mm"),
@@ -355,7 +369,7 @@ mcu_radio = Sheet("mcu_radio", "Pod v0: mcu_radio",
     ], ["Área libre para la etiqueta con número de serie y QR: se reserva en la placa"]),
     Group("Fijación de la placa", [
         part("MountingHole_Pad", "M2 a GND", {"1": "GND"}, M2_HOLE, note=f"Tornillo de la placa en {xy}: poste de la tapa inferior"
-             " (pod-v0-ubicacion-y-carcasa.md, sección 4)") for xy in ("(6; 8)", "(44; 8)", "(25; 66)")
+             " (pod-v0-ubicacion-y-carcasa.md, sección 4)") for xy in ("(6; 8)", "(44; 8)", "(24; 66)")
     ], ["Tres tornillos M2 en triángulo, metalizados a GND; ubicados en la placa (contorno con muescas en las esquinas)"]),
 ])
 
@@ -438,23 +452,14 @@ storage = Sheet("storage", "Pod v0: storage", "NAND W25N02KV en el SPIM3, con lo
 ])
 
 # ---------------------------------------------------------------------------
-DWM_PINS = {
-    "6": "VCC_UWB", "7": "VCC_UWB", "5": "UWB_VDD1", "1": NC, "2": "UWB_WAKEUP", "3": "UWB_RST", "22": "UWB_IRQ",
-    "8": "GND", "16": "GND", "21": "GND", "23": "GND", "24": "GND",
-    "17": "UWB_CS", "20": "SENS_SCK", "18": "SENS_MOSI", "19": "SENS_MISO",
-    "15": NC, "14": NC, "13": NC, "12": NC, "11": NC, "10": NC, "9": NC, "4": NC,
-}
-
-uwb = Sheet("uwb", "Pod v0: uwb", "UWB DWM3000 sin montar, en el bus de sensores (SPIM1), sin load switch", 700, [
-    Group("DWM3000 (sin montar)", [
-        part("DWM3000", "DWM3000", DWM_PINS, POD + "Qorvo_DWM3000", dnp=True, mpn="DWM3000TR13", lcsc="C5299931",
-             manufacturer="Qorvo", note="Footprint de la hoja Rev B (figura 14), con el keep-out de la antena en todas las capas"),
-        R0("VREG", "VCC_UWB", note="Medición de corriente del UWB"),
-        R0("VCC_UWB", "UWB_VDD1", dnp=True, note="Pin 5 (VDD1 en la DWM3000): conexión a verificar con la hoja"),
-        C("10u", "VCC_UWB", footprint=C0603, dnp=True), C("100n", "VCC_UWB", dnp=True),
-        FLAG("VCC_UWB"), TP("VCC_UWB"),
-    ], ["Siempre en VREG: el firmware lo pone en DEEPSLEEP. Keep-out de la antena sin cobre en ninguna capa"]),
-])
+uwb = Sheet("uwb", "Pod v0: uwb", "Puntos de prueba para un DWM3000EVB de banco (B-911); el DWM3000 salió de la placa", 700, [
+    Group("Puntos de prueba para el DWM3000EVB (banco)", [
+        TP("UWB_CS"), TP("UWB_IRQ"), TP("UWB_RST"), TP("UWB_WAKEUP"),
+        TP("SENS_SCK"), TP("SENS_MOSI"), TP("SENS_MISO"), TP("VREG"), TP("GND"),
+    ], ["El DWM3000 salió de la v0 el 15/11/2026 (ADR 0105): el banco de UWB (B-911) cablea un Qorvo DWM3000EVB a estos "
+        "puntos, en el bus de sensores (SPIM1) con la IMU",
+        "Cables cortos y el SPI más lento mientras el EVB esté colgado (a ajustar en el banco); niveles de E/S del EVB a verificar con su hoja (VREG es 3,4 V)"]),
+], retired=("U701", "R701", "R702", "C701", "C702", "TP701"))  # DWM3000 and its parts: out of the v0 (15/11/2026)
 
 # ---------------------------------------------------------------------------
 usb_dock = Sheet("usb_dock", "Pod v0: usb_dock", "Pads de la base (VBUS, D+, D−, GND, DETECT), switch de entrada con OVP y ESD", 600, [

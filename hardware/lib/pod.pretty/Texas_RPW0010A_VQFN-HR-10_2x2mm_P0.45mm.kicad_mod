@@ -5,7 +5,7 @@
 	(layer "F.Cu")
 	(descr "TI VQFN-HR-10 RPW0010A (TPS259470A), dibujado desde la hoja SLVSFC9C p.73-74 (4225183/A): pasta de TI (82 % IN/OUT, 93 % esquinas, sin el radio de 0,05 mm). Verificar")
 	(tags "VQFN-HR RPW0010A TPS25947 TPS259470")
-	(property "Reference" "REF**" (at 0 -2.05 0) (layer "F.SilkS") (effects (font (size 0.6 0.6) (thickness 0.09))))
+	(property "Reference" "REF**" (at 0 -2.05 0) (layer "F.SilkS") (effects (font (size 0.8 0.8) (thickness 0.12))))
 	(property "Value" "Texas_RPW0010A_VQFN-HR-10_2x2mm_P0.45mm" (at 0 2.05 0) (layer "F.Fab") (effects (font (size 0.4 0.4) (thickness 0.06))))
 	(property "Description" "Generado por hardware/tools/footprints_hoja.py: no editar a mano" (at 0 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (effects (font (size 1 1) (thickness 0.15))))
 	(attr smd)

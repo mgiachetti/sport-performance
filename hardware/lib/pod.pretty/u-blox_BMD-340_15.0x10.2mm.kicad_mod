@@ -5,7 +5,7 @@
 	(layer "F.Cu")
 	(descr "u-blox BMD-340 (nRF52840), dibujado desde la hoja UBX-19033353 R13, figura 12 (p.23) y figura 2 (p.9): 68 pads de 0,5 x 0,5 mm, keep-out de la antena PCB en todas las capas de cobre. Módulo al borde de la placa, antena hacia afuera (sección 6.1). Verificar")
 	(tags "u-blox BMD-340 nRF52840 BLE module")
-	(property "Reference" "REF**" (at 0 -5.95 0) (layer "F.SilkS") (effects (font (size 0.6 0.6) (thickness 0.09))))
+	(property "Reference" "REF**" (at 0 -5.95 0) (layer "F.SilkS") (effects (font (size 0.8 0.8) (thickness 0.12))))
 	(property "Value" "u-blox_BMD-340_15.0x10.2mm" (at 0 5.95 0) (layer "F.Fab") (effects (font (size 0.4 0.4) (thickness 0.06))))
 	(property "Description" "Generado por hardware/tools/footprints_hoja.py: no editar a mano" (at 0 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (effects (font (size 1 1) (thickness 0.15))))
 	(attr smd)

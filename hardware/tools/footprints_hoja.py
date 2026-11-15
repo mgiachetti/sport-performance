@@ -60,6 +60,8 @@ class Footprint:
     keepouts: list = field(default_factory=list)  # (name, layers, allowed, [(x, y), ...]); pours never allowed
     body_y: float = 0  # centre of the body and of the courtyard, when not at the origin
     courtyard_y: float = 0
+    courtyard_x: float = 0  # centre of the courtyard along x, when not at the origin
+    ref_at: tuple | None = None  # (x, y) of the reference on F.SilkS, when not above the courtyard
     silk: list = field(default_factory=list)  # F.SilkS lines: (x0, y0, x1, y1, width)
 
 
@@ -77,12 +79,14 @@ def render(fp: Footprint) -> str:
            '\t(layer "F.Cu")', f'\t(descr "{fp.descr}")', f'\t(tags "{fp.tags}")']
     bw, bh = fp.body
     cw, ch = fp.courtyard
-    out.append(f'\t(property "Reference" "REF**" (at 0 {n(fp.courtyard_y - ch - 0.6)} 0) (layer "F.SilkS") {font(0.6)})')
+    rx, ry = fp.ref_at if fp.ref_at else (0, fp.courtyard_y - ch - 0.6)
+    out.append(f'\t(property "Reference" "REF**" (at {n(rx)} {n(ry)} 0) (layer "F.SilkS") {font(0.8)})')
     out.append(f'\t(property "Value" "{fp.name}" (at 0 {n(fp.courtyard_y + ch + 0.6)} 0) (layer "F.Fab") {font(0.4)})')
     out.append(f'\t(property "Description" "{HEADER}" (at 0 0 0) (unlocked yes) (layer "F.Fab") (hide yes) {font(1)})')
     out.append(f"\t(attr {fp.attr})")
-    for layer, (hw, hh), cy, width in (("F.Fab", (bw, bh), fp.body_y, 0.1), ("F.CrtYd", (cw, ch), fp.courtyard_y, 0.05)):
-        out.append(f'\t(fp_rect (start {n(-hw)} {n(cy - hh)}) (end {n(hw)} {n(cy + hh)}) '
+    for layer, (hw, hh), cx, cy, width in (("F.Fab", (bw, bh), 0, fp.body_y, 0.1),
+                                           ("F.CrtYd", (cw, ch), fp.courtyard_x, fp.courtyard_y, 0.05)):
+        out.append(f'\t(fp_rect (start {n(cx - hw)} {n(cy - hh)}) (end {n(cx + hw)} {n(cy + hh)}) '
                    f'(stroke (width {n(width)}) (type solid)) (fill none) (layer "{layer}"))')
     if fp.pin1:
         px, py = fp.pin1
@@ -429,7 +433,67 @@ def gvlb258() -> Footprint:
                   ("text", "Alimentación por B.Cu desde el pad de 2,2 mm; nunca DC", 0, cy + 10)])
 
 
-FOOTPRINTS = [bmd340, rpw0010a, dsk0010a, dock_pads, lc29h, dwm3000, adxl372, b8389, bga525n6, gvlb258]
+# KYOCERA AVX M620720 (ISM 868/915 MHz ceramic chip antenna, 6.00 x 2.00 x 1.08 mm, pins 1 Feed, 2 Dummy,
+# 3 Ground). Data sheet TDS-ANT-0048 rev. 4: p.2 "Antenna Dimensions" and p.5 "Board Layout" (demo board of
+# 40 x 100 mm, antenna on the long edge). The p.5 drawing is an image only: every number below was read from
+# a render of it, NOT from KYOCERA AVX's CAD footprint (to check against their Altium/DXF if they send it,
+# cotizacion/consultas.md, consulta 9). Drawing frame, as printed: board edge at the top, x along the edge from
+# the feed end of the antenna (pin 1 on the left), y down from the antenna's outer edge. Pads 2.1 mm deep
+# (y 0 to 2.1): pin 1 x -0.1 to 1.0, pin 2 2.45 to 3.55, pin 3 5.0 to 6.1; the copper arm of pin 3 (copper
+# only, under the mask) runs along the edge (y 0 to 0.7) to x 14.4, where the tuning capacitor P1 (0402, pads
+# 13.9-14.4 and 14.9-15.4) goes to the ground beyond the cut-out. The 50 ohm feed leaves pin 1 inward along the
+# feed end, with the shunt P2 (0402, pads -1.6 to -1.1 and -0.6 to -0.1, y 2.4 to 3.2) to the ground tongue.
+# No metal on any layer from x -1.1 to 14.9 and from the edge to y 10.65 (AVX removes the top metal to 8.1
+# next to the feed; here it is the full rectangle). AVX puts the antenna 0.1 mm from the board edge; here
+# 0.3 mm (PCBWay's copper-to-edge minimum, pod-v0.kicad_dru), so the keep-out is 10.95 mm deep. The mask view
+# of p.5 seems to open the pads about 2.0 mm deep against 2.1 of copper: here the opening follows the copper
+# (to check with the CAD).
+# Footprint frame = the drawing, NOT mirrored: origin at the centre of the body, board edge on the -y side
+# (y = -1.35) and pin 1 (feed) on the -x end at rotation 0. On the pod's bottom edge it goes rotated 180 deg
+# (pin 1 on the right, the arm and P1 to the left). The courtyard covers the body and the three pads only, so
+# the 0402 courtyards of P1 (C314) and P2 (C313) at their drawing places do not overlap it; the arm is
+# copper of pad 3 outside the courtyard. P1, P2 and the feed are drawn on Cmts.User.
+M620720_EDGE = 0.3  # copper of the antenna to the board edge (AVX: 0.1)
+
+
+def m620720() -> Footprint:
+    def fx(xd):  # drawing x (from the feed end) to footprint x
+        return xd - 3.0
+
+    def fy(yd):  # drawing y (down from the antenna's outer edge) to footprint y
+        return yd - 1.05
+
+    pads = [Pad("1", "rect", fx(0.45), 0, 1.1, 2.1), Pad("2", "rect", 0, 0, 1.1, 2.1), Pad("3", "rect", fx(5.55), 0, 1.1, 2.1)]
+    # The arm of pin 3: copper only, under the solder mask as in AVX's drawing (no paste); P1's own pad opens it.
+    ax, ay = fx(6.1) + 0.2, fy(0.35)
+    arm = [(fx(6.0) - ax, fy(0.0) - ay), (fx(14.4) - ax, fy(0.0) - ay), (fx(14.4) - ax, fy(0.7) - ay),
+           (fx(6.0) - ax, fy(0.7) - ay)]
+    pads.append(Pad("3", "custom", ax, ay, 0.4, 0.7, ("F.Cu",), poly=arm))
+    edge = fy(-M620720_EDGE)
+    keepout = [(fx(-1.1), edge), (fx(14.9), edge), (fx(14.9), fy(10.65)), (fx(-1.1), fy(10.65))]
+    crt_top, crt_bottom = fy(-0.25), fy(2.3)  # pads + 0.25 toward the edge; 2.3 stays clear of P2 (from 2.33)
+    return Footprint(
+        "KyoceraAVX_M620720_6.0x2.0mm",
+        "Antena chip ISM 868/915 MHz KYOCERA AVX M620720, dibujada desde la imagen de la hoja TDS-ANT-0048 rev. 4 "
+        "(p.2 y p.5), en la misma orientación que el dibujo (borde de la placa arriba, pin 1 a la izquierda; en el "
+        "borde de abajo del pod va girada 180°): pads, brazo del pin 3 hasta P1 y despeje de 16,0 x 10,95 mm en "
+        "todas las capas (solo la alimentación de 50 ohm y los pads de P1 y P2 entran). Cobre a 0,3 mm del borde "
+        "(AVX: 0,1). Verificar contra el footprint CAD de AVX",
+        "antena chip LoRa 868 915 MHz KYOCERA AVX M620720", pads, (3.0, 1.0), (3.35, (crt_bottom - crt_top) / 2),
+        (fx(-0.5), 0), courtyard_y=(crt_top + crt_bottom) / 2, ref_at=(0, fy(3.9)),
+        keepouts=[("M620720_DESPEJE", ("*.Cu",), ("tracks", "pads"), keepout)],
+        comments=[("line", fx(-1.1), edge, fx(14.9), edge),
+                  ("text", "Borde de la placa (0,3 mm del cobre)", fx(6.9), edge - 0.6),
+                  ("line", fx(13.9), fy(0.0), fx(15.4), fy(0.0)), ("line", fx(13.9), fy(0.7), fx(15.4), fy(0.7)),
+                  ("text", "P1 (C314) a GND", fx(14.65), fy(1.4)),
+                  ("line", fx(-1.6), fy(2.4), fx(-0.1), fy(2.4)), ("line", fx(-1.6), fy(3.2), fx(-0.1), fy(3.2)),
+                  ("text", "P2 (C313)", fx(-0.85), fy(3.9)),
+                  ("line", fx(0.45), fy(2.1), fx(0.45), fy(10.65)),
+                  ("text", "Alimentación de 50 ohm (L1)", fx(4.5), fy(6.0)),
+                  ("text", "Sin metal en ninguna capa (TDS-ANT-0048 p.5, leído de la imagen)", fx(6.9), fy(9.0))])
+
+
+FOOTPRINTS = [bmd340, rpw0010a, dsk0010a, dock_pads, lc29h, dwm3000, adxl372, b8389, bga525n6, gvlb258, m620720]
 
 
 def main() -> int:

@@ -5,7 +5,7 @@
 	(layer "F.Cu")
 	(descr "Diseño propio (B-909): pads de los 5 resortes internos del inserto de contactos de la tapa inferior (D+, D-, GND, DETECT, VBUS de izquierda a derecha vistos desde el patch; va en la cara de abajo). ENIG: el oro duro está en los pines del inserto. Sin pasta ni BOM hasta elegir el resorte: entonces se redibuja desde su hoja, con pasta, y se suma x5 a la BOM de la cara de abajo")
 	(tags "inserto resortes contactos base pod")
-	(property "Reference" "REF**" (at 0 -2.1 0) (layer "F.SilkS") (effects (font (size 0.6 0.6) (thickness 0.09))))
+	(property "Reference" "REF**" (at 0 -2.1 0) (layer "F.SilkS") (effects (font (size 0.8 0.8) (thickness 0.12))))
 	(property "Value" "Pod_Insert_Springs_5P_D2.0mm_P3.5mm" (at 0 2.1 0) (layer "F.Fab") (effects (font (size 0.4 0.4) (thickness 0.06))))
 	(property "Description" "Generado por hardware/tools/footprints_hoja.py: no editar a mano" (at 0 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (effects (font (size 1 1) (thickness 0.15))))
 	(attr exclude_from_pos_files exclude_from_bom)

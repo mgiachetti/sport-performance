@@ -336,6 +336,11 @@ def ic_symbols() -> list:
                    description="NMOS de nivel lógico, SOT-23 (1 G, 2 S, 3 D)", min_half_width=2.54))
     s.append(block("Q_PMOS_GSD", "Q", [("1", "G", IN)], [("3", "D", PAS), ("2", "S", PAS)],
                    description="PMOS, SOT-23 (1 G, 2 S, 3 D)", min_half_width=2.54))
+    # KYOCERA AVX M620720, ISM 868/915 MHz ceramic chip antenna (TDS-ANT-0048 rev. 4, pin descriptions):
+    # 1 Feed, 2 Dummy (mechanical only), 3 Ground (to GND through the tuning capacitor at the end of its arm).
+    s.append(block("M620720", "AE", [("1", "FEED", PAS)], [("3", "GND", PAS), ("2", "DUMMY", NC)],
+                   description="Antena chip cerámica ISM 868/915 MHz KYOCERA AVX M620720 (TDS-ANT-0048 rev. 4)",
+                   datasheet="https://datasheets.kyocera-avx.com/ethertronics/AVX-E_M620720.pdf", min_half_width=2.54))
     # Connectors.
     s.append(block("Conn_Coax", "J", [("1", "IN", PAS)], [("2", "Ext", PAS)], description="Conector coaxial (U.FL)", min_half_width=2.54))
     s.append(block("Conn_Bateria", "J", [], [("1", "BAT", PAS), ("2", "GND", PAS), ("3", "NTC", PAS), ("MP", "MP", PAS)],

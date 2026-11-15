@@ -5,7 +5,7 @@
 	(layer "F.Cu")
 	(descr "Patch pasivo L1 + L5 Taoglas GVLB258.A, dibujado desde la hoja SPE-21-8-082-H (secciones 3, 4.2 y 4.3). Posición del pin desde el dibujo de la sección 3: a verificar contra el DXF de Taoglas. Pide un plano de tierra de 70 x 70 mm. Verificar")
 	(tags "antena patch GNSS L1 L5 Taoglas GVLB258")
-	(property "Reference" "REF**" (at 0 -15.85 0) (layer "F.SilkS") (effects (font (size 0.6 0.6) (thickness 0.09))))
+	(property "Reference" "REF**" (at 0 -15.85 0) (layer "F.SilkS") (effects (font (size 0.8 0.8) (thickness 0.12))))
 	(property "Value" "Taoglas_GVLB258.A_25x25mm" (at 0 10.85 0) (layer "F.Fab") (effects (font (size 0.4 0.4) (thickness 0.06))))
 	(property "Description" "Generado por hardware/tools/footprints_hoja.py: no editar a mano" (at 0 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (effects (font (size 1 1) (thickness 0.15))))
 	(attr through_hole)

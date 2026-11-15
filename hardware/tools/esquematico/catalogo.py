@@ -9,7 +9,8 @@ Choice rules (stock, price and sources in ``hardware/tools/datos/partes_pod_v0.c
 
 * Resistors: UNI-ROYAL thick film, 1 % (the 0402WGF series is 1 % in every value).
 * Capacitors: Samsung X5R/X7R for decoupling, C0G for anything below 1 nF. In the GNSS RF chain
-  (DC blocks of 100 pF and 1 nF, 68 pF at the LNA) Murata GRM C0G.
+  (DC blocks of 100 pF and 1 nF, 68 pF at the LNA) Murata GRM C0G; in the LoRa antenna match, Murata
+  GJM (high Q, ±0.05 pF).
 * RF inductors: Murata LQW15AN (wire-wound 0402, high Q), the family the BGA525N6 and SAW sheets use.
 
 Value "DNP" (tuning places with no value yet) has no part on purpose.
@@ -46,6 +47,8 @@ PASIVOS = {
     ("C", "18p", C0402): ("CL05C180JB5NNNC", SAM, "C307443"),
     ("C", "33p", C0402): ("CL05C330JB5NNNC", SAM, "C70465"),
     ("C", "68p", C0402): ("GRM1555C1H680JA01D", MUR, "C76977"),
+    ("C", "3.1p", C0402): ("GJM1555C1H3R1WB01D", MUR, ""),
+    ("C", "4.1p", C0402): ("GJM1555C1H4R1WB01D", MUR, ""),
     ("C", "100p", C0402): ("GRM1555C1H101JA01D", MUR, "C77177"),
     ("C", "1n", C0402): ("GRM1555C1H102JA01D", MUR, "C76947"),
     ("C", "100n", C0402): ("CL05B104KO5NNNC", SAM, "C1525"),
