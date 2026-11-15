@@ -30,7 +30,7 @@
 # entre la zona GNSS_ANTENA (x = 40) y el borde derecho (x = 50) solo con sus dos pads mecánicos (3 y 4, sin red)
 # a 0,2 mm del borde. Solo ese footprint; todo el resto sigue en 0,3 mm. A confirmar con PCBWay.
 (rule "BZ301: pads mecánicos a 0,2 mm del borde"
-	(condition "A.memberOfFootprint('BZ301')")
+	(condition "A.memberOfFootprint('BZ301') && A.NetName == ''")
 	(constraint edge_clearance (min 0.2mm)))
 
 # --- L2: plano de tierra continuo en toda la placa ---

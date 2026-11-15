@@ -91,7 +91,9 @@ jobs:
       # unconnected items (the ratsnest, what is left to route) through, printing how many. When
       # the board is routed, add --fallar-sin-rutear. Like the ERC, it first installs KiCad's
       # default global library tables (the footprints of the official libraries are compared
-      # against them).
+      # against them). kicad-cli exits 0 and leaves the parity list empty when it cannot build the
+      # schematic netlist, so its output goes to drc.log and drc_placa.py checks it too (pipefail
+      # keeps the exit code of kicad-cli through tee).
       - name: DRC
         run: |
           set -euo pipefail
@@ -103,8 +105,8 @@ jobs:
               mkdir -p /tmp/.config/kicad/10.0
               cp "$template/fp-lib-table" "$template/sym-lib-table" /tmp/.config/kicad/10.0/
               exec kicad-cli pcb drc --schematic-parity --severity-error --severity-warning \
-                --format json --output /out/drc.json pod-v0.kicad_pcb'
-          python3 hardware/tools/drc_placa.py "$RUNNER_TEMP/drc.json"
+                --format json --output /out/drc.json pod-v0.kicad_pcb' 2>&1 | tee "$RUNNER_TEMP/drc.log"
+          python3 hardware/tools/drc_placa.py "$RUNNER_TEMP/drc.json" --log "$RUNNER_TEMP/drc.log"
 
       # kicad-cli silently ignores a custom rule that does not parse, so on the empty board the
       # DRC above stays green either way. This builds a probe board that breaks every rule of

@@ -15,11 +15,13 @@ What it does, inside the official KiCad image (it needs KiCad's ``pcbnew`` Pytho
 4. Refills the zones and saves the board. It does not route anything.
 
 It is a bootstrap: the layout continues by hand in KiCad, and from then on the board, not the CSV, is the
-source of the placement. Running it again on an edited board moves every part listed in the CSV back to the
-CSV position (``--solo-nuevos`` only adds and places the parts that are not on the board yet).
+source of the placement. By default it only adds and places the parts that are not on the board yet (for
+example after adding one in ``diseno.py``); the parts already on the board are not moved, and their fields
+keep their layer and visibility (on the committed board a run changes nothing). ``--reubicar-todo`` puts every
+part back at its CSV position, locked ones included, and refuses to run once the board has tracks or vias.
 
     docker run --rm -e HOME=/tmp -v "$PWD:/work" -w /work kicad/kicad:10.0.8@sha256:… \\
-        python3 hardware/tools/ubicar.py [--solo-nuevos] [--placa otra.kicad_pcb]
+        python3 hardware/tools/ubicar.py [--reubicar-todo] [--placa otra.kicad_pcb]
 """
 
 from __future__ import annotations
@@ -104,19 +106,27 @@ def add_footprint(board, comp: dict):
         raise SystemExit(f"{comp['ref']}: no encuentro el footprint {comp['footprint']}")
     fp.SetFPID(pcbnew.LIB_ID(lib, name))
     fp.SetReference(comp["ref"])
+    for field in fp.GetFields():  # library fields without a pen width get 0.15 mm on the next load: set it now
+        if field.GetTextThickness() == 0:
+            field.SetTextThickness(mm(0.15))
     board.Add(fp)
     return fp
 
 
 def sync(board, fp, comp: dict, pins: dict) -> None:
     """What "Update PCB from Schematic" writes into a footprint: value, fields, sheet path, DNP, BOM, nets."""
-    fp.SetValue(comp["value"])
+    if fp.GetValue() != comp["value"]:
+        fp.SetValue(comp["value"])
     for key, text in comp["fields"].items():
+        created = not fp.HasField(key)
+        if not created and fp.GetFieldText(key) == text:
+            continue  # SetField rewrites the text style even with the same text: leave it alone
         fp.SetField(key, text)
-        if key not in BUILTIN_FIELDS:
+        if created and key not in BUILTIN_FIELDS:  # a field that already exists keeps its layer and visibility
             field = fp.GetField(key)
             field.SetVisible(False)
-            field.SetLayer(pcbnew.F_Fab)
+            field.SetLayer(pcbnew.B_Fab if fp.IsFlipped() else pcbnew.F_Fab)
+            field.SetTextThickness(mm(0.15))  # what KiCad gives it on the next load: a re-run changes nothing
     fp.SetPath(pcbnew.KIID_PATH(comp["path"]))
     fp.SetSheetname(comp["sheetname"])
     fp.SetSheetfile(comp["sheetfile"])
@@ -209,7 +219,7 @@ def place_references(board, placed: set) -> int:
 
 
 def main(argv: list[str]) -> int:
-    only_new = "--solo-nuevos" in argv
+    everything = "--reubicar-todo" in argv
     path = Path(argv[argv.index("--placa") + 1]) if "--placa" in argv else POD / "pod-v0.kicad_pcb"
     comps, pins = netlist()
     with CSV.open(encoding="utf-8") as fh:
@@ -220,6 +230,8 @@ def main(argv: list[str]) -> int:
     if missing or extra:
         raise SystemExit(f"La tabla no coincide con el esquemático. Faltan: {missing}. Sobran: {extra}")
     board = pcbnew.LoadBoard(str(path))
+    if everything and len(board.GetTracks()):
+        raise SystemExit("--reubicar-todo pisa la ubicación hecha a mano y la placa ya tiene pistas o vías: no se corre")
     on_board = {fp.GetReference(): fp for fp in board.GetFootprints()}
     added, placed = 0, set()
     for comp in comps:
@@ -231,7 +243,7 @@ def main(argv: list[str]) -> int:
             fp = add_footprint(board, comp)
             added += 1
         sync(board, fp, comp, pins)
-        if new or not only_new:
+        if new or everything:
             place(fp, rows[comp["ref"]])
             placed.add(comp["ref"])
     hidden = place_references(board, placed)
