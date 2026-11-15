@@ -400,7 +400,7 @@ class SheetWriter:
             field("Variante", "montada en " + ", ".join(p.variants), ox, oy, hide=True)
 
         node = ["symbol", ["lib_id", Str(f"{LIB}:{p.symbol}")], ["at", n(ox), n(oy), "0"], ["unit", "1"],
-                ["exclude_from_sim", "no"], ["in_bom", "no" if p.symbol in ("Fiducial", "MountingHole") else "yes"],
+                ["exclude_from_sim", "no"], ["in_bom", "no" if p.symbol in ("Fiducial", "MountingHole", "MountingHole_Pad") else "yes"],
                 ["on_board", "yes"], ["dnp", "yes" if p.dnp else "no"], ["uuid", self.key("s", p.ref)]]
         node += props
         for number in sorted(pins, key=natural):

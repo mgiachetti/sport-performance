@@ -14,6 +14,7 @@ from modelo import (C0402, C0603, C1206, D0402, JUMPER_CLOSED, R0805, SC70_6, SO
                     TP_PAD, UFL, C, D, ESD, FLAG, L, NC, NMOS, R, R0, TP, Group, Sheet, part)
 
 POD = "pod:"
+M2_HOLE = "MountingHole:MountingHole_2.2mm_M2_Pad_Via"  # board screws: plated, ring of vias, to GND
 
 # ---------------------------------------------------------------------------
 power = Sheet("power", "Pod v0: power",
@@ -352,6 +353,10 @@ mcu_radio = Sheet("mcu_radio", "Pod v0: mcu_radio",
         part("MountingHole", "Herramienta", {}, "MountingHole:MountingHole_2.1mm", note="Agujero de herramienta del jig (diámetro a confirmar)"),
         part("MountingHole", "Herramienta", {}, "MountingHole:MountingHole_2.1mm", note="Agujero de herramienta del jig (diámetro a confirmar)"),
     ], ["Área libre para la etiqueta con número de serie y QR: se reserva en la placa"]),
+    Group("Fijación de la placa", [
+        part("MountingHole_Pad", "M2 a GND", {"1": "GND"}, M2_HOLE, note=f"Tornillo de la placa en {xy}: poste de la tapa inferior"
+             " (pod-v0-ubicacion-y-carcasa.md, sección 4)") for xy in ("(6; 8)", "(44; 8)", "(25; 66)")
+    ], ["Tres tornillos M2 en triángulo, metalizados a GND; ubicados en la placa (contorno con muescas en las esquinas)"]),
 ])
 
 # ---------------------------------------------------------------------------

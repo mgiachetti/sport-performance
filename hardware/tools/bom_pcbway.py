@@ -55,7 +55,7 @@ REPO = HERE.parents[1]
 PARTS_CSV = HERE / "datos" / "partes_pod_v0.csv"
 OUT = REPO / "docs" / "hardware" / "cotizacion"
 
-NO_PART = {"TestPoint", "Fiducial", "MountingHole", "SolderJumper_Bridged", "TC2030-NL", "Pads_Base"}
+NO_PART = {"TestPoint", "Fiducial", "MountingHole", "MountingHole_Pad", "SolderJumper_Bridged", "TC2030-NL", "Pads_Base"}
 THT = {"Antenna"}
 SMALL = {"R", "C", "L", "D_ESD"}  # small passives: the assembler adds attrition
 ATTRITION = 10  # extra pieces per small-passive row and order (assembler losses)

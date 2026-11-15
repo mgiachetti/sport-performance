@@ -1,6 +1,6 @@
 # Pod v0: propuesta de ubicación de partes y carcasa de prueba
 
-**Estado: propuesta del 14/11/2026.** Reúne lo definido en una sesión de trabajo sobre la mecánica del pod v0 (B-909). Nada de esto está colocado en KiCad, impreso ni medido: las posiciones son estimaciones hechas sobre [`pod-v0.md`](pod-v0.md) y [`pod-mecanica-produccion.md`](pod-mecanica-produccion.md), y cada número lleva esa reserva aunque no se repita en cada línea.
+**Estado: propuesta del 14/11/2026.** Reúne lo definido en una sesión de trabajo sobre la mecánica del pod v0 (B-909). En KiCad están el contorno, los tornillos y las zonas (sección 4); las partes no están colocadas y nada se imprimió ni se midió: las posiciones de las partes son estimaciones hechas sobre [`pod-v0.md`](pod-v0.md) y [`pod-mecanica-produccion.md`](pod-mecanica-produccion.md), y cada número lleva esa reserva aunque no se repita en cada línea.
 
 Los fuentes de la carcasa están en [`hardware/pod-v0/carcasa/`](../../hardware/pod-v0/carcasa/LEEME.md).
 
@@ -9,9 +9,10 @@ Los fuentes de la carcasa están en [`hardware/pod-v0/carcasa/`](../../hardware/
 | Tema | Qué quedó | Quién lo decidió |
 |---|---|---|
 | Sensor de impactos | El pod va en la espalda, donde los placajes llegan atenuados: alcanza la IMU **LSM6DSV32X** (±32 g y giroscopio). El **ADXL372 sale de la v0** (`U403`, su capacitor y la variante `pod-v0-highg`): queda para una v2 si la LSM6DSV32X satura o aparece un acelerómetro de ±200 g más barato | Usuario, 14/11/2026 (ADR 0105, "Registro de decisiones"; ya aplicado en el esquemático, las listas y el firmware) |
+| Patch GNSS | **Queda el Taoglas GVLB258.A** (25 × 25 mm). El GVLB208.A (20 × 20) pesa apenas 1,5 g menos, rinde unos 3 dB menos de ganancia pico en L1 y L5, cuesta US$ 4,75 más y no cumple la regla de stock (DigiKey 271, 16 semanas). Números en la sección 9 ("Peso") | Usuario, 14/11/2026 (ADR 0105, "Registro de decisiones") |
 | Tamaño de la placa | **50 × 70 mm**, el máximo que ya preveía `pod-v0.md`. En 45 × 65 mm no entran a la vez los keep-outs de las cuatro antenas | Propuesta aceptada |
-| Batería | Celda **503048** (5 × 30 × 48 mm, unos 720 mAh), con el mismo espesor que la de 500–600 mAh | Propuesta aceptada. Falta pasarla al ADR 0105 y a `pod-f3.md` |
-| Contactos de la base | **Inserto de cinco pines en la tapa inferior**, bajo el patch, con resortes internos hasta la placa. Base con el pod parado en una ranura | Propuesta aceptada. Falta pasarla a B-907 |
+| Batería | Celda **503048** (5 × 30 × 48 mm, unos 720 mAh), con el mismo espesor que la de 500–600 mAh | Propuesta aceptada; adoptada el 14/11/2026 en el ADR 0105, `pod-f3.md` y la tabla de autonomía de `pod-v0.md` |
+| Contactos de la base | **Inserto de cinco pines en la tapa inferior**, bajo el patch, con resortes internos hasta la placa. Base con el pod parado en una ranura | Propuesta aceptada; adoptada el 14/11/2026 en el ADR 0105, `pod-f3.md` y B-907 |
 | Fijación de la placa | **3 tornillos M2** desde adentro a postes de la tapa inferior | Usuario |
 | Cierre de la carcasa | **4 tornillos M2 × 12** en las esquinas, desde la cara del cuerpo. Obliga a cambiar el contorno de la placa (sección 4) | Usuario |
 | Programación | **Solo por SWD interno** (Tag-Connect), con la carcasa abierta. No se suman SWDIO y SWDCLK al inserto de contactos | Usuario |
@@ -33,33 +34,45 @@ Posiciones en mm. Donde hay un solo punto, es el centro.
 
 | Parte | Posición | Notas |
 |---|---|---|
-| Patch GNSS GVLB258.A | Centro (25; 17), 25 × 25 × 8,12 | Centrado a lo ancho. Zona `GNSS_ANTENA` de 30 × 30: x de 10 a 40, y de 2 a 32 |
+| Patch GNSS GVLB258.A | Centro (25; 17), 25 × 25 × 8,12 | Centrado a lo ancho. Zona `GNSS_ANTENA` de 30 × 30: x de 10 a 40, y de 2 a 32. **Pin hacia abajo, en (25; 19,5)**: footprint con rotación 0 (su origen es el pin). Así la alimentación sale por L4 hacia la cadena RF por el camino más corto (zona `PATCH_FEED`, sección 4) |
 | Cadena RF del GNSS | x de 19,5 a 22,5; y de 33 a 41 | ESD, SAW, LNA, SAW, atenuador y el 0 Ω de medición (sección 5) |
-| LDO del GNSS | (21; 43,5) | |
+| LDO del GNSS (`U104`) | (21; 43,5) | |
+| Load switch del GNSS (`U105`, sin montar) | (24; 43,5) | Al lado del LDO, entre él y el riel del LC29H |
+| LDO de V_BCKP (`U106`, TPS7A02) | (18,5; 47) | Junto al pin V_BCKP del LC29H y lejos del buck-boost |
 | LC29H | x de 2 a 18; y de 33 a 45,2 | 16 × 12,2 mm, justo debajo de la zona del patch |
 | U.FL de la Taoglas | (21,5; 33) | Rescate y referencia de banco |
 | DWM3000 (sin montar) | x de 33 a 56; y de 32 a 45 | **Sobresale 6 mm del borde derecho** (sección 5) |
-| BMD-340 | x de 0 a 15; y de 50 a 60,2 | Keep-out de 4,4 × 15: x de 0 a 4,4; y de 47,6 a 62,6 |
+| BMD-340 | x de 0 a 15; y de 50 a 60,2 | Keep-out de 4,4 × 15: x de 0 a 4,4; y de 47,6 a 62,6 (zona `BLE_ANTENA`, 4,35 de ancho). Pads 13 y 14 (XL1, XL2) en (11,25; 59,5) y (11,8; 58,6); pads 66 a 68 (VBUS, D−, D+) en x = 14,35, y de 53,5 a 51,3 |
+| Cristal de 32,768 kHz (`Y301`) y sus dos capacitores | (11,5; 61,5), los capacitores a cada lado | Pegado a los pads 13 y 14, con pistas de menos de 3 mm, tierra alrededor en L1 y nada que conmute debajo (clase GNSS_SENSITIVE) |
 | IMU LSM6DSV32X | (27; 36) | A unos 2 mm del centro de la placa |
 | Barómetro BMP581 | (45; 20) | Esquina libre junto al patch, lejos del cargador |
 | NAND | (23; 56), 8 × 6 | |
+| Load switch de la NAND (`U502`, sin montar) | (19,5; 52) | Entre el riel y la NAND |
 | MAX17048 | (29; 50) | |
 | TPS63900 | (29,5; 58) | |
+| Load switch del LoRa (`U303`) | (30; 54) | Entre el MAX17048 y el TPS63900, al lado del pin de alimentación del Ra-01SH |
 | BQ25180 | (15; 65) | Con su cobre de 5 × 5. A 20 mm o más de la IMU y del MAX17048 |
 | Ra-01SH | x de 31 a 48; y de 48 a 64 | Corrido para librar el tornillo de cierre de la esquina |
 | U.FL de LoRa | (28,5; 62,5) | A la izquierda del Ra-01SH |
 | LED RGB | (8,5; 2,2) | Borde de la nuca, debajo de la guía de luz |
+| Buzzer (`BZ301`, sin montar) | (44,5; 27) | 8,5 × 8,5 mm, fuera de la zona GNSS y arriba del DWM3000; si se monta, la tapa superior necesita un agujero de sonido |
 | Tornillos de la placa | (6; 8), (44; 8) y (25; 66) | Agujeros M2 metalizados a tierra |
-| J201 (QGNSS) y Tag-Connect | Sin ubicar | El Tag-Connect va en la cara de arriba y fuera de la celda (sección 8) |
+| Tag-Connect TC2030-NL (`J301`) | (47; 13,5), vertical | Cara de arriba, accesible con la tapa superior afuera. Fuera de la celda (x de 12 a 42), así los pines de alineación del cable, que atraviesan la placa, no tocan nada abajo; a unos 3 mm del agujero de `H304`. Los puntos de prueba SWD y de la consola al lado |
+| J201, conector de QGNSS | (4,5; 29), vertical, abriendo hacia el borde izquierdo | JST SH de 4 vías para el banco (con la tapa afuera). Fuera de la zona GNSS y cerca de la UART del LC29H y de sus traductores de nivel |
 
 ### Cara de abajo
 
 | Parte | Posición | Notas |
 |---|---|---|
 | Celda 503048 | x de 12 a 42; y de 14 a 62 | A 1 mm de la placa. Queda debajo del pin del patch: lleva despeje o lámina aislante |
-| Resortes del inserto | x = 18; 21,5; 25; 28,5 y 32, en y = 7 | VBUS, D+, D−, GND y DETECT, a 3,5 mm de paso |
+| Resortes del inserto | x = 18; 21,5; 25; 28,5 y 32, en y = 7 | VBUS, D+, D−, GND y DETECT, a 3,5 mm de paso. El bloque de contactos de la tapa ocupa x de 17 a 33 e y de 4 a 10: lo de abajo queda afuera |
+| TVS de VBUS (`D601`, SMF12A) | (14,5; 4,5) | Lo primero después del resorte de VBUS |
+| eFuse TPS259470A (`U602`) y su divisor de OVLO y capacitor de dV/dt | (13; 9), sus pasivos de x = 10 a 16 | Entre el TVS y el riel que baja al BQ25180. A unos 4 mm del agujero de `H303` |
+| ESD de D+ y D− (`U601`, USBLC6-2SC6) | (23,25; 11,8) | Justo debajo del bloque, entre los resortes de D+ y D− |
+| Resistencia de DETECT (`R601`) y ESD de DETECT (`D602`) | (35; 7) | Al lado del resorte de DETECT, fuera del bloque |
+| Punto de prueba de VBUS (`TP601`) | (11; 12,5) | |
 | Sensor Hall DRV5032FA | (40; 66) | Fuera de la celda, frente al imán del chaleco |
-| J101, conector de la batería | (12; 66) | JST GH horizontal, cerca del BQ25180 |
+| J101, conector de la batería | (12; 66) | JST GH horizontal, cerca del BQ25180. Trae la NTC de 10 kΩ de la celda por su pin 3 (TS del BQ25180): la NTC no va en la placa |
 
 ### En la carcasa
 
@@ -77,6 +90,10 @@ Posiciones en mm. Donde hay un solo punto, es el centro.
 - **Tornillos de la placa** en triángulo, para que la placa no quede forzada: (6; 8), (44; 8) y (25; 66). Los dos de arriba se corrieron 1 mm respecto de la primera propuesta, para dejar unos 2,5 mm de placa entre el agujero y la muesca.
 - **Los tornillos de la placa no cierran la carcasa.** Se evaluó usar los mismos para las dos cosas y se descartó: los golpes sobre la tapa pasarían por la placa, el sello dependería del espesor de la placa y abrir la carcasa dejaría la placa suelta.
 - **La batería no va rígida**: se apoya con espuma, con su hueco de hinchazón.
+- **Ya está en la placa de KiCad** (`hardware/pod-v0/pod-v0.kicad_pcb`, 14/11/2026; origen (0; 0) = (100; 100)): el contorno con las cuatro muescas, los tres tornillos (`H303`, `H304` y `H305`, `MountingHole_2.2mm_M2_Pad_Via` metalizados a GND, bloqueados y también en el esquemático), el plano de GND de L2 (`L2_GND`) y las zonas `GNSS_ANTENA`, `PATCH_FEED`, `BLE_ANTENA`, `LORA_ANTENA` y `UWB_ANTENA` en sus lugares ([`hardware/README.md`](../../hardware/README.md), "Contorno, tornillos y zonas con nombre"). El DRC del CI y su prueba de reglas pasan con el contorno nuevo. Las partes no se ubicaron: el layout lo hace el usuario.
+- **Zona `PATCH_FEED`** (solo L3): x de 23 a 27, y de 18 a 32,5. Con el pin hacia abajo, en (25; 19,5), la alimentación del patch sale por L4 unos 10 mm hasta pasar el borde de la cerámica (y = 29,5), sube a L1 por su vía de RF cerca de y = 31 y llega a la cadena RF en y = 33. Con el pin hacia arriba o hacia un costado el tramo de L4 sería más largo y cruzaría más plano.
+- **`LORA_ANTENA`** quedó chica: x de 25,5 a 30,5, y de 60 a 70, sobre el U.FL del Ra-01SH y la salida de su cable hacia la pared de abajo, sin tapar el Ra-01SH (x de 31 a 48). La FPC no está en la placa.
+- **`UWB_ANTENA`**: x de 46,2 a 50, y de 32 a 45. Con el DWM3000 sobresaliendo 6 mm a la derecha, unos 3,8 mm de la parte de su antena (9,8 mm desde la punta) quedan sobre la placa: ahí no va cobre en ninguna capa, igual que el keep-out del footprint. Supone la antena hacia afuera; si se gira el módulo, la zona se mueve con él.
 
 ## 5. Antenas
 
@@ -134,6 +151,14 @@ Posiciones en mm. Donde hay un solo punto, es el centro.
 - **Inserto en la tapa inferior:** cinco pines de oro duro sellados, unidos a la placa por resortes internos de unos 2,5 mm. El oro duro pasa al inserto y la placa queda en ENIG.
 - **Bajo el patch, en la franja de la nuca:** el plano de tierra lo tapa, así que no afecta ninguna antena, y es el punto más alto con el chaleco puesto, donde menos sudor junta.
 - **Base con el pod parado** en una ranura, con contactos de lámina que rozan. Veinte pods ocupan dos filas de diez y la forma de la ranura hace de llave, sin imanes en el pod.
+
+### Ruteo de USB y VBUS desde el inserto
+
+- **D+ y D−** salen de los resortes (y ≈ 7, cara de abajo) y llegan a los pads 66 a 68 del BMD-340 (x = 14,35; y de 51,3 a 53,5): unos **45 mm** de par. Van como **par de 90 Ω en una capa interna (L3)**, referido al plano de L2, con **GND a los dos lados** en L3 (relleno o pistas de guarda cosidas a L2 con vías cada pocos mm). Dentro de `GNSS_ANTENA` no puede haber vías que no sean de GND, así que el par sale de los resortes por L4 hasta pasar x = 10 (o y = 32), baja a L3 ahí y sigue por L3 a lo largo del lado izquierdo (x de 7 a 9, debajo del LC29H, lejos de sus señales GNSS_SENSITIVE) hasta subir a L1 al lado de los pads del BMD-340.
+- **Lejos de la cadena del LNA y los SAW** (x de 19,5 a 22,5; y de 33 a 41) y de la alimentación del patch (`PATCH_FEED`): el par no pasa por debajo de ninguna de las dos.
+- La geometría de 0,25/0,15 mm de `USB_90D` es la de L1. En L3, entre L2 y L4, la impedancia cambia: se recalcula con `hardware/tools/impedancia.py` y con la calculadora de PCBWay antes de rutear. Hasta 5 mm sin acoplar (la entrada a los resortes y al ESD) y 0,5 mm de diferencia de largo como máximo, como dice la regla.
+- **VBUS y la carga**: el BQ25180 carga a 300–350 mA y la entrada se dimensiona para 1 A (clase `POWER_DOCK`). Desde el eFuse hasta el BQ25180 en (15; 65) son unos 60 mm: **0,5 mm o más en L1 o L4** (35 µm; unos 60 mΩ, 30 mV a 0,5 A) o **1,5 mm en las internas**. Lo natural es L4, por debajo de la celda (que queda a 1 mm, con su lámina), sin vías dentro de `GNSS_ANTENA`. El retorno es el plano de L2.
+- **Alternativa a evaluar en el layout: el inserto en el extremo de abajo.** D+, D− y VBUS quedarían a unos 10–15 mm del BMD-340 y del BQ25180, sin cruzar la placa ni pasar cerca de la cadena RF. A cambio, los contactos irían al punto más bajo con el chaleco puesto (más sudor), junto a la FPC de LoRa, el Hall y el tornillo de abajo, y la carcasa se tendría que regenerar. Si el ruteo de arriba no cierra, se evalúa esta opción.
 
 ## 7. Carcasa de prueba
 
@@ -194,9 +219,9 @@ Posiciones en mm. Donde hay un solo punto, es el centro.
 
 ### Para resolver antes del layout
 
-- [ ] **Confirmar el contorno de la placa:** radio 5 mm y las cuatro muescas de las esquinas.
+- [x] **Contorno de la placa:** radio 5 mm y las cuatro muescas de las esquinas, dibujado en KiCad el 14/11/2026 con los tornillos y las zonas (sección 4).
 - [ ] **Ra-01SH y antena UWB:** al correr el Ra-01SH para librar el tornillo de cierre, quedó a unos 4 mm de la antena del DWM3000. Antes estaba a 9 mm. Solo afecta a la placa con UWB, pero hay que revisarlo.
-- [ ] **Ubicar el Tag-Connect y J201.**
+- [x] **Ubicar el Tag-Connect y J201** (propuesta en la sección 3, a confirmar en el layout).
 - [ ] **Posición del pin del patch** contra el DXF de Taoglas, y **altura del escalón** entre la base de 25 × 25 y el elemento de arriba, para sumar el apoyo de presión vertical en la tapa.
 
 ### Para medir con la primera placa
@@ -208,7 +233,11 @@ Posiciones en mm. Donde hay un solo punto, es el centro.
 
 ### Abiertos de diseño
 
-- [ ] **Peso.** Las dos tapas son unos 24 g. Con los 18 g del patch y unos 14,5 g de la celda ya son unos 57 g sin la placa, contra la meta de 50 g. Bajar las paredes a 1,5 mm ahorra unos 6 g.
+- [ ] **Peso: unos 70 g contra la meta de 50 g** (estimación). Las dos tapas son unos 24 g, el patch 17,5 g, la celda unos 14,5 g y la placa de 50 × 70 × 1,6 mm de 4 capas unos 10 g desnuda y 14–16 g armada. Palancas:
+  - **Paredes de 1,5 mm**: unos 6 g menos. Pendiente del usuario; el generador sigue en 2 mm.
+  - **Kyocera AVX 1005620** (25 × 25 × 4,16 mm, 9,6 g, L1 centrada en 1584 ± 2 MHz y L5 en 1176 ± 2 MHz sobre 70 × 70 mm, 3,3/0,4 dBic en el cenit en L1/L5; DigiKey 56, 12 semanas): unos 8 g menos y 4 mm menos de alto. **Comprar 5** para compararla en el banco con QGNSS contra el GVLB258.A. Tiene la misma base de 25 × 25 mm, pero **el pin no está en el mismo lugar**: según el dibujo de su hoja (TDS-ANT-0088 rev. 1) está a 10,70 mm de un borde (1,8 mm del centro) y centrado en el otro eje, contra 2,5 mm del GVLB258.A, con un pin de Ø0,82 mm que sobresale 3 mm. Con el mismo footprint no entra: hace falta un segundo agujero (o un footprint propio) en el lugar de su pin, y verificar hacia qué lado queda respecto del chaflán. La hoja no da las eficiencias; DigiKey lista 7,85 mm de alto máximo, que no coincide con los 4,16 mm de la hoja.
+  - **Antenas chip de L1 y L5**: solo si el usuario reabre la decisión del patch apilado (con chips se pierde ganancia y la tierra chica pesa más).
+  - Comparación del 14/11/2026 que dejó el **GVLB258.A** (hoja rev. I): 17,5 g netos, eficiencia 50,94 % en L5 y 70,44 % en L1, ganancia pico 3,29 dBi en L5 y 4,30 dBi en L1. El **GVLB208.A** (hoja SPE-25-8-318-B): 16 g, pin a 1,2 mm del centro, eficiencia 49,8 % en L5 y 50,2 % en L1, ganancia pico 0,4 dBi en L5 y 1,5 dBi en L1, US$ 4,75 más caro y sin stock suficiente (DigiKey 271, 16 semanas).
 - [ ] **Estanqueidad:** junta en la unión, sello bajo las cabezas de los tornillos, sellado de la guía de luz y de los pines.
 - [ ] **Rosca en nylon impreso:** aguanta pocos ciclos de abrir y cerrar.
 - [ ] **Espesor.** La única forma de bajarlo a unos 17–18 mm es poner la batería arriba, al lado del patch, y los módulos abajo. Deja una masa metálica junto a la antena GNSS; se puede probar en el banco apoyando una celda junto al patch.
@@ -218,9 +247,9 @@ Posiciones en mm. Donde hay un solo punto, es el centro.
 
 ### Para pasar a otros documentos
 
-- [ ] ADR 0105 y `pod-f3.md`: celda 503048 y contactos por inserto.
-- [ ] Tabla de autonomía de `pod-v0.md`.
-- [ ] B-907: base con el pod parado y contactos de lámina.
+- [x] ADR 0105 y `pod-f3.md`: celda 503048 y contactos por inserto (14/11/2026).
+- [x] Tabla de autonomía de `pod-v0.md` (columna de 720 mAh).
+- [x] B-907: base con el pod parado y contactos de lámina.
 
 ## 10. Sugerencias de configuración de la IMU
 
@@ -243,6 +272,7 @@ No son decisiones; quedan como punto de partida para el firmware.
 
 ## 12. Fuentes
 
+- [Kyocera AVX 1005620, hoja de datos TDS-ANT-0088 rev. 1](https://datasheets.kyocera-avx.com/1005620.pdf)
 - [Driver `lsm6dsv16x` de Zephyr, tabla de ODR por modo](https://github.com/zephyrproject-rtos/zephyr/blob/main/drivers/sensor/st/lsm6dsv16x/lsm6dsv16x.c) (misma familia y registro `ODR_XL` que la LSM6DSV32X, ST DS13511)
 - [DWM3000, hoja de datos (Farnell)](https://farnell.com/datasheets/4509027.pdf)
 - [DWM3000 antenna placement, foro de Qorvo](https://forum.qorvo.com/t/dwm3000-antenna-placement/21256)

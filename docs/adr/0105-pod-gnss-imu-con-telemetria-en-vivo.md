@@ -234,3 +234,22 @@ Decisiones posteriores sobre el hardware del pod, en orden. Lo de arriba queda c
 4. **Firmware:** sin el nodo `hg_accel`, sin su CS en el SPIM1 y sin el overlay `pod_v0_highg.overlay`; el CI ya no compila esa variante. El código `adxl372` del formato del log se conserva para no mover los códigos que ya existen.
 
 **Costo de las partes por placa**: no cambia la base (el ADXL372 no estaba montado en ella): **74,05 / 65,13 / 53,98** a 5 / 10 / 100 placas. Se dejan de comprar las 10 ADXL372 de las placas de medición (unos US$ 177).
+
+### 2026-11-14: patch, celda y contactos de la v0
+
+Decisiones de la sesión de mecánica ([`pod-v0-ubicacion-y-carcasa.md`](../hardware/pod-v0-ubicacion-y-carcasa.md)). Reemplazan lo de arriba donde lo dicen:
+
+1. **Patch GNSS: queda el Taoglas GVLB258.A** (25 × 25 mm), decisión del usuario después de compararlo con el GVLB208.A (20 × 20) para bajar peso:
+
+   | | GVLB258.A (hoja rev. I) | GVLB208.A (hoja SPE-25-8-318-B) |
+   |---|---|---|
+   | Peso | 17,5 g netos | 16 g |
+   | Pin | a 2,5 mm del centro | a 1,2 mm del centro |
+   | Eficiencia L5 / L1 | 50,94 % / 70,44 % | 49,8 % / 50,2 % |
+   | Ganancia pico L5 / L1 | 3,29 / 4,30 dBi | 0,4 / 1,5 dBi |
+   | Precio y stock | El de referencia; DigiKey 895 | US$ 4,75 más; DigiKey 271, 16 semanas: no cumple la regla de stock |
+
+   El GVLB208.A ahorra solo 1,5 g a cambio de unos 3 dB de ganancia pico en las dos bandas. Para bajar peso quedan abiertas otras palancas: paredes de 1,5 mm (unos 6 g, pendiente del usuario) y el **Kyocera AVX 1005620** (25 × 25 × 4,16 mm, 9,6 g, L1 centrada en 1584 ± 2 MHz; DigiKey 56, 12 semanas), del que se compran 5 para compararlo en el banco con QGNSS. Tiene la misma base pero el pin en otro lugar (1,8 mm del centro), así que necesitaría su propio agujero en la placa. Las antenas chip de L1 y L5 solo si se reabre la decisión del patch apilado. El peso estimado del pod es de unos 70 g contra la meta de 50 g (`pod-mecanica-produccion.md`).
+2. **Batería: celda 503048** (5 × 30 × 48 mm, unos 720 mAh, con PCM y NTC) en lugar de la de 500–600 mAh: el mismo espesor de 5 mm y unas 16–20 h en Activo con el patch (estimación, `pod-v0.md`). Capacidad y medidas de una lista genérica de modelos, a confirmar con el proveedor (UN38.3, IEC 62133).
+3. **Contactos de la base por un inserto**: cinco pines de oro duro sellados en la tapa inferior, bajo el patch, unidos a la placa por resortes internos (VBUS, D+, D−, GND y DETECT, a 3,5 mm de paso). El oro duro pasa al inserto y los pads de la placa quedan en ENIG. **Base con el pod parado** en una ranura, con contactos de lámina que rozan, la ranura como llave y sin imanes en el pod; el orden de contacto (GND primero, DETECT último) se mantiene con el largo de las láminas (B-907). Reemplaza a "pads planos dorados en el pod con resortes pogo en la base, imanes polarizados" de "Conexión externa".
+4. **Placa de 50 × 70 mm** con esquinas de radio 5 mm, una muesca de radio 2,7 mm en cada esquina para el tornillo de cierre y tres tornillos M2 metalizados a GND; ya están en la placa de KiCad con las zonas de antena.

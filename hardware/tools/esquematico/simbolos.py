@@ -179,6 +179,9 @@ def generic_symbols() -> list:
                        in_bom=False, ref_at=(0, 2.54), value_at=(0, -2.54)))
     syms.append(symbol("MountingHole", "H", [circle(0, 0, 1.27, 0.254, "none")], [], description="Agujero sin cobre (solo footprint)",
                        in_bom=False, ref_at=(0, 2.54), value_at=(0, -2.54)))
+    syms.append(symbol("MountingHole_Pad", "H", [circle(1.27, 0, 1.27, 0.254, "none")],
+                       [pin("passive", -2.54, 0, 0, 2.54, "1", "1")], description="Agujero metalizado con pad (a GND)",
+                       in_bom=False, hide_pin_names=True, hide_pin_numbers=True, ref_at=(2.54, 2.54), value_at=(2.54, 0.635)))
     return syms
 
 

@@ -85,16 +85,22 @@ jobs:
               exec kicad-cli sch erc --exit-code-violations --severity-error --severity-warning \
                 --output /out/erc.rpt pod-v0.kicad_sch'
 
-      # Once the board has footprints, add --schematic-parity so the DRC also checks
-      # that the board matches the schematic.
+      # Once the board has all its footprints, add --schematic-parity so the DRC also checks
+      # that the board matches the schematic. Like the ERC, it first installs KiCad's default
+      # global library tables: the board screws use the official MountingHole library, and
+      # without the table the DRC warns that the library is missing.
       - name: DRC
         run: |
           set -euo pipefail
           docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
             -v "$GITHUB_WORKSPACE:/work" -v "$RUNNER_TEMP:/out" \
             -w "/work/$PROJECT_DIR" "$KICAD_IMAGE" \
-            kicad-cli pcb drc --exit-code-violations --severity-error --severity-warning \
-              --output /out/drc.rpt pod-v0.kicad_pcb
+            sh -c 'set -eu
+              template="$(dirname "$(find /usr/share/kicad -path "*/template/fp-lib-table" | head -n 1)")"
+              mkdir -p /tmp/.config/kicad/10.0
+              cp "$template/fp-lib-table" "$template/sym-lib-table" /tmp/.config/kicad/10.0/
+              exec kicad-cli pcb drc --exit-code-violations --severity-error --severity-warning \
+                --output /out/drc.rpt pod-v0.kicad_pcb'
 
       # kicad-cli silently ignores a custom rule that does not parse, so on the empty board the
       # DRC above stays green either way. This builds a probe board that breaks every rule of

@@ -9,7 +9,7 @@ Proyectos de KiCad del pod GNSS + IMU (Fase 3). El diseño está en [`docs/hardw
 
 ## Versión de KiCad
 
-- Los archivos se crearon en el formato de KiCad 8, que abren KiCad 8, 9 y 10. Al guardarlos con una versión más nueva, se actualizan a su formato: a partir de ahí hay que usar esa versión o una posterior.
+- Los archivos se crearon en el formato de KiCad 8, que abren KiCad 8, 9 y 10. Al guardarlos con una versión más nueva, se actualizan a su formato: a partir de ahí hay que usar esa versión o una posterior. **La placa (`pod-v0.kicad_pcb`) ya está en el formato de KiCad 10** desde el 14/11/2026 (contorno, tornillos y zonas guardados con el pcbnew 10.0.8 de la imagen del CI): se abre con KiCad 10 o posterior. El esquemático sigue en el de KiCad 8.
 - El CI usa la imagen oficial `kicad/kicad:10.0.8`, fijada por digest en `.github/workflows/hardware.yml`. Lee los archivos de cualquiera de esas versiones.
 
 ## Cómo se trabaja
@@ -126,7 +126,7 @@ Mínimos de la placa (Board Setup → Constraints, todos **no verificados** cont
 - **Entre pads**: un pad de RF_50 o GNSS_SENSITIVE contra otro pad usa el mínimo de Default (0,15 mm), para que el 0 Ω entre dos tramos de RF, el bias-T o los pines de un SOT-23 no choquen con los 0,5 y 0,3 mm de las clases. KiCad no tiene una condición confiable de "mismo componente", así que vale para cualquier par de pads: dos pads de componentes distintos se revisan a ojo. Contra GND sigue valiendo 0,20 mm; si el footprint de un SAW trae los pads más cerca de su tierra, se le pone una separación local en el footprint.
 - **USB_90D**: pista de 0,23 a 0,27 mm, separación del par de 0,14 a 0,2 mm, hasta 5 mm sin acoplar (la entrada a los pads de la base y al ESD) y diferencia de largo de 0,5 mm como máximo.
 - **POWER_DOCK** en L2 o L3: al menos 1,5 mm (mejor por L1/L4 o con una zona).
-- **SW_NODE** a 5 mm o más de RF_50 y GNSS_SENSITIVE, y fuera de las tres zonas de antena (criterio propio; ajustarlo con la ubicación).
+- **SW_NODE** a 5 mm o más de RF_50 y GNSS_SENSITIVE, y fuera de las zonas `GNSS_ANTENA`, `LORA_ANTENA` y `BLE_ANTENA` (en `UWB_ANTENA` no entra ningún cobre) (criterio propio; ajustarlo con la ubicación).
 - **GNSS_SENSITIVE** a 0,3 mm o más de pistas, vías y zonas de otras redes (salvo GND), y fuera de la zona de LoRa.
 - **Zona GNSS_ANTENA**: en L1 solo GND y RF (L2 ya es solo GND en toda la placa). Como las vías pasan por L1, **adentro solo hay vías de GND** (y la de RF del patch): una señal de L3 o L4 puede pasar por debajo, pero sin cambiar de capa ahí. Ningún componente en la cara de arriba salvo el patch en la placa (`AE201`, montado); abajo sí se puede.
 - **Zona PATCH_FEED** (rule area solo en `In2.Cu`, sobre el tramo de L4 de la alimentación del patch y su vía): en L3 solo GND, sin pistas ni zonas de otras redes. Ahí L3 es una isla de GND maciza, cosida a L2 con vías de GND, que es la referencia del tramo de L4. Provisoria: se mueve con el patch.
@@ -135,27 +135,32 @@ Mínimos de la placa (Board Setup → Constraints, todos **no verificados** cont
 
 El **cerco de vías** de la RF (vías de GND a los dos lados cada 2 mm o menos, cada 1 mm cerca del UWB) y la **costura de tierra** entre L1 y L2 no se pueden escribir como regla: se dibujan a mano (o con la herramienta de cerco de vías de KiCad 9+). **La zona de GND de L1 tiene que quedar a exactamente 0,20 mm de la RF**: el relleno usa la separación que resuelven las reglas para ese par, que es la regla "RF_50: separación coplanar a GND" (0,20 mm, gana sobre los 0,5 mm de la clase). La separación propia de la zona va en 0,20 mm o menos para no agrandar la ranura. La prueba del CI lo comprueba con una pista de GND a 0,20 mm.
 
-### Zonas con nombre (rule areas, provisorias)
+### Contorno, tornillos y zonas con nombre (rule areas)
 
-En el contorno provisorio de 45 × 65 mm (origen arriba a la izquierda en 100, 100; arriba queda la nuca y el GNSS). **Son lugares, no ubicaciones**: se mueven con la ubicación real y con la envolvente mecánica, manteniendo los nombres porque las reglas los usan.
+Desde el 14/11/2026 la placa sigue a [`pod-v0-ubicacion-y-carcasa.md`](../docs/hardware/pod-v0-ubicacion-y-carcasa.md) (secciones 3 a 5). Origen del documento (0; 0) = (100; 100) en KiCad, arriba a la izquierda, vista desde el lado del patch; arriba queda la nuca.
 
-| Zona | Dónde | Tamaño | Qué impone |
-|---|---|---|---|
-| `BLE_ANTENA` | Borde izquierdo, debajo de la zona GNSS | 4,35 × 15 mm, contra el borde | Keep-out nativo en las 4 capas: sin pistas, vías, pads ni zonas. Es la antena PCB del **u-blox BMD-340** con el módulo al ras del borde y la antena hacia afuera: el "RF KEEPOUT" de la figura 12 de su hoja (UBX-19033353 R13) va del borde del módulo hasta 3,1 mm del centro (4,40 mm; la zona y el keep-out del footprint paran en 4,35 mm, a 0,05 mm de los pads de GND 1, 45, 46 y 47 del módulo, que caen justo en el borde del rayado), y 2,4 mm más arriba y abajo del módulo (15 mm de alto); el footprint lleva el mismo keep-out (`BMD340_ANTENA`). La figura 16 deja esos 4,4 mm sin cobre a lo largo de todo el borde: la zona se puede estirar con la ubicación |
-| `GNSS_ANTENA` | Arriba, centrada | 30 × 30 mm | El patch pasivo en la placa: el **GVLB258.A** de 25 × 25 mm más 2,5 mm por lado. Era de 35 × 35 mm por la carcasa de la Taoglas, que ahora va por U.FL fuera de la placa. Reglas propias de arriba |
-| `PATCH_FEED` | Desde el pin del patch (a 2,5 mm del centro de la zona GNSS) hacia abajo, sobre la alimentación del patch (solo `In2.Cu`) | 4 × 16 mm | L3 solo GND debajo del tramo de L4 (regla propia de arriba) |
-| `LORA_ANTENA` | Abajo a la derecha, en el borde opuesto | 20 × 15 mm | Salida de RF del Ra-01SH (pad 1), pasabajos y U.FL; sin GNSS_SENSITIVE ni SW_NODE. La FPC va pegada en la carcasa |
+- **Contorno de 50 × 70 mm** con esquinas de radio 5 mm y una **muesca cóncava de radio 2,7 mm** en cada esquina, centrada a 2,6 mm de cada borde (pasa el tetón del tornillo de cierre de la carcasa).
+- **Tres tornillos M2** de la placa (`H303`, `H304` y `H305`, `MountingHole_2.2mm_M2_Pad_Via`, metalizados a GND y bloqueados) en (6; 8), (44; 8) y (25; 66). Están en el esquemático (hoja `mcu_radio`, "Fijación de la placa") con el mismo camino, así que actualizar la placa desde el esquemático no los duplica.
+- **`L2_GND`**: zona de GND en `In1.Cu` sobre toda la placa (el plano de L2 de la regla "L2 solo GND"), rellena; une los tres tornillos y es la base del plano que se termina de dibujar con la ubicación.
 
-Las zonas `GNSS_ANTENA` y `LORA_ANTENA` quedan a unos 19 mm borde a borde en la placa. Los ≥ 40 mm de `pod-v0.md` son entre las antenas (el patch o la Taoglas y la FPC pegada en la carcasa), no entre estas zonas: se verifican con la envolvente mecánica. Falta el keep-out de la antena del DWM3000 (sin montar, borde derecho): se agrega con su footprint.
+| Zona | Dónde (mm del documento) | Qué impone |
+|---|---|---|
+| `BLE_ANTENA` | x de 0 a 4,35; y de 47,6 a 62,6 (borde izquierdo, al lado del BMD-340) | Keep-out nativo en las 4 capas: sin pistas, vías, pads ni zonas. Es la antena PCB del **u-blox BMD-340** con el módulo al ras del borde y la antena hacia afuera: el "RF KEEPOUT" de la figura 12 de su hoja (UBX-19033353 R13) va del borde del módulo hasta 3,1 mm del centro (4,40 mm; la zona y el keep-out del footprint paran en 4,35 mm, a 0,05 mm de los pads de GND 1, 45, 46 y 47 del módulo, que caen justo en el borde del rayado), y 2,4 mm más arriba y abajo del módulo (15 mm de alto); el footprint lleva el mismo keep-out (`BMD340_ANTENA`) |
+| `GNSS_ANTENA` | x de 10 a 40; y de 2 a 32 (30 × 30, patch centrado en (25; 17)) | El patch pasivo en la placa: el **GVLB258.A** de 25 × 25 mm más 2,5 mm por lado. Reglas propias de arriba |
+| `PATCH_FEED` | x de 23 a 27; y de 18 a 32,5 (solo `In2.Cu`) | El pin del patch va **hacia abajo**, en (25; 19,5), 2,5 mm debajo del centro: el footprint con rotación 0 (su origen es el pin y el cuerpo queda 2,5 mm arriba). Así la alimentación sale por L4 el tramo más corto hasta fuera de la cerámica (borde en y = 29,5), sube a L1 por su vía de RF cerca de y = 31 y sigue a la cadena RF (x de 19,5 a 22,5 desde y = 33). L3 solo GND debajo de ese tramo (regla propia de arriba) |
+| `LORA_ANTENA` | x de 25,5 a 30,5; y de 60 a 70 | El U.FL del Ra-01SH en (28,5; 62,5) y la salida del cable hacia la FPC, que va pegada en la pared del extremo de abajo, fuera de la placa. No tapa el Ra-01SH (x de 31 a 48). Sin GNSS_SENSITIVE ni SW_NODE |
+| `UWB_ANTENA` | x de 46,2 a 50; y de 32 a 45 | Keep-out nativo en las 4 capas: la parte de la antena del DWM3000 (sin montar, 9,8 mm desde su extremo) que queda sobre la placa con el módulo sobresaliendo 6 mm del borde derecho. Es el mismo keep-out que trae su footprint (`DWM3000_ANTENA`); si el módulo se ubica girado o en otro lugar, la zona se mueve con él |
+
+Los ≥ 40 mm de `pod-v0.md` son entre las antenas (el patch y la FPC pegada en la carcasa), no entre estas zonas: se verifican con la envolvente mecánica (unos 41 mm, sección 5 del documento de ubicación).
 
 ### Ubicación a mano y autorouter
 
-1. **A mano y bloqueado** (Lock en KiCad; que Quilter tome lo bloqueado como fijo está **no verificado**): el contorno, las tres zonas de antena, el patch en su zona, el BMD-340 en su borde, la LC29H con toda la cadena RF y su LDO, el Ra-01SH con el pasabajos y el U.FL, el U.FL del GNSS, la tapa blindada, los pads de la base, los agujeros de herramienta, los fiduciales y el Tag-Connect.
+1. **A mano y bloqueado** (Lock en KiCad; que Quilter tome lo bloqueado como fijo está **no verificado**): el contorno, los tornillos, las zonas de antena, el patch en su zona, el BMD-340 en su borde, la LC29H con toda la cadena RF y su LDO, el Ra-01SH con el pasabajos y el U.FL, el U.FL del GNSS, la tapa blindada, los pads de la base, los agujeros de herramienta, los fiduciales y el Tag-Connect.
 2. **Rutear a mano y bloquear antes de usar el autorouter**: las pistas de RF_50 con su cerco de vías, la zona de GND de L1 alrededor de la RF y el plano de GND de L2 (sin cortes), el nodo SW_NODE del buck-boost y el cristal.
 3. **El autorouter rutea el resto** con las clases, los pares y las zonas: USB_90D como par diferencial, POWER_DOCK y POWER con sus anchos, GNSS_SENSITIVE con su separación. Revisar después que no haya cortado la tierra de L2 debajo de la RF y que el DRC siga en cero.
 4. Si el autorouter no lee las reglas propias de `pod-v0.kicad_dru` (solo las clases y los keep-out nativos; **no verificado** para Quilter), el DRC de KiCad sobre su resultado es el control: se corre igual en el CI.
 
-Las reglas propias y el keep-out del BLE se prueban en el CI con `tools/sonda_drc.py` (ver "Controles y salidas"). **El DRC del CI todavía no compara la placa con el esquemático** (`--schematic-parity`): se agrega cuando la placa tenga los footprints.
+Las reglas propias y los keep-outs del BLE y del UWB se prueban en el CI con `tools/sonda_drc.py` (ver "Controles y salidas"). **El DRC del CI todavía no compara la placa con el esquemático** (`--schematic-parity`): se agrega cuando la placa tenga los footprints.
 
 ## Controles y salidas
 
