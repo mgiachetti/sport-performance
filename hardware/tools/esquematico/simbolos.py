@@ -285,12 +285,11 @@ def ic_symbols() -> list:
     # TI SN74LVC1T45 DBV/DCK, SCES515N table 4-1. DIR high: A -> B; low: B -> A.
     s.append(block("SN74LVC1T45", "U", [("1", "VCCA", PI), ("3", "A", BI), ("5", "DIR", IN)], [("6", "VCCB", PI), ("4", "B", BI), ("2", "GND", PI)],
                    description="Traductor de un bit, DIR alto = A a B", datasheet="https://www.ti.com/lit/ds/symlink/sn74lvc1t45.pdf"))
-    # TI TPD2EUSB30 DRT (SOT-9X3), SLVSAC2G "Pin Functions": 1 D+, 2 D-, 3 GND. Two identical channels and no VBUS
-    # pin, so nothing sits between D+ and D- (flow-through). Drawn as IO1/IO2: on the bottom side the footprint is
-    # mirrored and the pod's D+ goes to pin 2 (diseno.py), which TI calls D-.
-    s.append(block("TPD2EUSB30", "U", [("1", "IO1", PAS), ("2", "IO2", PAS)], [("3", "GND", PAS)],
-                   description="ESD de 2 líneas para D+/D− sin pin de VBUS, 0,7 pF, 5,5 V",
-                   datasheet="https://www.ti.com/lit/ds/symlink/tpd2eusb30.pdf"))
+    # TI TPD2E2U06 DRL (SOT-5X3), SLLSEG9C "Pin Functions": 1 NC, 2 NC, 3 IO1, 4 GND, 5 IO2. Two identical channels
+    # and no VBUS pin: each line touches its pad from the outside of the package (flow-through), nothing between them.
+    s.append(block("TPD2E2U06", "U", [("3", "IO1", PAS), ("5", "IO2", PAS), ("1", "NC", NC), ("2", "NC", NC)], [("4", "GND", PAS)],
+                   description="ESD de 2 líneas para D+/D− sin pin de VBUS, 1,5 pF, 5,5 V, ±25 kV contacto / ±30 kV aire",
+                   datasheet="https://www.ti.com/lit/ds/symlink/tpd2e2u06.pdf"))
     # Qorvo DWM3000: KiCad's RF_Module:DWM3000 (extends DWM1000) pin numbers. Pin 5 is VDDAON in the
     # DWM1000 and differs in the DWM3000 (KiCad MR 4169): drawn passive and left to a 0 Ω.
     s.append(block("DWM3000", "U", [

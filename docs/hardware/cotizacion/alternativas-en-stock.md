@@ -179,7 +179,7 @@ Todo cumple la regla hoy en LCSC (stock re-leído el 09/11/2026), la mayoría co
 | U.FL-R-SMT-1 (`J202`, `J302`) | 17.465 | 332.838 | — | Cumple |
 | Pulsador TL3342F450QG (`SW301`) | 804 | 24.789 | — | Cumple |
 | TVS SMF12A (`D601`) | 7.960 | 51.230 | — | Cumple |
-| TPD2EUSB30DRTR (`U601`, desde el 15/11/2026 en lugar de la USBLC6-2SC6) | 217 ([C97502](https://www.lcsc.com/product-detail/C97502.html), 15/11/2026) | 67.493 | — | Cumple (LCSC justo para 105: DigiKey de respaldo) |
+| TPD2E2U06DRLR (`U601`, desde el 15/11/2026 en lugar de la USBLC6-2SC6) | No legible ([C1972959](https://www.lcsc.com/product-detail/C1972959.html): el stock carga por JavaScript) | **68.178** ([DigiKey](https://www.digikey.com/en/products/detail/texas-instruments/TPD2E2U06DRLR/4878710), leído en vivo el 15/11/2026) | — | Cumple por DigiKey. Descartada antes la TPD2EUSB30DRTR: DigiKey 0 el 15/11/2026 (3.000 para el 28/12/2026, 26 semanas) y LCSC sin dato verificable; la TPD2EUSB30A tiene 3,6 V de trabajo |
 | PESD5V0S1BL (`D602`) | 73.480 | 18.868 | — | Cumple |
 | SN74LVC1T45 (`U202`–`U204`), AO3400A, bobinas, pasivas | Ver `stock.md` (todas con decenas de miles o más) | — | — | Cumplen |
 

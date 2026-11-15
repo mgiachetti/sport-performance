@@ -20,9 +20,9 @@ Las tablas de abajo las escribe `bom_pcbway.py` en este archivo (entre los marca
 
 | Placas | Partes por placa | Total de partes |
 |---|---|---|
-| 5 | **76,51** | 382,54 |
-| 10 | **67,18** | 671,82 |
-| 100 | **55,75** | 5.575,14 |
+| 5 | **77,01** | 385,07 |
+| 10 | **67,27** | 672,74 |
+| 100 | **55,61** | 5.560,51 |
 
 **Lo que más pesa** (a 100 placas, por placa):
 
@@ -34,7 +34,7 @@ Las tablas de abajo las escribe `bom_pcbway.py` en este archivo (entre los marca
 | GVLB258.A | 1 | 7,05 | digikey |
 | Ra-01SH | 1 | 2,99 | lcsc |
 | LSM6DSV32XTR | 1 | 2,90 | lcsc |
-| Las otras 52 filas | — | 13,16 | — |
+| Las otras 52 filas | — | 13,01 | — |
 
 **Lo que no se suelda** ([`bom-pod-v0-extras.csv`](bom-pod-v0-extras.csv)), total del pedido:
 
@@ -57,7 +57,7 @@ Notas a las tablas:
 - **NAND**: la del diseño es la **W25N02KVZEIR** (2 Gbit, unas 8 sesiones de 3 h; `pod-f3.md`), a 7,81 a 100. Contra la W25N04KVZEIR (4 Gbit, 14,59 a 100) ahorra **6,78** por placa a 100, 5,29 a 10 y 19,48 a 5 (LCSC vende la de 4 Gbit de a 10 y la de 2 Gbit de a 1). La W25N04KVZEIR queda como alternativa en el mismo lugar para una variante de más capacidad (mismos pines y comandos según las hojas de Winbond). La GigaDevice **GD5F4GQ6UEYIGR** (4 Gbit, WSON-8 de 8 × 6) sería la segunda fuente de esa variante, pero hoy **no ahorra**: sin stock en LCSC (14,46 a 100 sin stock) ni en DigiKey (solo el carrete de 3.000 a 20,33, sin pedido pendiente). Sus pines y su juego de comandos (ECC, lectura continua, registros de estado) difieren en detalle de la W25N: si se suma, el driver del firmware tiene que soportar las dos (**no verificado**).
 - **Variantes** (a 100 placas, por placa): LC29H(EA) en lugar de la AA, **+12,41** (24,66 en LCSC contra 12,25). En el pedido de 5 (3 AA, 2 EA) las partes suben unos **+6,3 por placa** promedio: 2 × (31,78 − 16,04) / 5, con los precios a 1 unidad. El UWB DWM3000 salió de la v0 el 15/11/2026 (ADR 0105): el banco de UWB usa un DWM3000EVB, fuera de este pedido.
 - **Antena LoRa**: desde el 15/11/2026 la **KYOCERA AVX M620720** en la placa (`AE301`, DigiKey 37.777, 1,33 a 100; fábrica 20 semanas) con sus dos capacitores Murata GJM de alto Q (`C313`, `C314`): unos **+1,30 por placa a 100** en las partes soldadas. La **Molex 2111400100** (que había reemplazado a la Ebyte TX915-FPC-4510) pasa al kit de banco para el A/B por el U.FL de prueba: sale de cada pod (1,96 a 100 que no se compran).
-- **Contra el 09/11/2026**: **74,05 / 65,13 / 53,98** antes, **76,08 / 66,75 / 55,28** desde el 15/11/2026 (+2,03 / +1,62 / +1,30): la antena chip y sus capacitores ahora se sueldan.
+- **Contra el 09/11/2026**: **74,05 / 65,13 / 53,98** antes, 76,08 / 66,75 / 55,28 con la antena chip y sus capacitores soldados (+2,03 / +1,62 / +1,30), y **77,01 / 67,27 / 55,61** desde el cambio del ESD de USB del mismo día (USBLC6-2SC6 → TPD2E2U06DRLR, a precio de DigiKey: +0,93 / +0,52 / +0,33; sale la tapa blindada, que iba sin montar).
 - **Contra el diseño anterior** (MDBT50Q, E22, LSM6DSV320X, GVLB208.A, TPS22916C y TX915): **84,08 / 73,44 / 61,30** por placa a 5 / 10 / 100 antes, **74,05 / 65,13 / 53,98** ahora (−10,03 / −8,31 / −7,32).
 
 ## Plan de stock

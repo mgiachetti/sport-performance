@@ -60,7 +60,7 @@ Además:
 
 - **ICM-42688-P**: queda el genérico oficial `Package_LGA:LGA-14_3x2.5mm_P0.5mm_LayoutBorder3x4y`. Sus centros coinciden con el paquete de DS-000347 rev. 1.2 (p.54-55: ±1,1625 y ±0,9125), con la numeración y el pin 1 de la hoja. La hoja no trae land pattern (remite a la nota AN-IVS-0002A-00, que no se consiguió). El de EasyEDA (C1850418) es el mismo archivo que el del LSM6DSV320X y está peor centrado.
 - **Tapa blindada**: salió de la v0 el 15/11/2026 (la WE-SHC 36103205S de 20 × 20 mm no entraba; razones en `docs/hardware/pod-v0-ubicacion-y-carcasa.md`, sección 9), con su símbolo genérico. Si la prueba de desensibilización falla, la v1 suma una tapa chica sobre los SAW y el LNA.
-- **ESD del par USB** (desde el 15/11/2026): TI **TPD2EUSB30DRTR** con el footprint oficial `Package_TO_SOT_SMD:Texas_DRT-3` (su descripción cita la hoja de la TPD2EUSB30: pads de 0,3 × 0,3 mm, 1 y 2 a ±0,35 mm y el 3 enfrente). Símbolo propio desde la hoja de TI SLVSAC2G ("Pin Functions": 1 D+, 2 D−, 3 GND), dibujado con IO1/IO2 porque los dos canales son iguales y en la cara de abajo el D+ del pod va al pin 2. Reemplaza a la USBLC6-2SC6, que tenía un pin de VBUS entre D+ y D−.
+- **ESD del par USB** (desde el 15/11/2026): TI **TPD2E2U06DRLR** con el footprint oficial `Package_TO_SOT_SMD:Texas_R-PDSO-N5_DRL-5` (de la hoja de paquete de TI MPDS158G; pads de 0,67 × 0,3 mm a ±0,74 y paso de 0,5, igual al land pattern de SLLSEG9C). Símbolo propio desde la hoja de TI SLLSEG9C ("Pin Functions", DRL: 1 NC, 2 NC, 3 IO1, 4 GND, 5 IO2). Reemplaza a la USBLC6-2SC6, que tenía un pin de VBUS entre D+ y D− (y a la TPD2EUSB30DRTR, elegida primero y sin stock verificable).
 - **Pines revisados de paso** (con las mismas hojas): el pin 7 (RESV) del ICM-42688-P va a GND según la tabla 9; el ADXL372 coincide con la tabla 5 de la hoja Rev. B; los pines 3 (AUXOFF), 4 (FLT) y 10 (ITIMER) del TPS259470A quedan sin conectar a propósito (drenador abierto y respuesta más rápida); en la LC29H(EA) los pines 2, 4, 5, 6, 15, 16, 17, 18 y 19 son reservados y solo hay UART1 en 20/21 (Hardware Design V1.4, tabla 6; el footprint es el mismo).
 - **SAW y LNA**: el SAW (5 pads: 1 IN, 4 OUT, 2/3/5 GND) y el LNA (6 pines: 1 GND, 2 VCC, 3 AO, 4 CTRL2, 5 AI, 6 CTRL1) reemplazan a los símbolos genéricos. La adaptación de las hojas está en la netlist: 5,1 nH a tierra en cada puerto de cada SAW (figura 3 de su hoja), y en el LNA 1 nF, la L serie de entrada (10/11/12 nH según el modo, tabla 12) y 68 pF en VCC (tabla 11). Modo por 0 Ω en CTRL1/CTRL2 (tabla 10): estándar (alto/bajo) por defecto, bajo consumo (alto/alto) y alta ganancia (bajo/alto).
 
@@ -86,7 +86,7 @@ Además de las 10 partes de easyeda2kicad, `pod.kicad_sym` tiene los símbolos q
 | TPS22919 | Hoja de TI SLVSEN5B, "Pin Functions" (DCK, SC-70-6: 1 IN, 2 GND, 3 ON, 4 NC, 5 QOD, 6 VOUT) | Sí (leída de la hoja, 2026-11-09) |
 | BMD-340 | Hoja de u-blox UBX-19033353 R13, tabla 2 (68 pines; cada GPIO con su P0.x/P1.x) | Sí (leída de la hoja, 2026-11-09) |
 | SN74LVC1T45 | Hoja de TI SCES515N, tabla 4-1 | Sí (leída de la hoja) |
-| TPD2EUSB30 | Hoja de TI SLVSAC2G, "Pin Functions" (DRT: 1 D+, 2 D−, 3 GND) | Sí (leída de la hoja, 2026-11-15) |
+| TPD2E2U06 | Hoja de TI SLLSEG9C, "Pin Functions" (DRL: 1 NC, 2 NC, 3 IO1, 4 GND, 5 IO2) | Sí (leída de la hoja, 2026-11-15) |
 | DWM3000 | Símbolo oficial de KiCad `RF_Module:DWM3000` (extiende DWM1000); el pin 5 cambia entre los dos | **No** |
 | M620720 | Hoja de KYOCERA AVX TDS-ANT-0048 rev. 4, "Pin Descriptions" (1 Feed, 2 Dummy, 3 Ground) | Sí (leída de la hoja, 2026-11-15) |
 | ICM-42688-P | DS-000347 rev. 1.2, tabla 9 (pin 7 RESV a GND) | Sí (leída de la hoja) |
@@ -119,7 +119,7 @@ Además de las 10 partes de easyeda2kicad, `pod.kicad_sym` tiene los símbolos q
 | Qualcomm RF360 B39162B8389P810 (SAW, candidato, sin montar) | Footprint dibujado desde la hoja (ver arriba); modelo 3D de EasyEDA | C5556161 | `easyeda2kicad --3d --lcsc_id=C5556161 --output hardware/lib/pod` | no |
 | Infineon BGA525N6 (LNA, candidato, sin montar) | Footprint dibujado desde la hoja (ver arriba); modelo 3D de EasyEDA | C18337445 | `easyeda2kicad --3d --lcsc_id=C18337445 --output hardware/lib/pod` | no |
 | Taoglas GVLB258.A (patch, montado) | Footprint dibujado desde la hoja (ver arriba); sin modelo 3D | C3285465 (sin stock; se compra en DigiKey) | — | no (pin a verificar contra el DXF) |
-| TI TPD2EUSB30DRTR (ESD de D+ y D−) | Librería oficial de KiCad: `Package_TO_SOT_SMD:Texas_DRT-3`; símbolo propio | C97502 | — | pines sí (SLVSAC2G) |
+| TI TPD2E2U06DRLR (ESD de D+ y D−) | Librería oficial de KiCad: `Package_TO_SOT_SMD:Texas_R-PDSO-N5_DRL-5`; símbolo propio | C1972959 | — | pines sí (SLLSEG9C) |
 | TI DRV5032FA (Hall del chaleco, montado; el símbolo se importó de la FB, mismos pines) | easyeda2kicad | C2655033 (DRV5032FBDBZR, SOT-23) | — | no |
 
 Los números LCSC salen del relevamiento de `docs/hardware/pod-f3.md` y de `docs/hardware/pod-v0.md`.

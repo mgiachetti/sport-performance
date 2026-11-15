@@ -33626,325 +33626,6 @@
 			)
 		)
 	)
-	(footprint "Package_TO_SOT_SMD:Texas_DRT-3"
-		(layer "B.Cu")
-		(uuid "30d577f9-ccf6-462f-8100-c1187278ea35")
-		(at 119.75 112.3 180)
-		(descr "Texas Instrument DRT-3 1x0.8mm Pitch 0.7mm http://www.ti.com/lit/ds/symlink/tpd2eusb30.pdf")
-		(tags "DRT-3 1x0.8mm Pitch 0.7mm")
-		(property "Reference" "U601"
-			(at 2.865 -0.0225 0)
-			(layer "B.SilkS")
-			(uuid "5d2e9b87-aee8-42ac-aa3f-89307e3b9ac6")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-				(justify mirror)
-			)
-		)
-		(property "Value" "TPD2EUSB30"
-			(at 0 -1.5 0)
-			(layer "B.Fab")
-			(uuid "15d1b5e9-2e94-4d18-8e2a-ca891cee720f")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-				(justify mirror)
-			)
-		)
-		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tpd2eusb30.pdf"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "B.Fab")
-			(hide yes)
-			(uuid "98635733-4f57-408d-8cc2-699a5dc00d71")
-			(effects
-				(font
-					(size 1.27 1.27)
-					(thickness 0.15)
-				)
-				(justify mirror)
-			)
-		)
-		(property "Description" "ESD de 2 líneas para D+/D− sin pin de VBUS, 0,7 pF, 5,5 V"
-			(at 0 0 0)
-			(unlocked yes)
-			(layer "B.Fab")
-			(hide yes)
-			(uuid "e0d8ceb7-1c3d-43d8-8f72-6c9d7965ddec")
-			(effects
-				(font
-					(size 1.27 1.27)
-					(thickness 0.15)
-				)
-				(justify mirror)
-			)
-		)
-		(property "MPN" "TPD2EUSB30DRTR"
-			(at 0 0 0)
-			(layer "B.Fab")
-			(hide yes)
-			(uuid "78b483fc-0b29-441d-972c-9052bd0039e3")
-			(effects
-				(font
-					(size 1.27 1.27)
-					(thickness 0.15)
-				)
-				(justify mirror)
-			)
-		)
-		(property "LCSC" "C97502"
-			(at 0 0 0)
-			(layer "B.Fab")
-			(hide yes)
-			(uuid "539486e2-85f1-4e64-97bb-ed743990ca1a")
-			(effects
-				(font
-					(size 1.27 1.27)
-					(thickness 0.15)
-				)
-				(justify mirror)
-			)
-		)
-		(property "Fabricante" "Texas Instruments"
-			(at 0 0 0)
-			(layer "B.Fab")
-			(hide yes)
-			(uuid "360ad186-03f8-4365-a652-3912d8cbc19b")
-			(effects
-				(font
-					(size 1.27 1.27)
-					(thickness 0.15)
-				)
-				(justify mirror)
-			)
-		)
-		(property "Verificado" "no"
-			(at 0 0 0)
-			(layer "B.Fab")
-			(hide yes)
-			(uuid "77f26726-2b79-4ad2-831c-a264fb289996")
-			(effects
-				(font
-					(size 1.27 1.27)
-					(thickness 0.15)
-				)
-				(justify mirror)
-			)
-		)
-		(property "Nota" "ESD de 2 líneas sin pin de VBUS para D+/D− (0,7 pF, 5,5 V): el par llega a los pads 1 y 2 sin nada entre las dos líneas. Los dos canales son iguales; en la cara de abajo el footprint queda espejado y D+ va al pad 2 para que el par no se cruce. VBUS la protegen el TVS y el switch de entrada"
-			(at 0 0 0)
-			(layer "B.Fab")
-			(hide yes)
-			(uuid "52f57c5d-5086-423a-9741-101bf9ea2c3c")
-			(effects
-				(font
-					(size 1.27 1.27)
-					(thickness 0.15)
-				)
-				(justify mirror)
-			)
-		)
-		(path "/71d5b9eb-df95-4dbc-8416-b6a767de6f1a/95a15eb1-a5e6-5e02-b8e8-605c4dcc703d")
-		(sheetname "/usb_dock/")
-		(sheetfile "usb_dock.kicad_sch")
-		(attr smd)
-		(duplicate_pad_numbers_are_jumpers no)
-		(fp_line
-			(start 0.65 0.55)
-			(end 0.45 0.55)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "B.SilkS")
-			(uuid "ac865c74-0639-457c-b820-2f085486091b")
-		)
-		(fp_line
-			(start 0.65 0)
-			(end 0.65 0.55)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "B.SilkS")
-			(uuid "ff8f8d8f-41c1-49e5-9687-26b5c3dda25e")
-		)
-		(fp_line
-			(start -0.65 0.55)
-			(end -0.45 0.55)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "B.SilkS")
-			(uuid "df4fc194-111b-4b3e-9ab8-9a804401d529")
-		)
-		(fp_line
-			(start -0.65 0)
-			(end -0.65 0.55)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "B.SilkS")
-			(uuid "c3333212-4f42-4473-b6c4-88c219a85415")
-		)
-		(fp_poly
-			(pts
-				(xy -0.76 -0.43) (xy -0.76 -0.71) (xy -1.04 -0.43) (xy -0.76 -0.43)
-			)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(fill yes)
-			(layer "B.SilkS")
-			(uuid "90f1880b-e178-4f1f-8aec-ab3e4eb7c5fd")
-		)
-		(fp_line
-			(start 0.8 0.7)
-			(end 0.8 -0.7)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(layer "B.CrtYd")
-			(uuid "ed046bdb-7e7a-491b-8a58-97d5e8d51cfa")
-		)
-		(fp_line
-			(start 0.8 -0.7)
-			(end -0.8 -0.7)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(layer "B.CrtYd")
-			(uuid "1b32ae90-4562-4c36-8681-f569b7276621")
-		)
-		(fp_line
-			(start -0.8 0.7)
-			(end 0.8 0.7)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(layer "B.CrtYd")
-			(uuid "e7c83f26-504a-4c36-99b2-c556241dc5ee")
-		)
-		(fp_line
-			(start -0.8 -0.7)
-			(end -0.8 0.7)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(layer "B.CrtYd")
-			(uuid "4c1d349e-e784-49dd-a0f7-065814cbf72d")
-		)
-		(fp_line
-			(start 0.5 0.4)
-			(end 0.5 -0.4)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "B.Fab")
-			(uuid "772bbf0b-6ae9-4b0b-8729-ef062cf08900")
-		)
-		(fp_line
-			(start 0.5 -0.4)
-			(end -0.2 -0.4)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "B.Fab")
-			(uuid "b646b94a-5c11-4506-9de2-ab358adad50f")
-		)
-		(fp_line
-			(start -0.5 0.4)
-			(end 0.5 0.4)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "B.Fab")
-			(uuid "a18389a5-df46-4b00-96d0-433d2d529eb1")
-		)
-		(fp_line
-			(start -0.5 -0.1)
-			(end -0.2 -0.4)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "B.Fab")
-			(uuid "ddc99496-ecf2-40a7-ba7e-35170c50e32e")
-		)
-		(fp_line
-			(start -0.5 -0.1)
-			(end -0.5 0.4)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(layer "B.Fab")
-			(uuid "d36c7318-535c-460d-8f10-069900a5f39b")
-		)
-		(fp_text user "${REFERENCE}"
-			(at 0 1.5 0)
-			(layer "B.Fab")
-			(uuid "227fd1ee-6612-4150-8a68-b977937aaaa5")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-				(justify mirror)
-			)
-		)
-		(pad "1" smd roundrect
-			(at -0.35 -0.425 180)
-			(size 0.3 0.3)
-			(layers "B.Cu" "B.Mask" "B.Paste")
-			(roundrect_rratio 0.25)
-			(net "/usb_dock/DOCK_D_N")
-			(uuid "9b727a7d-91e0-47c0-9d84-e32e752d8c5b")
-		)
-		(pad "2" smd roundrect
-			(at 0.35 -0.425 180)
-			(size 0.3 0.3)
-			(layers "B.Cu" "B.Mask" "B.Paste")
-			(roundrect_rratio 0.25)
-			(net "/usb_dock/DOCK_D_P")
-			(uuid "960286ba-5584-4509-bcb5-ca6f0f1ae84a")
-		)
-		(pad "3" smd roundrect
-			(at 0 0.425 180)
-			(size 0.3 0.3)
-			(layers "B.Cu" "B.Mask" "B.Paste")
-			(roundrect_rratio 0.25)
-			(net "GND")
-			(uuid "e3e7f96f-f510-46f8-a901-2dfd46e46985")
-		)
-		(embedded_fonts no)
-		(model "${KICAD10_3DMODEL_DIR}/Package_TO_SOT_SMD.3dshapes/Texas_DRT-3.step"
-			(offset
-				(xyz 0 0 0)
-			)
-			(scale
-				(xyz 1 1 1)
-			)
-			(rotate
-				(xyz 0 0 0)
-			)
-		)
-	)
 	(footprint "Resistor_SMD:R_0402_1005Metric"
 		(layer "B.Cu")
 		(uuid "316d28af-0648-43a9-a7d1-124868090eee")
@@ -55348,6 +55029,331 @@
 		)
 		(embedded_fonts no)
 		(model "${KICAD10_3DMODEL_DIR}/Capacitor_SMD.3dshapes/C_0402_1005Metric.step"
+			(offset
+				(xyz 0 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 0)
+			)
+		)
+	)
+	(footprint "Package_TO_SOT_SMD:Texas_R-PDSO-N5_DRL-5"
+		(layer "B.Cu")
+		(uuid "b442e5dc-2093-48cd-9eef-650d8597307f")
+		(at 119.75 112.3)
+		(descr "R-PDSO-N5, DRL, JEDEC MO-293B Var UAAD-1, https://www.ti.com/lit/ml/mpds158g/mpds158g.pdf")
+		(tags "SOT R-PDSO-N5 DRL0005A")
+		(property "Reference" "U601"
+			(at -3.395 0.1125 0)
+			(layer "B.SilkS")
+			(uuid "edd94efc-4adc-441e-8aa7-5f01ef4b4740")
+			(effects
+				(font
+					(size 0.8 0.8)
+					(thickness 0.12)
+				)
+				(justify mirror)
+			)
+		)
+		(property "Value" "TPD2E2U06"
+			(at 0 -1.75 180)
+			(layer "B.Fab")
+			(uuid "91f9f439-1bf2-483e-9523-6e9e1829d613")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+				(justify mirror)
+			)
+		)
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tpd2e2u06.pdf"
+			(at 0 0 180)
+			(unlocked yes)
+			(layer "B.Fab")
+			(hide yes)
+			(uuid "64723fc4-c532-4ae8-86e5-f9effe5eaff1")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+				(justify mirror)
+			)
+		)
+		(property "Description" "ESD de 2 líneas para D+/D− sin pin de VBUS, 1,5 pF, 5,5 V, ±25 kV contacto / ±30 kV aire"
+			(at 0 0 180)
+			(unlocked yes)
+			(layer "B.Fab")
+			(hide yes)
+			(uuid "d61846e0-11c4-46a4-b3e5-90a266cdbf04")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+				(justify mirror)
+			)
+		)
+		(property "MPN" "TPD2E2U06DRLR"
+			(at 0 0 180)
+			(layer "B.Fab")
+			(hide yes)
+			(uuid "c12b61eb-8491-4b84-94ca-325a94f10384")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+				(justify mirror)
+			)
+		)
+		(property "LCSC" "C1972959"
+			(at 0 0 180)
+			(layer "B.Fab")
+			(hide yes)
+			(uuid "e163c3c0-7e41-46a9-8449-85b4aee845f4")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+				(justify mirror)
+			)
+		)
+		(property "Fabricante" "Texas Instruments"
+			(at 0 0 180)
+			(layer "B.Fab")
+			(hide yes)
+			(uuid "ca60a428-932a-434d-a489-433a217e8566")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+				(justify mirror)
+			)
+		)
+		(property "Verificado" "no"
+			(at 0 0 180)
+			(layer "B.Fab")
+			(hide yes)
+			(uuid "f583843b-fd2d-4487-903d-ef0f6caed924")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+				(justify mirror)
+			)
+		)
+		(property "Nota" "ESD de 2 líneas sin pin de VBUS para D+/D− (1,5 pF típicos, 1,9 pF máx., 5,5 V; IEC 61000-4-2 ±25 kV por contacto y ±30 kV por aire, SLLSEG9C): D+ toca IO1 (pad 3) y D− IO2 (pad 5), cada una por su lado de afuera, así no queda nada entre las dos líneas que necesite salida. NC 1 y 2 sin conectar. VBUS la protegen el TVS y el switch de entrada"
+			(at 0 0 180)
+			(layer "B.Fab")
+			(hide yes)
+			(uuid "6abe6464-9669-4388-a44c-7c2f75509684")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+				(justify mirror)
+			)
+		)
+		(path "/71d5b9eb-df95-4dbc-8416-b6a767de6f1a/95a15eb1-a5e6-5e02-b8e8-605c4dcc703d")
+		(sheetname "/usb_dock/")
+		(sheetfile "usb_dock.kicad_sch")
+		(attr smd)
+		(duplicate_pad_numbers_are_jumpers no)
+		(fp_line
+			(start -0.39 0.91)
+			(end 0.6 0.91)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "B.SilkS")
+			(uuid "6b069c7f-111a-4e20-9a2b-245c3d25f9fe")
+		)
+		(fp_line
+			(start 0 -0.91)
+			(end -0.6 -0.91)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "B.SilkS")
+			(uuid "077c4c08-ccbd-4a23-955a-38d5ba4a21e6")
+		)
+		(fp_line
+			(start 0 -0.91)
+			(end 0.6 -0.91)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "B.SilkS")
+			(uuid "34aa017d-59a5-4177-ae6f-f3e938d76657")
+		)
+		(fp_poly
+			(pts
+				(xy -0.79 0.91) (xy -1.03 1.24) (xy -0.55 1.24) (xy -0.79 0.91)
+			)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(fill yes)
+			(layer "B.SilkS")
+			(uuid "24a274a9-4527-4e34-99c3-0de90b4d57da")
+		)
+		(fp_line
+			(start -1.33 -1.05)
+			(end 1.33 -1.05)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "B.CrtYd")
+			(uuid "d3718ec8-4173-4158-97ce-98748fba1197")
+		)
+		(fp_line
+			(start -1.33 1.05)
+			(end -1.33 -1.05)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "B.CrtYd")
+			(uuid "9a85e082-2cad-403f-8417-f223acfb8525")
+		)
+		(fp_line
+			(start 1.33 -1.05)
+			(end 1.33 1.05)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "B.CrtYd")
+			(uuid "707f4e64-5167-4fff-a142-353c3b668c11")
+		)
+		(fp_line
+			(start 1.33 1.05)
+			(end -1.33 1.05)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "B.CrtYd")
+			(uuid "27f3bb12-d8ce-48ea-9096-229bff196aba")
+		)
+		(fp_line
+			(start -0.6 -0.8)
+			(end -0.6 0.5)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(layer "B.Fab")
+			(uuid "2e38f259-6819-4f32-9962-b4566ff1bc96")
+		)
+		(fp_line
+			(start -0.6 0.5)
+			(end -0.3 0.8)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(layer "B.Fab")
+			(uuid "7e61f9c4-35f8-425e-bd0f-071439c000a7")
+		)
+		(fp_line
+			(start -0.3 0.8)
+			(end 0.6 0.8)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(layer "B.Fab")
+			(uuid "c948e6fb-0450-476d-8ef0-d11cc0ef7316")
+		)
+		(fp_line
+			(start 0.6 -0.8)
+			(end -0.6 -0.8)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(layer "B.Fab")
+			(uuid "0088cccd-723b-47bd-b018-63d66241cf9f")
+		)
+		(fp_line
+			(start 0.6 0.8)
+			(end 0.6 -0.8)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(layer "B.Fab")
+			(uuid "e2a6bdf6-f47b-472b-a0f8-5485dce7557d")
+		)
+		(fp_text user "${REFERENCE}"
+			(at 0 0 270)
+			(layer "B.Fab")
+			(uuid "34cd0051-4ad6-4fa8-b61a-030c3e2c4fbd")
+			(effects
+				(font
+					(size 0.5 0.5)
+					(thickness 0.04)
+				)
+				(justify mirror)
+			)
+		)
+		(pad "1" smd roundrect
+			(at -0.74 0.5)
+			(size 0.67 0.3)
+			(layers "B.Cu" "B.Mask" "B.Paste")
+			(roundrect_rratio 0.1666666667)
+			(net "unconnected-(U601-NC-Pad1)")
+			(uuid "e72728b4-fc56-4e23-9324-1232ef41aff7")
+		)
+		(pad "2" smd roundrect
+			(at -0.74 0)
+			(size 0.67 0.3)
+			(layers "B.Cu" "B.Mask" "B.Paste")
+			(roundrect_rratio 0.1666666667)
+			(net "unconnected-(U601-NC-Pad2)")
+			(uuid "9e5b6267-3f43-42c4-a5cd-eed8c2fe4fa5")
+		)
+		(pad "3" smd roundrect
+			(at -0.74 -0.5)
+			(size 0.67 0.3)
+			(layers "B.Cu" "B.Mask" "B.Paste")
+			(roundrect_rratio 0.1666666667)
+			(net "/usb_dock/DOCK_D_P")
+			(uuid "d9468d67-19e2-4d41-883d-16b5b5aac006")
+		)
+		(pad "4" smd roundrect
+			(at 0.74 -0.5)
+			(size 0.67 0.3)
+			(layers "B.Cu" "B.Mask" "B.Paste")
+			(roundrect_rratio 0.1666666667)
+			(net "GND")
+			(uuid "af1b3428-7a8c-415c-99a5-88ecfda21dd4")
+		)
+		(pad "5" smd roundrect
+			(at 0.74 0.5)
+			(size 0.67 0.3)
+			(layers "B.Cu" "B.Mask" "B.Paste")
+			(roundrect_rratio 0.1666666667)
+			(net "/usb_dock/DOCK_D_N")
+			(uuid "0a3b70d0-9347-4973-92df-138cad277ffe")
+		)
+		(embedded_fonts no)
+		(model "${KICAD10_3DMODEL_DIR}/Package_TO_SOT_SMD.3dshapes/Texas_R-PDSO-N5_DRL-5.step"
 			(offset
 				(xyz 0 0 0)
 			)

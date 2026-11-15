@@ -470,13 +470,15 @@ usb_dock = Sheet("usb_dock", "Pod v0: usb_dock", "Pads de la base (VBUS, D+, D�
           note="TVS de 12–13 V de stand-off (clase SMF12A o SMAJ12A, engrape de unos 20 V con 8/20 µs); aguas abajo protege el OVLO"),
         ESD("PESD5V0S1BL", "DOCK_DET", mpn="PESD5V0S1BL,315", lcsc="C84374", manufacturer="Nexperia",
             note="ESD bidireccional de 5 V de DETECT (SOD-882)"),
-        part("TPD2EUSB30", "TPD2EUSB30", {"2": "DOCK_D_P", "1": "DOCK_D_N", "3": "GND"},
-             "Package_TO_SOT_SMD:Texas_DRT-3", mpn="TPD2EUSB30DRTR", lcsc="C97502", manufacturer="Texas Instruments",
-             note="ESD de 2 líneas sin pin de VBUS para D+/D− (0,7 pF, 5,5 V): el par llega a los pads 1 y 2 sin nada entre "
-                  "las dos líneas. Los dos canales son iguales; en la cara de abajo el footprint queda espejado y D+ va al pad 2 "
-                  "para que el par no se cruce. VBUS la protegen el TVS y el switch de entrada"),
+        part("TPD2E2U06", "TPD2E2U06", {"3": "DOCK_D_P", "5": "DOCK_D_N", "4": "GND", "1": NC, "2": NC},
+             "Package_TO_SOT_SMD:Texas_R-PDSO-N5_DRL-5", mpn="TPD2E2U06DRLR", lcsc="C1972959", manufacturer="Texas Instruments",
+             note="ESD de 2 líneas sin pin de VBUS para D+/D− (1,5 pF típicos, 1,9 pF máx., 5,5 V; IEC 61000-4-2 ±25 kV por "
+                  "contacto y ±30 kV por aire, SLLSEG9C): D+ toca IO1 (pad 3) y D− IO2 (pad 5), cada una por su lado de afuera, "
+                  "así no queda nada entre las dos líneas que necesite salida. NC 1 y 2 sin conectar. VBUS la protegen el TVS y el switch de entrada"),
         FLAG("VBUS_PAD"),
-    ], ["Objetivo IEC 61000-4-2: ±8 kV por contacto y ±15 kV por aire en los pads"]),
+    ], ["Objetivo IEC 61000-4-2: ±8 kV por contacto y ±15 kV por aire en los pads. El ESD de D+/D− (TPD2E2U06) da ±25 kV "
+        "por contacto y ±30 kV por aire (SLLSEG9C); los de VBUS (SMF12A) y DETECT (PESD5V0S1BL), a confirmar con su hoja. "
+        "Lo verifica la precompatibilidad de ESD (prueba 8 de pod-v0.md)"]),
     Group("Switch de entrada de VBUS (TPS259470A)", [
         part("TPS259470", "TPS259470A", {"5": "VBUS_PAD", "1": "VIN_EN", "2": "VIN_OVLO", "8": "GND", "6": "VBUS",
                                          "9": "EF_ILM", "7": "EF_DVDT", "10": NC, "3": NC, "4": NC},
