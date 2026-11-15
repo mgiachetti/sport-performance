@@ -10,7 +10,7 @@ Todo lo que PCBWay necesita para cotizar la placa y el armado, las preguntas que
 |---|---|---|
 | [`bom-pod-v0.csv`](bom-pod-v0.csv) | Lista de armado en las columnas de PCBWay (línea, designadores, cantidad, fabricante, MPN, número de distribuidor, descripción, encapsulado, SMT o THT, instrucciones), con LCSC, DigiKey, la marca de lo que mandamos nosotros y la **alternativa aprobada** de cada fila que la tiene (`Approved Alternate`, de [`stock.md`](stock.md)). 55 filas, 139 componentes | Listo. Las columnas siguen la página de requisitos de armado de PCBWay; que coincidan con su planilla de ejemplo (`Sample_BOM_PCBWay.xlsx`) está **no verificado**: si la piden, se pasan las mismas columnas a esa planilla |
 | [`bom-pod-v0-sin-montar.csv`](bom-pod-v0-sin-montar.csv) | Los 26 lugares sin montar (69 componentes): no se arman, pero el armador los ve en el pick and place | Listo |
-| [`bom-pod-v0-extras.csv`](bom-pod-v0-extras.csv) | Lo que se compra y no se suelda (Taoglas de rescate, FPC de LoRa, kit de banco) | Listo; no va a PCBWay |
+| [`bom-pod-v0-extras.csv`](bom-pod-v0-extras.csv) | Lo que se compra y no se suelda (Taoglas de rescate, kit de banco con la FPC de LoRa para el A/B) | Listo; no va a PCBWay |
 | Gerbers, taladros, pick and place, PDF del esquemático, dibujo de fabricación | KiBot desde `hardware/pod-v0/` | Con la placa ruteada |
 
 Las listas salen de la netlist con `python3 hardware/tools/bom_pcbway.py` (el CI falla si quedan viejas). [`bom-pod-v0-jlcpcb.csv`](bom-pod-v0-jlcpcb.csv) es la misma lista en el formato de JLCPCB.
@@ -51,15 +51,15 @@ El "Design 1" es el apilado de 1,6 mm que PCBWay publica en su [página de apila
 |---|---|
 | Tipo | **Turnkey parcial**: compran todo menos lo que dice "Customer Supplied = yes" |
 | Cantidad | 5 armadas de las 10 placas (las otras 5 desnudas, para rescates) |
-| Variantes | 3 con LC29H(AA) (`U201`, LC29HAAMD) y 2 con **LC29H(EA)** (LC29HEAMD, mismo lugar); 1 de las 5 con el **UWB DWM3000** (`U701`, `C701` y `C702` montados; `R702` solo si el banco lo pide). La lista base es la de la AA sin UWB |
+| Variantes | 3 con LC29H(AA) (`U201`, LC29HAAMD) y 2 con **LC29H(EA)** (LC29HEAMD, mismo lugar). La lista base es la de la AA. Sin UWB: el DWM3000 salió de la v0 el 15/11/2026 |
 | Caras | Todo SMT arriba. Si el Hall (`U406`) termina abajo, una segunda pasada |
-| Juntas | Unos 481 pads SMT por placa, 55 partes distintas |
+| Juntas | Unos 491 pads SMT por placa, 58 partes distintas |
 | Paso fino | **DSBGA de 0,4 mm** (`U101` BQ25180), **TSNP-6 de 0,4 mm** (`U205` BGA525N6), SAW de 1,4 × 1,1 mm (`FL201`, `FL202`), **LGA** (`U401` LSM6DSV32X, `U404` BMP581), WSON con pad expuesto (`U103` TPS63900, `U501` NAND), módulos con pads abajo (`U301` BMD-340 de 68 pads de 0,5 mm, `U201` LC29H, `U302` Ra-01SH almenado) |
 | Inspección | **Rayos X** de los DSBGA, el TSNP, los LGA y los módulos; AOI del resto |
 | Stencil | Con marco; **escalonado o de 0,1 mm** si lo recomiendan por el DSBGA al lado de los pads grandes de los módulos |
 | Después del reflujo | **Patch GVLB258.A (`AE201`)**: un pin por agujero metalizado de Ø1,0 mm, soldado a mano desde abajo **después** del SMT. No pasa por el horno |
 | Lo que mandamos | `AE201` GVLB258.A (o que lo compren en DigiKey, 931-GVLB258.A-ND, si les conviene). Ya no hay "maybe": el MCU es el BMD-340 (`U301`, DigiKey) y no hace falta comprarlo a Raytac o TME (plan de stock de [`costos.md`](costos.md) y [`stock.md`](stock.md)) |
-| Antena LoRa | El Ra-01SH (`U302`) puede venir con un **IPEX propio** en paralelo con su pad 1: preguntar si hay variante sin IPEX; si no, la FPC va al IPEX del módulo y `J302` y su 0 Ω serie quedan sin montar (lo indicamos al pedir) |
+| Antena LoRa | **Antena chip KYOCERA AVX M620720 (`AE301`) en la placa** desde el 15/11/2026: SMT normal en el reflujo, la consignamos o la compran en DigiKey (478-M620720CT-ND); `C313` y `C314` son Murata GJM de ±0,05 pF (DigiKey). `J302` (U.FL de prueba) y `R327` quedan sin montar. El Ra-01SH (`U302`) puede venir con un **IPEX propio** en paralelo con su pad 1: preguntar si hay variante sin IPEX |
 | Humedad (MSL) | **Hornear según su nivel MSL** las partes sensibles antes del reflujo si estuvieron fuera de la bolsa: módulos (BMD-340, LC29H, Ra-01SH), LGA, DSBGA y el SAW |
 | Limpieza | Flux sin limpieza; **no lavar** el BMP581 (encapsulado con ventilación) |
 | Programación | No: se graba por el Tag-Connect en Buenos Aires |
@@ -100,7 +100,7 @@ El "Design 1" es el apilado de 1,6 mm que PCBWay publica en su [página de apila
 >
 > **Assembly (partial turnkey)**
 > - 5 boards assembled out of 10 bare boards; also please quote 10 and 100 assembled.
-> - Single-side SMT, about 140 parts and 484 pads per board, 55 unique parts. BOM attached (MPN, LCSC and DigiKey numbers). All 5 boards are assembled from the same bom-pod-v0.csv. Optionally, LC29HEAMD instead of LC29HAAMD in the same position and the Qorvo DWM3000TR13 module on one board.
+> - Single-side SMT, about 142 parts and 491 pads per board, 58 unique parts. BOM attached (MPN, LCSC and DigiKey numbers). All 5 boards are assembled from the same bom-pod-v0.csv. Optionally, LC29HEAMD instead of LC29HAAMD in the same position. The LoRa antenna is a KYOCERA AVX M620720 ceramic chip (DigiKey 478-M620720CT-ND, not at LCSC), placed at the board edge in normal reflow; we can ship it to you.
 > - Fine pitch: 0.4 mm DSBGA (TI BQ25180YBGR), 0.4 mm TSNP-6 (Infineon BGA525N6), 1.4 × 1.1 mm SAW filters, LGA sensors (ST LSM6DSV32XTR, Bosch BMP581), WSON with exposed pad, modules with bottom pads (u-blox BMD-340 68 pads of 0.5 mm, Quectel LC29H, castellated Ai-Thinker Ra-01SH). We would like X-ray inspection of the BGA/LGA/module joints. Please advise on stencil thickness or a step stencil.
 > - After reflow: one through-hole ceramic patch antenna (Taoglas GVLB258.A, 25 × 25 mm, single pin) hand-soldered from the bottom. It must not go through reflow. We can ship it to you, or you can buy it at DigiKey (931-GVLB258.A-ND).
 > - No-clean flux; please do not wash the board (the barometer has a vent hole). Please bake moisture-sensitive parts (modules, LGA, DSBGA) per their MSL before reflow.

@@ -127,6 +127,8 @@ LoRa tolera un error de frecuencia entre transmisor y receptor de unos **±25 % 
 
 ## Antena LoRa (no se suelda)
 
+> **Actualización del 15/11/2026**: la antena LoRa pasó a la **antena chip KYOCERA AVX M620720 en la placa** (ADR 0105, "Registro de decisiones"); la Molex 2111400100 queda en el kit de banco. Lo de abajo es el relevamiento del 09/11/2026.
+
 | Antena | Tipo · conector | US$ a 100 | Stock (09/11/2026) | Veredicto |
 |---|---|---|---|---|
 | Ebyte TX915-FPC-4510 (hoy) | FPC 45 × 10 · IPEX | sin precio | Sin cifra | No se puede confirmar |

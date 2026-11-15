@@ -9,7 +9,7 @@ This script builds two probe boards from the pod-v0 board, its project and its r
 - sonda_ok.kicad_pcb (negative control): a compliant layout (CPWG with GND exactly at the coplanar
   gap, other nets at the required distance, the USB pair at its geometry, a 1.5 mm inner 1 A rail,
   a GND via and the patch inside the GNSS zone, the patch feed on L4 with its RF via, a bottom-side
-  part under it). Its report must have no
+  part under it, the LoRa feed on L1 inside LORA_ANTENA with the chip antenna and its two capacitors). Its report must have no
   rule violations, only the ones a probe board always has (dangling tracks, unconnected items,
   footprints that are not in a library).
 
@@ -33,12 +33,13 @@ POD = Path(__file__).resolve().parents[1] / "pod-v0"
 NS = uuid.UUID("2f1c5a0e-6b1d-4c39-9a57-1f4b8f3c0a11")
 
 NETS = ["GND", "/gnss_rf/GNSS_RF_A", "/power/BB_LX1", "USB_D_P", "USB_D_N", "SYS", "GNSS_PPS",
-        "/mcu_radio/LED_R", "/mcu_radio/LED_G", "/gnss_rf/GNSS_RF_B", "/gnss_rf/GNSS_ANT_PATCH", "VREG"]
+        "/mcu_radio/LED_R", "/mcu_radio/LED_G", "/gnss_rf/GNSS_RF_B", "/gnss_rf/GNSS_ANT_PATCH", "VREG",
+        "/mcu_radio/LORA_FEED", "/mcu_radio/LORA_ANT_TUNE"]
 
 # Coordinates in mm on the 50 x 70 mm outline (100..150, 100..170; doc origin (0; 0) = (100; 100)).
 # Zones: BLE_ANTENA x 100-104.35, y 147.6-162.6; GNSS_ANTENA x 110-140, y 102-132; L3_GND (In2.Cu) the
-# top third (y < 133) plus x 105-117, y 133-155; LORA_ANTENA x 125.5-130.5, y 160-170; UWB_ANTENA
-# x 146.2-150, y 133-146.
+# top third (y < 133) plus x 105-117, y 133-155; LORA_ANTENA x 128.1-144.1, y 159.05-170 (keep-out of the
+# M620720 chip antenna on the bottom edge).
 # Board screws (GND) at (106; 108), (144; 108) and (125; 166). The L2_GND plane is left out of the
 # probes: its fill was computed without them.
 # Track: (net, layer, x0, y0, x1, y1, width). Via: (net, x, y). Footprint: (ref, x, y, side, pads),
@@ -60,20 +61,22 @@ BAD = {
         ("GNSS_PPS", "F.Cu", 108, 158, 118, 158, 0.2),
         ("/mcu_radio/LED_G", "F.Cu", 108, 158.4, 118, 158.4, 0.2),  # 0.2 mm from PPS
         ("/mcu_radio/LED_G", "In1.Cu", 108, 162, 118, 162, 0.2),  # not GND on L2
-        ("GNSS_PPS", "F.Cu", 126, 161.5, 130, 161.5, 0.2),  # inside LORA_ANTENA
+        ("/mcu_radio/LED_R", "F.Cu", 131, 161.5, 135, 161.5, 0.2),  # not RF, inside LORA_ANTENA on L1
+        ("/mcu_radio/LORA_FEED", "In2.Cu", 131, 164, 135, 164, 0.33),  # RF, but on L3 inside LORA_ANTENA
         ("/mcu_radio/LED_R", "F.Cu", 110, 110, 120, 110, 0.2),  # inside GNSS_ANTENA on L1
         ("/mcu_radio/LED_R", "F.Cu", 101, 155, 104, 155, 0.2),  # inside BLE_ANTENA
-        ("/mcu_radio/LED_R", "F.Cu", 147, 140, 149, 140, 0.2),  # inside UWB_ANTENA
         ("/gnss_rf/GNSS_RF_A", "F.Cu", 128, 140.5, 138, 140.5, 0.33),  # 0.3 mm from the pad of J1
         ("VREG", "In2.Cu", 125, 120, 125, 126, 0.3),  # not GND on L3 under the patch feed
         ("/gnss_rf/GNSS_ANT_PATCH", "B.Cu", 128, 125, 138, 125, 0.2),  # patch feed too narrow on L4
         ("/gnss_rf/GNSS_ANT_PATCH", "In2.Cu", 128, 146, 138, 146, 0.33),  # patch feed on L3: still forbidden
     ],
-    "vias": [("/gnss_rf/GNSS_RF_A", 120, 140)],  # via on an RF net
+    "vias": [("/gnss_rf/GNSS_RF_A", 120, 140),  # via on an RF net
+             ("GND", 138, 166)],  # even a GND via inside LORA_ANTENA (native keep-out)
     "zones": [],
     "footprints": [
         ("R1", 125, 125, "F", PAD),  # top-side part under the GNSS antenna
         ("J1", 133, 139.5, "F", (("1", 0, 0, 0.8, 0.8, "/mcu_radio/LED_G"),)),  # other net near RF
+        ("R5", 140, 162, "F", PAD),  # a part that is not the antenna or its capacitors inside LORA_ANTENA
     ],
 }
 
@@ -91,18 +94,21 @@ EXPECTED = [
     "POWER_DOCK: ancho en capas internas",
     "SW_NODE: lejos de la RF y del GNSS",
     "GNSS_SENSITIVE: otras señales lejos",
-    "GNSS_SENSITIVE: fuera de la zona de LoRa",
     "GNSS_ANTENA: solo GND y RF en L1",
     "GNSS_ANTENA: sin componentes debajo de la antena",
     "L3_GND: L3 solo GND debajo de L4",
     "RF_50: ancho de 50 ohm en L4 (alimentación del patch)",
+    "LORA_ANTENA: solo la antena y sus capacitores",
 ]
 # The GNSS_ANT_PATCH exception covers L4 and its via only: the inner-layer rule must still flag it.
 PATCH_INNER = ("RF_50: solo en L1 (internas)", "GNSS_ANT_PATCH")
 # The native keep-out of BLE_ANTENA is reported without its name ("Local override"): look for
 # an items_not_allowed violation at the track placed inside it.
 BLE_KEEPOUT_AT = "@(101.0000 mm, 155.0000 mm)"
-UWB_KEEPOUT_AT = "@(147.0000 mm, 140.0000 mm)"  # same for UWB_ANTENA
+LORA_VIA_AT = "@(138.0000 mm, 166.0000 mm)"  # same for the via inside LORA_ANTENA
+# The LoRa zone rule has two halves (any layer but L1, any net but RF_50): its name at both tracks.
+LORA_RULE = "LORA_ANTENA: solo la RF en L1"
+LORA_TRACKS_AT = {"L1, otra red": "@(131.0000 mm, 161.5000 mm)", "RF en L3": "@(131.0000 mm, 164.0000 mm)"}
 
 OK = {
     "tracks": [
@@ -118,6 +124,7 @@ OK = {
         ("/gnss_rf/GNSS_RF_A", "F.Cu", 115, 120, 125, 120, 0.33),  # RF inside the GNSS zone
         ("/gnss_rf/GNSS_ANT_PATCH", "B.Cu", 125, 119.5, 125, 131, 0.33),  # patch feed on L4 (the one exception)
         ("/gnss_rf/GNSS_ANT_PATCH", "F.Cu", 125, 131, 125, 134, 0.33),  # and back on L1 after its via
+        ("/mcu_radio/LORA_FEED", "F.Cu", 130, 160, 130, 168, 0.33),  # LoRa feed on L1 inside LORA_ANTENA
     ],
     "vias": [("GND", 120, 125),  # stitching via inside the GNSS zone
              ("/gnss_rf/GNSS_ANT_PATCH", 125, 131)],  # the patch feed's RF via
@@ -127,6 +134,9 @@ OK = {
         ("R2", 130, 125, "B", PAD),  # bottom-side part under the GNSS zone
         ("R3", 112, 145, "F", R0402("/gnss_rf/GNSS_RF_A", "/mcu_radio/LED_R")),  # bias-T: 0.4 mm pad gap
         ("R4", 120, 147, "F", R0402("/gnss_rf/GNSS_RF_A", "/gnss_rf/GNSS_RF_B")),  # 0 ohm between RF nets
+        ("AE301", 136, 168.5, "F", PAD),  # the chip antenna in LORA_ANTENA
+        ("C313", 129.2, 166.9, "F", R0402("GND", "/mcu_radio/LORA_FEED")),  # P2 over the edge of the keep-out
+        ("C314", 142, 169, "F", R0402("/mcu_radio/LORA_ANT_TUNE", "GND")),  # P1 at the end of the arm
     ],
 }
 # Violations that a probe board always has and that say nothing about the rules.
@@ -209,8 +219,10 @@ def verify(report: Path) -> int:
     found = {name: name in text for name in EXPECTED}
     found["BLE_ANTENA (keep-out nativo)"] = any(
         b.startswith("[items_not_allowed]") and BLE_KEEPOUT_AT in b for b in blocks)
-    found["UWB_ANTENA (keep-out nativo)"] = any(
-        b.startswith("[items_not_allowed]") and UWB_KEEPOUT_AT in b for b in blocks)
+    found["LORA_ANTENA: vía (keep-out nativo)"] = any(
+        b.startswith("[items_not_allowed]") and LORA_VIA_AT in b for b in blocks)
+    for what, at in LORA_TRACKS_AT.items():
+        found[f"{LORA_RULE} ({what})"] = any(LORA_RULE in b and at in b for b in blocks)
     found["GNSS_ANT_PATCH sigue prohibida en capas internas"] = any(all(t in b for t in PATCH_INNER) for b in blocks)
     for name, ok in found.items():
         print(("ok    " if ok else "FALTA ") + name)

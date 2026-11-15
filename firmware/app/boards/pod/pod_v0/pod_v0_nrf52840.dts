@@ -49,7 +49,10 @@
 		lora-en-gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;	/* LORA_EN, pad 57 */
 		/* EN of the NAND load switch (U502, not mounted) by 0 Ω, 100 kΩ pull-down. */
 		nand-en-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;	/* NAND_EN, pad 59 */
-		/* DWM3000 (not mounted). */
+		/*
+		 * UWB: the DWM3000 left the v0 on 15/11/2026; these pins end on test
+		 * points for a bench DWM3000EVB (B-911).
+		 */
 		uwb-irq-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;	/* pad 58 */
 		uwb-reset-gpios = <&gpio1 7 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;	/* pad 50 */
 		uwb-wakeup-gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>;	/* pad 48 */
@@ -182,7 +185,7 @@
 	pinctrl-1 = <&spi1_sleep>;
 	pinctrl-names = "default", "sleep";
 	cs-gpios = <&gpio1 9 GPIO_ACTIVE_LOW>,	/* IMU_CS, pad 52 */
-		   <&gpio0 27 GPIO_ACTIVE_LOW>;	/* UWB_CS, pad 8 (static CS) */
+		   <&gpio0 27 GPIO_ACTIVE_LOW>;	/* UWB_CS, pad 8: test point (bench DWM3000EVB) */
 
 	/*
 	 * LSM6DSV32X (WHO_AM_I 0x70): driven by the lsm6dsv16x driver of NCS 3.4.1

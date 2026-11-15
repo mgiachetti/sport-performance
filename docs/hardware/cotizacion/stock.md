@@ -10,6 +10,10 @@ Con la regla de que cada parte tiene que estar disponible **hoy** (al menos 150 
 
 El usuario eligió las alternativas en stock y el diseño ya las tiene (ADR 0105, "Registro de decisiones"): **BMD-340-A-R** en `U301`, **Ra-01SH** en `U302`, **LSM6DSV32XTR** en `U401`, **GVLB258.A** en `AE201`, **TPS22919DCKR** en `U105`, `U303` y `U502`, y la antena LoRa **Molex 2111400100**. **La tabla generada de abajo ya es la de la placa nueva**: todo lo montado está en **OK**, salvo la **LC29H(AA)** (DigiKey 522, una sola fuente: se compran 150 ya). Las secciones "Resumen" y "Las partes con riesgo" son la auditoría de la placa anterior, el mismo día, y quedan como registro de por qué se cambió. **El ADXL372 salió de la v0 el 14/11/2026** (ADR 0105): ya no hay variante `pod-v0-highg` ni `U403`, y donde esas secciones lo nombran (como alto rango o como parte del 2.º respaldo de la IMU) es registro; si vuelve, es en una v2. El plan de compra vigente está en [`costos.md`](costos.md) ("Plan de stock").
 
+## Después de la antena LoRa en la placa (15/11/2026)
+
+El usuario pasó la antena LoRa a la placa y sacó el DWM3000 de la v0 (ADR 0105, "Registro de decisiones"). En la tabla generada de abajo: **M620720** en `AE301` (OK, DigiKey 37.777 el 15/11/2026, una sola fuente, plazo de fábrica de 20 semanas: **150 en DigiKey al aprobar la v0**), sus capacitores **GJM1555C1H4R1WB01D** (`C313`, DigiKey 29.083) y **GJM1555C1H3R1WB01D** (`C314`, DigiKey 4.251; el stock en LCSC no se verificó), y la **Molex 2111400100** como parte del kit de banco (2 cada 5 placas, para el A/B por el U.FL de prueba `J302`, que queda sin montar). El DWM3000TR13 ya no se compra para la v0.
+
 ## Cómo se leyó
 
 | Fuente | Cómo | Resultado |
@@ -49,13 +53,15 @@ La genera `hardware/tools/bom_pcbway.py` desde las columnas de stock de [`partes
 |---|---|---|---|---|---|---|---|---|---|---|
 | `LC29HAAMD` | U201 | 105 | ⚠ LIMITADO | 91 | 522 | 91 | — | DigiKey 14 semanas | — | LC29HEAMD en el mismo footprint (RTK, +12,41 a 100) |
 | `AGVLB.25B.07.0060A` | (no se suelda) | 42 | ✓ OK | — | 558 | — | — | DigiKey 16 semanas | — | — |
-| `2111400100` | (no se suelda) | 105 | ✓ OK | — | — | — | — | — | — | — |
+| `2111400100` | (no se suelda) | 42 | ✓ OK | — | — | — | — | — | — | — |
+| `U.FL-R-SMT-1(10)` | (no se suelda) | 42 | ✓ OK | 17.470 | 332.838 | — | — | — | — | — |
 | `LQW15AN10NG00D` | (no se suelda) | 210 | ✓ OK | 88.800 | 1.233 | — | — | — | — | — |
 | `LQW15AN12NG00D` | (no se suelda) | 210 | ✓ OK | 17.800 | 88.904 | — | — | — | — | — |
 | `0402WGF374JTCE` | (no se suelda) | 210 | ✓ OK | 7.300 | — | — | — | — | — | — |
 | `NCP15XH103F03RC` | (no se suelda) | 210 | ✓ OK | 281.050 | — | — | — | — | — | — |
 | `PESD5V0F1BL,315` | (no se suelda) | 210 | ✓ OK | 62.835 | — | — | — | — | — | — |
 | `GVLB258.A` | AE201 | 105 | ✓ OK | 0 | 895 | — | — | DigiKey 16 semanas | — | GVLB208.A (20 × 20, otro footprint; DigiKey 271) o la AGVLB.25B activa por el U.FL |
+| `M620720` | AE301 | 105 | ✓ OK | — | 37.777 | — | — | Fábrica 20 semanas | — | Ninguna en el mismo footprint; rescate por el U.FL de prueba J302 con la FPC Molex 2111400100 |
 | `CL05A105KA5NQNC` | C101 y otros | 955 | ✓ OK | 2.908.400 | — | — | — | — | — | — |
 | `CL10A106KP8NNNC` | C102, C105, C201, C306 | 430 | ✓ OK | 1.019.720 | — | — | — | — | — | — |
 | `CL10A226MQ8NRNC` | C106 | 115 | ✓ OK | 3.991.780 | — | — | — | — | — | — |
@@ -66,6 +72,8 @@ La genera `hardware/tools/bom_pcbway.py` desde las columnas de stock de [`partes
 | `GRM1555C1H102JA01D` | C218 | 115 | ✓ OK | 570.200 | — | — | — | — | — | — |
 | `GRM1555C1H680JA01D` | C219 | 115 | ✓ OK | 39.200 | — | — | — | — | — | — |
 | `CL05C180JB5NNNC` | C304, C305 | 220 | ✓ OK | 231.100 | — | — | — | — | — | — |
+| `GJM1555C1H4R1WB01D` | C313 | 115 | ✓ OK | — | 29.083 | — | — | — | — | — |
+| `GJM1555C1H3R1WB01D` | C314 | 115 | ✓ OK | — | 4.251 | — | — | — | — | — |
 | `CL10A105KA8NNNC` | C602 | 115 | ✓ OK | 3.645.800 | — | — | — | — | — | — |
 | `PGB1010402KR` | D203 | 115 | ✓ OK | 78.320 | 362.611 | — | — | — | — | — |
 | `SMF12A` | D601 | 105 | ✓ OK | 7.960 | 51.230 | — | — | — | — | — |
@@ -73,13 +81,13 @@ La genera `hardware/tools/bom_pcbway.py` desde las columnas de stock de [`partes
 | `B39162B8389P810` | FL201, FL202 | 210 | ✓ OK | 218 | 7.710 | 218 | — | DigiKey 8 semanas | — | Ninguna en el mismo footprint con L1 + L5 (las B39162 de 1109 y 1411 en stock son solo L1) |
 | `SM03B-GHS-TB(LF)(SN)` | J101 | 105 | ✓ OK | 25.545 | 0 | — | — | — | — | — |
 | `SM04B-SRSS-TB(LF)(SN)` | J201 | 105 | ✓ OK | 71.715 | 104.820 | — | — | — | — | — |
-| `U.FL-R-SMT-1(10)` | J202, J302 | 210 | ✓ OK | 17.470 | 332.838 | — | — | — | — | — |
+| `U.FL-R-SMT-1(10)` | J202 | 105 | ✓ OK | 17.470 | 332.838 | — | — | — | — | — |
 | `DFE201612E-2R2M=P2` | L101 | 115 | ✓ OK | 12.480 | — | — | — | — | `DFE201610E-2R2M=P2` | — |
 | `LQW15AN5N1C00D` | L202, L203, L205, L206 | 430 | ✓ OK | 8.280 | 60.810 | — | — | DigiKey 25 semanas | — | — |
 | `LQW15AN11NG00D` | L204 | 115 | ✓ OK | 40.680 | 0 | — | — | — | — | — |
 | `XL-1615RGBC-RF` | LED301 | 105 | ✓ OK | 693.500 | — | — | — | — | — | — |
 | `AO3400A` | Q201, Q301, Q302, Q303 | 420 | ✓ OK | 460.780 | 169.465 | — | — | — | — | — |
-| `0402WGF0000TCE` | R103 y otros | 2.740 | ✓ OK | 8.561.100 | — | — | — | — | — | — |
+| `0402WGF0000TCE` | R103 y otros | 2.845 | ✓ OK | 8.561.100 | — | — | — | — | — | — |
 | `0402WGF8251TCE` | R106 | 115 | ✓ OK | 23.200 | — | — | — | — | — | — |
 | `0402WGF1622TCE` | R107 | 115 | ✓ OK | 1.900 | — | — | — | — | — | — |
 | `0402WGF1003TCE` | R111 y otros | 1.375 | ✓ OK | 1.817.600 | — | — | — | — | — | — |
@@ -110,7 +118,7 @@ La genera `hardware/tools/bom_pcbway.py` desde las columnas de stock de [`partes
 | `TPS259470ARPWR` | U602 | 105 | ✓ OK | 3.818 | 0 | — | — | DigiKey: 3.000 el 01/02/2027 | — | — |
 | `CM8V-T1A-32.768KHZ-12.5PF-20PPM-TA-QC` | Y301 | 105 | ✓ OK | 8.764 | 120.722 | — | — | — | `ABS06-32.768KHZ-T` | — |
 
-Stock leído el 09/11/2026 (columnas de stock de [`partes_pod_v0.csv`](../../../hardware/tools/datos/partes_pod_v0.csv)).
+Stock leído el 09/11/2026, 15/11/2026 (columnas de stock de [`partes_pod_v0.csv`](../../../hardware/tools/datos/partes_pod_v0.csv)).
 
 <!-- fin de lo generado -->
 
