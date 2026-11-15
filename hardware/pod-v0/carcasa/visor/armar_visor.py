@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Arma visor.html: las mallas de la carcasa embebidas y un visor WebGL sin dependencias."""
-import os, sys, base64, json
+import os, re, sys, base64, json
 import numpy as np
 from scipy.ndimage import map_coordinates
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -109,6 +109,10 @@ datos = dict(escala=escala, partes=[dict(nombre=d['nombre'], grupo=d['grupo'], m
              p=b64(np.round((d['p'] - centro) / escala * 32767).astype('<i2')),
              n=b64(np.round(np.clip(d['n'], -1, 1) * 127).astype(np.int8)),
              i=b64(d['i'].astype('<u4'))) for d in partes])
-html = open(os.path.join(AQUI, 'plantilla.html')).read().replace('/*DATOS*/null', json.dumps(datos, separators=(',', ':')))
+# Prettier formats the template and writes the placeholder as "/*DATOS*/ null": accept both.
+plantilla = open(os.path.join(AQUI, 'plantilla.html')).read()
+html, n = re.subn(r'/\*DATOS\*/\s*null', lambda _: json.dumps(datos, separators=(',', ':')), plantilla)
+if n != 1:
+    sys.exit('plantilla.html: falta el marcador /*DATOS*/ null')
 open(os.path.join(AQUI, 'visor.html'), 'w').write(html)
 print('visor.html: %.2f MB' % (len(html) / 1e6))
