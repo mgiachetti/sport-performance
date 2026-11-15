@@ -7,7 +7,8 @@ This script builds two probe boards from the pod-v0 board, its project and its r
 - sonda.kicad_pcb: tracks, vias and footprints that break each rule on purpose. Its DRC report must
   name every rule.
 - sonda_ok.kicad_pcb (negative control): a compliant layout (CPWG with GND exactly at the coplanar
-  gap, other nets at the required distance, the USB pair at its geometry, a 1.5 mm inner 1 A rail,
+  gap, other nets at the required distance, the USB pair at its geometry with 7.5 mm uncoupled and
+  3.5 mm of skew, a signal on L3 just west of the L3_GND strip, a 1.5 mm inner 1 A rail,
   a GND via and the patch inside the GNSS zone, the patch feed on L4 with its RF via, a bottom-side
   part under it, the LoRa feed on L1 inside LORA_ANTENA with the real chip antenna footprint, rotated 180
   degrees as on the pod, and its two 0402 capacitors at their data-sheet places, so that their courtyards are
@@ -41,7 +42,7 @@ NETS = ["GND", "/gnss_rf/GNSS_RF_A", "/power/BB_LX1", "USB_D_P", "USB_D_N", "SYS
 
 # Coordinates in mm on the 50 x 70 mm outline (100..150, 100..170; doc origin (0; 0) = (100; 100)).
 # Zones: BLE_ANTENA x 100-104.35, y 147.6-162.6; GNSS_ANTENA x 110-140, y 102-132; L3_GND (In2.Cu) the
-# top third (y < 133) plus x 105-117, y 133-155; LORA_ANTENA x 126.7-142.7, y 159.05-170 (keep-out of the
+# top third (y < 133) plus x 114.5-117, y 133-155 (the strip of the USB pair; x 105-117 until 15/11/2026); LORA_ANTENA x 126.7-142.7, y 159.05-170 (keep-out of the
 # M620720 chip antenna on the bottom edge).
 # Board screws (GND) at (106; 108), (144; 108) and (124; 166). The L2_GND plane is left out of the
 # probes: its fill was computed without them.
@@ -69,6 +70,9 @@ BAD = {
         ("/gnss_rf/GNSS_RF_A", "In2.Cu", 108, 146, 118, 146, 0.33),  # RF on L3
         ("USB_D_P", "F.Cu", 108, 150, 118, 150, 0.2),  # pair too narrow
         ("USB_D_N", "F.Cu", 108, 150.4, 118, 150.4, 0.2),
+        # and, past the coupled 10 mm, 8.5 mm of D+ alone and 4 mm of D- alone: uncoupled 8.5 mm (> 8) and skew 4.5 mm (> 4)
+        ("USB_D_P", "F.Cu", 118, 150, 126.5, 150, 0.2),
+        ("USB_D_N", "F.Cu", 108, 150.4, 108, 154.4, 0.2),
         ("SYS", "In2.Cu", 108, 154, 118, 154, 0.6),  # 1 A rail too narrow on an inner layer
         ("GNSS_PPS", "F.Cu", 108, 158, 118, 158, 0.2),
         ("/mcu_radio/LED_G", "F.Cu", 108, 158.4, 118, 158.4, 0.2),  # 0.2 mm from PPS
@@ -80,6 +84,7 @@ BAD = {
         ("/mcu_radio/LED_R", "F.Cu", 101, 155, 104, 155, 0.2),  # inside BLE_ANTENA
         ("/gnss_rf/GNSS_RF_A", "F.Cu", 128, 140.5, 138, 140.5, 0.33),  # 0.3 mm from the pad of J1
         ("VREG", "In2.Cu", 125, 120, 125, 126, 0.3),  # not GND on L3 under the patch feed
+        ("/mcu_radio/LED_R", "In2.Cu", 115.75, 136, 115.75, 140, 0.2),  # not GND on L3 in the strip of the USB pair
         ("/gnss_rf/GNSS_ANT_PATCH", "B.Cu", 128, 125, 138, 125, 0.2),  # patch feed too narrow on L4
         ("/gnss_rf/GNSS_ANT_PATCH", "In2.Cu", 128, 146, 138, 146, 0.33),  # patch feed on L3: still forbidden
     ],
@@ -129,6 +134,13 @@ LORA_VIA_AT = "@(138.0000 mm, 166.0000 mm)"  # same for the via inside LORA_ANTE
 LORA_RULE = "LORA_ANTENA: solo la alimentación en L1"
 LORA_TRACKS_AT = {"L1, otra red": "@(131.0000 mm, 161.5000 mm)", "alimentación en L3": "@(131.0000 mm, 164.0000 mm)",
                   "RF del GNSS en L1": "@(128.0000 mm, 160.5000 mm)"}
+# The USB pair limits since 15/11/2026 (12 Mbit/s): each violation by its type and the limit it quotes, so a value
+# that went back to the old 5 and 0.5 mm, or a rule that stopped applying, fails here (the negative control has
+# 7.5 mm uncoupled and 3.5 mm of skew and must stay clean).
+USB_LIMITS = {"largo sin acoplar de 8 mm": ("[diff_pair_uncoupled_length_too_long]", "maximum uncoupled length 8.0000 mm"),
+              "diferencia de largo de 4 mm": ("[skew_out_of_range]", "max skew 4.0000 mm")}
+# The narrowed L3_GND strip (x 114.5-117 down to y = 155): a signal on L3 inside it.
+L3_STRIP_RULE, L3_STRIP_AT = "L3_GND: L3 solo GND debajo de L4", "@(115.7500 mm, 136.0000 mm)"
 # The footprint rule, on both sides: its name in the block of each footprint.
 LORA_FOOTPRINT_RULE = "LORA_ANTENA: solo la antena y sus capacitores"
 LORA_FOOTPRINTS = {"arriba": "R5", "abajo": "R6"}
@@ -140,7 +152,13 @@ OK = {
         ("/mcu_radio/LED_R", "F.Cu", 108, 140.865, 118, 140.865, 0.2),  # other net 0.6 mm away
         ("USB_D_P", "F.Cu", 108, 150, 118, 150, 0.25),  # pair 0.25 mm, 0.15 mm apart
         ("USB_D_N", "F.Cu", 108, 150.4, 118, 150.4, 0.25),
+        # what the routing test left (section 9 of pod-v0-ubicacion-y-carcasa.md): 7.5 mm of D+ alone and 4 mm of D-
+        # alone, uncoupled 7.5 mm and skew 3.5 mm, within 8 and 4 mm (the old 5 and 0.5 mm would flag both)
+        ("USB_D_P", "F.Cu", 118, 150, 125.5, 150, 0.25),
+        ("USB_D_N", "F.Cu", 108, 150.4, 108, 154.4, 0.25),
         ("SYS", "In2.Cu", 108, 157, 118, 157, 1.5),  # 1 A rail on an inner layer, below L3_GND
+        # a signal on L3 at x 106-113.5, where the L3_GND strip was until 15/11/2026 (x 105-117): free since then
+        ("/mcu_radio/LED_R", "In2.Cu", 106, 136, 113.5, 136, 0.2),
         ("GNSS_PPS", "F.Cu", 108, 158, 118, 158, 0.2),
         ("/mcu_radio/LED_G", "F.Cu", 108, 158.5, 118, 158.5, 0.2),  # 0.3 mm from PPS
         ("/power/BB_LX1", "F.Cu", 128, 145, 138, 145, 0.4),  # switch node far from RF and zones
@@ -304,6 +322,9 @@ def verify(report: Path) -> int:
     for side, ref in LORA_FOOTPRINTS.items():
         found[f"{LORA_FOOTPRINT_RULE} ({side})"] = any(
             LORA_FOOTPRINT_RULE in b and f"Footprint {ref}" in b for b in blocks)
+    for what, (kind, limit) in USB_LIMITS.items():
+        found[f"USB_90D: {what}"] = any(b.startswith(kind) and limit in b for b in blocks)
+    found["L3_GND: franja del par (x de 14,5 a 17)"] = any(L3_STRIP_RULE in b and L3_STRIP_AT in b for b in blocks)
     found["GNSS_ANT_PATCH sigue prohibida en capas internas"] = any(all(t in b for t in PATCH_INNER) for b in blocks)
     for name, ok in found.items():
         print(("ok    " if ok else "FALTA ") + name)

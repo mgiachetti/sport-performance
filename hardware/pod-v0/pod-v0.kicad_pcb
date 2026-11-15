@@ -55040,6 +55040,331 @@
 			)
 		)
 	)
+	(footprint "Package_TO_SOT_SMD:Texas_R-PDSO-N5_DRL-5"
+		(layer "B.Cu")
+		(uuid "b442e5dc-2093-48cd-9eef-650d8597307f")
+		(at 119.75 112.3)
+		(descr "R-PDSO-N5, DRL, JEDEC MO-293B Var UAAD-1, https://www.ti.com/lit/ml/mpds158g/mpds158g.pdf")
+		(tags "SOT R-PDSO-N5 DRL0005A")
+		(property "Reference" "U601"
+			(at -3.395 0.1125 0)
+			(layer "B.SilkS")
+			(uuid "edd94efc-4adc-441e-8aa7-5f01ef4b4740")
+			(effects
+				(font
+					(size 0.8 0.8)
+					(thickness 0.12)
+				)
+				(justify mirror)
+			)
+		)
+		(property "Value" "TPD2E2U06"
+			(at 0 -1.75 180)
+			(layer "B.Fab")
+			(uuid "91f9f439-1bf2-483e-9523-6e9e1829d613")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+				(justify mirror)
+			)
+		)
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tpd2e2u06.pdf"
+			(at 0 0 180)
+			(unlocked yes)
+			(layer "B.Fab")
+			(hide yes)
+			(uuid "64723fc4-c532-4ae8-86e5-f9effe5eaff1")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+				(justify mirror)
+			)
+		)
+		(property "Description" "ESD de 2 líneas para D+/D− sin pin de VBUS, 1,5 pF, 5,5 V, ±25 kV contacto / ±30 kV aire"
+			(at 0 0 180)
+			(unlocked yes)
+			(layer "B.Fab")
+			(hide yes)
+			(uuid "d61846e0-11c4-46a4-b3e5-90a266cdbf04")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+				(justify mirror)
+			)
+		)
+		(property "MPN" "TPD2E2U06DRLR"
+			(at 0 0 180)
+			(layer "B.Fab")
+			(hide yes)
+			(uuid "c12b61eb-8491-4b84-94ca-325a94f10384")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+				(justify mirror)
+			)
+		)
+		(property "LCSC" "C1972959"
+			(at 0 0 180)
+			(layer "B.Fab")
+			(hide yes)
+			(uuid "e163c3c0-7e41-46a9-8449-85b4aee845f4")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+				(justify mirror)
+			)
+		)
+		(property "Fabricante" "Texas Instruments"
+			(at 0 0 180)
+			(layer "B.Fab")
+			(hide yes)
+			(uuid "ca60a428-932a-434d-a489-433a217e8566")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+				(justify mirror)
+			)
+		)
+		(property "Verificado" "no"
+			(at 0 0 180)
+			(layer "B.Fab")
+			(hide yes)
+			(uuid "f583843b-fd2d-4487-903d-ef0f6caed924")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+				(justify mirror)
+			)
+		)
+		(property "Nota" "ESD de 2 líneas sin pin de VBUS para D+/D− (1,5 pF típicos, 1,9 pF máx., 5,5 V; IEC 61000-4-2 ±25 kV por contacto y ±30 kV por aire, SLLSEG9C): D+ toca IO1 (pad 3) y D− IO2 (pad 5), cada una por su lado de afuera, así no queda nada entre las dos líneas que necesite salida. NC 1 y 2 sin conectar. VBUS la protegen el TVS y el switch de entrada"
+			(at 0 0 180)
+			(layer "B.Fab")
+			(hide yes)
+			(uuid "6abe6464-9669-4388-a44c-7c2f75509684")
+			(effects
+				(font
+					(size 1.27 1.27)
+					(thickness 0.15)
+				)
+				(justify mirror)
+			)
+		)
+		(path "/71d5b9eb-df95-4dbc-8416-b6a767de6f1a/95a15eb1-a5e6-5e02-b8e8-605c4dcc703d")
+		(sheetname "/usb_dock/")
+		(sheetfile "usb_dock.kicad_sch")
+		(attr smd)
+		(duplicate_pad_numbers_are_jumpers no)
+		(fp_line
+			(start -0.39 0.91)
+			(end 0.6 0.91)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "B.SilkS")
+			(uuid "6b069c7f-111a-4e20-9a2b-245c3d25f9fe")
+		)
+		(fp_line
+			(start 0 -0.91)
+			(end -0.6 -0.91)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "B.SilkS")
+			(uuid "077c4c08-ccbd-4a23-955a-38d5ba4a21e6")
+		)
+		(fp_line
+			(start 0 -0.91)
+			(end 0.6 -0.91)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(layer "B.SilkS")
+			(uuid "34aa017d-59a5-4177-ae6f-f3e938d76657")
+		)
+		(fp_poly
+			(pts
+				(xy -0.79 0.91) (xy -1.03 1.24) (xy -0.55 1.24) (xy -0.79 0.91)
+			)
+			(stroke
+				(width 0.12)
+				(type solid)
+			)
+			(fill yes)
+			(layer "B.SilkS")
+			(uuid "24a274a9-4527-4e34-99c3-0de90b4d57da")
+		)
+		(fp_line
+			(start -1.33 -1.05)
+			(end 1.33 -1.05)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "B.CrtYd")
+			(uuid "d3718ec8-4173-4158-97ce-98748fba1197")
+		)
+		(fp_line
+			(start -1.33 1.05)
+			(end -1.33 -1.05)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "B.CrtYd")
+			(uuid "9a85e082-2cad-403f-8417-f223acfb8525")
+		)
+		(fp_line
+			(start 1.33 -1.05)
+			(end 1.33 1.05)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "B.CrtYd")
+			(uuid "707f4e64-5167-4fff-a142-353c3b668c11")
+		)
+		(fp_line
+			(start 1.33 1.05)
+			(end -1.33 1.05)
+			(stroke
+				(width 0.05)
+				(type solid)
+			)
+			(layer "B.CrtYd")
+			(uuid "27f3bb12-d8ce-48ea-9096-229bff196aba")
+		)
+		(fp_line
+			(start -0.6 -0.8)
+			(end -0.6 0.5)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(layer "B.Fab")
+			(uuid "2e38f259-6819-4f32-9962-b4566ff1bc96")
+		)
+		(fp_line
+			(start -0.6 0.5)
+			(end -0.3 0.8)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(layer "B.Fab")
+			(uuid "7e61f9c4-35f8-425e-bd0f-071439c000a7")
+		)
+		(fp_line
+			(start -0.3 0.8)
+			(end 0.6 0.8)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(layer "B.Fab")
+			(uuid "c948e6fb-0450-476d-8ef0-d11cc0ef7316")
+		)
+		(fp_line
+			(start 0.6 -0.8)
+			(end -0.6 -0.8)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(layer "B.Fab")
+			(uuid "0088cccd-723b-47bd-b018-63d66241cf9f")
+		)
+		(fp_line
+			(start 0.6 0.8)
+			(end 0.6 -0.8)
+			(stroke
+				(width 0.1)
+				(type solid)
+			)
+			(layer "B.Fab")
+			(uuid "e2a6bdf6-f47b-472b-a0f8-5485dce7557d")
+		)
+		(fp_text user "${REFERENCE}"
+			(at 0 0 270)
+			(layer "B.Fab")
+			(uuid "34cd0051-4ad6-4fa8-b61a-030c3e2c4fbd")
+			(effects
+				(font
+					(size 0.5 0.5)
+					(thickness 0.04)
+				)
+				(justify mirror)
+			)
+		)
+		(pad "1" smd roundrect
+			(at -0.74 0.5)
+			(size 0.67 0.3)
+			(layers "B.Cu" "B.Mask" "B.Paste")
+			(roundrect_rratio 0.1666666667)
+			(net "unconnected-(U601-NC-Pad1)")
+			(uuid "e72728b4-fc56-4e23-9324-1232ef41aff7")
+		)
+		(pad "2" smd roundrect
+			(at -0.74 0)
+			(size 0.67 0.3)
+			(layers "B.Cu" "B.Mask" "B.Paste")
+			(roundrect_rratio 0.1666666667)
+			(net "unconnected-(U601-NC-Pad2)")
+			(uuid "9e5b6267-3f43-42c4-a5cd-eed8c2fe4fa5")
+		)
+		(pad "3" smd roundrect
+			(at -0.74 -0.5)
+			(size 0.67 0.3)
+			(layers "B.Cu" "B.Mask" "B.Paste")
+			(roundrect_rratio 0.1666666667)
+			(net "/usb_dock/DOCK_D_P")
+			(uuid "d9468d67-19e2-4d41-883d-16b5b5aac006")
+		)
+		(pad "4" smd roundrect
+			(at 0.74 -0.5)
+			(size 0.67 0.3)
+			(layers "B.Cu" "B.Mask" "B.Paste")
+			(roundrect_rratio 0.1666666667)
+			(net "GND")
+			(uuid "af1b3428-7a8c-415c-99a5-88ecfda21dd4")
+		)
+		(pad "5" smd roundrect
+			(at 0.74 0.5)
+			(size 0.67 0.3)
+			(layers "B.Cu" "B.Mask" "B.Paste")
+			(roundrect_rratio 0.1666666667)
+			(net "/usb_dock/DOCK_D_N")
+			(uuid "0a3b70d0-9347-4973-92df-138cad277ffe")
+		)
+		(embedded_fonts no)
+		(model "${KICAD10_3DMODEL_DIR}/Package_TO_SOT_SMD.3dshapes/Texas_R-PDSO-N5_DRL-5.step"
+			(offset
+				(xyz 0 0 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz 0 0 0)
+			)
+		)
+	)
 	(footprint "Capacitor_SMD:C_0402_1005Metric"
 		(layer "B.Cu")
 		(uuid "b9b267f6-3408-4a1a-9642-d14352bf991f")
@@ -61610,422 +61935,6 @@
 		)
 		(embedded_fonts no)
 	)
-	(footprint "Package_TO_SOT_SMD:SOT-23-6"
-		(layer "B.Cu")
-		(uuid "fbc05b85-7bd4-4af4-919b-6a658f5551c8")
-		(at 119.75 112.3 -90)
-		(descr "SOT, 6 Pin (JEDEC MO-178 Var AB https://www.jedec.org/document_search?search_api_views_fulltext=MO-178)")
-		(tags "SOT TO_SOT_SMD")
-		(property "Reference" "U601"
-			(at 0 3.94 0)
-			(layer "B.SilkS")
-			(uuid "d239a06c-d862-4381-bf9e-637fc81f816d")
-			(effects
-				(font
-					(size 0.8 0.8)
-					(thickness 0.12)
-				)
-				(justify mirror)
-			)
-		)
-		(property "Value" "USBLC6-2SC6"
-			(at 0 -2.4 90)
-			(layer "B.Fab")
-			(uuid "61b23e32-6db5-40d3-b917-bc5e12207d46")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-				(justify mirror)
-			)
-		)
-		(property "Datasheet" "https://www.st.com/resource/en/datasheet/usblc6-2.pdf"
-			(at 0 0 90)
-			(layer "B.Fab")
-			(hide yes)
-			(uuid "64cd8c64-575e-4e04-9998-bf05b7ddda03")
-			(effects
-				(font
-					(size 1.27 1.27)
-					(thickness 0.15)
-				)
-				(justify mirror)
-			)
-		)
-		(property "Description" "ESD de baja capacidad para D+/D−"
-			(at 0 0 90)
-			(layer "B.Fab")
-			(hide yes)
-			(uuid "b26e188f-626b-4504-8770-17be143081ea")
-			(effects
-				(font
-					(size 1.27 1.27)
-					(thickness 0.15)
-				)
-				(justify mirror)
-			)
-		)
-		(property "KiLib_Generator" "package/gullwing"
-			(at 0 0 90)
-			(layer "B.SilkS")
-			(hide yes)
-			(uuid "ad2f6b64-fef8-4270-9900-696f8ed7eedc")
-			(effects
-				(font
-					(size 1 1)
-					(thickness 0.15)
-				)
-				(justify mirror)
-			)
-		)
-		(property "MPN" "USBLC6-2SC6"
-			(at 0 0 90)
-			(layer "B.Fab")
-			(hide yes)
-			(uuid "7fcc11d6-5d07-4ea8-baf2-4176b5e14004")
-			(effects
-				(font
-					(size 1.27 1.27)
-					(thickness 0.15)
-				)
-				(justify mirror)
-			)
-		)
-		(property "LCSC" "C7519"
-			(at 0 0 90)
-			(layer "B.Fab")
-			(hide yes)
-			(uuid "46fdc596-8aa6-4dbe-b67e-cc7fe6fb3154")
-			(effects
-				(font
-					(size 1.27 1.27)
-					(thickness 0.15)
-				)
-				(justify mirror)
-			)
-		)
-		(property "Fabricante" "STMicroelectronics"
-			(at 0 0 90)
-			(layer "B.Fab")
-			(hide yes)
-			(uuid "6743c244-f904-4999-9464-d66c3769b55d")
-			(effects
-				(font
-					(size 1.27 1.27)
-					(thickness 0.15)
-				)
-				(justify mirror)
-			)
-		)
-		(property "Verificado" "no"
-			(at 0 0 90)
-			(layer "B.Fab")
-			(hide yes)
-			(uuid "72d7ad98-ad05-49f3-a9a4-63f14a0fff64")
-			(effects
-				(font
-					(size 1.27 1.27)
-					(thickness 0.15)
-				)
-				(justify mirror)
-			)
-		)
-		(property "Nota" "ESD de baja capacidad en D+/D−"
-			(at 0 0 90)
-			(layer "B.Fab")
-			(hide yes)
-			(uuid "7c7b11b6-e1c2-42ce-9d70-08211e122f11")
-			(effects
-				(font
-					(size 1.27 1.27)
-					(thickness 0.15)
-				)
-				(justify mirror)
-			)
-		)
-		(path "/71d5b9eb-df95-4dbc-8416-b6a767de6f1a/95a15eb1-a5e6-5e02-b8e8-605c4dcc703d")
-		(sheetname "/usb_dock/")
-		(sheetfile "usb_dock.kicad_sch")
-		(attr smd)
-		(duplicate_pad_numbers_are_jumpers no)
-		(fp_line
-			(start -0.91 1.56)
-			(end 0.91 1.56)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "B.SilkS")
-			(uuid "0eac4846-cf51-4401-b728-78ba8c02f927")
-		)
-		(fp_line
-			(start 0.91 1.56)
-			(end 0.91 1.51)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "B.SilkS")
-			(uuid "0933258d-3813-423f-910d-4c69080756dd")
-		)
-		(fp_line
-			(start -0.91 1.51)
-			(end -0.91 1.56)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "B.SilkS")
-			(uuid "2cee5f65-b769-4633-9e8c-a77d70b42ba4")
-		)
-		(fp_line
-			(start 0.91 -1.51)
-			(end 0.91 -1.56)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "B.SilkS")
-			(uuid "b23db6d5-3d78-4617-a0c8-0ea6952f94e3")
-		)
-		(fp_line
-			(start -0.91 -1.56)
-			(end -0.91 -1.51)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "B.SilkS")
-			(uuid "704b0036-ba01-40e0-b14e-e8a61a723edb")
-		)
-		(fp_line
-			(start 0.91 -1.56)
-			(end -0.91 -1.56)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(layer "B.SilkS")
-			(uuid "daf1b867-94a2-4b97-91db-3718135ef5bc")
-		)
-		(fp_poly
-			(pts
-				(xy -1.45 1.51) (xy -1.69 1.84) (xy -1.21 1.84)
-			)
-			(stroke
-				(width 0.12)
-				(type solid)
-			)
-			(fill yes)
-			(layer "B.SilkS")
-			(uuid "1b1b785a-0f17-4e18-b819-153d20fd618f")
-		)
-		(fp_line
-			(start -1.05 1.7)
-			(end 1.05 1.7)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(layer "B.CrtYd")
-			(uuid "47c74a7b-234b-4b61-89ae-afe84681d8b2")
-		)
-		(fp_line
-			(start 1.05 1.7)
-			(end 1.05 1.5)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(layer "B.CrtYd")
-			(uuid "5a2af033-921b-4d11-9843-329ff08ef3b0")
-		)
-		(fp_line
-			(start -2.05 1.5)
-			(end -1.05 1.5)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(layer "B.CrtYd")
-			(uuid "0be7fa2c-2eda-46cc-ab80-f785c83a0c60")
-		)
-		(fp_line
-			(start -1.05 1.5)
-			(end -1.05 1.7)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(layer "B.CrtYd")
-			(uuid "8ac41f59-7159-4614-8406-f0687ddb4c49")
-		)
-		(fp_line
-			(start 1.05 1.5)
-			(end 2.05 1.5)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(layer "B.CrtYd")
-			(uuid "9dc3b8da-d743-4689-a68d-05be6b482b48")
-		)
-		(fp_line
-			(start 2.05 1.5)
-			(end 2.05 -1.5)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(layer "B.CrtYd")
-			(uuid "bd2b0601-f0fc-429f-9f35-8d5172fa08fd")
-		)
-		(fp_line
-			(start -2.05 -1.5)
-			(end -2.05 1.5)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(layer "B.CrtYd")
-			(uuid "aeb5e48d-e7fc-40c4-8c06-5ecb52dfdfb1")
-		)
-		(fp_line
-			(start -1.05 -1.5)
-			(end -2.05 -1.5)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(layer "B.CrtYd")
-			(uuid "09b7f839-cd81-4564-9c48-e5289182b09a")
-		)
-		(fp_line
-			(start 1.05 -1.5)
-			(end 1.05 -1.7)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(layer "B.CrtYd")
-			(uuid "4d6a89f3-6edb-4fa6-b909-408e3ba21814")
-		)
-		(fp_line
-			(start 2.05 -1.5)
-			(end 1.05 -1.5)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(layer "B.CrtYd")
-			(uuid "7913ef88-e84c-49f0-a016-3c71b33c1955")
-		)
-		(fp_line
-			(start -1.05 -1.7)
-			(end -1.05 -1.5)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(layer "B.CrtYd")
-			(uuid "c6c0fb4c-9f09-4ffd-b53a-aaed1f06e3aa")
-		)
-		(fp_line
-			(start 1.05 -1.7)
-			(end -1.05 -1.7)
-			(stroke
-				(width 0.05)
-				(type solid)
-			)
-			(layer "B.CrtYd")
-			(uuid "c824c1d6-80be-490e-ae28-024bdb7036b1")
-		)
-		(fp_poly
-			(pts
-				(xy -0.4 1.45) (xy 0.8 1.45) (xy 0.8 -1.45) (xy -0.8 -1.45) (xy -0.8 1.05)
-			)
-			(stroke
-				(width 0.1)
-				(type solid)
-			)
-			(fill no)
-			(layer "B.Fab")
-			(uuid "2905f24e-5d53-4416-9c26-d8c2804df3ed")
-		)
-		(fp_text user "${REFERENCE}"
-			(at 0 0 180)
-			(layer "B.Fab")
-			(uuid "000a1635-8af5-48cf-be89-a6198f81f039")
-			(effects
-				(font
-					(size 0.72 0.72)
-					(thickness 0.11)
-				)
-				(justify mirror)
-			)
-		)
-		(pad "1" smd roundrect
-			(at -1.1375 0.95 270)
-			(size 1.325 0.6)
-			(layers "B.Cu" "B.Mask" "B.Paste")
-			(roundrect_rratio 0.25)
-			(net "/usb_dock/DOCK_D_P")
-			(uuid "d844cd0b-a0db-4b93-8007-8ea3c9996d4e")
-		)
-		(pad "2" smd roundrect
-			(at -1.1375 0 270)
-			(size 1.325 0.6)
-			(layers "B.Cu" "B.Mask" "B.Paste")
-			(roundrect_rratio 0.25)
-			(net "GND")
-			(uuid "3ef5907b-0592-464d-a041-3ff0874aaf38")
-		)
-		(pad "3" smd roundrect
-			(at -1.1375 -0.95 270)
-			(size 1.325 0.6)
-			(layers "B.Cu" "B.Mask" "B.Paste")
-			(roundrect_rratio 0.25)
-			(net "/usb_dock/DOCK_D_N")
-			(uuid "b392c815-885e-4558-8ec1-9eaabe510ee1")
-		)
-		(pad "4" smd roundrect
-			(at 1.1375 -0.95 270)
-			(size 1.325 0.6)
-			(layers "B.Cu" "B.Mask" "B.Paste")
-			(roundrect_rratio 0.25)
-			(net "/usb_dock/DOCK_D_N")
-			(uuid "f3e926d8-3312-4d1c-b0c3-280ad4389278")
-		)
-		(pad "5" smd roundrect
-			(at 1.1375 0 270)
-			(size 1.325 0.6)
-			(layers "B.Cu" "B.Mask" "B.Paste")
-			(roundrect_rratio 0.25)
-			(net "VBUS")
-			(uuid "c8c259cf-9501-4a03-95c8-01b3f9bb718d")
-		)
-		(pad "6" smd roundrect
-			(at 1.1375 0.95 270)
-			(size 1.325 0.6)
-			(layers "B.Cu" "B.Mask" "B.Paste")
-			(roundrect_rratio 0.25)
-			(net "/usb_dock/DOCK_D_P")
-			(uuid "c6969398-85a1-42d3-a7b2-373e4c31b9bd")
-		)
-		(embedded_fonts no)
-		(model "${KICAD10_3DMODEL_DIR}/Package_TO_SOT_SMD.3dshapes/SOT-23-6.step"
-			(offset
-				(xyz 0 0 0)
-			)
-			(scale
-				(xyz 1 1 1)
-			)
-			(rotate
-				(xyz 0 0 0)
-			)
-		)
-	)
 	(footprint "TestPoint:TestPoint_Pad_D1.0mm"
 		(layer "B.Cu")
 		(uuid "fbc339dc-9ddb-42c5-bb3b-2c1109f31282")
@@ -62826,7 +62735,7 @@
 		)
 		(polygon
 			(pts
-				(xy 100 100) (xy 150 100) (xy 150 133) (xy 117 133) (xy 117 155) (xy 105 155) (xy 105 133) (xy 100 133)
+				(xy 100 100) (xy 150 100) (xy 150 133) (xy 117 133) (xy 117 155) (xy 114.5 155) (xy 114.5 133) (xy 100 133)
 			)
 		)
 	)

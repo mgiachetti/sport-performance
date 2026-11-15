@@ -33,7 +33,7 @@ comp={
  'C405 (junto a la camara del barometro)':(41.1,42.1,19.1,20.1,1.6,2.15),
  'DPS368 (sin montar)':(46.96,49.04,18.71,21.29,1.6,2.33),'LED302 (sin montar)':(7.7,9.3,4.05,5.55,1.6,2.2),
  'driver del buzzer (Q304, D301, R319)':(40.15,47.85,32.5,36.7,1.6,2.7),'resortes inserto':(17,33,6,8,-2.5,0),
- 'ESD de USB (abajo)':(18.0,21.5,10.5,14.1,-1.45,0),'TVS, eFuse y divisores (abajo)':(33.6,40.7,3.8,14.8,-1.1,0),
+ 'ESD de USB (abajo, TPD2E2U06 DRL)':(18.95,20.55,11.5,13.1,-0.6,0),'TVS, eFuse y divisores (abajo)':(33.6,40.7,3.8,14.8,-1.1,0),
  'traductores, LDO y bias-T (abajo)':(0.4,11.9,11.0,47.3,-1.45,0),
  'botón SW301 (abajo)':(43.35,49.45,26.2,34.8,-2.6,0),'reset SW101 (abajo, sin montar)':(43.25,49.35,54.2,62.8,-2.6,0),
  'C308 y Q101 (abajo, sin montar)':(43.2,49.15,46.15,54.2,-1.8,0),'C306 y C307 (abajo)':(46.7,49.7,47.0,50.0,-1.0,0),

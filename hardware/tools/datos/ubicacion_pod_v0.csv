@@ -243,7 +243,7 @@ R607,38.0,7.6,0,B,no,
 R608,18.8,15.4,270,B,no,
 R609,20.7,15.4,270,B,no,
 TP601,37.5,13.75,0,B,no,
-U601,19.75,12.3,270,B,no,ESD de D+ y D-
+U601,19.75,12.3,0,B,no,ESD de D+ y D- (TPD2E2U06 DRL): D+ toca IO1 (pad 3) del lado oeste y D- IO2 (pad 5) del lado este
 U602,38.0,10.0,0,B,no,eFuse
 TP702,30.0,25.0,0,B,no,
 TP703,32.3,25.0,0,B,no,

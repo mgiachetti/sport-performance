@@ -114,7 +114,7 @@ La genera `hardware/tools/bom_pcbway.py` desde las columnas de stock de [`partes
 | `BMP581` | U404 | 105 | ✓ OK | 9.291 | 0 | — | — | — | — | DPS368 en su lugar sin montar (otro footprint, ya en la placa) |
 | `DRV5032FADBZR` | U406 | 105 | ✓ OK | 47.205 | 2.156 | 47.105 | — | DigiKey 26 semanas | `DRV5032FBDBZR` | TMAG5231C1DQDBZR (mismos pines, otro umbral y 2 µA) |
 | `W25N02KVZEIR` | U501 | 105 | ✓ OK | 1.660 | — | 2.169 | LCSC C17626844 (mismo MPN): 7.267 | — | — | — |
-| `USBLC6-2SC6` | U601 | 105 | ✓ OK | 33.195 | 29.057 | — | — | — | — | — |
+| `TPD2E2U06DRLR` | U601 | 105 | ✓ OK | — | 68.178 | — | — | DigiKey: en stock (fábrica 26 semanas); ti.com: agotado | — | — |
 | `TPS259470ARPWR` | U602 | 105 | ✓ OK | 3.818 | 0 | — | — | DigiKey: 3.000 el 01/02/2027 | — | — |
 | `CM8V-T1A-32.768KHZ-12.5PF-20PPM-TA-QC` | Y301 | 105 | ✓ OK | 8.764 | 120.722 | — | — | — | `ABS06-32.768KHZ-T` | — |
 
