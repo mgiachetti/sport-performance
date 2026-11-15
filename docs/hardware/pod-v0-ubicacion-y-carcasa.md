@@ -246,6 +246,10 @@ Posiciones en mm. Donde hay un solo punto, es el centro.
 - [x] **Qué extremo del DWM3000 es la antena**: verificado contra el footprint (el DWM3000 salió el 15/11/2026).
 - [x] **FPC de LoRa a 5 mm o más de la tierra** (Molex): resuelto el 15/11/2026 con la antena chip en la placa; la carcasa no se alarga.
 - [ ] **Footprint de la M620720 contra el CAD de AVX**, su orientación (girada 180° respecto de la hoja) y revisión de la ubicación en el borde corto (consulta 9).
+- [ ] **Holguras que deja la revisión del 15/11/2026** (sin choque hoy, pero sin margen):
+  - `U303` en (29,5; 53,5): con las patas del SC-70 horizontales, su cobre llega a x ≈ 30,78, a 0,22 mm del pad 16 del Ra-01SH. Correrlo unos 0,5 mm a la izquierda o girarlo 90°.
+  - La NAND en (23; 56): la esquina de su courtyard, en (27; 59), queda a 0,05 mm de `LORA_ANTENA`. Cualquier corrimiento hacia abajo o a la derecha dispara la regla. Dejarle 0,5 mm sin chocar con `U502`.
+  - `C310` y `C311` quedan con su pad caliente a unos 0,5 mm de la línea x = 46,8, colgados de un tramo corto. A 915 MHz no molesta, pero conviene alinearlos.
 - [ ] **Resistencia serie en SWDCLK** (22–33 Ω): sumarla al esquemático.
 - [ ] **Posición del pin del patch** contra el DXF de Taoglas, y **altura del escalón** entre la base de 25 × 25 y el elemento de arriba, para sumar el apoyo de presión vertical en la tapa.
 
