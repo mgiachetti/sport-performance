@@ -97,12 +97,18 @@
 	(constraint clearance (min 0.1mm)))
 
 # --- USB_90D: par diferencial de 90 ohm (D+ y D− de la base al nRF, 12 Mbit/s) ---
+# El nRF52840 es USB de velocidad completa (12 Mbit/s, 83 ns por bit, flancos de 4 a 20 ns): ni el largo sin
+# acoplar ni la diferencia de largo importan a esa velocidad. Desde el 15/11/2026 (decisión del usuario, prueba de
+# ruteo de pod-v0-ubicacion-y-carcasa.md, sección 9) el largo sin acoplar sube de 5 a 8 mm (resortes a 3,5 mm, el
+# ESD, los 0 Ω y los pads 67 y 68 del BMD-340 dejan unos 6–7 mm) y la diferencia de largo de 0,5 a 4 mm: los
+# 3 mm que quedan sin serpentín son unos 20 ps (unos 6,5 ps/mm en una microstrip sobre FR4), el 0,02 % del bit,
+# más 1 mm de margen. Ancho y separación siguen en los 90 ohm.
 (rule "USB_90D: geometría del par"
 	(condition "A.NetClass == 'USB_90D' && A.inDiffPair('*')")
 	(constraint track_width (min 0.23mm) (opt 0.25mm) (max 0.27mm))
 	(constraint diff_pair_gap (min 0.14mm) (opt 0.15mm) (max 0.2mm))
-	(constraint diff_pair_uncoupled (max 5mm))
-	(constraint skew (max 0.5mm)))
+	(constraint diff_pair_uncoupled (max 8mm))
+	(constraint skew (max 4mm)))
 
 # --- Alimentación ---
 # 1 A de la base por VBUS, SYS y BAT: 0,5 mm en las capas externas (35 µm). En las internas
@@ -142,7 +148,8 @@
 
 # --- L3 de GND debajo de lo que corre por L4 (zona L3_GND) ---
 # Todo el tercio de arriba (y < 33: el patch, su alimentación, el inserto de contactos con el eFuse y
-# los ESD) más la franja por donde bajan D+ y D− hasta el BMD-340. Ahí lo de L4 (la alimentación del
+# los ESD) más la franja por donde bajan D+ y D− hasta el BMD-340 (x de 14,5 a 17 hasta y = 55 desde el
+# 15/11/2026: el par va por x = 15,6 y 16; antes era de x = 5 a 17 y tapaba el escape del módulo por L3). Ahí lo de L4 (la alimentación del
 # patch, el par USB, VBUS) se refiere a L3, que tiene que ser GND macizo cosido a L2. Ninguna pista ni
 # zona de otra red en In2.Cu dentro de la zona (las rule areas, sin red, no cuentan; las vías sí pasan).
 (rule "L3_GND: L3 solo GND debajo de L4"

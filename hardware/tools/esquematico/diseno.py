@@ -178,10 +178,6 @@ gnss_rf = Sheet("gnss_rf", "Pod v0: gnss_rf",
         R("100k", "GNSS_ANT_SW_G", "GNSS_VDD_RF", dnp=True),
         NMOS("GNSS_ANT_ON", "GNSS_ANT_SW_G", dnp=True),
         R("100k", "GNSS_ANT_ON", "GND", dnp=True),
-        part("Shield", "Tapa blindada", {"1": "GND"}, "RF_Shielding:Wuerth_36103205_20x20mm", dnp=True, on_board=False,
-             mpn="36103205S", lcsc="C7386558", manufacturer="Würth Elektronik",
-             note="Lugar para tapa WE-SHC de 20 × 20 × 3 mm (marco y tapa) sobre el GNSS y su cadena RF. Fuera de la placa "
-                  "desde el 15/11/2026: con la ubicación aprobada no entra (pod-v0-ubicacion-y-carcasa.md, sección 9); decide el usuario"),
     ], ["Patch pasivo por defecto: SAW, LNA y SAW montados, atenuador en 0 Ω, bias-T sin montar",
         "Rescate con la Taoglas: sacar el 0 Ω del patch, montar el capacitor del U.FL y el bias-T, puentear el LNA (dos LNA saturan el módulo) "
         "y montar el atenuador de 6–10 dB"]),
@@ -224,7 +220,7 @@ gnss_rf = Sheet("gnss_rf", "Pod v0: gnss_rf",
         C("DNP", "GNSS_RF_IN", dnp=True, note="Red pi de ajuste, paralelo de salida"),
     ], ["Ganancia total al RF_IN < 17 dB: con el LNA estándar, unos 13 dB en L1 y 16 dB en L5 (típicos); en alta ganancia, atenuador de 2–3 dB; la Taoglas da 28,3–30,3 dB",
         "DC solo del lado del U.FL: el capacitor selector y el de 100 pF antes del SAW la bloquean"]),
-])
+], retired=("SH201",))  # the WE-SHC shield can: out of the v0 (15/11/2026, pod-v0-ubicacion-y-carcasa.md, section 9)
 
 # ---------------------------------------------------------------------------
 # Signal of each nRF52840 port pin (docs/hardware/pod-v0.md, "Pines del nRF52840"): the same assignment as with
@@ -474,8 +470,11 @@ usb_dock = Sheet("usb_dock", "Pod v0: usb_dock", "Pads de la base (VBUS, D+, D�
           note="TVS de 12–13 V de stand-off (clase SMF12A o SMAJ12A, engrape de unos 20 V con 8/20 µs); aguas abajo protege el OVLO"),
         ESD("PESD5V0S1BL", "DOCK_DET", mpn="PESD5V0S1BL,315", lcsc="C84374", manufacturer="Nexperia",
             note="ESD bidireccional de 5 V de DETECT (SOD-882)"),
-        part("USBLC6-2SC6", "USBLC6-2SC6", {"1": "DOCK_D_P", "6": "DOCK_D_P", "3": "DOCK_D_N", "4": "DOCK_D_N", "5": "VBUS", "2": "GND"},
-             SOT23_6, mpn="USBLC6-2SC6", lcsc="C7519", manufacturer="STMicroelectronics", note="ESD de baja capacidad en D+/D−"),
+        part("TPD2EUSB30", "TPD2EUSB30", {"2": "DOCK_D_P", "1": "DOCK_D_N", "3": "GND"},
+             "Package_TO_SOT_SMD:Texas_DRT-3", mpn="TPD2EUSB30DRTR", lcsc="C97502", manufacturer="Texas Instruments",
+             note="ESD de 2 líneas sin pin de VBUS para D+/D− (0,7 pF, 5,5 V): el par llega a los pads 1 y 2 sin nada entre "
+                  "las dos líneas. Los dos canales son iguales; en la cara de abajo el footprint queda espejado y D+ va al pad 2 "
+                  "para que el par no se cruce. VBUS la protegen el TVS y el switch de entrada"),
         FLAG("VBUS_PAD"),
     ], ["Objetivo IEC 61000-4-2: ±8 kV por contacto y ±15 kV por aire en los pads"]),
     Group("Switch de entrada de VBUS (TPS259470A)", [

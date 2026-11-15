@@ -644,35 +644,6 @@
 				)
 			)
 		)
-		(symbol "pod:Shield"
-			(pin_numbers hide)
-			(pin_names (offset 0) hide)
-			(exclude_from_sim no)
-			(in_bom yes)
-			(on_board yes)
-			(property "Reference" "SH" (at 1.27 3.81 0) (effects (font (size 1.27 1.27))))
-			(property "Value" "Shield" (at 1.27 -3.81 0) (effects (font (size 1.27 1.27))))
-			(property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
-			(property "Datasheet" "~" (at 0 0 0) (effects (font (size 1.27 1.27)) hide))
-			(property "Description" "Tapa blindada (lugar para soldarla)" (at 0 0 0)
-				(effects (font (size 1.27 1.27)) hide)
-			)
-			(property "Generador" "Generado por hardware/tools/esquematico" (at 0 0 0)
-				(effects (font (size 1.27 1.27)) hide)
-			)
-			(symbol "Shield_0_1"
-				(rectangle (start -1.27 2.54) (end 3.81 -2.54)
-					(stroke (width 0.254) (type default))
-					(fill (type none))
-				)
-			)
-			(symbol "Shield_1_1"
-				(pin passive line (at -3.81 0 0) (length 2.54)
-					(name "GND" (effects (font (size 1.27 1.27))))
-					(number "1" (effects (font (size 1.27 1.27))))
-				)
-			)
-		)
 		(symbol "pod:SolderJumper_Bridged"
 			(pin_numbers hide)
 			(pin_names (offset 0) hide)
@@ -5119,71 +5090,6 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "pod:Shield")
-		(at 299.72 205.74 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board no)
-		(dnp yes)
-		(uuid "e9435300-a960-5a12-a331-8bba93cb58a8")
-		(property "Reference" "SH201" (at 299.72 201.93 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "Tapa blindada" (at 299.72 210.82 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "RF_Shielding:Wuerth_36103205_20x20mm" (at 299.72 205.74 0)
-			(effects (font (size 1.27 1.27)) hide)
-		)
-		(property "Datasheet" "" (at 299.72 205.74 0) (effects (font (size 1.27 1.27)) hide))
-		(property "Description" "Tapa blindada (lugar para soldarla)" (at 299.72 205.74 0)
-			(effects (font (size 1.27 1.27)) hide)
-		)
-		(property "MPN" "36103205S" (at 299.72 205.74 0) (effects (font (size 1.27 1.27)) hide))
-		(property "LCSC" "C7386558" (at 299.72 205.74 0) (effects (font (size 1.27 1.27)) hide))
-		(property "Fabricante" "Würth Elektronik" (at 299.72 205.74 0)
-			(effects (font (size 1.27 1.27)) hide)
-		)
-		(property "Verificado" "no" (at 299.72 205.74 0) (effects (font (size 1.27 1.27)) hide))
-		(property "Nota" "Lugar para tapa WE-SHC de 20 × 20 × 3 mm (marco y tapa) sobre el GNSS y su cadena RF. Fuera de la placa desde el 15/11/2026: con la ubicación aprobada no entra (pod-v0-ubicacion-y-carcasa.md, sección 9); decide el usuario" (at 299.72 205.74 0)
-			(effects (font (size 1.27 1.27)) hide)
-		)
-		(pin "1" (uuid "248696ff-da29-57f4-a68a-c5783f9cb271"))
-		(instances
-			(project "pod-v0"
-				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "SH201")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts (xy 295.91 205.74) (xy 293.37 205.74))
-		(stroke (width 0) (type default))
-		(uuid "f35eb59a-d8b7-50a7-88f4-21cd1a64982d")
-	)
-	(symbol
-		(lib_id "pod:GND")
-		(at 293.37 205.74 270)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "b600e17e-9c81-5cd8-ae62-36b08402449b")
-		(property "Reference" "#PWR2064" (at 293.37 205.74 0) (effects (font (size 1.27 1.27)) hide))
-		(property "Value" "GND" (at 289.56 205.74 0) (effects (font (size 1.27 1.27)) (justify right) hide))
-		(property "Footprint" "" (at 293.37 205.74 0) (effects (font (size 1.27 1.27)) hide))
-		(property "Datasheet" "" (at 293.37 205.74 0) (effects (font (size 1.27 1.27)) hide))
-		(pin "1" (uuid "2d0f6441-ddfa-516f-a0cc-2543bb560375"))
-		(instances
-			(project "pod-v0"
-				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2064")
-					(unit 1)
-				)
-			)
-		)
-	)
 	(rectangle (start 332.74 129.54) (end 515.62 289.56)
 		(stroke (width 0) (type dash))
 		(fill (type none))
@@ -5319,7 +5225,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "b5ffff91-7f55-55fb-b873-99a36a6ad6d8")
-		(property "Reference" "#PWR2065" (at 402.59 149.86 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2064" (at 402.59 149.86 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "GND" (at 406.4 149.86 0) (effects (font (size 1.27 1.27)) (justify left) hide))
 		(property "Footprint" "" (at 402.59 149.86 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 402.59 149.86 0) (effects (font (size 1.27 1.27)) hide))
@@ -5327,7 +5233,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2065")
+					(reference "#PWR2064")
 					(unit 1)
 				)
 			)
@@ -5402,7 +5308,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "a8751eeb-99cc-5a41-b183-a1da474be97f")
-		(property "Reference" "#PWR2066" (at 426.72 154.94 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2065" (at 426.72 154.94 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "GND" (at 422.91 154.94 0) (effects (font (size 1.27 1.27)) (justify right) hide))
 		(property "Footprint" "" (at 426.72 154.94 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 426.72 154.94 0) (effects (font (size 1.27 1.27)) hide))
@@ -5410,7 +5316,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2066")
+					(reference "#PWR2065")
 					(unit 1)
 				)
 			)
@@ -5430,7 +5336,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "097936ab-abda-509b-8b9f-2ddefa2de3a5")
-		(property "Reference" "#PWR2067" (at 426.72 157.48 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2066" (at 426.72 157.48 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "GND" (at 422.91 157.48 0) (effects (font (size 1.27 1.27)) (justify right) hide))
 		(property "Footprint" "" (at 426.72 157.48 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 426.72 157.48 0) (effects (font (size 1.27 1.27)) hide))
@@ -5438,7 +5344,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2067")
+					(reference "#PWR2066")
 					(unit 1)
 				)
 			)
@@ -5468,7 +5374,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "f64134f9-d9e8-5e2f-92ab-bbe5769f271a")
-		(property "Reference" "#PWR2068" (at 452.12 154.94 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2067" (at 452.12 154.94 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "GND" (at 455.93 154.94 0) (effects (font (size 1.27 1.27)) (justify left) hide))
 		(property "Footprint" "" (at 452.12 154.94 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 452.12 154.94 0) (effects (font (size 1.27 1.27)) hide))
@@ -5476,7 +5382,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2068")
+					(reference "#PWR2067")
 					(unit 1)
 				)
 			)
@@ -5540,7 +5446,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "6fa1ce34-7a0f-541c-9df1-65c605015848")
-		(property "Reference" "#PWR2069" (at 496.57 149.86 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2068" (at 496.57 149.86 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "GND" (at 500.38 149.86 0) (effects (font (size 1.27 1.27)) (justify left) hide))
 		(property "Footprint" "" (at 496.57 149.86 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 496.57 149.86 0) (effects (font (size 1.27 1.27)) hide))
@@ -5548,7 +5454,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2069")
+					(reference "#PWR2068")
 					(unit 1)
 				)
 			)
@@ -5778,7 +5684,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "ec98b2ac-806f-5ca1-8743-7fbdcfcc18ad")
-		(property "Reference" "#PWR2070" (at 378.46 193.04 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2069" (at 378.46 193.04 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "GND" (at 382.27 193.04 0) (effects (font (size 1.27 1.27)) (justify left) hide))
 		(property "Footprint" "" (at 378.46 193.04 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 378.46 193.04 0) (effects (font (size 1.27 1.27)) hide))
@@ -5786,7 +5692,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2070")
+					(reference "#PWR2069")
 					(unit 1)
 				)
 			)
@@ -5806,7 +5712,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "1c999db3-9d3c-53d1-8d18-2834e0fda8a0")
-		(property "Reference" "#PWR2071" (at 353.06 193.04 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2070" (at 353.06 193.04 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "VCC_GNSS" (at 349.504 193.04 0)
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
@@ -5816,7 +5722,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2071")
+					(reference "#PWR2070")
 					(unit 1)
 				)
 			)
@@ -5910,7 +5816,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "37f23825-256e-5aa1-9f89-e4c6c3b6264a")
-		(property "Reference" "#PWR2072" (at 414.02 190.5 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2071" (at 414.02 190.5 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "VCC_GNSS" (at 410.464 190.5 0) (effects (font (size 1.27 1.27)) (justify right)))
 		(property "Footprint" "" (at 414.02 190.5 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 414.02 190.5 0) (effects (font (size 1.27 1.27)) hide))
@@ -5918,7 +5824,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2072")
+					(reference "#PWR2071")
 					(unit 1)
 				)
 			)
@@ -5938,7 +5844,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "9ba83e31-c72a-5c4d-8b46-29c88cdd60bd")
-		(property "Reference" "#PWR2073" (at 424.18 190.5 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2072" (at 424.18 190.5 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "GND" (at 427.99 190.5 0) (effects (font (size 1.27 1.27)) (justify left) hide))
 		(property "Footprint" "" (at 424.18 190.5 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 424.18 190.5 0) (effects (font (size 1.27 1.27)) hide))
@@ -5946,7 +5852,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2073")
+					(reference "#PWR2072")
 					(unit 1)
 				)
 			)
@@ -6002,7 +5908,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "242f3259-e433-566a-91b7-3e2ee43acfd9")
-		(property "Reference" "#PWR2074" (at 449.58 190.5 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2073" (at 449.58 190.5 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "VCC_GNSS" (at 446.024 190.5 0) (effects (font (size 1.27 1.27)) (justify right)))
 		(property "Footprint" "" (at 449.58 190.5 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 449.58 190.5 0) (effects (font (size 1.27 1.27)) hide))
@@ -6010,7 +5916,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2074")
+					(reference "#PWR2073")
 					(unit 1)
 				)
 			)
@@ -6030,7 +5936,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "fff4bb55-96ce-5578-96a0-1d1335c947c1")
-		(property "Reference" "#PWR2075" (at 459.74 190.5 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2074" (at 459.74 190.5 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "GND" (at 463.55 190.5 0) (effects (font (size 1.27 1.27)) (justify left) hide))
 		(property "Footprint" "" (at 459.74 190.5 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 459.74 190.5 0) (effects (font (size 1.27 1.27)) hide))
@@ -6038,7 +5944,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2075")
+					(reference "#PWR2074")
 					(unit 1)
 				)
 			)
@@ -6104,7 +6010,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "8450c193-3665-5a75-afd5-977f57c37798")
-		(property "Reference" "#PWR2076" (at 367.03 215.9 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2075" (at 367.03 215.9 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "VCC_GNSS" (at 370.586 215.9 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "" (at 367.03 215.9 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 367.03 215.9 0) (effects (font (size 1.27 1.27)) hide))
@@ -6112,7 +6018,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2076")
+					(reference "#PWR2075")
 					(unit 1)
 				)
 			)
@@ -6178,7 +6084,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "485fd954-bde1-5e36-bb35-1ec26286a5fe")
-		(property "Reference" "#PWR2077" (at 417.83 215.9 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2076" (at 417.83 215.9 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "GND" (at 421.64 215.9 0) (effects (font (size 1.27 1.27)) (justify left) hide))
 		(property "Footprint" "" (at 417.83 215.9 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 417.83 215.9 0) (effects (font (size 1.27 1.27)) hide))
@@ -6186,7 +6092,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2077")
+					(reference "#PWR2076")
 					(unit 1)
 				)
 			)
@@ -6252,7 +6158,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "e0ca934a-7710-5e8c-a6bd-6dbc3dc4c53e")
-		(property "Reference" "#PWR2078" (at 458.47 215.9 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2077" (at 458.47 215.9 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "GND" (at 462.28 215.9 0) (effects (font (size 1.27 1.27)) (justify left) hide))
 		(property "Footprint" "" (at 458.47 215.9 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 458.47 215.9 0) (effects (font (size 1.27 1.27)) hide))
@@ -6260,7 +6166,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2078")
+					(reference "#PWR2077")
 					(unit 1)
 				)
 			)
@@ -6326,7 +6232,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "8452e6b8-4063-5c82-bb72-4ad44c6863ed")
-		(property "Reference" "#PWR2079" (at 367.03 228.6 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2078" (at 367.03 228.6 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "VCC_GNSS" (at 370.586 228.6 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "" (at 367.03 228.6 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 367.03 228.6 0) (effects (font (size 1.27 1.27)) hide))
@@ -6334,7 +6240,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2079")
+					(reference "#PWR2078")
 					(unit 1)
 				)
 			)
@@ -6510,7 +6416,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "c493045d-072c-5191-b2ad-33f0529d0675")
-		(property "Reference" "#PWR2080" (at 501.65 228.6 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2079" (at 501.65 228.6 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "GND" (at 505.46 228.6 0) (effects (font (size 1.27 1.27)) (justify left) hide))
 		(property "Footprint" "" (at 501.65 228.6 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 501.65 228.6 0) (effects (font (size 1.27 1.27)) hide))
@@ -6518,7 +6424,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2080")
+					(reference "#PWR2079")
 					(unit 1)
 				)
 			)
@@ -6593,7 +6499,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "23561642-a633-53ee-9cbd-c9148203affc")
-		(property "Reference" "#PWR2081" (at 347.98 248.92 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2080" (at 347.98 248.92 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "GND" (at 344.17 248.92 0) (effects (font (size 1.27 1.27)) (justify right) hide))
 		(property "Footprint" "" (at 347.98 248.92 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 347.98 248.92 0) (effects (font (size 1.27 1.27)) hide))
@@ -6601,7 +6507,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2081")
+					(reference "#PWR2080")
 					(unit 1)
 				)
 			)
@@ -6621,7 +6527,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "f9f7efea-1b1a-57f1-bd0a-a8cfc141a403")
-		(property "Reference" "#PWR2082" (at 347.98 251.46 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2081" (at 347.98 251.46 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "GND" (at 344.17 251.46 0) (effects (font (size 1.27 1.27)) (justify right) hide))
 		(property "Footprint" "" (at 347.98 251.46 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 347.98 251.46 0) (effects (font (size 1.27 1.27)) hide))
@@ -6629,7 +6535,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2082")
+					(reference "#PWR2081")
 					(unit 1)
 				)
 			)
@@ -6659,7 +6565,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "12514173-5279-5aba-b570-71a01b61c50b")
-		(property "Reference" "#PWR2083" (at 373.38 248.92 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2082" (at 373.38 248.92 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "GND" (at 377.19 248.92 0) (effects (font (size 1.27 1.27)) (justify left) hide))
 		(property "Footprint" "" (at 373.38 248.92 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 373.38 248.92 0) (effects (font (size 1.27 1.27)) hide))
@@ -6667,7 +6573,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2083")
+					(reference "#PWR2082")
 					(unit 1)
 				)
 			)
@@ -6731,7 +6637,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "573e8f51-c6be-5dd6-8c26-5fe511a3a07c")
-		(property "Reference" "#PWR2084" (at 417.83 243.84 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2083" (at 417.83 243.84 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "GND" (at 421.64 243.84 0) (effects (font (size 1.27 1.27)) (justify left) hide))
 		(property "Footprint" "" (at 417.83 243.84 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 417.83 243.84 0) (effects (font (size 1.27 1.27)) hide))
@@ -6739,7 +6645,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2084")
+					(reference "#PWR2083")
 					(unit 1)
 				)
 			)
@@ -6861,7 +6767,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "2be43378-9f37-5bcf-8585-71ac85112050")
-		(property "Reference" "#PWR2085" (at 496.57 243.84 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2084" (at 496.57 243.84 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "GND" (at 500.38 243.84 0) (effects (font (size 1.27 1.27)) (justify left) hide))
 		(property "Footprint" "" (at 496.57 243.84 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 496.57 243.84 0) (effects (font (size 1.27 1.27)) hide))
@@ -6869,7 +6775,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2085")
+					(reference "#PWR2084")
 					(unit 1)
 				)
 			)
@@ -6991,7 +6897,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "e3871190-7d2b-57cb-b02f-6ab33786a8aa")
-		(property "Reference" "#PWR2086" (at 405.13 266.7 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2085" (at 405.13 266.7 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "GND" (at 408.94 266.7 0) (effects (font (size 1.27 1.27)) (justify left) hide))
 		(property "Footprint" "" (at 405.13 266.7 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 405.13 266.7 0) (effects (font (size 1.27 1.27)) hide))
@@ -6999,7 +6905,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2086")
+					(reference "#PWR2085")
 					(unit 1)
 				)
 			)
@@ -7063,7 +6969,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "1ebbbd7e-e5f4-563f-a365-ac137f5035ee")
-		(property "Reference" "#PWR2087" (at 439.42 266.7 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2086" (at 439.42 266.7 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "GND" (at 443.23 266.7 0) (effects (font (size 1.27 1.27)) (justify left) hide))
 		(property "Footprint" "" (at 439.42 266.7 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 439.42 266.7 0) (effects (font (size 1.27 1.27)) hide))
@@ -7071,7 +6977,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2087")
+					(reference "#PWR2086")
 					(unit 1)
 				)
 			)
@@ -7191,7 +7097,7 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "5ae59977-5034-5702-b56d-dbb65fb8e869")
-		(property "Reference" "#PWR2088" (at 360.68 281.94 0) (effects (font (size 1.27 1.27)) hide))
+		(property "Reference" "#PWR2087" (at 360.68 281.94 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Value" "GND" (at 364.49 281.94 0) (effects (font (size 1.27 1.27)) (justify left) hide))
 		(property "Footprint" "" (at 360.68 281.94 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Datasheet" "" (at 360.68 281.94 0) (effects (font (size 1.27 1.27)) hide))
@@ -7199,7 +7105,7 @@
 		(instances
 			(project "pod-v0"
 				(path "/7b87d673-bb1f-49b9-bfe6-3be4ec291409/fd23cbe2-c417-4c13-871c-3883f6bfc86a"
-					(reference "#PWR2088")
+					(reference "#PWR2087")
 					(unit 1)
 				)
 			)

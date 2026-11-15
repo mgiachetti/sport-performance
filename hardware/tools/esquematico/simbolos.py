@@ -171,9 +171,6 @@ def generic_symbols() -> list:
     syms.append(symbol("Antenna", "AE", [poly([(0, 0), (0, 3.81)], 0.254), poly([(-1.27, 3.81), (0, 1.905), (1.27, 3.81), (-1.27, 3.81)], 0.254)],
                        [pin("passive", -2.54, 0, 0, 2.54, "A", "1")], description="Antena (pin de alimentación)",
                        hide_pin_names=True, hide_pin_numbers=True, ref_at=(2.54, 2.54), value_at=(2.54, -2.54)))
-    syms.append(symbol("Shield", "SH", [rect(-1.27, 2.54, 3.81, -2.54, 0.254, "none")],
-                       [pin("passive", -3.81, 0, 0, 2.54, "GND", "1")], description="Tapa blindada (lugar para soldarla)",
-                       hide_pin_names=True, hide_pin_numbers=True, ref_at=(1.27, 3.81), value_at=(1.27, -3.81)))
     # Footprint-only parts (no pins): fiducials and tooling holes.
     syms.append(symbol("Fiducial", "FID", [circle(0, 0, 1.27, 0.254, "outline")], [], description="Fiducial (solo footprint)",
                        in_bom=False, ref_at=(0, 2.54), value_at=(0, -2.54)))
@@ -288,9 +285,12 @@ def ic_symbols() -> list:
     # TI SN74LVC1T45 DBV/DCK, SCES515N table 4-1. DIR high: A -> B; low: B -> A.
     s.append(block("SN74LVC1T45", "U", [("1", "VCCA", PI), ("3", "A", BI), ("5", "DIR", IN)], [("6", "VCCB", PI), ("4", "B", BI), ("2", "GND", PI)],
                    description="Traductor de un bit, DIR alto = A a B", datasheet="https://www.ti.com/lit/ds/symlink/sn74lvc1t45.pdf"))
-    # ST USBLC6-2SC6 (KiCad's Power_Protection:USBLC6-2P6 pin numbers).
-    s.append(block("USBLC6-2SC6", "U", [("1", "I/O1", PAS), ("6", "I/O1", PAS), ("5", "VBUS", PAS)], [("3", "I/O2", PAS), ("4", "I/O2", PAS), ("2", "GND", PAS)],
-                   description="ESD de baja capacidad para D+/D−", datasheet="https://www.st.com/resource/en/datasheet/usblc6-2.pdf"))
+    # TI TPD2EUSB30 DRT (SOT-9X3), SLVSAC2G "Pin Functions": 1 D+, 2 D-, 3 GND. Two identical channels and no VBUS
+    # pin, so nothing sits between D+ and D- (flow-through). Drawn as IO1/IO2: on the bottom side the footprint is
+    # mirrored and the pod's D+ goes to pin 2 (diseno.py), which TI calls D-.
+    s.append(block("TPD2EUSB30", "U", [("1", "IO1", PAS), ("2", "IO2", PAS)], [("3", "GND", PAS)],
+                   description="ESD de 2 líneas para D+/D− sin pin de VBUS, 0,7 pF, 5,5 V",
+                   datasheet="https://www.ti.com/lit/ds/symlink/tpd2eusb30.pdf"))
     # Qorvo DWM3000: KiCad's RF_Module:DWM3000 (extends DWM1000) pin numbers. Pin 5 is VDDAON in the
     # DWM1000 and differs in the DWM3000 (KiCad MR 4169): drawn passive and left to a 0 Ω.
     s.append(block("DWM3000", "U", [
