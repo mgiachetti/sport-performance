@@ -7797,7 +7797,7 @@
 		(property "LCSC" "" (at 68.58 347.98 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Fabricante" "" (at 68.58 347.98 0) (effects (font (size 1.27 1.27)) hide))
 		(property "Verificado" "no" (at 68.58 347.98 0) (effects (font (size 1.27 1.27)) hide))
-		(property "Nota" "Tornillo de la placa en (25; 66): poste de la tapa inferior (pod-v0-ubicacion-y-carcasa.md, sección 4)" (at 68.58 347.98 0)
+		(property "Nota" "Tornillo de la placa en (24; 66): poste de la tapa inferior (pod-v0-ubicacion-y-carcasa.md, sección 4)" (at 68.58 347.98 0)
 			(effects (font (size 1.27 1.27)) hide)
 		)
 		(pin "1" (uuid "f684a525-f5fe-50d5-9b23-ea5d2e722ab9"))

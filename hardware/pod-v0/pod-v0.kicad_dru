@@ -141,13 +141,18 @@
 # --- Zona de la antena LoRa (antena chip M620720 al borde de abajo, desde el 15/11/2026) ---
 # El despeje de la hoja de KYOCERA AVX (TDS-ANT-0048 rev. 4, p.5): sin metal en ninguna capa en 16,0 x 10,95 mm
 # junto al borde. La rule area LORA_ANTENA ya prohíbe vías y rellenos de zona (también el plano de L2); estas
-# reglas dejan entrar solo la alimentación de 50 ohm por L1 y los pads de la antena (AE301) y de sus dos
-# capacitores de la hoja, P2 (C313, en la alimentación) y P1 (C314, al final del brazo del pin 3), que quedan
-# con un pad sobre el borde del despeje como en la placa de demostración. Las referencias salen del generador
-# (hardware/tools/esquematico/diseno.py): si cambian, se cambian acá.
-(rule "LORA_ANTENA: solo la RF en L1"
-	(condition "A.intersectsArea('LORA_ANTENA') && (!A.existsOnLayer('F.Cu') || A.NetClass != 'RF_50')")
+# reglas dejan entrar solo la alimentación de la antena por L1 (LORA_FEED; LORA_ANT_TUNE es el brazo del pin 3,
+# que es cobre del footprint) y los pads de la antena (AE301) y de sus dos capacitores de la hoja, P2 (C313, en
+# la alimentación) y P1 (C314, al final del brazo del pin 3), que quedan con un pad sobre el borde del despeje
+# como en la placa de demostración. Ninguna otra red, aunque sea RF (la del GNSS tampoco). Las referencias y
+# los nombres de red salen del generador (hardware/tools/esquematico/diseno.py): si cambian, se cambian acá.
+(rule "LORA_ANTENA: solo la alimentación en L1"
+	(condition "A.intersectsArea('LORA_ANTENA') && (!A.existsOnLayer('F.Cu') || (A.NetName != '/mcu_radio/LORA_FEED' && A.NetName != '/mcu_radio/LORA_ANT_TUNE'))")
 	(constraint disallow track))
 (rule "LORA_ANTENA: solo la antena y sus capacitores"
 	(condition "A.intersectsArea('LORA_ANTENA') && A.Reference != 'AE301' && A.Reference != 'C313' && A.Reference != 'C314'")
 	(constraint disallow footprint))
+# Tampoco dibujos ni textos de cobre (un logo, una flecha o un número en F.Cu serían metal en el despeje).
+(rule "LORA_ANTENA: sin dibujos ni textos de cobre"
+	(condition "A.intersectsArea('LORA_ANTENA') && (A.existsOnLayer('F.Cu') || A.existsOnLayer('In1.Cu') || A.existsOnLayer('In2.Cu') || A.existsOnLayer('B.Cu'))")
+	(constraint disallow graphic text))

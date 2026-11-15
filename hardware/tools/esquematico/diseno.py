@@ -369,7 +369,7 @@ mcu_radio = Sheet("mcu_radio", "Pod v0: mcu_radio",
     ], ["Área libre para la etiqueta con número de serie y QR: se reserva en la placa"]),
     Group("Fijación de la placa", [
         part("MountingHole_Pad", "M2 a GND", {"1": "GND"}, M2_HOLE, note=f"Tornillo de la placa en {xy}: poste de la tapa inferior"
-             " (pod-v0-ubicacion-y-carcasa.md, sección 4)") for xy in ("(6; 8)", "(44; 8)", "(25; 66)")
+             " (pod-v0-ubicacion-y-carcasa.md, sección 4)") for xy in ("(6; 8)", "(44; 8)", "(24; 66)")
     ], ["Tres tornillos M2 en triángulo, metalizados a GND; ubicados en la placa (contorno con muescas en las esquinas)"]),
 ])
 

@@ -21,13 +21,13 @@ P=g.PASO; out=sys.argv[2]
 print('solape entre tapas (voxeles):', int(((inf<-0.02)&(sup<-0.02)).sum()))
 comp={
  'patch (max)':(12.5,37.5,4.5,29.5,1.6,10.12),'LC29H':(2,18,33,45.2,1.6,4.3),
- 'cadena RF':(19.5,22.5,33,41,1.6,2.6),'BMD-340':(0,15,50,60.2,1.6,3.5),'IMU':(25.7,28.3,34.5,37.5,1.6,2.5),
+ 'cadena RF':(19.5,22.5,33,41,1.6,2.6),'BMD-340':(0,15,50,60.2,1.6,3.5),'IMU':(27.25,29.75,35.0,38.0,1.6,2.5),
  'BMP581':(44,46,19,21,1.6,2.4),'NAND':(19,27,53,59,1.6,2.4),'buck':(18.75,21.25,60.75,66.5,1.6,2.6),
- 'BQ25180':(14.2,15.8,64.4,65.6,1.6,2.2),'Ra-01SH':(31,48,39,55,1.6,4.8),'U.FL de prueba LoRa enchufado':(34,37,56.2,58.8,1.6,4.1),
- 'antena LoRa':(29.2,35.2,67.6,69.7,1.6,2.68),
+ 'BQ25180':(14.2,15.8,64.4,65.6,1.6,2.2),'Ra-01SH':(31,49.4,37,54,1.6,4.8),'U.FL de prueba LoRa enchufado':(44.8,48.8,60.25,63.4,1.6,4.1),
+ 'antena LoRa':(35.5,41.7,67.6,69.7,1.6,2.68),
  'LED':(7.7,9.3,1.45,2.95,1.6,2.2),'celda (max)':(12,42,14,62,-6.2,-1.0),'Hall':(44.5,47.5,41.2,42.8,-1.1,0),
  'J101':(8.3,15.7,63.8,68.2,-2.1,0),'resortes inserto':(17,33,6,8,-2.5,0),
- 'cabeza tornillo 1':(4.1,7.9,6.1,9.9,1.6,3.2),'cabeza tornillo 2':(42.1,45.9,6.1,9.9,1.6,3.2),'cabeza tornillo 3':(23.1,26.9,64.1,67.9,1.6,3.2)}
+ 'cabeza tornillo 1':(4.1,7.9,6.1,9.9,1.6,3.2),'cabeza tornillo 2':(42.1,45.9,6.1,9.9,1.6,3.2),'cabeza tornillo 3':(22.1,25.9,64.1,67.9,1.6,3.2)}
 X,Y,Z=np.meshgrid(xs,ys,zs,indexing='ij',sparse=True)
 caso=np.minimum(inf,sup); mal=0
 print('rosca util en la tapa superior: %.1f mm; piel sobre el piloto abajo: %.1f mm'%(g.Z_ASIENTO+12-g.Z_TETON_SUP, g.Z_TECHO_BAJO+g.TECHO-g.Z_PILOTO))

@@ -32,7 +32,7 @@ R_TRABA, Z_TRABA, Y_TRABA = 0.4, 4.2, (12.0, 58.0)  # cordon de encastre a presi
 Z_UNION, Z_SOLAPE = 3.5, 5.0     # union a media madera entre las dos tapas
 J_RAD, J_VERT = 0.15, 0.2        # juego radial y vertical de la union
 
-TORNILLOS = [(6.0, 8.0), (44.0, 8.0), (25.0, 66.0)]  # M2 x 5: sujetan solo la placa, desde adentro
+TORNILLOS = [(6.0, 8.0), (44.0, 8.0), (24.0, 66.0)]  # M2 x 5: sujetan solo la placa, desde adentro
 R_POSTE = 3.0
 R_INSERTO, PROF_INSERTO = 1.6, 4.5  # inserto de bronce M2 (agujero ciego de 3,2) en cada poste
 

@@ -5,7 +5,7 @@
 	(layer "F.Cu")
 	(descr "TI WSON-10 DSK0010A (TPS63900), dibujado desde la hoja SLVSET3D p.38-39 (4218903/C), con las 4 vías del pad expuesto. Verificar")
 	(tags "WSON DSK0010A TPS63900")
-	(property "Reference" "REF**" (at 0 -2.1 0) (layer "F.SilkS") (effects (font (size 0.6 0.6) (thickness 0.09))))
+	(property "Reference" "REF**" (at 0 -2.1 0) (layer "F.SilkS") (effects (font (size 0.8 0.8) (thickness 0.12))))
 	(property "Value" "Texas_DSK0010A_WSON-10-1EP_2.5x2.5mm_P0.5mm_EP1.2x2mm_ThermalVias" (at 0 2.1 0) (layer "F.Fab") (effects (font (size 0.4 0.4) (thickness 0.06))))
 	(property "Description" "Generado por hardware/tools/footprints_hoja.py: no editar a mano" (at 0 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (effects (font (size 1 1) (thickness 0.15))))
 	(attr smd)

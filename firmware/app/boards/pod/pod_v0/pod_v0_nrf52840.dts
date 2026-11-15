@@ -51,7 +51,9 @@
 		nand-en-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;	/* NAND_EN, pad 59 */
 		/*
 		 * UWB: the DWM3000 left the v0 on 15/11/2026; these pins end on test
-		 * points for a bench DWM3000EVB (B-911).
+		 * points for a bench DWM3000EVB (B-911). Without the EVB they float:
+		 * if the firmware ever reads UWB_IRQ, give it GPIO_PULL_DOWN here (and
+		 * leave UWB_RST and UWB_WAKEUP as disconnected inputs).
 		 */
 		uwb-irq-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;	/* pad 58 */
 		uwb-reset-gpios = <&gpio1 7 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;	/* pad 50 */

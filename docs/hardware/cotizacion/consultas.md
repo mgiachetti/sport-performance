@@ -221,17 +221,18 @@ Desde el 15/11/2026 la antena LoRa es la **M620720** en la placa (ADR 0105, "Reg
 > We are designing a wearable GNSS tracker for team sports with an SX1262 LoRa radio at 915–928 MHz and plan to use your M620720 ceramic chip antenna (datasheet TDS-ANT-0048 rev. 4). The pod is worn between the shoulder blades in a vest pocket, inside a plastic (PA12) enclosure about 2 mm thick.
 >
 > Our board is 4 layers, 50 × 70 mm, 1.6 mm thick (FR4, the second layer is a solid ground plane). Because of the other antennas (a stacked L1/L5 GNSS patch on the opposite end, a BLE module on a long edge), the M620720 can only go on the **short (50 mm) edge**, close to a corner:
-> - Antenna on the bottom edge, its feed end 29.2 mm from the left edge, copper 0.3 mm from the board edge (your demo board has 0.1 mm; our fab's minimum is 0.3 mm).
-> - Clearance with no metal on any layer: 16.0 × 10.95 mm (your 14.9 + 1.1 mm along the edge and 10.65 mm deep, plus our 0.2 mm), from x = 28.1 to 44.1 mm along the 50 mm edge. About 6 mm of board remain to the right of the clearance, with a corner notch for a stainless M2 enclosure screw; a grounded M2 mounting hole (4.4 mm pad) is 0.9 mm left of it.
+> - Antenna on the bottom edge, rotated 180° from the drawing on page 5 (not mirrored): the feed end (pin 1) on the right, 8.4 mm from the right edge, and the pin 3 copper arm running left along the edge to P1. Copper 0.3 mm from the board edge (your demo board has 0.1 mm; our fab's minimum is 0.3 mm).
+> - Clearance with no metal on any layer: 16.0 × 10.95 mm (your 14.9 + 1.1 mm along the edge and 10.65 mm deep, plus our 0.2 mm), from x = 26.7 to 42.7 mm along the 50 mm edge. On the P1 side (left) the ground is the full plane, with a grounded M2 mounting hole (4.4 mm pad) 0.5 mm from the clearance. On the feed side (right) about 7 mm of board remain, with a corner notch for a stainless M2 enclosure screw: the ground tongue where P2 lands is 1.7 mm wide at its narrowest.
 > - The LiPo cell (aluminium pouch) sits 1 mm under the board and overlaps the inner 3 mm of the clearance; the user's body is 8–10 mm behind the board.
-> - 50 Ω coplanar feed on the top layer, about 11 mm from the radio module to the feed pad, with your P1/P2 positions and a pi pad set at the entry of the clearance.
+> - 50 Ω coplanar feed on the top layer, about 20 mm from the radio module to the feed pad (about 10 mm of it inside the clearance, as on your demo board), with your P1/P2 positions and a pi pad set at the entry of the clearance.
 >
 > Questions:
-> 1. Is this placement on the short edge acceptable, and what efficiency and frequency shift should we expect compared with your 40 × 100 mm demo board? Would you recommend a different position along the edge, or flipping the antenna so the feed is at the other end?
-> 2. Could you review our layout (we can send the KiCad/Gerber files) and suggest a matching starting point (P1, P2 or a pi network) for 915–928 MHz on this board, inside the enclosure and on the body?
-> 3. The CAD footprint of the M620720 (Altium, DXF or Gerber) with the recommended copper, solder mask and paste: we drew ours from the image on page 5 of the datasheet and would like to check it (pad size, the copper arm from pin 3 to P1, the clearance shape).
-> 4. Any guidance on nearby metal: the battery cell under part of the clearance, a stainless M2 enclosure screw about 2.3 mm from the clearance, and the effect of the body.
-> 5. Availability of evaluation boards or samples, and price and lead time at 100 / 500 pcs (DigiKey shows 37,777 in stock and a 20-week factory lead time today).
+> 1. Is this placement on the short edge acceptable, and what efficiency and frequency shift should we expect compared with your 40 × 100 mm demo board? Would you recommend a different position along the edge?
+> 2. Orientation: we rotated your page 5 layout by 180° (pin 1 and the feed on the right, the pin 3 arm and P1 toward the left, board edge below the antenna), so the antenna sits on the board exactly as in your drawing, only turned. We did not mirror it. Is the radiator symmetric enough that a mirrored layout (feed on the left with the same edge) would also be valid, or must the orientation relative to the board edge be kept as drawn? Which side of the part carries the pin 1 mark?
+> 3. Could you review our layout (we can send the KiCad/Gerber files) and suggest a matching starting point (P1, P2 or a pi network) for 915–928 MHz on this board, inside the enclosure and on the body?
+> 4. The CAD footprint of the M620720 (Altium, DXF or Gerber) with the recommended copper, solder mask and paste: we drew ours from the image on page 5 of the datasheet and would like to check it (pad size, the copper arm from pin 3 to P1, the clearance shape, and the solder mask opening, which looks 2.0 mm deep against 2.1 mm of copper).
+> 5. Any guidance on nearby metal: the battery cell under part of the clearance, a grounded M2 board screw 0.5 mm from it on the P1 side, a stainless M2 enclosure screw about 3.7 mm from it on the feed side, and the effect of the body.
+> 6. Availability of evaluation boards or samples, and price and lead time at 100 / 500 pcs (DigiKey shows 37,777 in stock and a 20-week factory lead time today).
 >
 > Best regards,
 > [Name] · [Company] · Buenos Aires, Argentina

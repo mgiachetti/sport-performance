@@ -140,7 +140,7 @@ Placa armada en origen, sin batería, carcasa ni importación (variante base AA;
 | Concepto | US$ | Nota |
 |---|---|---|
 | v0: 10 placas, 5 armadas, partes y envío | 1.000–1.500 | Secciones 1–4 con 5 placas |
-| v0: lo que no se suelda (2 Taoglas AGVLB.25B de rescate, las FPC de LoRa y el kit de banco) | unos 78 | Tabla generada de la sección 1 |
+| v0: lo que no se suelda (2 Taoglas AGVLB.25B de rescate y el kit de banco, con 2 FPC Molex para el A/B de LoRa) | unos 72 | Tabla generada de la sección 1 |
 | v0.1: segunda vuelta igual | 800–1.300 | Dos vueltas antes del piloto (sección 11 de `pod-mecanica-produccion.md`) |
 | Plantilla de prueba con pogo (fin de línea) | 300–800 | **No verificado** |
 | Base de carga de prueba (B-907) | 200–500 | **No verificado** |

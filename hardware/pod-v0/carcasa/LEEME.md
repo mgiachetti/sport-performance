@@ -54,9 +54,9 @@ Cada variante trae tres piezas:
 
 - Esquinas del contorno con radio 5 mm.
 - Una muesca cóncava de radio 2,7 mm en cada esquina, centrada a 2,6 mm de cada borde, para el tetón del tornillo de cierre.
-- Tornillos de la placa de arriba corridos a (6; 8) y (44; 8). El de abajo sigue en (25; 66).
-- Antena LoRa en la placa desde el 15/11/2026 (antena chip KYOCERA AVX M620720 en el borde de abajo, con su despeje de x = 28,1 a 44,1 y de y = 59,05 a 70): la carcasa no lleva FPC ni se alarga.
-- Ra-01SH subido al lugar del DWM3000, que salió de la placa: queda de x = 31 a 48 y de y = 39 a 55. El U.FL de LoRa queda como puerto de prueba sin montar, debajo del Ra-01SH.
+- Tornillos de la placa de arriba corridos a (6; 8) y (44; 8). El de abajo pasó de (25; 66) a (24; 66) el 15/11/2026, por el despeje de la antena LoRa: su poste se corrió con él.
+- Antena LoRa en la placa desde el 15/11/2026 (antena chip KYOCERA AVX M620720 en el borde de abajo, con su despeje de x = 26,7 a 42,7 y de y = 59,05 a 70, girada 180° respecto de la hoja): la carcasa no lleva FPC ni se alarga.
+- Ra-01SH subido al lugar del DWM3000, que salió de la placa: queda de x = 31 a 49,4 (con los pads) y de y = 37 a 54, girado 180°. El U.FL de LoRa queda como puerto de prueba sin montar en (46,8; 62,3), abajo a la derecha. La IMU pasa a (28,5; 36,5).
 - Sensor Hall en (46; 42), en la cara de abajo y fuera de la celda: el imán del chaleco cambia de lugar.
 
 ## Armado
@@ -86,4 +86,4 @@ Cada variante trae tres piezas:
 - Falta la altura del escalón del patch (DXF de Taoglas) para sumar el apoyo de presión vertical.
 - Los juegos de la variante de filamento son un punto de partida: se ajustan con la primera impresión.
 - Cuánta luz llega a la ranura depende del material transparente; hay que probarlo con el LED real.
-- Los tornillos de las esquinas de abajo quedan cerca de la antena BLE y de la antena LoRa (el de la derecha, a unos 2,3 mm del borde del despeje): hay que medir con tornillos de acero y de nylon.
+- Los tornillos de las esquinas de abajo quedan cerca de la antena BLE y de la antena LoRa (el de la derecha, a unos 3,7 mm del despeje, del lado de la alimentación): hay que medir con tornillos de acero y de nylon.
