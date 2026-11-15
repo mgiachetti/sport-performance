@@ -6,7 +6,8 @@ Uso:
     python3 verificar_carcasa.py /tmp/campos.npz carpeta_de_salida   (con POD_FDM=1 para la variante de filamento)
 
 Revisa que las tapas no se pisen, que nada choque con los componentes (la tabla comp de abajo
-tiene la ubicacion propuesta del 14/11/2026, con la antena LoRa en la placa del 15/11/2026), el espesor minimo de pared y el desvio de la malla.
+sigue la ubicacion de la placa de KiCad del 15/11/2026, hardware/tools/datos/ubicacion_pod_v0.csv: cajas
+que envuelven cada parte o grupo, con su alto), el espesor minimo de pared y el desvio de la malla.
 Necesita numpy, scipy, scikit-image y matplotlib.
 """
 import os, sys, numpy as np
@@ -20,13 +21,19 @@ d=np.load(sys.argv[1]); inf,sup,xs,ys,zs=d['inf'],d['sup'],d['xs'],d['ys'],d['zs
 P=g.PASO; out=sys.argv[2]
 print('solape entre tapas (voxeles):', int(((inf<-0.02)&(sup<-0.02)).sum()))
 comp={
- 'patch (max)':(12.5,37.5,4.5,29.5,1.6,10.12),'LC29H':(2,18,33,45.2,1.6,4.3),
- 'cadena RF':(19.5,22.5,33,41,1.6,2.6),'BMD-340':(0,15,50,60.2,1.6,3.5),'IMU':(27.25,29.75,35.0,38.0,1.6,2.5),
- 'BMP581':(44,46,19,21,1.6,2.4),'NAND':(19,27,53,59,1.6,2.4),'buck':(18.75,21.25,60.75,66.5,1.6,2.6),
- 'BQ25180':(14.2,15.8,64.4,65.6,1.6,2.2),'Ra-01SH':(31,49.4,37,54,1.6,4.8),'U.FL de prueba LoRa enchufado':(44.8,48.8,60.25,63.4,1.6,4.1),
- 'antena LoRa':(35.5,41.7,67.6,69.7,1.6,2.68),
+ 'patch (max)':(12.5,37.5,4.5,29.5,1.6,10.12),'LC29H':(0.8,16.8,33.65,45.85,1.6,4.3),
+ 'cadena RF':(17.1,28.4,32.1,49.9,1.6,2.6),'U.FL Taoglas enchufado':(17.4,21.0,33.4,37.4,1.6,4.1),
+ 'BMD-340':(0,15,50,60.2,1.6,3.5),'IMU':(27.25,29.75,35.0,38.0,1.6,2.5),
+ 'BMP581':(44,46,19,21,1.6,2.4),'NAND':(19,27,52.5,58.5,1.6,2.4),'buck':(18.75,21.25,60.75,66.1,1.6,2.6),
+ 'BQ25180':(14.2,15.8,64.4,65.6,1.6,2.2),'Ra-01SH':(31,49.4,37,54,1.6,4.8),'U.FL de prueba LoRa enchufado':(44.8,48.8,60.75,63.95,1.6,4.1),
+ 'antena LoRa':(35.5,41.7,67.6,69.7,1.6,2.68),'J201 (QGNSS)':(0.7,7.3,24.3,32.1,1.6,4.5),
+ 'buzzer (sin montar)':(40.8,49.3,23.15,31.65,1.6,4.6),
  'LED':(7.7,9.3,1.45,2.95,1.6,2.2),'celda (max)':(12,42,14,62,-6.2,-1.0),'Hall':(44.5,47.5,41.2,42.8,-1.1,0),
- 'J101':(8.3,15.7,63.8,68.2,-2.1,0),'resortes inserto':(17,33,6,8,-2.5,0),
+ 'J101':(8.9,16.3,63.8,68.2,-2.1,0),'resortes inserto':(17,33,6,8,-2.5,0),
+ 'ESD de USB (abajo)':(18.0,21.5,10.5,14.1,-1.45,0),'TVS, eFuse y divisores (abajo)':(33.6,40.7,3.8,14.8,-1.1,0),
+ 'traductores, LDO y bias-T (abajo)':(0.4,11.9,11.0,47.3,-1.45,0),
+ 'botón SW301 (abajo)':(43.35,49.45,26.2,34.8,-2.6,0),'reset SW101 (abajo, sin montar)':(43.25,49.35,54.2,62.8,-2.6,0),
+ 'C308 y Q101 (abajo, sin montar)':(43.2,49.15,46.15,54.2,-1.8,0),'C306 y C307 (abajo)':(46.7,49.7,47.0,50.0,-1.0,0),
  'cabeza tornillo 1':(4.1,7.9,6.1,9.9,1.6,3.2),'cabeza tornillo 2':(42.1,45.9,6.1,9.9,1.6,3.2),'cabeza tornillo 3':(22.1,25.9,64.1,67.9,1.6,3.2)}
 X,Y,Z=np.meshgrid(xs,ys,zs,indexing='ij',sparse=True)
 caso=np.minimum(inf,sup); mal=0
