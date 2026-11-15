@@ -414,7 +414,9 @@ GVLB258_PIN_Y = 2.5  # pin below the centre of the body, front view (section 3)
 def gvlb258() -> Footprint:
     def circle(r, steps=24):
         return [(r * math.cos(2 * math.pi * k / steps), r * math.sin(2 * math.pi * k / steps)) for k in range(steps)]
-    pads = [Pad("1", "circle", 0, 0, 1.2, 1.2, ("*.Cu", "*.Mask"), drill=1.0),
+    # Ø1.3 instead of the sheet's Ø1.2: 0.15 mm of ring around the Ø1.0 hole, PCBWay's minimum in
+    # pod-v0.kicad_dru (with Ø1.2 the board DRC fails); it stays well inside the Ø3.0 clearance.
+    pads = [Pad("1", "circle", 0, 0, 1.3, 1.3, ("*.Cu", "*.Mask"), drill=1.0),
             Pad("1", "circle", 0, 0, 2.2, 2.2, ("B.Cu", "B.Mask"))]
     cy = -GVLB258_PIN_Y
     return Footprint(

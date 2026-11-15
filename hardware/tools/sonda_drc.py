@@ -88,6 +88,7 @@ BAD = {
         ("J1", 133, 139.5, "F", (("1", 0, 0, 0.8, 0.8, "/mcu_radio/LED_G"),)),  # other net near RF
         ("R5", 140, 162, "F", PAD),  # a part that is not the antenna or its capacitors inside LORA_ANTENA
         ("R6", 132, 165, "B", PAD),  # the same on the bottom side
+        ("BZ301", 149.5, 135, "F", PAD, (0.5, 0.5)),  # the buzzer's exception is 0.2 mm, not less (0.1 mm here)
     ],
     "graphics": [("F.Cu", 129, 167.5, 131, 167.5)],  # copper drawing inside LORA_ANTENA
 }
@@ -111,6 +112,7 @@ EXPECTED = [
     "L3_GND: L3 solo GND debajo de L4",
     "RF_50: ancho de 50 ohm en L4 (alimentación del patch)",
     "LORA_ANTENA: sin dibujos ni textos de cobre",
+    "BZ301: pads mecánicos a 0,2 mm del borde",
 ]
 # The GNSS_ANT_PATCH exception covers L4 and its via only: the inner-layer rule must still flag it.
 PATCH_INNER = ("RF_50: solo en L1 (internas)", "GNSS_ANT_PATCH")
@@ -154,6 +156,7 @@ OK = {
         # one pad over the edge of the keep-out, and their courtyards next to the antenna's.
         ("C313", 142.45, 166.9, "F", C0402("/mcu_radio/LORA_FEED", "GND"), C0402_CRT),
         ("C314", 126.95, 169.35, "F", C0402("GND", "/mcu_radio/LORA_ANT_TUNE"), C0402_CRT),
+        ("BZ301", 149.4, 135, "F", PAD, (0.5, 0.5)),  # the buzzer's mechanical pad 0.2 mm from the edge
     ],
     "antenna": True,
 }
@@ -186,7 +189,7 @@ def footprint(ref: str, x: float, y: float, side: str, pads: tuple, crt_half: tu
 
 
 def write_board(out: Path, stem: str, spec: dict) -> None:
-    board = without_zone((POD / "pod-v0.kicad_pcb").read_text(encoding="utf-8"), "L2_GND")
+    board = without_footprints(without_zone((POD / "pod-v0.kicad_pcb").read_text(encoding="utf-8"), "L2_GND"))
     known = set(NETS)
     for item in spec["tracks"] + spec["vias"] + spec["zones"]:
         assert item[0] in known, f"{item[0]}: not in NETS"
@@ -234,6 +237,26 @@ def library_footprint(ref: str, path: Path, x: float, y: float, rot: float, nets
         out.append("\t\t" + t)
     head = f'\t(footprint "pod:{path.stem}" (layer "F.Cu") (uuid "{uid("fp", ref)}") (at {x} {y} {rot})\n'
     return head + "\n".join(out) + "\n\t)\n"
+
+
+def without_footprints(board: str, keep: tuple = ("H303", "H304", "H305")) -> str:
+    """``board`` with only the board screws: since 15/11/2026 the pod's parts are on the board, right where the
+    probes go, and the probes test the rules, not the placement (the DRC of the real board does that)."""
+    out, i = [], 0
+    while True:
+        start = board.find("\n\t(footprint ", i)
+        if start < 0:
+            return "".join(out) + board[i:]
+        depth, j = 0, start + 2
+        while True:
+            depth += {"(": 1, ")": -1}.get(board[j], 0)
+            j += 1
+            if depth == 0:
+                break
+        out.append(board[i:start])
+        if any(f'(property "Reference" "{ref}"' in board[start:j] for ref in keep):
+            out.append(board[start:j])
+        i = j
 
 
 def without_zone(board: str, name: str) -> str:

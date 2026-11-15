@@ -85,10 +85,13 @@ jobs:
               exec kicad-cli sch erc --exit-code-violations --severity-error --severity-warning \
                 --output /out/erc.rpt pod-v0.kicad_sch'
 
-      # Once the board has all its footprints, add --schematic-parity so the DRC also checks
-      # that the board matches the schematic. Like the ERC, it first installs KiCad's default
-      # global library tables: the board screws use the official MountingHole library, and
-      # without the table the DRC warns that the library is missing.
+      # The board has every footprint (placed on 15/11/2026) but no tracks yet. The DRC also checks
+      # that it matches the schematic (--schematic-parity) and writes JSON; drc_placa.py fails on
+      # any violation (errors and warnings) or difference with the schematic, and only lets the
+      # unconnected items (the ratsnest, what is left to route) through, printing how many. When
+      # the board is routed, add --fallar-sin-rutear. Like the ERC, it first installs KiCad's
+      # default global library tables (the footprints of the official libraries are compared
+      # against them).
       - name: DRC
         run: |
           set -euo pipefail
@@ -99,8 +102,9 @@ jobs:
               template="$(dirname "$(find /usr/share/kicad -path "*/template/fp-lib-table" | head -n 1)")"
               mkdir -p /tmp/.config/kicad/10.0
               cp "$template/fp-lib-table" "$template/sym-lib-table" /tmp/.config/kicad/10.0/
-              exec kicad-cli pcb drc --exit-code-violations --severity-error --severity-warning \
-                --output /out/drc.rpt pod-v0.kicad_pcb'
+              exec kicad-cli pcb drc --schematic-parity --severity-error --severity-warning \
+                --format json --output /out/drc.json pod-v0.kicad_pcb'
+          python3 hardware/tools/drc_placa.py "$RUNNER_TEMP/drc.json"
 
       # kicad-cli silently ignores a custom rule that does not parse, so on the empty board the
       # DRC above stays green either way. This builds a probe board that breaks every rule of
@@ -123,7 +127,7 @@ jobs:
       - name: Show reports
         if: always()
         run: |
-          for report in "$RUNNER_TEMP/erc.rpt" "$RUNNER_TEMP/drc.rpt" "$RUNNER_TEMP/sonda.rpt" "$RUNNER_TEMP/sonda_ok.rpt"; do
+          for report in "$RUNNER_TEMP/erc.rpt" "$RUNNER_TEMP/drc.json" "$RUNNER_TEMP/sonda.rpt" "$RUNNER_TEMP/sonda_ok.rpt"; do
             if [ -f "$report" ]; then
               echo "::group::$(basename "$report")"
               cat "$report"
@@ -138,7 +142,7 @@ jobs:
           name: hardware-reports
           path: |
             ${{ runner.temp }}/erc.rpt
-            ${{ runner.temp }}/drc.rpt
+            ${{ runner.temp }}/drc.json
             ${{ runner.temp }}/sonda.rpt
             ${{ runner.temp }}/sonda_ok.rpt
           retention-days: 7
