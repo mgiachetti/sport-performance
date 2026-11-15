@@ -95,6 +95,18 @@
 (rule "RF_50: pistas contra los pads del LNA"
 	(condition "A.NetClass == 'RF_50' && A.Type == 'Track' && B.memberOfFootprint('U205') && B.NetName != 'GND'")
 	(constraint clearance (min 0.1mm)))
+# Alrededor del LNA: el control (pads 4 y 6) y la alimentación (pad 2) están entre los pads de RF a 0,4 mm, así que sus
+# pistas y su vía no pueden quedar a 0,5 mm de la RF. Una pista o vía de otra red que toca el courtyard de U205 queda a
+# 0,15 mm de la RF (el mínimo de la clase Default); fuera del courtyard sigue valiendo 0,5 mm.
+(rule "RF_50: alrededor del LNA"
+	(condition "A.NetClass == 'RF_50' && B.NetClass != 'RF_50' && B.Type != 'Pad' && B.intersectsCourtyard('U205')")
+	(constraint clearance (min 0.15mm)))
+# Entre la entrada y la salida del LNA: los pads 5 (entrada) y 3 (salida) están a 0,57 mm entre centros, así que las dos
+# pistas de 0,33 mm que llegan a cada pad quedan a unos 0,39 mm. Solo para ese par de redes; el resto de la RF sigue en
+# los 0,5 mm de la clase.
+(rule "RF_50: entrada y salida del LNA"
+	(condition "A.NetName == '/gnss_rf/GNSS_LNA_IN' && B.NetName == '/gnss_rf/GNSS_LNA_OUT'")
+	(constraint clearance (min 0.2mm)))
 
 # --- USB_90D: par diferencial de 90 ohm (D+ y D− de la base al nRF, 12 Mbit/s) ---
 # El nRF52840 es USB de velocidad completa (12 Mbit/s, 83 ns por bit, flancos de 4 a 20 ns): ni el largo sin
@@ -108,6 +120,16 @@
 	(constraint track_width (min 0.23mm) (opt 0.25mm) (max 0.27mm))
 	(constraint diff_pair_gap (min 0.14mm) (opt 0.15mm) (max 0.2mm))
 	(constraint diff_pair_uncoupled (max 8mm))
+	(constraint skew (max 4mm)))
+# Las patas de los resortes (DOCK_D_P y DOCK_D_N, del resorte al 0 Ω, pasando por el ESD): los resortes están a 3,5 mm
+# y el ESD (TPD2E2U06) tiene IO1 e IO2 en lados opuestos, así que las dos patas bajan paralelas a 2,8 mm (separación de
+# 2,55 mm) y KiCad las toma como un par acoplado con la separación fuera de rango. Desde el ruteo del 15/11/2026 la
+# separación de este tramo admite hasta 3 mm (unos 8 mm de largo, a 12 Mbit/s). La diferencia de largo es la misma
+# regla, pero en su propio grupo: en KiCad la diferencia se mide contra el más largo de todas las redes que toman la
+# regla, y sin esto las patas se comparaban con los 44 mm del par USB_D.
+(rule "USB_90D: patas de los resortes (DOCK_D_*)"
+	(condition "A.NetClass == 'USB_90D' && A.inDiffPair('*DOCK_D*')")
+	(constraint diff_pair_gap (min 0.14mm) (max 3mm))
 	(constraint skew (max 4mm)))
 
 # --- Alimentación ---
