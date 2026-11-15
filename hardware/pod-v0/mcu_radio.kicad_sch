@@ -1414,21 +1414,7 @@
 		(effects (font (size 1.27 1.27)) (justify left bottom))
 		(uuid "a4652c7f-7d20-51e0-ab82-81c734a6f866")
 	)
-	(wire
-		(pts (xy 73.66 104.14) (xy 76.2 104.14))
-		(stroke (width 0) (type default))
-		(uuid "dcd882b5-e0c6-5b41-9703-8c5146f82809")
-	)
-	(global_label "HG_CS"
-		(shape bidirectional)
-		(at 76.2 104.14 0)
-		(fields_autoplaced yes)
-		(effects (font (size 1.27 1.27)) (justify left))
-		(uuid "9d9ddd12-e99c-5497-8084-5a50f15b258b")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 85.7 104.14 0)
-			(effects (font (size 1.27 1.27)) (justify left) hide)
-		)
-	)
+	(no_connect (at 73.66 104.14) (uuid "fb4f8a46-f7d1-5162-a5bc-f1141e713481"))
 	(wire
 		(pts (xy 73.66 106.68) (xy 76.2 106.68))
 		(stroke (width 0) (type default))
@@ -2216,13 +2202,13 @@
 		(stroke (width 0) (type default))
 		(uuid "97b5e031-cef0-5d4a-84b4-0972ff4fa898")
 	)
-	(global_label "HG_INT"
+	(global_label "NAND_EN"
 		(shape bidirectional)
 		(at 35.56 66.04 180)
 		(fields_autoplaced yes)
 		(effects (font (size 1.27 1.27)) (justify right))
 		(uuid "9d0aea1b-83e1-5629-aa06-ae9365522bb8")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 24.96 66.04 0)
+		(property "Intersheetrefs" "${INTERSHEET_REFS}" (at 23.86 66.04 0)
 			(effects (font (size 1.27 1.27)) (justify right) hide)
 		)
 	)

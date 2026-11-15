@@ -169,6 +169,8 @@ class Design:
                         continue
                     prefix = str(lib_prop(self.symbols[p.symbol], "Reference")[2])
                     counters[prefix] += 1
+                    while f"{prefix}{sheet.base + counters[prefix]}" in sheet.retired:
+                        counters[prefix] += 1
                     p.ref = f"{prefix}{sheet.base + counters[prefix]}"
 
     def collect(self):

@@ -163,7 +163,7 @@ Antes de pedir, se manda **el diseño (no solo los Gerbers)** para una revisión
 
 | Parte | Riesgo | Acción |
 |---|---|---|
-| LSM6DSV32X | Resuelto (09/11/2026): reemplaza a la LSM6DSV320X sin stock (LCSC 3.032, DigiKey 24.971) | ±32 g en lugar de ±320 g: el ADXL372 se monta en 2 placas de la v0 (variante `pod-v0-highg`) para medir la saturación |
+| LSM6DSV32X | Resuelto (09/11/2026): reemplaza a la LSM6DSV320X sin stock (LCSC 3.032, DigiKey 24.971) | ±32 g en lugar de ±320 g. El ADXL372 de las 2 placas de medición (variante `pod-v0-highg`) **salió de la v0 el 14/11/2026** (ADR 0105): con el pod en la espalda alcanza ±32 g; vuelve en una v2 solo si se ve saturación o aparece uno de ±200 g más barato |
 | Patch GVLB258.A | DigiKey 895 (09/11/2026), fuera de LCSC; ajuste sobre una tierra chica; posición del pin a verificar contra el DXF | Comprar 150 ya; la Taoglas AGVLB.25B por U.FL como rescate |
 | LC29H (EA) | Sin stock ni precio | Preguntar a Quectel |
 | BMD-340 | Resuelto (09/11/2026): DigiKey 10.055, FCC 2AA9B10, IC 12208A-10, CE | Pedir la revisión -10 |

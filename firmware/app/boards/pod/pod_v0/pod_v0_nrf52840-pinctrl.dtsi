@@ -59,7 +59,7 @@
 		};
 	};
 
-	/* SPIM1: sensor bus (LSM6DSV32X; ADXL372 on pod-v0-highg; DWM3000 and ICM-42688-P not mounted), 8 MHz. */
+	/* SPIM1: sensor bus (LSM6DSV32X; DWM3000 and ICM-42688-P not mounted), 8 MHz. */
 	spi1_default: spi1_default {
 		group1 {
 			psels = <NRF_PSEL(SPIM_SCK, 0, 14)>,	/* SENS_SCK, pad 32 */

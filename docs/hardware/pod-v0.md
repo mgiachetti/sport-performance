@@ -18,7 +18,7 @@ flowchart LR
   BAT --> FG[MAX17048 medidor, VDD y CELL en la celda]
   BB --> MCU[u-blox BMD-340 nRF52840]
   BB --> SWL[Load switch TPS22919 del LoRa, con 0 Ω de puente] --> LORA[Ai-Thinker Ra-01SH SX1262]
-  BB --> IMU[LSM6DSV32X; ADXL372 en la variante pod-v0-highg]
+  BB --> IMU[LSM6DSV32X]
   BB --> SWN[Load switch de la NAND sin montar, 0 Ω de puente montado] --> NAND[W25N02KV NAND]
   BB --> BARO[BMP581 barómetro]
   BB --> UWB[DWM3000 sin montar, sin load switch]
@@ -98,7 +98,7 @@ Tamaño estimado: unos 45 × 65 mm (**no verificado**: sale del ruteo y de la en
 | Cristal de 32,768 kHz | Montado en XL1/XL2 | Sin montar, con el RC calibrado del nRF | Mejor reloj de baja frecuencia para BLE y menos consumo que calibrar el RC. **CL ≤ 12,5 pF, ESR ≤ 100 kΩ, C0 ≤ 2 pF** (cifras de personal de Nordic en el foro). Ningún pin con PWM al lado: P0.27 (pad 16) y P0.26 (pad 19), vecinos de XL1/XL2, solo llevan CS estáticos | — | Parte y cifras contra el PS, **no verificadas** |
 | LED de estado | **XINGLIGHT XL-1615RGBC-RF** (RGB, 1,6 × 1,5 mm, ánodo común), 3 NMOS de nivel lógico, 3 resistencias 0402 y **3 pull-down de 100 kΩ en los gates** | Segundo LED igual, sin montar; ánodo desde VREG por 0 Ω | Ánodo desde SYS; PWM0 en P0.11, P0.05 y P1.08 (ver "LED de estado") | [LCSC C965840](https://www.lcsc.com/product-detail/C965840.html) | Precio sí (LCSC). Ánodo común, caídas por color, NMOS y resistencias, **no verificados** |
 | Buzzer | Sin montar: buzzer SMD con NMOS en P0.04 (PWM1) y pull-down de 100 kΩ en el gate | — | Para "buscar mi pod" con sonido; opcional | — | Parte **no verificada** |
-| IMU | **LSM6DSV32X** (LGA-14L, 2,5 × 3,0 × 0,83 mm), desde el 09/11/2026: ±4 a ±32 g con **doble canal** (el segundo fijo en ±32 g) | **ADXL372** (±200 g) en `U403`, montado solo en la **variante de armado `pod-v0-highg`** (2 de las 5 placas de la v0) para medir cuánto satura ±32 g en los contactos. **Pin a pin** en `U401` (tabla 2 de cada hoja, mismo LGA-14L): LSM6DSV320X (±320 g) o LSM6DSV80X (±80 g) cuando vuelvan, LSM6DSV16X (±16 g); cambia el `compatible` del firmware. La ICM-42688-P (`U402`) no tiene stock | VDD 1,71–3,6 V, VDD_IO 1,08–3,6 V. 1 SDO, 2 SDx y 3 SCx a GND, 4 INT1, 5 VDD_IO, 6/7 GND, 8 VDD, 9 INT2, 10 OCS_Aux y 11 SDO_Aux sin conectar, 12 CS, 13 SCL, 14 SDA. WHO_AM_I 70h. 0,65 mA con acelerómetro y giróscopo en alto rendimiento | ST DS13511 Rev 2 (de [LCSC C22461202](https://www.lcsc.com/product-detail/C22461202.html)) · `st,lsm6dsv32x` en el NCS v3.4.1 | Sí: pines, tensiones, encapsulado y WHO_AM_I (hoja de ST, leída el 09/11/2026). Que el canal de ±32 g entre en la FIFO a 1,6 kHz o más, **no verificado** |
+| IMU | **LSM6DSV32X** (LGA-14L, 2,5 × 3,0 × 0,83 mm), desde el 09/11/2026: ±4 a ±32 g con **doble canal** (el segundo fijo en ±32 g) | Sin acelerómetro de alto rango aparte: el **ADXL372** (±200 g, antes `U403` en la variante `pod-v0-highg`) **salió de la v0 el 14/11/2026** (ADR 0105, "Registro de decisiones"); vuelve en una v2 solo si la LSM6DSV32X satura en los contactos o aparece uno de ±200 g más barato. **Pin a pin** en `U401` (tabla 2 de cada hoja, mismo LGA-14L): LSM6DSV320X (±320 g) o LSM6DSV80X (±80 g) cuando vuelvan, LSM6DSV16X (±16 g); cambia el `compatible` del firmware. La ICM-42688-P (`U402`) no tiene stock | VDD 1,71–3,6 V, VDD_IO 1,08–3,6 V. 1 SDO, 2 SDx y 3 SCx a GND, 4 INT1, 5 VDD_IO, 6/7 GND, 8 VDD, 9 INT2, 10 OCS_Aux y 11 SDO_Aux sin conectar, 12 CS, 13 SCL, 14 SDA. WHO_AM_I 70h. 0,65 mA con acelerómetro y giróscopo en alto rendimiento | ST DS13511 Rev 2 (de [LCSC C22461202](https://www.lcsc.com/product-detail/C22461202.html)) · `st,lsm6dsv32x` en el NCS v3.4.1 | Sí: pines, tensiones, encapsulado y WHO_AM_I (hoja de ST, leída el 09/11/2026). Que el canal de ±32 g entre en la FIFO a 1,6 kHz o más, **no verificado** |
 | Memoria | **W25N02KV** (2 Gbit, unas 8 sesiones de 3 h; cálculo en `pod-f3.md`) | **W25N04KV** (4 Gbit) en el mismo lugar, para una variante de más capacidad | Los dos: WSON-8 de 8 × 6 mm, 2,7–3,6 V, páginas de 2048 B + 128 B de repuesto, bloques de 64 páginas. La W25N02KV tiene 2048 bloques (mínimo 2008 válidos) y la W25N04KV 4096 (mínimo 4016); mismos comandos, con la dirección de página de 24 bits (17 y 18 bits usados) | [LCSC W25N02KVZEIR](https://www.lcsc.com/product-detail/C3010298.html) · [hoja W25N02KV Rev. G](https://www.winbond.com/resource-files/W25N02KVxxIRU_Datasheet_20210625_G.pdf) · [hoja W25N04KV Rev. C](https://www.winbond.com/resource-files/W25N04KVxxIRU_Datasheet_20220207_RevC.pdf) | Sí: encapsulado, tensión, pines (tabla de pads 3.2 de las dos hojas), geometría y comandos, leídos en las hojas de Winbond |
 | Cargador | **BQ25180** (I2C, salida SYS, modo envío) | — | DSBGA de 8 bolas, 1,6 × 1,1 mm: A1 /INT, A2 IN, B1 SCL, B2 SYS, C1 SDA, C2 BAT, **D1 TS/MR** (NTC y reset manual en el mismo pin), D2 GND. **/INT de drenador abierto, pulso de 128 µs**; I2C **0x6A**. **Corriente de carga de 300–350 mA**, escrita por el firmware (arranca en 10 mA): es lineal, y con 500 mA desde 5 V a una celda de 3,4–3,7 V disiparía 0,65–0,8 W (RθJA de 107 °C/W JEDEC, 65 °C/W en el EVM), subiría 45–85 °C y se plegaría por temperatura (TREG de 100 °C). Valores por defecto que el firmware cambia: ver "Pines del LC29H y modo envío" | [Hoja de TI SLUSE99C](https://www.ti.com/lit/ds/symlink/bq25180.pdf) · [mapa de bolas en Flux](https://www.flux.ai/adrian95/bq25180ybgr~vng.md) · [LCSC](https://www.lcsc.com/product-detail/C3682423.html) | Pines TS/MR, /INT, dirección, consumos y valores por defecto, sí (hoja de TI, revisión eléctrica). El resto del mapa de bolas, de una librería de terceros |
 | Batería | LiPo de **500–600 mAh** (decisión del usuario) **con PCM** (protección de sobrecarga, sobredescarga y cortocircuito) y **NTC de 10 kΩ en la celda**, de un proveedor que entregue **informe UN38.3, IEC 62133 y MSDS** | — | **Conector con llave y patas asimétricas** (BAT, GND, NTC) al TS/MR del BQ25180: ni el BQ25180 ni el LC29H se protegen contra una batería invertida, y las celdas de hobby suelen venir con el JST al revés. Espacio en la carcasa para que la celda se hinche. Ventana de temperatura de carga con el JEITA del BQ25180 y el NTC | — | Celda, proveedor y conector, **no verificados** |
@@ -183,11 +183,11 @@ En orden, desde la antena hasta el módulo. **Lo montado por defecto es el camin
 | LORA_MOSI | P0.25 | 6 | Rápido | SPIM2 | Ra-01SH MOSI (pin 14) | |
 | LORA_MISO | P1.00 | 56 | Rápido | SPIM2 | Ra-01SH MISO (pin 13) | |
 | LORA_NSS | P0.16 | 34 | Rápido | GPIO | Ra-01SH NSS (pin 15) | |
-| SENS_SCK | P0.14 | 32 | Rápido | SPIM1 | LSM6DSV32X, ADXL372 (variante `pod-v0-highg`), DWM3000 (+ ICM-42688-P sin montar) | Bus de sensores, 8 MHz |
+| SENS_SCK | P0.14 | 32 | Rápido | SPIM1 | LSM6DSV32X, DWM3000 (+ ICM-42688-P sin montar) | Bus de sensores, 8 MHz |
 | SENS_MOSI | P0.13 | 31 | Rápido | SPIM1 | idem | |
 | SENS_MISO | P0.15 | 33 | Rápido | SPIM1 | idem | |
 | IMU_CS | P1.09 | 52 | Rápido | GPIO | LSM6DSV32X CS (o ICM-42688-P con 0 Ω) | |
-| HG_CS | P0.26 | 7 | Rápido | GPIO | ADXL372 CS (variante `pod-v0-highg`) | CS estático. Libre si el ADXL372 no va |
+| — | P0.26 | 7 | Rápido | — | **Libre** (era el CS del ADXL372, fuera de la v0 desde el 14/11/2026) | Sin conectar en la placa. Solo para señales estáticas |
 | UWB_CS | P0.27 | 8 | Rápido | GPIO | DWM3000 SPICSn, sin montar | CS estático. Libre si el UWB no va |
 | GNSS_TX (MCU → GNSS RXD) | P0.06 | 22 | Rápido | UARTE0 | traductor → LC29H RXD (pin 21) | Configuración y RTCM para la EA |
 | GNSS_RX (GNSS TXD → MCU) | P0.08 | 24 | Rápido | UARTE0 | LC29H TXD (pin 20) → traductor | NMEA o binario a 10 Hz. Pull-up interna del nRF (el traductor queda en alta impedancia con el GNSS apagado) |
@@ -216,7 +216,7 @@ En orden, desde la antena hasta el módulo. **Lo montado por defecto es el camin
 | IMU_INT2 | P1.06 | 49 | Baja frec. | GPIOTE | LSM6DSV32X INT2 | |
 | UWB_RST | P1.07 | 50 | Baja frec. | GPIO (drenador abierto) | DWM3000 RSTn, sin montar | Que RSTn no se maneje en alto, **no verificado** |
 | UWB_WAKEUP | P1.05 | 48 | Baja frec. | GPIO | DWM3000 WAKEUP, sin montar | |
-| HG_INT | P1.03 | 59 | Baja frec. | GPIOTE | ADXL372 INT1 (variante `pod-v0-highg`); **o NAND_EN** por 0 Ω si se monta el load switch de la NAND | Uno u otro: el ADXL372 y el load switch de la NAND son rescates que no se montan juntos. NAND_EN con pull-down de 100 kΩ. Libre si no va ninguno |
+| NAND_EN | P1.03 | 59 | Baja frec. | GPIO | **NAND_EN** por 0 Ω (sin montar) si se monta el load switch de la NAND | Pull-down de 100 kΩ (sin montar). **Libre** si no va el load switch (era también la INT1 del ADXL372, fuera de la v0 desde el 14/11/2026) |
 | LORA_EN | P1.01 | 57 | Baja frec. | GPIO | ON del load switch del LoRa (TPS22919, `U303`) | Pull-down: el Ra-01SH arranca apagado hasta que el firmware lo prende |
 | XL1 / XL2 | P0.00 / P0.01 | 13 / 14 | Cristal | LFXO | **Cristal de 32,768 kHz montado** | Mejor reloj de baja frecuencia para BLE y menos consumo que el RC calibrado |
 | GNSS_WAKEUP | P0.09 | 25 | NFC liberado (baja frec.) | GPIO | LC29H WAKEUP (pin 1) | Pulso en alto de **≥ 10 ms** al salir del backup; el resto del tiempo, entrada con el buffer desconectado. Nivel alto de 3,0–3,6 V: el nRF a 3,4 V lo maneja directo, sin traductor. Pull-up sin montar al VCC del GNSS (3,2 V) como respaldo |
@@ -224,14 +224,14 @@ En orden, desde la antena hasta el módulo. **Lo montado por defecto es el camin
 | USB D+ / D− / VBUS | — | 68 / 67 / 66 | — | USBD | Pads de la base (VBUS después del switch de entrada), D± por 0 Ω | Sin USB-C |
 | SWDIO / SWDCLK / nRESET | — | 44 / 43 / 39 | — | SWD | Tag-Connect TC2030-NL (con sus agujeros de alineación) + pads | La consola principal va por RTT. nRESET con `PSELRESET` en la UICR |
 
-**Margen de pines:** la v0 usa **los 48** (contando XL1/XL2 con el cristal y P0.18 como reset). P0.09 (NFC) es ahora el **WAKEUP del GNSS** (antes quedaba a un pad, y el GNSS no salía del backup), y el EN del load switch de la NAND, si se monta, va por 0 Ω a P1.03 en lugar del ADXL372. **Libres según cómo se arme:** P0.04 sin buzzer; P0.26 y P1.03 sin ADXL372 (P1.03 solo si tampoco va el load switch de la NAND); P0.27, P1.02, P1.05 y P1.07 sin UWB. Rápidos libres: P0.04, P0.26 y P0.27 (estos dos, solo para señales estáticas).
+**Margen de pines:** la v0 usa **47 de los 48** (contando XL1/XL2 con el cristal y P0.18 como reset). P0.09 (NFC) es ahora el **WAKEUP del GNSS** (antes quedaba a un pad, y el GNSS no salía del backup), y el EN del load switch de la NAND, si se monta, va por 0 Ω a P1.03. **Libre siempre:** P0.26, sin conectar desde que el ADXL372 salió de la v0 (14/11/2026). **Libres según cómo se arme:** P0.04 sin buzzer; P1.03 si no va el load switch de la NAND; P0.27, P1.02, P1.05 y P1.07 sin UWB. Rápidos libres: P0.04, P0.26 y P0.27 (estos dos, solo para señales estáticas).
 
 **Notas para el firmware:**
 - **PPS por PPI**: el flanco del PPS en P1.10 dispara un evento de GPIOTE que, por PPI, captura un TIMER, sin pasar por la CPU. El TIMER corre a **16 MHz como máximo**, derivados del cristal de 32 MHz del módulo (HFXO), y el **HFXO tiene que quedar encendido** mientras se captura: eso cuesta corriente (unos cientos de µA, **no verificado**), que se mide en el banco. Con eso cada segundo se conoce el desvío del reloj del nRF contra el GNSS, y de ahí salen los turnos de LoRa (ADR 0105) y la hora de las muestras de la IMU y el barómetro. Bajo techo, la misma captura toma la baliza del gateway (B-911).
 - **LED por PWM0** (tres canales): patrones y brillo por software (tabla del LED más abajo). El brillo y el apagado durante el juego son configuración del club.
 - Con TXEN en DIO2, el firmware pone **RXEN en bajo antes de transmitir** y en alto para recibir.
 - El Ra-01SH usa un **cristal común**: sin `SetDIO3AsTCXOCtrl` (DIO3 sin conectar). Si la puerta de banco muestra más de ±20 ppm, se corrige con la baliza (AFC por firmware) o se pasa al NiceRF LoRa1262-915TCXO.
-- Cada bus SPI con su modo y velocidad por CS (el de sensores comparte LSM6DSV32X, ADXL372 y DWM3000).
+- Cada bus SPI con su modo y velocidad por CS (el de sensores comparte LSM6DSV32X y DWM3000).
 - Direcciones I2C: BQ25180 **0x6A** (verificada en la hoja de TI); MAX17048 0x36 y BMP581 0x47, **no verificadas** contra la hoja del fabricante.
 - **Barómetro**: a 25–50 Hz, con el sobremuestreo y el filtro IIR que dejen el ruido en unos pocos cm sin agregar retardo que borre un salto (el compromiso entre tasa y ruido sale del banco). La altura se calcula **fusionando barómetro e IMU** (filtro complementario o de Kalman): el barómetro fija la altura lenta y la aceleración vertical sigue lo rápido. Usos: levantada en el line, saltos, y apoyo a `time_to_feet_s` (el pod pasa de unos 1,3 m de pie a unos 0,2 m en el suelo). Una métrica nueva (por ejemplo `lineout_lift_m` o `jump_height_cm`) **no se agrega todavía**: se define con el club en el diccionario de métricas, con código, unidad y definición.
 - El DWM3000 queda siempre alimentado desde VREG: en las placas que lo tienen, el firmware lo pone en **DEEPSLEEP** al arrancar y entre usos.
@@ -445,8 +445,6 @@ Con la celda 503048 propuesta (unos 720 mAh), el Activo queda en unas 16–20 h 
 
 **IMU**
 - [ ] ICM-42688-P en su propio lugar (CS e INT por 0 Ω con los del LSM6DSV32X).
-- [ ] ADXL372 en su lugar, con su CS e INT propios: **montado en la variante `pod-v0-highg`** (2 de las 5 placas de la v0; BOM `bom-pod-v0-highg.csv`).
-- [ ] HG_INT a INT2 del LSM6DSV32X por 0 Ω.
 
 **Barómetro**
 - [ ] DPS368 en su propio lugar, sin montar (mismo bus I2C, otra dirección).
@@ -458,7 +456,7 @@ Con la celda 503048 propuesta (unos 720 mAh), el Activo queda en unas 16–20 h 
 - [ ] 0 Ω en serie en cada riel (VREG, 3,2 V del GNSS, V_BCKP, LoRa, UWB) para medir corriente con un amperímetro.
 - [ ] EN del LDO del GNSS a GNSS_EN (montado), con pull-down de 100 kΩ, o a VREG por 0 Ω (sin montar).
 - [ ] **Load switch del LoRa** (TPS22919, QOD a VOUT) montado, con 0 Ω de puente (sin montar) para dejarlo siempre alimentado; pull-down de 100 kΩ en LORA_EN.
-- [ ] **Load switch de la NAND sin montar**, con su 0 Ω de puente montado; EN al riel de entrada por 0 Ω (montado) o a NAND_EN en P1.03 por 0 Ω (sin montar, en lugar del ADXL372), con pull-down de 100 kΩ. /WP y /HOLD con pull-up al riel de la NAND.
+- [ ] **Load switch de la NAND sin montar**, con su 0 Ω de puente montado; EN al riel de entrada por 0 Ω (montado) o a NAND_EN en P1.03 por 0 Ω (sin montar), con pull-down de 100 kΩ. /WP y /HOLD con pull-up al riel de la NAND.
 - [ ] **Sensor Hall DRV5032FA montado** (la FB, alternativa aprobada) en HALL_INT (P0.10) por una **resistencia en serie de 10–100 kΩ montada** (protege el pad NFC antes de escribir la UICR y se saca para medir la fuga o la corriente), en la cara que apoya contra el bolsillo y lejos de los pads de la base y sus imanes; lugar compatible con la DRV5032FA (20 Hz).
 - [ ] EN del LDO de V_BCKP directo a SYS (montado), o a BAT por 0 Ω (sin montar).
 - [ ] **Switch de entrada de VBUS** (OVP y bloqueo inverso), con 0 Ω de puente sin montar; TVS en los pads de la base.
@@ -509,7 +507,7 @@ Con la celda 503048 propuesta (unos 720 mAh), el Activo queda en unas 16–20 h 
 11. GNSS por el conector de 4 pines con **QGNSS**: que arranque, que dé posición a 10 Hz y que salga el crudo RTCM3 MSM7 (`$PAIR432,1`, sin modo base; ver [`lc29h-protocolo.md`](lc29h-protocolo.md)), a qué tasa y sin perder épocas de PVT. Probar la secuencia de arranque de ese documento.
 12. PPS: ver el pulso en el pad y la captura del TIMER por PPI; medir el desvío del reloj del nRF contra el GNSS durante unos minutos.
 13. GNSS por el nRF (con el traductor): NMEA o binario sin errores a la tasa elegida (ver el margen del BAUDRATE).
-14. IMU: leer el ID (70h), configurar el doble canal, ver el canal de ±32 g; en las placas `pod-v0-highg`, leer el ADXL372 y comparar los picos de los contactos con los de ±32 g.
+14. IMU: leer el ID (70h), configurar el doble canal, ver el canal de ±32 g y anotar cuántos picos de los contactos llegan al fondo de escala (el dato que decide si vuelve un acelerómetro de ±200 g en una v2; ADR 0105).
 15. **Barómetro**: leer su ID por I2C; en la mesa, ver el ruido de presión a 25–50 Hz; subir y bajar el pod 1 m y ver el cambio (unos 12 Pa); repetir con la carcasa cerrada y la ventilación puesta.
 16. NAND: escribir, leer y borrar bloques; medir tasa y la corriente en reposo después de parar el SPIM3 (errata 195).
 17. LoRa: TX y RX contra un RAK o el gateway, en 915–928 MHz. **Puerta de frecuencia del Ra-01SH** (cristal sin TCXO): 10 módulos a 0, 25 y 50 °C, leyendo en el gateway el error de frecuencia de cada paquete; si alguno pasa de ±20 ppm, AFC por la baliza o el NiceRF LoRa1262-915TCXO.

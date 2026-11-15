@@ -12,7 +12,7 @@ Reglas del cálculo:
 
 - **Cantidad comprada** = cantidad por placa × placas, más **10 de desperdicio** por fila en resistencias, capacitores, bobinas y ESD (lo que suele pedir el armador). Si queda por debajo del mínimo de venta, se paga el mínimo (el primer escalón de la planilla).
 - **Precio** del escalón que corresponde a esa cantidad, de la fuente con stock y menor precio (la columna `fuente_precio`). DigiKey da el BMD-340 a 9,60 a 1 y 9,66 a 1.000: a 100 se usa el de 1 unidad.
-- **Variante base**: LC29H(AA), sin UWB ni ADXL372, con el patch pasivo. La **variante de armado `pod-v0-highg`** (ADXL372 montado, 2 de las 5 placas de la v0) tiene su propia lista para PCBWay ([`bom-pod-v0-highg.csv`](bom-pod-v0-highg.csv)) y su costo en la tabla generada. Las otras variantes, abajo.
+- **Variante base**: LC29H(AA), sin UWB, con el patch pasivo. Las 5 placas de la v0 se arman **iguales** (una sola lista para PCBWay): el ADXL372 y la variante `pod-v0-highg` salieron de la v0 el 14/11/2026 (ADR 0105, "Registro de decisiones"). Las otras variantes, abajo.
 
 Las tablas de abajo las escribe `bom_pcbway.py` en este archivo (entre los marcadores), con los mismos números de [`costo-partes-pod-v0.csv`](costo-partes-pod-v0.csv): no se editan a mano.
 
@@ -23,12 +23,6 @@ Las tablas de abajo las escribe `bom_pcbway.py` en este archivo (entre los marca
 | 5 | **74,05** | 370,24 |
 | 10 | **65,13** | 651,31 |
 | 100 | **53,98** | 5.398,41 |
-
-**Variantes de armado** (BOM aparte para PCBWay, `bom-<variante>.csv`; lo de arriba es la base):
-
-| Variante | Para qué | Lugares que se montan | Placas de la v0 | Partes por placa en la v0 | Si fuera en las 100 |
-|---|---|---|---|---|---|
-| `pod-v0-highg` | ADXL372 de ±200 g montado, para medir cuánto satura ±32 g de la LSM6DSV32X en los contactos | C404, U403 | 2 de 5 | +19,61 | +15,01 |
 
 **Lo que más pesa** (a 100 placas, por placa):
 
@@ -73,7 +67,6 @@ Auditoría completa, parte por parte, en [`stock.md`](stock.md) (leída el **09/
 | **BMD-340-A-R** (`U301`) | ✓ DigiKey 10.055 (stock propio; fábrica 20 semanas) | **150 en DigiKey** (revisión -10) | Fanstel BT840 (otro footprint; DigiKey 10.247) |
 | **Ra-01SH** (`U302`) | ✓ LCSC 2.239 | **10 ya** para la puerta de banco de frecuencia; **150** al pasarla | NiceRF LoRa1262-915TCXO (otro footprint, con TCXO; LCSC 1.232) |
 | **LSM6DSV32XTR** (`U401`) | ✓ LCSC 3.032, DigiKey 24.971 | **150 en LCSC** ya | LSM6DSV320X o 80X pin a pin cuando vuelvan (otro `compatible`) |
-| **ADXL372** (`U403`, variante `pod-v0-highg`) | ✓ LCSC 1.534 | **10 en LCSC** para las 2 placas de medición | — |
 | **GVLB258.A** (`AE201`) | ✓ DigiKey 895 | **150 en DigiKey** ya | Taoglas AGVLB.25B activa por el U.FL |
 | **LC29H(AA)** (`U201`) | ⚠ DigiKey 522, una sola fuente | **150 en DigiKey** ya | LC29H(EA) en el mismo lugar (+12,41) |
 | **TPS22919DCKR** (`U303`; `U105` y `U502` sin montar) | ✓ LCSC 19.720 | 150 en LCSC (450 si se montan los tres) | TPS22918 / TPS22917 (otro footprint) |
@@ -83,7 +76,7 @@ Auditoría completa, parte por parte, en [`stock.md`](stock.md) (leída el **09/
 | TPS7A2032P (`U104`) | ✓ DigiKey 3.348; LCSC 0 | **150 en DigiKey** ya | Ninguna aprobada: la LP5907MFX-3.2 queda pendiente (pide menos de 10 µF a la salida; ADR 0105) |
 | SAW B39162B8389P810 (`FL201`, `FL202`) | ✓ DigiKey 7.710, LCSC 218 | 300 en DigiKey al aprobar la v0 | — |
 
-Lo que se compra ya (BMD-340, LSM6DSV32X, GVLB258.A, LC29H, BGA525N6, TPS7A2032P, 10 Ra-01SH y 10 ADXL372) suma unos **US$ 5.100** (detalle en `stock.md` y en [`alternativas-en-stock.md`](alternativas-en-stock.md)).
+Lo que se compra ya (BMD-340, LSM6DSV32X, GVLB258.A, LC29H, BGA525N6, TPS7A2032P y 10 Ra-01SH) suma unos **US$ 4.920** (ya sin las 10 ADXL372, unos 177; detalle en `stock.md` y en [`alternativas-en-stock.md`](alternativas-en-stock.md)).
 
 ## 2. Placa desnuda (estimación)
 
@@ -98,7 +91,7 @@ Placa de 4 capas, 1,6 mm, unos 50 × 70 mm, FR4 Tg 150+, ENIG, máscara verde, i
 
 ## 3. Armado (estimación)
 
-Datos de la placa (de `bom_pcbway.py`): **55 partes distintas**, **139 componentes**, unos **484 pads** soldados, todo SMT de un lado salvo el pin del patch (a mano, después del reflujo) y quizás el Hall, si se lo pone en la cara de abajo (segunda pasada). Encapsulados de riesgo: **DSBGA de 0,4 mm** (BQ25180; los load switches pasaron a SC-70-6), **LGA** (LSM6DSV32X, BMP581; el ADXL372 en la variante `pod-v0-highg`), TSNP-6 de 0,4 mm (BGA525N6), SAW de 1,4 × 1,1 mm, WSON con pad expuesto (TPS63900, NAND), módulos con pads abajo (BMD-340 de 68, LC29H) y el Ra-01SH almenado: rayos X en unos 8 por placa.
+Datos de la placa (de `bom_pcbway.py`): **55 partes distintas**, **139 componentes**, unos **484 pads** soldados, todo SMT de un lado salvo el pin del patch (a mano, después del reflujo) y quizás el Hall, si se lo pone en la cara de abajo (segunda pasada). Encapsulados de riesgo: **DSBGA de 0,4 mm** (BQ25180; los load switches pasaron a SC-70-6), **LGA** (LSM6DSV32X, BMP581), TSNP-6 de 0,4 mm (BGA525N6), SAW de 1,4 × 1,1 mm, WSON con pad expuesto (TPS63900, NAND), módulos con pads abajo (BMD-340 de 68, LC29H) y el Ra-01SH almenado: rayos X en unos 8 por placa.
 
 Con las tarifas publicadas de JLCPCB (Standard PCBA, la única que arma 0,4 mm; [tarifas](https://jlcpcb.com/help/article/pcb-assembly-price), leídas el 08/11/2026) como referencia:
 

@@ -8,7 +8,7 @@ Los fuentes de la carcasa están en [`hardware/pod-v0/carcasa/`](../../hardware/
 
 | Tema | Qué quedó | Quién lo decidió |
 |---|---|---|
-| Sensor de impactos | El pod va en la espalda, donde los placajes llegan atenuados: alcanza la IMU **LSM6DSV32X** (±32 g y giroscopio). No hace falta un acelerómetro de alto rango como el ADXL372 | Usuario (ya está en el BOM) |
+| Sensor de impactos | El pod va en la espalda, donde los placajes llegan atenuados: alcanza la IMU **LSM6DSV32X** (±32 g y giroscopio). El **ADXL372 sale de la v0** (`U403`, su capacitor y la variante `pod-v0-highg`): queda para una v2 si la LSM6DSV32X satura o aparece un acelerómetro de ±200 g más barato | Usuario, 14/11/2026 (ADR 0105, "Registro de decisiones"; ya aplicado en el esquemático, las listas y el firmware) |
 | Tamaño de la placa | **50 × 70 mm**, el máximo que ya preveía `pod-v0.md`. En 45 × 65 mm no entran a la vez los keep-outs de las cuatro antenas | Propuesta aceptada |
 | Batería | Celda **503048** (5 × 30 × 48 mm, unos 720 mAh), con el mismo espesor que la de 500–600 mAh | Propuesta aceptada. Falta pasarla al ADR 0105 y a `pod-f3.md` |
 | Contactos de la base | **Inserto de cinco pines en la tapa inferior**, bajo el patch, con resortes internos hasta la placa. Base con el pod parado en una ranura | Propuesta aceptada. Falta pasarla a B-907 |
@@ -227,7 +227,7 @@ Posiciones en mm. Donde hay un solo punto, es el centro.
 No son decisiones; quedan como punto de partida para el firmware.
 
 - Acelerómetro en ±32 g y giroscopio en 2000 dps o más.
-- Muestreo de 400 a 960 Hz con FIFO en modo continuo, para guardar la ventana de cada impacto, y menor resolución para las métricas de carga.
+- Muestreo de **480 o 960 Hz** con FIFO en modo continuo (la LSM6DSV32X tiene ODR de 7,5 · 15 · 30 · 60 · 120 · 240 · 480 · 960 · 1920 · 3840 · 7680 Hz; 400 y 800 Hz solo existen en el modo de ODR de alta precisión 2, y 500 y 1000 Hz en el 1), para guardar la ventana de cada impacto, y menor resolución para las métricas de carga.
 - Interrupción de wake-up o de umbral para marcar colisiones sin procesar todo el flujo en el micro.
 - SPI si se lee a alta frecuencia: I²C se queda corto con FIFO a casi 1 kHz.
 - El chip cerca del centro de la placa, lejos de los bordes y del conector, con la placa firme contra la carcasa.
@@ -238,10 +238,12 @@ No son decisiones; quedan como punto de partida para el firmware.
 - **Los tornillos de cierre entran por la cara del cuerpo.** La primera carcasa usaba los mismos tres tornillos para la placa y el cierre; después se separaron.
 - **El nylon en la Adventurer 5M Pro** no está descartado: no figura en la lista oficial, pero la máquina admite algunos por temperatura.
 - **Los tornillos de cierre de abajo quedan a unos 3 mm de las puntas de la FPC de LoRa**, no a 1 mm: el milímetro era la distancia al tetón de plástico.
+- **El muestreo de la IMU no puede ser de 400 Hz** en el modo normal: los ODR de la familia LSM6DSV van de a doble desde 7,5 Hz (sección 10).
 - **Las primeras vistas de la carcasa estaban espejadas** de izquierda a derecha. Los STL estaban bien.
 
 ## 12. Fuentes
 
+- [Driver `lsm6dsv16x` de Zephyr, tabla de ODR por modo](https://github.com/zephyrproject-rtos/zephyr/blob/main/drivers/sensor/st/lsm6dsv16x/lsm6dsv16x.c) (misma familia y registro `ODR_XL` que la LSM6DSV32X, ST DS13511)
 - [DWM3000, hoja de datos (Farnell)](https://farnell.com/datasheets/4509027.pdf)
 - [DWM3000 antenna placement, foro de Qorvo](https://forum.qorvo.com/t/dwm3000-antenna-placement/21256)
 - [Vertical/horizontal keep-out needed for DWM3000, foro de Qorvo](https://forum.qorvo.com/t/vertical-horizontal-keep-out-needed-for-dwm3000-module/21313)

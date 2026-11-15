@@ -41,7 +41,7 @@ model_parts=(
   C22403415 # Quectel LC29HAAMD
   C3662799  # TI TPS259470ARPWR (VQFN-HR-10)
   C1518762  # TI TPS63900DSKR (WSON-10)
-  C579465   # Analog Devices ADXL372BCCZ-RL7 (LGA-16)
+  C579465   # Analog Devices ADXL372BCCZ-RL7 (LGA-16; fuera de la v0, queda para una v2)
   C5556161  # Qualcomm RF360 B39162B8389P810 (SAW L1 + L5, candidato)
   C18337445 # Infineon BGA525N6 (LNA L1/L2/L5, candidato)
 )

@@ -9,7 +9,7 @@ Todo lo que PCBWay necesita para cotizar la placa y el armado, las preguntas que
 | Archivo | Qué es | Estado |
 |---|---|---|
 | [`bom-pod-v0.csv`](bom-pod-v0.csv) | Lista de armado en las columnas de PCBWay (línea, designadores, cantidad, fabricante, MPN, número de distribuidor, descripción, encapsulado, SMT o THT, instrucciones), con LCSC, DigiKey, la marca de lo que mandamos nosotros y la **alternativa aprobada** de cada fila que la tiene (`Approved Alternate`, de [`stock.md`](stock.md)). 55 filas, 139 componentes | Listo. Las columnas siguen la página de requisitos de armado de PCBWay; que coincidan con su planilla de ejemplo (`Sample_BOM_PCBWay.xlsx`) está **no verificado**: si la piden, se pasan las mismas columnas a esa planilla |
-| [`bom-pod-v0-sin-montar.csv`](bom-pod-v0-sin-montar.csv) | Los 27 lugares sin montar (72 componentes): no se arman, pero el armador los ve en el pick and place | Listo |
+| [`bom-pod-v0-sin-montar.csv`](bom-pod-v0-sin-montar.csv) | Los 26 lugares sin montar (69 componentes): no se arman, pero el armador los ve en el pick and place | Listo |
 | [`bom-pod-v0-extras.csv`](bom-pod-v0-extras.csv) | Lo que se compra y no se suelda (Taoglas de rescate, FPC de LoRa, kit de banco) | Listo; no va a PCBWay |
 | Gerbers, taladros, pick and place, PDF del esquemático, dibujo de fabricación | KiBot desde `hardware/pod-v0/` | Con la placa ruteada |
 | Dibujo del oro duro selectivo | Capa de dibujo con los 5 pads de la base marcados | Con la placa ruteada |
@@ -55,7 +55,7 @@ El "Design 1" es el apilado de 1,6 mm que PCBWay publica en su [página de apila
 | Variantes | 3 con LC29H(AA) (`U201`, LC29HAAMD) y 2 con **LC29H(EA)** (LC29HEAMD, mismo lugar); 1 de las 5 con el **UWB DWM3000** (`U701`, `C701` y `C702` montados; `R702` solo si el banco lo pide). La lista base es la de la AA sin UWB |
 | Caras | Todo SMT arriba. Si el Hall (`U406`) termina abajo, una segunda pasada |
 | Juntas | Unos 481 pads SMT por placa, 55 partes distintas |
-| Paso fino | **DSBGA de 0,4 mm** (`U101` BQ25180), **TSNP-6 de 0,4 mm** (`U205` BGA525N6), SAW de 1,4 × 1,1 mm (`FL201`, `FL202`), **LGA** (`U401` LSM6DSV32X, `U404` BMP581; `U403` ADXL372 en la variante `pod-v0-highg`), WSON con pad expuesto (`U103` TPS63900, `U501` NAND), módulos con pads abajo (`U301` BMD-340 de 68 pads de 0,5 mm, `U201` LC29H, `U302` Ra-01SH almenado) |
+| Paso fino | **DSBGA de 0,4 mm** (`U101` BQ25180), **TSNP-6 de 0,4 mm** (`U205` BGA525N6), SAW de 1,4 × 1,1 mm (`FL201`, `FL202`), **LGA** (`U401` LSM6DSV32X, `U404` BMP581), WSON con pad expuesto (`U103` TPS63900, `U501` NAND), módulos con pads abajo (`U301` BMD-340 de 68 pads de 0,5 mm, `U201` LC29H, `U302` Ra-01SH almenado) |
 | Inspección | **Rayos X** de los DSBGA, el TSNP, los LGA y los módulos; AOI del resto |
 | Stencil | Con marco; **escalonado o de 0,1 mm** si lo recomiendan por el DSBGA al lado de los pads grandes de los módulos |
 | Después del reflujo | **Patch GVLB258.A (`AE201`)**: un pin por agujero metalizado de Ø1,0 mm, soldado a mano desde abajo **después** del SMT. No pasa por el horno |
@@ -102,8 +102,8 @@ El "Design 1" es el apilado de 1,6 mm que PCBWay publica en su [página de apila
 >
 > **Assembly (partial turnkey)**
 > - 5 boards assembled out of 10 bare boards; also please quote 10 and 100 assembled.
-> - Single-side SMT, about 140 parts and 484 pads per board, 55 unique parts. BOM attached (MPN, LCSC and DigiKey numbers). Two assembly variants: 3 boards per bom-pod-v0.csv and 2 boards per bom-pod-v0-highg.csv (adds the ADXL372, U403, and its capacitor). Optionally, LC29HEAMD instead of LC29HAAMD in the same position and the Qorvo DWM3000TR13 module on one board.
-> - Fine pitch: 0.4 mm DSBGA (TI BQ25180YBGR), 0.4 mm TSNP-6 (Infineon BGA525N6), 1.4 × 1.1 mm SAW filters, LGA sensors (ST LSM6DSV32XTR, Bosch BMP581; Analog Devices ADXL372 on variant pod-v0-highg), WSON with exposed pad, modules with bottom pads (u-blox BMD-340 68 pads of 0.5 mm, Quectel LC29H, castellated Ai-Thinker Ra-01SH). We would like X-ray inspection of the BGA/LGA/module joints. Please advise on stencil thickness or a step stencil.
+> - Single-side SMT, about 140 parts and 484 pads per board, 55 unique parts. BOM attached (MPN, LCSC and DigiKey numbers). All 5 boards are assembled from the same bom-pod-v0.csv. Optionally, LC29HEAMD instead of LC29HAAMD in the same position and the Qorvo DWM3000TR13 module on one board.
+> - Fine pitch: 0.4 mm DSBGA (TI BQ25180YBGR), 0.4 mm TSNP-6 (Infineon BGA525N6), 1.4 × 1.1 mm SAW filters, LGA sensors (ST LSM6DSV32XTR, Bosch BMP581), WSON with exposed pad, modules with bottom pads (u-blox BMD-340 68 pads of 0.5 mm, Quectel LC29H, castellated Ai-Thinker Ra-01SH). We would like X-ray inspection of the BGA/LGA/module joints. Please advise on stencil thickness or a step stencil.
 > - After reflow: one through-hole ceramic patch antenna (Taoglas GVLB258.A, 25 × 25 mm, single pin) hand-soldered from the bottom. It must not go through reflow. We can ship it to you, or you can buy it at DigiKey (931-GVLB258.A-ND).
 > - No-clean flux; please do not wash the board (the barometer has a vent hole). Please bake moisture-sensitive parts (modules, LGA, DSBGA) per their MSL before reflow.
 > - Solder-mask dams between 0.4 mm-pitch pads if your process allows it; please tell us your minimum dam and the finished-thickness tolerance.
