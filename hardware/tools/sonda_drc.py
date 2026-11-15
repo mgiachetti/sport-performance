@@ -52,6 +52,8 @@ R0402 = lambda a, b: (("1", -0.48, 0, 0.56, 0.62, a), ("2", 0.48, 0, 0.56, 0.62,
 # KiCad's C_0402_1005Metric: pads at +/-0.51, 0.54 x 0.64, courtyard +/-0.93 x +/-0.47 (6th field of a footprint).
 C0402 = lambda a, b: (("1", -0.51, 0, 0.54, 0.64, a), ("2", 0.51, 0, 0.54, 0.64, b))  # noqa: E731
 C0402_CRT = (0.93, 0.47)
+# A control pad of the LNA (U205, BGA525N6: 0.25 mm pads at 0.4 mm), at (145; 150) in both probes.
+LNA_PAD = (("4", 0, 0, 0.25, 0.25, "/gnss_rf/GNSS_LNA_CTRL2"),)
 # The chip antenna from the pod library, as placed on the pod: (ref, file, x, y, rotation, {pad: net}).
 ANTENNA = ("AE301", Path(__file__).resolve().parents[1] / "lib" / "pod.pretty" / "KyoceraAVX_M620720_6.0x2.0mm.kicad_mod",
            138.6, 168.65, 180, {"1": "/mcu_radio/LORA_FEED", "3": "/mcu_radio/LORA_ANT_TUNE"})
@@ -62,6 +64,7 @@ BAD = {
         ("GND", "F.Cu", 108, 140.35, 118, 140.35, 0.2),  # 0.15 mm from the RF track
         ("/mcu_radio/LED_R", "F.Cu", 108, 139.5, 118, 139.5, 0.2),  # 0.3 mm from the RF track
         ("/power/BB_LX1", "F.Cu", 108, 142, 118, 142, 0.4),  # 2 mm from the RF track
+        ("/gnss_rf/GNSS_RF_A", "F.Cu", 144.68, 148, 144.68, 152, 0.33),  # 0.03 mm from the LNA's control pad
         ("/gnss_rf/GNSS_RF_A", "B.Cu", 108, 144, 118, 144, 0.33),  # RF on L4
         ("/gnss_rf/GNSS_RF_A", "In2.Cu", 108, 146, 118, 146, 0.33),  # RF on L3
         ("USB_D_P", "F.Cu", 108, 150, 118, 150, 0.2),  # pair too narrow
@@ -88,6 +91,8 @@ BAD = {
         ("J1", 133, 139.5, "F", (("1", 0, 0, 0.8, 0.8, "/mcu_radio/LED_G"),)),  # other net near RF
         ("R5", 140, 162, "F", PAD),  # a part that is not the antenna or its capacitors inside LORA_ANTENA
         ("R6", 132, 165, "B", PAD),  # the same on the bottom side
+        ("BZ301", 149.5, 135, "F", PAD, (0.5, 0.5)),  # the buzzer's exception is 0.2 mm, not less (0.1 mm here)
+        ("U205", 145, 150, "F", LNA_PAD, (0.5, 0.5)),  # an RF track 0.03 mm from a control pad of the LNA
     ],
     "graphics": [("F.Cu", 129, 167.5, 131, 167.5)],  # copper drawing inside LORA_ANTENA
 }
@@ -111,6 +116,8 @@ EXPECTED = [
     "L3_GND: L3 solo GND debajo de L4",
     "RF_50: ancho de 50 ohm en L4 (alimentación del patch)",
     "LORA_ANTENA: sin dibujos ni textos de cobre",
+    "BZ301: pads mecánicos a 0,2 mm del borde",
+    "RF_50: pistas contra los pads del LNA",
 ]
 # The GNSS_ANT_PATCH exception covers L4 and its via only: the inner-layer rule must still flag it.
 PATCH_INNER = ("RF_50: solo en L1 (internas)", "GNSS_ANT_PATCH")
@@ -138,6 +145,7 @@ OK = {
         ("/mcu_radio/LED_G", "F.Cu", 108, 158.5, 118, 158.5, 0.2),  # 0.3 mm from PPS
         ("/power/BB_LX1", "F.Cu", 128, 145, 138, 145, 0.4),  # switch node far from RF and zones
         ("/gnss_rf/GNSS_RF_A", "F.Cu", 115, 120, 125, 120, 0.33),  # RF inside the GNSS zone
+        ("/gnss_rf/GNSS_RF_A", "F.Cu", 144.6, 148, 144.6, 152, 0.33),  # 0.11 mm from the LNA's control pad
         ("/gnss_rf/GNSS_ANT_PATCH", "B.Cu", 125, 119.5, 125, 131, 0.33),  # patch feed on L4 (the one exception)
         ("/gnss_rf/GNSS_ANT_PATCH", "F.Cu", 125, 131, 125, 134, 0.33),  # and back on L1 after its via
         ("/mcu_radio/LORA_FEED", "F.Cu", 141.15, 157.9, 141.15, 167.6, 0.33),  # LoRa feed on L1 into pin 1
@@ -154,6 +162,8 @@ OK = {
         # one pad over the edge of the keep-out, and their courtyards next to the antenna's.
         ("C313", 142.45, 166.9, "F", C0402("/mcu_radio/LORA_FEED", "GND"), C0402_CRT),
         ("C314", 126.95, 169.35, "F", C0402("GND", "/mcu_radio/LORA_ANT_TUNE"), C0402_CRT),
+        ("BZ301", 149.4, 135, "F", PAD, (0.5, 0.5)),  # the buzzer's mechanical pad 0.2 mm from the edge
+        ("U205", 145, 150, "F", LNA_PAD, (0.5, 0.5)),  # the LNA: RF track 0.11 mm from its control pad
     ],
     "antenna": True,
 }
@@ -186,7 +196,7 @@ def footprint(ref: str, x: float, y: float, side: str, pads: tuple, crt_half: tu
 
 
 def write_board(out: Path, stem: str, spec: dict) -> None:
-    board = without_zone((POD / "pod-v0.kicad_pcb").read_text(encoding="utf-8"), "L2_GND")
+    board = without_footprints(without_zone((POD / "pod-v0.kicad_pcb").read_text(encoding="utf-8"), "L2_GND"))
     known = set(NETS)
     for item in spec["tracks"] + spec["vias"] + spec["zones"]:
         assert item[0] in known, f"{item[0]}: not in NETS"
@@ -234,6 +244,26 @@ def library_footprint(ref: str, path: Path, x: float, y: float, rot: float, nets
         out.append("\t\t" + t)
     head = f'\t(footprint "pod:{path.stem}" (layer "F.Cu") (uuid "{uid("fp", ref)}") (at {x} {y} {rot})\n'
     return head + "\n".join(out) + "\n\t)\n"
+
+
+def without_footprints(board: str, keep: tuple = ("H303", "H304", "H305")) -> str:
+    """``board`` with only the board screws: since 15/11/2026 the pod's parts are on the board, right where the
+    probes go, and the probes test the rules, not the placement (the DRC of the real board does that)."""
+    out, i = [], 0
+    while True:
+        start = board.find("\n\t(footprint ", i)
+        if start < 0:
+            return "".join(out) + board[i:]
+        depth, j = 0, start + 2
+        while True:
+            depth += {"(": 1, ")": -1}.get(board[j], 0)
+            j += 1
+            if depth == 0:
+                break
+        out.append(board[i:start])
+        if any(f'(property "Reference" "{ref}"' in board[start:j] for ref in keep):
+            out.append(board[start:j])
+        i = j
 
 
 def without_zone(board: str, name: str) -> str:

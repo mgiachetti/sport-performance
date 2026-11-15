@@ -26,6 +26,12 @@
 (rule "PCBWay: serigrafía a pads"
 	(layer "?.Silkscreen")
 	(constraint silk_clearance (min 0.15mm)))
+# Única excepción, desde la ubicación del 15/11/2026: el buzzer sin montar (BZ301, 10 x 10 mm de courtyard) entra
+# entre la zona GNSS_ANTENA (x = 40) y el borde derecho (x = 50) solo con sus dos pads mecánicos (3 y 4, sin red)
+# a 0,2 mm del borde. Solo ese footprint; todo el resto sigue en 0,3 mm. A confirmar con PCBWay.
+(rule "BZ301: pads mecánicos a 0,2 mm del borde"
+	(condition "A.memberOfFootprint('BZ301') && A.NetName == ''")
+	(constraint edge_clearance (min 0.2mm)))
 
 # --- L2: plano de tierra continuo en toda la placa ---
 # Solo GND en In1.Cu: ni pistas ni zonas de otras redes (las vías lo cruzan con su antipad).
@@ -83,6 +89,12 @@
 (rule "RF_50: otras redes lejos"
 	(condition "A.NetClass == 'RF_50' && B.Type != 'Pad' && B.NetClass != 'RF_50' && B.NetName != 'GND'")
 	(constraint clearance (min 0.5mm)))
+# El LNA (U205, BGA525N6) tiene los pads a 0,4 mm: la entrada y la salida de 0,33 mm pasan a 0,1 mm de los pads
+# vecinos de control (CTRL1, CTRL2) y de VCC, que son continua. Con los 0,5 mm de la clase no se puede entrar al
+# LNA (prueba de ruteo del 15/11/2026). Contra GND sigue la regla coplanar de 0,20 mm.
+(rule "RF_50: pistas contra los pads del LNA"
+	(condition "A.NetClass == 'RF_50' && A.Type == 'Track' && B.memberOfFootprint('U205') && B.NetName != 'GND'")
+	(constraint clearance (min 0.1mm)))
 
 # --- USB_90D: par diferencial de 90 ohm (D+ y D− de la base al nRF, 12 Mbit/s) ---
 (rule "USB_90D: geometría del par"

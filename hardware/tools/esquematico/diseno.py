@@ -178,9 +178,10 @@ gnss_rf = Sheet("gnss_rf", "Pod v0: gnss_rf",
         R("100k", "GNSS_ANT_SW_G", "GNSS_VDD_RF", dnp=True),
         NMOS("GNSS_ANT_ON", "GNSS_ANT_SW_G", dnp=True),
         R("100k", "GNSS_ANT_ON", "GND", dnp=True),
-        part("Shield", "Tapa blindada", {"1": "GND"}, "RF_Shielding:Wuerth_36103205_20x20mm", dnp=True,
+        part("Shield", "Tapa blindada", {"1": "GND"}, "RF_Shielding:Wuerth_36103205_20x20mm", dnp=True, on_board=False,
              mpn="36103205S", lcsc="C7386558", manufacturer="Würth Elektronik",
-             note="Lugar para tapa WE-SHC de 20 × 20 × 3 mm (marco y tapa) sobre el GNSS y su cadena RF; 36103255 (25 × 25) si no entra"),
+             note="Lugar para tapa WE-SHC de 20 × 20 × 3 mm (marco y tapa) sobre el GNSS y su cadena RF. Fuera de la placa "
+                  "desde el 15/11/2026: con la ubicación aprobada no entra (pod-v0-ubicacion-y-carcasa.md, sección 9); decide el usuario"),
     ], ["Patch pasivo por defecto: SAW, LNA y SAW montados, atenuador en 0 Ω, bias-T sin montar",
         "Rescate con la Taoglas: sacar el 0 Ω del patch, montar el capacitor del U.FL y el bias-T, puentear el LNA (dos LNA saturan el módulo) "
         "y montar el atenuador de 6–10 dB"]),

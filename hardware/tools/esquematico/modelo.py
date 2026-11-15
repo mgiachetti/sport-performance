@@ -40,6 +40,7 @@ class Part:
     ref: str = ""  # assigned by the generator (per sheet, in declaration order)
     kind: str = "part"  # "part" or "flag" (PWR_FLAG block)
     variants: tuple = ()  # BOM variants (bom_pcbway.VARIANTS) in which a DNP part is mounted
+    on_board: bool = True  # False: in the schematic and the BOMs, but left off the board (no room for it yet)
 
 
 @dataclass
