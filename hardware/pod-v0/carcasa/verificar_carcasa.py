@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+"""Verifica la carcasa contra los componentes y dibuja cortes y vistas.
+
+Uso:
+    python3 generar_carcasa.py --volcar /tmp/campos.npz          (o con --fdm)
+    python3 verificar_carcasa.py /tmp/campos.npz carpeta_de_salida   (con POD_FDM=1 para la variante de filamento)
+
+Revisa que las tapas no se pisen, que nada choque con los componentes (la tabla comp de abajo
+tiene la ubicacion propuesta del 14/11/2026), el espesor minimo de pared y el desvio de la malla.
+Necesita numpy, scipy, scikit-image y matplotlib.
+"""
+import os, sys, numpy as np
+sys.path.insert(0,os.path.dirname(os.path.abspath(__file__)))
+import generar_carcasa as g
+from scipy.ndimage import map_coordinates, distance_transform_edt, affine_transform
+import matplotlib; matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+d=np.load(sys.argv[1]); inf,sup,xs,ys,zs=d['inf'],d['sup'],d['xs'],d['ys'],d['zs']
+P=g.PASO; out=sys.argv[2]
+print('solape entre tapas (voxeles):', int(((inf<-0.02)&(sup<-0.02)).sum()))
+comp={
+ 'patch (max)':(12.5,37.5,4.5,29.5,1.6,10.12),'LC29H':(2,18,33,45.2,1.6,4.3),
+ 'cadena RF':(19.5,22.5,33,41,1.6,2.6),'BMD-340':(0,15,50,60.2,1.6,3.5),'IMU':(25.7,28.3,34.5,37.5,1.6,2.5),
+ 'BMP581':(44,46,19,21,1.6,2.4),'NAND':(19,27,53,59,1.6,2.4),'buck':(28,31,56.5,59.5,1.6,2.6),
+ 'BQ25180':(14.2,15.8,64.4,65.6,1.6,2.2),'Ra-01SH (corrido)':(31,48,48,64,1.6,4.8),'U.FL LoRa enchufado':(27,30,61,64,1.6,4.1),
+ 'LED':(7.7,9.3,1.45,2.95,1.6,2.2),'celda (max)':(12,42,14,62,-6.2,-1.0),'Hall':(38.5,41.5,65.2,66.8,-1.1,0),
+ 'J101':(8.3,15.7,63.8,68.2,-2.1,0),'FPC LoRa':(6,44,70.2,70.5,-6.9,3.1),'resortes inserto':(17,33,6,8,-2.5,0),
+ 'cabeza tornillo 1':(4.1,7.9,6.1,9.9,1.6,3.2),'cabeza tornillo 2':(42.1,45.9,6.1,9.9,1.6,3.2),'cabeza tornillo 3':(23.1,26.9,64.1,67.9,1.6,3.2)}
+X,Y,Z=np.meshgrid(xs,ys,zs,indexing='ij',sparse=True)
+caso=np.minimum(inf,sup); mal=0
+print('rosca util en la tapa superior: %.1f mm; piel sobre el piloto abajo: %.1f mm'%(g.Z_ASIENTO+12-g.Z_TETON_SUP, g.Z_TECHO_BAJO+g.TECHO-g.Z_PILOTO))
+pcb=(g.rrect(0,50,0,70,5.0)<-0.06)&(Z>0.06)&(Z<1.54)
+for cx,cy in g.CIERRE: pcb=pcb&(np.hypot(X-cx,Y-cy)>2.7)
+for cx,cy in g.CIERRE:
+    m=(np.hypot(X-cx,Y-cy)<0.95)&(Z>g.Z_ASIENTO+0.05)&(Z<g.Z_TETON_INF)|(np.hypot(X-cx,Y-cy)<1.7)&(Z>g.Z_ASIENTO-1.3)&(Z<g.Z_ASIENTO-0.05)
+    c=int((m&(caso<-0.05)).sum()); mal+=c; print('tornillo de cierre',(cx,cy),'ok' if c==0 else f'CHOQUE {c}')
+c=int((pcb&(caso<-0.05)).sum()); print('PCB con radio 5:', 'ok' if c==0 else f'CHOQUE {c}'); mal+=c
+for n,(x0,x1,y0,y1,z0,z1) in comp.items():
+    e=0.06; m=(X>x0+e)&(X<x1-e)&(Y>y0+e)&(Y<y1-e)&(Z>z0+e)&(Z<z1-e); c=int((m&(caso<-0.05)).sum()); mal+=c
+    if c:
+        idx=np.argwhere(m&(caso<-0.05)); lo=idx.min(0); hi=idx.max(0)
+        print(f'CHOQUE {n}: {c} vox, x {xs[lo[0]]:.1f}-{xs[hi[0]]:.1f} y {ys[lo[1]]:.1f}-{ys[hi[1]]:.1f} z {zs[lo[2]]:.1f}-{zs[hi[2]]:.1f}')
+print('componentes sin choque' if mal==0 else 'HAY CHOQUES')
+# espesor minimo de pared de la cascara sin agujeros
+ext,cav,_=g.envolvente()
+edt=distance_transform_edt(ext<0)*P; borde=(cav<0)&(cav>-P)
+i=np.argmin(np.where(borde,edt,99)); ii=np.unravel_index(i,edt.shape)
+print('espesor minimo de la cascara: %.2f mm en x=%.1f y=%.1f z=%.1f'%(edt[ii],xs[ii[0]],ys[ii[1]],zs[ii[2]]))
+from scipy.ndimage import label
+guia=d['guia']; print('guia de luz: piezas sueltas =',label(guia<0)[1],'| choque con las tapas (vox):',int(((guia<-0.02)&(caso<-0.02)).sum()),'| choque con el LED (vox):',int(((guia<0)&(X>7.7)&(X<9.3)&(Y>1.45)&(Y<2.95)&(Z>1.6)&(Z<2.2)).sum()),'| luz sobre el LED: %.2f mm'%(zs[np.argmax((guia<0)[np.argmin(abs(xs-8.5)),np.argmin(abs(ys-2.2))])]-2.2))
+print('alto exterior: nuca %.1f mm, extremo de abajo %.1f mm'%(g.Z_TECHO+g.TECHO-g.ZB, g.Z_TECHO_BAJO+g.TECHO-g.ZB))
+for nom,sdf in (('inf',inf),('sup',sup)):
+    v,f=g.malla(sdf); v2,f2=g.simplificar(v,f)
+    c=v2[f2].mean(1); q=((c-np.array([xs[0],ys[0],zs[0]]))/P).T
+    dev=np.abs(map_coordinates(sdf,q,order=1)); print(nom,'desvio max %.3f mm'%dev.max(),'cerrada',g.cerrada(f2),'vol %.1f cm3'%(g.volumen(v2,f2)/1000))
+# cortes
+fig,ax=plt.subplots(3,1,figsize=(11,9))
+def corte(a,eje,val,titulo):
+    if eje=='x':
+        i=np.argmin(abs(xs-val)); a.contourf(ys,zs,inf[i].T,levels=[-99,0],colors=['#5F5E5A']); a.contourf(ys,zs,sup[i].T,levels=[-99,0],colors=['#378ADD'])
+        a.add_patch(Rectangle((0,0),70,1.6,fc='none',ec='#D85A30',lw=1))
+        for n,(x0,x1,y0,y1,z0,z1) in comp.items():
+            if x0<=val<=x1: a.add_patch(Rectangle((y0,z0),y1-y0,z1-z0,fc='none',ec='#D85A30',lw=1)); a.text(y0+.3,z1+.2,n,fontsize=6,color='#993C1D')
+        a.set_xlabel('y (mm), nuca a la izquierda')
+    else:
+        j=np.argmin(abs(ys-val)); a.contourf(xs,zs,inf[:,j].T,levels=[-99,0],colors=['#5F5E5A']); a.contourf(xs,zs,sup[:,j].T,levels=[-99,0],colors=['#378ADD'])
+        a.add_patch(Rectangle((0,0),50,1.6,fc='none',ec='#D85A30',lw=1))
+        for n,(x0,x1,y0,y1,z0,z1) in comp.items():
+            if y0<=val<=y1: a.add_patch(Rectangle((x0,z0),x1-x0,z1-z0,fc='none',ec='#D85A30',lw=1)); a.text(x0+.3,z1+.2,n,fontsize=6,color='#993C1D')
+        a.set_xlabel('x (mm)')
+    a.set_aspect('equal'); a.set_title(titulo,fontsize=10); a.set_ylabel('z (mm)')
+corte(ax[0],'x',25,'Corte a lo largo por x = 25: cuña, patch, inserto de contactos, celda y tornillo de abajo')
+corte(ax[1],'y',67.4,'Corte por y = 67,4: los dos tornillos de cierre de abajo, con su teton en cada tapa')
+corte(ax[2],'y',20,'Corte por y = 20: cámara y ventilación del barómetro, y encastre a presión')
+plt.tight_layout(); plt.savefig(out+'/cortes.png',dpi=130); plt.close()
+# vistas en perspectiva: marco de vista (derecha, arriba, hacia el observador), sin espejar
+def rot(ax_,deg):
+    a=np.radians(deg); c,s=np.cos(a),np.sin(a)
+    return {'x':np.array([[1,0,0],[0,c,-s],[0,s,c]]),'y':np.array([[c,0,s],[0,1,0],[-s,0,c]]),'z':np.array([[c,-s,0],[s,c,0],[0,0,1]])}[ax_]
+def vista(R,a):
+    assert abs(np.linalg.det(R)-1)<1e-6
+    n=np.array(inf.shape); cm=(n-1)/2; N=int(np.linalg.norm(n))+4; shp=(N,N,N); cv=(np.array(shp)-1)/2
+    Rt=R.T; off=cm-Rt@cv; capas=[]
+    for sdf in (inf,sup):
+        r=affine_transform(sdf,Rt,offset=off,output_shape=shp,order=1,cval=3.0)
+        m=r<0; hay=m.any(2); kk=N-1-np.argmax(m[:,:,::-1],axis=2)
+        k1=np.clip(kk+1,0,N-1); v0=np.take_along_axis(r,kk[...,None],2)[...,0]; v1=np.take_along_axis(r,k1[...,None],2)[...,0]
+        capas.append(np.where(hay,kk+np.clip(v0/(v0-v1+1e-9),0,1),-1e3))
+    h=np.maximum(*capas); quien=np.argmax(np.stack(capas),0); hay=h>-1e2
+    hh=np.where(hay,h,h[hay].min()-8)
+    ga,gb=np.gradient(hh); nn=np.dstack([-ga,-gb,np.ones_like(hh)]); nn/=np.linalg.norm(nn,axis=2,keepdims=True)
+    l=np.array([-0.45,0.6,0.66]); l/=np.linalg.norm(l); dif=np.clip((nn*l).sum(2),0,1)
+    hv=(l+np.array([0,0,1])); hv/=np.linalg.norm(hv); esp=np.clip((nn*hv).sum(2),0,1)**50
+    col=np.where(quien[...,None]==1,np.array([0.17,0.19,0.22]),np.array([0.93,0.43,0.16]))
+    img=col*(0.38+0.72*dif[...,None])+0.30*esp[...,None]
+    img=np.where(hay[...,None],np.clip(img,0,1),1.0)
+    img=np.transpose(img,(1,0,2))[::-1]; hy=hay.T[::-1]; r_,c_=np.where(hy)
+    a.imshow(img[r_.min()-6:r_.max()+7, c_.min()-6:c_.max()+7],interpolation='bicubic'); a.axis('off')
+fig,ax=plt.subplots(1,3,figsize=(15,6.2),gridspec_kw={'width_ratios':[1,1.15,1]})
+vista(rot('x',30)@rot('y',24)@rot('z',180),ax[0]); ax[0].set_title('Lado del tackle: ranura del LED en la nuca',fontsize=12)
+vista(rot('x',14)@np.array([[0,1.,0],[0,0,1.],[1.,0,0]]),ax[1]); ax[1].set_title('Perfil derecho: nuca a la izquierda',fontsize=12)
+vista(rot('x',-30)@rot('y',-24)@rot('x',180),ax[2]); ax[2].set_title('Cara del cuerpo, con los cinco contactos',fontsize=12)
+plt.tight_layout(); plt.savefig(out+'/vistas.png',dpi=120); plt.close()
