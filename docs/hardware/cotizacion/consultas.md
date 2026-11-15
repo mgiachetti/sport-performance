@@ -156,6 +156,7 @@ Desde el 09/11/2026 el patch es el **GVLB258.A**. Además del ajuste, se pide su
 > 3. Your CSA.20 (passive antenna test, matching and fine tuning) and ISA.10 (integration review) services look like what we need: what do they cost, what do we send (2 sample boards?), and how long do they take?
 > 4. The DXF (or STEP) of the GVLB258.A footprint: we placed the pin 2.5 mm from the centre from the drawing in section 3 and would like to confirm it. Also the soldering profile for the pin, whether the patch can go through reflow, and how you recommend clamping it in an enclosure that sees 30–50 g impacts.
 > 5. Price and lead time at 10 / 100 / 500 units (DigiKey shows 895 in stock today).
+> 6. A short-pin version for our run of 100: the pin comes out 2.4 ± 0.4 mm below the ceramic, so through our 1.6 mm board it protrudes about 0.8 mm (up to 1.36 mm) over a battery that sits 1 mm below. Can you supply the GVLB258.A with the pin cut to about 1.6–1.8 mm (flush with the board after soldering), and at what MOQ and cost? Otherwise, is trimming the pin before mounting acceptable for you?
 >
 > Best regards,
 > [Name] · [Company] · Buenos Aires, Argentina

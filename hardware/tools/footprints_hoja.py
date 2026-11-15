@@ -260,21 +260,28 @@ EP_PASTE_Y = (-0.545, 0.545)  # centres of the two 1.13 x 0.89 apertures (p.39, 
 # (bottom side of the board, footprint flipped) close the gap to the board. Ø2.0 mm on a 3.5 mm pitch at
 # board x = 18 to 32, y = 7. Physical order, left to right seen from the patch side: D+, D-, GND, DETECT,
 # VBUS, so on L4 (no signal vias inside GNSS_ANTENA) the data pair leaves to the left (BMD-340) and VBUS to
-# the right (eFuse) without crossing. ENIG: the hard gold moved to the insert. The pad and paste suit a
-# generic SMD spring contact: adjust them to the spring that is bought. The dock's leaf contacts keep the
-# make order GND first, DETECT last.
+# the right (eFuse) without crossing. On B.Cu the left-right order depends on the flip: with KiCad's default
+# flip (top/bottom mirror) and rotation 0, D+ stays at x = 18; check it against the Fab labels. ENIG: the hard gold moved to the insert. The dock's leaf contacts keep
+# the make order GND first, DETECT last.
+# TODO (B-909): no spring contact is chosen yet, so the pads carry no paste and the footprint is out of the
+# BOM and the pick and place (Pads_Base is NO_PART in bom_pcbway.py): the assembler places nothing here.
+# Choosing the spring sets Z_BLOQUE in generar_carcasa.py (free length and working height), redraws this
+# land pattern from its sheet (with paste) and adds it x5 to the bottom-side BOM.
 def dock_pads() -> Footprint:
     order = [("2", "D+"), ("3", "D-"), ("4", "GND"), ("5", "DET"), ("1", "VBUS")]
-    pads = [Pad(num, "circle", -7 + 3.5 * i, 0, 2.0, 2.0) for i, (num, _) in enumerate(order)]
+    pads = [Pad(num, "circle", -7 + 3.5 * i, 0, 2.0, 2.0, ("F.Cu", "F.Mask")) for i, (num, _) in enumerate(order)]
     return Footprint(
         "Pod_Insert_Springs_5P_D2.0mm_P3.5mm",
         "Diseño propio (B-909): pads de los 5 resortes internos del inserto de contactos de la tapa inferior "
         "(D+, D-, GND, DETECT, VBUS de izquierda a derecha vistos desde el patch; va en la cara de abajo). "
-        "ENIG: el oro duro está en los pines del inserto. Pad y pasta para un resorte SMD genérico: ajustar al resorte comprado",
+        "ENIG: el oro duro está en los pines del inserto. Sin pasta ni BOM hasta elegir el resorte: entonces se redibuja "
+        "desde su hoja, con pasta, y se suma x5 a la BOM de la cara de abajo",
         "inserto resortes contactos base pod", pads, (8.25, 1.25), (8.5, 1.5), (-9.0, 0),
+        attr="exclude_from_pos_files exclude_from_bom",
         fab_texts=[(label, -7 + 3.5 * i, 1.6, 0.4) for i, (_, label) in enumerate(order)],
         comments=[("text", "Bloque del inserto en la tapa: x de 15 a 35, y de 3,5 a 10,5 (placa)", 0, -2.6),
-                  ("text", "Láminas de la base: GND la más larga, DETECT la más corta", 0, 3.0)])
+                  ("text", "Láminas de la base: GND la más larga, DETECT la más corta", 0, 3.0),
+                  ("text", "Abajo, volteo por defecto (arriba/abajo) y rotación 0: D+ en x = 18; confirmar con la etiqueta de Fab", 0, 3.8)])
 
 
 # Quectel LC29H (AA, EA and the rest of the series), LCC-24, 12.2 x 16.0 mm (H2.7 mm in Quectel's part).

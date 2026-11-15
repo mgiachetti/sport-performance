@@ -174,7 +174,7 @@ Las reglas propias y los keep-outs del BLE y del UWB se prueban en el CI con `to
 
   Van a `salidas/`, que está en `.gitignore`: **no se commitean**. La configuración de KiBot todavía no se probó.
 - **Notas de fabricación para PCBWay** (van con el pedido; también en `pod-v0/kibot.yaml` y en `docs/hardware/pod-mecanica-produccion.md`, sección 9):
-  - **Resortes del inserto de contactos** (`Pod_Insert_Springs_5P_D2.0mm_P3.5mm`, cara de abajo): ENIG como el resto. Desde el 14/11/2026 el oro duro va en los pines del inserto de la tapa inferior, no en la placa: la nota de oro duro selectivo de `pedido-pcbway.md` se saca al cerrar el diseño del inserto.
+  - **Resortes del inserto de contactos** (`Pod_Insert_Springs_5P_D2.0mm_P3.5mm`, cara de abajo): ENIG como el resto. Desde el 14/11/2026 el oro duro va en los pines del inserto de la tapa inferior, no en la placa: el pedido a PCBWay ya no pide oro duro (debajo de una soldadura, oro duro grueso fragiliza la junta). Sin pasta ni BOM hasta elegir el resorte.
   - **Patch GVLB258.A**: de un pin por agujero metalizado de Ø1,0 mm, se suelda abajo después del SMT; lo compran afuera de LCSC.
   - **Una sola variante de armado**: las 5 placas salen de `bom-pod-v0.csv` (el ADXL372 y la variante `pod-v0-highg` salieron de la v0 el 14/11/2026, ADR 0105).
   - Impedancia controlada de RF_50 y USB_90D con su apilado (ver arriba).

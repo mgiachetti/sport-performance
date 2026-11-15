@@ -80,14 +80,13 @@ Lo que se compra ya (BMD-340, LSM6DSV32X, GVLB258.A, LC29H, BGA525N6, TPS7A2032P
 
 ## 2. Placa desnuda (estimación)
 
-Placa de 4 capas, 1,6 mm, unos 50 × 70 mm, FR4 Tg 150+, ENIG, máscara verde, impedancia controlada, **vías en el pad rellenas y tapadas** (las 4 del pad expuesto del TPS63900), **oro duro electrolítico selectivo** en los 5 pads de la base, vía mínima de 0,45/0,2 mm. Ninguno de los dos calculadores se pudo leer en línea: **no verificado**.
+Placa de 4 capas, 1,6 mm, unos 50 × 70 mm, FR4 Tg 150+, ENIG, máscara verde, impedancia controlada, **vías en el pad rellenas y tapadas** (las 4 del pad expuesto del TPS63900), ENIG también en los 5 pads de los resortes del inserto (el oro duro pasó a los pines del inserto, 14/11/2026), vía mínima de 0,45/0,2 mm. Ninguno de los dos calculadores se pudo leer en línea: **no verificado**.
 
 | Concepto | 10 placas (para 5 armadas) | 100 placas | Base de la estimación |
 |---|---|---|---|
 | 4 capas, ENIG, impedancia | 60–120 | 250–450 | Rango habitual de prototipos de 4 capas en PCBWay y JLCPCB; JLCPCB no cobra el control de impedancia |
 | Vías en el pad rellenas y tapadas | 30–80 | 60–150 | JLCPCB lo cobra en 4 capas (gratis desde 6) sin publicar el monto; PCBWay dice "puede ser más caro" |
-| Oro duro selectivo en 5 pads | 50–150 | 100–300 | Necesita bus de plateado o un proceso aparte; JLCPCB probablemente no lo hace en pads que no están en el borde |
-| **Total** | **140–350** | **410–900** | Por placa: 14–35 con 10 y 4–9 con 100 |
+| **Total** | **90–200** | **310–600** | Por placa: 9–20 con 10 y 3–6 con 100 |
 
 ## 3. Armado (estimación)
 
@@ -122,14 +121,14 @@ Placa armada en origen, sin batería, carcasa ni importación (variante base AA;
 | | 5 placas | 10 placas | 100 placas |
 |---|---|---|---|
 | Partes (tabla generada de la sección 1) | 74,05 | 65,13 | 53,98 |
-| Placa desnuda (se piden 10 para armar 5) | 28–70 | 14–35 | 4–9 |
+| Placa desnuda (se piden 10 para armar 5) | 18–40 | 9–20 | 3–6 |
 | Armado | 30–70 | 20–35 | 12–20 |
 | Envío desde China y consignados | 14–28 | 8–15 | 2–4 |
-| **Placa armada en Buenos Aires, sin impuestos** | **unos 145–245** | **unos 105–150** | **unos 72–87** |
+| **Placa armada en Buenos Aires, sin impuestos** | **unos 135–210** | **unos 100–135** | **unos 71–84** |
 | Batería certificada, carcasa MJF con junta y etiqueta (de `pod-f3.md`, **no verificado**) | 12–18 | 12–18 | 11–16 |
-| **Pod completo, sin impuestos** | **unos 157–263** | **unos 117–168** | **unos 83–103** |
+| **Pod completo, sin impuestos** | **unos 148–230** | **unos 114–153** | **unos 82–100** |
 
-- A 100, la placa armada (72–87) queda en el orden de los 85–95 a nivel de placa de `pod-mecanica-produccion.md`, y el pod completo, **arriba de los US$ 80** del ADR 0105. Lo que más mueve: la **LC29H** (12,25), el **BMD-340** (9,60), el armado, la NAND y el **patch** (7,05 la GVLB258.A) (la de 2 Gbit ya está en el diseño; la variante de 4 Gbit suma **+6,78**).
+- A 100, la placa armada (71–84, sin el oro duro selectivo desde el 14/11/2026) queda en el orden de los 85–95 a nivel de placa de `pod-mecanica-produccion.md`, y el pod completo, **arriba de los US$ 80** del ADR 0105. Lo que más mueve: la **LC29H** (12,25), el **BMD-340** (9,60), el armado, la NAND y el **patch** (7,05 la GVLB258.A) (la de 2 Gbit ya está en el diseño; la variante de 4 Gbit suma **+6,78**).
 - Con la EA en todas: **+12,41** por pod a 100.
 - Con los impuestos argentinos (supuesto de 50 %), multiplicar por 1,5 lo que viene de afuera.
 
