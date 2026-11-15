@@ -36,7 +36,7 @@ TORNILLOS = [(6.0, 8.0), (44.0, 8.0), (25.0, 66.0)]  # M2 x 5: sujetan solo la p
 R_POSTE = 3.0
 R_INSERTO, PROF_INSERTO = 1.6, 4.5  # inserto de bronce M2 (agujero ciego de 3,2) en cada poste
 
-PINES_X, PINES_Y = [18.0, 21.5, 25.0, 28.5, 32.0], 7.0  # VBUS, D+, D-, GND, DETECT (paso de 3,5)
+PINES_X, PINES_Y = [18.0, 21.5, 25.0, 28.5, 32.0], 7.0  # D+, D-, GND, DETECT, VBUS (paso de 3,5; orden del 14/11/2026)
 R_PIN, R_PIN_CABEZA, PROF_PIN_CABEZA = 0.775, 1.3, 0.6      # vastago de 1,5 y cabeza de 2,5
 BLOQUE = (15.0, 35.0, 3.5, 10.5)  # bloque del inserto de contactos
 CIERRE = [(2.6, 2.6), (47.4, 2.6), (2.6, 67.4), (47.4, 67.4)]  # M2 x 12 de cabeza boton, desde la cara del cuerpo

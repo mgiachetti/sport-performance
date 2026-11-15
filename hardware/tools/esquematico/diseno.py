@@ -460,8 +460,9 @@ uwb = Sheet("uwb", "Pod v0: uwb", "UWB DWM3000 sin montar, en el bus de sensores
 usb_dock = Sheet("usb_dock", "Pod v0: usb_dock", "Pads de la base (VBUS, D+, D−, GND, DETECT), switch de entrada con OVP y ESD", 600, [
     Group("Pads de la base", [
         part("Pads_Base", "Pads de la base", {"1": "VBUS_PAD", "2": "DOCK_D_P", "3": "DOCK_D_N", "4": "GND", "5": "DOCK_DET"},
-             POD + "Pod_Dock_Pads_5P_D2.0mm_P3.0mm_Keyed",
-             note="5 pads planos dorados, diseño propio: fila 4 mm fuera del eje de los imanes (llave); medidas a confirmar con la base"),
+             POD + "Pod_Insert_Springs_5P_D2.0mm_P3.5mm",
+             note="Pads de los 5 resortes internos del inserto de contactos (cara de abajo): D+, D-, GND, DETECT y VBUS "
+                  "de izquierda a derecha, a 3,5 mm de paso (pod-v0-ubicacion-y-carcasa.md, sección 6)"),
         R("10k", "DOCK_DET", "GND", note="DETECT a GND: la base habilita VBUS solo con un pod asentado (valor a definir)"),
         D("SMF12A", "GND", "VBUS_PAD", SOD123F, symbol="D_TVS", mpn="SMF12A", lcsc="C207255", manufacturer="Littelfuse",
           note="TVS de 12–13 V de stand-off (clase SMF12A o SMAJ12A, engrape de unos 20 V con 8/20 µs); aguas abajo protege el OVLO"),

@@ -7,8 +7,8 @@
 # de opciones de KiBot, en particular los de filtros y variantes, están sin verificar.
 #
 # Notas de fabricación que van con el pedido a PCBWay (hardware/README.md):
-# - Pads de la base (Pod_Dock_Pads_5P_D2.0mm_P3.0mm_Keyed): oro duro electrolítico selectivo
-#   de 0,5 um o más, solo en esos 5 pads.
+# - Resortes del inserto de contactos (Pod_Insert_Springs_5P_D2.0mm_P3.5mm, cara de abajo): ENIG;
+#   desde el 14/11/2026 el oro duro va en los pines del inserto, no en la placa.
 # - Patch GVLB258.A (AE201): un pin por agujero metalizado de 1,0 mm, soldado abajo después del SMT.
 # - Impedancia controlada: RF_50 (CPWG de 50 ohm en L1) y USB_90D (par de 90 ohm).
 kibot:

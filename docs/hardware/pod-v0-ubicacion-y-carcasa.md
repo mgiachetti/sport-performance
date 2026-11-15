@@ -34,43 +34,44 @@ Posiciones en mm. Donde hay un solo punto, es el centro.
 
 | Parte | Posición | Notas |
 |---|---|---|
-| Patch GNSS GVLB258.A | Centro (25; 17), 25 × 25 × 8,12 | Centrado a lo ancho. Zona `GNSS_ANTENA` de 30 × 30: x de 10 a 40, y de 2 a 32. **Pin hacia abajo, en (25; 19,5)**: footprint con rotación 0 (su origen es el pin). Así la alimentación sale por L4 hacia la cadena RF por el camino más corto (zona `PATCH_FEED`, sección 4) |
-| Cadena RF del GNSS | x de 19,5 a 22,5; y de 33 a 41 | ESD, SAW, LNA, SAW, atenuador y el 0 Ω de medición (sección 5) |
-| LDO del GNSS (`U104`) | (21; 43,5) | |
-| Load switch del GNSS (`U105`, sin montar) | (24; 43,5) | Al lado del LDO, entre él y el riel del LC29H |
-| LDO de V_BCKP (`U106`, TPS7A02) | (18,5; 47) | Junto al pin V_BCKP del LC29H y lejos del buck-boost |
+| Patch GNSS GVLB258.A | Centro (25; 17), 25 × 25 × 8,12 | Centrado a lo ancho. Zona `GNSS_ANTENA` de 30 × 30: x de 10 a 40, y de 2 a 32. **Pin hacia abajo, en (25; 19,5)**: footprint con rotación 0 (su origen es el pin). Así la alimentación sale por L4 hacia la cadena RF por el camino más corto (zona `L3_GND`, sección 4). Del lado de abajo, el pin se corta al ras y lleva un escudo (sección 6) |
+| Cadena RF del GNSS | x de 18,5 a 23,5; y de 35 a 45 | ESD, SAW, LNA, SAW, atenuador y el 0 Ω de medición (sección 5), con su cerco de vías: hace falta una franja de unos 5 × 10 mm, no 3 × 8 |
+| LDO del GNSS (`U104`) | (21; 47) | |
+| Load switch del GNSS (`U105`, sin montar) | (24,5; 47) | Al lado del LDO, entre él y el riel del LC29H |
+| LDO de V_BCKP (`U106`, TPS7A02) | (16,5; 47,5) | Junto al pin V_BCKP del LC29H y lejos del buck-boost |
 | LC29H | x de 2 a 18; y de 33 a 45,2 | 16 × 12,2 mm, justo debajo de la zona del patch |
-| U.FL de la Taoglas | (21,5; 33) | Rescate y referencia de banco |
-| DWM3000 (sin montar) | x de 33 a 56; y de 32 a 45 | **Sobresale 6 mm del borde derecho** (sección 5) |
+| U.FL de la Taoglas | (21,5; 34) | Rescate y referencia de banco; a casi 1 mm del borde de `GNSS_ANTENA` (y = 32) |
+| DWM3000 (sin montar) | x de 33 a 56; y de 33 a 46 | **Sobresale 6 mm del borde derecho**, girado 270° con la antena hacia afuera (sección 5); 1 mm por debajo de `GNSS_ANTENA` |
 | BMD-340 | x de 0 a 15; y de 50 a 60,2 | Keep-out de 4,4 × 15: x de 0 a 4,4; y de 47,6 a 62,6 (zona `BLE_ANTENA`, 4,35 de ancho). Pads 13 y 14 (XL1, XL2) en (11,25; 59,5) y (11,8; 58,6); pads 66 a 68 (VBUS, D−, D+) en x = 14,35, y de 53,5 a 51,3 |
 | Cristal de 32,768 kHz (`Y301`) y sus dos capacitores | (11,5; 61,5), los capacitores a cada lado | Pegado a los pads 13 y 14, con pistas de menos de 3 mm, tierra alrededor en L1 y nada que conmute debajo (clase GNSS_SENSITIVE) |
-| IMU LSM6DSV32X | (27; 36) | A unos 2 mm del centro de la placa |
+| IMU LSM6DSV32X | (29,5; 37) | Corrida a la derecha para dejar la franja de la cadena RF; a unos 5 mm del centro de la placa |
 | Barómetro BMP581 | (45; 20) | Esquina libre junto al patch, lejos del cargador |
-| NAND | (23; 56), 8 × 6 | |
+| NAND | (23; 56), 8 × 6 | NAND_SCK (32 MHz) del lado izquierdo, lejos del U.FL de LoRa: su armónico 29 cae en 928 MHz |
 | Load switch de la NAND (`U502`, sin montar) | (19,5; 52) | Entre el riel y la NAND |
-| MAX17048 | (29; 50) | |
-| TPS63900 | (29,5; 58) | |
-| Load switch del LoRa (`U303`) | (30; 54) | Entre el MAX17048 y el TPS63900, al lado del pin de alimentación del Ra-01SH |
-| BQ25180 | (15; 65) | Con su cobre de 5 × 5. A 20 mm o más de la IMU y del MAX17048 |
+| MAX17048 | (29; 50) | Sensado de la celda (CELL y GND) **en Kelvin**: pistas propias desde los pads de J101, sin compartir la corriente de carga |
+| TPS63900 (buck-boost) con su bobina | (20; 62) | Junto al BQ25180: a unos 8,5 mm del U.FL de LoRa y del cristal (el nodo de conmutación a 5 mm o más de la RF y del cristal, regla SW_NODE), fuera de `LORA_ANTENA` y a 0,5 mm del borde de la NAND |
+| Load switch del LoRa (`U303`) | (30; 54) | Debajo del MAX17048, al lado del pin de alimentación del Ra-01SH |
+| BQ25180 | (15; 65) | Con su cobre de 5 × 5. A 20 mm o más de la IMU y del MAX17048. Queda cerca de la NTC de la celda (abajo, extremo del PCM): en la base la NTC lee algo más caliente que la celda, que es el lado conservador para JEITA |
 | Ra-01SH | x de 31 a 48; y de 48 a 64 | Corrido para librar el tornillo de cierre de la esquina |
 | U.FL de LoRa | (28,5; 62,5) | A la izquierda del Ra-01SH |
 | LED RGB | (8,5; 2,2) | Borde de la nuca, debajo de la guía de luz |
+| NMOS de los LED (`Q301` a `Q303`) | (5; 12,5), en fila | Fuera del bolsillo de 5 × 5 mm de la guía de luz y de la zona GNSS |
 | Buzzer (`BZ301`, sin montar) | (44,5; 27) | 8,5 × 8,5 mm, fuera de la zona GNSS y arriba del DWM3000; si se monta, la tapa superior necesita un agujero de sonido |
 | Tornillos de la placa | (6; 8), (44; 8) y (25; 66) | Agujeros M2 metalizados a tierra |
-| Tag-Connect TC2030-NL (`J301`) | (47; 13,5), vertical | Cara de arriba, accesible con la tapa superior afuera. Fuera de la celda (x de 12 a 42), así los pines de alineación del cable, que atraviesan la placa, no tocan nada abajo; a unos 3 mm del agujero de `H304`. Los puntos de prueba SWD y de la consola al lado |
+| Tag-Connect TC2030-NL (`J301`) | (47; 13,5), vertical | Cara de arriba, accesible con la tapa superior afuera. Fuera de la celda (x de 12 a 42), así los pines de alineación del cable, que atraviesan la placa, no tocan nada abajo; a unos 3 mm del agujero de `H304`. Los puntos de prueba SWD y de la consola al lado. SWDCLK con una resistencia serie de 22–33 Ω del lado del BMD-340 (a sumar al esquemático) y lejos de `LORA_RF`, que está en la otra punta |
 | J201, conector de QGNSS | (4,5; 29), vertical, abriendo hacia el borde izquierdo | JST SH de 4 vías para el banco (con la tapa afuera). Fuera de la zona GNSS y cerca de la UART del LC29H y de sus traductores de nivel |
 
 ### Cara de abajo
 
 | Parte | Posición | Notas |
 |---|---|---|
-| Celda 503048 | x de 12 a 42; y de 14 a 62 | A 1 mm de la placa. Queda debajo del pin del patch: lleva despeje o lámina aislante |
-| Resortes del inserto | x = 18; 21,5; 25; 28,5 y 32, en y = 7 | VBUS, D+, D−, GND y DETECT, a 3,5 mm de paso. El bloque de contactos de la tapa ocupa x de 17 a 33 e y de 4 a 10: lo de abajo queda afuera |
-| TVS de VBUS (`D601`, SMF12A) | (14,5; 4,5) | Lo primero después del resorte de VBUS |
-| eFuse TPS259470A (`U602`) y su divisor de OVLO y capacitor de dV/dt | (13; 9), sus pasivos de x = 10 a 16 | Entre el TVS y el riel que baja al BQ25180. A unos 4 mm del agujero de `H303` |
-| ESD de D+ y D− (`U601`, USBLC6-2SC6) | (23,25; 11,8) | Justo debajo del bloque, entre los resortes de D+ y D− |
-| Resistencia de DETECT (`R601`) y ESD de DETECT (`D602`) | (35; 7) | Al lado del resorte de DETECT, fuera del bloque |
-| Punto de prueba de VBUS (`TP601`) | (11; 12,5) | |
+| Celda 503048 | x de 12 a 42; y de 14 a 62 | A 1 mm de la placa. Queda debajo del pin del patch: el pin se corta al ras y lleva un escudo rígido (sección 6, obligatorio) |
+| Resortes del inserto | x = 18; 21,5; 25; 28,5 y 32, en y = 7 | **D+, D−, GND, DETECT y VBUS**, de izquierda a derecha, a 3,5 mm de paso (orden del 14/11/2026, ver "Ruteo"). El bloque de contactos de la tapa ocupa x de 15 a 35 e y de 3,5 a 10,5 (`BLOQUE` de `generar_carcasa.py`): lo de abajo queda afuera |
+| ESD de D+ y D− (`U601`, USBLC6-2SC6) | (19,75; 12) | Justo debajo del bloque, entre los resortes de D+ y D− |
+| Resistencia de DETECT (`R601`) y ESD de DETECT (`D602`) | (28,5; 12) | Debajo del resorte de DETECT, que va a GND ahí mismo |
+| TVS de VBUS (`D601`, SMF12A) | (36,5; 5) | Lo primero después del resorte de VBUS, a la derecha del bloque |
+| eFuse TPS259470A (`U602`) y su divisor de OVLO y capacitor de dV/dt | (38; 10), sus pasivos de x = 35,5 a 40,5 e y = 7 a 13 | Entre el TVS y el riel que baja al BQ25180; fuera del poste del tornillo `H304` (radio 3 alrededor de (44; 8)) |
+| Punto de prueba de VBUS (`TP601`) | (37; 13,5) | |
 | Sensor Hall DRV5032FA | (40; 66) | Fuera de la celda, frente al imán del chaleco |
 | J101, conector de la batería | (12; 66) | JST GH horizontal, cerca del BQ25180. Trae la NTC de 10 kΩ de la celda por su pin 3 (TS del BQ25180): la NTC no va en la placa |
 
@@ -90,10 +91,11 @@ Posiciones en mm. Donde hay un solo punto, es el centro.
 - **Tornillos de la placa** en triángulo, para que la placa no quede forzada: (6; 8), (44; 8) y (25; 66). Los dos de arriba se corrieron 1 mm respecto de la primera propuesta, para dejar unos 2,5 mm de placa entre el agujero y la muesca.
 - **Los tornillos de la placa no cierran la carcasa.** Se evaluó usar los mismos para las dos cosas y se descartó: los golpes sobre la tapa pasarían por la placa, el sello dependería del espesor de la placa y abrir la carcasa dejaría la placa suelta.
 - **La batería no va rígida**: se apoya con espuma, con su hueco de hinchazón.
-- **Ya está en la placa de KiCad** (`hardware/pod-v0/pod-v0.kicad_pcb`, 14/11/2026; origen (0; 0) = (100; 100)): el contorno con las cuatro muescas, los tres tornillos (`H303`, `H304` y `H305`, `MountingHole_2.2mm_M2_Pad_Via` metalizados a GND, bloqueados y también en el esquemático), el plano de GND de L2 (`L2_GND`) y las zonas `GNSS_ANTENA`, `PATCH_FEED`, `BLE_ANTENA`, `LORA_ANTENA` y `UWB_ANTENA` en sus lugares ([`hardware/README.md`](../../hardware/README.md), "Contorno, tornillos y zonas con nombre"). El DRC del CI y su prueba de reglas pasan con el contorno nuevo. Las partes no se ubicaron: el layout lo hace el usuario.
-- **Zona `PATCH_FEED`** (solo L3): x de 23 a 27, y de 18 a 32,5. Con el pin hacia abajo, en (25; 19,5), la alimentación del patch sale por L4 unos 10 mm hasta pasar el borde de la cerámica (y = 29,5), sube a L1 por su vía de RF cerca de y = 31 y llega a la cadena RF en y = 33. Con el pin hacia arriba o hacia un costado el tramo de L4 sería más largo y cruzaría más plano.
+- **Ya está en la placa de KiCad** (`hardware/pod-v0/pod-v0.kicad_pcb`, 14/11/2026; origen (0; 0) = (100; 100)): el contorno con las cuatro muescas, los tres tornillos (`H303`, `H304` y `H305`, `MountingHole_2.2mm_M2_Pad_Via` metalizados a GND, bloqueados y también en el esquemático), el plano de GND de L2 (`L2_GND`) y las zonas `GNSS_ANTENA`, `L3_GND`, `BLE_ANTENA`, `LORA_ANTENA` y `UWB_ANTENA` en sus lugares ([`hardware/README.md`](../../hardware/README.md), "Contorno, tornillos y zonas con nombre"). El DRC del CI y su prueba de reglas pasan con el contorno nuevo. Las partes no se ubicaron: el layout lo hace el usuario.
+- **Alimentación del patch**: con el pin hacia abajo, en (25; 19,5), sale por L4 unos 10 mm hasta pasar el borde de la cerámica (y = 29,5), sube a L1 por su vía de RF cerca de (25; 31) y llega a la cadena RF en y = 35. Con el pin hacia arriba o hacia un costado el tramo de L4 sería más largo. Es la misma CPWG de L1 espejada: L4 se refiere a L3 por el prepreg de 0,2 mm, así que 0,33 mm con 0,20 mm a GND dan unos 51–52 Ω (regla "RF_50: ancho de 50 ohm en L4"). GND coplanar en L4, vías de GND de L1 a L4 cada 2–3 mm a los dos lados, al menos 4 alrededor del despeje de Ø3,5 mm del pin y 2 a 4 alrededor de la vía de RF.
+- **Zona `L3_GND`** (solo L3; reemplaza a la franja `PATCH_FEED` de 4 mm): todo el tercio de arriba (y < 33) más la franja x de 5 a 17, y de 33 a 55, por donde baja el par USB. En L3 solo GND, así todo lo que corre por L4 (la alimentación del patch, D+ y D−, VBUS y el grupo del eFuse) tiene su referencia.
 - **`LORA_ANTENA`** quedó chica: x de 25,5 a 30,5, y de 60 a 70, sobre el U.FL del Ra-01SH y la salida de su cable hacia la pared de abajo, sin tapar el Ra-01SH (x de 31 a 48). La FPC no está en la placa.
-- **`UWB_ANTENA`**: x de 46,2 a 50, y de 32 a 45. Con el DWM3000 sobresaliendo 6 mm a la derecha, unos 3,8 mm de la parte de su antena (9,8 mm desde la punta) quedan sobre la placa: ahí no va cobre en ninguna capa, igual que el keep-out del footprint. Supone la antena hacia afuera; si se gira el módulo, la zona se mueve con él.
+- **`UWB_ANTENA`**: x de 46,2 a 50, y de 33 a 46. Con el DWM3000 sobresaliendo 6 mm a la derecha, unos 3,8 mm de la parte de su antena (9,8 mm desde la punta) quedan sobre la placa: ahí no va cobre en ninguna capa, igual que el keep-out del footprint.
 
 ## 5. Antenas
 
@@ -103,12 +105,15 @@ Posiciones en mm. Donde hay un solo punto, es el centro.
 |---|---|---|
 | GNSS (patch) | Arriba, centrado, con tierra continua debajo | Es la mejor ubicación posible, pero **no cumple del todo**: la hoja pide 70 × 70 mm de tierra y la placa tiene 50 × 70. L5 se valida en el banco |
 | BLE (BMD-340) | Al ras del borde, con 4,4 × 15 mm sin cobre en ninguna capa | Cumple. La celda queda a 7,6 mm |
-| LoRa (FPC) | En el extremo opuesto al patch, a 40 mm o más | Cumple: unos 41 mm al borde del patch. La celda queda a unos 9 mm |
+| LoRa (FPC) | En el extremo opuesto al patch, a 40 mm o más; según Molex, a 5 mm o más de un plano de tierra (paralelo o perpendicular) y con el cable a 5 mm o más del borde de la FPC | Cumple la distancia al patch (unos 41 mm), pero **no la de Molex**: ver abajo |
 | UWB (DWM3000) | Antena fuera del borde de la placa, sin metal alrededor | Cumple con la antena sobresaliendo 6 mm, pero ver los pendientes |
 
 - **El DWM3000 tiene una sola antena**, un monopolo cerámico en un extremo del módulo. La hoja da dos opciones: que la antena sobresalga del borde de la placa (figura 10, como en el DWM3000EVB) o dejar una separación de unos 10 mm sin cobre. Se eligió la primera, porque 10 mm sin cobre se llevan casi un cuarto del ancho y le quitan tierra al patch.
 - **Carcasa aparte para el UWB.** Con la antena afuera, la carcasa pasaría de 55 a unos 67 mm de ancho. Como el UWB se monta en una sola placa, esa placa usa una carcasa propia y la normal no crece.
-- **Qué extremo del DWM3000 es la antena** no está verificado contra el footprint.
+- **Qué extremo del DWM3000 es la antena**: verificado contra el footprint. El keep-out `DWM3000_ANTENA` está en su extremo −y, el que no tiene pads; con el módulo girado 270° y la punta en x = 56, la antena empieza en x ≈ 46,2, que es el borde de `UWB_ANTENA`.
+- **La FPC de LoRa, tal como está, va a quedar muy desafinada.** Pegada en la pared interna de abajo queda a unos 0,5 mm del borde de la placa (y de su tierra) a lo largo de sus 38 mm, a unos 3 mm de los tornillos de cierre de acero y a unos 6 mm del de la placa (`H305`). La especificación de aplicación de Molex (AS-2111400100, secciones 5 y 6) pide **5 mm o más** entre la antena y un plano de tierra, paralelo o perpendicular (la eficiencia baja cuanto más cerca está), el **cable a 5 mm o más del borde de la FPC** y nunca sobre metal. Sus números (más de 55 % y 60 % de eficiencia, 0,3 y 1,0 dBi) son sobre un bloque de PC/ABS de 1,5 mm, casi en espacio libre, y la misma hoja avisa que en el equipo se pierden 1 a 2 dB y que la resonancia se corre y se corrige con adaptación.
+- **Qué se hace en la v0:** se mantiene el lugar del C–L–C sin montar en `LORA_RF` (hoy con el 0 Ω de puente) como **red de adaptación**, y se mide el S11 de la FPC **con la carcasa cerrada y sobre el cuerpo** (NanoVNA) antes de elegir los valores; después, el RSSI contra el gateway.
+- **Propuesta de mejor lugar** (para decidir con la carcasa): alargar el extremo de abajo de la carcasa unos 5 mm, así la FPC queda en la pared a 5 mm o más del borde de la placa, con el cable saliendo perpendicular. Suma unos 2 g. La alternativa sin alargar es la cara interna de la tapa superior sobre la franja de abajo, pero ahí el Ra-01SH (4,8 mm de alto) la deja a menos de 2 mm. Mientras tanto, los tornillos de cierre de abajo pueden ser de nylon.
 - **Con el pod en la espalda, el cuerpo bloquea el UWB hacia adelante.** La orientación de la antena tiene que coincidir con la de los anchors.
 
 ### Cómo medir la antena GNSS
@@ -124,6 +129,7 @@ Posiciones en mm. Donde hay un solo punto, es el centro.
 - Los tornillos de cierre de abajo: quedan a unos 4 mm de la antena BLE y a unos 3 mm de las puntas de la FPC de LoRa. Si desafinan, se cambian por tornillos M2 de nylon sin tocar la carcasa.
 - El tornillo de la placa de abajo, a unos 6 mm de la FPC de LoRa.
 - Las escuadras de plástico que sostienen el patch y el adhesivo de sus esquinas.
+- El techo de la tapa superior sobre el patch (a unos 0,4–0,8 mm de su cara de arriba) y el apoyo de presión contra el borde de la base.
 
 ## 6. Apilado, batería y contactos
 
@@ -135,9 +141,13 @@ Posiciones en mm. Donde hay un solo punto, es el centro.
 | Cara interna de arriba | 10,5 sobre el patch; 6,0 en el extremo de abajo |
 | Tope del patch | 9,72 nominal; 10,12 con tolerancia |
 | Placa | de 0 a 1,6 |
+| Pin del patch cortado al ras y su escudo, bajo (25; 19,5) | hasta −0,7: pin y soldadura ≤ 0,3 mm más un escudo de 0,3–0,4 mm |
 | Celda | de −1,0 a −6,2 |
 | Cara interna de abajo | −7,0 |
 | Cara de afuera, contra el cuerpo | −8,8 |
+
+- **El pin del patch no puede quedar como sale de fábrica (paso obligatorio del armado).** El pin del GVLB258.A sale 2,4 ± 0,4 mm por debajo de la cerámica: con la placa de 1,6 mm sobresale unos **0,8 mm** (de 0,24 a 1,36 con las tolerancias) más el cono de soldadura, y la celda está a 1,0 mm, justo debajo de (25; 19,5). Por eso, después de soldarlo: **cortar el pin al ras**, de modo que pin y soldadura queden en **0,3 mm o menos**, y **pegar sobre la soldadura un escudo rígido** de 0,3 mm o más (FR4 o policarbonato), que reparte la carga si la celda se hincha o el pod recibe un golpe. Queda en −0,7 como mucho, con 0,3 mm de aire hasta la celda: el lugar de la celda y la carcasa no cambian.
+- **Si el corte o el escudo no se pueden garantizar**: bajar la celda hasta 1 mm o más por debajo de la punta en el peor caso (unos 2,7 mm desde la placa contando la soldadura), lo que suma unos 1,7 mm al espesor, o correr la celda para que no quede debajo del pin (empezar en y ≥ 22, con unos 40 mm de largo; no hay una celda estándar de esas medidas con 720 mAh).
 
 ### Batería
 
@@ -154,10 +164,11 @@ Posiciones en mm. Donde hay un solo punto, es el centro.
 
 ### Ruteo de USB y VBUS desde el inserto
 
-- **D+ y D−** salen de los resortes (y ≈ 7, cara de abajo) y llegan a los pads 66 a 68 del BMD-340 (x = 14,35; y de 51,3 a 53,5): unos **45 mm** de par. Van como **par de 90 Ω en una capa interna (L3)**, referido al plano de L2, con **GND a los dos lados** en L3 (relleno o pistas de guarda cosidas a L2 con vías cada pocos mm). Dentro de `GNSS_ANTENA` no puede haber vías que no sean de GND, así que el par sale de los resortes por L4 hasta pasar x = 10 (o y = 32), baja a L3 ahí y sigue por L3 a lo largo del lado izquierdo (x de 7 a 9, debajo del LC29H, lejos de sus señales GNSS_SENSITIVE) hasta subir a L1 al lado de los pads del BMD-340.
-- **Lejos de la cadena del LNA y los SAW** (x de 19,5 a 22,5; y de 33 a 41) y de la alimentación del patch (`PATCH_FEED`): el par no pasa por debajo de ninguna de las dos.
-- La geometría de 0,25/0,15 mm de `USB_90D` es la de L1. En L3, entre L2 y L4, la impedancia cambia: se recalcula con `hardware/tools/impedancia.py` y con la calculadora de PCBWay antes de rutear. Hasta 5 mm sin acoplar (la entrada a los resortes y al ESD) y 0,5 mm de diferencia de largo como máximo, como dice la regla.
-- **VBUS y la carga**: el BQ25180 carga a 300–350 mA y la entrada se dimensiona para 1 A (clase `POWER_DOCK`). Desde el eFuse hasta el BQ25180 en (15; 65) son unos 60 mm: **0,5 mm o más en L1 o L4** (35 µm; unos 60 mΩ, 30 mV a 0,5 A) o **1,5 mm en las internas**. Lo natural es L4, por debajo de la celda (que queda a 1 mm, con su lámina), sin vías dentro de `GNSS_ANTENA`. El retorno es el plano de L2.
+- **Orden de los contactos: D+, D−, GND, DETECT y VBUS** (x = 18; 21,5; 25; 28,5 y 32). Los resortes, el ESD de datos y la protección de VBUS están dentro de `GNSS_ANTENA`, donde no puede haber vías que no sean de GND: cada red va en una sola capa, L4. Con el orden anterior (VBUS a la izquierda) el par tenía que cruzar el resorte de VBUS y el grupo del eFuse para ir al BMD-340, que está a la izquierda. Así, el par sale hacia la izquierda, VBUS hacia la derecha (al eFuse, en x de 35,5 a 40,5), DETECT termina en su resistencia a GND ahí mismo y GND queda entre los datos y el resto. El orden de contacto de las láminas de la base no cambia: GND la más larga y primera, DETECT la más corta y última.
+- **D+ y D−** van **por L4 de punta a punta**: de los resortes (y ≈ 7) hacia la izquierda por debajo del bloque, bajan por x de 7 a 9 (fuera del poste de `H303`, y lejos de las señales GNSS_SENSITIVE del LC29H, que están en L1) y suben a L1 con **un solo par de vías** al lado de los pads 66 a 68 del BMD-340 (x = 14,35; y de 51,3 a 53,5). Son unos **45 mm** de par sobre la franja de GND de L3 (`L3_GND`), con GND coplanar a los dos lados en L4. Como L4 se refiere a L3 igual que L1 a L2, la geometría de L1 (0,25/0,15 mm) da unos 90 Ω y la regla `USB_90D` no cambia. Hasta 5 mm sin acoplar (la entrada a los resortes y al ESD) y 0,5 mm de diferencia de largo.
+- **Si el par fuera por L3**, L4 debajo tendría que ser GND macizo (stripline entre L2 y L4) y 90 Ω pediría unos 0,21/0,17 mm, con una regla propia para esa capa. No hace falta.
+- **Lejos de la cadena del LNA y los SAW** (x de 18,5 a 23,5; y de 35 a 45) y de la alimentación del patch: el par no pasa por debajo de ninguna de las dos.
+- **VBUS y la carga**: el BQ25180 carga a 300–350 mA y la entrada se dimensiona para 1 A (clase `POWER_DOCK`). Desde el eFuse hasta el BQ25180 en (15; 65) son unos 70 mm por L4, bajando por x ≈ 43 (entre la celda y `UWB_ANTENA`) y volviendo por y ≈ 63,5: **0,5 mm o más en L1 o L4** (35 µm; unos 70 mΩ, 35 mV a 0,5 A) o **1,5 mm en las internas**. Sin vías dentro de `GNSS_ANTENA`; pasa por debajo del borde de la celda, que queda a 1 mm.
 - **Alternativa a evaluar en el layout: el inserto en el extremo de abajo.** D+, D− y VBUS quedarían a unos 10–15 mm del BMD-340 y del BQ25180, sin cruzar la placa ni pasar cerca de la cadena RF. A cambio, los contactos irían al punto más bajo con el chaleco puesto (más sudor), junto a la FPC de LoRa, el Hall y el tornillo de abajo, y la carcasa se tendría que regenerar. Si el ruteo de arriba no cierra, se evalúa esta opción.
 
 ## 7. Carcasa de prueba
@@ -222,6 +233,11 @@ Posiciones en mm. Donde hay un solo punto, es el centro.
 - [x] **Contorno de la placa:** radio 5 mm y las cuatro muescas de las esquinas, dibujado en KiCad el 14/11/2026 con los tornillos y las zonas (sección 4).
 - [ ] **Ra-01SH y antena UWB:** al correr el Ra-01SH para librar el tornillo de cierre, quedó a unos 4 mm de la antena del DWM3000. Antes estaba a 9 mm. Solo afecta a la placa con UWB, pero hay que revisarlo.
 - [x] **Ubicar el Tag-Connect y J201** (propuesta en la sección 3, a confirmar en el layout).
+- [x] **Pin del patch contra la celda**: corte al ras y escudo rígido obligatorios en el armado (sección 6).
+- [x] **Orden de los contactos del inserto** para que el par USB y VBUS no se crucen en L4 (sección 6).
+- [x] **Qué extremo del DWM3000 es la antena**: verificado contra el footprint (sección 5).
+- [ ] **FPC de LoRa a 5 mm o más de la tierra** (Molex): decidir si se alarga la carcasa (sección 5).
+- [ ] **Resistencia serie en SWDCLK** (22–33 Ω): sumarla al esquemático.
 - [ ] **Posición del pin del patch** contra el DXF de Taoglas, y **altura del escalón** entre la base de 25 × 25 y el elemento de arriba, para sumar el apoyo de presión vertical en la tapa.
 
 ### Para medir con la primera placa
@@ -233,7 +249,7 @@ Posiciones en mm. Donde hay un solo punto, es el centro.
 
 ### Abiertos de diseño
 
-- [ ] **Peso: unos 70 g contra la meta de 50 g** (estimación). Las dos tapas son unos 24 g, el patch 17,5 g, la celda unos 14,5 g y la placa de 50 × 70 × 1,6 mm de 4 capas unos 10 g desnuda y 14–16 g armada. Palancas:
+- [ ] **Peso: unos 74–76 g contra la meta de 50 g** (estimación). Las dos tapas son unos 24 g, el patch 17,5 g, la celda unos 14,5 g y la placa de 50 × 70 × 1,6 mm de 4 capas unos 10 g desnuda y 14–16 g armada: unos 70 g, más unos 4–6 g de los siete tornillos M2, los insertos, el inserto de contactos con sus resortes, la FPC de LoRa, la guía de luz y el escudo del pin. Palancas:
   - **Paredes de 1,5 mm**: unos 6 g menos. Pendiente del usuario; el generador sigue en 2 mm.
   - **Kyocera AVX 1005620** (25 × 25 × 4,16 mm, 9,6 g, L1 centrada en 1584 ± 2 MHz y L5 en 1176 ± 2 MHz sobre 70 × 70 mm, 3,3/0,4 dBic en el cenit en L1/L5; DigiKey 56, 12 semanas): unos 8 g menos y 4 mm menos de alto. **Comprar 5** para compararla en el banco con QGNSS contra el GVLB258.A. Tiene la misma base de 25 × 25 mm, pero **el pin no está en el mismo lugar**: según el dibujo de su hoja (TDS-ANT-0088 rev. 1) está a 10,70 mm de un borde (1,8 mm del centro) y centrado en el otro eje, contra 2,5 mm del GVLB258.A, con un pin de Ø0,82 mm que sobresale 3 mm. Con el mismo footprint no entra: hace falta un segundo agujero (o un footprint propio) en el lugar de su pin, y verificar hacia qué lado queda respecto del chaflán. La hoja no da las eficiencias; DigiKey lista 7,85 mm de alto máximo, que no coincide con los 4,16 mm de la hoja.
   - **Antenas chip de L1 y L5**: solo si el usuario reabre la decisión del patch apilado (con chips se pierde ganancia y la tierra chica pesa más).

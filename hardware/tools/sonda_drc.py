@@ -36,8 +36,9 @@ NETS = ["GND", "/gnss_rf/GNSS_RF_A", "/power/BB_LX1", "USB_D_P", "USB_D_N", "SYS
         "/mcu_radio/LED_R", "/mcu_radio/LED_G", "/gnss_rf/GNSS_RF_B", "/gnss_rf/GNSS_ANT_PATCH", "VREG"]
 
 # Coordinates in mm on the 50 x 70 mm outline (100..150, 100..170; doc origin (0; 0) = (100; 100)).
-# Zones: BLE_ANTENA x 100-104.35, y 147.6-162.6; GNSS_ANTENA x 110-140, y 102-132; PATCH_FEED (In2.Cu)
-# x 123-127, y 118-132.5; LORA_ANTENA x 125.5-130.5, y 160-170; UWB_ANTENA x 146.2-150, y 132-145.
+# Zones: BLE_ANTENA x 100-104.35, y 147.6-162.6; GNSS_ANTENA x 110-140, y 102-132; L3_GND (In2.Cu) the
+# top third (y < 133) plus x 105-117, y 133-155; LORA_ANTENA x 125.5-130.5, y 160-170; UWB_ANTENA
+# x 146.2-150, y 133-146.
 # Board screws (GND) at (106; 108), (144; 108) and (125; 166). The L2_GND plane is left out of the
 # probes: its fill was computed without them.
 # Track: (net, layer, x0, y0, x1, y1, width). Via: (net, x, y). Footprint: (ref, x, y, side, pads),
@@ -65,6 +66,7 @@ BAD = {
         ("/mcu_radio/LED_R", "F.Cu", 147, 140, 149, 140, 0.2),  # inside UWB_ANTENA
         ("/gnss_rf/GNSS_RF_A", "F.Cu", 128, 140.5, 138, 140.5, 0.33),  # 0.3 mm from the pad of J1
         ("VREG", "In2.Cu", 125, 120, 125, 126, 0.3),  # not GND on L3 under the patch feed
+        ("/gnss_rf/GNSS_ANT_PATCH", "B.Cu", 128, 125, 138, 125, 0.2),  # patch feed too narrow on L4
         ("/gnss_rf/GNSS_ANT_PATCH", "In2.Cu", 128, 146, 138, 146, 0.33),  # patch feed on L3: still forbidden
     ],
     "vias": [("/gnss_rf/GNSS_RF_A", 120, 140)],  # via on an RF net
@@ -92,7 +94,8 @@ EXPECTED = [
     "GNSS_SENSITIVE: fuera de la zona de LoRa",
     "GNSS_ANTENA: solo GND y RF en L1",
     "GNSS_ANTENA: sin componentes debajo de la antena",
-    "PATCH_FEED: L3 solo GND debajo de la alimentación del patch",
+    "L3_GND: L3 solo GND debajo de L4",
+    "RF_50: ancho de 50 ohm en L4 (alimentación del patch)",
 ]
 # The GNSS_ANT_PATCH exception covers L4 and its via only: the inner-layer rule must still flag it.
 PATCH_INNER = ("RF_50: solo en L1 (internas)", "GNSS_ANT_PATCH")
@@ -108,7 +111,7 @@ OK = {
         ("/mcu_radio/LED_R", "F.Cu", 108, 140.865, 118, 140.865, 0.2),  # other net 0.6 mm away
         ("USB_D_P", "F.Cu", 108, 150, 118, 150, 0.25),  # pair 0.25 mm, 0.15 mm apart
         ("USB_D_N", "F.Cu", 108, 150.4, 118, 150.4, 0.25),
-        ("SYS", "In2.Cu", 108, 154, 118, 154, 1.5),  # 1 A rail on an inner layer
+        ("SYS", "In2.Cu", 108, 157, 118, 157, 1.5),  # 1 A rail on an inner layer, below L3_GND
         ("GNSS_PPS", "F.Cu", 108, 158, 118, 158, 0.2),
         ("/mcu_radio/LED_G", "F.Cu", 108, 158.5, 118, 158.5, 0.2),  # 0.3 mm from PPS
         ("/power/BB_LX1", "F.Cu", 128, 145, 138, 145, 0.4),  # switch node far from RF and zones
