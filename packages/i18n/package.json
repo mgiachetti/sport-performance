@@ -22,9 +22,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@formatjs/icu-messageformat-parser": "3.5.22",
+    "@formatjs/icu-messageformat-parser": "3.5.23",
     "@sport-performance/domain": "workspace:*",
-    "intl-messageformat": "12.1.4"
+    "intl-messageformat": "12.1.5"
   },
   "devDependencies": {
     "@sport-performance/config": "workspace:*",
