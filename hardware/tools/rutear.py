@@ -1,6 +1,7 @@
 """Routing of the pod v0 board (B-909). One-shot tool, like ``ubicar.py``: after it runs, the board is the source.
 
-Runs inside the official KiCad image (it needs KiCad's ``pcbnew`` module). Four steps, in this order:
+Runs inside the official KiCad image (it needs KiCad's ``pcbnew`` module). Steps, run in the order ``criticas``,
+``resto``, ``planos``, ``podar`` (``dsn`` and ``ses`` only to try Freerouting):
 
 ``criticas``
     Moves the few passives listed in ``MOVES`` (each with its reason) and routes, by script and locked, the nets
@@ -22,7 +23,15 @@ Runs inside the official KiCad image (it needs KiCad's ``pcbnew`` module). Four 
 ``planos``
     Adds the copper zones (GND on L1, L3 and L4; VREG on L3), the stitching vias (around the RF, along the board
     edge and over the whole GND area) and a GND via next to every GND pad that the zones leave unconnected, and
-    fills the zones.
+    fills the zones. ``--sin-grilla`` leaves out the grid over the whole board while nets are left for hand
+    routing (it would take their corridors).
+
+``resto``
+    Routes everything else but GND with the maze router of ``laberinto.py`` (negotiated congestion; whatever does
+    not come out clean is left as ratsnest).
+
+``podar``
+    Takes away the escape vias and stubs of the nets left as ratsnest (dangling copper for the DRC) and refills.
 
     docker run --rm -e HOME=/tmp -v "$PWD:/work" -w /work kicad/kicad:10.0.8@sha256:… \\
         python3 hardware/tools/rutear.py criticas [--placa otra.kicad_pcb] [--forzar]
@@ -56,6 +65,7 @@ VIA_SIG = (0.5, 0.2)  # smallest via that meets PCBWay's minimums (0.45 mm, 0.2 
 
 LAYERS = {"F": pcbnew.F_Cu, "In1": pcbnew.In1_Cu, "In2": pcbnew.In2_Cu, "B": pcbnew.B_Cu}
 
+GRILLA = "rejilla de resistencias de abajo abierta: con 0,44 mm entre pads, los de adentro no tenían salida"
 # Passives moved while routing: (ref, x, y, rotation) and why. Small moves only (hardware/README.md, "Ruteo").
 MOVES = {
     # TPS63900 (SLVSET3D, "Layout guidelines"): the inductor next to LX1/LX2 and the input and output capacitors
@@ -82,6 +92,29 @@ MOVES = {
     # LoRa load switch) sat 0.29 mm below them, so they had no way out. C309 goes to the left of the load switch,
     # right above its VREG_LORA pin (pin 1).
     "C309": (27.3, 51.75, 180, "capacitor de VREG_LORA al lado del pin 1 de U303: dejaba encerrados los pines BAT del MAX17048"),
+    # BMD-340: its second top row escapes to a row of vias at y = 48.3; R501 (the 22 ohm of NAND_SCK, bottom side,
+    # under pad 37) sat on that row.
+    "R501": (10.4, 47.45, 0, "22 ohm de NAND_SCK corrido 1,35 mm al este: pisaba la fila de vías del escape del BMD-340"),
+    # The grid of 0402 pull-ups and dividers under the NAND and the MAX17048 (bottom side): 1.1 mm between rows and
+    # 2 mm between columns left 0.44-0.46 mm between pads, so no pad inside the grid had a way out (a 0.15 mm track
+    # needs 0.45 mm). Standing, in 6 columns 1.6 mm apart and 3 rows 2.1 mm apart: a via or two tracks between
+    # columns, a track between rows.
+    "R306": (17.9, 50.2, 90, GRILLA),
+    "R307": (19.5, 50.2, 90, GRILLA),
+    "R303": (21.1, 50.2, 90, GRILLA),
+    "R322": (22.7, 50.2, 90, GRILLA),
+    "R323": (24.3, 50.2, 90, GRILLA),
+    "R301": (25.9, 50.2, 90, GRILLA),
+    "R302": (17.9, 52.3, 90, GRILLA),
+    "R304": (19.5, 52.3, 90, GRILLA),
+    "R324": (21.1, 52.3, 90, GRILLA),
+    "R503": (22.7, 52.3, 90, GRILLA),
+    "R505": (24.3, 52.3, 90, GRILLA),
+    "R506": (25.9, 52.3, 90, GRILLA),
+    "R502": (17.9, 54.4, 90, GRILLA),
+    "R507": (19.5, 54.4, 90, GRILLA),
+    "R508": (21.1, 54.4, 90, GRILLA),
+    "R504": (22.7, 54.4, 90, GRILLA),
 }
 
 
@@ -241,9 +274,10 @@ def lora_rf(r: Router) -> dict:
     r.track("LORA_RF", "F", RF, [(46.8, 57.75), "R326.1"])
     lengths["LORA_ANT_CHIP"] = r.track("LORA_ANT_CHIP", "F", RF, ["R326.2", "R328.1"])
     r.track("LORA_ANT_CHIP", "F", RF, [(43.8, 57.75), "C312.1"])
-    # Feed into the clearance of the chip antenna along its right edge (the GND tongue of P2 is at x > 42.7),
-    # through P2's pad (C313.1) to pin 1 of AE301.
-    lengths["LORA_FEED"] = r.track("LORA_FEED", "F", RF, ["R328.2", (41.79, 58.5), (42.05, 58.76), (42.05, 66.9),
+    # Feed into the clearance of the chip antenna as on AVX's demo board (TDS-ANT-0048 rev. 4, p.5): along the edge
+    # of the clearance, coplanar with the top-layer GND outside it (0.20 mm, the GND tongue of P2 at x > 42.7) and
+    # with nothing under it, through P2's pad (C313.1) to pin 1 of AE301.
+    lengths["LORA_FEED"] = r.track("LORA_FEED", "F", RF, ["R328.2", (41.79, 58.5), (42.335, 59.045), (42.335, 66.1), (41.97, 66.75),
                                                         (41.3, 67.75)])
     r.track("LORA_UFL", "F", RF, ["R327.2", "J302.1"])
     return lengths
@@ -345,6 +379,9 @@ def charger_and_buck(r: Router) -> None:
     r.track("VREG_BB", "F", 0.3, [(21.15, 63.45), (24.0, 63.45), (25.3, 62.15), "R108.1"])
     # VREG_LORA: C309 (moved next to it) to pin 1 of the LoRa load switch.
     r.track("VREG_LORA", "F", 0.3, ["C309.1", (27.9, 52.4), "U303.1"])
+    # LORA_EN (pin 3) is boxed in by the NAND's pads, 0.25 mm to the west: out to the south to a via.
+    r.track("LORA_EN", "F", 0.15, ["U303.3", (27.9, 54.5), (27.9, 55.0)])
+    r.via("LORA_EN", (27.9, 55.0))
 
 
 # ---------------------------------------------------------------------------------------------------- BMD-340
@@ -357,12 +394,18 @@ def bmd340(r: Router) -> None:
             continue
         net = p.GetNetname()
         x, y = pcbnew.ToMM(p.GetPosition().x) - ORIGIN[0], pcbnew.ToMM(p.GetPosition().y) - ORIGIN[1]
-        if abs(y - 50.7) < 0.01 and net != "GND":  # outer top row: L1 to a via above the module
+        if abs(y - 50.7) < 0.01:  # outer top row: L1 to a via above the module
             r.track(net, "F", 0.15, [(x, y), (x, 49.8)])
             r.via(net, (x, 49.8))
-        elif abs(y - 51.6) < 0.01 and net != "GND":  # second top row: between two outer pads, via further north
-            r.track(net, "F", 0.15, [(x, y), (x, 49.0)])
-            r.via(net, (x, 49.0))
+        elif abs(y - 51.6) < 0.01:  # second top row: between two outer pads, to a second row of vias 1.5 mm further
+            r.track(net, "F", 0.15, [(x, y), (x, 48.3)])  # north (two staggered rows 0.8 mm apart close the way)
+            r.via(net, (x, 48.3))
+        elif net == "GND" and abs(y - 59.5) < 0.01:
+            pass  # outer bottom row: the GND plane of L1 reaches them from the south
+        elif net == "GND" and abs(y - 58.6) < 0.01:  # second bottom row: between two outer pads to the plane
+            r.track(net, "F", 0.2, [(x, y), (x, 60.2)])
+        elif num == "29":  # GND, next to pad 30 (GND, outer top row, with its via)
+            r.track(net, "F", 0.2, [(x, y), r.pad("U301", "30")])
         else:  # everything else: a via in the pad (filled and capped, POFV)
             r.via(net, (x, y))
     # VREG (pad 65) to its 100 nF and 4.7 uF on L1 (both turned with VREG to this side).
@@ -541,7 +584,7 @@ CLEAR = 0.25  # copper of another net (the GND-to-RF coplanar gap is 0.20)
 
 
 class Free:
-    """Answers "does this GND via or short GND track fit here?" against the copper of every other net, the
+    """Answers "does this via or short track (GND, or VREG) fit here?" against the copper of every other net, the
     keep-outs (rule areas and footprint keep-outs: anything that forbids something) and the board edge."""
 
     def __init__(self, board):
@@ -595,7 +638,7 @@ class Free:
         for other in self.near(box):
             if other is item:
                 continue
-            gnd = other.GetNetCode() == self.gnd
+            gnd = other.GetNetCode() == item.GetNetCode()  # same net (GND, or VREG for its vias)
             if via and other.Type() in (pcbnew.PCB_VIA_T, pcbnew.PCB_PAD_T) and other.HasHole():
                 hole = other.GetEffectiveHoleShape()
                 if hole.Collide(item.GetEffectiveHoleShape(), mm(0.25 if gnd else 0.4)):
@@ -630,8 +673,8 @@ def stitch_via(board, free: Free, x: float, y: float, min_gnd_via: float, size: 
     return None
 
 
-def unconnected_gnd_pads(path: Path) -> list[tuple[str, str]]:
-    """(ref, pad) of every GND pad that the DRC of ``path`` still reports as unconnected."""
+def unconnected_gnd_pads(path: Path, net: str = "GND") -> list[tuple[str, str]]:
+    """(ref, pad) of every pad of ``net`` (GND unless said) that the DRC of ``path`` still reports as unconnected."""
     with tempfile.TemporaryDirectory() as tmp:
         report = Path(tmp) / "drc.json"
         subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "--severity-all", "--output", str(report),
@@ -640,7 +683,7 @@ def unconnected_gnd_pads(path: Path) -> list[tuple[str, str]]:
     found = []
     for item in data["unconnected_items"]:
         for it in item["items"]:
-            m = re.match(r"(?:PTH )?[Pp]ad (\S+) \[GND\] of (\S+)", it["description"])
+            m = re.match(r"(?:PTH )?[Pp]ad (\S+) \[" + re.escape(net) + r"\] of (\S+)", it["description"])
             if m and (m.group(2), m.group(1)) not in found:
                 found.append((m.group(2), m.group(1)))
     return found
@@ -693,8 +736,9 @@ def stitch_fragments(board, free: Free) -> tuple[int, int]:
     return added, left
 
 
-def gnd_via_next_to(board, free: Free, ref: str, num: str) -> bool:
-    """A GND via next to a GND pad that the planes do not reach, with a short track on the pad's layer."""
+def gnd_via_next_to(board, free: Free, ref: str, num: str, net: str = "GND", where=None) -> bool:
+    """A via of ``net`` (GND unless said) next to a pad that the planes do not reach, with a short track on the
+    pad's layer; ``where(x, y)`` limits where the via can go (inside its plane)."""
     fp = board.FindFootprintByReference(ref)
     pads = [p for p in fp.Pads() if p.GetNumber() == num]
     for pad in pads:
@@ -705,18 +749,20 @@ def gnd_via_next_to(board, free: Free, ref: str, num: str) -> bool:
             for k in range(16):
                 a = 2 * math.pi * k / 16
                 x, y = pcbnew.ToMM(c.x) - ORIGIN[0] + dist * math.cos(a), pcbnew.ToMM(c.y) - ORIGIN[1] + dist * math.sin(a)
+                if where and not where(x, y):
+                    continue
                 v = pcbnew.PCB_VIA(board)
                 v.SetPosition(pt(x, y))
                 v.SetWidth(mm(VIA_SIG[0]))
                 v.SetDrill(mm(VIA_SIG[1]))
                 v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
-                v.SetNet(board.FindNet("GND"))
+                v.SetNet(board.FindNet(net))
                 t = pcbnew.PCB_TRACK(board)
                 t.SetStart(c)
                 t.SetEnd(v.GetPosition())
                 t.SetWidth(mm(0.25))
                 t.SetLayer(layer)
-                t.SetNet(board.FindNet("GND"))
+                t.SetNet(board.FindNet(net))
                 if free.fits(v, [pcbnew.F_Cu, pcbnew.In1_Cu, pcbnew.In2_Cu, pcbnew.B_Cu]) and free.fits(t, [layer]):
                     board.Add(v)
                     board.Add(t)
@@ -751,7 +797,7 @@ L3_VREG = [(0, 33.4), (14.1, 33.4), (14.1, 55.4), (17.4, 55.4), (17.4, 33.4), (5
 L3_GND = [(0, 0), (50, 0), (50, 33), (17, 33), (17, 55), (14.5, 55), (14.5, 33), (0, 33)]
 
 
-def planos(path: Path) -> int:
+def planos(path: Path, grilla: bool = True) -> int:
     board = pcbnew.LoadBoard(str(path))
     if any(z.GetZoneName().startswith(("L1_", "L4_", "L3_GND_")) for z in board.Zones() if not z.GetIsRuleArea()):
         raise SystemExit("La placa ya tiene los planos")
@@ -778,6 +824,11 @@ def planos(path: Path) -> int:
                     if stitch_via(board, free, cx - uy * off * side, cy + ux * off * side, 1.0):
                         added["rf"] += 1
                         break
+    # 1b. Both sides of the USB pair where L3 is not GND under it (y 33-55): a GND via next to the L3 crossings.
+    added["par"] = 0
+    for k in range(int((55 - 33) / 1.2) + 1):
+        for x in (14.85, 16.75):
+            added["par"] += bool(stitch_via(board, free, x, 33 + 1.2 * k, 0.9))
     # 2. Along the board edge, 0.9 mm inside.
     for x in [0.9 + EDGE_PITCH * i for i in range(int(48.2 / EDGE_PITCH) + 1)]:
         for y in (0.9, 69.1):
@@ -785,8 +836,8 @@ def planos(path: Path) -> int:
     for y in [0.9 + EDGE_PITCH * i for i in range(int(68.2 / EDGE_PITCH) + 1)]:
         for x in (0.9, 49.1):
             added["borde"] += bool(stitch_via(board, free, x, y, 1.2))
-    # 3. A grid over the whole board.
-    for i in range(int(50 / STITCH_PITCH) + 1):
+    # 3. A grid over the whole board (not while nets are left for hand routing: it would take their corridors).
+    for i in range(int(50 / STITCH_PITCH) + 1 if grilla else 0):
         for j in range(int(70 / STITCH_PITCH) + 1):
             added["grilla"] += bool(stitch_via(board, free, 0.6 + i * STITCH_PITCH, 0.6 + j * STITCH_PITCH, 1.5))
     fill(board)
@@ -811,8 +862,58 @@ def planos(path: Path) -> int:
         save(board, path)
         if failed or left:
             print("sin lugar para una vía de GND:", failed, f"({left} trozos de plano sin vía)")
-    print(f"planos: L1, L3 (GND arriba y en la franja, VREG abajo) y L4; vías de GND {added}")
+    # 5. The same for VREG: a via next to every VREG pad (decoupling, pull-ups) down to the VREG plane of L3,
+    # only where that plane is (below y = 33.4, out of the strip of the USB pair).
+    def in_vreg(x: float, y: float) -> bool:
+        return y > 34.0 and not (13.6 < x < 17.9 and y < 55.9) and 0.8 < x < 49.2 and y < 69.2
+    board = pcbnew.LoadBoard(str(path))
+    free = Free(board)
+    vreg = sum(gnd_via_next_to(board, free, ref, num, "VREG", in_vreg) for ref, num in unconnected_gnd_pads(path, "VREG"))
+    fill(board)
+    save(board, path)
+    print(f"planos: L1, L3 (GND arriba y en la franja, VREG abajo) y L4; vías de GND {added}, de VREG {vreg}")
     return 0
+
+
+def drc_report(path: Path) -> dict:
+    with tempfile.TemporaryDirectory() as tmp:
+        report = Path(tmp) / "drc.json"
+        subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "--severity-error", "--severity-warning",
+                        "--output", str(report), str(path)], check=True, capture_output=True)
+        return json.loads(report.read_text(encoding="utf-8"))
+
+
+def podar(path: Path) -> int:
+    """Leaves the board clean for the DRC while nets are left for hand routing: takes away every track or via of
+    ``resto`` (not locked) that the DRC reports in a violation (``laberinto.py`` models the rules on a grid and
+    misses a few: a via of a GNSS_SENSITIVE net against a pad on the other side, the 0.2 mm of POWER_DOCK against a
+    0.15 mm track, the mask opening of a fiducial) and every via or stub of a signal net that is left dangling (the
+    escape vias in the BMD-340 pads of the nets still unrouted). Repeats until the DRC has nothing of that kind, and
+    fills the zones each time."""
+    removed = []
+    for _ in range(40):
+        data = drc_report(path)
+        bad = {it["uuid"] for v in data["violations"] for it in v["items"]}
+        board = pcbnew.LoadBoard(str(path))
+        drop = [t for t in board.GetTracks() if t.m_Uuid.AsString() in bad and not t.IsLocked()]
+        # dangling copper of the signal nets (the scripted RF, USB and power copper ends inside pads, which the
+        # connectivity test misreads, so it only looks at Default and GNSS_SENSITIVE)
+        board.BuildConnectivity()
+        conn = board.GetConnectivity()
+        ids = {t.m_Uuid.AsString() for t in drop}
+        drop += [t for t in board.GetTracks() if t.m_Uuid.AsString() not in ids and t.GetNetname() != "GND"
+                 and t.GetNetClassName() in ("Default", "GNSS_SENSITIVE") and conn.TestTrackEndpointDangling(t, False)]
+        if not drop:
+            break
+        removed += [t.GetNetname() for t in drop]
+        for t in drop:
+            board.Delete(t)  # Delete, not Remove: a removed item still owned by Python crashed pcbnew later
+        fill(board)
+        save(board, path)
+    left = [v for v in drc_report(path)["violations"]]
+    print(f"podar: {len(removed)} pistas y vías sacadas, de {len(set(removed))} redes: {sorted(set(removed))}; "
+          f"quedan {len(left)} violaciones")
+    return 0 if not left else 1
 
 
 def resto(path: Path) -> int:
@@ -845,8 +946,10 @@ def main(argv: list[str]) -> int:
         return ses(path, Path(argv[2]))
     if len(argv) > 1 and argv[1] == "resto":
         return resto(path)
+    if len(argv) > 1 and argv[1] == "podar":
+        return podar(path)
     if len(argv) > 1 and argv[1] == "planos":
-        return planos(path)
+        return planos(path, "--sin-grilla" not in argv)
     print(__doc__)
     return 2
 

@@ -85,11 +85,13 @@ jobs:
               exec kicad-cli sch erc --exit-code-violations --severity-error --severity-warning \
                 --output /out/erc.rpt pod-v0.kicad_sch'
 
-      # The board has every footprint (placed on 15/11/2026) but no tracks yet. The DRC also checks
+      # The board has every footprint (placed on 15/11/2026) and is routed in part (16/11/2026: the
+      # critical nets and most of the rest; the nets left for hand routing are listed in
+      # docs/hardware/pod-v0-ubicacion-y-carcasa.md, section 9). The DRC also checks
       # that it matches the schematic (--schematic-parity) and writes JSON; drc_placa.py fails on
       # any violation (errors and warnings) or difference with the schematic, and only lets the
       # unconnected items (the ratsnest, what is left to route) through, printing how many. When
-      # the board is routed, add --fallar-sin-rutear. Like the ERC, it first installs KiCad's
+      # the board is fully routed, add --fallar-sin-rutear. Like the ERC, it first installs KiCad's
       # default global library tables (the footprints of the official libraries are compared
       # against them). kicad-cli exits 0 and leaves the parity list empty when it cannot build the
       # schematic netlist, so its output goes to drc.log and drc_placa.py checks it too (pipefail

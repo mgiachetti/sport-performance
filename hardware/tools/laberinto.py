@@ -32,7 +32,7 @@ import pcbnew
 ORIGIN = (100.0, 100.0)
 G = 0.05  # mm per cell
 NX, NY = 1000, 1400  # 50 x 70 mm
-MARGIN = 0.045  # grid error: a 45-degree step passes 0.035 mm from the cell centres
+MARGIN = 0.037  # grid error: a 45-degree step passes 0.0354 mm from the cell centres
 H0 = 0.075  # half the narrowest track (0.15 mm)
 VIA = (0.5, 0.2)
 VIA_PITCH = 0.5  # mm between via centres (hole to hole 0.3 mm)
@@ -40,13 +40,15 @@ VIA_COST = 24  # cells (1.2 mm)
 LAYER_COST = (1.4, 1.0, 1.15)  # L1, L3, L4
 HALO = 0.45  # mm around every pad
 HALO_COST = 2.0
-RIP_COST = 40.0  # per cell of routed copper crossed in a rip-up search
+RIP_COST = 8.0  # per cell of routed copper crossed in a rip-up search
 MAX_RIPS = 8
-EXPAND = 400000
+EXPAND = 800000
 
 WIDTH = {"Default": 0.15, "GNSS_SENSITIVE": 0.15, "POWER": 0.25, "POWER_DOCK": 0.3}
 EXTRA_CLEARANCE = {"GNSS_SENSITIVE": 0.15, "POWER_DOCK": 0.05}  # over the 0.15 mm of the grid
 SKIP_CLASSES = {"RF_50", "USB_90D", "SW_NODE"}
+# Under the USB pair (L4, x 15.6 and 16) from y 33 to 55, L3 only crosses (decision of 15/11/2026): no move along y.
+PAIR_STRIP = (round(14.5 / G), round(33 / G), round(17 / G), round(55 / G))
 STEPS = ((1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),
          (1, 1, 1.4142), (1, -1, 1.4142), (-1, 1, 1.4142), (-1, -1, 1.4142))
 
@@ -78,13 +80,18 @@ class Grid:
         n = NX * NY
         self.t = [array("i", bytes(4 * n)) for _ in self.layers]  # track centre: 0 free, net, -1 blocked
         self.v = [array("i", bytes(4 * n)) for _ in self.layers]  # via centre: same
-        self.vs = array("b", bytes(n))  # within VIA_PITCH of a via centre
+        self.vs = array("i", bytes(4 * n))  # within VIA_PITCH of a via centre: its net (-1 several or none)
         self.halo = [array("b", bytes(n)) for _ in self.layers]
         self.gnd = board.FindNet("GND").GetNetCode()
         self.courtyard_lna = None
+        self.bmd = None  # BMD-340 courtyard, in cells: GNSS_SENSITIVE at 0.15 mm inside it (custom rule)
         for fp in board.GetFootprints():
             if fp.GetReference() == "U205":
                 self.courtyard_lna = fp.GetCourtyard(pcbnew.F_CrtYd)
+            if fp.GetReference() == "U301":
+                box = fp.GetCourtyard(pcbnew.F_CrtYd).BBox()
+                self.bmd = cell_of(box.GetLeft(), box.GetTop()) + cell_of(box.GetRight(), box.GetBottom())
+                self.bmd_box = box
         self.sw = []  # switch-node copper: GNSS_SENSITIVE keeps 5 mm away (custom rule)
         self.cells_cache = {}
 
@@ -128,6 +135,8 @@ class Grid:
     def add_item(self, item, net: int, clearance: float, clip=None) -> None:
         """An item of copper (any net) as an obstacle for the other nets."""
         value = net if net > 0 else -1
+        if item.GetNetClassName() == "GNSS_SENSITIVE" and self.bmd and item.GetBoundingBox().Intersects(self.bmd_box):
+            clearance = 0.15  # rule "GNSS_SENSITIVE: escape del BMD-340"
         rf = item.GetNetClassName() == "RF_50" and self.courtyard_lna is not None
         for li, layer in enumerate(self.layers):
             if not item.IsOnLayer(layer):
@@ -151,14 +160,17 @@ class Grid:
             for di, dj in VIA_DISK:
                 ii, jj = ci + di, cj + dj
                 if 0 <= ii < NX and 0 <= jj < NY and (not clip or (clip[0] <= ii <= clip[2] and clip[1] <= jj <= clip[3])):
-                    self.vs[jj * NX + ii] = 1
+                    self.mark(self.vs, jj * NX + ii, net if net > 0 else -1)
 
     def load(self) -> None:
         board = self.board
         items = [p for fp in board.GetFootprints() for p in fp.Pads()] + list(board.GetTracks())
+        self.swmask = array("b", bytes(NX * NY))  # within 5 mm of the switch node: no GNSS_SENSITIVE (custom rule)
         for item in items:
             if item.GetNetClassName() == "SW_NODE":
-                self.sw.append(item.GetBoundingBox())
+                layer = next(l for l in (pcbnew.F_Cu, pcbnew.In2_Cu, pcbnew.B_Cu) if item.IsOnLayer(l))
+                for k in self.cells_in(self.item_poly(item, layer, 5.0 + H0 + MARGIN)):
+                    self.swmask[k] = 1
             if item.Type() == pcbnew.PCB_PAD_T and not any(item.IsOnLayer(l) for l in self.layers) \
                     and not item.HasHole():
                 continue
@@ -167,7 +179,7 @@ class Grid:
         self.keepouts()
         self.tb = [array("i", a) for a in self.t]
         self.vb = [array("i", a) for a in self.v]
-        self.vsb = array("b", self.vs)
+        self.vsb = array("i", self.vs)
 
     def block_rect(self, grids, x0, y0, x1, y1, grow: float) -> None:
         i0, j0 = int(math.floor((x0 - grow) / G)), int(math.floor((y0 - grow) / G))
@@ -203,6 +215,7 @@ class Grid:
                 for g in v:
                     self.paint(g, self.inflated(poly, VIA[0] / 2 + MARGIN), -1)
         self.block_rect([t[1], t[2]], 8.6, 60.7, 14.4, 62.9, H0 + MARGIN)  # nothing under the crystal on L3/L4
+        self.block_rect(v, 8.6, 60.7, 14.4, 62.9, VIA[0] / 2 + MARGIN)  # and no via of another net
         outline = pcbnew.SHAPE_POLY_SET()
         board.GetBoardPolygonOutlines(outline, False)
         edges = [d.GetEffectiveShape() for d in board.GetDrawings() if d.GetLayer() == pcbnew.Edge_Cuts]
@@ -268,14 +281,19 @@ class Grid:
         ``soft`` the copper of the routed nets can be crossed at a cost (only the fixed copper blocks)."""
         extra = (width / 2 - H0) + EXTRA_CLEARANCE.get(cls, 0.0)
         dsk = disk(extra) if extra > 1e-6 else [(0, 0)]
-        sw = [(pcbnew.ToMM(b.GetLeft()) - ORIGIN[0] - 5.2, pcbnew.ToMM(b.GetTop()) - ORIGIN[1] - 5.2,
-               pcbnew.ToMM(b.GetRight()) - ORIGIN[0] + 5.2, pcbnew.ToMM(b.GetBottom()) - ORIGIN[1] + 5.2)
-              for b in self.sw] if cls == "GNSS_SENSITIVE" else []
+        sw = self.swmask if cls == "GNSS_SENSITIVE" else None
         t, tb, v, vb, vs, vsb = self.t, self.tb, self.v, self.vb, self.vs, self.vsb
+        if soft:  # only the fixed copper: the routed nets the path runs into are ripped up afterwards
+            t, v, vs = tb, vb, vsb
         okc = {}
 
+        bmd = self.bmd if cls == "GNSS_SENSITIVE" else None
+
         def free_in(grid, i, j):
-            for di, dj in dsk:
+            d = dsk
+            if bmd and bmd[0] <= i <= bmd[2] and bmd[1] <= j <= bmd[3]:
+                d = ((0, 0),)  # inside the BMD-340's courtyard: 0.15 mm, as the grid
+            for di, dj in d:
                 ii, jj = i + di, j + dj
                 if not (0 <= ii < NX and 0 <= jj < NY):
                     return False
@@ -289,12 +307,10 @@ class Grid:
             r = okc.get(key, -2)
             if r != -2:
                 return r
-            if sw and any(a <= i * G <= c and b <= j * G <= d for a, b, c, d in sw):
+            if sw and sw[j * NX + i]:
                 r = None
             elif free_in(t[li], i, j):
                 r = 0
-            elif soft and free_in(tb[li], i, j):
-                r = 1
             else:
                 r = None
             okc[key] = r
@@ -303,8 +319,8 @@ class Grid:
         def via_ok(i, j):
             k = j * NX + i
             cross = 0
-            if vs[k]:
-                if not soft or vsb[k]:
+            if vs[k]:  # hole to hole: also against the vias of the same net
+                if not soft or vsb[k] or vs[k] == net:
                     return None
                 cross = 1
             for li in range(3):
@@ -316,11 +332,10 @@ class Grid:
                     if base != 0 and base != net:
                         return None
                     cross = 1
-            for li in layers_ok:
-                r = ok(li, i, j)
-                if r is None:
-                    return None
-                cross = max(cross, r)
+            # the via grid already has every obstacle and keep-out of vias; the track grid does not count here (L3_GND
+            # forbids tracks on L3, not vias)
+            if sw and sw[k]:
+                return None
             return cross
 
         tx = [c[1] for c in targets]
@@ -330,25 +345,29 @@ class Grid:
         def h(i, j):
             dx = max(bx0 - i, 0, i - bx1)
             dy = max(by0 - j, 0, j - by1)
-            return 1.2 * (max(dx, dy) + 0.4142 * min(dx, dy))
+            return 2.2 * (max(dx, dy) + 0.4142 * min(dx, dy))
 
+        self.expanded = 0
         openq, g, came = [], {}, {}
         for s in sources:
             if s[0] in layers_ok and ok(*s) is not None:
                 g[s] = 0.0
                 heapq.heappush(openq, (h(s[1], s[2]), 0.0, s))
         n = 0
-        limit = EXPAND * (2 if soft else 1)
+        limit = EXPAND * (4 if soft else 1)
+        closed = set()
         while openq:
             f, gc, node = heapq.heappop(openq)
-            if gc > g.get(node, 1e18):
+            if gc > g.get(node, 1e18) or node in closed:
                 continue
+            closed.add(node)  # weighted A* without reopening
             if node in targets:
                 path = [node]
                 while path[-1] in came:
                     path.append(came[path[-1]])
-                return path[::-1]
+                return straighten(path[::-1], lambda li, i, j: ok(li, i, j) == 0)
             n += 1
+            self.expanded = n
             if n > limit:
                 return None
             li, i, j = node
@@ -357,6 +376,9 @@ class Grid:
             for di, dj, c in STEPS:
                 ni, nj = i + di, j + dj
                 if not (0 <= ni < NX and 0 <= nj < NY):
+                    continue
+                if li == 1 and dj and (PAIR_STRIP[0] <= ni <= PAIR_STRIP[2] and PAIR_STRIP[1] <= nj <= PAIR_STRIP[3]
+                                       or PAIR_STRIP[0] <= i <= PAIR_STRIP[2] and PAIR_STRIP[1] <= j <= PAIR_STRIP[3]):
                     continue
                 nb = (li, ni, nj)
                 r = ok(*nb)
@@ -381,6 +403,191 @@ class Grid:
                         came[nb] = node
                         heapq.heappush(openq, (ng + h(i, j), ng, nb))
         return None
+
+
+    # ------------------------------------------------------------------ negotiated congestion (PathFinder)
+    def init_pf(self) -> None:
+        n = NX * NY
+        self.ot = [array("h", bytes(2 * n)) for _ in self.layers]  # routed nets whose track keep-away covers the cell
+        self.ov = [array("h", bytes(2 * n)) for _ in self.layers]  # same for vias
+        self.ovs = array("h", bytes(2 * n))  # within VIA_PITCH of a routed via
+        self.hist = [array("f", bytes(4 * n)) for _ in self.layers]  # history of congestion
+        # cells where a track centre lies in the fixed copper of its net with all its width: nothing new there
+        self.inside = [array("i", bytes(4 * n)) for _ in self.layers]
+        items = [p for fp in self.board.GetFootprints() for p in fp.Pads()] + list(self.board.GetTracks())
+        for item in items:
+            code = item.GetNetCode()
+            if code <= 0:
+                continue
+            for li, layer in enumerate(self.layers):
+                if item.IsOnLayer(layer):
+                    poly = pcbnew.SHAPE_POLY_SET()
+                    item.TransformShapeToPolygon(poly, layer, mm(-H0), mm(0.005), pcbnew.ERROR_INSIDE)
+                    for k in self.cells_in(poly):
+                        self.inside[li][k] = code
+
+    def cover(self, item) -> list:
+        """The cells a routed item keeps the other nets away from: [(kind, layer index, cell)]."""
+        out = []
+        clearance = max(0.15, self.clearance_of(item, item.GetLayer()))
+        if item.GetNetClassName() == "GNSS_SENSITIVE" and self.bmd and item.GetBoundingBox().Intersects(self.bmd_box):
+            clearance = 0.15
+        for li, layer in enumerate(self.layers):
+            if not item.IsOnLayer(layer):
+                continue
+            out += [(0, li, k) for k in self.cells_in(self.item_poly(item, layer, clearance + H0 + MARGIN))]
+            out += [(1, li, k) for k in self.cells_in(self.item_poly(item, layer, clearance + VIA[0] / 2 + MARGIN))]
+        if item.Type() == pcbnew.PCB_VIA_T:
+            ci, cj = cell_of(item.GetPosition().x, item.GetPosition().y)
+            out += [(2, 0, (cj + dj) * NX + ci + di) for di, dj in VIA_DISK
+                    if 0 <= ci + di < NX and 0 <= cj + dj < NY]
+        return out
+
+    def apply(self, cells: list, sign: int) -> None:
+        for kind, li, k in cells:
+            if kind == 0:
+                self.ot[li][k] += sign
+            elif kind == 1:
+                self.ov[li][k] += sign
+            else:
+                self.ovs[k] += sign
+
+    def route_pf(self, net: int, cls: str, sources: list, targets: dict, layers_ok: list, width: float, pf: float,
+                 hard: bool = False):
+        """A* over the fixed obstacles only; the copper of the other routed nets costs (present congestion times
+        ``pf`` plus history) instead of blocking. Returns the path or None."""
+        extra = (width / 2 - H0) + EXTRA_CLEARANCE.get(cls, 0.0)
+        dsk = disk(extra) if extra > 1e-6 else [(0, 0)]
+        sw = self.swmask if cls == "GNSS_SENSITIVE" else None
+        tb, vb, vsb, ot, ov, ovs, hist = self.tb, self.vb, self.vsb, self.ot, self.ov, self.ovs, self.hist
+        bmd = self.bmd if cls == "GNSS_SENSITIVE" else None
+        okc = {}
+
+        def ok(li, i, j):
+            """Cost factor of a track centre here, or None if the fixed copper forbids it."""
+            key = (li, i, j)
+            r = okc.get(key, -2)
+            if r != -2:
+                return r
+            r = None
+            if not (sw and sw[j * NX + i]):
+                d = ((0, 0),) if bmd and bmd[0] <= i <= bmd[2] and bmd[1] <= j <= bmd[3] else dsk
+                occ = 0
+                grid, cong, inside = tb[li], ot[li], self.inside[li]
+                for di, dj in d:
+                    ii, jj = i + di, j + dj
+                    if not (0 <= ii < NX and 0 <= jj < NY):
+                        break
+                    k = jj * NX + ii
+                    val = grid[k]
+                    if val != 0 and val != net:
+                        break
+                    if cong[k] > occ and inside[k] != net:  # a centre deep in its own copper adds no copper
+                        occ = cong[k]
+                else:
+                    k = j * NX + i
+                    r = None if hard and occ else (1.0 + hist[li][k]) * (1.0 + pf * occ)
+            okc[key] = r
+            return r
+
+        def via_ok(i, j):
+            k = j * NX + i
+            if vsb[k] or (sw and sw[k]):
+                return None
+            occ = ovs[k]
+            for li in range(3):
+                val = vb[li][k]
+                if val != 0 and val != net:
+                    return None
+                occ += ov[li][k]
+            return None if hard and occ else 1.0 + pf * occ
+
+        tx = [c[1] for c in targets]
+        ty = [c[2] for c in targets]
+        bx0, bx1, by0, by1 = min(tx), max(tx), min(ty), max(ty)
+
+        def h(i, j):
+            dx = max(bx0 - i, 0, i - bx1)
+            dy = max(by0 - j, 0, j - by1)
+            return 2.2 * (max(dx, dy) + 0.4142 * min(dx, dy))
+
+        openq, g, came = [], {}, {}
+        for s0 in sources:
+            if s0[0] in layers_ok and ok(*s0) is not None:
+                g[s0] = 0.0
+                heapq.heappush(openq, (h(s0[1], s0[2]), 0.0, s0))
+        n = 0
+        closed = set()
+        while openq:
+            f, gc, node = heapq.heappop(openq)
+            if node in closed:
+                continue
+            closed.add(node)
+            if node in targets:
+                path = [node]
+                while path[-1] in came:
+                    path.append(came[path[-1]])
+                # straighten only over cells shared with nobody
+                return straighten(path[::-1],
+                                  lambda li, i, j: (ok(li, i, j) or 1e9) <= 1.0 + hist[li][j * NX + i] + 1e-9)
+            n += 1
+            if n > EXPAND * 3:
+                return None
+            li, i, j = node
+            lc = LAYER_COST[li]
+            halo = self.halo[li]
+            for di, dj, c in STEPS:
+                ni, nj = i + di, j + dj
+                if not (0 <= ni < NX and 0 <= nj < NY):
+                    continue
+                if li == 1 and dj and (PAIR_STRIP[0] <= ni <= PAIR_STRIP[2] and PAIR_STRIP[1] <= nj <= PAIR_STRIP[3]
+                                       or PAIR_STRIP[0] <= i <= PAIR_STRIP[2] and PAIR_STRIP[1] <= j <= PAIR_STRIP[3]):
+                    continue
+                nb = (li, ni, nj)
+                r = ok(*nb)
+                if r is None:
+                    continue
+                ng = gc + c * lc * r
+                if halo[nj * NX + ni] and nb not in targets:
+                    ng += HALO_COST
+                if ng < g.get(nb, 1e18):
+                    g[nb] = ng
+                    came[nb] = node
+                    heapq.heappush(openq, (ng + h(ni, nj), ng, nb))
+            r = via_ok(i, j)
+            if r is not None:
+                for lj in layers_ok:
+                    if lj == li:
+                        continue
+                    nb = (lj, i, j)
+                    ng = gc + VIA_COST * r
+                    if ng < g.get(nb, 1e18):
+                        g[nb] = ng
+                        came[nb] = node
+                        heapq.heappush(openq, (ng + h(i, j), ng, nb))
+        return None
+
+
+def straighten(path: list, free) -> list:
+    """Fewer, longer segments: on each layer run, jump to the farthest later cell that a straight line (any angle)
+    reaches over free cells only (the grid margin covers a line between cell centres)."""
+    out = [path[0]]
+    k = 0
+    while k < len(path) - 1:
+        li = path[k][0]
+        best = k + 1
+        end = k + 1
+        while end < len(path) and path[end][0] == li:
+            end += 1
+        for m in range(end - 1, k + 1, -1):
+            (_, i0, j0), (_, i1, j1) = path[k], path[m]
+            n = max(abs(i1 - i0), abs(j1 - j0)) * 2
+            if all(free(li, round(i0 + (i1 - i0) * t / n), round(j0 + (j1 - j0) * t / n)) for t in range(n + 1)):
+                best = m
+                break
+        out.append(path[best])
+        k = best
+    return out
 
 
 def components(board, net: int) -> list[list]:
@@ -459,10 +666,28 @@ def emit(board, grid: Grid, netinfo, path: list, width: float) -> list:
 def crossed(grid: Grid, path: list, routed: dict, net: int, width: float) -> set:
     """The routed nets whose copper (with clearance) the path of a soft search runs into."""
     hit = set()
-    r = mm(width / 2 + 0.3 + MARGIN)
+    dense = [path[0]]
+    for (l0, i0, j0), (l1, i1, j1) in zip(path, path[1:]):  # the straightened path: every cell along each segment
+        n = max(abs(i1 - i0), abs(j1 - j0))
+        if l0 == l1 and n > 1:
+            dense += [(l0, round(i0 + (i1 - i0) * t / n), round(j0 + (j1 - j0) * t / n)) for t in range(1, n)]
+        dense.append((l1, i1, j1))
+    path = dense
+    for li, i, j in path:  # cells owned by one routed net: its code is in the grid
+        for di in (-2, -1, 0, 1, 2):
+            for dj in (-2, -1, 0, 1, 2):
+                ii, jj = i + di, j + dj
+                if 0 <= ii < NX and 0 <= jj < NY:
+                    k = jj * NX + ii
+                    val = grid.t[li][k]
+                    if val > 0 and val != net and val in routed and grid.tb[li][k] in (0, net):
+                        hit.add(val)
+    r = mm(width / 2 + 0.45 + MARGIN)
     pts = [(nm_of(i, j), li) for li, i, j in path]
     for other, items in routed.items():
         if other == net:
+            continue
+        if other in hit:
             continue
         for item in items:
             box = item.GetBoundingBox()
@@ -490,17 +715,36 @@ def bbox_cells(items: list, grow: float = 1.5) -> tuple:
     return i0, j0, i1, j1
 
 
-def route_all(board, log=print):
-    """Routes every net but GND (and the classes of `criticas`). Returns (connections routed, nets left)."""
+def dense_cells(items: list) -> list:
+    """(layer index, i, j) along every routed track centre, and ("v", i, j) at every via."""
+    out = []
+    for it in items:
+        if it.Type() == pcbnew.PCB_VIA_T:
+            ci, cj = cell_of(it.GetPosition().x, it.GetPosition().y)
+            out.append(("v", ci, cj))
+            continue
+        li = {pcbnew.F_Cu: 0, pcbnew.In2_Cu: 1, pcbnew.B_Cu: 2}[it.GetLayer()]
+        i0, j0 = cell_of(it.GetStart().x, it.GetStart().y)
+        i1, j1 = cell_of(it.GetEnd().x, it.GetEnd().y)
+        n = max(abs(i1 - i0), abs(j1 - j0), 1)
+        out += [(li, round(i0 + (i1 - i0) * t / n), round(j0 + (j1 - j0) * t / n)) for t in range(n + 1)]
+    return out
+
+
+def route_all(board, log=print, iterations: int = 8, only=None):
+    """Negotiated congestion routing (PathFinder) of every net but GND and the classes of `criticas`: every round
+    reroutes the nets whose copper still runs into another net's, with the cost of shared cells growing round after
+    round, until nothing is shared. Returns (connections routed, nets left)."""
     grid = Grid(board)
     grid.load()
+    grid.init_pf()
     nets = {n.GetNetCode(): n for n in board.GetNetsByNetcode().values()}
-    queue = []
+    todo = []
     for code, n in nets.items():
         name = n.GetNetname()
-        if code <= 0 or code == grid.gnd or name.startswith("unconnected"):
+        if code <= 0 or code == grid.gnd or name.startswith("unconnected") or n.GetNetClassName() in SKIP_CLASSES:
             continue
-        if n.GetNetClassName() in SKIP_CLASSES:
+        if only and name not in only:
             continue
         comps = components(board, code)
         if len(comps) > 1:
@@ -508,53 +752,101 @@ def route_all(board, log=print):
             for c in comps:
                 for it in c:
                     box.Merge(it.GetBoundingBox())
-            queue.append((box.GetWidth() + box.GetHeight(), code))
-    queue = [code for _, code in sorted(queue)]
-    routed, rips, failed = {}, {}, set()
-    done = steps = 0
-    while queue and steps < 3000:
-        steps += 1
-        code = queue.pop(0)
+            todo.append((box.GetWidth() + box.GetHeight(), code))
+    redo = [code for _, code in sorted(todo)]
+    order = list(redo)
+    routed, covers, failed = {}, {}, set()
+    done = 0
+    pf = 1.0
+    for rnd in range(iterations):
+        for code in redo:
+            n = nets[code]
+            cls = n.GetNetClassName()
+            width = WIDTH.get(cls, 0.15)
+            layers_ok = [0, 2] if cls == "POWER_DOCK" else [0, 1, 2]
+            for item in routed.pop(code, []):
+                board.Remove(item)
+            grid.apply(covers.pop(code, []), -1)
+            failed.discard(code)
+            items, cells = [], []
+            while True:
+                comps = components(board, code)
+                if len(comps) < 2:
+                    break
+                comps.sort(key=lambda comp: sum(len(grid.own_cells(it, code)) for it in comp))
+                sources = [c for it in comps[0] for c in grid.own_cells(it, code)]
+                targets = {c: k for k, comp in enumerate(comps[1:]) for it in comp for c in grid.own_cells(it, code)}
+                path = grid.route_pf(code, cls, sources, targets, layers_ok, width, pf) if sources and targets else None
+                if not path:
+                    failed.add(code)
+                    log(f"sin ruta: {n.GetNetname()} (lo fijo no deja)")
+                    break
+                items += emit(board, grid, n, path, width)
+                done += 1
+            for item in items:
+                c = grid.cover(item)
+                cells += c
+                grid.apply(c, +1)
+            routed[code] = items
+            covers[code] = cells
+        # who still shares cells with another net (its own coverage taken out); history grows there
+        redo = []
+        for code, items in routed.items():
+            own = {}
+            for key in covers[code]:
+                own[key] = own.get(key, 0) + 1
+            bad = False
+            where = None
+            for li, i, j in dense_cells(items):
+                k = j * NX + i
+                if li == "v":
+                    occ = grid.ovs[k] - own.get((2, 0, k), 0)
+                    occ += sum(grid.ov[x][k] - own.get((1, x, k), 0) for x in range(3))
+                    if occ > 0:
+                        bad = True
+                        where = where or ("vía", round(i * G, 2), round(j * G, 2))
+                        for x in range(3):
+                            grid.hist[x][k] += 1.0
+                elif grid.inside[li][k] != code and grid.ot[li][k] - own.get((0, li, k), 0) > 0:
+                    bad = True
+                    where = where or (li, round(i * G, 2), round(j * G, 2))
+                    grid.hist[li][k] += 1.0
+            if bad:
+                redo.append(code)
+                if rnd % 3 == 2:
+                    log(f"  {nets[code].GetNetname()}: {where}")
+        log(f"vuelta {rnd + 1}: {len(redo)} redes comparten cobre, {len(failed)} sin ruta, factor {pf:.1f}")
+        if not redo:
+            break
+        pf *= 2.0
+    # Whatever still shares copper goes away and gets one more try over free space only; each connection found joins
+    # two pieces of its net, so a net left half way is still clean (the rest stays as ratsnest).
+    for code in redo:
+        for item in routed.pop(code, []):
+            board.Remove(item)
+        grid.apply(covers.pop(code, []), -1)
+    left = set()
+    for code in sorted(redo, key=order.index):
         n = nets[code]
         cls = n.GetNetClassName()
         width = WIDTH.get(cls, 0.15)
         layers_ok = [0, 2] if cls == "POWER_DOCK" else [0, 1, 2]
+        items = []
         while True:
             comps = components(board, code)
             if len(comps) < 2:
-                failed.discard(code)
                 break
-            comps.sort(key=len)
+            comps.sort(key=lambda comp: sum(len(grid.own_cells(it, code)) for it in comp))
             sources = [c for it in comps[0] for c in grid.own_cells(it, code)]
             targets = {c: k for k, comp in enumerate(comps[1:]) for it in comp for c in grid.own_cells(it, code)}
-            if not sources or not targets:
-                failed.add(code)
-                break
-            path = grid.route(code, cls, sources, targets, layers_ok, width)
+            path = grid.route_pf(code, cls, sources, targets, layers_ok, width, 1.0, hard=True)
             if not path:
-                path = grid.route(code, cls, sources, targets, layers_ok, width, soft=True)
-                victims = crossed(grid, path, routed, code, width) if path else set()
-                if path and (not victims or any(rips.get(v, 0) >= MAX_RIPS for v in victims)):
-                    path = None
-                if path:
-                    removed = []
-                    for vnet in victims:
-                        removed += routed.pop(vnet, [])
-                        rips[vnet] = rips.get(vnet, 0) + 1
-                        queue.append(vnet)
-                    box = bbox_cells(removed)
-                    for item in removed:
-                        board.Remove(item)
-                    grid.rebuild(box, routed)
-                    log(f"{n.GetNetname()}: levanto {sorted(nets[v].GetNetname() for v in victims)}")
-            if not path:
-                failed.add(code)
-                log(f"sin ruta: {n.GetNetname()}")
+                left.add(n.GetNetname())
                 break
-            items = emit(board, grid, n, path, width)
-            routed.setdefault(code, []).extend(items)
-            for item in items:
-                grid.add_item(item, code, max(0.15, grid.clearance_of(item, item.GetLayer())))
-            done += 1
-    left = sorted({nets[c].GetNetname() for c in failed | set(queue)})
-    return done, left
+            new = emit(board, grid, n, path, width)
+            for item in new:
+                grid.apply(grid.cover(item), +1)
+            items += new
+        log(f"al final: {n.GetNetname()} {'completa' if n.GetNetname() not in left else 'queda a mano'}")
+    left |= {nets[c].GetNetname() for c in failed}
+    return done, sorted(left)
