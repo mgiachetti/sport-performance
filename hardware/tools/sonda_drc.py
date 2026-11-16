@@ -50,7 +50,8 @@ NETS = ["GND", "/gnss_rf/GNSS_RF_A", "/power/BB_LX1", "USB_D_P", "USB_D_N", "SYS
 # Board screws (GND) at (106; 108), (144; 108) and (124; 166). The routing of the pod (tracks, vias and the copper
 # zones, L2_GND included) is left out of the probes: the probes go where the pod has copper.
 # Track: (net, layer, x0, y0, x1, y1, width). Via: (net, x, y). Footprint: (ref, x, y, side, pads),
-# pad: (number, dx, dy, width, height, net or None). Zone: (net, layer, [(x, y), ...]), outline only.
+# pad: (number, dx, dy, width, height, net or None). Zone: (net, layer, [(x, y), ...][, filled]), outline only or,
+# with filled, filled with its own outline.
 PAD = (("1", 0, 0, 0.8, 0.8, None),)
 R0402 = lambda a, b: (("1", -0.48, 0, 0.56, 0.62, a), ("2", 0.48, 0, 0.56, 0.62, b))  # noqa: E731
 # KiCad's C_0402_1005Metric: pads at +/-0.51, 0.54 x 0.64, courtyard +/-0.93 x +/-0.47 (6th field of a footprint).
@@ -109,10 +110,13 @@ BAD = {
         ("/mcu_radio/LED_R", "F.Cu", 144.95, 149.6, 145.45, 149.6, 0.2),
         # ... and just outside it, 0.3 mm: the 0.5 mm of RF_50 still applies
         ("/mcu_radio/LED_R", "F.Cu", 145.25, 151.0, 145.25, 152.0, 0.2),
+        ("/gnss_rf/GNSS_RF_A", "F.Cu", 147.5, 152, 147.5, 156, 0.33),  # RF next to the GND plane below
     ],
     "vias": [("/gnss_rf/GNSS_RF_A", 120, 140),  # via on an RF net
              ("GND", 138, 166)],  # even a GND via inside LORA_ANTENA (native keep-out)
-    "zones": [],
+    # a GND plane that touches the LNA's courtyard 0.15 mm from an RF track 2 mm away: the coplanar 0.20 mm holds (the
+    # LNA's exception is for tracks and vias, not for the planes, which cover the whole board)
+    "zones": [("GND", "F.Cu", [(145.4, 150.2), (147.185, 150.2), (147.185, 156), (145.4, 156)], True)],
     "footprints": [
         ("R1", 125, 125, "F", PAD),  # top-side part under the GNSS antenna
         ("J1", 133, 139.5, "F", (("1", 0, 0, 0.8, 0.8, "/mcu_radio/LED_G"),)),  # other net near RF
@@ -173,6 +177,8 @@ RF_PAIR = ("netclass 'RF_50'", "GNSS_RF_A", "GNSS_RF_B", "@(130.0000 mm, 153")
 # Out of the LNA's courtyard another net 0.3 mm from the RF: still the 0.5 mm.
 LNA_OUTSIDE = ("RF_50: otras redes lejos", "@(145.2500 mm, 151.0000 mm)")
 # L3_GND is the top third only since the routing of 15/11/2026: a signal on L3 under the USB pair at y < 33.
+# A GND plane is not "around the LNA": the coplanar 0.20 mm against the planes, even where they reach U205's courtyard.
+PLANE_GAP = ("RF_50: separación coplanar a GND", "Zone [GND]", "GNSS_RF_A")
 L3_STRIP_RULE, L3_STRIP_AT = "L3_GND: L3 solo GND debajo de L4", "@(115.7500 mm, 124.0000 mm)"
 # The footprint rule, on both sides: its name in the block of each footprint.
 LORA_FOOTPRINT_RULE = "LORA_ANTENA: solo la antena y sus capacitores"
@@ -212,10 +218,14 @@ OK = {
         ("/mcu_radio/LED_G", "F.Cu", 144, 118.4, 146, 118.4, 0.2),
         # another net inside the LNA's courtyard 0.185 mm from the RF track (0.15 mm there; 0.5 mm outside)
         ("/mcu_radio/LED_R", "F.Cu", 145.05, 149.6, 145.45, 149.6, 0.2),
+        ("/gnss_rf/GNSS_RF_A", "F.Cu", 147.5, 152, 147.5, 156, 0.33),  # RF 0.20 mm from the GND plane below
     ],
     "vias": [("GND", 120, 125),  # stitching via inside the GNSS zone
-             ("/gnss_rf/GNSS_ANT_PATCH", 125, 131)],  # the patch feed's RF via
-    "zones": [("GND", "In2.Cu", [(123.5, 118.5), (126.5, 118.5), (126.5, 132), (123.5, 132)])],  # GND island on L3
+             ("/gnss_rf/GNSS_ANT_PATCH", 125, 131),  # the patch feed's RF via
+             ("GND", 146, 155)],  # the via of the GND plane next to the LNA
+    "zones": [("GND", "In2.Cu", [(123.5, 118.5), (126.5, 118.5), (126.5, 132), (123.5, 132)]),  # GND island on L3
+              # a GND plane on L1 that touches the LNA's courtyard, 0.20 mm from an RF track 2 mm away
+              ("GND", "F.Cu", [(145.4, 150.2), (147.135, 150.2), (147.135, 156), (145.4, 156)], True)],
     "footprints": [
         ("AE201", 115, 130, "F", PAD),  # the patch may sit in the GNSS zone
         ("R2", 130, 125, "B", PAD),  # bottom-side part under the GNSS zone
@@ -233,7 +243,7 @@ OK = {
 }
 # Violations that a probe board always has and that say nothing about the rules.
 OK_ALLOWED = {"track_dangling", "via_dangling", "unconnected_items", "lib_footprint_issues",
-              "lib_footprint_mismatch"}
+              "lib_footprint_mismatch", "isolated_copper"}  # (the probe's GND plane reaches no pad)
 
 
 def uid(*parts: object) -> str:
@@ -276,11 +286,13 @@ def write_board(out: Path, stem: str, spec: dict) -> None:
     for i, (net, x, y) in enumerate(spec["vias"]):
         items += (f'\t(via (at {x} {y}) (size 0.6) (drill 0.3) (layers "F.Cu" "B.Cu") '
                   f'(net "{net}") (uuid "{uid(stem, "via", i)}"))\n')
-    for i, (net, layer, pts) in enumerate(spec["zones"]):
+    for i, (net, layer, pts, *filled) in enumerate(spec["zones"]):
         xy = " ".join(f"(xy {x} {y})" for x, y in pts)
+        # filled: the fill is the outline itself (the DRC does not refill, and a zone without fill is not checked)
+        fill = f' (filled_polygon (layer "{layer}") (pts {xy}))' if filled and filled[0] else ""
         items += (f'\t(zone (net "{net}") (layer "{layer}") (uuid "{uid(stem, "zone", i)}") '
                   f'(hatch edge 0.5) (connect_pads (clearance 0.2)) (min_thickness 0.2) (filled_areas_thickness no) '
-                  f'(fill (thermal_gap 0.5) (thermal_bridge_width 0.5)) (polygon (pts {xy})))\n')
+                  f'(fill{" yes" if fill else ""} (thermal_gap 0.5) (thermal_bridge_width 0.5)) (polygon (pts {xy})){fill})\n')
     end = board.rstrip().rfind(")")
     (out / f"{stem}.kicad_pcb").write_text(board[:end] + items + ")\n", encoding="utf-8")
     shutil.copyfile(POD / "pod-v0.kicad_pro", out / f"{stem}.kicad_pro")
@@ -392,6 +404,8 @@ def verify(report: Path) -> int:
     found["RF_50: 0,5 mm entre otras redes de RF"] = any(all(t in b for t in RF_PAIR) for b in blocks)
     found["RF_50: 0,5 mm afuera del courtyard del LNA"] = any(all(t in b for t in LNA_OUTSIDE) for b in blocks)
     found["L3_GND: L3 debajo del par en y < 33"] = any(L3_STRIP_RULE in b and L3_STRIP_AT in b for b in blocks)
+    found["RF_50: 0,20 mm a un plano de GND que toca el courtyard del LNA"] = any(
+        all(t in b for t in PLANE_GAP) for b in blocks)
     found["GNSS_ANT_PATCH sigue prohibida en capas internas"] = any(all(t in b for t in PATCH_INNER) for b in blocks)
     for name, ok in found.items():
         print(("ok    " if ok else "FALTA ") + name)

@@ -41,7 +41,7 @@ Line #,Reference Designator,Quantity,Manufacturer,Manufacturer Part Number,Distr
 40,SW301,1,E-Switch,TL3342F450QG,C2886897,"Pulsador SMD 5,2 × 5,2 mm 4,5 N",SW_SPST_TL3342,SMT,,no,C2886897,EG6066CT-ND,,,
 41,U101,1,Texas Instruments,BQ25180YBGR,C3682423,"Cargador lineal I2C 1 A, DSBGA-8 0,4 mm",DSBGA-8_L1.6-W0.9-R2-C4-P0.40-BL,SMT,DSBGA 0.4 mm pitch; X-ray inspection please,no,C3682423,296-BQ25180YBGRCT-ND,,,
 42,U102,1,Analog Devices,MAX17048G+T10,C2682616,"Medidor de carga 1 celda, TDFN-8 2 × 2",TDFN-8_L2.0-W2.0-P0.50-BL-EP1.2,SMT,,no,C2682616,MAX17048G+T10CT-ND,,,
-43,U103,1,Texas Instruments,TPS63900DSKR,C1518762,"Buck-boost 400 mA, 75 nA, WSON-10 2,5 × 2,5",Texas_DSK0010A_WSON-10-1EP_2.5x2.5mm_P0.5mm_EP1.2x2mm_ThermalVias,SMT,Exposed pad with filled/capped via-in-pad,no,C1518762,296-TPS63900DSKRCT-ND,,,
+43,U103,1,Texas Instruments,TPS63900DSKR,C1518762,"Buck-boost 400 mA, 75 nA, WSON-10 2,5 × 2,5",Texas_DSK0010A_WSON-10-1EP_2.5x2.5mm_P0.5mm_EP1.2x2mm_ThermalVias,SMT,"4 holes in the exposed pad, filled and capped (POFV): mandatory",no,C1518762,296-TPS63900DSKRCT-ND,,,
 44,U104,1,Texas Instruments,TPS7A2032PDBVR,296-TPS7A2032PDBVRCT-ND,"LDO 3,2 V 300 mA bajo ruido, descarga activa, SOT-23-5",SOT-23-5,SMT,,no,C2877862,296-TPS7A2032PDBVRCT-ND,,,
 45,U106,1,Texas Instruments,TPS7A0230PDBVR,C3747031,"LDO 3,0 V 200 mA 25 nA, descarga activa, SOT-23-5",SOT-23-5,SMT,,no,C3747031,296-TPS7A0230PDBVRCT-ND,,,
 46,U201,1,Quectel,LC29HAAMD,2958-LC29HAAMDCT-ND,"Módulo GNSS L1+L5 LC29H(AA), LCC-24 12,2 × 16,0",Quectel_LC29H_LCC-24_12.2x16.0mm_P1.1mm,SMT,,no,C22403415,2958-LC29HAAMDCT-ND,,,
