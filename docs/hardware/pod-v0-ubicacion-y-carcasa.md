@@ -353,7 +353,7 @@ Antes del ruteo (sección siguiente). Sobre una copia de la placa ubicada (las p
 | UWB (puntos de prueba) | `UWB_CS`, `UWB_IRQ`, `UWB_RST`, `UWB_WAKEUP` | De los pads 8, 48, 50 y 58 a `TP702`–`TP705` (x 30–35, y 25–27): L3 al este hasta x ≈ 30 y L4 hacia arriba |
 | Botón, buzzer, NTC | `BTN`, `BUZZER`, `BAT_NTC` | L3 o L4 al este, debajo de la celda; `BAT_NTC` de la bola D1 del BQ25180 (15,6; 65,2) a `R101` (43,5; 52) por L4 en y ≈ 57, arriba de VBUS |
 | Potencia | `SYS` (6), `BAT` (2), `VREG` (37: pads que el plano de L3 no alcanza o están arriba de y = 33, sobre todo los traductores y el LC29H a la izquierda) | `VREG`: el plano de L3 (una sola pieza, de y = 33,4 al borde de abajo, salvo la franja del par) es la distribución; el buck-boost llega por `R108.2` con 2 vías. Cada pad de VREG debajo de y = 33,4 baja con su vía al plano; los de arriba (traductores en x ≈ 7, y 12–25, y el LC29H) con una pista de 0,25 mm por L4 desde una vía del plano en y ≈ 34. **Ninguna señal larga por L3 dentro del plano de VREG**: lo que cruce, corto y de través, para que no vuelva a partirse (el DRC no lo ve; se mira el relleno). `SYS`: 0,25 mm por L4 de `C105` a `R306` y a `R115`/`R308`. `BAT`: 0,3 mm por L4 |
-| GND | 8 trozos de plano de L1 y L4 sin vía a L2 | Una vía de GND en cada trozo; al final, la grilla de costura (`planos`) |
+| GND | 9 trozos de plano de L1 y L4 sin vía a L2 | Una vía de GND en cada trozo; al final, la grilla de costura (`planos`) |
 
 ### Para medir con la primera placa
 

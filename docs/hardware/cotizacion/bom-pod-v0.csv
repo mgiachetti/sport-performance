@@ -47,7 +47,7 @@ Line #,Reference Designator,Quantity,Manufacturer,Manufacturer Part Number,Distr
 46,U201,1,Quectel,LC29HAAMD,2958-LC29HAAMDCT-ND,"Módulo GNSS L1+L5 LC29H(AA), LCC-24 12,2 × 16,0",Quectel_LC29H_LCC-24_12.2x16.0mm_P1.1mm,SMT,,no,C22403415,2958-LC29HAAMDCT-ND,,,
 47,"U202,U203,U204",3,Texas Instruments,SN74LVC1T45DBVR,C7843,"Traductor de nivel 1 bit con Ioff, SOT-23-6",SOT-23-6,SMT,,no,C7843,296-16843-1-ND,,,
 48,U205,1,Infineon,BGA525N6E6327XTSA1,C18337445,"LNA GNSS L1/L2/L5, TSNP-6-10 1,1 × 0,7",Infineon_PG-TSNP-6-10_1.1x0.7mm_P0.4mm,SMT,,no,C18337445,448-BGA525N6E6327XTSA1CT-ND,,,
-49,U301,1,u-blox,BMD-340-A-R,BMD-340-A-R,"Módulo BLE nRF52840, antena PCB, 10,2 × 15,0 mm",u-blox_BMD-340_15.0x10.2mm,SMT,68 bottom pads (0.5 mm square); X-ray inspection please. Order type number BMD-340-A-R-10. Every via on the board filled and capped (POFV),no,,BMD-340-A-R,,,
+49,U301,1,u-blox,BMD-340-A-R,BMD-340-A-R,"Módulo BLE nRF52840, antena PCB, 10,2 × 15,0 mm",u-blox_BMD-340_15.0x10.2mm,SMT,"68 bottom pads (0.5 mm square); X-ray inspection please. Order type number BMD-340-A-R-10. Every via on the board filled and capped (POFV), mandatory (e.g. about 40 in the pads of this module)",no,,BMD-340-A-R,,,
 50,U302,1,Ai-Thinker,Ra-01SH,C2764087,"Módulo LoRa SX1262 22 dBm, 17 × 16 × 3,2 mm, 16 pads, RXEN y TXEN externos",WIRELM-SMD_RA-01SH,SMT,"Castellated module, 16 pads; pad 1 is the antenna",no,C2764087,,,,
 51,U303,1,Texas Instruments,TPS22919DCKR,C2149796,"Load switch 1,5 A 90 mΩ, encendido controlado, QOD, SC-70-6",SOT-363_SC-70-6,SMT,,no,C2149796,,,,
 52,U401,1,STMicroelectronics,LSM6DSV32XTR,C22461202,"IMU 6 ejes ±32 g de doble canal, LGA-14L 2,5 × 3",LGA-14_L3.0-W2.5-P0.50-TL,SMT,LGA; X-ray inspection please,no,C22461202,497-LSM6DSV32XTRCT-ND,,,
