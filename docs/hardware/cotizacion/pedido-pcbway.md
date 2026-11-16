@@ -25,7 +25,7 @@ Las listas salen de la netlist con `python3 hardware/tools/bom_pcbway.py` (el CI
 | Cobre | 1 oz terminado afuera; adentro, el del apilado de impedancia que propongan (el diseño supone 0,5 oz) |
 | Pista y separación mínimas | 0,1 / 0,1 mm (la mayoría a 0,15 mm o más) |
 | Vía mínima | 0,45 mm de diámetro con agujero de 0,2 mm; la habitual, 0,5/0,2 y 0,6/0,3 |
-| Vías en el pad | **Sí, rellenas con resina y tapadas con cobre** (VIPPO/POFV): las 4 vías térmicas del pad expuesto del TPS63900 (WSON-10) y las vías de los pads de la cadena RF si hace falta |
+| Vías en el pad | **Sí: todas las vías de la placa rellenas con resina y tapadas con cobre (POFV), obligatorio**. Hay vías sobre pads en varias partes, por ejemplo **los 4 agujeros metalizados del pad expuesto del TPS63900** (`U103`, WSON-10: los trae el footprint `..._ThermalVias`, en (19,65; 62), (20; 61,25), (20; 62,75) y (20,35; 62)) y **las vías de 0,5/0,2 mm en los pads del BMD-340** (`U301`, el escape del módulo desde el ruteo del 15/11/2026: todos los pads salvo las dos filas de arriba, que salen por L1, el cristal, VREG, VBUS y el par USB). **Hoy son 17**; con las redes del módulo que quedan para rutear a mano (sección 9 de `pod-v0-ubicacion-y-carcasa.md`) llegan a unas 40. Sin relleno y tapa la soldadura del módulo se va por la vía. Además hay vías de costura y de escape que tocan pads de otras partes (lista en la sección 9 de `pod-v0-ubicacion-y-carcasa.md`, "Retoques de la revisión"): por eso **toda la placa**, unas 290 vías hoy (0,5/0,2 y 0,6/0,3), más las del ruteo a mano |
 | Acabado | **ENIG** en toda la placa |
 | Oro duro | **No hace falta** (desde el 14/11/2026): los 5 pads de `J601` son pads ENIG donde se sueldan los resortes internos del inserto de contactos; el oro duro va en los pines del inserto, en la carcasa. Oro duro grueso debajo de una soldadura es un problema de confiabilidad (fragiliza la junta) |
 | Máscara y serigrafía | Verde y blanca; **puente de máscara entre los pads de 0,4 mm** (DSBGA, TSNP) si su mínimo lo permite, y si no, que lo digan (queda una ventana común) |
@@ -94,7 +94,7 @@ El "Design 1" es el apilado de 1,6 mm que PCBWay publica en su [página de apila
 > - 4 layers, FR4 Tg150+, 1.6 mm finished, about 50 × 70 mm, 1 oz outer copper.
 > - Impedance control: 50 Ω grounded coplanar waveguide on L1 referenced to L2 (GNSS 1176/1575 MHz, LoRa 915 MHz) and a 90 Ω differential pair on L1 (USB). Our current geometry is 0.33 mm track with 0.20 mm gap to coplanar ground (CPWG), and 0.25 mm / 0.15 mm for the pair. Please tell us the stack-up you would use (materials, thicknesses, Dk of prepreg, core and solder mask at 1–1.5 GHz, inner copper weight) and the track/gap you recommend for 50 Ω and 90 Ω from your field solver, with tolerance. With your published 1.6 mm "Design 1" (7628 prepreg 0.1855 mm, Dk 4.74) our own estimate gives 49 Ω and 84 Ω.
 > - Minimums: 0.1/0.1 mm track/space, vias 0.45 mm pad / 0.2 mm drill.
-> - Via-in-pad, resin filled and copper capped, under the exposed pad of a WSON-10 (4 vias).
+> - Via-in-pad, resin filled and copper capped (POFV): **every via on the board filled and capped (POFV), mandatory**. There are vias in pads on several parts, for example 4 holes in the exposed pad of a WSON-10 and about 40 vias (0.5 mm / 0.2 mm drill) in the 0.5 mm pads of a BLE module (u-blox BMD-340).
 > - ENIG finish on the whole board.
 > - One plated through hole of Ø1.0 mm (antenna pin), three plated M2 mounting holes of Ø2.2 mm with a via ring, two NPTH tooling holes of 2.1 mm.
 >
@@ -121,7 +121,7 @@ JLCPCB publica sus apilados y tarifas, así que sirve de referencia de precio. *
 
 - **Apilado de impedancia propio:** el JLC04161H-7628 (L1 de 35 µm, prepreg 7628 de 0,2104 mm con Dk 4,4, núcleo de 1,065 mm con Dk 4,6, cobre interno de 0,5 oz; máscara de Dk 3,8 y unos 15 µm sobre la pista, según su [calculador](https://jlcpcb.com/impedance), leído el 08/11/2026). Con él, 0,33/0,20 mm da 53,4 Ω y el par 90,3 Ω (`impedancia.py`, sin máscara): habría que angostar la ranura o ensanchar la pista con su calculador.
 - **Armado Standard** (el Economic no arma 0,4 mm): rayos X automático en BGA, QFN y LGA; cada parte "extended" paga la carga del alimentador (unas 50 de las 55).
-- **Vías en el pad** (POFV): se cobran en 4 capas (gratis desde 6).
+- **Vías en el pad** (POFV): se cobran en 4 capas (gratis desde 6). En el pod es obligatorio en **todas las vías de la placa** (unas 290 hoy); por ejemplo, los 4 agujeros del pad expuesto del TPS63900 y las de los pads del BMD-340 (17 hoy, unas 40 con el ruteo terminado).
 - **Partes de afuera de LCSC** (el patch, la Taoglas): por "global sourcing" (DigiKey) o consignadas en su depósito de Hong Kong (2 % de cargo, mínimo US$ 10).
 - **Archivos:** [`bom-pod-v0-jlcpcb.csv`](bom-pod-v0-jlcpcb.csv) (Comment, Designator, Footprint, LCSC Part #) y el CPL (Designator, Mid X, Mid Y, Layer, Rotation) de KiBot.
 
@@ -132,7 +132,7 @@ JLCPCB publica sus apilados y tarifas, así que sirve de referencia de precio. *
 > Hello JLCPCB team,
 >
 > Before ordering a 4-layer 1.6 mm board (about 50 × 70 mm, JLC04161H-7628, ENIG, impedance control for 50 Ω CPWG and a 90 Ω pair) with Standard PCBA (5 / 10 / 100 boards, about 140 parts and 480 pads per board), could you confirm:
-> 1. The price of resin-filled, capped via-in-pad (POFV) on a 4-layer board, for 4 vias under a WSON exposed pad.
+> 1. The price of resin-filled, capped via-in-pad (POFV) on a 4-layer board, for every via on the board (about 300, 0.5 mm / 0.2 mm and 0.6 mm / 0.3 mm).
 > 2. That Standard PCBA assembles 0.4 mm-pitch DSBGA (TI YBG and YFP packages) and a 0.4 mm TSNP-6, with X-ray.
 > 3. Hand soldering of one through-hole antenna pin after reflow, with the part supplied through Global Sourcing (DigiKey 931-GVLB258.A-ND).
 > 4. Whether you can reserve low-stock parts (C18337445 BGA525N6, C2764087 Ra-01SH) for a run of 100.
