@@ -24,7 +24,7 @@
   "dependencies": {
     "@fontsource/barlow": "5.3.0",
     "@fontsource/barlow-condensed": "5.3.0",
-    "@sentry/node": "11.10.0",
+    "@sentry/node": "11.11.0",
     "@sport-performance/contracts": "workspace:*",
     "@sport-performance/db": "workspace:*",
     "@sport-performance/domain": "workspace:*",
@@ -37,7 +37,7 @@
     "fflate": "0.8.3",
     "pdfkit": "0.20.2",
     "pg": "8.23.1",
-    "pg-boss": "12.38.0",
+    "pg-boss": "12.38.1",
     "pino": "10.4.0",
     "react": "19.3.1",
     "zod": "4.6.7"

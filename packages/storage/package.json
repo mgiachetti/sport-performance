@@ -30,8 +30,8 @@
     "club:logo": "node dist/cli/club-logo.js"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "3.1161.0",
-    "@aws-sdk/s3-request-presigner": "3.1161.0",
+    "@aws-sdk/client-s3": "3.1164.0",
+    "@aws-sdk/s3-request-presigner": "3.1164.0",
     "@sport-performance/db": "workspace:*",
     "@sport-performance/domain": "workspace:*",
     "drizzle-orm": "0.45.4",
