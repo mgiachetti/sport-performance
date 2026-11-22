@@ -44,8 +44,9 @@ NETS = ["GND", "/gnss_rf/GNSS_RF_A", "/power/BB_LX1", "USB_D_P", "USB_D_N", "SYS
         "/gnss_rf/GNSS_LNA_IN", "/gnss_rf/GNSS_LNA_OUT"]
 
 # Coordinates in mm on the 50 x 70 mm outline (100..150, 100..170; doc origin (0; 0) = (100; 100)).
-# Zones: BLE_ANTENA x 100-104.35, y 147.6-162.6; GNSS_ANTENA x 110-140, y 102-132; L3_GND (In2.Cu) the
-# top third (y < 133; until 15/11/2026 also the strip x 114.5-117 down to y 155 under the USB pair); LORA_ANTENA x 126.7-142.7, y 159.05-170 (keep-out of the
+# Zones: BLE_ANTENA x 100-104.35, y 147.6-162.6; GNSS_ANTENA x 110-140, y 102-132; L3_GND (In2.Cu) two
+# strips since 22/11/2026: under the patch feed x 122-128, y 116-133, and under the USB pair x 117-122.5, y 106-117.5
+# plus x 114.5-117, y 115-133 (until then the whole top third, y < 133); LORA_ANTENA x 126.7-142.7, y 159.05-170 (keep-out of the
 # M620720 chip antenna on the bottom edge).
 # Board screws (GND) at (106; 108), (144; 108) and (124; 166). The routing of the pod (tracks, vias and the copper
 # zones, L2_GND included) is left out of the probes: the probes go where the pod has copper.
@@ -176,7 +177,7 @@ PAIR_GAPS = {"patas de los resortes hasta 3 mm": ("USB_90D: patas de los resorte
 RF_PAIR = ("netclass 'RF_50'", "GNSS_RF_A", "GNSS_RF_B", "@(130.0000 mm, 153")
 # Out of the LNA's courtyard another net 0.3 mm from the RF: still the 0.5 mm.
 LNA_OUTSIDE = ("RF_50: otras redes lejos", "@(145.2500 mm, 151.0000 mm)")
-# L3_GND is the top third only since the routing of 15/11/2026: a signal on L3 under the USB pair at y < 33.
+# L3_GND is two strips since 22/11/2026 (patch feed and USB pair): a signal on L3 under the USB pair at y < 33.
 # A GND plane is not "around the LNA": the coplanar 0.20 mm against the planes, even where they reach U205's courtyard.
 PLANE_GAP = ("RF_50: separación coplanar a GND", "Zone [GND]", "GNSS_RF_A")
 L3_STRIP_RULE, L3_STRIP_AT = "L3_GND: L3 solo GND debajo de L4", "@(115.7500 mm, 124.0000 mm)"
@@ -198,6 +199,8 @@ OK = {
         ("SYS", "In2.Cu", 108, 157, 118, 157, 1.5),  # 1 A rail on an inner layer, below L3_GND
         # a signal on L3 crossing under the USB pair at y 33-55 (the L3_GND strip x 114.5-117 left on 15/11/2026)
         ("/mcu_radio/LED_R", "In2.Cu", 106, 136, 119, 136, 0.2),
+        # a signal on L3 in the top third out of both L3_GND strips (the rest of the top third, free since 22/11/2026)
+        ("/mcu_radio/LED_G", "In2.Cu", 132, 110, 138, 110, 0.2),
         ("GNSS_PPS", "F.Cu", 108, 158, 118, 158, 0.2),
         ("/mcu_radio/LED_G", "F.Cu", 108, 158.5, 118, 158.5, 0.2),  # 0.3 mm from PPS
         ("/power/BB_LX1", "F.Cu", 128, 145, 138, 145, 0.4),  # switch node far from RF and zones
