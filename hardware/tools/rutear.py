@@ -488,10 +488,11 @@ def dsn_for_freerouting(text: str) -> str:
             continue
         out.append(line)
     text = "".join(out)
-    # L3_GND (In2 only) is exported as a keep-out, which also stops vias: only tracks are forbidden there.
-    text, n = re.subn(r"\(keepout(?= \"\" \(polygon " + re.escape(inner2) + r" 0  100000 -100000  150000 -100000  150000 -133000)",
+    # The two L3_GND strips (In2 only) are exported as keep-outs, which also stop vias: only tracks are forbidden
+    # there. Found by their first corner (patch feed (122; 116), USB pair (117; 106)).
+    text, n = re.subn(r"\(keepout(?= \"\" \(polygon " + re.escape(inner2) + r" 0  (122000 -116000|117000 -106000) )",
                       "(wire_keepout", text)
-    assert n == 1, "no encontré el keep-out de L3_GND en el DSN"
+    assert n == 2, "no encontré los dos keep-outs de L3_GND en el DSN"
     extra = rect(top, GNSS_ANTENA)
     for layer in layers:
         extra += rect(layer, LORA_ANTENA)
@@ -792,7 +793,8 @@ def zone(board, net: str, layer: int, pts: list, name: str, priority: int) -> No
 
 
 BOARD_BOX = [(0, 0), (50, 0), (50, 70), (0, 70)]
-# L3 below the L3_GND area (the top third, y < 33, and the strip of the USB pair, x 14.5-17 down to y = 55).
+# The planes of L3: GND (L3_GND_PLANO) in the top third, y < 33, and the strip of the USB pair, x 14.5-17 down to y = 55;
+# VREG in the rest. They are copper zones, not the L3_GND rule areas (two strips since 22/11/2026).
 L3_VREG = [(0, 33.4), (14.1, 33.4), (14.1, 55.4), (17.4, 55.4), (17.4, 33.4), (50, 33.4), (50, 70), (0, 70)]
 L3_GND = [(0, 0), (50, 0), (50, 33), (17, 33), (17, 55), (14.5, 55), (14.5, 33), (0, 33)]
 

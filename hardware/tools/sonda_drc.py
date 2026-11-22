@@ -45,7 +45,7 @@ NETS = ["GND", "/gnss_rf/GNSS_RF_A", "/power/BB_LX1", "USB_D_P", "USB_D_N", "SYS
 
 # Coordinates in mm on the 50 x 70 mm outline (100..150, 100..170; doc origin (0; 0) = (100; 100)).
 # Zones: BLE_ANTENA x 100-104.35, y 147.6-162.6; GNSS_ANTENA x 110-140, y 102-132; L3_GND (In2.Cu) two
-# strips since 22/11/2026: under the patch feed x 122-128, y 116-133, and under the USB pair x 117-122.5, y 106-117.5
+# strips since 22/11/2026: under the patch feed x 122-128, y 116-133, and under the USB pair x 117-122.5, y 106-118
 # plus x 114.5-117, y 115-133 (until then the whole top third, y < 133); LORA_ANTENA x 126.7-142.7, y 159.05-170 (keep-out of the
 # M620720 chip antenna on the bottom edge).
 # Board screws (GND) at (106; 108), (144; 108) and (124; 166). The routing of the pod (tracks, vias and the copper
