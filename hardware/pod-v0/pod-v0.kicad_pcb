@@ -84452,7 +84452,38 @@
 		)
 		(polygon
 			(pts
-				(xy 100 100) (xy 150 100) (xy 150 133) (xy 100 133)
+				(xy 122 116) (xy 128 116) (xy 128 133) (xy 122 133)
+			)
+		)
+	)
+	(zone
+		(layer "In2.Cu")
+		(uuid "ed9197a0-0104-568b-8987-f62c29c0731f")
+		(name "L3_GND")
+		(hatch edge 0.5)
+		(connect_pads
+			(clearance 0)
+		)
+		(min_thickness 0.25)
+		(keepout
+			(tracks allowed)
+			(vias allowed)
+			(pads allowed)
+			(copperpour allowed)
+			(footprints allowed)
+		)
+		(placement
+			(enabled no)
+			(sheetname "")
+		)
+		(fill
+			(thermal_gap 0.5)
+			(thermal_bridge_width 0.5)
+			(island_removal_mode 0)
+		)
+		(polygon
+			(pts
+				(xy 117 106) (xy 122.5 106) (xy 122.5 118) (xy 117 118) (xy 117 133) (xy 114.5 133) (xy 114.5 115) (xy 117 115)
 			)
 		)
 	)

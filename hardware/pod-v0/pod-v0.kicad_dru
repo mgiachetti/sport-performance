@@ -176,13 +176,18 @@
 	(condition "A.intersectsArea('GNSS_ANTENA') && A.Reference != 'AE201'")
 	(constraint disallow footprint))
 
-# --- L3 de GND debajo de lo que corre por L4 (zona L3_GND) ---
-# El tercio de arriba (y < 33: el patch, su alimentación, el inserto de contactos con el eFuse, los ESD y el tramo
-# del par USB que baja hasta y = 33). Ahí lo de L4 (la alimentación del patch, el par USB, VBUS) se refiere a L3, que
-# tiene que ser GND macizo cosido a L2. Ninguna pista ni zona de otra red en In2.Cu dentro de la zona (las rule areas,
-# sin red, no cuentan; las vías sí pasan). Hasta el ruteo del 15/11/2026 la zona seguía por la franja del par (x de
-# 14,5 a 17 hasta y = 55); se sacó por decisión del usuario: con esa franja, el par por L4 y L3 en GND formaban un
-# muro de y = 0 a 55 que dejaba unas 46 redes del BMD-340 sin corredor hacia el este. De y = 33 a 55 las señales de
+# --- L3 de GND debajo de lo que corre por L4 (zonas L3_GND) ---
+# Dos franjas (desde el 22/11/2026, decisión del usuario; ADR 0105, "Registro de decisiones"): la de la alimentación
+# del patch (x de 22 a 28, y de 16 a 33: el despeje del pin en (25; 19,5), la CPWG de L4 en x = 25 con su cerco de
+# vías en x = 23,9 y 26,1, y la vía de RF en (25; 31)) y la del par USB (DOCK_D_* desde los resortes, x de 17 a 22,5 e
+# y de 6 a 18, y USB_D_* bajando por x de 14,5 a 17 hasta y = 33). Ahí lo de L4 se refiere a L3, que tiene que ser
+# GND macizo cosido a L2: la alimentación del patch lleva la señal antes del LNA (unos -130 dBm) y una señal digital
+# en L3 debajo le cambia la impedancia y le mete ruido. Ninguna pista ni zona de otra red en In2.Cu dentro de las
+# franjas (las rule areas, sin red, no cuentan; las vías sí pasan). Antes la zona era todo el tercio de arriba
+# (y < 33): con L2 entero en GND, L3 en GND arriba y la zona del patch en L1, la placa no cerraba en 4 capas (Quilter
+# llegó al 94 % en su segunda corrida solo pasando 71 pistas por L3 debajo del patch). El resto de L3 arriba sigue con el plano de GND
+# (`L3_GND_PLANO`), que las señales cortan; lo demás de L4 en el tercio de arriba (VBUS, el eFuse, señales lentas)
+# se refiere a L2. Hasta el ruteo del 15/11/2026 la franja del par seguía hasta y = 55; de y = 33 a 55 las señales de
 # L3 cruzan por debajo del par (de través, con vías de GND al costado del par donde entran): a 12 Mbit/s (velocidad
 # completa) L2 sigue siendo un plano macizo a dos capas y la impedancia del par no es crítica.
 (rule "L3_GND: L3 solo GND debajo de L4"
