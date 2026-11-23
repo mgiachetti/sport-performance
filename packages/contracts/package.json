@@ -34,11 +34,11 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@seriousme/openapi-schema-validator": "2.11.0",
+    "@seriousme/openapi-schema-validator": "2.12.0",
     "@sport-performance/config": "workspace:*",
     "@types/node": "26.6.6",
-    "eslint": "10.14.0",
+    "eslint": "10.15.0",
     "typescript": "6.0.3",
-    "vitest": "5.0.5"
+    "vitest": "5.1.0"
   }
 }
