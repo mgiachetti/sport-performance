@@ -11,7 +11,7 @@
     "bucket-cors": "node bucket-cors.ts"
   },
   "dependencies": {
-    "railway": "3.16.0"
+    "railway": "3.17.0"
   },
   "devDependencies": {
     "@sport-performance/config": "workspace:*",
