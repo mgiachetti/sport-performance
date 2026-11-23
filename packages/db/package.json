@@ -63,13 +63,13 @@
     "@sport-performance/ui-tokens": "workspace:*",
     "drizzle-orm": "0.45.4",
     "pg": "8.23.1",
-    "pg-boss": "12.38.0"
+    "pg-boss": "12.38.2"
   },
   "devDependencies": {
     "@sport-performance/config": "workspace:*",
     "@types/node": "26.6.6",
     "@types/pg": "8.23.1",
-    "better-auth": "1.7.14",
+    "better-auth": "1.7.25",
     "drizzle-kit": "0.31.11",
     "eslint": "10.14.0",
     "typescript": "6.0.3",
