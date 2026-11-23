@@ -5,7 +5,7 @@
 # each environment builds its own image (Railway passes the service's variables as build
 # arguments). Base images are pinned by digest; Dependabot updates them.
 
-FROM node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c AS build
+FROM node:24-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54 AS build
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 CI=true
 # pnpm at the version of package.json#packageManager.
 RUN corepack enable pnpm
@@ -17,7 +17,7 @@ ARG VITE_API_URL
 RUN test -n "${VITE_API_URL}" || { echo "Set the VITE_API_URL build argument." >&2; exit 1; }
 RUN pnpm --filter-prod "@sport-performance/web..." run build
 
-FROM caddy:2-alpine@sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5
+FROM caddy:2-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
 # Caddy runs as nobody: its state goes to /tmp (nothing to persist, no automatic TLS here).
 ENV XDG_CONFIG_HOME=/tmp/caddy/config XDG_DATA_HOME=/tmp/caddy/data PORT=8080
 COPY apps/web/deploy/Caddyfile /etc/caddy/Caddyfile

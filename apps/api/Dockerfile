@@ -3,7 +3,7 @@
 # Railway builds it per environment (.railway/railway.ts) and runs `db:release` in it as the
 # pre-deploy command. Base images are pinned by digest; Dependabot updates them.
 
-FROM node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c AS build
+FROM node:24-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54 AS build
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 CI=true
 # pnpm at the version of package.json#packageManager.
 RUN corepack enable pnpm
@@ -17,7 +17,7 @@ RUN pnpm --filter-prod "@sport-performance/api..." run build
 # (including the migrations of @sport-performance/db) copied in.
 RUN pnpm --filter @sport-performance/api deploy --prod /out
 
-FROM node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c
+FROM node:24-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54
 ENV NODE_ENV=production
 WORKDIR /app
 # Owned by root: `node` can read the files but not change them (they stay world-readable).
