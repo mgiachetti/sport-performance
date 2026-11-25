@@ -9,7 +9,7 @@
 # y no como regla sin condición: una regla así pisaría la separación de 0,2 mm de RF_50, que es
 # la separación coplanar de la línea de 50 ohm.
 
-# --- Mínimos de PCBWay para 4 capas (no verificados contra su página de capacidades) ---
+# --- Mínimos de PCBWay para 6 capas (no verificados contra su página de capacidades) ---
 (rule "PCBWay: ancho mínimo de pista"
 	(constraint track_width (min 0.1mm)))
 (rule "PCBWay: anillo mínimo"
@@ -40,6 +40,12 @@
 	(layer "In1.Cu")
 	(condition "A.NetName != 'GND' && A.NetName != ''")
 	(constraint disallow track zone))
+# --- L5: el otro plano de tierra continuo (6 capas desde el 23/11/2026; ADR 0105, "Registro de decisiones") ---
+# Es la referencia de todo lo que corre por L6 (la alimentación del patch, el par USB, VBUS) y la de L4: lo mismo que L2.
+(rule "L5 solo GND"
+	(layer "In4.Cu")
+	(condition "A.NetName != 'GND' && A.NetName != ''")
+	(constraint disallow track zone))
 
 # --- Pads de RF_50 y GNSS_SENSITIVE ---
 # Las clases RF_50 (0,5 mm) y GNSS_SENSITIVE (0,3 mm) separan pistas, vías y zonas. Entre dos
@@ -51,6 +57,7 @@
 	(constraint clearance (min 0.15mm)))
 
 # --- RF_50: línea coplanar de 50 ohm con tierra en L1, referida a la tierra de L2 ---
+# Con 6 capas (desde el 23/11/2026) L1 sigue a 0,2 mm de L2 y L6 a 0,2 mm de L5: la geometría no cambia.
 # 0,33 mm con 0,20 mm de separación a la tierra de L1: 52,3 ohm sin máscara y unos 51 ohm con la
 # máscara (estimación) con el apilado provisorio (hardware/tools/impedancia.py). El rango de
 # 0,31 a 0,35 mm cubre el ajuste que pida la calculadora de PCBWay (SI9000); con su geometría se
@@ -59,9 +66,9 @@
 	(layer "F.Cu")
 	(condition "A.NetClass == 'RF_50'")
 	(constraint track_width (min 0.31mm) (opt 0.33mm) (max 0.35mm)))
-# La alimentación del patch (única RF en L4) es la misma CPWG espejada: L4 se refiere a L3 por el
-# prepreg de 0,2 mm, igual que L1 a L2, así que 0,33 mm con 0,20 mm a GND dan los mismos 51–52 ohm.
-(rule "RF_50: ancho de 50 ohm en L4 (alimentación del patch)"
+# La alimentación del patch (única RF en L6, la cara de abajo) es la misma CPWG espejada: L6 se refiere al plano
+# de GND de L5 por el prepreg de 0,2 mm, igual que L1 a L2, así que 0,33 mm con 0,20 mm a GND dan los mismos 51–52 ohm.
+(rule "RF_50: ancho de 50 ohm en L6 (alimentación del patch)"
 	(layer "B.Cu")
 	(condition "A.NetName == '/gnss_rf/GNSS_ANT_PATCH'")
 	(constraint track_width (min 0.31mm) (opt 0.33mm) (max 0.35mm)))
@@ -69,10 +76,10 @@
 	(layer inner)
 	(condition "A.NetClass == 'RF_50'")
 	(constraint disallow track))
-# Excepción: la alimentación del patch pasivo (GNSS_ANT_PATCH) sale por L4 desde el pad de 2,2 mm
-# del pin (la cerámica tapa L1 y su tierra) y sube a L1 por una vía de RF, con vías de GND alrededor
-# y L3 en GND debajo del tramo de L4 (eso no se puede escribir como regla: se revisa a mano).
-(rule "RF_50: solo en L1 (L4)"
+# Excepción: la alimentación del patch pasivo (GNSS_ANT_PATCH) sale por L6 desde el pad de 2,2 mm
+# del pin (la cerámica tapa L1 y su tierra) y sube a L1 por una vía de RF, con vías de GND alrededor;
+# debajo del tramo de L6 está el plano de GND de L5 ("L5 solo GND").
+(rule "RF_50: solo en L1 (L6)"
 	(layer "B.Cu")
 	(condition "A.NetClass == 'RF_50' && A.NetName != '/gnss_rf/GNSS_ANT_PATCH'")
 	(constraint disallow track))
@@ -98,7 +105,7 @@
 # Alrededor del LNA: el control (pads 4 y 6) y la alimentación (pad 2) están entre los pads de RF a 0,4 mm, así que sus
 # pistas y su vía no pueden quedar a 0,5 mm de la RF. Una pista o vía de otra red que toca el courtyard de U205 queda a
 # 0,15 mm de la RF (el mínimo de la clase Default); fuera del courtyard sigue valiendo 0,5 mm. Las zonas quedan afuera:
-# los planos de GND de L1 y L4 cubren toda la placa y por eso "tocan" el courtyard, y con la regla les bajaba a 0,15 mm el
+# los planos de GND de L1, L3 y L6 cubren toda la placa y por eso "tocan" el courtyard, y con la regla les bajaba a 0,15 mm el
 # gap coplanar de 0,20 de toda la RF de la placa (revisión del 16/11/2026; la sonda lo prueba).
 (rule "RF_50: alrededor del LNA"
 	(condition "A.NetClass == 'RF_50' && B.NetClass != 'RF_50' && B.Type != 'Pad' && B.Type != 'Zone' && B.intersectsCourtyard('U205')")
@@ -136,7 +143,7 @@
 
 # --- Alimentación ---
 # 1 A de la base por VBUS, SYS y BAT: 0,5 mm en las capas externas (35 µm). En las internas
-# (17,5 µm) IPC-2221 pide unos 1,5 mm para 1 A con 10 °C de aumento: mejor por L1/L4 o con zonas.
+# (17,5 µm) IPC-2221 pide unos 1,5 mm para 1 A con 10 °C de aumento: mejor por L1/L6 o con zonas.
 (rule "POWER_DOCK: ancho en capas internas"
 	(layer inner)
 	(condition "A.NetClass == 'POWER_DOCK'")
@@ -165,7 +172,7 @@
 
 # --- Zona de la antena GNSS (patch pasivo en la placa; la Taoglas va por U.FL) ---
 # Tierra continua en L1 (y en L2, por "L2 solo GND"): en L1 solo GND y la RF. Las vías pasan
-# por L1, así que adentro solo hay vías de GND; L3 y L4 pueden pasar por debajo sin cambiar de
+# por L1, así que adentro solo hay vías de GND; L3, L4 y L6 pueden pasar por debajo sin cambiar de
 # capa. Ningún componente en la cara de arriba, salvo el patch en la placa (AE201, montado).
 (rule "GNSS_ANTENA: solo GND y RF en L1"
 	(layer "F.Cu")
@@ -176,24 +183,9 @@
 	(condition "A.intersectsArea('GNSS_ANTENA') && A.Reference != 'AE201'")
 	(constraint disallow footprint))
 
-# --- L3 de GND debajo de lo que corre por L4 (zonas L3_GND) ---
-# Dos franjas (desde el 22/11/2026, decisión del usuario; ADR 0105, "Registro de decisiones"): la de la alimentación
-# del patch (x de 22 a 28, y de 16 a 33: el despeje del pin en (25; 19,5), la CPWG de L4 en x = 25 con su cerco de
-# vías en x = 23,9 y 26,1, y la vía de RF en (25; 31)) y la del par USB (DOCK_D_* desde los resortes, x de 17 a 22,5 e
-# y de 6 a 18, y USB_D_* bajando por x de 14,5 a 17 hasta y = 33). Ahí lo de L4 se refiere a L3, que tiene que ser
-# GND macizo cosido a L2: la alimentación del patch lleva la señal antes del LNA (unos -130 dBm) y una señal digital
-# en L3 debajo le cambia la impedancia y le mete ruido. Ninguna pista ni zona de otra red en In2.Cu dentro de las
-# franjas (las rule areas, sin red, no cuentan; las vías sí pasan). Antes la zona era todo el tercio de arriba
-# (y < 33): con L2 entero en GND, L3 en GND arriba y la zona del patch en L1, la placa no cerraba en 4 capas (Quilter
-# llegó al 94 % en su segunda corrida solo pasando 71 pistas por L3 debajo del patch). El resto de L3 arriba sigue con el plano de GND
-# (`L3_GND_PLANO`), que las señales cortan; lo demás de L4 en el tercio de arriba (VBUS, el eFuse, señales lentas)
-# se refiere a L2. Hasta el ruteo del 15/11/2026 la franja del par seguía hasta y = 55; de y = 33 a 55 las señales de
-# L3 cruzan por debajo del par (de través, con vías de GND al costado del par donde entran): a 12 Mbit/s (velocidad
-# completa) L2 sigue siendo un plano macizo a dos capas y la impedancia del par no es crítica.
-(rule "L3_GND: L3 solo GND debajo de L4"
-	(layer "In2.Cu")
-	(condition "A.intersectsArea('L3_GND') && A.NetName != 'GND' && A.NetName != ''")
-	(constraint disallow track zone))
+# --- Sin zonas L3_GND desde el 23/11/2026 ---
+# Con 4 capas, lo de L4 (la alimentación del patch y el par USB) se refería a L3, que tenía que ser GND en dos franjas.
+# Con 6, L6 tiene debajo el plano de GND de L5 en toda la placa ("L5 solo GND"), y L3 queda para señales.
 
 # --- Zona de la antena LoRa (antena chip M620720 al borde de abajo, desde el 15/11/2026) ---
 # El despeje de la hoja de KYOCERA AVX (TDS-ANT-0048 rev. 4, p.5): sin metal en ninguna capa en 16,0 x 10,95 mm
@@ -211,5 +203,5 @@
 	(constraint disallow footprint))
 # Tampoco dibujos ni textos de cobre (un logo, una flecha o un número en F.Cu serían metal en el despeje).
 (rule "LORA_ANTENA: sin dibujos ni textos de cobre"
-	(condition "A.intersectsArea('LORA_ANTENA') && (A.existsOnLayer('F.Cu') || A.existsOnLayer('In1.Cu') || A.existsOnLayer('In2.Cu') || A.existsOnLayer('B.Cu'))")
+	(condition "A.intersectsArea('LORA_ANTENA') && (A.existsOnLayer('F.Cu') || A.existsOnLayer('In1.Cu') || A.existsOnLayer('In2.Cu') || A.existsOnLayer('In3.Cu') || A.existsOnLayer('In4.Cu') || A.existsOnLayer('B.Cu'))")
 	(constraint disallow graphic text))

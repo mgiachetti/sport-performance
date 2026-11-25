@@ -10,7 +10,7 @@ parts and its routing), its project and its rules:
 - sonda_ok.kicad_pcb (negative control): a compliant layout (CPWG with GND exactly at the coplanar
   gap, other nets at the required distance, the USB pair at its geometry with 7.5 mm uncoupled and
   3.5 mm of skew, a signal on L3 crossing under the USB pair at y 33-55, a 1.5 mm inner 1 A rail,
-  a GND via and the patch inside the GNSS zone, the patch feed on L4 with its RF via, a bottom-side
+  a GND via and the patch inside the GNSS zone, the patch feed on L6 with its RF via, a bottom-side
   part under it, the LoRa feed on L1 inside LORA_ANTENA with the real chip antenna footprint, rotated 180
   degrees as on the pod, and its two 0402 capacitors at their data-sheet places, so that their courtyards are
   checked too; the spring legs of the USB pair 2.8 mm apart and the LNA's input and output 0.25 mm apart, as on
@@ -44,10 +44,9 @@ NETS = ["GND", "/gnss_rf/GNSS_RF_A", "/power/BB_LX1", "USB_D_P", "USB_D_N", "SYS
         "/gnss_rf/GNSS_LNA_IN", "/gnss_rf/GNSS_LNA_OUT"]
 
 # Coordinates in mm on the 50 x 70 mm outline (100..150, 100..170; doc origin (0; 0) = (100; 100)).
-# Zones: BLE_ANTENA x 100-104.35, y 147.6-162.6; GNSS_ANTENA x 110-140, y 102-132; L3_GND (In2.Cu) two
-# strips since 22/11/2026: under the patch feed x 122-128, y 116-133, and under the USB pair x 117-122.5, y 106-118
-# plus x 114.5-117, y 115-133 (until then the whole top third, y < 133); LORA_ANTENA x 126.7-142.7, y 159.05-170 (keep-out of the
-# M620720 chip antenna on the bottom edge).
+# Zones: BLE_ANTENA x 100-104.35, y 147.6-162.6; GNSS_ANTENA x 110-140, y 102-132; LORA_ANTENA x 126.7-142.7,
+# y 159.05-170 (keep-out of the M620720 chip antenna on the bottom edge). Six layers since 23/11/2026: L2 (In1.Cu)
+# and L5 (In4.Cu) only GND, L3 (In2.Cu) signals, L4 (In3.Cu) power; no L3_GND strips any more.
 # Board screws (GND) at (106; 108), (144; 108) and (124; 166). The routing of the pod (tracks, vias and the copper
 # zones, L2_GND included) is left out of the probes: the probes go where the pod has copper.
 # Track: (net, layer, x0, y0, x1, y1, width). Via: (net, x, y). Footprint: (ref, x, y, side, pads),
@@ -71,7 +70,7 @@ BAD = {
         ("/mcu_radio/LED_R", "F.Cu", 108, 139.5, 118, 139.5, 0.2),  # 0.3 mm from the RF track
         ("/power/BB_LX1", "F.Cu", 108, 142, 118, 142, 0.4),  # 2 mm from the RF track
         ("/gnss_rf/GNSS_RF_A", "F.Cu", 144.68, 148, 144.68, 152, 0.33),  # 0.03 mm from the LNA's control pad
-        ("/gnss_rf/GNSS_RF_A", "B.Cu", 108, 144, 118, 144, 0.33),  # RF on L4
+        ("/gnss_rf/GNSS_RF_A", "B.Cu", 108, 144, 118, 144, 0.33),  # RF on L6
         ("/gnss_rf/GNSS_RF_A", "In2.Cu", 108, 146, 118, 146, 0.33),  # RF on L3
         ("USB_D_P", "F.Cu", 108, 150, 118, 150, 0.2),  # pair too narrow
         ("USB_D_N", "F.Cu", 108, 150.4, 118, 150.4, 0.2),
@@ -82,15 +81,15 @@ BAD = {
         ("GNSS_PPS", "F.Cu", 108, 158, 118, 158, 0.2),
         ("/mcu_radio/LED_G", "F.Cu", 108, 158.4, 118, 158.4, 0.2),  # 0.2 mm from PPS
         ("/mcu_radio/LED_G", "In1.Cu", 108, 162, 118, 162, 0.2),  # not GND on L2
+        ("/mcu_radio/LED_G", "In4.Cu", 108, 164, 118, 164, 0.2),  # not GND on L5
+        ("/gnss_rf/GNSS_RF_A", "In3.Cu", 108, 148, 118, 148, 0.33),  # RF on L4
         ("/mcu_radio/LED_R", "F.Cu", 131, 161.5, 135, 161.5, 0.2),  # not RF, inside LORA_ANTENA on L1
         ("/mcu_radio/LORA_FEED", "In2.Cu", 131, 164, 135, 164, 0.33),  # the feed, but on L3 inside LORA_ANTENA
         ("/gnss_rf/GNSS_RF_B", "F.Cu", 128, 160.5, 131, 160.5, 0.33),  # RF on L1, but not LoRa's
         ("/mcu_radio/LED_R", "F.Cu", 110, 110, 120, 110, 0.2),  # inside GNSS_ANTENA on L1
         ("/mcu_radio/LED_R", "F.Cu", 101, 155, 104, 155, 0.2),  # inside BLE_ANTENA
         ("/gnss_rf/GNSS_RF_A", "F.Cu", 128, 140.5, 138, 140.5, 0.33),  # 0.3 mm from the pad of J1
-        ("VREG", "In2.Cu", 125, 120, 125, 126, 0.3),  # not GND on L3 under the patch feed
-        ("/mcu_radio/LED_R", "In2.Cu", 115.75, 124, 115.75, 128, 0.2),  # not GND on L3 under the USB pair at y < 33
-        ("/gnss_rf/GNSS_ANT_PATCH", "B.Cu", 128, 125, 138, 125, 0.2),  # patch feed too narrow on L4
+        ("/gnss_rf/GNSS_ANT_PATCH", "B.Cu", 128, 125, 138, 125, 0.2),  # patch feed too narrow on L6
         ("/gnss_rf/GNSS_ANT_PATCH", "In2.Cu", 128, 146, 138, 146, 0.33),  # patch feed on L3: still forbidden
         # the spring legs of the pair (DOCK_D_*) 3.5 mm apart: past the 3 mm of their exception
         ("/usb_dock/DOCK_D_P", "B.Cu", 143, 137, 143, 144, 0.25),
@@ -135,7 +134,7 @@ EXPECTED = [
     "L2 solo GND",
     "RF_50: ancho de 50 ohm en L1",
     "RF_50: solo en L1 (internas)",
-    "RF_50: solo en L1 (L4)",
+    "RF_50: solo en L1 (L6)",
     "RF_50: sin vías",
     "RF_50: separación coplanar a GND",
     "RF_50: otras redes lejos",
@@ -146,8 +145,8 @@ EXPECTED = [
     "GNSS_SENSITIVE: otras señales lejos",
     "GNSS_ANTENA: solo GND y RF en L1",
     "GNSS_ANTENA: sin componentes debajo de la antena",
-    "L3_GND: L3 solo GND debajo de L4",
-    "RF_50: ancho de 50 ohm en L4 (alimentación del patch)",
+    "L5 solo GND",
+    "RF_50: ancho de 50 ohm en L6 (alimentación del patch)",
     "LORA_ANTENA: sin dibujos ni textos de cobre",
     "BZ301: pads mecánicos a 0,2 mm del borde",
     "RF_50: pistas contra los pads del LNA",
@@ -155,7 +154,7 @@ EXPECTED = [
     "RF_50: alrededor del LNA",
     "GNSS_SENSITIVE: escape del BMD-340",
 ]
-# The GNSS_ANT_PATCH exception covers L4 and its via only: the inner-layer rule must still flag it.
+# The GNSS_ANT_PATCH exception covers L6 and its via only: the inner-layer rule must still flag it.
 PATCH_INNER = ("RF_50: solo en L1 (internas)", "GNSS_ANT_PATCH")
 # The native keep-out of BLE_ANTENA is reported without its name ("Local override"): look for
 # an items_not_allowed violation at the track placed inside it.
@@ -177,10 +176,8 @@ PAIR_GAPS = {"patas de los resortes hasta 3 mm": ("USB_90D: patas de los resorte
 RF_PAIR = ("netclass 'RF_50'", "GNSS_RF_A", "GNSS_RF_B", "@(130.0000 mm, 153")
 # Out of the LNA's courtyard another net 0.3 mm from the RF: still the 0.5 mm.
 LNA_OUTSIDE = ("RF_50: otras redes lejos", "@(145.2500 mm, 151.0000 mm)")
-# L3_GND is two strips since 22/11/2026 (patch feed and USB pair): a signal on L3 under the USB pair at y < 33.
 # A GND plane is not "around the LNA": the coplanar 0.20 mm against the planes, even where they reach U205's courtyard.
 PLANE_GAP = ("RF_50: separación coplanar a GND", "Zone [GND]", "GNSS_RF_A")
-L3_STRIP_RULE, L3_STRIP_AT = "L3_GND: L3 solo GND debajo de L4", "@(115.7500 mm, 124.0000 mm)"
 # The footprint rule, on both sides: its name in the block of each footprint.
 LORA_FOOTPRINT_RULE = "LORA_ANTENA: solo la antena y sus capacitores"
 LORA_FOOTPRINTS = {"arriba": "R5", "abajo": "R6"}
@@ -196,17 +193,18 @@ OK = {
         # alone, uncoupled 7.5 mm and skew 3.5 mm, within 8 and 4 mm (the old 5 and 0.5 mm would flag both)
         ("USB_D_P", "F.Cu", 118, 150, 125.5, 150, 0.25),
         ("USB_D_N", "F.Cu", 108, 150.4, 108, 154.4, 0.25),
-        ("SYS", "In2.Cu", 108, 157, 118, 157, 1.5),  # 1 A rail on an inner layer, below L3_GND
-        # a signal on L3 crossing under the USB pair at y 33-55 (the L3_GND strip x 114.5-117 left on 15/11/2026)
+        ("SYS", "In2.Cu", 108, 157, 118, 157, 1.5),  # 1 A rail on an inner layer
+        # signals on L3 anywhere (no L3_GND strips since 23/11/2026): under the USB pair and in the top third
         ("/mcu_radio/LED_R", "In2.Cu", 106, 136, 119, 136, 0.2),
-        # a signal on L3 in the top third out of both L3_GND strips (the rest of the top third, free since 22/11/2026)
         ("/mcu_radio/LED_G", "In2.Cu", 132, 110, 138, 110, 0.2),
+        ("/mcu_radio/LED_G", "In2.Cu", 121, 122, 121, 128, 0.2),  # on L3 next to the patch feed (L5 is its GND)
+        ("VREG", "In3.Cu", 108, 133, 118, 133, 0.3),  # power on L4
         ("GNSS_PPS", "F.Cu", 108, 158, 118, 158, 0.2),
         ("/mcu_radio/LED_G", "F.Cu", 108, 158.5, 118, 158.5, 0.2),  # 0.3 mm from PPS
         ("/power/BB_LX1", "F.Cu", 128, 145, 138, 145, 0.4),  # switch node far from RF and zones
         ("/gnss_rf/GNSS_RF_A", "F.Cu", 115, 120, 125, 120, 0.33),  # RF inside the GNSS zone
         ("/gnss_rf/GNSS_RF_A", "F.Cu", 144.6, 148, 144.6, 152, 0.33),  # 0.11 mm from the LNA's control pad
-        ("/gnss_rf/GNSS_ANT_PATCH", "B.Cu", 125, 119.5, 125, 131, 0.33),  # patch feed on L4 (the one exception)
+        ("/gnss_rf/GNSS_ANT_PATCH", "B.Cu", 125, 119.5, 125, 131, 0.33),  # patch feed on L6 (the one exception)
         ("/gnss_rf/GNSS_ANT_PATCH", "F.Cu", 125, 131, 125, 134, 0.33),  # and back on L1 after its via
         ("/mcu_radio/LORA_FEED", "F.Cu", 141.15, 157.9, 141.15, 167.6, 0.33),  # LoRa feed on L1 into pin 1
         # the spring legs of the pair 2.8 mm apart, as on the pod (gap 2.55 mm, within the 3 mm of DOCK_D_*), with
@@ -226,7 +224,7 @@ OK = {
     "vias": [("GND", 120, 125),  # stitching via inside the GNSS zone
              ("/gnss_rf/GNSS_ANT_PATCH", 125, 131),  # the patch feed's RF via
              ("GND", 146, 155)],  # the via of the GND plane next to the LNA
-    "zones": [("GND", "In2.Cu", [(123.5, 118.5), (126.5, 118.5), (126.5, 132), (123.5, 132)]),  # GND island on L3
+    "zones": [("GND", "In4.Cu", [(123.5, 118.5), (126.5, 118.5), (126.5, 132), (123.5, 132)]),  # GND of L5 under the feed
               # a GND plane on L1 that touches the LNA's courtyard, 0.20 mm from an RF track 2 mm away
               ("GND", "F.Cu", [(145.4, 150.2), (147.135, 150.2), (147.135, 156), (145.4, 156)], True)],
     "footprints": [
@@ -364,7 +362,7 @@ def blocks(board: str, head: str):
 
 def without_routing(board: str) -> str:
     """``board`` without tracks, vias and copper zones (L2_GND and, since the routing of 15/11/2026, the planes of
-    L1, L3 and L4): the probes go where the pod has copper. The rule areas (GNSS_ANTENA, L3_GND, LORA_ANTENA,
+    L1, L3, L4 and L6, and L5_GND): the probes go where the pod has copper. The rule areas (GNSS_ANTENA, LORA_ANTENA,
     BLE_ANTENA) stay."""
     out, i = [], 0
     spans = sorted(list(blocks(board, "(segment")) + list(blocks(board, "(via")) + list(blocks(board, "(arc"))
@@ -406,7 +404,6 @@ def verify(report: Path) -> int:
                                         for b in blocks)
     found["RF_50: 0,5 mm entre otras redes de RF"] = any(all(t in b for t in RF_PAIR) for b in blocks)
     found["RF_50: 0,5 mm afuera del courtyard del LNA"] = any(all(t in b for t in LNA_OUTSIDE) for b in blocks)
-    found["L3_GND: L3 debajo del par en y < 33"] = any(L3_STRIP_RULE in b and L3_STRIP_AT in b for b in blocks)
     found["RF_50: 0,20 mm a un plano de GND que toca el courtyard del LNA"] = any(
         all(t in b for t in PLANE_GAP) for b in blocks)
     found["GNSS_ANT_PATCH sigue prohibida en capas internas"] = any(all(t in b for t in PATCH_INNER) for b in blocks)

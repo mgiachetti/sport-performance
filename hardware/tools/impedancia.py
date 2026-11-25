@@ -1,5 +1,8 @@
 """Controlled-impedance geometry of the pod v0 (B-909): 50 ohm CPWG and 90 ohm USB pair on L1 over L2.
 
+Six layers since 23/11/2026: L6 sits 0.2 mm over the GND plane of L5 like L1 over L2, so the same numbers hold for
+the patch feed and the USB pair on L6.
+
 Standard library only. Prints the impedance of the geometry written in pod-v0.kicad_pro and
 pod-v0.kicad_dru, plus a small sweep, so the numbers can be checked against PCBWay's impedance
 calculator (or KiCad's PCB Calculator) once PCBWay confirms the real stack-up.
@@ -26,7 +29,7 @@ from __future__ import annotations
 import math
 
 # Stack-up placeholder in pod-v0.kicad_pcb (not verified against PCBWay).
-H_MM = 0.2  # prepreg L1-L2
+H_MM = 0.2  # prepreg L1-L2 (and L5-L6)
 ER = 4.4  # FR4 prepreg (7628), about 1 GHz
 T_MM = 0.035  # L1 copper after plating (1 oz)
 MASK_MM = 0.02  # LPI solder mask over the copper (typical; not verified)

@@ -426,7 +426,7 @@ def gvlb258() -> Footprint:
         "Pide un plano de tierra de 70 x 70 mm. Verificar",
         "antena patch GNSS L1 L5 Taoglas GVLB258", pads, (12.5, 12.5), (12.75, 12.75), None,
         attr="through_hole", body_y=cy, courtyard_y=cy,
-        keepouts=[("GVLB258_DESPEJE_SUP", ("F.Cu", "In1.Cu", "In2.Cu"), ("pads",), circle(1.5)),
+        keepouts=[("GVLB258_DESPEJE_SUP", ("F.Cu", "In1.Cu", "In2.Cu", "In3.Cu", "In4.Cu"), ("pads",), circle(1.5)),
                   ("GVLB258_DESPEJE_INF", ("B.Cu",), ("pads", "tracks"), circle(1.75))],
         fab_texts=[("Elemento superior 18 x 18", 0, cy - 7.5, 0.6)],
         comments=[("text", "Esquina chaflanada arriba a la derecha (sección 3)", 0, cy - 10.5),

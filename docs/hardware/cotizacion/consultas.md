@@ -2,7 +2,7 @@
 
 Borradores listos para mandar, parte del paquete de cotización ([`costos.md`](costos.md), [`pedido-pcbway.md`](pedido-pcbway.md)). Van en inglés a los proveedores de afuera y en castellano a los de acá. Antes de mandar cada uno: completar lo que está entre corchetes (nombre, empresa, CUIT) y adjuntar lo que dice "Adjuntos". Las direcciones que dicen **no verificada** salen de una búsqueda y hay que confirmarlas en la página del proveedor.
 
-Datos del pod que se repiten: placa de 4 capas de unos 50 × 70 mm, nRF52840 en un u-blox BMD-340, LoRa Ai-Thinker Ra-01SH (SX1262, 915 MHz), GNSS Quectel LC29H(AA) o (EA) L1 + L5 con patch pasivo apilado Taoglas GVLB258.A en la placa, IMU LSM6DSV32X, LiPo de 500–600 mAh. Prototipos: 5 armados, después 10 de piloto y 100 de serie, para un club de rugby (lo usa un jugador en un chaleco, entre los omóplatos).
+Datos del pod que se repiten: placa de 6 capas de unos 50 × 70 mm, nRF52840 en un u-blox BMD-340, LoRa Ai-Thinker Ra-01SH (SX1262, 915 MHz), GNSS Quectel LC29H(AA) o (EA) L1 + L5 con patch pasivo apilado Taoglas GVLB258.A en la placa, IMU LSM6DSV32X, LiPo de 500–600 mAh. Prototipos: 5 armados, después 10 de piloto y 100 de serie, para un club de rugby (lo usa un jugador en un chaleco, entre los omóplatos).
 
 | # | A quién | Para qué | Idioma | Dirección |
 |---|---|---|---|---|
@@ -20,16 +20,16 @@ Datos del pod que se repiten: placa de 4 capas de unos 50 × 70 mm, nRF52840 en 
 
 Raytac revisa el esquemático y el layout de las placas que usan sus módulos (que sea un servicio gratis y formal es **no verificado**: se pregunta en el mismo mail). Mandarlo **con la placa ubicada y ruteada**, antes de pedir a PCBWay.
 
-**Adjuntos:** PDF del esquemático (la hoja `mcu_radio` alcanza, mejor completo), capturas de las 4 capas alrededor del módulo, el `.kicad_pcb` o los Gerbers, y el apilado.
+**Adjuntos:** PDF del esquemático (la hoja `mcu_radio` alcanza, mejor completo), capturas de las capas alrededor del módulo, el `.kicad_pcb` o los Gerbers, y el apilado.
 
-> **Subject:** Layout review request: MDBT50Q-P1MV2 on a 4-layer wearable board
+> **Subject:** Layout review request: MDBT50Q-P1MV2 on a 6-layer wearable board
 >
 > Hello Raytac team,
 >
 > We are designing a wearable GNSS + IMU tracker for team sports around the MDBT50Q-P1MV2 (nRF52840, PCB antenna). We plan a first run of 5 prototypes, then 10 and 100 units. We would appreciate your free layout review before we order the boards.
 >
 > Design summary:
-> - 4-layer, 1.6 mm FR4 board, about 50 × 70 mm. L2 is a solid ground plane.
+> - 6-layer, 1.6 mm FR4 board, about 50 × 70 mm. L2 and L5 are solid ground planes.
 > - MDBT50Q-P1MV2 on the left board edge, antenna tip pointing out, with a keep-out of 3.5 × 11 mm in all four layers following section 2.3 of the datasheet (Ver. K). The first pads of the module start 3.8 mm from the antenna end in your footprint.
 > - Normal voltage mode: VDD and VDDH at 3.4 V from a buck-boost, DCCH not connected. External 32.768 kHz crystal (Micro Crystal CM8V-T1A, CL 12.5 pF, ESR 70 kΩ, 18 pF load caps).
 > - USB through dock pads (D+/D−, 90 Ω pair), no USB connector.
@@ -149,7 +149,7 @@ Desde el 09/11/2026 el patch es el **GVLB258.A**. Además del ajuste, se pide su
 >
 > Hello Taoglas team,
 >
-> We plan to use the GVLB258.A stacked L1/L5 passive patch (25 × 25 × 8.12 mm) on a 4-layer, 50 × 70 mm board inside a plastic enclosure worn on a player's back, followed by our own SAW + LNA chain. The datasheet characterises the patch on a 70 × 70 mm ground plane, and we expect L5 to detune first on our smaller plane. Our bench reference is your AGVLB.25B.07.0060A.
+> We plan to use the GVLB258.A stacked L1/L5 passive patch (25 × 25 × 8.12 mm) on a 6-layer, 50 × 70 mm board inside a plastic enclosure worn on a player's back, followed by our own SAW + LNA chain. The datasheet characterises the patch on a 70 × 70 mm ground plane, and we expect L5 to detune first on our smaller plane. Our bench reference is your AGVLB.25B.07.0060A.
 >
 > Questions:
 > 1. What centre-frequency shift and efficiency loss do you expect at L1 and L5 on a 50 × 70 mm ground plane (patch centred near the top edge), and with a body 10–20 mm behind the board?
@@ -212,15 +212,15 @@ Plan de stock en [`costos.md`](costos.md) y auditoría parte por parte en [`stoc
 
 ## 9. KYOCERA AVX: antena chip M620720 en el borde corto
 
-Desde el 15/11/2026 la antena LoRa es la **M620720** en la placa (ADR 0105, "Registro de decisiones"). La hoja muestra la antena en el **borde largo** de una placa de 40 × 100 mm; la nuestra va en el **borde corto** de una de 50 × 70, y el footprint se dibujó desde la imagen de la p.5 (no hay CAD en la hoja). Adjuntos: el dibujo de la zona (captura de KiCad con la zona `LORA_ANTENA`, el Ra-01SH, la alimentación y la celda debajo) y el apilado de 4 capas.
+Desde el 15/11/2026 la antena LoRa es la **M620720** en la placa (ADR 0105, "Registro de decisiones"). La hoja muestra la antena en el **borde largo** de una placa de 40 × 100 mm; la nuestra va en el **borde corto** de una de 50 × 70, y el footprint se dibujó desde la imagen de la p.5 (no hay CAD en la hoja). Adjuntos: el dibujo de la zona (captura de KiCad con la zona `LORA_ANTENA`, el Ra-01SH, la alimentación y la celda debajo) y el apilado de 6 capas.
 
-> **Subject:** M620720 layout review on a 50 × 70 mm 4-layer board (short edge), CAD footprint and matching
+> **Subject:** M620720 layout review on a 50 × 70 mm 6-layer board (short edge), CAD footprint and matching
 >
 > Hello KYOCERA AVX antenna team,
 >
 > We are designing a wearable GNSS tracker for team sports with an SX1262 LoRa radio at 915–928 MHz and plan to use your M620720 ceramic chip antenna (datasheet TDS-ANT-0048 rev. 4). The pod is worn between the shoulder blades in a vest pocket, inside a plastic (PA12) enclosure about 2 mm thick.
 >
-> Our board is 4 layers, 50 × 70 mm, 1.6 mm thick (FR4, the second layer is a solid ground plane). Because of the other antennas (a stacked L1/L5 GNSS patch on the opposite end, a BLE module on a long edge), the M620720 can only go on the **short (50 mm) edge**, close to a corner:
+> Our board is 6 layers, 50 × 70 mm, 1.6 mm thick (FR4, the second and fifth layers are solid ground planes). Because of the other antennas (a stacked L1/L5 GNSS patch on the opposite end, a BLE module on a long edge), the M620720 can only go on the **short (50 mm) edge**, close to a corner:
 > - Antenna on the bottom edge, rotated 180° from the drawing on page 5 (not mirrored): the feed end (pin 1) on the right, 8.4 mm from the right edge, and the pin 3 copper arm running left along the edge to P1. Copper 0.3 mm from the board edge (your demo board has 0.1 mm; our fab's minimum is 0.3 mm).
 > - Clearance with no metal on any layer: 16.0 × 10.95 mm (your 14.9 + 1.1 mm along the edge and 10.65 mm deep, plus our 0.2 mm), from x = 26.7 to 42.7 mm along the 50 mm edge. On the P1 side (left) the ground is the full plane, with a grounded M2 mounting hole (4.4 mm pad) 0.5 mm from the clearance. On the feed side (right) about 7 mm of board remain, with a corner notch for a stainless M2 enclosure screw: the ground tongue where P2 lands is 1.7 mm wide at its narrowest.
 > - The LiPo cell (aluminium pouch) sits 1 mm under the board and overlaps the inner 3 mm of the clearance; the user's body is 8–10 mm behind the board.

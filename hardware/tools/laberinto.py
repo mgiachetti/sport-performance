@@ -4,16 +4,18 @@ Freerouting (2.5.0) did not finish this board: with the 0.5 mm of RF_50, the kee
 field of the BMD-340 it stalled at 150-190 unrouted connections after 40 passes. This router does the rest with the
 board's own rules, all of them known here (it is not a general autorouter):
 
-- a 0.05 mm grid on L1, L3 and L4 (L2 is the GND plane: only vias cross it), A* with 45-degree moves, a cost per via,
-  L3 preferred over L4 and L4 over L1 (L1 keeps room for the pads), and a cost next to the pads of other nets;
+- a 0.05 mm grid on L1, L3, L4 and L6 of the 6-layer board (L2 and L5 are the GND planes: only vias cross them), A*
+  with 45-degree moves, a cost per via, L3 preferred over L4, L4 over L6 and L6 over L1 (L1 keeps room for the pads),
+  no track on L4 over the VREG island (`rutear.py isla`), and a cost next to the pads of other nets;
 - every copper item of another net blocks the cells closer than its clearance (its net class or pad, at least the
   0.15 mm of Default; RF_50 0.5 mm, and 0.15 mm inside the LNA's courtyard as the custom rule says) plus half the track
   and a margin for the grid; the routed net adds its own (GNSS_SENSITIVE 0.3 mm, POWER_DOCK 0.2 mm) and its width;
-- the rule areas: nothing in BLE_ANTENA and LORA_ANTENA, no track on L1 and no via in GNSS_ANTENA, no track on L3 in
-  L3_GND, the footprint keep-outs (the patch pin), nothing on L3 or L4 under the 32.768 kHz crystal, nothing of
-  GNSS_SENSITIVE within 5 mm of the switch node, POWER_DOCK only on L1 and L4, 0.3 mm of copper to the edge;
+- the rule areas: nothing in BLE_ANTENA and LORA_ANTENA, no track on L1 and no via in GNSS_ANTENA, the footprint
+  keep-outs (the patch pin), nothing on L3, L4 or L6 under the 32.768 kHz crystal, nothing of GNSS_SENSITIVE within
+  5 mm of the switch node, POWER_DOCK only on L1 and L6, 0.3 mm of copper to the edge;
 - vias of 0.5/0.2 mm, never in a pad, at least 0.5 mm between via centres;
-- GND is not routed (planes and `rutear.py planos`).
+- GND is not routed (planes and `rutear.py planos`); VREG joins its pads outside the island of L4 to the nearest VREG
+  copper (the island joins every via on it).
 
 Each net is routed as a growing tree: the smallest group of connected copper to the nearest other one, until the net
 is one group. When a connection has no free path, it is searched again allowing to cross what this router already
@@ -37,7 +39,11 @@ H0 = 0.075  # half the narrowest track (0.15 mm)
 VIA = (0.5, 0.2)
 VIA_PITCH = 0.5  # mm between via centres (hole to hole 0.3 mm)
 VIA_COST = 24  # cells (1.2 mm)
-LAYER_COST = (1.4, 1.0, 1.15)  # L1, L3, L4
+LAYER_COST = (1.4, 1.0, 1.05, 1.15)  # L1, L3, L4, L6 (L3 and L4 are signal layers between the GND planes of L2 and L5)
+PF_GROWTH = 1.4  # present-congestion factor per round (2.0 oscillated on 6 layers)
+PF_MAX = 40.0  # without a cap the present cost swamps the history and the routes oscillate
+HIST_STEP = 0.4  # history added per round around every shared cell (a disk, not the centre line only)
+HIST_R = 0.25  # mm
 HALO = 0.45  # mm around every pad
 HALO_COST = 2.0
 RIP_COST = 8.0  # per cell of routed copper crossed in a rip-up search
@@ -47,8 +53,7 @@ EXPAND = 800000
 WIDTH = {"Default": 0.15, "GNSS_SENSITIVE": 0.15, "POWER": 0.25, "POWER_DOCK": 0.3}
 EXTRA_CLEARANCE = {"GNSS_SENSITIVE": 0.15, "POWER_DOCK": 0.05}  # over the 0.15 mm of the grid
 SKIP_CLASSES = {"RF_50", "USB_90D", "SW_NODE"}
-# Under the USB pair (L4, x 15.6 and 16) from y 33 to 55, L3 only crosses (decision of 15/11/2026): no move along y.
-PAIR_STRIP = (round(14.5 / G), round(33 / G), round(17 / G), round(55 / G))
+PLANE_NETS = {"VREG"}  # VREG joins through its island of L4 when there is one (rutear.py isla); elsewhere, tracks
 STEPS = ((1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),
          (1, 1, 1.4142), (1, -1, 1.4142), (-1, 1, 1.4142), (-1, -1, 1.4142))
 
@@ -71,12 +76,13 @@ def disk(r: float) -> list:
 
 
 VIA_DISK = disk(VIA_PITCH - 0.001)
+HIST_DISK = disk(HIST_R)
 
 
 class Grid:
     def __init__(self, board):
         self.board = board
-        self.layers = [pcbnew.F_Cu, pcbnew.In2_Cu, pcbnew.B_Cu]
+        self.layers = [pcbnew.F_Cu, pcbnew.In2_Cu, pcbnew.In3_Cu, pcbnew.B_Cu]
         n = NX * NY
         self.t = [array("i", bytes(4 * n)) for _ in self.layers]  # track centre: 0 free, net, -1 blocked
         self.v = [array("i", bytes(4 * n)) for _ in self.layers]  # via centre: same
@@ -129,7 +135,15 @@ class Grid:
         return poly
 
     def clearance_of(self, item, layer) -> float:
-        own = pcbnew.ToMM(item.GetOwnClearance(layer)) if item.GetNetCode() else 0.15
+        if item.GetNetCode():
+            own = pcbnew.ToMM(item.GetOwnClearance(layer))
+        elif item.Type() == pcbnew.PCB_PAD_T:  # no net: the fiducials' 0.6 mm (it also clears their mask opening) and
+            local = item.GetLocalClearance()  # the 0.25 mm of hole clearance around a hole without copper (NPTH)
+            own = pcbnew.ToMM(local) if local else 0.15
+            if item.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH:
+                own = max(own, 0.25)
+        else:
+            own = 0.15
         return max(0.15, own)
 
     def add_item(self, item, net: int, clearance: float, clip=None) -> None:
@@ -168,7 +182,7 @@ class Grid:
         self.swmask = array("b", bytes(NX * NY))  # within 5 mm of the switch node: no GNSS_SENSITIVE (custom rule)
         for item in items:
             if item.GetNetClassName() == "SW_NODE":
-                layer = next(l for l in (pcbnew.F_Cu, pcbnew.In2_Cu, pcbnew.B_Cu) if item.IsOnLayer(l))
+                layer = next(l for l in self.layers if item.IsOnLayer(l))
                 for k in self.cells_in(self.item_poly(item, layer, 5.0 + H0 + MARGIN)):
                     self.swmask[k] = 1
             if item.Type() == pcbnew.PCB_PAD_T and not any(item.IsOnLayer(l) for l in self.layers) \
@@ -200,6 +214,10 @@ class Grid:
         t, v = self.t, self.v
         for z in list(board.Zones()) + [z for fp in board.GetFootprints() for z in fp.Zones()]:
             if not z.GetIsRuleArea():
+                # the VREG island of L4 (``rutear.py isla``) takes L4 there: no track on it, vias cross it
+                if z.GetNetname() in PLANE_NETS and z.IsOnLayer(pcbnew.In3_Cu) and pcbnew.In3_Cu in self.layers:
+                    li = self.layers.index(pcbnew.In3_Cu)
+                    self.paint(t[li], self.inflated(z.Outline(), H0 + MARGIN), -1)
                 continue
             name = z.GetZoneName()
             poly = z.Outline()
@@ -207,14 +225,13 @@ class Grid:
                 if not z.IsOnLayer(layer):
                     continue
                 if name in ("BLE_ANTENA", "LORA_ANTENA") or (z.GetDoNotAllowTracks() and not name) \
-                        or (name == "GNSS_ANTENA" and layer == pcbnew.F_Cu) \
-                        or (name == "L3_GND" and layer == pcbnew.In2_Cu):
+                        or (name == "GNSS_ANTENA" and layer == pcbnew.F_Cu):
                     self.paint(t[li], self.inflated(poly, H0 + MARGIN), -1)
             # vias cross every layer: a keep-out of vias on any layer forbids them
             if name in ("BLE_ANTENA", "LORA_ANTENA", "GNSS_ANTENA") or z.GetDoNotAllowVias():
                 for g in v:
                     self.paint(g, self.inflated(poly, VIA[0] / 2 + MARGIN), -1)
-        self.block_rect([t[1], t[2]], 8.6, 60.7, 14.4, 62.9, H0 + MARGIN)  # nothing under the crystal on L3/L4
+        self.block_rect(t[1:], 8.6, 60.7, 14.4, 62.9, H0 + MARGIN)  # nothing under the crystal on L3, L4 and L6
         self.block_rect(v, 8.6, 60.7, 14.4, 62.9, VIA[0] / 2 + MARGIN)  # and no via of another net
         outline = pcbnew.SHAPE_POLY_SET()
         board.GetBoardPolygonOutlines(outline, False)
@@ -224,7 +241,7 @@ class Grid:
             y = j * G
             for i in range(NX):
                 x = i * G
-                if not (x < 3.5 or x > 46.5 or y < 3.5 or y > 66.5):
+                if not (x < 3.5 or x > 46.5 or y < 3.5 or y > 66.5 or ((x < 6 or x > 44) and (y < 6 or y > 64))):  # notches
                     continue
                 p = nm_of(i, j)
                 k = j * NX + i
@@ -245,7 +262,7 @@ class Grid:
         i0, j0, i1, j1 = max(0, i0), max(0, j0), min(NX - 1, i1), min(NY - 1, j1)
         for j in range(j0, j1 + 1):
             a, b = j * NX + i0, j * NX + i1 + 1
-            for li in range(3):
+            for li in range(len(self.layers)):
                 self.t[li][a:b] = self.tb[li][a:b]
                 self.v[li][a:b] = self.vb[li][a:b]
             self.vs[a:b] = self.vsb[a:b]
@@ -323,7 +340,7 @@ class Grid:
                 if not soft or vsb[k] or vs[k] == net:
                     return None
                 cross = 1
-            for li in range(3):
+            for li in range(len(self.layers)):
                 val = v[li][k]
                 if val != 0 and val != net:
                     if not soft:
@@ -377,9 +394,6 @@ class Grid:
                 ni, nj = i + di, j + dj
                 if not (0 <= ni < NX and 0 <= nj < NY):
                     continue
-                if li == 1 and dj and (PAIR_STRIP[0] <= ni <= PAIR_STRIP[2] and PAIR_STRIP[1] <= nj <= PAIR_STRIP[3]
-                                       or PAIR_STRIP[0] <= i <= PAIR_STRIP[2] and PAIR_STRIP[1] <= j <= PAIR_STRIP[3]):
-                    continue
                 nb = (li, ni, nj)
                 r = ok(*nb)
                 if r is None:
@@ -406,6 +420,12 @@ class Grid:
 
 
     # ------------------------------------------------------------------ negotiated congestion (PathFinder)
+    def add_hist(self, li: int, i: int, j: int) -> None:
+        for di, dj in HIST_DISK:
+            ii, jj = i + di, j + dj
+            if 0 <= ii < NX and 0 <= jj < NY:
+                self.hist[li][jj * NX + ii] += HIST_STEP
+
     def init_pf(self) -> None:
         n = NX * NY
         self.ot = [array("h", bytes(2 * n)) for _ in self.layers]  # routed nets whose track keep-away covers the cell
@@ -490,17 +510,29 @@ class Grid:
             okc[key] = r
             return r
 
+        # a via keeps the class's own extra clearance too (GNSS_SENSITIVE 0.3 mm, POWER_DOCK 0.2 mm), like a track
+        vextra = EXTRA_CLEARANCE.get(cls, 0.0)
+        vdsk = disk(vextra) if vextra > 1e-6 else [(0, 0)]
+
         def via_ok(i, j):
             k = j * NX + i
             if vsb[k] or (sw and sw[k]):
                 return None
             occ = ovs[k]
-            for li in range(3):
-                val = vb[li][k]
-                if val != 0 and val != net:
-                    return None
-                occ += ov[li][k]
-            return None if hard and occ else 1.0 + pf * occ
+            d = ((0, 0),) if bmd and bmd[0] <= i <= bmd[2] and bmd[1] <= j <= bmd[3] else vdsk
+            for li in range(len(self.layers)):
+                most = 0
+                for di, dj in d:
+                    ii, jj = i + di, j + dj
+                    if not (0 <= ii < NX and 0 <= jj < NY):
+                        return None
+                    kk = jj * NX + ii
+                    val = vb[li][kk]
+                    if val != 0 and val != net:
+                        return None
+                    most = max(most, ov[li][kk])
+                occ += most
+            return None if hard and occ else (1.0 + hist[0][k]) * (1.0 + pf * occ)
 
         tx = [c[1] for c in targets]
         ty = [c[2] for c in targets]
@@ -539,9 +571,6 @@ class Grid:
             for di, dj, c in STEPS:
                 ni, nj = i + di, j + dj
                 if not (0 <= ni < NX and 0 <= nj < NY):
-                    continue
-                if li == 1 and dj and (PAIR_STRIP[0] <= ni <= PAIR_STRIP[2] and PAIR_STRIP[1] <= nj <= PAIR_STRIP[3]
-                                       or PAIR_STRIP[0] <= i <= PAIR_STRIP[2] and PAIR_STRIP[1] <= j <= PAIR_STRIP[3]):
                     continue
                 nb = (li, ni, nj)
                 r = ok(*nb)
@@ -591,6 +620,8 @@ def straighten(path: list, free) -> list:
 
 
 def components(board, net: int) -> list[list]:
+    """The groups of connected copper of ``net``. For a net with a plane (``PLANE_NETS``), every group with a via
+    is one: the plane of L4 joins them."""
     items = [p for fp in board.GetFootprints() for p in fp.Pads() if p.GetNetCode() == net]
     items += [t for t in board.GetTracks() if t.GetNetCode() == net]
     parent = list(range(len(items)))
@@ -601,7 +632,7 @@ def components(board, net: int) -> list[list]:
             a = parent[a]
         return a
 
-    layers = [pcbnew.F_Cu, pcbnew.In1_Cu, pcbnew.In2_Cu, pcbnew.B_Cu]
+    layers = [pcbnew.F_Cu, pcbnew.In1_Cu, pcbnew.In2_Cu, pcbnew.In3_Cu, pcbnew.In4_Cu, pcbnew.B_Cu]
     boxes = [it.GetBoundingBox() for it in items]
     for a in range(len(items)):
         for b in range(a + 1, len(items)):
@@ -613,6 +644,22 @@ def components(board, net: int) -> list[list]:
                         ia.GetEffectiveShape(layer).Collide(ib.GetEffectiveShape(layer), 0):
                     parent[find(a)] = find(b)
                     break
+    if board.GetNetInfo().GetNetItem(net).GetNetname() in PLANE_NETS:
+        # The island of L4 (its zone filled by ``rutear.py isla``): the vias on the same piece of the fill are
+        # joined. Without the island the net is tracks only.
+        vias = [k for k, it in enumerate(items) if it.Type() == pcbnew.PCB_VIA_T]
+        fills = [z.GetFilledPolysList(pcbnew.In3_Cu) for z in board.Zones()
+                 if not z.GetIsRuleArea() and z.GetNetCode() == net and z.IsOnLayer(pcbnew.In3_Cu) and z.IsFilled()]
+        piece = {}
+        for k in vias if fills else []:
+            where = next(((f, o) for f, polys in enumerate(fills) for o in range(polys.OutlineCount())
+                          if polys.Outline(o).PointInside(items[k].GetPosition())), None)
+            if where is None:
+                continue
+            if where in piece:
+                parent[find(k)] = find(piece[where])
+            else:
+                piece[where] = k
     groups = {}
     for k, it in enumerate(items):
         groups.setdefault(find(k), []).append(it)
@@ -723,7 +770,7 @@ def dense_cells(items: list) -> list:
             ci, cj = cell_of(it.GetPosition().x, it.GetPosition().y)
             out.append(("v", ci, cj))
             continue
-        li = {pcbnew.F_Cu: 0, pcbnew.In2_Cu: 1, pcbnew.B_Cu: 2}[it.GetLayer()]
+        li = {pcbnew.F_Cu: 0, pcbnew.In2_Cu: 1, pcbnew.In3_Cu: 2, pcbnew.B_Cu: 3}[it.GetLayer()]
         i0, j0 = cell_of(it.GetStart().x, it.GetStart().y)
         i1, j1 = cell_of(it.GetEnd().x, it.GetEnd().y)
         n = max(abs(i1 - i0), abs(j1 - j0), 1)
@@ -763,9 +810,9 @@ def route_all(board, log=print, iterations: int = 8, only=None):
             n = nets[code]
             cls = n.GetNetClassName()
             width = WIDTH.get(cls, 0.15)
-            layers_ok = [0, 2] if cls == "POWER_DOCK" else [0, 1, 2]
+            layers_ok = [0, 3] if cls == "POWER_DOCK" else [0, 1, 2, 3]
             for item in routed.pop(code, []):
-                board.Remove(item)
+                board.Delete(item)
             grid.apply(covers.pop(code, []), -1)
             failed.discard(code)
             items, cells = [], []
@@ -801,36 +848,36 @@ def route_all(board, log=print, iterations: int = 8, only=None):
                 k = j * NX + i
                 if li == "v":
                     occ = grid.ovs[k] - own.get((2, 0, k), 0)
-                    occ += sum(grid.ov[x][k] - own.get((1, x, k), 0) for x in range(3))
+                    occ += sum(grid.ov[x][k] - own.get((1, x, k), 0) for x in range(len(grid.layers)))
                     if occ > 0:
                         bad = True
                         where = where or ("vía", round(i * G, 2), round(j * G, 2))
-                        for x in range(3):
-                            grid.hist[x][k] += 1.0
+                        for x in range(len(grid.layers)):
+                            grid.add_hist(x, i, j)
                 elif grid.inside[li][k] != code and grid.ot[li][k] - own.get((0, li, k), 0) > 0:
                     bad = True
                     where = where or (li, round(i * G, 2), round(j * G, 2))
-                    grid.hist[li][k] += 1.0
-            if bad:
+                    grid.add_hist(li, i, j)
+            if bad or code in failed:  # a net that found no way this round tries again in the next one
                 redo.append(code)
                 if rnd % 3 == 2:
                     log(f"  {nets[code].GetNetname()}: {where}")
         log(f"vuelta {rnd + 1}: {len(redo)} redes comparten cobre, {len(failed)} sin ruta, factor {pf:.1f}")
-        if not redo:
+        if not redo and not failed:
             break
-        pf *= 2.0
+        pf = min(pf * PF_GROWTH, PF_MAX)
     # Whatever still shares copper goes away and gets one more try over free space only; each connection found joins
     # two pieces of its net, so a net left half way is still clean (the rest stays as ratsnest).
     for code in redo:
         for item in routed.pop(code, []):
-            board.Remove(item)
+            board.Delete(item)
         grid.apply(covers.pop(code, []), -1)
     left = set()
-    for code in sorted(redo, key=order.index):
+    for code in sorted(set(redo) | failed, key=order.index):
         n = nets[code]
         cls = n.GetNetClassName()
         width = WIDTH.get(cls, 0.15)
-        layers_ok = [0, 2] if cls == "POWER_DOCK" else [0, 1, 2]
+        layers_ok = [0, 3] if cls == "POWER_DOCK" else [0, 1, 2, 3]
         items = []
         while True:
             comps = components(board, code)
@@ -848,5 +895,4 @@ def route_all(board, log=print, iterations: int = 8, only=None):
                 grid.apply(grid.cover(item), +1)
             items += new
         log(f"al final: {n.GetNetname()} {'completa' if n.GetNetname() not in left else 'queda a mano'}")
-    left |= {nets[c].GetNetname() for c in failed}
     return done, sorted(left)
