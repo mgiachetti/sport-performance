@@ -30,15 +30,17 @@ Las redes especiales (GNSS_SENSITIVE, POWER_DOCK) **no** se bloquean antes: rute
 ## Arreglos de este tramo
 
 - `laberinto.py` / `rutear.py`: `board.Delete` en vez de `board.Remove` (Remove dejaba objetos a medio liberar y
-  pcbnew se caía al azar: segfault / bus error).
+  pcbnew se caía al azar: segfault / bus error). No alcanzó: E5 se cayó igual en la vuelta 14 **durante el garbage
+  collector**, así que `route_all` ahora corre con `gc.disable()`. Sin probar todavía con ese cambio: si se vuelve a
+  caer, mirar el traceback (`python3 -X faulthandler`).
 - Docker con 4 GB: una sola corrida del router a la vez (cada una usa ~2,3 GB).
 - `rutear.py resto --vueltas N`, `rutear.py reparar` (levanta las redes sin terminar y las de señal que cruzan un
   pasillo de 1 mm a lo largo de cada conexión faltante; los rieles quedan fijos), `rutear.py isla` (descartada).
 
 ## Siguiente
 
-1. Correr `reparar` sobre `ruteo-base-e2.kicad_pcb` y después `planos`, `remate`, `podar` (E5; estaba en la vuelta
-   10 de 24 al mudar la máquina) y comparar contra las 31 de E2.
+1. Correr `reparar` sobre `ruteo-base-e2.kicad_pcb` y después `planos`, `remate`, `podar` (E5) y comparar contra
+   las 31 de E2. E5 venía mejor que E2 (45 redes compartiendo cobre en la vuelta 14 contra 56) cuando se cayó.
 2. Con más memoria: `resto --vueltas 48` desde `abanico` (E2 seguía bajando: 54 → 30 redes compartiendo cobre).
 3. Lo que quede: la mitad está en la esquina superior izquierda (drivers de LED, level shifters del GNSS, tiradas
    largas desde el MCU por la franja x < 10): mover dos o tres partes ahí o terminar a mano en KiCad.

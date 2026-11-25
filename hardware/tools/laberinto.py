@@ -25,6 +25,7 @@ routed (at a cost): the nets in the way are ripped up and go back to the queue (
 
 from __future__ import annotations
 
+import gc
 import heapq
 import math
 from array import array
@@ -781,7 +782,18 @@ def dense_cells(items: list) -> list:
 def route_all(board, log=print, iterations: int = 8, only=None):
     """Negotiated congestion routing (PathFinder) of every net but GND and the classes of `criticas`: every round
     reroutes the nets whose copper still runs into another net's, with the cost of shared cells growing round after
-    round, until nothing is shared. Returns (connections routed, nets left)."""
+    round, until nothing is shared. Returns (connections routed, nets left).
+
+    The cyclic garbage collector is off while it runs: collecting the SWIG wrappers of pcbnew items mid-route crashed
+    pcbnew at random (segfault, bus error) on 25/11/2026; the plain reference counting frees everything else."""
+    gc.disable()
+    try:
+        return _route_all(board, log, iterations, only)
+    finally:
+        gc.enable()
+
+
+def _route_all(board, log, iterations: int, only):
     grid = Grid(board)
     grid.load()
     grid.init_pf()
