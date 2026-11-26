@@ -80,7 +80,6 @@ La genera `hardware/tools/bom_pcbway.py` desde las columnas de stock de [`partes
 | `PESD5V0S1BL,315` | D602 | 115 | ✓ OK | 73.480 | 18.868 | — | — | — | — | — |
 | `B39162B8389P810` | FL201, FL202 | 210 | ✓ OK | 218 | 7.710 | 218 | — | DigiKey 8 semanas | — | Ninguna en el mismo footprint con L1 + L5 (las B39162 de 1109 y 1411 en stock son solo L1) |
 | `SM03B-GHS-TB(LF)(SN)` | J101 | 105 | ✓ OK | 25.545 | 0 | — | — | — | — | — |
-| `SM04B-SRSS-TB(LF)(SN)` | J201 | 105 | ✓ OK | 71.715 | 104.820 | — | — | — | — | — |
 | `U.FL-R-SMT-1(10)` | J202 | 105 | ✓ OK | 17.470 | 332.838 | — | — | — | — | — |
 | `DFE201612E-2R2M=P2` | L101 | 115 | ✓ OK | 12.480 | — | — | — | — | `DFE201610E-2R2M=P2` | — |
 | `LQW15AN5N1C00D` | L202, L203, L205, L206 | 430 | ✓ OK | 8.280 | 60.810 | — | — | DigiKey 25 semanas | — | — |

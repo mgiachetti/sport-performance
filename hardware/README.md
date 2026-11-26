@@ -20,7 +20,7 @@ Proyectos de KiCad del pod GNSS + IMU (Fase 3). El diseño está en [`docs/hardw
   - correr ERC y DRC;
   - preparar las salidas de fabricación;
   - revisar cada cambio del esquemático o de la placa en el PR, contra `docs/hardware/pod-v0.md`.
-- **El esquemático se genera** desde una netlist declarativa (ver abajo): siete hojas jerárquicas (`power`, `gnss_rf`, `mcu_radio`, `sensors`, `storage`, `usb_dock`, `uwb`) con todas las partes de `docs/hardware/pod-v0.md`, incluidos los lugares de rescate (marcados con el DNP nativo de KiCad). **La placa tiene todas las partes ubicadas y desde el 23/11/2026 es de 6 capas, ruteada por script** (quedan ⟦SIN_RUTEAR⟧ conexiones en ⟦REDES⟧ redes para terminar a mano) (ver "Ubicación inicial" y "Ruteo"), además del apilado de 6 capas, el contorno de 50 × 70 mm, las reglas de diseño y las zonas de las antenas (ver "Reglas de diseño de la placa").
+- **El esquemático se genera** desde una netlist declarativa (ver abajo): siete hojas jerárquicas (`power`, `gnss_rf`, `mcu_radio`, `sensors`, `storage`, `usb_dock`, `uwb`) con todas las partes de `docs/hardware/pod-v0.md`, incluidos los lugares de rescate (marcados con el DNP nativo de KiCad). **La placa tiene todas las partes ubicadas y desde el 23/11/2026 es de 6 capas, ruteada entera por script desde el 26/11/2026** (ver "Ubicación inicial" y "Ruteo"), además del apilado de 6 capas, el contorno de 50 × 70 mm, las reglas de diseño y las zonas de las antenas (ver "Reglas de diseño de la placa").
 
 ## Ubicación inicial (`tools/ubicar.py`)
 
@@ -38,27 +38,53 @@ Por defecto **solo agrega y ubica las partes que faltan** (por ejemplo, después
 
 ## Ruteo (`tools/rutear.py`)
 
-La placa se ruteó el 15 y 16/11/2026 por script en 4 capas, **en parte**: las redes críticas completas y la mayoría del resto; quedaron 147 conexiones en 55 redes. Después de tres corridas de Quilter y del router propio, que no la cerraron en 4 capas, desde el 23/11/2026 es de **6 capas** (ADR 0105, "Registro de decisiones"): `seis-capas` convierte la placa del 22/11/2026, se queda con lo de `criticas` (bloqueado) y se rutea el resto de nuevo. Quedan ⟦SIN_RUTEAR⟧ conexiones en ⟦REDES⟧ redes para rutear a mano, con el DRC en 0 violaciones y 0 diferencias con el esquemático (lista y corredores en [`pod-v0-ubicacion-y-carcasa.md`](../docs/hardware/pod-v0-ubicacion-y-carcasa.md), sección 9, "Ruteo"). Como `ubicar.py`, es un procedimiento **de una sola vez**: desde ahí la fuente es la placa y los cambios siguen a mano en KiCad (las pistas de `criticas` quedan bloqueadas). **No hay que volver a correrlo sobre la placa.** Cada paso corre en la imagen de KiCad del CI:
+La placa está **ruteada entera** desde el 26/11/2026: 0 conexiones sin rutear, 0 violaciones y 0 diferencias con el esquemático. Se ruteó por script en 4 capas el 15 y 16/11/2026, en parte (quedaron 147 conexiones en 55 redes); después de tres corridas de Quilter y del router propio que no la cerraron, desde el 23/11/2026 es de **6 capas** (ADR 0105, "Registro de decisiones"), y la versión del repositorio sale de una corrida completa desde la placa ubicada (detalle en [`pod-v0-ubicacion-y-carcasa.md`](../docs/hardware/pod-v0-ubicacion-y-carcasa.md), sección 9, "Ruteo"). Como `ubicar.py`, es un procedimiento **de una sola vez**: desde ahí la fuente es la placa y los cambios siguen a mano en KiCad (las pistas de `criticas` quedan bloqueadas). **No hay que volver a correrlo sobre la placa del repositorio**: se corre en una copia (`--placa`) y la placa nueva reemplaza a la otra solo si el DRC del CI pasa entero. Cada paso corre en la imagen de KiCad del CI (unas 2 h en total, casi todo `resto`):
 
 ```sh
 K="docker run --rm -e HOME=/tmp -v $PWD:/work -w /work kicad/kicad:10.0.8@sha256:3f4a…"
-# en 4 capas, sobre la placa ubicada y sin pistas (15 y 16/11/2026):
-$K python3 hardware/tools/rutear.py criticas   # pasivas movidas y redes críticas, bloqueadas
-# a 6 capas, sobre la placa del 22/11/2026 (23/11/2026):
-$K python3 hardware/tools/rutear.py seis-capas # 1. apilado, L5_GND y zonas en 6 capas; saca lo no bloqueado y L3_GND
-$K python3 hardware/tools/rutear.py abanico    # 2. una vía de VREG al plano de L4 al lado de cada pad de VREG
-$K python3 hardware/tools/rutear.py resto      # 3. todo lo demás salvo GND (tools/laberinto.py)
-$K python3 hardware/tools/rutear.py planos --sin-grilla  # 4. planos, costura y vías de GND y VREG; rellena
-$K python3 hardware/tools/rutear.py podar      # 5. saca lo que el DRC marca del router y el cobre colgado
+P="--placa hardware/pod-v0/copia.kicad_pcb"  # una copia de la placa, con su .kicad_pro y .kicad_dru al lado
+$K python3 hardware/tools/ubicar.py $P             # 0. redes de cada pad desde el esquemático
+$K python3 hardware/tools/rutear.py limpiar $P     # 1. saca pistas, vías y planos de L1, L3, L4 y L6
+$K python3 hardware/tools/rutear.py criticas $P --forzar  # 2. pasivas de MOVES y redes críticas, bloqueadas
+$K python3 hardware/tools/rutear.py abanico $P     # 3. una vía de GND al lado de cada pad de GND
+$K python3 hardware/tools/rutear.py resto $P --vueltas 64  # 4. todo lo demás salvo GND (tools/laberinto.py)
+$K python3 hardware/tools/rutear.py planos $P      # 5. relleno de GND en L1, L3, L4 y L6 y costura; rellena
+$K python3 hardware/tools/rutear.py remate $P      # 6. lo que haya quedado suelto, por el lugar libre
+$K python3 hardware/tools/rutear.py podar $P       # 7. saca lo que el DRC marca y el cobre colgado
+$K python3 hardware/tools/rutear.py rescate $P     # 8. vía para los pads de GND encerrados, si queda alguno
+$K python3 hardware/tools/rutear.py podar $P
 ```
 
-**`criticas`** (4 capas, 15/11/2026) mueve las pasivas de `MOVES` (cada una con su motivo; la tabla de ubicación las anota) y rutea por script, bloqueado: las dos cadenas de RF (CPWG de 0,33 mm en L1, la alimentación del patch por la cara de abajo con su vía de RF) con su cerco de vías de GND, el control y la alimentación del LNA, el par USB (cara de abajo, vías en x ≥ 14,5), el abanico del BMD-340 (las dos filas de arriba por L1 a dos filas de vías arriba del módulo; el resto con una vía en el pad, rellena y tapada), el cristal, VBUS del resorte al TVS, el eFuse, el BMD-340 y el cargador, BAT y SYS alrededor del cargador con el sensado de la celda del MAX17048 en su propia pista desde el pad de `J101`, el buck-boost (nodo de conmutación y lazos de entrada y salida) y DETECT. No corre sobre una placa que ya tiene pistas. Se escribió para 4 capas: lo que dejó (la cara de abajo, que era L4) es L6 desde el 23/11/2026, con el plano de L5 debajo.
+`seis-capas` (23/11/2026) pasó la placa de 4 capas a 6: el apilado (ver "Apilado"), las rule areas de las antenas y el despeje del pin del patch en las seis capas y una zona `L5_GND` como la de L2. Ya corrió y no hace falta de nuevo.
 
-1. **`seis-capas`** pasa la placa de 4 a 6 capas: el apilado (ver "Apilado"), las rule areas de las antenas y el despeje del pin del patch en las seis capas, una zona `L5_GND` como la de L2, y saca las zonas `L3_GND` (las franjas), los planos de L1, L3 y L4 y todo el cobre no bloqueado de `resto` y `planos`. Lo de `criticas` queda.
-2. **`abanico`**: a cada pad de VREG (o grupo de pads unidos por `criticas`) que no tiene vía le pone una al lado, hacia el plano de VREG de L4, antes del router, mientras queda lugar alrededor de los pads (después del router no lo había para la mayoría).
-3. **`resto`** rutea las redes que quedan, menos GND, con `tools/laberinto.py`: un router de grilla (0,05 mm, L1, L3, L4 y L6, A* a 45°; L4, la del plano de VREG, con un costo más alto, como última opción) que conoce las reglas de `pod-v0.kicad_dru` y las clases (separaciones, anchos, rule areas, cristal, nodo de conmutación, borde). con negociación de congestión (PathFinder): rutea todo dejando compartir celdas a un costo, y en cada vuelta vuelve a rutear las redes que comparten cobre con un costo más alto (presente e histórico) en esas celdas. En 4 capas, con 8 vueltas no convergió (unas 90 redes seguían compartiendo, unos 8 minutos por vuelta); en 6 corre 12: al final saca lo compartido, lo vuelve a intentar solo por lugar libre y lo que no entra queda como ratsnest. Pistas de 0,15 mm (Default y GNSS_SENSITIVE), 0,25 mm (POWER) y 0,3 mm solo en L1 y L6 (las ramas de POWER_DOCK); vías de 0,5/0,2 mm. VREG solo se rutea para los pads a los que `abanico` no les pudo poner vía: hasta la vía de VREG más cerca (los grupos con vía ya están unidos por el plano).
-4. **`planos`**: GND en L1, L3 y L6 y VREG en L4, sobre toda la placa (L2 y L5 son los planos `L2_GND` y `L5_GND`, de antes); vías de costura de GND a los dos lados de cada pista de RF, a lo largo del borde y en una grilla de 2,5 mm (`--sin-grilla` la deja afuera mientras queden redes para rutear a mano: tomaría sus corredores); después, mientras el DRC informe algo de GND sin conectar, una vía al lado de cada pad de GND que los planos no alcanzan y una en cada trozo de plano que no tiene ninguna; y una vía de VREG al plano de L4 al lado de cada pad de VREG que no llega.
-5. **`podar`** deja la placa limpia para el DRC mientras haya redes sin terminar: saca las pistas y vías del router (no bloqueadas) que el DRC marca (la grilla del router no modela todo: una vía GNSS_SENSITIVE contra un pad de la otra cara, los 0,2 mm de POWER_DOCK contra pistas de 0,15, la máscara de un fiducial) y las vías de escape y los tramos que quedan colgados en las redes sin terminar, y vuelve a rellenar.
+**`criticas`** (escrito para 4 capas el 15/11/2026: lo que iba por la cara de abajo, que era L4, es L6, ahora con el plano de L5 debajo) mueve las pasivas de `MOVES` (cada una con su motivo; la tabla de ubicación las anota) y rutea por script, bloqueado:
+
+- las dos cadenas de RF (CPWG de 0,33 mm en L1, la alimentación del patch por la cara de abajo con su vía de RF), con su cerco de vías de GND;
+- el control y la alimentación del LNA;
+- el par USB (cara de abajo, vías en x ≥ 14,5);
+- el abanico del BMD-340 (las dos filas de arriba por L1 a dos filas de vías arriba del módulo; el resto con una vía en el pad, rellena y tapada);
+- el cristal;
+- VBUS del resorte al TVS, el eFuse, el BMD-340 y el cargador;
+- BAT y SYS alrededor del cargador, con el sensado de la celda del MAX17048 en su propia pista desde el pad de `J101`;
+- el buck-boost (nodo de conmutación y lazos de entrada y salida) y DETECT;
+- `pads_encerrados`: lo que el router dejaba sin salida corrida tras corrida (26/11/2026). Son los pads de GND de la IMU (`U402`), del barómetro (`U404`), del load switch de la NAND (`U502`) y de `J101`; CFG2 y CFG3 del TPS63900 a sus pull-downs, con sus vías en la fila que dejó `R105`; y GND de `R104` y SYS de `R103` en la columna de esas resistencias.
+
+No corre sobre una placa que ya tiene pistas (`--forzar` en una copia).
+
+1. **`abanico`**: a cada pad SMD de GND sin una vía de GND a menos de 1 mm le pone una al lado, hasta los planos de L2 y L5, antes del router. Si no la hay, no la pone: hay excepciones con tramo corto en lugar de vía (`SIN_VIA_GND`) y con vía propia aunque haya otra cerca (`CON_VIA_GND`).
+2. **`resto`** rutea las redes que quedan, menos GND, con `tools/laberinto.py`. Es un router de grilla: 0,05 mm, L1, L3, L4 y L6, A* a 45°. Conoce las reglas de `pod-v0.kicad_dru` y las clases: separaciones, anchos, rule areas con o sin nombre, cristal, nodo de conmutación, borde.
+   - **Negociación de congestión (PathFinder):** rutea todo dejando compartir celdas a un costo, y en cada vuelta vuelve a rutear las redes que comparten cobre, con un costo más alto (presente e histórico) en esas celdas.
+   - **Al final**, de lo que sigue compartido saca solo los tramos que chocan con otra red, y une los pedazos por el lugar libre. Antes sacaba la red entera, y las de muchos pines (SYS, I2C, VREG) quedaban partidas.
+   - **El cobre nuevo de cada red** cuenta como ocupado recién cuando la red está completa: si no, cada rama tapaba a la siguiente de la misma red.
+   - **Si una pieza no tiene salida**, prueba desde otra.
+   - **Medidas:** pistas de 0,15 mm (Default y GNSS_SENSITIVE), 0,25 mm (POWER, VREG incluido) y 0,3 mm solo en L1 y L6 (POWER_DOCK); vías de 0,5/0,2 mm. A GNSS_SENSITIVE le suma 0,03 mm a la separación por el error de la grilla.
+   - **Con la placa del 26/11/2026** converge en pocas vueltas; 64 es el tope.
+3. **`planos`**: relleno de GND en L1, L3, L4 y L6 sobre toda la placa (L2 y L5 son los planos `L2_GND` y `L5_GND`, de antes). Pone vías de costura de GND a los dos lados de cada pista de RF, a lo largo del borde y en una grilla de 2,5 mm. Después, mientras el DRC informe algo de GND sin conectar, pone una vía al lado de cada pad de GND que el relleno no alcanza y una en cada trozo de relleno que no tiene ninguna.
+4. **`remate`** vuelve a rutear, por el lugar que quedó, lo que haya quedado sin unir.
+5. **`podar`** deja la placa limpia para el DRC. Saca las pistas y vías del router (no bloqueadas) que el DRC marca, porque la grilla del router no modela todo, y el cobre que queda colgado. Una vía de escape que quedó conectada en una sola capa la reemplaza por un tramo en esa capa, en lugar de cortar el pad. Después cose con una vía de GND cada trozo de relleno suelto y vuelve a rellenar.
+6. **`rescate`**: si a un pad de GND lo encerraron las pistas, le pone su vía como si solo estuviera lo bloqueado, vuelve a rutear las redes con las que choca y rellena. En la corrida del repositorio no encontró nada que hacer.
+
+Pasos que se probaron y quedan en la herramienta para reproducir las pruebas, sin usarse en la placa: `isla` (isla de VREG en L4), `reparar` y `rieles` (levantar y volver a rutear zonas), `especiales` y `bloquear` (para Quilter), `dsn` y `ses` (Freerouting).
 
 **Freerouting se probó y no alcanzó.** Freerouting 2.5.0 (probado en 4 capas; el `.jar` oficial de [GitHub](https://github.com/freerouting/freerouting/releases/tag/v2.5.0), SHA-256 `f6f51bb0…5de3c7`, con Java 25, sin commitear) por `rutear.py dsn` (exporta con `pcbnew.ExportSpecctraDSN` y reescribe las rule areas, que KiCad exporta como keep-outs completos) y `rutear.py ses` (importa con `pcbnew.ImportSpecctraSES`) quedó en 150 a 190 conexiones sin rutear después de 40 pasadas: no entiende los 0,5 mm de RF_50 alrededor del LNA, las zonas con reglas por capa ni el campo de vías del BMD-340. Los dos pasos quedan en la herramienta para reproducir la prueba:
 
@@ -69,7 +95,7 @@ docker run --rm -v "$PWD/fr:/fr:ro" -v "$PWD:/w" eclipse-temurin:25-jre \
 $K python3 hardware/tools/rutear.py ses /work/pod.ses
 ```
 
-El control es el DRC del CI: 0 violaciones y 0 diferencias con el esquemático; mientras queden redes para rutear a mano deja pasar las conexiones sin rutear (cuando se terminen, se agrega `--fallar-sin-rutear` en `.github/workflows/hardware.yml`).
+El control es el DRC del CI: 0 violaciones, 0 diferencias con el esquemático y, desde el 26/11/2026, 0 conexiones sin rutear (`--fallar-sin-rutear` en `.github/workflows/hardware.yml`).
 
 ## Esquemático generado
 
@@ -101,7 +127,7 @@ python3 hardware/tools/footprints_hoja.py          # reescribe los footprints di
 python3 hardware/tools/footprints_hoja.py --check  # falla si alguno quedó desactualizado (lo corre el CI)
 ```
 
-**Lo que el generador no dibuja**: el área de la etiqueta (es de la placa). La antena chip de LoRa (`AE301`) está en el esquemático desde el 15/11/2026, con su despeje en el footprint y en la zona `LORA_ANTENA` de la placa. El puente USB-UART del GNSS salió del diseño: para hablar con QGNSS está el conector de 4 pines.
+**Lo que el generador no dibuja**: el área de la etiqueta (es de la placa). La antena chip de LoRa (`AE301`) está en el esquemático desde el 15/11/2026, con su despeje en el footprint y en la zona `LORA_ANTENA` de la placa. El puente USB-UART del GNSS salió del diseño, y el conector de 4 pines para QGNSS (`J201`, con `JP201` y `JP202`) también, el 25/11/2026, junto con los 0 Ω de puente de los traductores (`R203` a `R205`): llenaban la esquina de arriba a la izquierda y la placa no se podía rutear ahí. QGNSS habla con el módulo a través del nRF.
 
 ## Paquete de cotización
 
@@ -137,13 +163,13 @@ Lo que pide `docs/hardware/pod-v0.md` ("Reglas de diseño") escrito en el proyec
 | Núcleo | εr 4,6 | 0,3 mm |
 | L3 `In2.Cu` | Señales, con relleno de GND | 17,5 µm |
 | Prepreg 7628 | εr 4,4 | 0,46 mm |
-| L4 `In3.Cu` | Alimentación: plano de VREG (señales lentas solo como último recurso) | 17,5 µm |
+| L4 `In3.Cu` | Señales, con relleno de GND (VREG va por pistas desde el 26/11/2026) | 17,5 µm |
 | Núcleo | εr 4,6 | 0,3 mm |
 | L5 `In4.Cu` | Tierra continua en toda la placa ("L5 solo GND") | 17,5 µm |
 | Prepreg 7628 | εr 4,4 | 0,2 mm |
 | L6 `B.Cu` | Señales, la alimentación del patch y el par USB | 35 µm |
 
-**Por qué este:** L1 y L6 quedan a 0,2 mm de su plano de GND (L2 y L5) por el mismo prepreg de antes, así que la CPWG de RF_50 (0,33/0,20 mm) y el par USB (0,25/0,15 mm) no cambian de geometría. Cada capa de señales tiene al lado un plano de GND (L3 a 0,3 mm de L2). Lo que corre por L6 (la alimentación del patch, el par USB, VBUS) tiene debajo el plano macizo de L5 en toda la placa: ya no hacen falta las franjas `L3_GND` ni las vías al costado del par. L4 es un plano de VREG pegado a L5. En 4 capas, L4 se refería a L3, que era GND solo en dos franjas y señales en el resto.
+**Por qué este:** L1 y L6 quedan a 0,2 mm de su plano de GND (L2 y L5) por el mismo prepreg de antes, así que la CPWG de RF_50 (0,33/0,20 mm) y el par USB (0,25/0,15 mm) no cambian de geometría. Cada capa de señales tiene al lado un plano de GND (L3 a 0,3 mm de L2). Lo que corre por L6 (la alimentación del patch, el par USB, VBUS) tiene debajo el plano macizo de L5 en toda la placa: ya no hacen falta las franjas `L3_GND` ni las vías al costado del par. L4 lleva señales con relleno de GND, entre el relleno de L3 y el plano de L5 (hasta el 26/11/2026 era un plano de VREG: las señales que lo cruzaban lo dejaban en pedazos; ADR 0105, "Registro de decisiones"). En 4 capas, L4 se refería a L3, que era GND solo en dos franjas y señales en el resto.
 
 ### Impedancia
 
@@ -169,7 +195,7 @@ Asignadas por patrón sobre el nombre de la red (`*NOMBRE`, para que valgan con 
 | `POWER_DOCK` | `VBUS`, `VBUS_PAD`, `SYS`, `BAT` | 0,5 / 0,20 mm | Hasta 1 A desde la base: el switch de entrada limita a 0,85–1,15 A (R_ILM de 3,32 kΩ). Para 10 °C de aumento, IPC-2221 da 0,30 mm en una capa externa de 35 µm y 1,5 mm en una interna de 17,5 µm; IPC-2152, que cuenta los planos cercanos, da cerca de 1,0 mm en la interna. Los 1,5 mm en capas internas son una política de ruteo con margen, no el mínimo térmico |
 | `POWER` | `VREG`, `VREG_BB`, `VREG_LORA`, `VCC_LORA`, `VCC_GNSS`, `VGNSS_LDO`, `VGNSS_SW`, `V_BCKP`, `V_BCKP_LDO`, `VDD_EXT`, `VCC_NAND`, `VCC_UWB`, `UWB_VDD1` | 0,3 / 0,15 mm | VREG con un pico de unos 250 mA: 0,23 mm en una capa interna según IPC-2221 |
 | `SW_NODE` | `BB_LX1`, `BB_LX2` (inductor del TPS63900) | 0,4 / 0,20 mm | Nodo de conmutación: corto, ancho, lejos de la RF |
-| `GNSS_SENSITIVE` | `GNSS_PPS`, `GNSS_PPS_28`, `GNSS_TX`/`GNSS_TXD`/`GNSS_TXD_T`, `GNSS_RX`/`GNSS_RXD`/`GNSS_RXD_T`, `GNSS_VDD_RF`, `GNSS_BIAS`, `GNSS_BIAS_L`, `XL1`, `XL2` | 0,2 / 0,30 mm | PPS y UART del GNSS, alimentación de la antena y el cristal de 32,768 kHz |
+| `GNSS_SENSITIVE` | `GNSS_PPS`, `GNSS_PPS_28`, `GNSS_TX`/`GNSS_TXD`, `GNSS_RX`/`GNSS_RXD`, `GNSS_VDD_RF`, `GNSS_BIAS`, `GNSS_BIAS_L`, `XL1`, `XL2` | 0,2 / 0,30 mm | PPS y UART del GNSS, alimentación de la antena y el cristal de 32,768 kHz |
 | `Default` | El resto, incluida `GND` | 0,2 / 0,15 mm; vía 0,6/0,3 | — |
 
 Mínimos de la placa (Board Setup → Constraints, todos **no verificados** contra PCBWay): separación 0,1 mm, pista 0,1 mm, vía 0,45 mm con agujero de 0,2 mm y anillo de 0,15 mm (la vía chica que cumple todo es 0,5/0,2), agujero a agujero 0,25 mm, cobre al borde 0,3 mm. Anchos predefinidos: 0,2, 0,25, 0,3, 0,33, 0,4, 0,5 y 1,5 mm; vías de 0,5/0,2 y 0,6/0,3; par de 0,25/0,15 mm.

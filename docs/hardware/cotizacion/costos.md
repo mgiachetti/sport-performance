@@ -20,9 +20,9 @@ Las tablas de abajo las escribe `bom_pcbway.py` en este archivo (entre los marca
 
 | Placas | Partes por placa | Total de partes |
 |---|---|---|
-| 5 | **77,01** | 385,07 |
-| 10 | **67,27** | 672,74 |
-| 100 | **55,61** | 5.560,51 |
+| 5 | **76,80** | 383,99 |
+| 10 | **67,06** | 670,57 |
+| 100 | **55,43** | 5.542,98 |
 
 **Lo que más pesa** (a 100 placas, por placa):
 
@@ -34,7 +34,7 @@ Las tablas de abajo las escribe `bom_pcbway.py` en este archivo (entre los marca
 | GVLB258.A | 1 | 7,05 | digikey |
 | Ra-01SH | 1 | 2,99 | lcsc |
 | LSM6DSV32XTR | 1 | 2,90 | lcsc |
-| Las otras 52 filas | — | 13,01 | — |
+| Las otras 51 filas | — | 12,84 | — |
 
 **Lo que no se suelda** ([`bom-pod-v0-extras.csv`](bom-pod-v0-extras.csv)), total del pedido:
 

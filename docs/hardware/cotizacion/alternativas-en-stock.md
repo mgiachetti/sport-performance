@@ -175,7 +175,7 @@ Todo cumple la regla hoy en LCSC (stock re-leído el 09/11/2026), la mayoría co
 | Cristal CM8V-T1A (`Y301`) | 8.764 | 120.722 | ABS06 (alternativa aprobada) | Cumple |
 | LED XL-1615RGBC-RF (`LED301`) | 693.500 | — | — | Cumple |
 | JST SM03B-GHS-TB (`J101`) | 25.395 | 0 | — | Cumple |
-| JST SM04B-SRSS-TB (`J201`) | 71.715 | 104.820 | — | Cumple |
+| JST SM04B-SRSS-TB (`J201`, salió el 25/11/2026) | 71.715 | 104.820 | — | Cumple |
 | U.FL-R-SMT-1 (`J202`, `J302`) | 17.465 | 332.838 | — | Cumple |
 | Pulsador TL3342F450QG (`SW301`) | 804 | 24.789 | — | Cumple |
 | TVS SMF12A (`D601`) | 7.960 | 51.230 | — | Cumple |

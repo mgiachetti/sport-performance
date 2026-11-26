@@ -6,21 +6,22 @@ board's own rules, all of them known here (it is not a general autorouter):
 
 - a 0.05 mm grid on L1, L3, L4 and L6 of the 6-layer board (L2 and L5 are the GND planes: only vias cross them), A*
   with 45-degree moves, a cost per via, L3 preferred over L4, L4 over L6 and L6 over L1 (L1 keeps room for the pads),
-  no track on L4 over the VREG island (`rutear.py isla`), and a cost next to the pads of other nets;
+  no track on L4 over a VREG island (`rutear.py isla`, tried and not used), and a cost next to the pads of other nets;
 - every copper item of another net blocks the cells closer than its clearance (its net class or pad, at least the
   0.15 mm of Default; RF_50 0.5 mm, and 0.15 mm inside the LNA's courtyard as the custom rule says) plus half the track
-  and a margin for the grid; the routed net adds its own (GNSS_SENSITIVE 0.3 mm, POWER_DOCK 0.2 mm) and its width;
-- the rule areas: nothing in BLE_ANTENA and LORA_ANTENA, no track on L1 and no via in GNSS_ANTENA, the footprint
-  keep-outs (the patch pin), nothing on L3, L4 or L6 under the 32.768 kHz crystal, nothing of GNSS_SENSITIVE within
+  and a margin for the grid; the routed net adds its own (GNSS_SENSITIVE 0.3 mm plus 0.03 for the grid, POWER_DOCK
+  0.2 mm) and its width;
+- the rule areas: nothing in BLE_ANTENA and LORA_ANTENA, no track on L1 and no via in GNSS_ANTENA, every other area
+  that forbids tracks or vias, named or not (the clearance under the patch, the keep-outs of connectors), nothing on L3, L4 or L6 under the 32.768 kHz crystal, nothing of GNSS_SENSITIVE within
   5 mm of the switch node, POWER_DOCK only on L1 and L6, 0.3 mm of copper to the edge;
 - vias of 0.5/0.2 mm, never in a pad, at least 0.5 mm between via centres;
-- GND is not routed (planes and `rutear.py planos`); VREG joins its pads outside the island of L4 to the nearest VREG
-  copper (the island joins every via on it).
+- GND is not routed (`rutear.py abanico` and `planos`); VREG is routed as tracks like any other net.
 
-Each net is routed as a growing tree: the smallest group of connected copper to the nearest other one, until the net
-is one group. When a connection has no free path, it is searched again allowing to cross what this router already
-routed (at a cost): the nets in the way are ripped up and go back to the queue (rip-up and reroute, at most
-``MAX_RIPS`` times per net). Deterministic: same board, same result.
+Each net is routed as a growing tree: the smallest group of connected copper to the nearest other one (another group
+when that one has no way out), until the net is one group. Negotiated congestion (PathFinder): every round reroutes
+the nets whose copper still runs into another net's, with the cost of shared cells growing round after round. At the
+end, of what is still shared only the items that run into another net go, and the pieces are joined again over free
+space only; a net's new copper counts as taken only once the net is whole. Deterministic: same board, same result.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from __future__ import annotations
 import gc
 import heapq
 import math
+import os
 from array import array
 
 import pcbnew
@@ -50,10 +52,17 @@ HALO_COST = 2.0
 RIP_COST = 8.0  # per cell of routed copper crossed in a rip-up search
 MAX_RIPS = 8
 EXPAND = 800000
+# Nodes a negotiation search may expand (times EXPAND) before it gives up: with congestion costs up to x40 the long
+# nets of the top-left corner ran out of it and were left as "sin ruta" (25/11/2026).
+PF_EXPAND = int(os.environ.get("LABERINTO_PF_EXPAND", "3"))
 
 WIDTH = {"Default": 0.15, "GNSS_SENSITIVE": 0.15, "POWER": 0.25, "POWER_DOCK": 0.3}
-EXTRA_CLEARANCE = {"GNSS_SENSITIVE": 0.15, "POWER_DOCK": 0.05}  # over the 0.15 mm of the grid
+# over the 0.15 mm of the grid. GNSS_SENSITIVE takes 0.03 mm more for the grid error (the extra is checked at cell
+# centres only: with the bare 0.15 its tracks ended 0.29 mm from GND vias instead of 0.3, 26/11/2026); POWER_DOCK
+# does not (never short, and with 0.08 VBUS_PAD no longer reached pad 5 of the eFuse between its pins)
+EXTRA_CLEARANCE = {"GNSS_SENSITIVE": 0.18, "POWER_DOCK": 0.05}
 SKIP_CLASSES = {"RF_50", "USB_90D", "SW_NODE"}
+FIRST_NETS = {"VREG"}  # routed first in the final pass over free space
 PLANE_NETS = {"VREG"}  # VREG joins through its island of L4 when there is one (rutear.py isla); elsewhere, tracks
 STEPS = ((1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),
          (1, 1, 1.4142), (1, -1, 1.4142), (-1, 1, 1.4142), (-1, -1, 1.4142))
@@ -225,7 +234,9 @@ class Grid:
             for li, layer in enumerate(self.layers):
                 if not z.IsOnLayer(layer):
                     continue
-                if name in ("BLE_ANTENA", "LORA_ANTENA") or (z.GetDoNotAllowTracks() and not name) \
+                # any area that forbids tracks, named or not: the clearance under the patch (GVLB258_DESPEJE_SUP of
+                # AE201) and the keep-outs of J202 and J302 have names, and VCC_GNSS crossed the first (26/11/2026)
+                if name in ("BLE_ANTENA", "LORA_ANTENA") or z.GetDoNotAllowTracks() \
                         or (name == "GNSS_ANTENA" and layer == pcbnew.F_Cu):
                     self.paint(t[li], self.inflated(poly, H0 + MARGIN), -1)
             # vias cross every layer: a keep-out of vias on any layer forbids them
@@ -564,7 +575,7 @@ class Grid:
                 return straighten(path[::-1],
                                   lambda li, i, j: (ok(li, i, j) or 1e9) <= 1.0 + hist[li][j * NX + i] + 1e-9)
             n += 1
-            if n > EXPAND * 3:
+            if n > EXPAND * PF_EXPAND:
                 return None
             li, i, j = node
             lc = LAYER_COST[li]
@@ -779,6 +790,48 @@ def dense_cells(items: list) -> list:
     return out
 
 
+def clashes(grid: Grid, item) -> bool:
+    """Whether a routed item (its own coverage already taken out of the grid) runs into another net's copper."""
+    code = item.GetNetCode()
+    for li, i, j in dense_cells([item]):
+        k = j * NX + i
+        if li == "v":
+            if grid.ovs[k] > 0 or any(grid.ov[x][k] > 0 for x in range(len(grid.layers))):
+                return True
+        elif grid.inside[li][k] != code and grid.ot[li][k] > 0:
+            return True
+    return False
+
+
+def grow(board, grid: Grid, n, cls: str, layers_ok: list, width: float, pf: float, hard: bool = False):
+    """Join the pieces of net ``n`` one connection at a time, from the smallest piece to any other; when a piece
+    has no way out, the next one tries (one walled-in pad used to give up the whole net). Returns (items emitted,
+    connections made, whether the net ended whole)."""
+    code = n.GetNetCode()
+    items, made, stuck = [], 0, set()
+    while True:
+        comps = components(board, code)
+        if len(comps) < 2:
+            return items, made, True
+        comps.sort(key=lambda comp: sum(len(grid.own_cells(it, code)) for it in comp))
+        path = None
+        for s, comp in enumerate(comps):
+            key = frozenset(it.m_Uuid.AsString() for it in comp)
+            if key in stuck:
+                continue
+            sources = [c for it in comp for c in grid.own_cells(it, code)]
+            targets = {c: k for k, other in enumerate(comps) if k != s for it in other for c in grid.own_cells(it, code)}
+            if sources and targets:
+                path = grid.route_pf(code, cls, sources, targets, layers_ok, width, pf, hard=hard)
+            if path:
+                break
+            stuck.add(key)
+        if not path:
+            return items, made, False
+        items += emit(board, grid, n, path, width)
+        made += 1
+
+
 def route_all(board, log=print, iterations: int = 8, only=None):
     """Negotiated congestion routing (PathFinder) of every net but GND and the classes of `criticas`: every round
     reroutes the nets whose copper still runs into another net's, with the cost of shared cells growing round after
@@ -827,21 +880,12 @@ def _route_all(board, log, iterations: int, only):
                 board.Delete(item)
             grid.apply(covers.pop(code, []), -1)
             failed.discard(code)
-            items, cells = [], []
-            while True:
-                comps = components(board, code)
-                if len(comps) < 2:
-                    break
-                comps.sort(key=lambda comp: sum(len(grid.own_cells(it, code)) for it in comp))
-                sources = [c for it in comps[0] for c in grid.own_cells(it, code)]
-                targets = {c: k for k, comp in enumerate(comps[1:]) for it in comp for c in grid.own_cells(it, code)}
-                path = grid.route_pf(code, cls, sources, targets, layers_ok, width, pf) if sources and targets else None
-                if not path:
-                    failed.add(code)
-                    log(f"sin ruta: {n.GetNetname()} (lo fijo no deja)")
-                    break
-                items += emit(board, grid, n, path, width)
-                done += 1
+            cells = []
+            items, k, whole = grow(board, grid, n, cls, layers_ok, width, pf)
+            done += k
+            if not whole:
+                failed.add(code)
+                log(f"sin ruta: {n.GetNetname()} (lo fijo no deja)")
             for item in items:
                 c = grid.cover(item)
                 cells += c
@@ -878,33 +922,41 @@ def _route_all(board, log, iterations: int, only):
         if not redo and not failed:
             break
         pf = min(pf * PF_GROWTH, PF_MAX)
-    # Whatever still shares copper goes away and gets one more try over free space only; each connection found joins
-    # two pieces of its net, so a net left half way is still clean (the rest stays as ratsnest).
+    # Whatever still shares copper: only the items that run into another net's copper go (whole nets went until
+    # 26/11/2026, and the pass over free space left SYS, I2C and VREG in pieces); the rest stays, and the pass joins
+    # the pieces. Each connection found joins two pieces of its net, so a net left half way is still clean (the rest
+    # stays as ratsnest).
     for code in redo:
-        for item in routed.pop(code, []):
-            board.Delete(item)
         grid.apply(covers.pop(code, []), -1)
+        kept = []
+        for item in routed.pop(code, []):
+            if clashes(grid, item):
+                board.Delete(item)
+            else:
+                kept.append(item)
+        routed[code] = kept
+        covers[code] = [c for item in kept for c in grid.cover(item)]
+        grid.apply(covers[code], +1)
     left = set()
-    for code in sorted(set(redo) | failed, key=order.index):
+    # Power first: the last ones get only the room left, and VREG (the biggest box, so the last in ``order``) was
+    # left in pieces that way (25/11/2026); a small signal left over is easier to finish.
+    def final_key(code):
+        n = nets[code]
+        return (not (n.GetNetname() in FIRST_NETS or n.GetNetClassName() == "POWER"), order.index(code))
+
+    for code in sorted(set(redo) | failed, key=final_key):
         n = nets[code]
         cls = n.GetNetClassName()
         width = WIDTH.get(cls, 0.15)
         layers_ok = [0, 3] if cls == "POWER_DOCK" else [0, 1, 2, 3]
-        items = []
-        while True:
-            comps = components(board, code)
-            if len(comps) < 2:
-                break
-            comps.sort(key=lambda comp: sum(len(grid.own_cells(it, code)) for it in comp))
-            sources = [c for it in comps[0] for c in grid.own_cells(it, code)]
-            targets = {c: k for k, comp in enumerate(comps[1:]) for it in comp for c in grid.own_cells(it, code)}
-            path = grid.route_pf(code, cls, sources, targets, layers_ok, width, 1.0, hard=True)
-            if not path:
-                left.add(n.GetNetname())
-                break
-            new = emit(board, grid, n, path, width)
-            for item in new:
-                grid.apply(grid.cover(item), +1)
-            items += new
+        # the net's own copper (what it kept and the new branches) joins the occupancy only once the net is whole:
+        # applied branch by branch, each branch blocked the next one of the same net (hard search), and I2C and VREG
+        # were left in pieces (26/11/2026)
+        grid.apply(covers.pop(code, []), -1)
+        items, _, whole = grow(board, grid, n, cls, layers_ok, width, 1.0, hard=True)
+        if not whole:
+            left.add(n.GetNetname())
+        for item in routed.pop(code, []) + items:
+            grid.apply(grid.cover(item), +1)
         log(f"al final: {n.GetNetname()} {'completa' if n.GetNetname() not in left else 'queda a mano'}")
     return done, sorted(left)
