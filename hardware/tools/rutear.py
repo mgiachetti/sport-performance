@@ -327,7 +327,8 @@ def usb(r: Router) -> dict:
     r.track("DOCK_D_N", "B", USB, [(21.2, 12.8), (21.2, 14.45), "R609.1"])
     r.via("GND", (19.75, 10.95))  # GND of the ESD (pad 4) to L2, between the two legs
     r.track("GND", "B", 0.2, ["U601.4", (20.3, 11.6), (19.75, 10.95)])
-    # The pair on L4, 0.25 mm at 0.15 mm, west and then down the L3_GND strip (x 14.5-17), up to L1 by one pair of
+    # The pair on the bottom layer (L4 when this was written for 4 layers, L6 today), 0.25 mm at 0.15 mm, west and
+    # then down the L3_GND strip of then (x 14.5-17), up to L1 by one pair of
     # vias east of pads 68 and 67 (inside the strip) and on L1 to the pads. KiCad checks the gap of every pair of
     # parallel segments that overlap, so the uncoupled ends never run parallel to each other: D+ drops straight
     # from its 0 ohm and D- at 45 degrees, the 45-degree corner keeps the 0.4 mm pitch (outer chamfer 0.234 mm
@@ -448,7 +449,7 @@ def pads_encerrados(r: Router) -> None:
     r.track("/power/BB_CFG2", "B", 0.15, [(17.35, 62.75), "R106.1"])
     # The GND pad of R104 (SEL) right of those vias, boxed in by them and BAT on L6: down east of them to the GND
     # pad of R106, which has its via. The SYS pad of R103 above it: its own via east of it (where R105 now is,
-    # west of it, the router put one), up to the SYS track of L1.
+    # west of it, the router put one), joined to the SYS track of L1 just south of it.
     r.track("GND", "B", 0.15, ["R104.2", (18.55, 61.95), (18.55, 63.6), "R106.2"])
     r.track("SYS", "B", 0.25, ["R103.2", (18.95, 60.3)])
     r.via("SYS", (18.95, 60.3))
@@ -765,7 +766,7 @@ def unconnected_gnd_pads(path: Path, net: str = "GND") -> list[tuple[str, str]]:
 
 
 def stitch_fragments(board, free: Free) -> tuple[int, int]:
-    """Every piece of the GND planes of L1, L3 and L6 gets at least one via to L2: a piece that only reaches a pad
+    """Every piece of the GND fill of L1, L3, L4 and L6 gets at least one via to L2: a piece that only reaches a pad
     (walled in by tracks) would stay apart from the rest of the ground. Returns (vias added, pieces left)."""
     gnd = board.FindNet("GND").GetNetCode()
     vias = [t.GetPosition() for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T and t.GetNetCode() == gnd]
@@ -839,7 +840,7 @@ def gnd_via_next_to(board, free: Free, ref: str, num: str, net: str = "GND", whe
                 t.SetLayer(layer)
                 t.SetNet(board.FindNet(net))
                 if free.fits(v, ALL_CU) and free.fits(t, [layer]):
-                    v.SetLocked(True)  # the router and podar leave it alone: it is the pad's way to its plane
+                    v.SetLocked(True)  # the router leaves it alone (podar only bridges it if it ends up dangling)
                     t.SetLocked(True)
                     board.Add(v)
                     board.Add(t)
@@ -969,9 +970,7 @@ def gnd_stub_east(board, ref: str, num: str) -> bool:
 def abanico(path: Path) -> int:
     """Before ``resto``: a GND via next to every SMD GND pad, down to the planes of L2 and L5, while there is still
     room around the pads (after the maze router there was none for most of them). VREG is routed as tracks: L4 is a
-    signal layer since 23/11/2026."""
-    sys.path.insert(0, str(TOOLS))
-    import laberinto  # noqa: E402
+    signal layer with GND fill since 26/11/2026."""
     board = pcbnew.LoadBoard(str(path))
     free = Free(board)
     # GND: every SMD pad gets its own via to the planes of L2 and L5 (shortest return path, and the planes of L1 and
@@ -1154,8 +1153,9 @@ def bridge_via(board, via) -> bool:
 
 
 def podar(path: Path, colgadas: bool = True) -> int:
-    """Leaves the board clean for the DRC while nets are left for hand routing: takes away every track or via of
-    ``resto`` (not locked) that the DRC reports in a violation (``laberinto.py`` models the rules on a grid and
+    """Leaves the board clean for the DRC: a dangling via (locked ones included) reached on one layer only becomes a
+    track on that layer (``bridge_via``); then it takes away every track or via of ``resto`` (not locked) that the
+    DRC reports in a violation (``laberinto.py`` models the rules on a grid and
     misses a few: a via of a GNSS_SENSITIVE net against a pad on the other side, the 0.2 mm of POWER_DOCK against a
     0.15 mm track, the mask opening of a fiducial) and every via or stub of a signal net that is left dangling (the
     escape vias in the BMD-340 pads of the nets still unrouted). Repeats until the DRC has nothing of that kind, and
@@ -1168,7 +1168,7 @@ def podar(path: Path, colgadas: bool = True) -> int:
         # L1 instead) goes first, the tracks that end on it joined to its centre on that layer: taken away as
         # dangling copper, its locked stub took the pad off the net (NAND_MOSI, 25/11/2026).
         hanging = {it["uuid"] for v in data["violations"] if v["type"] == "via_dangling" for it in v["items"]}
-        bridged = sum(bridge_via(board, t) for t in board.GetTracks()
+        bridged = sum(bridge_via(board, t) for t in list(board.GetTracks())
                       if t.m_Uuid.AsString() in hanging and t.Type() == pcbnew.PCB_VIA_T)
         bad = {it["uuid"] for v in data["violations"] for it in v["items"]} - hanging
         drop = [t for t in board.GetTracks() if t.m_Uuid.AsString() in bad and not t.IsLocked()]
@@ -1193,15 +1193,14 @@ def podar(path: Path, colgadas: bool = True) -> int:
         fill(board)
         save(board, path)
     left = [v for v in drc_report(path)["violations"]]
-    print(f"podar: {stitched} vías de GND en trozos sueltos;", end=" ")
+    print(f"podar: {stitched} vías de GND en trozos sueltos")
     print(f"podar: {len(removed)} pistas y vías sacadas, de {len(set(removed))} redes: {sorted(set(removed))}; "
           f"quedan {len(left)} violaciones")
     return 0 if not left else 1
 
 
 def remate(path: Path) -> int:
-    """After ``planos``: what is still not joined (a net that ``resto`` left, VREG pads on a piece of the plane of L4
-    that its tracks cut off) gets routed over the free space that is left, and the zones are filled again."""
+    """After ``planos``: what is still not joined (a net that ``resto`` left) gets routed over the free space that is left, and the zones are filled again."""
     sys.path.insert(0, str(TOOLS))
     import laberinto  # noqa: E402
     board = pcbnew.LoadBoard(str(path))
@@ -1290,7 +1289,7 @@ def reparar(path: Path, vueltas: int = 24, margen: float = 1.0) -> int:
 
 
 def walled_gnd_pads(board) -> list[tuple[str, str]]:
-    """(ref, pad) of the GND pads on a piece of the GND fill of L1, L3 or L6 that has no GND via or hole on it."""
+    """(ref, pad) of the GND pads on a piece of the GND fill of L1, L3, L4 or L6 that has no GND via or hole on it."""
     gnd = board.FindNet("GND").GetNetCode()
     vias = [t.GetPosition() for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T and t.GetNetCode() == gnd]
     vias += [p.GetPosition() for fp in board.GetFootprints() for p in fp.Pads()

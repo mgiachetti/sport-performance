@@ -46,7 +46,7 @@ NETS = ["GND", "/gnss_rf/GNSS_RF_A", "/power/BB_LX1", "USB_D_P", "USB_D_N", "SYS
 # Coordinates in mm on the 50 x 70 mm outline (100..150, 100..170; doc origin (0; 0) = (100; 100)).
 # Zones: BLE_ANTENA x 100-104.35, y 147.6-162.6; GNSS_ANTENA x 110-140, y 102-132; LORA_ANTENA x 126.7-142.7,
 # y 159.05-170 (keep-out of the M620720 chip antenna on the bottom edge). Six layers since 23/11/2026: L2 (In1.Cu)
-# and L5 (In4.Cu) only GND, L3 (In2.Cu) signals, L4 (In3.Cu) power; no L3_GND strips any more.
+# and L5 (In4.Cu) only GND, L3 (In2.Cu) and L4 (In3.Cu) signals (L4 was power until 26/11/2026); no L3_GND strips.
 # Board screws (GND) at (106; 108), (144; 108) and (124; 166). The routing of the pod (tracks, vias and the copper
 # zones, L2_GND included) is left out of the probes: the probes go where the pod has copper.
 # Track: (net, layer, x0, y0, x1, y1, width). Via: (net, x, y). Footprint: (ref, x, y, side, pads),
