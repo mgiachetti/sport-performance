@@ -1,37 +1,52 @@
 """Routing of the pod v0 board (B-909). One-shot tool, like ``ubicar.py``: after it runs, the board is the source.
 
-Runs inside the official KiCad image (it needs KiCad's ``pcbnew`` module). Steps, run in the order ``criticas``,
-``resto``, ``planos``, ``podar`` (``dsn`` and ``ses`` only to try Freerouting):
+Runs inside the official KiCad image (it needs KiCad's ``pcbnew`` module). The board was routed in 4 layers on
+16/11/2026, is 6 layers since 23/11/2026 (``seis-capas``) and was routed whole on 26/11/2026, on a copy of the
+placed board, with ``limpiar``, ``criticas --forzar``, ``abanico``, ``resto --vueltas 64``, ``planos``, ``remate``,
+``podar``, ``rescate`` and ``podar`` (``hardware/README.md``, "Ruteo").
+
+``seis-capas``
+    The 4-layer board of 22/11/2026 to 6 layers: see ``seis_capas``.
+
+``limpiar``
+    Every track and via out, and the planes of ``planos``: the start of a new routing from the placed board.
 
 ``criticas``
     Moves the few passives listed in ``MOVES`` (each with its reason) and routes, by script and locked, the nets
-    that must not be left to an autorouter: both RF chains (CPWG of ``RF_50`` on L1, the patch feed on L4 with its
-    RF via) with their GND via fences, the USB pair (L4 inside the ``L3_GND`` strip, vias at x >= 14.5), the escape
+    that must not be left to an autorouter: both RF chains (CPWG of ``RF_50`` on L1, the patch feed on the bottom
+    layer with its RF via) with their GND via fences, the USB pair (bottom layer, vias at x >= 14.5), the escape
     of the BMD-340 (every used pad to a via: the two top rows by L1 to two rows of vias above the module, the rest
     with a via in the pad), the crystal, VBUS from the spring through the TVS and the eFuse to the BMD-340 and the
     charger, BAT and SYS around the charger (with the cell sense of the MAX17048 on its own trace from the pad of
-    ``J101``), the buck-boost (switch node, input and output loops) and DETECT. Refuses to run on a board that
-    already has tracks (``--forzar`` to run it on a scratch copy anyway).
+    ``J101``), the buck-boost (switch node, input and output loops), DETECT and the pads that the router left
+    walled in run after run (``pads_encerrados``). Written for 4 layers: its bottom layer (then L4) is L6. Refuses
+    to run on a board that already has tracks (``--forzar`` to run it on a scratch copy anyway).
 
-``dsn <out.dsn>``
-    Exports the board to Specctra DSN for Freerouting and rewrites the areas Freerouting does not understand (it
-    does not read ``pod-v0.kicad_dru``): see ``dsn_for_freerouting``.
-
-``ses <in.ses>``
-    Imports Freerouting's session into the board (KiCad keeps the locked tracks of ``criticas``).
-
-``planos``
-    Adds the copper zones (GND on L1, L3 and L4; VREG on L3), the stitching vias (around the RF, along the board
-    edge and over the whole GND area) and a GND via next to every GND pad that the zones leave unconnected, and
-    fills the zones. ``--sin-grilla`` leaves out the grid over the whole board while nets are left for hand
-    routing (it would take their corridors).
+``abanico``
+    A GND via next to every SMD GND pad without one within 1 mm, down to the planes of L2 and L5, before ``resto``
+    takes the room around the pads.
 
 ``resto``
-    Routes everything else but GND with the maze router of ``laberinto.py`` (negotiated congestion; whatever does
-    not come out clean is left as ratsnest).
+    Routes everything else but GND with the maze router of ``laberinto.py`` on L1, L3, L4 and L6 (negotiated
+    congestion; ``--vueltas`` rounds at most).
+
+``planos``
+    Adds the GND fill of L1, L3, L4 and L6, the stitching vias (around the RF, along the board edge and over the
+    whole board) and a GND via next to every GND pad that the fill leaves unconnected, and fills the zones.
+
+``remate``
+    Routes what is still not joined over the free space that is left, and fills again.
 
 ``podar``
-    Takes away the escape vias and stubs of the nets left as ratsnest (dangling copper for the DRC) and refills.
+    Takes away what the DRC flags of the router's copper and the dangling copper, stitches loose pieces of the
+    GND fill and refills.
+
+``rescate``
+    A via for a GND pad that the tracks walled in, rerouting the signals it runs into.
+
+``dsn <out.dsn>`` and ``ses <in.ses>``
+    Freerouting (tried, not used): see ``dsn_for_freerouting``. ``isla``, ``reparar``, ``rieles``, ``especiales``
+    and ``bloquear`` are other steps that were tried and not used on the board (``hardware/README.md``).
 
     docker run --rm -e HOME=/tmp -v "$PWD:/work" -w /work kicad/kicad:10.0.8@sha256:… \\
         python3 hardware/tools/rutear.py criticas [--placa otra.kicad_pcb] [--forzar]
@@ -56,16 +71,20 @@ TOOLS = Path(__file__).resolve().parent
 POD = TOOLS.parent / "pod-v0"
 ORIGIN = (100.0, 100.0)
 
-RF = 0.33  # RF_50 CPWG on L1 and the patch feed on L4 (pod-v0.kicad_dru)
+RF = 0.33  # RF_50 CPWG on L1 and the patch feed on the bottom layer (pod-v0.kicad_dru)
 USB = 0.25  # USB_90D, pair gap 0.15
 PWR = 0.5  # POWER_DOCK on the outer layers
 VIA_RF = (0.6, 0.3)
 VIA_PWR = (0.6, 0.3)
 VIA_SIG = (0.5, 0.2)  # smallest via that meets PCBWay's minimums (0.45 mm, 0.2 mm hole, 0.15 mm ring)
 
-LAYERS = {"F": pcbnew.F_Cu, "In1": pcbnew.In1_Cu, "In2": pcbnew.In2_Cu, "B": pcbnew.B_Cu}
+LAYERS = {"F": pcbnew.F_Cu, "In1": pcbnew.In1_Cu, "In2": pcbnew.In2_Cu, "In3": pcbnew.In3_Cu, "In4": pcbnew.In4_Cu,
+          "B": pcbnew.B_Cu}
+ALL_CU = [pcbnew.F_Cu, pcbnew.In1_Cu, pcbnew.In2_Cu, pcbnew.In3_Cu, pcbnew.In4_Cu, pcbnew.B_Cu]
 
 GRILLA = "rejilla de resistencias de abajo abierta: con 0,44 mm entre pads, los de adentro no tenían salida"
+BB_CFG = "pull-down de CFG1 del buck-boost al oeste: su fila queda para las vías de CFG2 y CFG3"
+COLUMNA_LED = "columna de resistencias de los LED a 1,2 mm: con 1,1 no pasaba una pista entre pads"
 # Passives moved while routing: (ref, x, y, rotation) and why. Small moves only (hardware/README.md, "Ruteo").
 MOVES = {
     # TPS63900 (SLVSET3D, "Layout guidelines"): the inductor next to LX1/LX2 and the input and output capacitors
@@ -80,6 +99,11 @@ MOVES = {
     # its GND pad facing D2.
     "C102": (15.65, 63.0, 0, "capacitor de SYS del cargador al norte, donde sale la bola B2"),
     "C103": (16.6, 65.0, 90, "capacitor de BAT del cargador girado: su pad de GND frente a la bola D2"),
+    # TPS63900: the pull-downs of CFG1 to CFG3 sat in a column on the bottom side right under the only free copper of
+    # L1 next to the pins (walled in by SYS, C102, BAT and the pins): no via fitted between their pads (0.48 mm), and
+    # two of the three nets were left open run after run (26/11/2026). R105 (CFG1) goes west, standing, next to the
+    # via that CFG1 takes anyway; its row is left for the vias of CFG2 and CFG3 (``pads_encerrados``).
+    "R105": (16.3, 60.8, 90, BB_CFG),
     # BMD-340: VREG (pad 65) reaches its 100 nF and 4.7 uF on L1 with their VREG pad on the side of the pad.
     "C302": (15.85, 55.5, 270, "100 nF del BMD-340 girado: VREG del lado del pad 65"),
     "C301": (17.5, 55.5, 270, "4,7 uF del BMD-340 girado: VREG del lado del pad 65"),
@@ -99,6 +123,16 @@ MOVES = {
     # 2 mm between columns left 0.44-0.46 mm between pads, so no pad inside the grid had a way out (a 0.15 mm track
     # needs 0.45 mm). Standing, in 6 columns 1.6 mm apart and 3 rows 2.1 mm apart: a via or two tracks between
     # columns, a track between rows.
+    # The column of LED resistors (top side, west of GNSS_ANTENA): 1.1 mm between rows left 0.46 mm between pads, so
+    # LED_DG and LED_DB (east pads, the antenna to the east) had no way out to the west (25/11/2026). 1.2 mm.
+    "R310": (8.65, 10.8, 0, COLUMNA_LED),
+    "R316": (8.65, 12.0, 0, COLUMNA_LED),
+    "R311": (8.65, 13.2, 0, COLUMNA_LED),
+    "R317": (8.65, 14.4, 0, COLUMNA_LED),
+    "R312": (8.65, 15.6, 0, COLUMNA_LED),
+    "R318": (8.65, 16.8, 0, COLUMNA_LED),
+    "R308": (8.65, 18.0, 0, COLUMNA_LED),
+    "R309": (8.65, 19.2, 0, COLUMNA_LED),
     "R306": (17.9, 50.2, 90, GRILLA),
     "R307": (19.5, 50.2, 90, GRILLA),
     "R303": (21.1, 50.2, 90, GRILLA),
@@ -293,7 +327,8 @@ def usb(r: Router) -> dict:
     r.track("DOCK_D_N", "B", USB, [(21.2, 12.8), (21.2, 14.45), "R609.1"])
     r.via("GND", (19.75, 10.95))  # GND of the ESD (pad 4) to L2, between the two legs
     r.track("GND", "B", 0.2, ["U601.4", (20.3, 11.6), (19.75, 10.95)])
-    # The pair on L4, 0.25 mm at 0.15 mm, west and then down the L3_GND strip (x 14.5-17), up to L1 by one pair of
+    # The pair on the bottom layer (L4 when this was written for 4 layers, L6 today), 0.25 mm at 0.15 mm, west and
+    # then down the L3_GND strip of then (x 14.5-17), up to L1 by one pair of
     # vias east of pads 68 and 67 (inside the strip) and on L1 to the pads. KiCad checks the gap of every pair of
     # parallel segments that overlap, so the uncoupled ends never run parallel to each other: D+ drops straight
     # from its 0 ohm and D- at 45 degrees, the 45-degree corner keeps the 0.4 mm pitch (outer chamfer 0.234 mm
@@ -350,9 +385,11 @@ def charger_and_buck(r: Router) -> None:
     # Cell sense of the MAX17048 (U102 pins 2 and 3), Kelvin: its own trace from the pad of J101, carrying no
     # charge current. L4 along the bottom edge and up east of the buck-boost's resistors, one hop on L1 over the
     # VBUS run (y 58.5) east of the NAND, L4 again to a via east of U102, and L1 to the pins (from below, where
-    # C309 used to be). C104 (its 1 uF) on L4 under U102.
-    r.track("BAT", "B", 0.25, [(11.35, 68.6), (11.35, 69.2), (18.7, 69.2), (19.0, 68.9), (19.0, 60.4), (19.5, 59.9),
-                               (25.5, 59.9)])
+    # C309 used to be). C104 (its 1 uF) on L4 under U102. Along the edge at y 69.55 (0.325 mm from it), not 69.2:
+    # with BAT above and below, the GND pin of J101 had no room for its via and was left on an island (26/11/2026).
+    # It turns east at y 61.2, not 60.4, to leave room for the SYS via of R103 (pads_encerrados).
+    r.track("BAT", "B", 0.25, [(11.35, 68.6), (11.35, 69.55), (18.65, 69.55), (19.0, 69.2), (19.0, 61.2), (19.7, 60.5),
+                               (20.3, 59.9), (25.5, 59.9)])
     r.via("BAT", (25.5, 59.9))
     r.track("BAT", "F", 0.25, [(25.5, 59.9), (25.5, 57.75)])
     r.via("BAT", (25.5, 57.75))
@@ -382,6 +419,44 @@ def charger_and_buck(r: Router) -> None:
     # LORA_EN (pin 3) is boxed in by the NAND's pads, 0.25 mm to the west: out to the south to a via.
     r.track("LORA_EN", "F", 0.15, ["U303.3", (27.9, 54.5), (27.9, 55.0)])
     r.via("LORA_EN", (27.9, 55.0))
+
+
+def pads_encerrados(r: Router) -> None:
+    """GND pads that the maze router and the planes left without a connection, run after run (25/11/2026)."""
+    # BMP581 (LGA, 0.5 mm): GND pad 3, in the bottom row between SCL and SDA, to GND pad 9 across the middle of the
+    # package (no pads there).
+    r.track("GND", "F", 0.15, ["U404.3", "U404.9"])
+    # Load switch of the NAND (SC-70): GND pad 2 between pads 1 and 3, with the LoRa clearance 1.5 mm to the south and
+    # BAT on L6 under the package, VBUS on L6 at y 58.5 and the test pads on L6 at y 56.4: south out of the pad,
+    # east under pad 3, to a via between VBUS and the gap between TP101 and TP102.
+    r.track("GND", "F", 0.2, ["U502.2", (29.2, 58.3), (31.65, 58.3), (32.35, 57.6)])
+    r.via("GND", (32.35, 57.6))
+    # ICM-42688-P (LGA, 0.5 mm): GND pads 6 and 7 sit in the bottom row between the VREG pads 5 and 8, and VREG
+    # joined 5 and 8 around them, walling them in on L1 (26/11/2026): joined to each other and down to a via of
+    # their own, which the GND pad of C403 below shares.
+    r.track("GND", "F", 0.15, ["U402.6", "U402.7", (29.7, 42.75), (30.45, 43.5)])
+    r.via("GND", (30.45, 43.5))
+    r.track("GND", "B", 0.25, [(30.45, 43.5), "C403.2"])
+    # TPS63900, CFG3 and CFG2 (pins 5 and 4, 0.5 mm WSON) to their pull-downs on the bottom side (R107 and R106, in a
+    # column with 0.48 mm between pads): each one west on L1 to a via in the row that R105 left (see MOVES), and on
+    # the bottom side CFG2 straight down to R106, CFG3 down between the pads of R106 to R107. CFG1 and SEL go to
+    # the router.
+    r.track("/power/BB_CFG3", "F", 0.15, ["U103.5", (18.0, 63.05)])
+    r.via("/power/BB_CFG3", (18.0, 63.05))
+    r.track("/power/BB_CFG3", "B", 0.15, [(18.0, 63.05), (17.85, 63.2), (17.85, 64.6), "R107.1"])
+    r.track("/power/BB_CFG2", "F", 0.15, ["U103.4", (17.75, 62.5), (17.35, 62.75)])
+    r.via("/power/BB_CFG2", (17.35, 62.75))
+    r.track("/power/BB_CFG2", "B", 0.15, [(17.35, 62.75), "R106.1"])
+    # The GND pad of R104 (SEL) right of those vias, boxed in by them and BAT on L6: down east of them to the GND
+    # pad of R106, which has its via. The SYS pad of R103 above it: its own via east of it (where R105 now is,
+    # west of it, the router put one), joined to the SYS track of L1 just south of it.
+    r.track("GND", "B", 0.15, ["R104.2", (18.55, 61.95), (18.55, 63.6), "R106.2"])
+    r.track("SYS", "B", 0.25, ["R103.2", (18.95, 60.3)])
+    r.via("SYS", (18.95, 60.3))
+    r.track("SYS", "F", 0.25, [(18.95, 60.3), (18.95, 60.4)])
+    # Battery connector (J101): its GND pin between BAT and the cell sense of the MAX17048, a via just south of it.
+    r.track("GND", "B", 0.3, ["J101.2", (12.6, 68.95)])
+    r.via("GND", (12.6, 68.95))
 
 
 # ---------------------------------------------------------------------------------------------------- BMD-340
@@ -435,12 +510,13 @@ def criticas(path: Path, force: bool) -> int:
     detect(r)
     vbus(r)
     charger_and_buck(r)
+    pads_encerrados(r)
     bmd340(r)
     for k, v in lengths.items():
         print(f"largo {k}: {v:.2f} mm")
     sys.path.insert(0, str(TOOLS))
     import ubicar  # noqa: E402  (the reference placer of ubicar.py, for the moved parts)
-    hidden = ubicar.place_references(board, set(MOVES) | {"U103"})  # U103's reference sat where C102 went
+    hidden = ubicar.place_references(board, set(MOVES) | {"U103", "R103"})  # U103's sat where C102 went, R103's where R105
     print(f"referencias de las partes movidas reubicadas ({hidden} ocultas)")
     fill(board)
     save(board, path)
@@ -460,7 +536,7 @@ def fill(board) -> None:
 # custom rules say. Rectangles in DSN units (um), as (x0, y0, x1, y1) in KiCad coordinates (the DSN negates y).
 GNSS_ANTENA = (110000, 102000, 140000, 132000)  # L1: only GND and RF, and only GND vias -> no routing on L1, no vias
 LORA_ANTENA = (126700, 159050, 142700, 170000)  # only the LoRa feed (routed) on L1: nothing else on any layer
-# Under the 32.768 kHz crystal (GNSS_SENSITIVE): nothing that switches on L3 or L4 (XL2's own L3 hop ends above it).
+# Under the 32.768 kHz crystal (GNSS_SENSITIVE): no tracks on L3 (In2), the first signal layer under the L2 plane.
 CRISTAL = (108500, 160800, 114500, 162900)
 FR_VIA_DEFAULT = "Via[0-3]_500:200_um"
 FR_WIDTHS = {"kicad_default": 200, "POWER_DOCK": 300}  # POWER_DOCK: only the low-current branches are left
@@ -473,13 +549,13 @@ def rect(layer: str, box: tuple, kind: str = "keepout") -> str:
 
 def dsn_for_freerouting(text: str) -> str:
     layers = re.findall(r"\(layer (\S+)\n\s+\(type", text)
-    top, inner2, bottom = layers[0], layers[2], layers[3]
+    top, inner2, bottom = layers[0], layers[2], layers[-1]
     gnss = f"{GNSS_ANTENA[0]} -{GNSS_ANTENA[1]}  {GNSS_ANTENA[2]} -{GNSS_ANTENA[1]}"
     lora = f"{LORA_ANTENA[0]} -{LORA_ANTENA[1]}  {LORA_ANTENA[2]} -{LORA_ANTENA[1]}"
     out, skip = [], False
     for line in text.splitlines(keepends=True):
-        # the exported keep-outs of GNSS_ANTENA (all layers) and LORA_ANTENA (vias only) are replaced below; each
-        # one takes two lines (the polygon closes on the next one)
+        # the exported keep-outs of GNSS_ANTENA and LORA_ANTENA (all layers, whatever they allow) are replaced
+        # below; each one takes two lines (the polygon closes on the next one). BLE_ANTENA forbids everything: as is.
         if skip:
             skip = False
             continue
@@ -488,15 +564,12 @@ def dsn_for_freerouting(text: str) -> str:
             continue
         out.append(line)
     text = "".join(out)
-    # The two L3_GND strips (In2 only) are exported as keep-outs, which also stop vias: only tracks are forbidden
-    # there. Found by their first corner (patch feed (122; 116), USB pair (117; 106)).
-    text, n = re.subn(r"\(keepout(?= \"\" \(polygon " + re.escape(inner2) + r" 0  (122000 -116000|117000 -106000) )",
-                      "(wire_keepout", text)
-    assert n == 2, "no encontré los dos keep-outs de L3_GND en el DSN"
+    # GNSS_ANTENA: nothing but GND and RF on L1, vias included (a keep-out on L1 stops the vias too); the inner
+    # layers and L6 are free under the patch. LORA_ANTENA: only its feed (routed and locked) on any layer.
     extra = rect(top, GNSS_ANTENA)
     for layer in layers:
         extra += rect(layer, LORA_ANTENA)
-    extra += rect(inner2, CRISTAL, "wire_keepout") + rect(bottom, CRISTAL, "wire_keepout")
+    extra += rect(inner2, CRISTAL, "wire_keepout")
     text = text.replace("    (via ", extra + "    (via ", 1)
 
     def cls(m):
@@ -544,7 +617,8 @@ def dsn(path: Path, out: Path) -> int:
         raise SystemExit("ExportSpecctraDSN falló")
     text = dsn_for_freerouting(out.read_text(encoding="utf-8"))
     layers = re.findall(r"\(layer (\S+)\n\s+\(type", text)
-    text = text.replace("    (via ", edge_keepouts(board, [layers[0], layers[2], layers[3]]) + "    (via ", 1)
+    signal = [name for name, kind in re.findall(r"\(layer (\S+)\n\s+\(type (\w+)", text) if kind == "signal"]
+    text = text.replace("    (via ", edge_keepouts(board, signal) + "    (via ", 1)
     out.write_text(text, encoding="utf-8")
     print(f"DSN para Freerouting: {out}")
     return 0
@@ -569,7 +643,7 @@ def ses(path: Path, session: Path) -> int:
     scripted = {"RF_50", "USB_90D", "SW_NODE"}
     dupes += [t for t in board.GetTracks() if not t.IsLocked() and t.GetNetClassName() in scripted and t not in dupes]
     for t in dupes:
-        board.Remove(t)
+        board.Delete(t)
     fill(board)
     save(board, path)
     print(f"sesión importada: {len(board.GetTracks())} pistas y vías ({locked} bloqueadas, {len(dupes)} copias quitadas)")
@@ -654,7 +728,8 @@ class Free:
                     continue
                 # the other item's own clearance (net class, local), except RF_50: against GND it is the
                 # coplanar gap of the custom rules
-                gap = mm(CLEAR) if other.GetNetClassName() == "RF_50" else max(mm(CLEAR), other.GetOwnClearance(lay) + mm(0.02))
+                gap = mm(CLEAR) if other.GetNetClassName() == "RF_50" and item.GetNetname() == "GND" \
+                    else max(mm(CLEAR), other.GetOwnClearance(lay) + mm(0.02))
                 if other.GetEffectiveShape(lay).Collide(mine[lay], gap):
                     return False
         return True
@@ -667,7 +742,7 @@ def stitch_via(board, free: Free, x: float, y: float, min_gnd_via: float, size: 
     v.SetDrill(mm(size[1]))
     v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
     v.SetNet(board.FindNet("GND"))
-    if free.fits(v, [pcbnew.F_Cu, pcbnew.In1_Cu, pcbnew.In2_Cu, pcbnew.B_Cu], min_gnd_via):
+    if free.fits(v, ALL_CU, min_gnd_via):
         board.Add(v)
         free.add(v)
         return v
@@ -691,7 +766,7 @@ def unconnected_gnd_pads(path: Path, net: str = "GND") -> list[tuple[str, str]]:
 
 
 def stitch_fragments(board, free: Free) -> tuple[int, int]:
-    """Every piece of the GND planes of L1, L3 and L4 gets at least one via to L2: a piece that only reaches a pad
+    """Every piece of the GND fill of L1, L3, L4 and L6 gets at least one via to L2: a piece that only reaches a pad
     (walled in by tracks) would stay apart from the rest of the ground. Returns (vias added, pieces left)."""
     gnd = board.FindNet("GND").GetNetCode()
     vias = [t.GetPosition() for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T and t.GetNetCode() == gnd]
@@ -699,12 +774,12 @@ def stitch_fragments(board, free: Free) -> tuple[int, int]:
              if p.GetNetCode() == gnd and p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH]
     added = left = 0
     for z in list(board.Zones()):
-        if z.GetIsRuleArea() or z.GetNetCode() != gnd or z.GetLayer() == pcbnew.In1_Cu:
+        if z.GetIsRuleArea() or z.GetNetCode() != gnd or z.GetLayer() in (pcbnew.In1_Cu, pcbnew.In4_Cu):
             continue
         polys = z.GetFilledPolysList(z.GetLayer())
         for i in range(polys.OutlineCount()):
             chain = polys.Outline(i)
-            if any(chain.PointInside(v) for v in vias):
+            if any(polys.Contains(v, i) for v in vias):  # on the copper of this piece, not over one of its holes
                 continue
             box = chain.BBox()
             done = False
@@ -764,7 +839,9 @@ def gnd_via_next_to(board, free: Free, ref: str, num: str, net: str = "GND", whe
                 t.SetWidth(mm(0.25))
                 t.SetLayer(layer)
                 t.SetNet(board.FindNet(net))
-                if free.fits(v, [pcbnew.F_Cu, pcbnew.In1_Cu, pcbnew.In2_Cu, pcbnew.B_Cu]) and free.fits(t, [layer]):
+                if free.fits(v, ALL_CU) and free.fits(t, [layer]):
+                    v.SetLocked(True)  # the router leaves it alone (podar only bridges it if it ends up dangling)
+                    t.SetLocked(True)
                     board.Add(v)
                     board.Add(t)
                     free.add(v)
@@ -793,20 +870,192 @@ def zone(board, net: str, layer: int, pts: list, name: str, priority: int) -> No
 
 
 BOARD_BOX = [(0, 0), (50, 0), (50, 70), (0, 70)]
-# The planes of L3: GND (L3_GND_PLANO) in the top third, y < 33, and the strip of the USB pair, x 14.5-17 down to y = 55;
-# VREG in the rest. They are copper zones, not the L3_GND rule areas (two strips since 22/11/2026).
-L3_VREG = [(0, 33.4), (14.1, 33.4), (14.1, 55.4), (17.4, 55.4), (17.4, 33.4), (50, 33.4), (50, 70), (0, 70)]
-L3_GND = [(0, 0), (50, 0), (50, 33), (17, 33), (17, 55), (14.5, 55), (14.5, 33), (0, 33)]
+
+# 6 layers since 23/11/2026 (ADR 0105, "Registro de decisiones"): the board did not close in 4. Symmetric stackup,
+# with L1 and L6 0.2 mm from their GND plane (L2 and L5), the same prepreg as before, so the CPWG of RF_50 (0.33 /
+# 0.20 mm) and the USB pair (0.25 / 0.15 mm) keep their geometry; not verified against PCBWay.
+COPPER_LAYERS = """\t\t(0 "F.Cu" signal)
+\t\t(4 "In1.Cu" power "In1.Cu.GND")
+\t\t(6 "In2.Cu" signal "In2.Cu.SIG")
+\t\t(8 "In3.Cu" signal "In3.Cu.SIG")
+\t\t(10 "In4.Cu" power "In4.Cu.GND")
+\t\t(2 "B.Cu" signal)
+"""
+STACKUP = [("F.Cu", 0.035), ("prepreg", 0.2, "FR4 7628", 4.4), ("In1.Cu", 0.0175), ("core", 0.3, "FR4", 4.6),
+           ("In2.Cu", 0.0175), ("prepreg", 0.46, "FR4 7628", 4.4), ("In3.Cu", 0.0175), ("core", 0.3, "FR4", 4.6),
+           ("In4.Cu", 0.0175), ("prepreg", 0.2, "FR4 7628", 4.4), ("B.Cu", 0.035)]
+
+
+def stackup_text() -> str:
+    out, k = [], 0
+    for item in STACKUP:
+        if len(item) == 2:
+            out.append(f'\t\t\t(layer "{item[0]}"\n\t\t\t\t(type "copper")\n\t\t\t\t(thickness {item[1]})\n\t\t\t)')
+        else:
+            k += 1
+            kind, thick, material, er = item
+            out.append(f'\t\t\t(layer "dielectric {k}"\n\t\t\t\t(type "{kind}")\n\t\t\t\t(thickness {thick})\n'
+                       f'\t\t\t\t(material "{material}")\n\t\t\t\t(epsilon_r {er})\n\t\t\t\t(loss_tangent 0.02)\n\t\t\t)')
+    return "\n".join(out) + "\n"
+
+
+def seis_capas(path: Path) -> int:
+    """The 4-layer board of 22/11/2026 to 6 layers (L1 signals and RF, L2 GND, L3 signals, L4 power, L5 GND, L6
+    signals): the stackup, the rule areas and footprint keep-outs over the new layers, a GND plane on L5 like the one
+    of L2, and out goes what the old stackup needed: the L3_GND strips (L6 now has L5 under it, all GND), the planes
+    of L1, L3 and L4 and every track and via, so the routing starts again from ``criticas`` (the parts stay where
+    they are)."""
+    text = path.read_text(encoding="utf-8")
+    if '"In3.Cu"' in text:
+        raise SystemExit("La placa ya es de 6 capas")
+    text = re.sub(r'\t\t\(0 "F\.Cu" signal\)\n\t\t\(4 "In1\.Cu".*?\n\t\t\(6 "In2\.Cu".*?\n\t\t\(2 "B\.Cu" signal\)\n',
+                  lambda m: COPPER_LAYERS, text, count=1)
+    text = re.sub(r'\t\t\t\(layer "F\.Cu"\n\t\t\t\t\(type "copper"\).*?\t\t\t\(layer "B\.Cu"\n\t\t\t\t\(type "copper"\)\n'
+                  r'\t\t\t\t\(thickness [0-9.]+\)\n\t\t\t\)\n', lambda m: stackup_text(), text, count=1, flags=re.S)
+    text = text.replace('(layers "F.Cu" "B.Cu" "In1.Cu" "In2.Cu")', '(layers "F.Cu" "B.Cu" "In1.Cu" "In2.Cu" "In3.Cu" "In4.Cu")')
+    text = text.replace('(layers "F.Cu" "In1.Cu" "In2.Cu")', '(layers "F.Cu" "In1.Cu" "In2.Cu" "In3.Cu" "In4.Cu")')
+    path.write_text(text, encoding="utf-8")
+    board = pcbnew.LoadBoard(str(path))
+    if board.GetCopperLayerCount() != 6:
+        raise SystemExit(f"La placa quedó con {board.GetCopperLayerCount()} capas de cobre")
+    gone = {"pistas": 0, "zonas": []}
+    for t in list(board.GetTracks()):  # all of it: ``criticas`` runs again (``podar`` took the escape vias of the
+        board.Delete(t)  # BMD-340 pads whose nets were left unrouted, and without them those pads have no way out)
+        gone["pistas"] += 1
+    for z in list(board.Zones()):
+        if z.GetZoneName() in ("L3_GND", "L1_GND", "L3_GND_PLANO", "L3_VREG", "L4_GND"):
+            gone["zonas"].append(z.GetZoneName())
+            board.Delete(z)
+    l2 = next(z for z in board.Zones() if z.GetZoneName() == "L2_GND")
+    l5 = pcbnew.ZONE(l2)
+    l5.SetLayer(pcbnew.In4_Cu)
+    l5.SetZoneName("L5_GND")
+    board.Add(l5)
+    fill(board)
+    save(board, path)
+    print(f"6 capas: sacadas {gone['pistas']} pistas y vías y las zonas {gone['zonas']}; L5_GND agregada")
+    return 0
+
+
+def out_of_gnss(x: float, y: float) -> bool:
+    """Out of GNSS_ANTENA (x 10-40, y 2-32, plus the via's radius): inside it only GND vias (custom rule)."""
+    return not (9.6 < x < 40.4 and 1.6 < y < 32.4)
+
+
+# GND pads that get no via of their own but a short locked track east, into the GND fill of L1 in GNSS_ANTENA: their
+# vias (with their tracks) walled in the east pads of R311 and R312 (LED_DG, LED_DB) between the antenna and the
+# column, and without anything the router ran LED_DG and LED_DB between them and the fill (25/11/2026). The stubs
+# leave the gaps between the resistors free, where LED_DG and LED_DB go west.
+SIN_VIA_GND = {"R316.2", "R317.2", "R318.2"}
+# GND pads that get their own via even with another GND via within 1 mm: that via was on a piece of the fill that
+# the tracks around the pad cut off (C102, next to the charger, 25/11/2026).
+CON_VIA_GND = {"C102.2"}
+STUB_X = 10.3  # end of those tracks: inside GNSS_ANTENA (x from 10.0)
+
+
+def gnd_stub_east(board, ref: str, num: str) -> bool:
+    pad = [p for p in board.FindFootprintByReference(ref).Pads() if p.GetNumber() == num][0]
+    c = pad.GetPosition()
+    t = pcbnew.PCB_TRACK(board)
+    t.SetStart(c)
+    t.SetEnd(pt(STUB_X, pcbnew.ToMM(c.y) - ORIGIN[1]))
+    t.SetWidth(mm(0.25))
+    t.SetLayer(pcbnew.F_Cu)
+    t.SetNet(board.FindNet("GND"))
+    t.SetLocked(True)
+    board.Add(t)
+    return True
+
+
+def abanico(path: Path) -> int:
+    """Before ``resto``: a GND via next to every SMD GND pad, down to the planes of L2 and L5, while there is still
+    room around the pads (after the maze router there was none for most of them). VREG is routed as tracks: L4 is a
+    signal layer with GND fill since 26/11/2026."""
+    board = pcbnew.LoadBoard(str(path))
+    free = Free(board)
+    # GND: every SMD pad gets its own via to the planes of L2 and L5 (shortest return path, and the planes of L1 and
+    # L6 alone left pieces walled in by tracks), unless a GND via or plated hole is already within 1 mm.
+    gnd = board.FindNet("GND").GetNetCode()
+    holes = [t.GetPosition() for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T and t.GetNetCode() == gnd]
+    holes += [p.GetPosition() for fp in board.GetFootprints() for p in fp.Pads()
+              if p.GetNetCode() == gnd and p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH]
+    vias_gnd, sin_gnd = 0, []
+    for fp in board.GetFootprints():
+        for pad in fp.Pads():
+            if pad.GetNetCode() != gnd or pad.GetAttribute() != pcbnew.PAD_ATTRIB_SMD:
+                continue
+            c = pad.GetPosition()
+            if f"{fp.GetReference()}.{pad.GetNumber()}" not in CON_VIA_GND and \
+                    any(math.hypot(h.x - c.x, h.y - c.y) < mm(1.0) for h in holes):
+                continue
+            if f"{fp.GetReference()}.{pad.GetNumber()}" in SIN_VIA_GND:
+                gnd_stub_east(board, fp.GetReference(), pad.GetNumber())
+                continue
+            if gnd_via_next_to(board, free, fp.GetReference(), pad.GetNumber()):
+                vias_gnd += 1
+                holes.append(free.items[-2].GetPosition())  # the via just added (then its track)
+            else:
+                sin_gnd.append(f"{fp.GetReference()}.{pad.GetNumber()}")
+    save(board, path)
+    print(f"abanico: {vias_gnd} vías de GND "
+          f"(sin lugar: {len(sin_gnd)}, quedan para los planos de L1 y L6)")
+    return 0
+
+
+# The VREG island of L4 (In3), since 24/11/2026: where most VREG pads are (the bottom part, MCU, sensors, NAND
+# and charger; the west strip of the load switches; the east strip of the barometer and magnetometer). Above
+# (under the GNSS patch) L4 stays a signal layer with GND fill. L4 sits between the GND planes of L2 and L5, so the
+# island takes no return path from the RF of L1 or the signals of L3 and L6.
+ISLA_VREG = [(0, 10), (10.5, 10), (10.5, 33.4), (40.5, 33.4), (40.5, 15), (50, 15), (50, 70), (0, 70)]
+
+
+def in_isla(x: float, y: float) -> bool:
+    poly = pcbnew.SHAPE_LINE_CHAIN()
+    for px, py in ISLA_VREG:
+        poly.Append(pt(px, py))
+    poly.SetClosed(True)
+    return poly.PointInside(pt(x, y)) and 0.8 < x < 49.2 and y < 69.2
+
+
+def isla(path: Path) -> int:
+    """After ``abanico``: the VREG island of L4 (filled, so the router sees it) and a VREG via next to every VREG
+    pad over it, locked; the router joins those vias through the fill and routes the pads outside it to them."""
+    board = pcbnew.LoadBoard(str(path))
+    if any(z.GetZoneName() == "VREG_L4" for z in board.Zones()):
+        raise SystemExit("La placa ya tiene la isla de VREG")
+    zone(board, "VREG", pcbnew.In3_Cu, ISLA_VREG, "VREG_L4", 1)
+    free = Free(board)
+    vreg = board.FindNet("VREG").GetNetCode()
+    done, failed = 0, []
+    for fp in board.GetFootprints():
+        for pad in fp.Pads():
+            if pad.GetNetCode() != vreg:
+                continue
+            c = pad.GetPosition()
+            if not in_isla(pcbnew.ToMM(c.x) - ORIGIN[0], pcbnew.ToMM(c.y) - ORIGIN[1]):
+                continue
+            if gnd_via_next_to(board, free, fp.GetReference(), pad.GetNumber(), "VREG", in_isla):
+                done += 1
+            else:
+                failed.append(f"{fp.GetReference()}.{pad.GetNumber()}")
+    fill(board)
+    save(board, path)
+    print(f"isla: VREG en L4; vías de VREG {done} (sin lugar: {failed})")
+    return 0
+
+
+# The planes, all over the board: GND on L1, L3, L4 and L6 (L2 and L5 are the GND planes L2_GND and L5_GND, outside
+# this step); every rail, VREG included, is tracks.
 
 
 def planos(path: Path, grilla: bool = True) -> int:
     board = pcbnew.LoadBoard(str(path))
-    if any(z.GetZoneName().startswith(("L1_", "L4_", "L3_GND_")) for z in board.Zones() if not z.GetIsRuleArea()):
+    if any(z.GetZoneName().startswith(("L1_", "L3_", "L4_", "L6_")) for z in board.Zones() if not z.GetIsRuleArea()):
         raise SystemExit("La placa ya tiene los planos")
     zone(board, "GND", pcbnew.F_Cu, BOARD_BOX, "L1_GND", 0)
-    zone(board, "GND", pcbnew.In2_Cu, L3_GND, "L3_GND_PLANO", 1)
-    zone(board, "VREG", pcbnew.In2_Cu, L3_VREG, "L3_VREG", 0)
-    zone(board, "GND", pcbnew.B_Cu, BOARD_BOX, "L4_GND", 0)
+    zone(board, "GND", pcbnew.In2_Cu, BOARD_BOX, "L3_GND", 0)
+    zone(board, "GND", pcbnew.In3_Cu, BOARD_BOX, "L4_GND", 0)
+    zone(board, "GND", pcbnew.B_Cu, BOARD_BOX, "L6_GND", 0)
     free = Free(board)
     added = {"rf": 0, "borde": 0, "grilla": 0}
     # 1. Along both sides of every RF_50 track, every 1.5 mm, as close as the coplanar gap allows.
@@ -826,11 +1075,6 @@ def planos(path: Path, grilla: bool = True) -> int:
                     if stitch_via(board, free, cx - uy * off * side, cy + ux * off * side, 1.0):
                         added["rf"] += 1
                         break
-    # 1b. Both sides of the USB pair where L3 is not GND under it (y 33-55): a GND via next to the L3 crossings.
-    added["par"] = 0
-    for k in range(int((55 - 33) / 1.2) + 1):
-        for x in (14.85, 16.75):
-            added["par"] += bool(stitch_via(board, free, x, 33 + 1.2 * k, 0.9))
     # 2. Along the board edge, 0.9 mm inside.
     for x in [0.9 + EDGE_PITCH * i for i in range(int(48.2 / EDGE_PITCH) + 1)]:
         for y in (0.9, 69.1):
@@ -864,16 +1108,7 @@ def planos(path: Path, grilla: bool = True) -> int:
         save(board, path)
         if failed or left:
             print("sin lugar para una vía de GND:", failed, f"({left} trozos de plano sin vía)")
-    # 5. The same for VREG: a via next to every VREG pad (decoupling, pull-ups) down to the VREG plane of L3,
-    # only where that plane is (below y = 33.4, out of the strip of the USB pair).
-    def in_vreg(x: float, y: float) -> bool:
-        return y > 34.0 and not (13.6 < x < 17.9 and y < 55.9) and 0.8 < x < 49.2 and y < 69.2
-    board = pcbnew.LoadBoard(str(path))
-    free = Free(board)
-    vreg = sum(gnd_via_next_to(board, free, ref, num, "VREG", in_vreg) for ref, num in unconnected_gnd_pads(path, "VREG"))
-    fill(board)
-    save(board, path)
-    print(f"planos: L1, L3 (GND arriba y en la franja, VREG abajo) y L4; vías de GND {added}, de VREG {vreg}")
+    print(f"planos: GND en L1, L3, L4 y L6; vías de GND {added}")
     return 0
 
 
@@ -885,9 +1120,42 @@ def drc_report(path: Path) -> dict:
         return json.loads(report.read_text(encoding="utf-8"))
 
 
-def podar(path: Path) -> int:
-    """Leaves the board clean for the DRC while nets are left for hand routing: takes away every track or via of
-    ``resto`` (not locked) that the DRC reports in a violation (``laberinto.py`` models the rules on a grid and
+def bridge_via(board, via) -> bool:
+    """Takes away ``via`` when the copper of its net reaches it on a single layer, joining the tracks that end inside
+    it to its centre on that layer. False (and the via stays) when two layers or more reach it."""
+    centre = via.GetPosition()
+    reach = via.GetWidth(pcbnew.F_Cu) // 2
+    ends, layers = [], set()
+    for t in board.GetTracks():
+        if t.Type() == pcbnew.PCB_VIA_T or t.GetNetCode() != via.GetNetCode():
+            continue
+        for p in (t.GetStart(), t.GetEnd()):
+            if (p - centre).EuclideanNorm() <= reach:
+                ends.append((t, p))
+                layers.add(t.GetLayer())
+    for f in board.GetFootprints():
+        for pad in f.Pads():
+            if pad.GetNetCode() == via.GetNetCode() and pad.HitTest(centre):
+                layers |= {layer for layer in ALL_CU if pad.IsOnLayer(layer)}
+    if len(layers) > 1:
+        return False
+    for t, p in ends:
+        if p != centre:
+            seg = pcbnew.PCB_TRACK(board)
+            seg.SetStart(p)
+            seg.SetEnd(centre)
+            seg.SetWidth(t.GetWidth())
+            seg.SetLayer(t.GetLayer())
+            seg.SetNet(t.GetNet())
+            board.Add(seg)
+    board.Delete(via)
+    return True
+
+
+def podar(path: Path, colgadas: bool = True) -> int:
+    """Leaves the board clean for the DRC: a dangling via (locked ones included) reached on one layer only becomes a
+    track on that layer (``bridge_via``); then it takes away every track or via of ``resto`` (not locked) that the
+    DRC reports in a violation (``laberinto.py`` models the rules on a grid and
     misses a few: a via of a GNSS_SENSITIVE net against a pad on the other side, the 0.2 mm of POWER_DOCK against a
     0.15 mm track, the mask opening of a fiducial) and every via or stub of a signal net that is left dangling (the
     escape vias in the BMD-340 pads of the nets still unrouted). Repeats until the DRC has nothing of that kind, and
@@ -895,37 +1163,239 @@ def podar(path: Path) -> int:
     removed = []
     for _ in range(40):
         data = drc_report(path)
-        bad = {it["uuid"] for v in data["violations"] for it in v["items"]}
         board = pcbnew.LoadBoard(str(path))
+        # A via that its net reaches on one layer only (an escape via of abanico when the router joined the pad on
+        # L1 instead) goes first, the tracks that end on it joined to its centre on that layer: taken away as
+        # dangling copper, its locked stub took the pad off the net (NAND_MOSI, 25/11/2026).
+        hanging = {it["uuid"] for v in data["violations"] if v["type"] == "via_dangling" for it in v["items"]}
+        bridged = sum(bridge_via(board, t) for t in list(board.GetTracks())
+                      if t.m_Uuid.AsString() in hanging and t.Type() == pcbnew.PCB_VIA_T)
+        bad = {it["uuid"] for v in data["violations"] for it in v["items"]} - hanging
         drop = [t for t in board.GetTracks() if t.m_Uuid.AsString() in bad and not t.IsLocked()]
         # dangling copper of the signal nets (the scripted RF, USB and power copper ends inside pads, which the
         # connectivity test misreads, so it only looks at Default and GNSS_SENSITIVE)
         board.BuildConnectivity()
         conn = board.GetConnectivity()
         ids = {t.m_Uuid.AsString() for t in drop}
-        drop += [t for t in board.GetTracks() if t.m_Uuid.AsString() not in ids and t.GetNetname() != "GND"
+        drop += [t for t in board.GetTracks() if colgadas and t.m_Uuid.AsString() not in ids and t.GetNetname() != "GND"
                  and t.GetNetClassName() in ("Default", "GNSS_SENSITIVE") and conn.TestTrackEndpointDangling(t, False)]
-        if not drop:
+        if not drop and not bridged:
             break
         removed += [t.GetNetname() for t in drop]
         for t in drop:
             board.Delete(t)  # Delete, not Remove: a removed item still owned by Python crashed pcbnew later
         fill(board)
         save(board, path)
+    # the pieces of the GND planes that the pruning and the last fill cut off get their via to L2
+    board = pcbnew.LoadBoard(str(path))
+    stitched, _ = stitch_fragments(board, Free(board))
+    if stitched:
+        fill(board)
+        save(board, path)
     left = [v for v in drc_report(path)["violations"]]
+    print(f"podar: {stitched} vías de GND en trozos sueltos")
     print(f"podar: {len(removed)} pistas y vías sacadas, de {len(set(removed))} redes: {sorted(set(removed))}; "
           f"quedan {len(left)} violaciones")
     return 0 if not left else 1
 
 
-def resto(path: Path) -> int:
-    """Everything that criticas leaves, but GND, with the maze router of laberinto.py."""
+def remate(path: Path) -> int:
+    """After ``planos``: what is still not joined (a net that ``resto`` left) gets routed over the free space that is left, and the zones are filled again."""
     sys.path.insert(0, str(TOOLS))
     import laberinto  # noqa: E402
     board = pcbnew.LoadBoard(str(path))
-    done, failed = laberinto.route_all(board, lambda m: print(m, flush=True))
+    done, failed = laberinto.route_all(board, lambda m: print(m, flush=True), iterations=6)
+    fill(board)
+    save(board, path)
+    print(f"remate: {done} conexiones ruteadas; sin ruta: {failed}")
+    return 0
+
+
+def resto(path: Path, vueltas: int = 24) -> int:
+    """Everything that criticas leaves, but GND, with the maze router of laberinto.py (``vueltas`` rounds of
+    negotiation)."""
+    sys.path.insert(0, str(TOOLS))
+    import laberinto  # noqa: E402
+    board = pcbnew.LoadBoard(str(path))
+    done, failed = laberinto.route_all(board, lambda m: print(m, flush=True), iterations=vueltas)
     save(board, path)
     print(f"resto: {done} conexiones ruteadas; sin ruta: {failed}")
+    return 0
+
+
+# Power nets stay put in ``reparar`` (unless they are the broken ones): ripped up with the signals, the rails of the
+# first try (25/11/2026) did not fit back.
+RIELES = {"VREG", "VCC_GNSS", "VDD_EXT", "SYS", "BAT", "V_BCKP", "/storage/VCC_NAND", "/mcu_radio/VCC_LORA"}
+
+
+def rieles(path: Path, vueltas: int = 24) -> int:
+    """After ``abanico``, before ``resto``: the power rails (``RIELES``) alone with the maze router, then locked, so
+    the signals of ``resto`` route around them (routed together, VREG lost the room to the signals, 25/11/2026)."""
+    sys.path.insert(0, str(TOOLS))
+    import laberinto  # noqa: E402
+    board = pcbnew.LoadBoard(str(path))
+    done, failed = laberinto.route_all(board, lambda m: print(m, flush=True), iterations=vueltas, only=RIELES)
+    codes = {board.FindNet(n).GetNetCode() for n in RIELES if board.FindNet(n)}
+    locked = 0
+    for t in board.GetTracks():
+        if t.GetNetCode() in codes and not t.IsLocked():
+            t.SetLocked(True)
+            locked += 1
+    save(board, path)
+    print(f"rieles: {done} conexiones ruteadas, {locked} pistas y vías bloqueadas; sin ruta: {failed}")
+    return 0
+
+
+def reparar(path: Path, vueltas: int = 24, margen: float = 1.0) -> int:
+    """After ``resto`` (before ``planos``): the nets it left unfinished, and every signal net with tracks across a
+    corridor ``margen`` mm to each side of their missing connections, are ripped up and routed again together by the
+    maze router, with the rest of the board (power rails included) fixed."""
+    sys.path.insert(0, str(TOOLS))
+    import laberinto  # noqa: E402
+    with tempfile.TemporaryDirectory() as tmp:
+        report = Path(tmp) / "drc.json"
+        subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "--severity-all", "--output", str(report),
+                        str(path)], check=True, capture_output=True)
+        data = json.loads(report.read_text(encoding="utf-8"))
+    board = pcbnew.LoadBoard(str(path))
+    corridors, broken = [], set()
+    for item in data["unconnected_items"]:
+        names = [re.search(r"\[([^\]]+)\]", it["description"]) for it in item["items"]]
+        names = {m.group(1) for m in names if m}
+        if not names or "GND" in names:
+            continue
+        broken |= names
+        (x0, y0), (x1, y1) = [(it["pos"]["x"], it["pos"]["y"]) for it in item["items"][:2]]
+        seg = pcbnew.SHAPE_SEGMENT(pcbnew.VECTOR2I(mm(x0), mm(y0)), pcbnew.VECTOR2I(mm(x1), mm(y1)), mm(2 * margen))
+        corridors.append(seg)
+    rip = set(broken)
+    for t in board.GetTracks():
+        name = t.GetNetname()
+        if t.IsLocked() or name == "GND" or name in RIELES or t.GetNetClassName() in laberinto.SKIP_CLASSES:
+            continue
+        shape = t.GetEffectiveShape(t.GetLayer() if t.Type() != pcbnew.PCB_VIA_T else pcbnew.F_Cu)
+        if any(c.Collide(shape, 0) for c in corridors):
+            rip.add(name)
+    removed = 0
+    for t in list(board.GetTracks()):
+        if not t.IsLocked() and t.GetNetname() in rip:
+            board.Delete(t)
+            removed += 1
+    print(f"reparar: {len(broken)} redes sin terminar; se levantan {len(rip)} redes ({removed} pistas y vías)", flush=True)
+    done, failed = laberinto.route_all(board, lambda m: print(m, flush=True), iterations=vueltas, only=rip)
+    save(board, path)
+    print(f"reparar: {done} conexiones ruteadas; sin ruta: {failed}")
+    return 0
+
+
+def walled_gnd_pads(board) -> list[tuple[str, str]]:
+    """(ref, pad) of the GND pads on a piece of the GND fill of L1, L3, L4 or L6 that has no GND via or hole on it."""
+    gnd = board.FindNet("GND").GetNetCode()
+    vias = [t.GetPosition() for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T and t.GetNetCode() == gnd]
+    vias += [p.GetPosition() for fp in board.GetFootprints() for p in fp.Pads()
+             if p.GetNetCode() == gnd and p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH]
+    found = []
+    for z in board.Zones():
+        if z.GetIsRuleArea() or z.GetNetCode() != gnd or z.GetLayer() in (pcbnew.In1_Cu, pcbnew.In4_Cu):
+            continue
+        polys = z.GetFilledPolysList(z.GetLayer())
+        for i in range(polys.OutlineCount()):
+            if any(polys.Contains(v, i) for v in vias):
+                continue
+            for fp in board.GetFootprints():
+                for pad in fp.Pads():
+                    if pad.GetNetCode() == gnd and pad.IsOnLayer(z.GetLayer()) and polys.Contains(pad.GetPosition(), i):
+                        found.append((fp.GetReference(), pad.GetNumber()))
+    return found
+
+
+def rescate(path: Path, vueltas: int = 12) -> int:
+    """After ``podar``: a GND pad that the routed signals walled in (its piece of the L1 fill has no via, 25/11/2026:
+    R316 and R318 between the tracks of LED_DG and LED_DB) gets its via and short track as if only the locked copper
+    were there; the signal nets that the new copper runs into are ripped up and routed again around it, and the
+    zones are filled. ``podar`` goes after it again."""
+    sys.path.insert(0, str(TOOLS))
+    import laberinto  # noqa: E402
+    pads = unconnected_gnd_pads(path)
+    board = pcbnew.LoadBoard(str(path))
+    gnd = board.FindNet("GND").GetNetCode()
+    pads += [p for p in walled_gnd_pads(board) if p not in pads]
+    free = Free(board)
+    free.items = [it for it in free.items if it.Type() == pcbnew.PCB_PAD_T or it.IsLocked() or it.GetNetCode() == gnd]
+    free.grid = {}
+    for i, it in enumerate(free.items):
+        free.index(i, it)
+    before = {t.m_Uuid.AsString() for t in board.GetTracks()}
+    placed = [(ref, num) for ref, num in pads if f"{ref}.{num}" in SIN_VIA_GND and gnd_stub_east(board, ref, num)
+              or f"{ref}.{num}" not in SIN_VIA_GND and gnd_via_next_to(board, free, ref, num)]
+    new = [t for t in board.GetTracks() if t.m_Uuid.AsString() not in before]
+    rip = set()
+    for t in board.GetTracks():
+        if t.IsLocked() or t.GetNetCode() == gnd or t.GetNetClassName() in laberinto.SKIP_CLASSES:
+            continue
+        for item in new:
+            layers = ALL_CU if item.Type() == pcbnew.PCB_VIA_T else [item.GetLayer()]
+            if any(t.IsOnLayer(lay) and t.GetEffectiveShape(lay).Collide(item.GetEffectiveShape(lay), mm(CLEAR))
+                   for lay in layers):
+                rip.add(t.GetNetname())
+                break
+    for t in list(board.GetTracks()):
+        if not t.IsLocked() and t.GetNetname() in rip:
+            board.Delete(t)
+    print(f"rescate: vía de GND para {placed} de {pads}; se levantan {sorted(rip)}", flush=True)
+    done, failed = laberinto.route_all(board, lambda m: print(m, flush=True), iterations=vueltas, only=rip) \
+        if rip else (0, [])
+    fill(board)
+    save(board, path)
+    print(f"rescate: {done} conexiones ruteadas; sin ruta: {failed}")
+    return 0
+
+
+ESPECIALES = ("GNSS_SENSITIVE", "POWER_DOCK")
+
+
+def especiales(path: Path) -> int:
+    """Before handing the board to another router (Quilter): only the nets with rules of their own that it does not
+    read (GNSS_SENSITIVE, POWER_DOCK), with the maze router; then ``podar`` and ``bloquear``."""
+    sys.path.insert(0, str(TOOLS))
+    import laberinto  # noqa: E402
+    board = pcbnew.LoadBoard(str(path))
+    only = {n.GetNetname() for n in board.GetNetsByNetcode().values() if n.GetNetClassName() in ESPECIALES}
+    done, failed = laberinto.route_all(board, lambda m: print(m, flush=True), iterations=12, only=only)
+    fill(board)
+    save(board, path)
+    print(f"especiales: {done} conexiones ruteadas de {len(only)} redes; sin ruta: {failed}")
+    return 0
+
+
+def bloquear(path: Path) -> int:
+    """Locks every track and via, so another router keeps them as they are."""
+    board = pcbnew.LoadBoard(str(path))
+    n = 0
+    for t in board.GetTracks():
+        if not t.IsLocked():
+            t.SetLocked(True)
+            n += 1
+    save(board, path)
+    print(f"bloquear: {n} pistas y vías bloqueadas")
+    return 0
+
+
+def limpiar(path: Path) -> int:
+    """Every track and via out, locked ones included, and the planes of ``planos`` (L2_GND, L5_GND and the rule
+    areas stay): the start of a new routing from the placed board, before ``criticas --forzar`` (26/11/2026: after
+    the parts that ``MOVES`` moved for the routing)."""
+    board = pcbnew.LoadBoard(str(path))
+    n = 0
+    for t in list(board.GetTracks()):
+        board.Delete(t)
+        n += 1
+    planes = [z for z in board.Zones()
+              if not z.GetIsRuleArea() and z.GetZoneName().startswith(("L1_", "L3_", "L4_", "L6_"))]
+    for z in planes:
+        board.Delete(z)
+    save(board, path)
+    print(f"limpiar: {n} pistas y vías y {len(planes)} planos sacados")
     return 0
 
 
@@ -940,16 +1410,36 @@ def save(board, path: Path) -> None:
 
 def main(argv: list[str]) -> int:
     path = Path(argv[argv.index("--placa") + 1]) if "--placa" in argv else POD / "pod-v0.kicad_pcb"
+    if len(argv) > 1 and argv[1] == "seis-capas":
+        return seis_capas(path)
+    if len(argv) > 1 and argv[1] == "abanico":
+        return abanico(path)
     if len(argv) > 1 and argv[1] == "criticas":
         return criticas(path, "--forzar" in argv)
     if len(argv) > 2 and argv[1] == "dsn":
         return dsn(path, Path(argv[2]))
     if len(argv) > 2 and argv[1] == "ses":
         return ses(path, Path(argv[2]))
+    if len(argv) > 1 and argv[1] == "remate":
+        return remate(path)
     if len(argv) > 1 and argv[1] == "resto":
-        return resto(path)
+        return resto(path, int(argv[argv.index("--vueltas") + 1]) if "--vueltas" in argv else 24)
+    if len(argv) > 1 and argv[1] == "especiales":
+        return especiales(path)
+    if len(argv) > 1 and argv[1] == "rieles":
+        return rieles(path, int(argv[argv.index("--vueltas") + 1]) if "--vueltas" in argv else 24)
+    if len(argv) > 1 and argv[1] == "reparar":
+        return reparar(path, int(argv[argv.index("--vueltas") + 1]) if "--vueltas" in argv else 24)
+    if len(argv) > 1 and argv[1] == "rescate":
+        return rescate(path, int(argv[argv.index("--vueltas") + 1]) if "--vueltas" in argv else 12)
+    if len(argv) > 1 and argv[1] == "limpiar":
+        return limpiar(path)
+    if len(argv) > 1 and argv[1] == "isla":
+        return isla(path)
+    if len(argv) > 1 and argv[1] == "bloquear":
+        return bloquear(path)
     if len(argv) > 1 and argv[1] == "podar":
-        return podar(path)
+        return podar(path, "--sin-colgadas" not in argv)
     if len(argv) > 1 and argv[1] == "planos":
         return planos(path, "--sin-grilla" not in argv)
     print(__doc__)

@@ -16,7 +16,7 @@ R101,44.0,52.0,0,B,no,
 R102,44.0,53.1,0,B,no,
 R103,17.85,60.6,0,B,no,
 R104,17.85,61.7,0,B,no,
-R105,17.85,62.8,0,B,no,
+R105,16.3,60.8,90,B,no,movida al rutear (26/11/2026): pull-down de CFG1 del buck-boost al oeste; su fila queda para las vías de CFG2 y CFG3
 R106,17.85,63.9,0,B,no,
 R107,17.85,65.0,0,B,no,
 R108,25.5,61.5,90,F,no,
@@ -72,10 +72,7 @@ D203,26.6,34.1,0,F,no,
 D204,20.0,38.6,180,F,no,
 FL201,25.0,37.2,270,F,no,
 FL202,25.6,46.65,270,F,no,
-J201,4.0,28.2,270,F,no,boca hacia el borde izquierdo
 J202,18.94,35.4,180,F,no,
-JP201,2.0,13.0,90,B,no,
-JP202,4.6,13.0,90,B,no,
 L201,20.0,39.8,180,F,no,
 L202,23.1,36.15,180,F,no,
 L203,26.9,38.9,0,F,no,
@@ -87,9 +84,6 @@ Q202,2.6,30.4,0,B,no,
 Q203,8.0,28.4,0,B,no,
 R201,4.3,16.5,90,B,no,
 R202,5.4,27.0,90,B,no,
-R203,1.0,16.5,90,B,no,
-R204,2.1,16.5,90,B,no,
-R205,3.2,16.5,90,B,no,
 R206,25.0,33.1,270,F,no,0 ohm del patch
 R207,19.9,41.5,0,F,no,
 R208,5.4,29.0,90,B,no,
@@ -157,17 +151,17 @@ R304,19.5,52.3,90,B,no,"movida al rutear (15/11/2026): rejilla de resistencias d
 R305,47.6,21.8,0,B,no,
 R306,17.9,50.2,90,B,no,"movida al rutear (15/11/2026): rejilla de resistencias de abajo abierta: con 0,44 mm entre pads, los de adentro no tenían salida"
 R307,19.5,50.2,90,B,no,"movida al rutear (15/11/2026): rejilla de resistencias de abajo abierta: con 0,44 mm entre pads, los de adentro no tenían salida"
-R308,8.65,17.7,0,F,no,
-R309,8.65,18.8,0,F,no,
-R310,8.65,11.1,0,F,no,
-R311,8.65,13.3,0,F,no,
-R312,8.65,15.5,0,F,no,
+R308,8.65,18.0,0,F,no,"movida al rutear (25/11/2026): columna de los LED a 1,2 mm"
+R309,8.65,19.2,0,F,no,"movida al rutear (25/11/2026): columna de los LED a 1,2 mm"
+R310,8.65,10.8,0,F,no,"movida al rutear (25/11/2026): columna de los LED a 1,2 mm"
+R311,8.65,13.2,0,F,no,"movida al rutear (25/11/2026): columna de los LED a 1,2 mm"
+R312,8.65,15.6,0,F,no,"movida al rutear (25/11/2026): columna de los LED a 1,2 mm"
 R313,1.3,11.4,90,F,no,
 R314,1.3,13.45,90,F,no,
 R315,1.3,15.5,90,F,no,
-R316,8.65,12.2,0,F,no,
-R317,8.65,14.4,0,F,no,
-R318,8.65,16.6,0,F,no,
+R316,8.65,12.0,0,F,no,"movida al rutear (25/11/2026): columna de los LED a 1,2 mm"
+R317,8.65,14.4,0,F,no,"movida al rutear (25/11/2026): columna de los LED a 1,2 mm"
+R318,8.65,16.8,0,F,no,"movida al rutear (25/11/2026): columna de los LED a 1,2 mm"
 R319,45.6,35.7,0,F,no,
 R320,33.6,40.5,0,B,no,
 R321,33.6,50.5,0,B,no,

@@ -99,7 +99,7 @@ power = Sheet("power", "Pod v0: power",
 
 # ---------------------------------------------------------------------------
 gnss_rf = Sheet("gnss_rf", "Pod v0: gnss_rf",
-                "GNSS: LC29H, traductores de 2,8 V, reset, conector para QGNSS y cadena RF de la antena", 200, [
+                "GNSS: LC29H, traductores de 2,8 V, reset y cadena RF de la antena", 200, [
     Group("Quectel LC29H", [
         part("LC29H", "LC29H(AA)", {"23": "VCC_GNSS", "22": "V_BCKP", "7": "VDD_EXT", "9": "GNSS_VDD_RF", "11": "GNSS_RF_IN",
                                     "14": "GNSS_ANT_ON", "10": "GND", "12": "GND", "13": "GND", "24": "GND",
@@ -131,28 +131,16 @@ gnss_rf = Sheet("gnss_rf", "Pod v0: gnss_rf",
         R("100k", "GNSS_RST", "GND"),
     ]),
     Group("Traductores 3,4 V ↔ 2,8 V", [
-        part("SN74LVC1T45", "SN74LVC1T45", {"1": "VREG", "3": "GNSS_TX", "5": "VREG", "6": "VDD_EXT", "4": "GNSS_RXD_T", "2": "GND"},
+        part("SN74LVC1T45", "SN74LVC1T45", {"1": "VREG", "3": "GNSS_TX", "5": "VREG", "6": "VDD_EXT", "4": "GNSS_RXD", "2": "GND"},
              SOT23_6, mpn="SN74LVC1T45DBVR", lcsc="C7843", manufacturer="Texas Instruments", note="nRF → RXD del GNSS (DIR alto: A a B)"),
-        part("SN74LVC1T45", "SN74LVC1T45", {"1": "VREG", "3": "GNSS_RX", "5": "GND", "6": "VDD_EXT", "4": "GNSS_TXD_T", "2": "GND"},
+        part("SN74LVC1T45", "SN74LVC1T45", {"1": "VREG", "3": "GNSS_RX", "5": "GND", "6": "VDD_EXT", "4": "GNSS_TXD", "2": "GND"},
              SOT23_6, mpn="SN74LVC1T45DBVR", lcsc="C7843", manufacturer="Texas Instruments", note="TXD del GNSS → nRF (DIR bajo: B a A)"),
         part("SN74LVC1T45", "SN74LVC1T45", {"1": "VREG", "3": "GNSS_PPS", "5": "GND", "6": "VDD_EXT", "4": "GNSS_PPS_28", "2": "GND"},
              SOT23_6, mpn="SN74LVC1T45DBVR", lcsc="C7843", manufacturer="Texas Instruments", note="1PPS → nRF (DIR bajo: B a A)"),
         C("100n", "VREG", note="VCCA del traductor de TX"), C("100n", "VDD_EXT", note="VCCB del traductor de TX"),
         C("100n", "VREG", note="VCCA del traductor de RX"), C("100n", "VDD_EXT", note="VCCB del traductor de RX"),
         C("100n", "VREG", note="VCCA del traductor de PPS"), C("100n", "VDD_EXT", note="VCCB del traductor de PPS"),
-        R0("GNSS_TX", "GNSS_RXD_T", dnp=True, note="Puente del traductor"),
-        R0("GNSS_RX", "GNSS_TXD_T", dnp=True, note="Puente del traductor"),
-        R0("GNSS_PPS", "GNSS_PPS_28", dnp=True, note="Puente del traductor"),
     ], ["Con el GNSS apagado, el lado A de RX y PPS queda en alta impedancia: pull-up interna del nRF"]),
-    Group("Conector para QGNSS", [
-        part("Conn_01x04_MP", "QGNSS", {"1": "GNSS_TXD", "2": "GNSS_RXD", "3": "VDD_EXT", "4": "GND", "MP": "GND"},
-             "Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal", mpn="SM04B-SRSS-TB(LF)(SN)", lcsc="C160404",
-             manufacturer="JST", note="TXD, RXD, VDD_EXT y GND para hablar con QGNSS desde una notebook"),
-        part("SolderJumper_Bridged", "Puente", {"1": "GNSS_TXD", "2": "GNSS_TXD_T"}, JUMPER_CLOSED,
-             note="Se corta para desconectar el nRF"),
-        part("SolderJumper_Bridged", "Puente", {"1": "GNSS_RXD_T", "2": "GNSS_RXD"}, JUMPER_CLOSED,
-             note="Se corta para desconectar el nRF"),
-    ]),
     Group("Antena: patch pasivo (principal) y U.FL de rescate", [
         part("Antenna", "Patch L1/L5", {"1": "GNSS_ANT_PATCH"}, POD + "Taoglas_GVLB258.A_25x25mm",
              mpn="GVLB258.A", manufacturer="Taoglas",
@@ -220,7 +208,10 @@ gnss_rf = Sheet("gnss_rf", "Pod v0: gnss_rf",
         C("DNP", "GNSS_RF_IN", dnp=True, note="Red pi de ajuste, paralelo de salida"),
     ], ["Ganancia total al RF_IN < 17 dB: con el LNA estándar, unos 13 dB en L1 y 16 dB en L5 (típicos); en alta ganancia, atenuador de 2–3 dB; la Taoglas da 28,3–30,3 dB",
         "DC solo del lado del U.FL: el capacitor selector y el de 100 pF antes del SAW la bloquean"]),
-], retired=("SH201",))  # the WE-SHC shield can: out of the v0 (15/11/2026, pod-v0-ubicacion-y-carcasa.md, section 9)
+], retired=("SH201", "R203", "R204", "R205", "J201", "JP201", "JP202"))
+# SH201: the WE-SHC shield can, out of the v0 (15/11/2026, pod-v0-ubicacion-y-carcasa.md, section 9). R203-R205 (0 Ω
+# around the translators), J201 (QGNSS connector) and JP201/JP202 (its jumpers): out on 25/11/2026, they filled the
+# top-left corner and left the 6-layer board unroutable there; QGNSS reaches the module through the nRF instead.
 
 # ---------------------------------------------------------------------------
 # Signal of each nRF52840 port pin (docs/hardware/pod-v0.md, "Pines del nRF52840"): the same assignment as with
