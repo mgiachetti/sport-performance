@@ -5,7 +5,9 @@ field of the BMD-340 it stalled at 150-190 unrouted connections after 40 passes.
 board's own rules, all of them known here (it is not a general autorouter):
 
 - a 0.05 mm grid on L1, L3, L4 and L6 of the 6-layer board (L2 and L5 are the GND planes: only vias cross them), A*
-  with 45-degree moves, a cost per via, L3 preferred over L4, L4 over L6 and L6 over L1 (L1 keeps room for the pads),
+  with 45-degree moves, a cost per via and per bend, a preferred direction on L3 (east-west) and L4
+  (north-south), straightened with 45-degree doglegs only, L3 preferred over L4, L4 over L6 and L6 over L1 (L1 keeps
+  room for the pads),
   no track on L4 over a VREG island (`rutear.py isla`, tried and not used), and a cost next to the pads of other nets;
 - every copper item of another net blocks the cells closer than its clearance (its net class or pad, at least the
   0.15 mm of Default; RF_50 0.5 mm, and 0.15 mm inside the LNA's courtyard as the custom rule says) plus half the track
@@ -41,7 +43,14 @@ MARGIN = 0.037  # grid error: a 45-degree step passes 0.0354 mm from the cell ce
 H0 = 0.075  # half the narrowest track (0.15 mm)
 VIA = (0.5, 0.2)
 VIA_PITCH = 0.5  # mm between via centres (hole to hole 0.3 mm)
-VIA_COST = 24  # cells (1.2 mm)
+# Looks (Codex's advice, 27/11/2026): fewer vias, one preferred direction per inner layer (L3 east-west, L4
+# north-south, the cross direction costs more) and a cost per bend, so the routes come out as straight runs
+# instead of staircases; the straightener then joins them with 45-degree doglegs only. Tunable by environment to
+# compare runs.
+# Via 40 cells, cross direction x1.25 and 2 cells per bend left 11 connections open; 28, x1.1 and 1 left 8 (27/11/2026).
+VIA_COST = float(os.environ.get("LABERINTO_VIA_COST", "32"))  # cells (1.6 mm); it was 24
+CROSS_COST = float(os.environ.get("LABERINTO_CROSS", "1.15"))  # factor against the preferred direction of L3 and L4
+BEND_COST = float(os.environ.get("LABERINTO_BEND", "1"))  # cells per change of direction
 LAYER_COST = (1.4, 1.0, 1.05, 1.15)  # L1, L3, L4, L6 (L3 and L4 are signal layers between the GND planes of L2 and L5)
 PF_GROWTH = 1.4  # present-congestion factor per round (2.0 oscillated on 6 layers)
 PF_MAX = 40.0  # without a cap the present cost swamps the history and the routes oscillate
@@ -66,6 +75,14 @@ FIRST_NETS = {"VREG"}  # routed first in the final pass over free space
 PLANE_NETS = {"VREG"}  # VREG joins through its island of L4 when there is one (rutear.py isla); elsewhere, tracks
 STEPS = ((1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),
          (1, 1, 1.4142), (1, -1, 1.4142), (-1, 1, 1.4142), (-1, -1, 1.4142))
+# Cost of each step per layer index (L1, L3, L4, L6): L3 prefers east-west, L4 north-south; diagonals in between.
+_MID = (1.0 + CROSS_COST) / 2
+STEP_COST = (
+    tuple(c for _, _, c in STEPS),
+    tuple(c * (1.0 if dj == 0 else CROSS_COST if di == 0 else _MID) for di, dj, c in STEPS),
+    tuple(c * (1.0 if di == 0 else CROSS_COST if dj == 0 else _MID) for di, dj, c in STEPS),
+    tuple(c for _, _, c in STEPS),
+)
 
 
 def mm(v: float) -> int:
@@ -110,6 +127,7 @@ class Grid:
                 self.bmd_box = box
         self.sw = []  # switch-node copper: GNSS_SENSITIVE keeps 5 mm away (custom rule)
         self.cells_cache = {}
+        self.limited = False  # set by route_pf when it stops on its node limit
 
     # ------------------------------------------------------------------ painting
     @staticmethod
@@ -485,7 +503,7 @@ class Grid:
                 self.ovs[k] += sign
 
     def route_pf(self, net: int, cls: str, sources: list, targets: dict, layers_ok: list, width: float, pf: float,
-                 hard: bool = False):
+                 hard: bool = False, expand: int = PF_EXPAND):
         """A* over the fixed obstacles only; the copper of the other routed nets costs (present congestion times
         ``pf`` plus history) instead of blocking. Returns the path or None."""
         extra = (width / 2 - H0) + EXTRA_CLEARANCE.get(cls, 0.0)
@@ -575,12 +593,16 @@ class Grid:
                 return straighten(path[::-1],
                                   lambda li, i, j: (ok(li, i, j) or 1e9) <= 1.0 + hist[li][j * NX + i] + 1e-9)
             n += 1
-            if n > EXPAND * PF_EXPAND:
+            if n > EXPAND * expand:
+                self.limited = True
                 return None
             li, i, j = node
             lc = LAYER_COST[li]
             halo = self.halo[li]
-            for di, dj, c in STEPS:
+            costs = STEP_COST[li]
+            prev = came.get(node)
+            pd = (i - prev[1], j - prev[2]) if prev is not None and prev[0] == li else None
+            for (di, dj, _), c in zip(STEPS, costs):
                 ni, nj = i + di, j + dj
                 if not (0 <= ni < NX and 0 <= nj < NY):
                     continue
@@ -589,6 +611,8 @@ class Grid:
                 if r is None:
                     continue
                 ng = gc + c * lc * r
+                if pd is not None and pd != (di, dj):  # the direction it came in (not in the state: an estimate)
+                    ng += BEND_COST
                 if halo[nj * NX + ni] and nb not in targets:
                     ng += HALO_COST
                 if ng < g.get(nb, 1e18):
@@ -610,22 +634,40 @@ class Grid:
 
 
 def straighten(path: list, free) -> list:
-    """Fewer, longer segments: on each layer run, jump to the farthest later cell that a straight line (any angle)
-    reaches over free cells only (the grid margin covers a line between cell centres)."""
+    """Fewer, longer segments at 0, 45 and 90 degrees only: on each layer run, from each corner jump to the farthest
+    later cell that a dogleg reaches over free cells only (a 45-degree leg and a straight one, in either order; one
+    of them may be empty). Until 27/11/2026 it jumped in a straight line at any angle, and most inner tracks ended
+    off the 45-degree grid. The grid margin covers a line between cell centres."""
+
+    def clear(li, i0, j0, i1, j1):
+        n = max(abs(i1 - i0), abs(j1 - j0)) * 2
+        return n == 0 or all(free(li, round(i0 + (i1 - i0) * t / n), round(j0 + (j1 - j0) * t / n))
+                             for t in range(n + 1))
+
     out = [path[0]]
     k = 0
     while k < len(path) - 1:
         li = path[k][0]
-        best = k + 1
         end = k + 1
         while end < len(path) and path[end][0] == li:
             end += 1
+        best, corner = k + 1, None
+        (_, i0, j0) = path[k]
         for m in range(end - 1, k + 1, -1):
-            (_, i0, j0), (_, i1, j1) = path[k], path[m]
-            n = max(abs(i1 - i0), abs(j1 - j0)) * 2
-            if all(free(li, round(i0 + (i1 - i0) * t / n), round(j0 + (j1 - j0) * t / n)) for t in range(n + 1)):
-                best = m
+            (_, i1, j1) = path[m]
+            dx, dy = i1 - i0, j1 - j0
+            d = min(abs(dx), abs(dy))
+            sx, sy = (dx > 0) - (dx < 0), (dy > 0) - (dy < 0)
+            found = None
+            for ci, cj in ((i0 + sx * d, j0 + sy * d), (i1 - sx * d, j1 - sy * d)):
+                if clear(li, i0, j0, ci, cj) and clear(li, ci, cj, i1, j1):
+                    found = (ci, cj)
+                    break
+            if found:
+                best, corner = m, found
                 break
+        if corner and corner != (i0, j0) and corner != path[best][1:]:
+            out.append((li, corner[0], corner[1]))
         out.append(path[best])
         k = best
     return out
@@ -822,7 +864,14 @@ def grow(board, grid: Grid, n, cls: str, layers_ok: list, width: float, pf: floa
             sources = [c for it in comp for c in grid.own_cells(it, code)]
             targets = {c: k for k, other in enumerate(comps) if k != s for it in other for c in grid.own_cells(it, code)}
             if sources and targets:
+                grid.limited = False
                 path = grid.route_pf(code, cls, sources, targets, layers_ok, width, pf, hard=hard)
+                if path is None and grid.limited:
+                    # out of nodes, not of room: once more with ten times as many (more than the grid has: an
+                    # exhaustive search). With the costs of bends and of the cross direction, NAND_CS ran out of
+                    # nodes (27/11/2026).
+                    path = grid.route_pf(code, cls, sources, targets, layers_ok, width, pf, hard=hard,
+                                         expand=PF_EXPAND * 10)
             if path:
                 break
             stuck.add(key)

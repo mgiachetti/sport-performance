@@ -1,9 +1,10 @@
 """Routing of the pod v0 board (B-909). One-shot tool, like ``ubicar.py``: after it runs, the board is the source.
 
 Runs inside the official KiCad image (it needs KiCad's ``pcbnew`` module). The board was routed in 4 layers on
-16/11/2026, is 6 layers since 23/11/2026 (``seis-capas``) and was routed whole on 26/11/2026, on a copy of the
-placed board, with ``limpiar``, ``criticas --forzar``, ``abanico``, ``resto --vueltas 64``, ``planos``, ``remate``,
-``podar``, ``rescate`` and ``podar`` (``hardware/README.md``, "Ruteo").
+16/11/2026, is 6 layers since 23/11/2026 (``seis-capas``) and was routed whole on 26/11/2026 (again, tidier, on
+27/11/2026), on a copy of the placed board, with ``limpiar``, ``criticas --forzar``, ``abanico``,
+``resto --vueltas 96``, ``planos``, ``remate``, ``podar``, ``rescate`` and ``podar`` (``hardware/README.md``,
+"Ruteo").
 
 ``seis-capas``
     The 4-layer board of 22/11/2026 to 6 layers: see ``seis_capas``.
