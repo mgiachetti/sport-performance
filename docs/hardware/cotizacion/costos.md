@@ -93,7 +93,7 @@ Placa de **6 capas** (desde el 23/11/2026; antes 4: ADR 0105, "Registro de decis
 
 ## 3. Armado (estimación)
 
-Datos de la placa (de `bom_pcbway.py`): **58 partes distintas**, **142 componentes**, unos **491 pads** soldados, todo SMT de un lado salvo el pin del patch (a mano, después del reflujo) y quizás el Hall, si se lo pone en la cara de abajo (segunda pasada). Encapsulados de riesgo: **DSBGA de 0,4 mm** (BQ25180; los load switches pasaron a SC-70-6), **LGA** (LSM6DSV32X, BMP581), TSNP-6 de 0,4 mm (BGA525N6), SAW de 1,4 × 1,1 mm, WSON con pad expuesto (TPS63900, NAND), módulos con pads abajo (BMD-340 de 68, LC29H) y el Ra-01SH almenado: rayos X en unos 8 por placa.
+Datos de la placa ruteada (de `bom_pcbway.py` y `fabricacion.py`, 27/11/2026): **57 partes distintas**, **141 componentes**, **490 pads** soldados, SMT de las dos caras (65 partes arriba y 76 abajo desde la ubicación del 15/11/2026, dos pasadas de reflujo) salvo el pin del patch (a mano, después del reflujo). Encapsulados de riesgo: **DSBGA de 0,4 mm** (BQ25180; los load switches pasaron a SC-70-6), **LGA** (LSM6DSV32X, BMP581), TSNP-6 de 0,4 mm (BGA525N6), SAW de 1,4 × 1,1 mm, WSON con pad expuesto (TPS63900, NAND), módulos con pads abajo (BMD-340 de 68, LC29H) y el Ra-01SH almenado: rayos X en unos 8 por placa.
 
 Con las tarifas publicadas de JLCPCB (Standard PCBA, la única que arma 0,4 mm; [tarifas](https://jlcpcb.com/help/article/pcb-assembly-price), leídas el 08/11/2026) como referencia:
 
