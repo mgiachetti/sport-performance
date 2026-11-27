@@ -53,7 +53,7 @@ El "Design 1" es el apilado de 1,6 mm que PCBWay publica en su [página de apila
 | Cantidad | 5 armadas de las 10 placas (las otras 5 desnudas, para rescates) |
 | Variantes | 3 con LC29H(AA) (`U201`, LC29HAAMD) y 2 con **LC29H(EA)** (LC29HEAMD, mismo lugar). La lista base es la de la AA. Sin UWB: el DWM3000 salió de la v0 el 15/11/2026 |
 | Caras | **Las dos caras** (desde la ubicación del 15/11/2026): 65 partes arriba (los módulos, la cadena RF, los sensores y la NAND) y 76 abajo (desacoples debajo de sus pines, `U104`, `U106`, `U202` a `U204`, `U406`, `U601`, `U602`, `J101`, `SW301`, `Q201`, `D601`, `D602`): dos pasadas de reflujo |
-| Juntas | 490 pads SMT por placa (302 arriba y 188 abajo), 57 partes distintas |
+| Juntas | 491 pads SMT con pasta por placa (508 pads SMD en total; 310 arriba y 198 abajo), 57 partes distintas |
 | Paso fino | **DSBGA de 0,4 mm** (`U101` BQ25180), **TSNP-6 de 0,4 mm** (`U205` BGA525N6), SAW de 1,4 × 1,1 mm (`FL201`, `FL202`), **LGA** (`U401` LSM6DSV32X, `U404` BMP581), WSON con pad expuesto (`U103` TPS63900, `U501` NAND), módulos con pads abajo (`U301` BMD-340 de 68 pads de 0,5 mm, `U201` LC29H, `U302` Ra-01SH almenado) |
 | Inspección | **Rayos X** de los DSBGA, el TSNP, los LGA y los módulos; AOI del resto |
 | Stencil | Con marco; **escalonado o de 0,1 mm** si lo recomiendan por el DSBGA al lado de los pads grandes de los módulos |
@@ -100,7 +100,7 @@ El "Design 1" es el apilado de 1,6 mm que PCBWay publica en su [página de apila
 >
 > **Assembly (partial turnkey)**
 > - 5 boards assembled out of 10 bare boards; also please quote 10 and 100 assembled.
-> - Double-sided SMT: 141 parts and 490 pads per board (65 parts on top, 76 on the bottom), 57 unique parts. BOM attached (MPN, LCSC and DigiKey numbers). All 5 boards are assembled from the same bom-pod-v0.csv. Optionally, LC29HEAMD instead of LC29HAAMD in the same position. The LoRa antenna is a KYOCERA AVX M620720 ceramic chip (DigiKey 478-M620720CT-ND, not at LCSC), placed at the board edge in normal reflow; we can ship it to you.
+> - Double-sided SMT: 141 parts and about 490 solder-paste pads per board (65 parts on top, 76 on the bottom), 57 unique parts. BOM attached (MPN, LCSC and DigiKey numbers). All 5 boards are assembled from the same bom-pod-v0.csv. Optionally, LC29HEAMD instead of LC29HAAMD in the same position. The LoRa antenna is a KYOCERA AVX M620720 ceramic chip (DigiKey 478-M620720CT-ND, not at LCSC), placed at the board edge in normal reflow; we can ship it to you.
 > - Fine pitch: 0.4 mm DSBGA (TI BQ25180YBGR), 0.4 mm TSNP-6 (Infineon BGA525N6), 1.4 × 1.1 mm SAW filters, LGA sensors (ST LSM6DSV32XTR, Bosch BMP581), WSON with exposed pad, modules with bottom pads (u-blox BMD-340 68 pads of 0.5 mm, Quectel LC29H, castellated Ai-Thinker Ra-01SH). We would like X-ray inspection of the BGA/LGA/module joints. Please advise on stencil thickness or a step stencil.
 > - After reflow: one through-hole ceramic patch antenna (Taoglas GVLB258.A, 25 × 25 mm, single pin) hand-soldered from the bottom. It must not go through reflow. We can ship it to you, or you can buy it at DigiKey (931-GVLB258.A-ND).
 > - No-clean flux; please do not wash the board (the barometer has a vent hole). Please bake moisture-sensitive parts (modules, LGA, DSBGA) per their MSL before reflow.
@@ -131,7 +131,7 @@ JLCPCB publica sus apilados y tarifas, así que sirve de referencia de precio. *
 >
 > Hello JLCPCB team,
 >
-> Before ordering a 6-layer 1.6 mm board (about 50 × 70 mm, one of your 6-layer impedance stack-ups, ENIG, impedance control for 50 Ω CPWG and a 90 Ω pair) with Standard PCBA (5 / 10 / 100 boards, 141 parts and 490 pads per board, on both sides), could you confirm:
+> Before ordering a 6-layer 1.6 mm board (about 50 × 70 mm, one of your 6-layer impedance stack-ups, ENIG, impedance control for 50 Ω CPWG and a 90 Ω pair) with Standard PCBA (5 / 10 / 100 boards, 141 parts and about 490 pads per board, on both sides), could you confirm:
 > 1. That resin-filled, capped via-in-pad (POFV) is included at no extra cost on a 6-layer board, for every via on the board (621, 0.5 mm / 0.2 mm and 0.6 mm / 0.3 mm).
 > 2. That Standard PCBA assembles 0.4 mm-pitch DSBGA (TI YBG and YFP packages) and a 0.4 mm TSNP-6, with X-ray.
 > 3. Hand soldering of one through-hole antenna pin after reflow, with the part supplied through Global Sourcing (DigiKey 931-GVLB258.A-ND).

@@ -19,7 +19,7 @@ of the outline (``aux_axis_origin``), so the Gerbers, the drill files and the pi
 
 Then it checks the package and fails if anything is off: a missing or empty layer, a job file without the 6
 copper layers, drill hits that do not match the board's holes, or a pick and place that does not match the
-assembly BOM (references, DNP left out, side of each part). The CI runs it and keeps the zip as an artifact.
+assembly BOM (references, no repeats, DNP left out, inside the board). The CI runs it and keeps the zip as an artifact.
 """
 
 from __future__ import annotations
@@ -95,7 +95,7 @@ def generate(out: Path) -> None:
     armado.mkdir()
     kicad("pcb", "export", "gerbers", "--check-zones", "--subtract-soldermask", "--use-drill-file-origin",
           "-l", ",".join(COPPER + OTHER), "-o", str(gerbers), PCB.name)
-    kicad("pcb", "export", "drill", "-u", "mm", "--excellon-separate-th", "--drill-origin", "plot",
+    kicad("pcb", "export", "drill", "-u", "mm", "--excellon-separate-th", "--excellon-oval-format", "alternate", "--drill-origin", "plot",
           "--generate-map", "--map-format", "gerberx2", "--generate-report",
           "--report-path", str(gerbers / "pod-v0-drill.rpt"), "-o", f"{gerbers}/", PCB.name)
     kicad("pcb", "export", "ipcd356", "-o", str(gerbers / "pod-v0.d356"), PCB.name)
@@ -129,7 +129,10 @@ def check(out: Path, facts: dict) -> list[str]:
 
     mounted, dnp = refs_of(BOM), refs_of(BOM_DNP)
     with (out / "armado" / "pod-v0-pick-and-place.csv").open(newline="") as f:
-        pnp = {row["Ref"]: row for row in csv.DictReader(f)}
+        rows = list(csv.DictReader(f))
+    pnp = {row["Ref"]: row for row in rows}
+    if len(pnp) != len(rows):
+        errors.append(f"repeated references in the pick and place: {sorted(r for r, n in Counter(r['Ref'] for r in rows).items() if n > 1)}")
     parts = {r for r in pnp if not FIDUCIALS.match(r)}
     if parts != mounted:
         errors.append(f"pick and place vs BOM: only in P&P {sorted(parts - mounted)}, "
@@ -182,7 +185,7 @@ def zip_dir(out: Path) -> Path:
     target.unlink(missing_ok=True)
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as z:
         for path in sorted(out.rglob("*")):
-            if path.is_file() and path.name != "stats.json":
+            if path.is_file():
                 z.write(path, path.relative_to(out))
     return target
 
@@ -193,6 +196,10 @@ def main() -> int:
     args = parser.parse_args()
     out = args.salida.resolve()
     if out.exists():
+        # Only a folder this script wrote before (or an empty one) is replaced, never another one by mistake.
+        if any(out.iterdir()) and not (out / "gerbers").is_dir():
+            print(f"fabricacion: {out} exists and is not a previous package; choose another --salida", file=sys.stderr)
+            return 1
         shutil.rmtree(out)
     facts = board_facts()
     generate(out)
@@ -201,6 +208,7 @@ def main() -> int:
         print("fabricacion: the package is not right:", *errors, sep="\n  ", file=sys.stderr)
         return 1
     notes(out, facts)
+    (out / "stats.json").unlink()
     target = zip_dir(out)
     print(f"fabricacion: {target} ({target.stat().st_size // 1024} KiB), {facts['vias']} vias, "
           f"{facts['holes']['PTH']} PTH and {facts['holes']['NPTH']} NPTH holes")

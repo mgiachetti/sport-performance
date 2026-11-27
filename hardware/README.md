@@ -261,7 +261,7 @@ Las reglas propias, el keep-out del BLE y el de vías de `LORA_ANTENA` se prueba
 - **Salidas de fabricación** (`tools/fabricacion.py`, desde el 27/11/2026; reemplaza a la configuración de KiBot, que nunca se probó): el paquete para PCBWay sale de la placa y el esquemático commiteados con `kicad-cli`, dentro de la imagen del CI:
 
   ```sh
-  docker run --rm -e HOME=/tmp -v "$PWD:/work" -w /work kicad/kicad:10.0.8@sha256:3f4a… python3 hardware/tools/fabricacion.py
+  docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD:/work" -w /work kicad/kicad:10.0.8@sha256:3f4a… python3 hardware/tools/fabricacion.py
   ```
 
   Escribe `pod-v0/salidas/pcbway/` y `pod-v0/salidas/pod-v0-pcbway.zip` (en `.gitignore`: **no se commitean**): Gerbers de las 6 capas, máscaras, serigrafías, pasta y contorno con el job file X2 (rellena las zonas antes); taladros Excellon en mm, PTH y NPTH aparte, con sus mapas y el reporte; la netlist IPC-D-356 para la prueba eléctrica; el pick and place en CSV (mm, las dos caras, sin los DNP; `FID301` a `FID303` son los fiduciales); las dos listas de `docs/hardware/cotizacion/`; el PDF del esquemático y `LEEME-PCBWAY.txt` con los números de la placa. Todo usa el **origen de taladros y ubicación** (`aux_axis_origin`) en la esquina de abajo a la izquierda del contorno, (100; 170) en KiCad. Después **verifica** el paquete y falla si falta una capa o está vacía, si el job file no tiene las 6 de cobre, si los agujeros de los taladros no coinciden con los de la placa, o si el pick and place no coincide con `bom-pod-v0.csv` (referencias, DNP afuera, cara de cada parte, todo dentro de los 50 × 70 mm). El CI lo corre en cada cambio y guarda el paquete como artefacto `pod-v0-pcbway` (30 días).
