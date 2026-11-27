@@ -296,7 +296,7 @@ Antes del ruteo (sección siguiente). Sobre una copia de la placa ubicada (las p
 
 ### Ruteo en 6 capas (23/11/2026)
 
-**Estado (26/11/2026): ruteada entera. DRC con 0 violaciones, 0 conexiones sin rutear y 0 diferencias con el esquemático**; el CI corre con `--fallar-sin-rutear`. Procedimiento en [`hardware/README.md`](../../hardware/README.md), "Ruteo": desde la placa ubicada, `ubicar.py` (redes del esquemático) → `limpiar` → `criticas --forzar` → `abanico` (vías de GND) → `resto --vueltas 64` → `planos` → `remate` → `podar` → `rescate` → `podar`.
+**Estado (26/11/2026): ruteada entera. DRC con 0 violaciones, 0 conexiones sin rutear y 0 diferencias con el esquemático**; el CI corre con `--fallar-sin-rutear`. Procedimiento en [`hardware/README.md`](../../hardware/README.md), "Ruteo": desde la placa ubicada, `ubicar.py` (redes del esquemático) → `limpiar` → `criticas --forzar` → `abanico` (vías de GND) → `resto --vueltas 96` → `planos` → `remate` → `podar` → `rescate` → `podar`.
 
 - **Capas**: L1 señales y RF; L2 GND en toda la placa; L3 y L4 señales con relleno de GND (VREG va por pistas de 0,25 mm: el plano de VREG de L4 quedaba en pedazos y la isla debajo de las cargas tampoco cerró; ADR 0105, "Registro de decisiones", 26/11/2026); L5 GND en toda la placa; L6 señales, la alimentación del patch, el par USB y VBUS. Apilado en [`hardware/README.md`](../../hardware/README.md), "Apilado".
 - **Cómo se cerró (24 al 26/11/2026)**: medido siempre con el DRC después de `planos` y `podar`. Las corridas de `resto` desde lo bloqueado pasaron de 31 conexiones sin rutear (24/11) a 8, 6, 4, 3 y 0. Cada vez se arregló lo que dejaba abierto la anterior:
@@ -314,7 +314,12 @@ Antes del ruteo (sección siguiente). Sobre una copia de la placa ubicada (las p
     - CFG2 y CFG3 del TPS63900;
     - GND de `R104` y SYS de `R103`.
   - **El sensado de la celda del MAX17048** baja al borde (y = 69,55) para dejarle lugar a la vía de GND de `J101`.
-- **Se ve "orgánico"**: el router acorta en línea recta a cualquier ángulo y no prefiere una dirección por capa, así que muchas pistas internas no son de 45°. Eléctricamente da igual a estas velocidades, y queda como mejora de prolijidad (ángulos de 45°, dirección preferida en L3 y L4, costo de quiebres y de vías) para una corrida posterior.
+- **Prolijidad (27/11/2026)**: la primera versión cerrada se veía "orgánica". El router acortaba en línea recta a cualquier ángulo, sin dirección preferida por capa, y el 65 % de sus segmentos quedaba fuera de 45°. Con los consejos de una revisión con Codex hay cuatro cambios, y la placa se volvió a rutear entera con el mismo procedimiento:
+  - atajos solo a 0°, 45° y 90°;
+  - L3 este-oeste y L4 norte-sur;
+  - costo por quiebre y vías más caras;
+  - otra búsqueda con más nodos cuando se agotan.
+  Resultado: **0 % de segmentos fuera de 45°**, 415 vías del router (eran 418) y 4,1 m de pistas (eran 3,7), con el DRC igual de limpio. Detalle en [`hardware/README.md`](../../hardware/README.md), "Ruteo".
 - **Lo crítico no cambió**: las dos cadenas de RF, el par USB, el abanico del BMD-340, el cristal, VBUS, BAT, SYS y el buck-boost son las pistas bloqueadas de `criticas` (abajo). Lo que en 4 capas iba por L4 está en L6, ahora sobre el plano de L5.
 
 ### Ruteo en 4 capas (15 y 16/11/2026)
@@ -332,7 +337,7 @@ Antes del ruteo (sección siguiente). Sobre una copia de la placa ubicada (las p
 | `rutear.py resto` desde cero (solo lo bloqueado, GND y VREG), con las franjas | 198 | 0 | No converge: 80 redes siguen compartiendo cobre después de 8 vueltas |
 | Quilter, corrida 3 (cobre interno preservado, keep-outs para Quilter) | 66 | 187 | Quilter dice 92 %, con 36 redes incompletas; respetó las 1.185 pistas nuestras. Con nuestras reglas (rellenado): 127 de separación (no lee las clases GNSS_SENSITIVE, POWER_DOCK ni RF_50), 31 vías colgadas, 13 puentes de máscara, 9 de ancho |
 | Híbrido: pistas de la corrida 3 sobre la placa del repositorio, sacando lo que viola las reglas, después `resto` y `podar` (4 capas) | 110 | 0 | Mejor que las 147 del repositorio, pero lejos de cerrar: VREG (15 pads sin vía al plano), SYS, I2C y el GNSS, alrededor del BMD-340 y del LC29H |
-| **6 capas** (23 al 26/11/2026): `limpiar` → `criticas` → `abanico` → `resto` (64 vueltas, L1, L3, L4 y L6) → `planos` → `remate` → `podar` → `rescate` → `podar` | 0 | 0 | Cerrada después de los arreglos de abajo ("Ruteo en 6 capas"); VREG por pistas y L4 de señales |
+| **6 capas** (23 al 27/11/2026): `limpiar` → `criticas` → `abanico` → `resto` (96 vueltas, L1, L3, L4 y L6) → `planos` → `remate` → `podar` → `rescate` → `podar` | 0 | 0 | Cerrada después de los arreglos de abajo ("Ruteo en 6 capas"); VREG por pistas y L4 de señales |
 
 Con las franjas de `L3_GND` (ADR 0105, 22/11/2026) el tercio de arriba de L3 queda libre, pero ninguno de los dos routers cierra la placa en 4 capas: el cuello está alrededor del BMD-340. Por eso, desde el 23/11/2026, la placa es de **6 capas** (ADR 0105, "Registro de decisiones"; abajo, "Ruteo en 6 capas"); lo que sigue en esta sección es el ruteo en 4 capas, donde L4 es la cara de abajo (hoy L6) y L3 llevaba GND y VREG.
 
