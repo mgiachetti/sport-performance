@@ -1,5 +1,5 @@
-# Hardware checks (B-909): ERC of the schematic and DRC of the board of the pod v0,
-# with the official KiCad image pinned by digest. Runs only when hardware/ changes.
+# Hardware checks (B-909): ERC of the schematic and DRC of the board of the pod v0, and its
+# fabrication package, with the official KiCad image pinned by digest. Runs only when hardware/ changes.
 name: hardware
 
 on:
@@ -125,6 +125,26 @@ jobs:
           python3 hardware/tools/sonda_drc.py verificar "$RUNNER_TEMP/sonda.rpt" || rc=1
           python3 hardware/tools/sonda_drc.py verificar-ok "$RUNNER_TEMP/sonda_ok.rpt" || rc=1
           exit "$rc"
+
+      # Fabrication package for PCBWay (tools/fabricacion.py): Gerbers, drill, pick and place,
+      # IPC-D-356, schematic PDF and BOM from the committed board, checked against the board and
+      # the assembly BOM. Kept as an artifact so every board on main has its package.
+      - name: Fabrication package
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+            -v "$GITHUB_WORKSPACE:/work" -v "$RUNNER_TEMP:/out" -w /work "$KICAD_IMAGE" \
+            sh -c 'set -eu
+              template="$(dirname "$(find /usr/share/kicad -path "*/template/fp-lib-table" | head -n 1)")"
+              mkdir -p /tmp/.config/kicad/10.0
+              cp "$template/fp-lib-table" "$template/sym-lib-table" /tmp/.config/kicad/10.0/
+              exec python3 hardware/tools/fabricacion.py --salida /out/pcbway/pod-v0-pcbway'
+
+      - name: Upload fabrication package
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pod-v0-pcbway
+          path: ${{ runner.temp }}/pcbway/pod-v0-pcbway
+          retention-days: 30
 
       - name: Show reports
         if: always()

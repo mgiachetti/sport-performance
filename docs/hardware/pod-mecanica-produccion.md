@@ -151,7 +151,7 @@ Antes de pedir, se manda **el diseño (no solo los Gerbers)** para una revisión
 - **DSBGA de 0,4 mm** (BQ25180; los load switches pasaron a TPS22919 en SC-70-6 el 09/11/2026): confirmar que lo arman; los rayos X no ven bien las bolillas que apoyan sin fundirse (head-in-pillow) en un DSBGA de 8 bolillas, así que se confía en la prueba funcional.
 - **LGA** (LSM6DSV32X, BMP581) y los pads debajo del módulo BMD-340 (68 pads de 0,5 × 0,5 mm): plantilla de pasta escalonada o fina.
 - **Panel**: rieles lejos de la antena del BMD-340 y de la zona libre del borde (4,4 mm); sin V-score ni puentes al lado de la antena.
-- **Una sola cara** con todo el SMT si se puede: el Hall en la cara de abajo obliga a una segunda pasada.
+- **Las dos caras**: se buscaba una sola, pero la ubicación del 15/11/2026 pone 76 de las 141 partes abajo (desacoples debajo de sus pines y varias partes chicas), así que el armado es de dos pasadas.
 - Reglas de vías en el pad, puentes de máscara y apilado confirmados por PCBWay (las del `.kicad_dru` son valores iniciales).
 - **Pads de la base**: desde el 14/11/2026 el oro duro va en los pines del inserto, no en la placa; los pads donde apoyan los resortes internos quedan en ENIG. La nota de oro duro selectivo ya salió del pedido a PCBWay: oro duro grueso debajo de la soldadura de un resorte fragiliza la junta.
 - **Patch GVLB258.A**: es de un pin por agujero metalizado (Ø1,0 mm) soldado abajo; PCBWay lo compra afuera de LCSC y lo suelda después del SMT.

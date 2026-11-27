@@ -6,7 +6,7 @@ Todo en US$, sin IVA ni impuestos argentinos.
 
 ## 1. Partes
 
-**Desde el 09/11/2026 la placa usa solo partes en stock** (BMD-340, Ra-01SH, LSM6DSV32X, GVLB258.A y TPS22919; ADR 0105, "Registro de decisiones"). [`costo-partes-pod-v0.csv`](costo-partes-pod-v0.csv) tiene cada fila de la lista (58 partes distintas, 142 componentes montados por placa desde el 15/11/2026) con la cantidad que se compra, el precio unitario y el total para 5, 10 y 100 placas. La genera `hardware/tools/bom_pcbway.py` desde la netlist y la planilla de partes, y el CI falla si queda desactualizada.
+**Desde el 09/11/2026 la placa usa solo partes en stock** (BMD-340, Ra-01SH, LSM6DSV32X, GVLB258.A y TPS22919; ADR 0105, "Registro de decisiones"). [`costo-partes-pod-v0.csv`](costo-partes-pod-v0.csv) tiene cada fila de la lista (57 partes distintas, 141 componentes montados por placa con la placa ruteada, 27/11/2026) con la cantidad que se compra, el precio unitario y el total para 5, 10 y 100 placas. La genera `hardware/tools/bom_pcbway.py` desde la netlist y la planilla de partes, y el CI falla si queda desactualizada.
 
 Reglas del cálculo:
 
@@ -93,19 +93,19 @@ Placa de **6 capas** (desde el 23/11/2026; antes 4: ADR 0105, "Registro de decis
 
 ## 3. Armado (estimación)
 
-Datos de la placa (de `bom_pcbway.py`): **58 partes distintas**, **142 componentes**, unos **491 pads** soldados, todo SMT de un lado salvo el pin del patch (a mano, después del reflujo) y quizás el Hall, si se lo pone en la cara de abajo (segunda pasada). Encapsulados de riesgo: **DSBGA de 0,4 mm** (BQ25180; los load switches pasaron a SC-70-6), **LGA** (LSM6DSV32X, BMP581), TSNP-6 de 0,4 mm (BGA525N6), SAW de 1,4 × 1,1 mm, WSON con pad expuesto (TPS63900, NAND), módulos con pads abajo (BMD-340 de 68, LC29H) y el Ra-01SH almenado: rayos X en unos 8 por placa.
+Datos de la placa ruteada (de `bom_pcbway.py` y `fabricacion.py`, 27/11/2026): **57 partes distintas**, **141 componentes**, **491 pads** con pasta (508 pads SMD en total), SMT de las dos caras (65 partes arriba y 76 abajo desde la ubicación del 15/11/2026, dos pasadas de reflujo) salvo el pin del patch (a mano, después del reflujo). Encapsulados de riesgo: **DSBGA de 0,4 mm** (BQ25180; los load switches pasaron a SC-70-6), **LGA** (LSM6DSV32X, BMP581), TSNP-6 de 0,4 mm (BGA525N6), SAW de 1,4 × 1,1 mm, WSON con pad expuesto (TPS63900, NAND), módulos con pads abajo (BMD-340 de 68, LC29H) y el Ra-01SH almenado: rayos X en unos 8 por placa.
 
 Con las tarifas publicadas de JLCPCB (Standard PCBA, la única que arma 0,4 mm; [tarifas](https://jlcpcb.com/help/article/pcb-assembly-price), leídas el 08/11/2026) como referencia:
 
 | Concepto | 5 placas | 100 placas |
 |---|---|---|
-| Setup de una cara + stencil | 25,56 + 8,21 | 25,56 + 8,21 |
+| Setup de las dos caras + dos stencils (desde el 27/11/2026: el armado es de dos caras) | 2 × (25,56 + 8,21) | 2 × (25,56 + 8,21) |
 | Carga de partes "extended" (unas 50 × 1,53) | 76,50 | 76,50 |
 | Colocación y prerreflujo (0,0016 + 0,016 por junta) | 42 | 847 |
 | Rayos X (9 por placa: 1,64 hasta 10 piezas, 0,49 de 51 a 200) | 22–74 | 441 |
 | Soldadura a mano del patch | 3,66 | 5,22 |
 | Fixture, manipulación y por placa | 34 | 104 |
-| **Total JLCPCB (cálculo)** | **unos 215–265** (43–53 por placa) | **unos 1.510** (15 por placa) |
+| **Total JLCPCB (cálculo)** | **unos 250–300** (50–60 por placa) | **unos 1.545** (15,5 por placa) |
 
 **PCBWay** no publica tarifa por junta: se toma el mismo orden, **150–350 para 5 placas** y **12–20 por placa a 100** (**estimación**, a reemplazar con su cotización). El stencil con marco, si no viene incluido: 15–30 (**no verificado**).
 

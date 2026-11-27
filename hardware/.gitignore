@@ -1,4 +1,4 @@
-# Salidas generadas por KiBot / kicad-cli: no se commitean.
+# Salidas generadas por kicad-cli (tools/fabricacion.py): no se commitean.
 salidas/
 # Archivos locales de KiCad.
 *.kicad_prl

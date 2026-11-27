@@ -2,16 +2,16 @@
 
 Todo lo que PCBWay necesita para cotizar la placa y el armado, las preguntas que hay que hacerle, el mail listo para mandar y una versión corta para JLCPCB, para comparar. Los costos estimados están en [`costos.md`](costos.md); las consultas a los demás proveedores, en [`consultas.md`](consultas.md).
 
-**Cuándo mandarlo:** el mail 1 (cotización y revisión de fabricación del apilado) se puede mandar ya, con este archivo y las listas. El pedido en firme sale **con la placa ubicada y ruteada**, después de la revisión previa al pedido de `pod-mecanica-produccion.md` (sección 11). La placa todavía no tiene los footprints: los Gerbers y el pick and place salen de KiBot (`hardware/pod-v0/kibot.yaml`) cuando la tenga.
+**Cuándo mandarlo:** el mail 1 (cotización y revisión de fabricación del apilado) se puede mandar ya, con este archivo y las listas. Desde el 27/11/2026 la placa está ubicada y ruteada entera (DRC 0/0) y el paquete de fabricación sale de `hardware/tools/fabricacion.py` (en el CI, artefacto `pod-v0-pcbway`): con él se pide la cotización en línea y la revisión de fabricación (DFM). El pedido en firme sale después de la revisión previa al pedido de `pod-mecanica-produccion.md` (sección 11).
 
 ## Qué se adjunta
 
 | Archivo | Qué es | Estado |
 |---|---|---|
-| [`bom-pod-v0.csv`](bom-pod-v0.csv) | Lista de armado en las columnas de PCBWay (línea, designadores, cantidad, fabricante, MPN, número de distribuidor, descripción, encapsulado, SMT o THT, instrucciones), con LCSC, DigiKey, la marca de lo que mandamos nosotros y la **alternativa aprobada** de cada fila que la tiene (`Approved Alternate`, de [`stock.md`](stock.md)). 55 filas, 139 componentes | Listo. Las columnas siguen la página de requisitos de armado de PCBWay; que coincidan con su planilla de ejemplo (`Sample_BOM_PCBWay.xlsx`) está **no verificado**: si la piden, se pasan las mismas columnas a esa planilla |
+| [`bom-pod-v0.csv`](bom-pod-v0.csv) | Lista de armado en las columnas de PCBWay (línea, designadores, cantidad, fabricante, MPN, número de distribuidor, descripción, encapsulado, SMT o THT, instrucciones), con LCSC, DigiKey, la marca de lo que mandamos nosotros y la **alternativa aprobada** de cada fila que la tiene (`Approved Alternate`, de [`stock.md`](stock.md)). 57 filas, 141 componentes | Listo. Las columnas siguen la página de requisitos de armado de PCBWay; que coincidan con su planilla de ejemplo (`Sample_BOM_PCBWay.xlsx`) está **no verificado**: si la piden, se pasan las mismas columnas a esa planilla |
 | [`bom-pod-v0-sin-montar.csv`](bom-pod-v0-sin-montar.csv) | Los 26 lugares sin montar (69 componentes): no se arman, pero el armador los ve en el pick and place | Listo |
 | [`bom-pod-v0-extras.csv`](bom-pod-v0-extras.csv) | Lo que se compra y no se suelda (Taoglas de rescate, kit de banco con la FPC de LoRa para el A/B) | Listo; no va a PCBWay |
-| Gerbers, taladros, pick and place, PDF del esquemático, dibujo de fabricación | KiBot desde `hardware/pod-v0/` | Con la placa ruteada |
+| `pod-v0-pcbway.zip`: Gerbers de las 6 capas (con el job file X2), taladros Excellon (PTH y NPTH aparte) con sus mapas, netlist IPC-D-356 para la prueba eléctrica, pick and place (CSV en mm, las dos caras, sin los DNP, origen en la esquina de abajo a la izquierda), las dos listas, el PDF del esquemático y `LEEME-PCBWAY.txt` | `python3 hardware/tools/fabricacion.py` en la imagen de KiCad (`hardware/README.md`, "Salidas de fabricación"); el CI lo genera en cada cambio y lo guarda como artefacto | Listo desde el 27/11/2026. Verifica el pick and place contra la lista y los taladros contra la placa |
 
 Las listas salen de la netlist con `python3 hardware/tools/bom_pcbway.py` (el CI falla si quedan viejas). [`bom-pod-v0-jlcpcb.csv`](bom-pod-v0-jlcpcb.csv) es la misma lista en el formato de JLCPCB.
 
@@ -25,7 +25,7 @@ Las listas salen de la netlist con `python3 hardware/tools/bom_pcbway.py` (el CI
 | Cobre | 1 oz terminado afuera; adentro, el del apilado de impedancia que propongan (el diseño supone 0,5 oz) |
 | Pista y separación mínimas | 0,1 / 0,1 mm (la mayoría a 0,15 mm o más) |
 | Vía mínima | 0,45 mm de diámetro con agujero de 0,2 mm; la habitual, 0,5/0,2 y 0,6/0,3 |
-| Vías en el pad | **Sí: todas las vías de la placa rellenas con resina y tapadas con cobre (POFV), obligatorio**. Hay vías sobre pads en varias partes, por ejemplo **los 4 agujeros metalizados del pad expuesto del TPS63900** (`U103`, WSON-10: los trae el footprint `..._ThermalVias`, en (19,65; 62), (20; 61,25), (20; 62,75) y (20,35; 62)) y **las vías de 0,5/0,2 mm en los pads del BMD-340** (`U301`, el escape del módulo desde el ruteo del 15/11/2026: todos los pads salvo las dos filas de arriba, que salen por L1, el cristal, VREG, VBUS y el par USB). **Hoy son 17**; con las redes del módulo que quedan para rutear a mano (sección 9 de `pod-v0-ubicacion-y-carcasa.md`) llegan a unas 40. Sin relleno y tapa la soldadura del módulo se va por la vía. Además hay vías de costura y de escape que tocan pads de otras partes (lista en la sección 9 de `pod-v0-ubicacion-y-carcasa.md`, "Retoques de la revisión"): por eso **toda la placa**, unas 290 vías hoy (0,5/0,2 y 0,6/0,3), más las del ruteo a mano |
+| Vías en el pad | **Sí: todas las vías de la placa rellenas con resina y tapadas con cobre (POFV), obligatorio**. Hay vías sobre pads en varias partes, por ejemplo **los 4 agujeros metalizados del pad expuesto del TPS63900** (`U103`, WSON-10: los trae el footprint `..._ThermalVias`, en (19,65; 62), (20; 61,25), (20; 62,75) y (20,35; 62)) y **las vías de 0,5/0,2 mm en los pads del BMD-340** (`U301`, el escape del módulo desde el ruteo del 15/11/2026: todos los pads salvo las dos filas de arriba, que salen por L1, el cristal, VREG, VBUS y el par USB). Sin relleno y tapa la soldadura del módulo se va por la vía. Además hay vías de costura y de escape que tocan pads de otras partes: por eso **toda la placa**, **621 vías** con la placa ruteada (505 de 0,5/0,2 y 116 de 0,6/0,3; 27/11/2026) |
 | Acabado | **ENIG** en toda la placa |
 | Oro duro | **No hace falta** (desde el 14/11/2026): los 5 pads de `J601` son pads ENIG donde se sueldan los resortes internos del inserto de contactos; el oro duro va en los pines del inserto, en la carcasa. Oro duro grueso debajo de una soldadura es un problema de confiabilidad (fragiliza la junta) |
 | Máscara y serigrafía | Verde y blanca; **puente de máscara entre los pads de 0,4 mm** (DSBGA, TSNP) si su mínimo lo permite, y si no, que lo digan (queda una ventana común) |
@@ -52,8 +52,8 @@ El "Design 1" es el apilado de 1,6 mm que PCBWay publica en su [página de apila
 | Tipo | **Turnkey parcial**: compran todo menos lo que dice "Customer Supplied = yes" |
 | Cantidad | 5 armadas de las 10 placas (las otras 5 desnudas, para rescates) |
 | Variantes | 3 con LC29H(AA) (`U201`, LC29HAAMD) y 2 con **LC29H(EA)** (LC29HEAMD, mismo lugar). La lista base es la de la AA. Sin UWB: el DWM3000 salió de la v0 el 15/11/2026 |
-| Caras | Todo SMT arriba. Si el Hall (`U406`) termina abajo, una segunda pasada |
-| Juntas | Unos 491 pads SMT por placa, 58 partes distintas |
+| Caras | **Las dos caras** (desde la ubicación del 15/11/2026): 65 partes arriba (los módulos, la cadena RF, los sensores y la NAND) y 76 abajo (desacoples debajo de sus pines, `U104`, `U106`, `U202` a `U204`, `U406`, `U601`, `U602`, `J101`, `SW301`, `Q201`, `D601`, `D602`): dos pasadas de reflujo |
+| Juntas | 491 pads SMT con pasta por placa (508 pads SMD en total; 310 arriba y 198 abajo), 57 partes distintas |
 | Paso fino | **DSBGA de 0,4 mm** (`U101` BQ25180), **TSNP-6 de 0,4 mm** (`U205` BGA525N6), SAW de 1,4 × 1,1 mm (`FL201`, `FL202`), **LGA** (`U401` LSM6DSV32X, `U404` BMP581), WSON con pad expuesto (`U103` TPS63900, `U501` NAND), módulos con pads abajo (`U301` BMD-340 de 68 pads de 0,5 mm, `U201` LC29H, `U302` Ra-01SH almenado) |
 | Inspección | **Rayos X** de los DSBGA, el TSNP, los LGA y los módulos; AOI del resto |
 | Stencil | Con marco; **escalonado o de 0,1 mm** si lo recomiendan por el DSBGA al lado de los pads grandes de los módulos |
@@ -82,13 +82,13 @@ El "Design 1" es el apilado de 1,6 mm que PCBWay publica en su [página de apila
 
 ## Mail para PCBWay (inglés)
 
-**Para:** service@pcbway.com · **Adjuntos:** `bom-pod-v0.csv`, `bom-pod-v0-sin-montar.csv`, este archivo en PDF (o el texto de abajo), y los Gerbers cuando estén.
+**Para:** service@pcbway.com · **Adjuntos:** `pod-v0-pcbway.zip` (Gerbers, taladros, pick and place y las dos listas) y este archivo en PDF (o el texto de abajo).
 
 > **Subject:** Quote request: 6-layer impedance-controlled PCB + turnkey assembly, 5 / 10 / 100 pcs (wearable GNSS/BLE/LoRa tracker)
 >
 > Hello PCBWay team,
 >
-> We would like a quote and an engineering (DFM) review for a small wearable tracker board. We are finishing placement and routing; we would like to fix the stack-up and the impedance geometry with you first, then send the Gerbers.
+> We would like a quote and an engineering (DFM) review for a small wearable tracker board. The board is placed and fully routed; the Gerbers, drill files, IPC-D-356 netlist and pick and place are attached. We would like to confirm the stack-up and the impedance geometry with you before production.
 >
 > **PCB**
 > - 6 layers (signal / GND / signal / power / GND / signal), FR4 Tg150+, 1.6 mm finished, about 50 × 70 mm, 1 oz outer copper. We assume 0.2 mm 7628 prepreg between L1–L2 and L5–L6, and 0.3 mm cores; please keep it symmetric.
@@ -100,7 +100,7 @@ El "Design 1" es el apilado de 1,6 mm que PCBWay publica en su [página de apila
 >
 > **Assembly (partial turnkey)**
 > - 5 boards assembled out of 10 bare boards; also please quote 10 and 100 assembled.
-> - Single-side SMT, about 142 parts and 491 pads per board, 58 unique parts. BOM attached (MPN, LCSC and DigiKey numbers). All 5 boards are assembled from the same bom-pod-v0.csv. Optionally, LC29HEAMD instead of LC29HAAMD in the same position. The LoRa antenna is a KYOCERA AVX M620720 ceramic chip (DigiKey 478-M620720CT-ND, not at LCSC), placed at the board edge in normal reflow; we can ship it to you.
+> - Double-sided SMT: 141 parts and about 490 solder-paste pads per board (65 parts on top, 76 on the bottom), 57 unique parts. BOM attached (MPN, LCSC and DigiKey numbers). All 5 boards are assembled from the same bom-pod-v0.csv. Optionally, LC29HEAMD instead of LC29HAAMD in the same position. The LoRa antenna is a KYOCERA AVX M620720 ceramic chip (DigiKey 478-M620720CT-ND, not at LCSC), placed at the board edge in normal reflow; we can ship it to you.
 > - Fine pitch: 0.4 mm DSBGA (TI BQ25180YBGR), 0.4 mm TSNP-6 (Infineon BGA525N6), 1.4 × 1.1 mm SAW filters, LGA sensors (ST LSM6DSV32XTR, Bosch BMP581), WSON with exposed pad, modules with bottom pads (u-blox BMD-340 68 pads of 0.5 mm, Quectel LC29H, castellated Ai-Thinker Ra-01SH). We would like X-ray inspection of the BGA/LGA/module joints. Please advise on stencil thickness or a step stencil.
 > - After reflow: one through-hole ceramic patch antenna (Taoglas GVLB258.A, 25 × 25 mm, single pin) hand-soldered from the bottom. It must not go through reflow. We can ship it to you, or you can buy it at DigiKey (931-GVLB258.A-ND).
 > - No-clean flux; please do not wash the board (the barometer has a vent hole). Please bake moisture-sensitive parts (modules, LGA, DSBGA) per their MSL before reflow.
@@ -121,9 +121,9 @@ JLCPCB publica sus apilados y tarifas, así que sirve de referencia de precio. *
 
 - **Apilado de impedancia propio:** el de 6 capas que elijamos en su calculador, con el prepreg de afuera lo más cerca posible de 0,2 mm (sin leer todavía). Como referencia, el de 4 capas JLC04161H-7628 (L1 de 35 µm, prepreg 7628 de 0,2104 mm con Dk 4,4, núcleo de 1,065 mm con Dk 4,6, cobre interno de 0,5 oz; máscara de Dk 3,8 y unos 15 µm sobre la pista, según su [calculador](https://jlcpcb.com/impedance), leído el 08/11/2026). Con él, 0,33/0,20 mm da 53,4 Ω y el par 90,3 Ω (`impedancia.py`, sin máscara): habría que angostar la ranura o ensanchar la pista con su calculador.
 - **Armado Standard** (el Economic no arma 0,4 mm): rayos X automático en BGA, QFN y LGA; cada parte "extended" paga la carga del alimentador (unas 50 de las 55).
-- **Vías en el pad** (POFV): se cobran en 4 capas y son gratis desde 6 (no verificado para este pedido), así que con la placa de 6 capas no se pagan aparte. En el pod es obligatorio en **todas las vías de la placa** (unas 290 hoy); por ejemplo, los 4 agujeros del pad expuesto del TPS63900 y las de los pads del BMD-340 (17 hoy, unas 40 con el ruteo terminado).
+- **Vías en el pad** (POFV): se cobran en 4 capas y son gratis desde 6 (no verificado para este pedido), así que con la placa de 6 capas no se pagan aparte. En el pod es obligatorio en **todas las vías de la placa** (621 con la placa ruteada); por ejemplo, los 4 agujeros del pad expuesto del TPS63900 y las de los pads del BMD-340.
 - **Partes de afuera de LCSC** (el patch, la Taoglas): por "global sourcing" (DigiKey) o consignadas en su depósito de Hong Kong (2 % de cargo, mínimo US$ 10).
-- **Archivos:** [`bom-pod-v0-jlcpcb.csv`](bom-pod-v0-jlcpcb.csv) (Comment, Designator, Footprint, LCSC Part #) y el CPL (Designator, Mid X, Mid Y, Layer, Rotation) de KiBot.
+- **Archivos:** [`bom-pod-v0-jlcpcb.csv`](bom-pod-v0-jlcpcb.csv) (Comment, Designator, Footprint, LCSC Part #) y el CPL (Designator, Mid X, Mid Y, Layer, Rotation): las columnas del pick and place de `fabricacion.py` renombradas (Ref, PosX, PosY, Side, Rot); las rotaciones de JLCPCB pueden diferir de las de KiCad, se revisan en su vista previa.
 
 **Mail corto para JLCPCB** (support@jlcpcb.com; en general alcanza con el pedido en línea, el mail es para lo que el calculador no tiene):
 
@@ -131,8 +131,8 @@ JLCPCB publica sus apilados y tarifas, así que sirve de referencia de precio. *
 >
 > Hello JLCPCB team,
 >
-> Before ordering a 6-layer 1.6 mm board (about 50 × 70 mm, one of your 6-layer impedance stack-ups, ENIG, impedance control for 50 Ω CPWG and a 90 Ω pair) with Standard PCBA (5 / 10 / 100 boards, about 140 parts and 480 pads per board), could you confirm:
-> 1. That resin-filled, capped via-in-pad (POFV) is included at no extra cost on a 6-layer board, for every via on the board (about 300, 0.5 mm / 0.2 mm and 0.6 mm / 0.3 mm).
+> Before ordering a 6-layer 1.6 mm board (about 50 × 70 mm, one of your 6-layer impedance stack-ups, ENIG, impedance control for 50 Ω CPWG and a 90 Ω pair) with Standard PCBA (5 / 10 / 100 boards, 141 parts and about 490 pads per board, on both sides), could you confirm:
+> 1. That resin-filled, capped via-in-pad (POFV) is included at no extra cost on a 6-layer board, for every via on the board (621, 0.5 mm / 0.2 mm and 0.6 mm / 0.3 mm).
 > 2. That Standard PCBA assembles 0.4 mm-pitch DSBGA (TI YBG and YFP packages) and a 0.4 mm TSNP-6, with X-ray.
 > 3. Hand soldering of one through-hole antenna pin after reflow, with the part supplied through Global Sourcing (DigiKey 931-GVLB258.A-ND).
 > 4. Whether you can reserve low-stock parts (C18337445 BGA525N6, C2764087 Ra-01SH) for a run of 100.
