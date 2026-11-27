@@ -47,7 +47,7 @@ VIA_PITCH = 0.5  # mm between via centres (hole to hole 0.3 mm)
 # north-south, the cross direction costs more) and a cost per bend, so the routes come out as straight runs
 # instead of staircases; the straightener then joins them with 45-degree doglegs only. Tunable by environment to
 # compare runs.
-# 40 cells per via, 1.25 and 2 cells per bend left 11 connections open; 28, 1.1 and 1 left 8 (27/11/2026).
+# Via 40 cells, cross direction x1.25 and 2 cells per bend left 11 connections open; 28, x1.1 and 1 left 8 (27/11/2026).
 VIA_COST = float(os.environ.get("LABERINTO_VIA_COST", "32"))  # cells (1.6 mm); it was 24
 CROSS_COST = float(os.environ.get("LABERINTO_CROSS", "1.15"))  # factor against the preferred direction of L3 and L4
 BEND_COST = float(os.environ.get("LABERINTO_BEND", "1"))  # cells per change of direction
@@ -127,6 +127,7 @@ class Grid:
                 self.bmd_box = box
         self.sw = []  # switch-node copper: GNSS_SENSITIVE keeps 5 mm away (custom rule)
         self.cells_cache = {}
+        self.limited = False  # set by route_pf when it stops on its node limit
 
     # ------------------------------------------------------------------ painting
     @staticmethod
@@ -865,8 +866,10 @@ def grow(board, grid: Grid, n, cls: str, layers_ok: list, width: float, pf: floa
             if sources and targets:
                 grid.limited = False
                 path = grid.route_pf(code, cls, sources, targets, layers_ok, width, pf, hard=hard)
-                if path is None and grid.limited:  # out of nodes, not of room: once more with ten times as many
-                    # (with the costs of bends and of the cross direction, NAND_CS ran out of them, 27/11/2026)
+                if path is None and grid.limited:
+                    # out of nodes, not of room: once more with ten times as many (more than the grid has: an
+                    # exhaustive search). With the costs of bends and of the cross direction, NAND_CS ran out of
+                    # nodes (27/11/2026).
                     path = grid.route_pf(code, cls, sources, targets, layers_ok, width, pf, hard=hard,
                                          expand=PF_EXPAND * 10)
             if path:

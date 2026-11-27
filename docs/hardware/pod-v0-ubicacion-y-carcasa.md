@@ -296,7 +296,7 @@ Antes del ruteo (sección siguiente). Sobre una copia de la placa ubicada (las p
 
 ### Ruteo en 6 capas (23/11/2026)
 
-**Estado (26/11/2026): ruteada entera. DRC con 0 violaciones, 0 conexiones sin rutear y 0 diferencias con el esquemático**; el CI corre con `--fallar-sin-rutear`. Procedimiento en [`hardware/README.md`](../../hardware/README.md), "Ruteo": desde la placa ubicada, `ubicar.py` (redes del esquemático) → `limpiar` → `criticas --forzar` → `abanico` (vías de GND) → `resto --vueltas 96` → `planos` → `remate` → `podar` → `rescate` → `podar`.
+**Estado (26/11/2026, ruteada otra vez más prolija el 27/11/2026): ruteada entera. DRC con 0 violaciones, 0 conexiones sin rutear y 0 diferencias con el esquemático**; el CI corre con `--fallar-sin-rutear`. Procedimiento en [`hardware/README.md`](../../hardware/README.md), "Ruteo": desde la placa ubicada, `ubicar.py` (redes del esquemático) → `limpiar` → `criticas --forzar` → `abanico` (vías de GND) → `resto --vueltas 96` → `planos` → `remate` → `podar` → `rescate` → `podar`.
 
 - **Capas**: L1 señales y RF; L2 GND en toda la placa; L3 y L4 señales con relleno de GND (VREG va por pistas de 0,25 mm: el plano de VREG de L4 quedaba en pedazos y la isla debajo de las cargas tampoco cerró; ADR 0105, "Registro de decisiones", 26/11/2026); L5 GND en toda la placa; L6 señales, la alimentación del patch, el par USB y VBUS. Apilado en [`hardware/README.md`](../../hardware/README.md), "Apilado".
 - **Cómo se cerró (24 al 26/11/2026)**: medido siempre con el DRC después de `planos` y `podar`. Las corridas de `resto` desde lo bloqueado pasaron de 31 conexiones sin rutear (24/11) a 8, 6, 4, 3 y 0. Cada vez se arregló lo que dejaba abierto la anterior:

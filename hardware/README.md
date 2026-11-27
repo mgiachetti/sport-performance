@@ -80,9 +80,9 @@ No corre sobre una placa que ya tiene pistas (`--forzar` en una copia).
    - **Medidas:** pistas de 0,15 mm (Default y GNSS_SENSITIVE), 0,25 mm (POWER, VREG incluido) y 0,3 mm solo en L1 y L6 (POWER_DOCK); vías de 0,5/0,2 mm. A GNSS_SENSITIVE le suma 0,03 mm a la separación por el error de la grilla.
    - **Prolijidad** (desde el 27/11/2026, con los consejos de una revisión con Codex):
      - los atajos de cada camino son solo a 0°, 45° y 90° (dos tramos, uno a 45° y uno recto), y no en línea recta a cualquier ángulo;
-     - L3 prefiere este-oeste y L4 norte-sur (el sentido cruzado cuesta 1,15 veces más);
+     - L3 prefiere este-oeste y L4 norte-sur (el sentido cruzado cuesta un 15 % más y las diagonales, la mitad de eso);
      - cada quiebre cuesta una celda y cada vía 32 (1,6 mm);
-     - si una búsqueda se queda sin nodos (no sin lugar), se repite una vez con diez veces más.
+     - si una búsqueda se queda sin nodos (no sin lugar), se repite una vez con diez veces más, que en la práctica es recorrer toda la grilla.
      Con eso los segmentos del router fuera de 45° pasaron del 65 % al 0 %, las vías del router de 418 a 415 y el largo de 3,7 a 4,1 m. Los costos se pueden cambiar para probar con `LABERINTO_VIA_COST`, `LABERINTO_CROSS` y `LABERINTO_BEND`: con 40, 1,25 y 2 quedaban 11 conexiones sin rutear, y con 28, 1,1 y 1, 8.
    - **Converge en unas 70 vueltas** con la placa del 27/11/2026; 96 es el tope (con 64 quedaba una conexión sin rutear).
 3. **`planos`**: relleno de GND en L1, L3, L4 y L6 sobre toda la placa (L2 y L5 son los planos `L2_GND` y `L5_GND`, de antes). Pone vías de costura de GND a los dos lados de cada pista de RF, a lo largo del borde y en una grilla de 2,5 mm. Después, mientras el DRC informe algo de GND sin conectar, pone una vía al lado de cada pad de GND que el relleno no alcanza y una en cada trozo de relleno que no tiene ninguna.
