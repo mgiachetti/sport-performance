@@ -82,7 +82,7 @@ def board_facts() -> dict:
     vias = [t for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T]
     for fp in board.GetFootprints():
         for pad in fp.Pads():
-            if pad.GetAttribute() != pcbnew.PAD_ATTRIB_SMD:
+            if pad.GetAttribute() not in (pcbnew.PAD_ATTRIB_SMD, pcbnew.PAD_ATTRIB_CONN):
                 continue
             layer = pcbnew.B_Cu if pad.IsOnLayer(pcbnew.B_Cu) else pcbnew.F_Cu
             shape = pad.GetEffectiveShape(layer)

@@ -875,7 +875,8 @@ class Free:
                 continue
             gnd = other.GetNetCode() == item.GetNetCode()  # same net (GND, or VREG for its vias)
             # never a via in or touching an SMD pad, of any net (no resin-filled via-in-pad: 27/11/2026)
-            if via and other.Type() == pcbnew.PCB_PAD_T and other.GetAttribute() == pcbnew.PAD_ATTRIB_SMD:
+            if via and other.Type() == pcbnew.PCB_PAD_T and \
+                    other.GetAttribute() in (pcbnew.PAD_ATTRIB_SMD, pcbnew.PAD_ATTRIB_CONN):
                 lay = pcbnew.B_Cu if other.IsOnLayer(pcbnew.B_Cu) else pcbnew.F_Cu
                 if other.GetEffectiveShape(lay).Collide(item.GetEffectiveHoleShape(), mm(VIA_PAD_GAP)):
                     return False

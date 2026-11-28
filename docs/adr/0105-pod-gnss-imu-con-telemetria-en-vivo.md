@@ -308,7 +308,7 @@ Decisión tomada al rutear (B-909), con el resultado medido con el DRC del CI:
 Pedido del usuario del 27/11/2026 ("arrancá el re-ruteo sin vías en pads como alternativa"), después de ver que el relleno de resina con tapa (POFV, "via in pad" en PCBWay) era lo que más pesaba en la placa: con la misma cotización en línea de PCBWay, 6 capas, ENIG e impedancia, la placa desnuda sale **US$ 596,69 con POFV y 234,25 sin él para 10, y 854,28 contra 317,89 para 100** ([`cotizacion/costos.md`](../hardware/cotizacion/costos.md), sección 2).
 
 1. **Ninguna vía en un pad SMD**: el agujero de cada vía queda a 0,15 mm o más del cobre de todo pad SMD, de cualquier red. Las vías siguen tapadas con máscara en las dos caras, sin relleno. Reemplaza al punto 5 de la entrada del 23/11/2026 en lo que dice de las vías en el pad.
-   - **Lo controlan las herramientas:** `rutear.py` no pone una vía así (`Free.fits`, `VIA_PAD_GAP`) y `fabricacion.py` corta el paquete si encuentra una (`vias_in_pads`).
+   - **Lo controlan las herramientas:** las vías que busca `rutear.py` (`Free.fits`, `VIA_PAD_GAP`) y las del router ya no caen así. Las que `criticas` pone en coordenadas fijas no pasan por ese control, y para todas `fabricacion.py` corta el paquete si encuentra una (`vias_in_pads`).
    - **Las vías térmicas del pad expuesto del TPS63900** (`U103`, cuatro PTH de 0,2 mm del footprint) no son vías de la placa: quedan abiertas, como en la referencia de TI, y se le pregunta a PCBWay si las quiere tapadas ([`pedido-pcbway.md`](../hardware/cotizacion/pedido-pcbway.md)).
 2. **El escape del BMD-340 cambia**: cada pad que no es de las dos filas de arriba sale con una pista corta de 0,12 mm por L1 a una vía al lado. Las cuatro columnas de adentro del lado este van a columnas fijas de vías (`EAST_BLOCK` de `rutear.py`), y los demás pads a la vía más cercana que entra, con reintentos y una reparación local si una vía le quita el lugar a otra. El resto de los cambios:
    - VBUS y USB_D_N con otras vías;
@@ -323,7 +323,7 @@ Pedido del usuario del 27/11/2026 ("arrancá el re-ruteo sin vías en pads como 
    - el pad de GND del eFuse (`U602`) y el de `R606` tienen su propia vía entre los dos, que antes tocaba el pad de `R606`.
 5. **Resultado, medido con el DRC del CI**: 0 conexiones sin rutear, 0 violaciones, 0 diferencias con el esquemático y 0 vías en pads. La placa tiene 611 vías (621 la anterior) y 4,98 m de pistas (4,68 m). Quedan 108 de 2.911 segmentos fuera de 45° (91 de 2.948 en la anterior), todos en L1 y L6, sobre todo pistas por script. Cómo se ruteó: [`hardware/README.md`](../../hardware/README.md), "Ruteo".
 6. **Qué se pierde y qué falta verificar:**
-   - **Las pistas de escape de 0,12 mm** entre cada pad y su vía son 35. Miden de 0,55 a 2,55 mm, con una mediana de 0,75 mm. Las más largas son GNSS_TX y GNSS_RX, de 2,4 mm hasta su columna de vías.
+   - **Las pistas de escape de 0,12 mm** entre cada pad y su vía son 35. Miden de 0,55 a 2,55 mm, con una mediana de 0,75 mm. La más larga es la de LED_R; GNSS_TX, GNSS_RX y otras tres miden 2,4 mm hasta su columna de vías.
    - **Alimentación:** VREG del pad 65 y VBUS del pad 66 salen con 0,2 mm. Solo VREG del pad 17 sale con una de 0,12 mm, de 0,55 mm de largo: con los 15 mA que toma el módulo como máximo, la caída es despreciable.
    - **El mínimo de pista de 0,12 mm y el puente de máscara entre vía y pad** quedan para confirmar con PCBWay.
    - **El pedido W237290AS5P2** se hizo con los archivos de antes, con POFV. Cambiarlo por esta placa lo decide el usuario.
