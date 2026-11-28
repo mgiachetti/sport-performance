@@ -161,8 +161,9 @@
 (rule "GNSS_SENSITIVE: otras señales lejos"
 	(condition "A.NetClass == 'GNSS_SENSITIVE' && B.Type != 'Pad' && B.NetClass != 'GNSS_SENSITIVE' && B.NetName != 'GND'")
 	(constraint clearance (min 0.3mm)))
-# Excepción: el escape del BMD-340. Sus pads de GNSS_TX, GNSS_RX y GNSS_PPS (22, 24 y 53) están en las filas de adentro, con
-# una vía en el pad (rellena y tapada) entre otras vías a 1,1 mm: con 0,3 mm no salen. Lo que toca el courtyard de U301
+# Excepción: el escape del BMD-340. Sus pads de GNSS_TX, GNSS_RX y GNSS_PPS (22, 24 y 53) están en las columnas de adentro:
+# GNSS_TX y GNSS_RX salen entre dos pads de la columna de x = 11,65 (0,24 mm a cada lado) a su vía, al lado de las de
+# esos pads (sin vías en los pads desde el 27/11/2026). Con 0,3 mm no salen. Lo que toca el courtyard de U301
 # usa los 0,15 mm de Default (ruteo del 15/11/2026); afuera del módulo siguen los 0,3 mm.
 (rule "GNSS_SENSITIVE: escape del BMD-340"
 	(condition "A.NetClass == 'GNSS_SENSITIVE' && A.intersectsCourtyard('U301')")

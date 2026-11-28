@@ -18,8 +18,10 @@ of the outline (``aux_axis_origin``), so the Gerbers, the drill files and the pi
 * ``pod-v0-pcbway.zip`` next to the folder, with all of it.
 
 Then it checks the package and fails if anything is off: a missing or empty layer, a job file without the 6
-copper layers, drill hits that do not match the board's holes, or a pick and place that does not match the
-assembly BOM (references, no repeats, DNP left out, inside the board). The CI runs it and keeps the zip as an artifact.
+copper layers, drill hits that do not match the board's holes, a pick and place that does not match the
+assembly BOM (references, no repeats, DNP left out, inside the board), or a via whose hole is in an SMD pad or
+less than ``VIA_PAD_GAP`` from it (the board is ordered without resin-filled vias, 27/11/2026). The CI runs it
+and keeps the zip as an artifact.
 """
 
 from __future__ import annotations
@@ -55,6 +57,9 @@ EXPECTED = ["F_Cu.gtl", "In1_Cu_GND.g1", "In2_Cu_SIG.g2", "In3_Cu_SIG.g3", "In4_
 FIDUCIALS = re.compile(r"^FID\d+$")
 # Outline corner the origin must sit on (KiCad coordinates, mm): lower-left of the 50 x 70 mm board.
 ORIGIN_MM = (100.0, 170.0)
+# Via hole to the copper of an SMD pad, any net (as VIA_PAD_GAP of rutear.py): with no via in a pad the board needs
+# no resin filling and capping (POFV), about US$ 360 for 10 boards and US$ 5.4 a board at 100 (27/11/2026).
+VIA_PAD_GAP = 0.15
 
 
 def kicad(*args: str) -> None:
@@ -73,14 +78,24 @@ def board_facts() -> dict:
     for track in board.GetTracks():
         if track.Type() == pcbnew.PCB_VIA_T:
             holes["PTH"] += 1
-    sides = {}
+    sides, in_pads = {}, []
+    vias = [t for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T]
+    for fp in board.GetFootprints():
+        for pad in fp.Pads():
+            if pad.GetAttribute() not in (pcbnew.PAD_ATTRIB_SMD, pcbnew.PAD_ATTRIB_CONN):
+                continue
+            layer = pcbnew.B_Cu if pad.IsOnLayer(pcbnew.B_Cu) else pcbnew.F_Cu
+            shape = pad.GetEffectiveShape(layer)
+            for via in vias:
+                if shape.Collide(via.GetEffectiveHoleShape(), pcbnew.FromMM(VIA_PAD_GAP)):
+                    in_pads.append(f"{fp.GetReference()}.{pad.GetNumber()}")
     for fp in board.GetFootprints():
         sides[fp.GetReference()] = "bottom" if fp.IsFlipped() else "top"
         for pad in fp.Pads():
             if pad.GetDrillSize().x > 0:
                 holes["NPTH" if pad.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH else "PTH"] += 1
     return {"origin": (pcbnew.ToMM(origin.x), pcbnew.ToMM(origin.y)), "holes": holes, "sides": sides,
-            "vias": sum(1 for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T)}
+            "vias": len(vias), "vias_in_pads": sorted(in_pads)}
 
 
 def excellon_hits(path: Path) -> int:
@@ -110,6 +125,8 @@ def generate(out: Path) -> None:
 def check(out: Path, facts: dict) -> list[str]:
     errors = []
     gerbers = out / "gerbers"
+    if facts["vias_in_pads"]:
+        errors.append(f"vias in (or within {VIA_PAD_GAP} mm of) SMD pads: {facts['vias_in_pads']}")
     if facts["origin"] != ORIGIN_MM:
         errors.append(f"drill/place origin at {facts['origin']}, not at the lower-left corner {ORIGIN_MM}")
     for name in EXPECTED:
@@ -164,8 +181,8 @@ Board
 - 6 layers, FR4, 1.6 mm finished (stack-up in the board: {board['board_thickness']:g} mm); {board['width']:g} x {board['height']:g} mm, outline in Edge_Cuts.
 - Layer order: F_Cu (L1), In1_Cu_GND (L2), In2_Cu_SIG (L3), In3_Cu_SIG (L4), In4_Cu_GND (L5), B_Cu (L6).
 - Min track / space: {board['min_track_width']:g} / {board['min_track_clearance']:g} mm.
-- {facts['vias']} through vias (0.5/0.2 and 0.6/0.3 mm): ALL resin filled and copper capped (POFV); several
-  are in pads (BMD-340 module, WSON exposed pad).
+- {facts['vias']} through vias (0.5/0.2 and 0.6/0.3 mm), tented on both sides. None is in a pad: no resin
+  filling and no via-in-pad process (POFV) needed.
 - ENIG. Controlled impedance: 50 ohm CPWG on L1 (ref. L2) and L6 (ref. L5), 90 ohm differential pair (USB).
 - Drill: Excellon in mm, PTH and NPTH in separate files. Electrical test netlist: pod-v0.d356.
 

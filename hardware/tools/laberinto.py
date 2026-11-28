@@ -919,6 +919,7 @@ def _route_all(board, log, iterations: int, only):
     routed, covers, failed = {}, {}, set()
     done = 0
     pf = 1.0
+    best = None  # (nets in conflict, copies of the copper per net, redo, failed, round) of the best round so far
     for rnd in range(iterations):
         for code in redo:
             n = nets[code]
@@ -970,7 +971,28 @@ def _route_all(board, log, iterations: int, only):
         log(f"vuelta {rnd + 1}: {len(redo)} redes comparten cobre, {len(failed)} sin ruta, factor {pf:.1f}")
         if not redo and not failed:
             break
+        score = len(set(redo) | failed)
+        if best is None or score < best[0]:
+            best = (score, {code: [it.Duplicate().Cast() for it in items] for code, items in routed.items()},
+                    list(redo), set(failed), rnd + 1)
         pf = min(pf * PF_GROWTH, PF_MAX)
+    # The negotiation does not settle at the cap of the factor: it went down to 3 nets in conflict and back up to 16
+    # (27/11/2026, without vias in the pads). If the last round is worse than the best one, the best one comes back.
+    if best is not None and (redo or failed) and len(set(redo) | failed) > best[0]:
+        for code in list(routed):
+            for item in routed.pop(code):
+                board.Delete(item)
+            grid.apply(covers.pop(code, []), -1)
+        for code, items in best[1].items():
+            routed[code], covers[code] = [], []
+            for item in items:
+                board.Add(item)
+                routed[code].append(item)
+                c = grid.cover(item)
+                covers[code] += c
+                grid.apply(c, +1)
+        redo, failed = best[2], best[3]
+        log(f"vuelve la vuelta {best[4]}: {best[0]} redes en conflicto")
     # Whatever still shares copper: only the items that run into another net's copper go (whole nets went until
     # 26/11/2026, and the pass over free space left SYS, I2C and VREG in pieces); the rest stays, and the pass joins
     # the pieces. Each connection found joins two pieces of its net, so a net left half way is still clean (the rest
