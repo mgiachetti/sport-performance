@@ -92,8 +92,8 @@ R210,10.9,27.0,90,B,no,
 R211,23.1,37.75,270,F,no,
 R212,23.5,41.4,0,F,no,
 R213,23.5,40.3,0,F,no,
-R214,26.6,42.6,270,B,no,
-R215,27.7,42.6,270,B,no,
+R214,26.78,42.6,270,B,no,"movida al rutear (27/11/2026): pull-down del control 2 del LNA 0,18 mm al este: la vía quedaba a 0,02 mm del pad 1"
+R215,27.82,42.6,270,B,no,"movida al rutear (27/11/2026): pull-up del control 2 del LNA 0,12 mm al este, junto con R214"
 R216,25.6,44.65,270,F,no,
 R217,26.4,40.4,270,F,no,puente del LNA con el pad en RF_B
 R218,23.9,46.1,270,F,no,
@@ -113,8 +113,8 @@ U204,8.0,23.1,0,B,no,traductor de PPS
 U205,25.3,43.0,0,F,no,
 AE301,38.6,68.65,180,F,sí,Antena chip LoRa
 BZ301,45.05,27.4,0,F,no,sin montar
-C301,17.5,55.5,270,F,no,"movida al rutear (15/11/2026): 4,7 uF del BMD-340 girado: VREG del lado del pad 65"
-C302,15.85,55.5,270,F,no,movida al rutear (15/11/2026): 100 nF del BMD-340 girado: VREG del lado del pad 65
+C301,17.9,55.5,270,F,no,"movida al rutear (15/11/2026; 27/11/2026 0,4 mm al este): 4,7 uF del BMD-340 girado: VREG del lado del pad 65"
+C302,16.6,55.5,270,F,no,"movida al rutear (15/11/2026; 27/11/2026 0,75 mm al este): 100 nF del BMD-340 girado: VREG del lado del pad 65"
 C303,17.1,52.0,90,F,no,"VBUS, pad 66"
 C304,9.4,61.65,90,F,no,
 C305,13.6,61.65,90,F,no,
@@ -191,7 +191,7 @@ U303,29.0,53.6,0,F,no,load switch del LoRa
 Y301,11.5,61.65,0,F,no,
 C401,29.3,38.6,0,F,no,
 C402,29.8,36.5,90,B,no,
-C403,29.2,43.5,0,B,no,
+C403,29.3,43.5,0,B,no,"movida al rutear (27/11/2026): 100 nF del ICM-42688-P 0,1 mm al este, para que entren R214 y R215 sin que se toquen"
 C405,41.6,19.6,90,F,no,fuera de la pared de la cámara del barómetro
 C406,44.5,19.6,90,B,no,
 C407,48.0,20.0,90,B,no,

@@ -38,7 +38,7 @@ Por defecto **solo agrega y ubica las partes que faltan** (por ejemplo, después
 
 ## Ruteo (`tools/rutear.py`)
 
-La placa está **ruteada entera** desde el 26/11/2026: 0 conexiones sin rutear, 0 violaciones y 0 diferencias con el esquemático. Se ruteó por script en 4 capas el 15 y 16/11/2026, en parte (quedaron 147 conexiones en 55 redes); después de tres corridas de Quilter y del router propio que no la cerraron, desde el 23/11/2026 es de **6 capas** (ADR 0105, "Registro de decisiones"), y la versión del repositorio sale de una corrida completa desde la placa ubicada (detalle en [`pod-v0-ubicacion-y-carcasa.md`](../docs/hardware/pod-v0-ubicacion-y-carcasa.md), sección 9, "Ruteo"). Como `ubicar.py`, es un procedimiento **de una sola vez**: desde ahí la fuente es la placa y los cambios siguen a mano en KiCad (las pistas de `criticas` quedan bloqueadas). **No hay que volver a correrlo sobre la placa del repositorio**: se corre en una copia (`--placa`) y la placa nueva reemplaza a la otra solo si el DRC del CI pasa entero. Cada paso corre en la imagen de KiCad del CI (unas 2 h en total, casi todo `resto`):
+La placa está **ruteada entera** desde el 26/11/2026: 0 conexiones sin rutear, 0 violaciones y 0 diferencias con el esquemático. Desde el 28/11/2026 **no tiene vías en los pads**, así que no necesita relleno de resina (ADR 0105, "Registro de decisiones"). Se ruteó por script en 4 capas el 15 y 16/11/2026, en parte (quedaron 147 conexiones en 55 redes); después de tres corridas de Quilter y del router propio que no la cerraron, desde el 23/11/2026 es de **6 capas** (ADR 0105, "Registro de decisiones"), y la versión del repositorio sale de una corrida completa desde la placa ubicada (detalle en [`pod-v0-ubicacion-y-carcasa.md`](../docs/hardware/pod-v0-ubicacion-y-carcasa.md), sección 9, "Ruteo"). Como `ubicar.py`, es un procedimiento **de una sola vez**: desde ahí la fuente es la placa y los cambios siguen a mano en KiCad (las pistas de `criticas` quedan bloqueadas). **No hay que volver a correrlo sobre la placa del repositorio**: se corre en una copia (`--placa`) y la placa nueva reemplaza a la otra solo si el DRC del CI pasa entero. Cada paso corre en la imagen de KiCad del CI. Lleva unas 14 h en total, casi todo `resto`: sin vías en los pads, cada vuelta tarda unos 6 min.
 
 ```sh
 K="docker run --rm -e HOME=/tmp -v $PWD:/work -w /work kicad/kicad:10.0.8@sha256:3f4a…"
@@ -47,27 +47,38 @@ $K python3 hardware/tools/ubicar.py $P             # redes de cada pad desde el 
 $K python3 hardware/tools/rutear.py limpiar $P     # saca pistas, vías y planos de L1, L3, L4 y L6
 $K python3 hardware/tools/rutear.py criticas $P --forzar  # pasivas de MOVES y redes críticas, bloqueadas
 $K python3 hardware/tools/rutear.py abanico $P     # una vía de GND al lado de cada pad de GND
-$K python3 hardware/tools/rutear.py resto $P --vueltas 96  # todo lo demás salvo GND (tools/laberinto.py)
+$K python3 hardware/tools/rutear.py resto $P --vueltas 128  # todo lo demás salvo GND (tools/laberinto.py)
+$K python3 hardware/tools/rutear.py reparar $P --margen 0.5  # las redes sin terminar y las de al lado, otra vez
 $K python3 hardware/tools/rutear.py planos $P      # relleno de GND en L1, L3, L4 y L6 y costura; rellena
 $K python3 hardware/tools/rutear.py remate $P      # lo que haya quedado suelto, por el lugar libre
 $K python3 hardware/tools/rutear.py podar $P       # saca lo que el DRC marca y el cobre colgado
 $K python3 hardware/tools/rutear.py rescate $P     # vía para los pads de GND encerrados, si queda alguno
 $K python3 hardware/tools/rutear.py podar $P
+# mientras quede algo sin rutear: retocar con otro radio, y planos, remate, podar, rescate y podar
+$K python3 hardware/tools/rutear.py retocar $P --radio 2.25
 ```
+
+**Cómo salió la placa del repositorio (28/11/2026).** Hizo falta más que la secuencia de arriba:
+- `resto` con 128 vueltas llegó a 3 redes en conflicto en la vuelta 118 y volvió a esa vuelta al final.
+- `reparar --margen 0.5` dejó una sola conexión sin rutear.
+- El escape de `BAT_NTC` y la vía de GND del eFuse de `pads_encerrados` se agregaron sobre esa placa con un script de una sola vez, que tiene las mismas pistas que `criticas`. Cada uno levantó y volvió a rutear las redes con las que chocaba.
+- Después hubo dos pasadas de `retocar`: con 2 mm de radio quedaron 2 conexiones, y con 2,25 mm, 0.
+
+Una corrida desde cero ya trae las dos cosas en `criticas`, pero no da la misma placa: el router depende del camino, y con la misma entrada cada vuelta sale igual, pero un cambio chico lleva a otra placa.
 
 `seis-capas` (23/11/2026) pasó la placa de 4 capas a 6: el apilado (ver "Apilado"), las rule areas de las antenas y el despeje del pin del patch en las seis capas y una zona `L5_GND` como la de L2. Ya corrió y no hace falta de nuevo.
 
 **`criticas`** (escrito para 4 capas el 15/11/2026: lo que iba por la cara de abajo, que era L4, es L6, ahora con el plano de L5 debajo) mueve las pasivas de `MOVES` (cada una con su motivo; la tabla de ubicación las anota) y rutea por script, bloqueado:
 
 - las dos cadenas de RF (CPWG de 0,33 mm en L1, la alimentación del patch por la cara de abajo con su vía de RF), con su cerco de vías de GND;
-- el control y la alimentación del LNA;
+- el control y la alimentación del LNA (`R214`, `R215` y `C403` corridos al este, para que la vía del control 2 no quede en el pad de `R214`);
 - el par USB (cara de abajo, vías en x ≥ 14,5);
-- el abanico del BMD-340 (las dos filas de arriba por L1 a dos filas de vías arriba del módulo; el resto con una vía en el pad, rellena y tapada);
+- el abanico del BMD-340 (las dos filas de arriba por L1 a dos filas de vías arriba del módulo; el resto con una pista corta a una vía al lado del pad, nunca en el pad: las cuatro columnas de adentro a columnas fijas de vías, `EAST_BLOCK` de `rutear.py`, y los demás pads a la vía más cercana que entra, con reintentos si una vía le quita el lugar a otra);
 - el cristal;
 - VBUS del resorte al TVS, el eFuse, el BMD-340 y el cargador;
 - BAT y SYS alrededor del cargador, con el sensado de la celda del MAX17048 en su propia pista desde el pad de `J101`;
 - el buck-boost (nodo de conmutación y lazos de entrada y salida) y DETECT;
-- `pads_encerrados`: lo que el router dejaba sin salida corrida tras corrida (26/11/2026). Son los pads de GND de la IMU (`U402`), del barómetro (`U404`), del load switch de la NAND (`U502`) y de `J101`; CFG2 y CFG3 del TPS63900 a sus pull-downs, con sus vías en la fila que dejó `R105`; y GND de `R104` y SYS de `R103` en la columna de esas resistencias.
+- `pads_encerrados`: lo que el router dejaba sin salida corrida tras corrida (26/11/2026). Son los pads de GND de la IMU (`U402`), del barómetro (`U404`), del load switch de la NAND (`U502`) y de `J101`; CFG2 y CFG3 del TPS63900 a sus pull-downs, con sus vías en la fila que dejó `R105`; y GND de `R104` y SYS de `R103` en la columna de esas resistencias. Desde el 28/11/2026 también `BAT_NTC`, derecho al sur de la bola D1 del cargador, para que el relleno de GND de D2 y `C103` tenga salida, y una vía de GND propia para el eFuse (`U602.8`) y `R606`.
 
 No corre sobre una placa que ya tiene pistas (`--forzar` en una copia).
 
@@ -83,14 +94,19 @@ No corre sobre una placa que ya tiene pistas (`--forzar` en una copia).
      - L3 prefiere este-oeste y L4 norte-sur (el sentido cruzado cuesta un 15 % más y las diagonales, la mitad de eso);
      - cada quiebre cuesta una celda y cada vía 32 (1,6 mm);
      - si una búsqueda se queda sin nodos (no sin lugar), se repite una vez con diez veces más, que en la práctica es recorrer toda la grilla.
+   - **Vuelve a la mejor vuelta** (desde el 28/11/2026): con el factor ya en su tope, la negociación no se asienta. Sin vías en los pads bajó a 3 redes en conflicto y volvió a subir a 16. Si la última vuelta es peor que la mejor, se queda con la mejor.
      Con eso los segmentos del router fuera de 45° pasaron del 65 % al 0 %, las vías del router de 418 a 415 y el largo de 3,7 a 4,1 m. Los costos se pueden cambiar para probar con `LABERINTO_VIA_COST`, `LABERINTO_CROSS` y `LABERINTO_BEND`: con 40, 1,25 y 2 quedaban 11 conexiones sin rutear, y con 28, 1,1 y 1, 8.
-   - **Converge en unas 70 vueltas** con la placa del 27/11/2026; 96 es el tope (con 64 quedaba una conexión sin rutear).
+   - **Converge en unas 70 vueltas** con la placa del 27/11/2026; 96 era el tope (con 64 quedaba una conexión sin rutear). Sin vías en los pads no converge: la mejor vuelta de 128 fue la 118, con 3 redes en conflicto, y lo cierran `reparar` y `retocar`.
 3. **`planos`**: relleno de GND en L1, L3, L4 y L6 sobre toda la placa (L2 y L5 son los planos `L2_GND` y `L5_GND`, de antes). Pone vías de costura de GND a los dos lados de cada pista de RF, a lo largo del borde y en una grilla de 2,5 mm. Después, mientras el DRC informe algo de GND sin conectar, pone una vía al lado de cada pad de GND que el relleno no alcanza y una en cada trozo de relleno que no tiene ninguna.
 4. **`remate`** vuelve a rutear, por el lugar que quedó, lo que haya quedado sin unir.
 5. **`podar`** deja la placa limpia para el DRC. Saca las pistas y vías del router (no bloqueadas) que el DRC marca, porque la grilla del router no modela todo, y el cobre que queda colgado. Una vía de escape que quedó conectada en una sola capa la reemplaza por un tramo en esa capa, en lugar de cortar el pad. Después cose con una vía de GND cada trozo de relleno suelto y vuelve a rellenar.
-6. **`rescate`**: si a un pad de GND lo encerraron las pistas, le pone su vía como si solo estuviera lo bloqueado, vuelve a rutear las redes con las que choca y rellena. En la corrida del repositorio no encontró nada que hacer.
+6. **`rescate`**: si a un pad de GND lo encerraron las pistas, le pone su vía como si solo estuviera lo bloqueado, vuelve a rutear las redes con las que choca y rellena. Busca el lugar con 0,2 mm de separación a las otras redes, no 0,25 (`RESCATE_CLEAR`): sin vías en los pads, con 0,25 no encontraba lugar.
+7. **`reparar`** (después de `resto`) levanta las redes sin terminar y todas las que tienen cobre a menos de `--margen` mm de la recta de cada conexión que falta, y las rutea otra vez juntas. Con 0,5 mm se levantaron 8 redes y quedó una conexión. Con 1 o 2 mm, una conexión de 30 mm se lleva unas 40 redes y quedan más sin terminar.
+8. **`retocar`** (después de `podar`) es igual, pero levanta solo lo que tiene cobre a menos de `--radio` mm de los dos extremos de cada conexión que falta. Después van `planos`, `remate`, `podar`, `rescate` y `podar`. El resultado cambia mucho con el radio: con 2,25 mm cerró, y con 1,25 y 1,75 quedaban 2 y 5.
 
-Pasos que se probaron y quedan en la herramienta para reproducir las pruebas, sin usarse en la placa: `isla` (isla de VREG en L4), `reparar` y `rieles` (levantar y volver a rutear zonas), `especiales` y `bloquear` (para Quilter), `dsn` y `ses` (Freerouting).
+**La placa del repositorio** (28/11/2026): 611 vías, 4,98 m de pistas y 108 de 2.911 segmentos fuera de 45°, todos en L1 y L6. La de antes tenía 621 vías, 4,68 m y 91 de 2.948.
+
+Pasos que se probaron y quedan en la herramienta para reproducir las pruebas, sin usarse en la placa: `isla` (isla de VREG en L4), `rieles` (las alimentaciones solas antes que las señales), `especiales` y `bloquear` (para Quilter), `dsn` y `ses` (Freerouting).
 
 **Freerouting se probó y no alcanzó.** Freerouting 2.5.0 (probado en 4 capas; el `.jar` oficial de [GitHub](https://github.com/freerouting/freerouting/releases/tag/v2.5.0), SHA-256 `f6f51bb0…5de3c7`, con Java 25, sin commitear) por `rutear.py dsn` (exporta con `pcbnew.ExportSpecctraDSN` y reescribe las rule areas, que KiCad exporta como keep-outs completos) y `rutear.py ses` (importa con `pcbnew.ImportSpecctraSES`) quedó en 150 a 190 conexiones sin rutear después de 40 pasadas: no entiende los 0,5 mm de RF_50 alrededor del LNA, las zonas con reglas por capa ni el campo de vías del BMD-340. Los dos pasos quedan en la herramienta para reproducir la prueba:
 
@@ -142,7 +158,7 @@ Para pedir a PCBWay (y comparar con JLCPCB) y a los demás proveedores, en [`doc
 | Archivo | Qué hay |
 |---|---|
 | [`costos.md`](../docs/hardware/cotizacion/costos.md) | Costo por parte a 5, 10 y 100 placas, placa, armado, envío, NRE y costo por pod |
-| [`pedido-pcbway.md`](../docs/hardware/cotizacion/pedido-pcbway.md) | Lo que necesita PCBWay (placa, apilado e impedancia, oro duro, vías en el pad, armado), las preguntas y el mail; la versión corta para JLCPCB |
+| [`pedido-pcbway.md`](../docs/hardware/cotizacion/pedido-pcbway.md) | Lo que necesita PCBWay (placa, apilado e impedancia, oro duro, vías sin relleno, armado), las preguntas y el mail; la versión corta para JLCPCB |
 | [`consultas.md`](../docs/hardware/cotizacion/consultas.md) | Mails para Raytac (ya no hace falta: el MCU es el BMD-340), el proveedor de baterías, ENACOM, el despachante, Quectel y Taoglas |
 | `bom-pod-v0.csv`, `bom-pod-v0-sin-montar.csv`, `bom-pod-v0-jlcpcb.csv`, `bom-pod-v0-extras.csv`, `costo-partes-pod-v0.csv` | Listas de materiales (formato de PCBWay y de JLCPCB, montadas y sin montar, lo que no se suelda) y costo por parte, **generadas** |
 

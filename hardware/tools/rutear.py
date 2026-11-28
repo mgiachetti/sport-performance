@@ -2,9 +2,9 @@
 
 Runs inside the official KiCad image (it needs KiCad's ``pcbnew`` module). The board was routed in 4 layers on
 16/11/2026, is 6 layers since 23/11/2026 (``seis-capas``) and was routed whole on 26/11/2026 (again, tidier, on
-27/11/2026), on a copy of the placed board, with ``limpiar``, ``criticas --forzar``, ``abanico``,
-``resto --vueltas 96``, ``planos``, ``remate``, ``podar``, ``rescate`` and ``podar`` (``hardware/README.md``,
-"Ruteo").
+27/11/2026, and without vias in the pads on 28/11/2026), on a copy of the placed board, with ``limpiar``,
+``criticas --forzar``, ``abanico``, ``resto --vueltas 128``, ``reparar --margen 0.5``, ``planos``, ``remate``,
+``podar``, ``rescate`` and ``podar``, then ``retocar`` rounds on what was left (``hardware/README.md``, "Ruteo").
 
 ``seis-capas``
     The 4-layer board of 22/11/2026 to 6 layers: see ``seis_capas``.
@@ -17,7 +17,7 @@ Runs inside the official KiCad image (it needs KiCad's ``pcbnew`` module). The b
     that must not be left to an autorouter: both RF chains (CPWG of ``RF_50`` on L1, the patch feed on the bottom
     layer with its RF via) with their GND via fences, the USB pair (bottom layer, vias at x >= 14.5), the escape
     of the BMD-340 (every used pad to a via: the two top rows by L1 to two rows of vias above the module, the rest
-    with a via in the pad), the crystal, VBUS from the spring through the TVS and the eFuse to the BMD-340 and the
+    with a short track to a via next to the pad, never in it), the crystal, VBUS from the spring through the TVS and the eFuse to the BMD-340 and the
     charger, BAT and SYS around the charger (with the cell sense of the MAX17048 on its own trace from the pad of
     ``J101``), the buck-boost (switch node, input and output loops), DETECT and the pads that the router left
     walled in run after run (``pads_encerrados``). Written for 4 layers: its bottom layer (then L4) is L6. Refuses
@@ -45,9 +45,18 @@ Runs inside the official KiCad image (it needs KiCad's ``pcbnew`` module). The b
 ``rescate``
     A via for a GND pad that the tracks walled in, rerouting the signals it runs into.
 
+``reparar [--margen mm]``
+    After ``resto``: rips up the unfinished nets and every signal net with copper within ``--margen`` mm (1 by
+    default) of the straight line of each missing connection, and routes them again together.
+
+``retocar [--radio mm]``
+    After ``podar``: like ``reparar``, but rips up only the signal nets with copper within ``--radio`` mm (1.5 by
+    default) of the two ends of each missing connection, so a long one does not take half the board with it.
+    Followed by ``planos``, ``remate``, ``podar``, ``rescate`` and ``podar``; the radius changes what comes out.
+
 ``dsn <out.dsn>`` and ``ses <in.ses>``
-    Freerouting (tried, not used): see ``dsn_for_freerouting``. ``isla``, ``reparar``, ``rieles``, ``especiales``
-    and ``bloquear`` are other steps that were tried and not used on the board (``hardware/README.md``).
+    Freerouting (tried, not used): see ``dsn_for_freerouting``. ``isla``, ``rieles``, ``especiales`` and
+    ``bloquear`` are other steps that were tried and not used on the board (``hardware/README.md``).
 
     docker run --rm -e HOME=/tmp -v "$PWD:/work" -w /work kicad/kicad:10.0.8@sha256:… \\
         python3 hardware/tools/rutear.py criticas [--placa otra.kicad_pcb] [--forzar]
@@ -105,14 +114,22 @@ MOVES = {
     # two of the three nets were left open run after run (26/11/2026). R105 (CFG1) goes west, standing, next to the
     # via that CFG1 takes anyway; its row is left for the vias of CFG2 and CFG3 (``pads_encerrados``).
     "R105": (16.3, 60.8, 90, BB_CFG),
-    # BMD-340: VREG (pad 65) reaches its 100 nF and 4.7 uF on L1 with their VREG pad on the side of the pad.
-    "C302": (15.85, 55.5, 270, "100 nF del BMD-340 girado: VREG del lado del pad 65"),
-    "C301": (17.5, 55.5, 270, "4,7 uF del BMD-340 girado: VREG del lado del pad 65"),
+    # BMD-340: VREG (pad 65) reaches its 100 nF and 4.7 uF on L1 with their VREG pad on the side of the pad. Both
+    # 0.75 and 0.4 mm further east since 27/11/2026: x 15.1 and 15.85 take the two columns of vias of its east pads
+    # (no via in its pads).
+    "C302": (16.6, 55.5, 270, "100 nF del BMD-340 girado, al este de las dos columnas de vías de sus pads"),
+    "C301": (17.9, 55.5, 270, "4,7 uF del BMD-340 girado, al este de las dos columnas de vías de sus pads"),
     # LNA (U205, BGA525N6 at 0.4 mm): its control (CTRL1, pad 6) and supply (VCC, pad 2) pins sit between the RF
     # pads, so they leave west, between two capacitors that had to make room: C219 (VCC) turns and goes down 0.3 mm
     # with its VCC pad facing the LNA, and C220 (not mounted) moves out to the west.
     "C219": (23.5, 43.9, 180, "100 nF del LNA girado y bajado: VCC frente al pad 2 y lugar para el GND del pad 1"),
     "C220": (22.0, 44.0, 90, "capacitor sin montar del LNA corrido al oeste: dejaba sin salida al control (pad 6)"),
+    # The via of CTRL2 (pad 4) sits between the LNA's RF pads and its pull-down's pads, on L6: R214 moves east so
+    # the via's hole is 0.15 mm or more from its pad 1 (no via in a pad, no resin fill), and R215 (pull-up) and C403
+    # (the IMU's capacitor, to the east) with it.
+    "R214": (26.78, 42.6, 270, "pull-down del control 2 del LNA 0,18 mm al este: la vía quedaba a 0,02 mm del pad 1"),
+    "R215": (27.82, 42.6, 270, "pull-up del control 2 del LNA 0,12 mm al este, junto con R214"),
+    "C403": (29.3, 43.5, 0, "100 nF del ICM-42688-P 0,1 mm al este, para que entren R214 y R215 sin que se toquen"),
     # MAX17048: its BAT pins (2 and 3) are the middle two of the bottom row and C309 (the input capacitor of the
     # LoRa load switch) sat 0.29 mm below them, so they had no way out. C309 goes to the left of the load switch,
     # right above its VREG_LORA pin (pin 1).
@@ -336,12 +353,12 @@ def usb(r: Router) -> dict:
     # longer) and D- reaches its pad at an angle.
     p = r.track("USB_D_P", "B", USB, ["R608.2", (18.8, 16.5), (16.034, 16.5), (15.6, 16.934), (15.6, 51.0),
                                       (15.35, 51.25)])
-    n = r.track("USB_D_N", "B", USB, ["R609.2", (19.71, 16.9), (16.2, 16.9), (16.0, 17.1), (16.0, 52.15),
+    n = r.track("USB_D_N", "B", USB, ["R609.2", (19.71, 16.9), (16.2, 16.9), (16.0, 17.1), (16.0, 52.05),
                                       (15.3, 52.85)])
     r.via("USB_D_P", (15.35, 51.25))
-    r.via("USB_D_N", (15.3, 52.85))
+    r.via("USB_D_N", (15.3, 52.75))
     p += r.track("USB_D_P", "F", USB, [(15.35, 51.25), "U301.68"])
-    n += r.track("USB_D_N", "F", USB, [(15.3, 52.85), "U301.67"])
+    n += r.track("USB_D_N", "F", USB, [(15.3, 52.75), "U301.67"])
     return {"USB_D_P": p, "USB_D_N": n}
 
 
@@ -361,11 +378,14 @@ def vbus(r: Router) -> None:
     # and the edge, out of GNSS_ANTENA) and west on L4 at y 58.5, between the Ra-01SH and the LoRa clearance.
     r.track("VBUS", "B", 0.25, [(38.25, 8.7), (38.25, 8.0), "R607.2"])
     r.track("VBUS", "B", PWR, ["R607.2", (38.51, 7.2), (39.2, 6.6), (41.2, 6.6), (41.2, 12.0), (41.75, 12.55),
-                               (41.75, 58.5), (15.3, 58.5), (15.3, 53.7)])
-    # Up at pad 66 of the BMD-340 and its 4.7 uF (C303).
-    r.via("VBUS", (15.3, 53.7), VIA_PWR)
-    r.track("VBUS", "F", PWR, [(15.3, 53.7), "U301.66"])
-    r.track("VBUS", "F", PWR, [(15.3, 53.7), (16.5, 53.7), (17.1, 53.1)])
+                               (41.75, 58.5), (15.3, 58.5)])
+    # Up at pad 66 of the BMD-340 and its 4.7 uF (C303), east of the two columns of vias of the east pads of the
+    # BMD-340 (x 15.1 and 15.85: no via in its pads since 27/11/2026).
+    r.track("VBUS", "B", PWR, [(16.9, 58.5), (16.9, 53.9), (16.4, 53.4)])
+    r.via("VBUS", (16.4, 53.4), VIA_PWR)
+    # the pin only senses VBUS: 0.2 mm leaves room for the USB via and for the via of pad 25 (GNSS_WAKEUP) below
+    r.track("VBUS", "F", 0.2, [(14.35, 53.4), (16.4, 53.4)])  # 0.05 mm north of the pad's centre
+    r.track("VBUS", "F", PWR, [(16.4, 53.4), (17.05, 52.75)])
     # And on to the charger: L4 down to a via west of the BQ25180, L1 to its capacitor (C101) and ball A2.
     r.track("VBUS", "B", PWR, [(15.3, 58.5), (15.3, 61.5), (13.75, 63.05), (13.75, 63.25)])
     r.via("VBUS", (13.75, 63.25), VIA_PWR)
@@ -458,12 +478,23 @@ def pads_encerrados(r: Router) -> None:
     # Battery connector (J101): its GND pin between BAT and the cell sense of the MAX17048, a via just south of it.
     r.track("GND", "B", 0.3, ["J101.2", (12.6, 68.95)])
     r.via("GND", (12.6, 68.95))
+    # Charger (U101): D2 (GND) and C103's GND pad sit inside the BAT loop of L1, and their piece of the fill gets out
+    # only to the south, between D1 (BAT_NTC) and C103's BAT pad. Routed by the maze, BAT_NTC crossed that gap on
+    # the diagonal and left them on an island (28/11/2026): straight down out of D1 to a via, west of the gap.
+    r.track("/power/BAT_NTC", "F", 0.15, ["U101.D1", (15.6, 66.95), (15.3, 67.25)])
+    r.via("/power/BAT_NTC", (15.3, 67.25))
+    # eFuse (U602): its GND pad 8 and R606's GND pad, between EF_DVDT (pad 7 to C601) and EF_ILM, had their via
+    # touching R606's pad; with the 0.15 mm from the pads, ``rescate`` put it on EF_DVDT's way (28/11/2026). A via
+    # of their own between the two parts, between the ways of EF_DVDT (north-east) and EF_ILM (south).
+    r.track("GND", "B", 0.2, ["U602.8", (39.55, 9.72), "R606.2"])
+    r.via("GND", (39.55, 9.72))
 
 
 # ---------------------------------------------------------------------------------------------------- BMD-340
 def bmd340(r: Router) -> None:
     fp = r.fps["U301"]
     pads = {p.GetNumber(): p for p in fp.Pads()}
+    pending = []  # pads that get a dogbone, once the fixed escapes are on the board
     skip = {"7", "13", "14", "65", "66", "67", "68"}  # not connected, crystal, VREG, VBUS, USB: routed apart
     for num, p in sorted(pads.items(), key=lambda kv: int(kv[0])):
         if num in skip:
@@ -482,19 +513,135 @@ def bmd340(r: Router) -> None:
             r.track(net, "F", 0.2, [(x, y), (x, 60.2)])
         elif num == "29":  # GND, next to pad 30 (GND, outer top row, with its via)
             r.track(net, "F", 0.2, [(x, y), r.pad("U301", "30")])
-        else:  # everything else: a via in the pad (filled and capped, POFV)
-            r.via(net, (x, y))
-    # VREG (pad 65) to its 100 nF and 4.7 uF on L1 (both turned with VREG to this side).
-    r.track("VREG", "F", 0.3, ["U301.65", (15.4, 54.55), "C302.1", "C301.1"])
-    # Crystal: XL1 straight on L1; XL2 (second row) through a via in its pad, 2 mm on L3 and up next to the
-    # crystal. Load capacitors on L1 below it.
+        else:  # everything else: a short track on L1 to a via next to the pad (dogbone), never in it
+            pending.append((net, (x, y)))
+    # VREG (pad 65) to its 100 nF and 4.7 uF on L1 (both turned with VREG to this side), and XL1 straight on L1 to
+    # the crystal, its load capacitor below it: on the board before the dogbones, which go around them.
+    r.track("VREG", "F", 0.2, ["U301.65", (16.6, 54.55), "C302.1"])  # between the vias of pads 25 and 23
+    r.track("VREG", "F", 0.3, ["C302.1", "C301.1"])
     r.track("XL1", "F", 0.15, ["U301.13", (10.8, 60.6), "Y301.1"])
     r.track("XL1", "F", 0.15, ["Y301.1", (10.8, 62.45), (9.4, 62.45), "C304.1"])
-    r.via("XL2", "U301.14")
-    r.track("XL2", "In2", 0.15, ["U301.14", (11.55, 59.3), (11.75, 60.55)])
-    r.via("XL2", (11.75, 60.55))
-    r.track("XL2", "F", 0.15, [(11.75, 60.55), (12.2, 61.1), "Y301.2"])
+    # XL2 (second row) on L1 too, down between the outer pads 13 and 15 to the crystal: no via (until 27/11/2026,
+    # through a via in its pad and 2 mm on L3).
+    r.track("XL2", "F", 0.15, ["U301.14", (11.8, 60.25), (12.2, 60.65), "Y301.2"])
     r.track("XL2", "F", 0.15, ["Y301.2", (12.2, 62.45), (13.6, 62.45), "C305.1"])
+
+    # The most boxed-in pads first (most neighbours within 1.2 mm): they have the fewest spots. One pad's via can
+    # take the only spot of another's, so when some pad finds none, every dogbone comes out and they go again with
+    # those pads first, until all fit.
+    def neighbours(xy):
+        return sum(1 for q in fp.Pads() if 0.01 < math.dist(xy, r.pad("U301", q.GetNumber())) < 1.2)
+
+    order = sorted(pending, key=lambda item: -neighbours(item[1]))
+    first = {xy: east_block_spot(xy) for _, xy in pending}
+    best = None
+    for attempt in range(DOGBONE_TRIES + 1):
+        if attempt == DOGBONE_TRIES:  # none fit them all: again in the order that left the fewest
+            order = best[1]
+        bones, failed = {}, []
+        free = Free(r.board, clear=0.1)
+        for net, xy in order:
+            if not place_dogbone(r, free, net, xy, bones, first.get(xy)):
+                failed.append((net, xy))
+        if not failed or attempt == DOGBONE_TRIES:
+            break
+        if best is None or len(failed) < best[0]:
+            best = (len(failed), list(order))
+        for xy in list(bones):
+            lift_dogbone(r, bones, xy)
+        order = failed + [p for p in order if p not in failed]
+    # Local repair of the pads still without a spot: lift a neighbour's dogbone (nearest first), place the pad, put the
+    # neighbour back; when the neighbour no longer fits, both go back as they were.
+    for net, xy in list(failed):
+        for other in sorted((q for q in bones if 0.01 < math.dist(q, xy) < 2.5), key=lambda q: math.dist(q, xy)):
+            onet = bones[other][0]
+            lift_dogbone(r, bones, other)
+            if place_dogbone(r, Free(r.board, clear=0.1), net, xy, bones, first.get(xy)):
+                if place_dogbone(r, Free(r.board, clear=0.1), onet, other, bones, first.get(other)):
+                    failed.remove((net, xy))
+                    break
+                lift_dogbone(r, bones, xy)
+            place_dogbone(r, Free(r.board, clear=0.1), onet, other, bones, first.get(other))
+    for net, xy in list(failed):  # a neighbour put back elsewhere can leave the way open
+        if place_dogbone(r, Free(r.board, clear=0.1), net, xy, bones, first.get(xy)):
+            failed.remove((net, xy))
+    for net, xy in failed:
+        print(f"BMD-340: {net} (pad en {xy[0]:.2f}; {xy[1]:.2f}) sin vía al lado en línea recta: queda para resto")
+
+
+# The four staggered columns of the east block of the BMD-340 (x of each column): every pad goes straight out to a
+# column of vias on its side, the inner columns' vias one row further out, so each track passes between the pads
+# and between the vias of the column before it. West (inside the module, empty): x 11.65 and 12.55, and x 13.45
+# where x 11.65 has no pad; east: x 14.35, and x 13.45 in front of the pads of x 11.65.
+EAST_BLOCK = {11.65: 10.9, 12.55: 10.15, 13.45: 10.9, 14.35: 15.1}
+EAST_BLOCK_EAST = 15.85  # x 13.45 between y 53.5 and 56.5 (x 11.65 closes the way west)
+
+
+def east_block_spot(xy: tuple) -> tuple | None:
+    x, y = xy
+    col = next((c for c in EAST_BLOCK if abs(x - c) < 0.01), None)
+    if col is None or not 52.0 < y < 58.5:
+        return None
+    if col == 13.45 and 53.5 < y < 56.5:
+        return (EAST_BLOCK_EAST, y)
+    return (EAST_BLOCK[col], y)
+
+
+def place_dogbone(r: Router, free: "Free", net: str, xy: tuple, bones: dict, first: tuple | None = None) -> bool:
+    """``dogbone`` that records what it adds in ``bones`` (pad -> (net, items, via)), so it can come out again."""
+    n0 = len(r.added)
+    v = dogbone(r, free, net, xy, first=first)
+    if v is None:
+        return False
+    bones[xy] = (net, r.added[n0:], v)
+    return True
+
+
+def lift_dogbone(r: Router, bones: dict, xy: tuple) -> None:
+    for item in bones.pop(xy)[1]:
+        r.added.remove(item)
+        r.board.Delete(item)
+
+
+def dogbone(r: Router, free: "Free", net: str, pad: tuple, width: float = 0.12, first: tuple | None = None) \
+        -> tuple | None:
+    """A via of ``net`` next to the BMD-340 pad at ``pad`` (document coordinates) with a short L1 track to it: the
+    nearest spot where both fit, preferring the inside of the module (empty: its pads are on the edges). Since
+    27/11/2026, instead of a via in the pad (resin-filled and capped, about US$ 5 a board at 100)."""
+    fp = r.fps["U301"]
+    cx = sum(pcbnew.ToMM(p.GetPosition().x) for p in fp.Pads()) / len(fp.Pads()) - ORIGIN[0]
+    cy = sum(pcbnew.ToMM(p.GetPosition().y) for p in fp.Pads()) / len(fp.Pads()) - ORIGIN[1]
+    inward = math.atan2(cy - pad[1], cx - pad[0])
+    tries = []
+    for k in range(72):
+        a = 2 * math.pi * k / 72
+        off = abs((a - inward + math.pi) % (2 * math.pi) - math.pi)
+        for step in range(60):
+            d = 0.55 + 0.05 * step
+            tries.append((d + 0.4 * off, d, a))
+    spots = [(pad[0] + d * math.cos(a), pad[1] + d * math.sin(a)) for _, d, a in sorted(tries)]
+    for x, y in ([first] if first else []) + spots:
+        v = pcbnew.PCB_VIA(r.board)
+        v.SetPosition(pt(x, y))
+        v.SetWidth(mm(VIA_SIG[0]))
+        v.SetDrill(mm(VIA_SIG[1]))
+        v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+        v.SetNet(r.net(net))
+        tr = pcbnew.PCB_TRACK(r.board)
+        tr.SetStart(pt(*pad))
+        tr.SetEnd(pt(x, y))
+        tr.SetWidth(mm(width))
+        tr.SetLayer(pcbnew.F_Cu)
+        tr.SetNet(r.net(net))
+        if free.fits(v, ALL_CU) and free.fits(tr, [pcbnew.F_Cu]):
+            x, y = round(x, 3), round(y, 3)
+            r.track(net, "F", width, [pad, (x, y)])
+            free.add(r.added[-1])
+            r.via(net, (x, y))
+            free.add(r.added[-1])
+            return (x, y)
+    # No straight spot (the middle columns of the east block, four staggered columns): left to the caller.
+    return None
 
 
 def criticas(path: Path, force: bool) -> int:
@@ -656,6 +803,8 @@ STITCH = (0.6, 0.3)  # stitching vias, GND
 STITCH_PITCH = 2.5  # grid of the stitching over the whole board (mm)
 EDGE_PITCH = 1.8  # along the board edge
 RF_PITCH = 1.5  # along both sides of every RF_50 track
+DOGBONE_TRIES = 30  # rounds of the BMD-340 dogbones, the pads left without a spot first
+VIA_PAD_GAP = 0.15  # via hole to the copper of any SMD pad: the hole stays under solder mask (no via-in-pad)
 CLEAR = 0.25  # copper of another net (the GND-to-RF coplanar gap is 0.20)
 
 
@@ -663,7 +812,8 @@ class Free:
     """Answers "does this via or short track (GND, or VREG) fit here?" against the copper of every other net, the
     keep-outs (rule areas and footprint keep-outs: anything that forbids something) and the board edge."""
 
-    def __init__(self, board):
+    def __init__(self, board, clear: float = None):
+        self.clear = CLEAR if clear is None else clear
         self.gnd = board.FindNet("GND").GetNetCode()
         self.items = [pad for fp in board.GetFootprints() for pad in fp.Pads()] + list(board.GetTracks())
         self.areas = [z for z in board.Zones() if z.GetIsRuleArea()] + \
@@ -673,9 +823,18 @@ class Free:
         self.edges = [d.GetEffectiveShape() for d in board.GetDrawings() if d.GetLayer() == pcbnew.Edge_Cuts]
         self.outline = pcbnew.SHAPE_POLY_SET()
         board.GetBoardPolygonOutlines(self.outline, False)
+        # the escape of the BMD-340: GNSS_SENSITIVE copper touching its courtyard keeps 0.15 mm, not 0.3 (rule
+        # "GNSS_SENSITIVE: escape del BMD-340" of pod-v0.kicad_dru)
+        u301 = board.FindFootprintByReference("U301")
+        self.u301 = u301.GetCourtyard(pcbnew.F_Cu).BBox() if u301 else None
         self.grid = {}
         for i, it in enumerate(self.items):
             self.index(i, it)
+
+    def own_clearance(self, item, lay) -> int:
+        if item.GetNetClassName() == "GNSS_SENSITIVE" and self.u301 and self.u301.Intersects(item.GetBoundingBox()):
+            return mm(0.15)
+        return item.GetOwnClearance(lay)
 
     def index(self, i, item):
         box = item.GetBoundingBox()
@@ -715,6 +874,11 @@ class Free:
             if other is item:
                 continue
             gnd = other.GetNetCode() == item.GetNetCode()  # same net (GND, or VREG for its vias)
+            # never a via in or touching an SMD pad, of any net (no resin-filled via-in-pad: 27/11/2026)
+            if via and other.Type() == pcbnew.PCB_PAD_T and other.GetAttribute() == pcbnew.PAD_ATTRIB_SMD:
+                lay = pcbnew.B_Cu if other.IsOnLayer(pcbnew.B_Cu) else pcbnew.F_Cu
+                if other.GetEffectiveShape(lay).Collide(item.GetEffectiveHoleShape(), mm(VIA_PAD_GAP)):
+                    return False
             if via and other.Type() in (pcbnew.PCB_VIA_T, pcbnew.PCB_PAD_T) and other.HasHole():
                 hole = other.GetEffectiveHoleShape()
                 if hole.Collide(item.GetEffectiveHoleShape(), mm(0.25 if gnd else 0.4)):
@@ -729,8 +893,8 @@ class Free:
                     continue
                 # the other item's own clearance (net class, local), except RF_50: against GND it is the
                 # coplanar gap of the custom rules
-                gap = mm(CLEAR) if other.GetNetClassName() == "RF_50" and item.GetNetname() == "GND" \
-                    else max(mm(CLEAR), other.GetOwnClearance(lay) + mm(0.02))
+                gap = mm(self.clear) if other.GetNetClassName() == "RF_50" and item.GetNetname() == "GND" \
+                    else max(mm(self.clear), self.own_clearance(other, lay) + mm(0.02))
                 if other.GetEffectiveShape(lay).Collide(mine[lay], gap):
                     return False
         return True
@@ -1251,42 +1415,63 @@ def reparar(path: Path, vueltas: int = 24, margen: float = 1.0) -> int:
     """After ``resto`` (before ``planos``): the nets it left unfinished, and every signal net with tracks across a
     corridor ``margen`` mm to each side of their missing connections, are ripped up and routed again together by the
     maze router, with the rest of the board (power rails included) fixed."""
-    sys.path.insert(0, str(TOOLS))
-    import laberinto  # noqa: E402
+    broken, areas = missing_connections(path, lambda a, b: [pcbnew.SHAPE_SEGMENT(a, b, mm(2 * margen))])
+    return reroute_around(path, "reparar", broken, areas, vueltas)
+
+
+def missing_connections(path: Path, shapes) -> tuple[set, list]:
+    """The signal nets with a connection still missing (the DRC's, GND aside) and ``shapes(a, b)`` (KiCad shapes) for
+    the two ends ``a`` and ``b`` of each one."""
     with tempfile.TemporaryDirectory() as tmp:
         report = Path(tmp) / "drc.json"
         subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "--severity-all", "--output", str(report),
                         str(path)], check=True, capture_output=True)
         data = json.loads(report.read_text(encoding="utf-8"))
-    board = pcbnew.LoadBoard(str(path))
-    corridors, broken = [], set()
+    broken, areas = set(), []
     for item in data["unconnected_items"]:
         names = [re.search(r"\[([^\]]+)\]", it["description"]) for it in item["items"]]
         names = {m.group(1) for m in names if m}
         if not names or "GND" in names:
             continue
         broken |= names
-        (x0, y0), (x1, y1) = [(it["pos"]["x"], it["pos"]["y"]) for it in item["items"][:2]]
-        seg = pcbnew.SHAPE_SEGMENT(pcbnew.VECTOR2I(mm(x0), mm(y0)), pcbnew.VECTOR2I(mm(x1), mm(y1)), mm(2 * margen))
-        corridors.append(seg)
+        a, b = [pcbnew.VECTOR2I(mm(it["pos"]["x"]), mm(it["pos"]["y"])) for it in item["items"][:2]]
+        areas += shapes(a, b)
+    return broken, areas
+
+
+def reroute_around(path: Path, step: str, broken: set, areas: list, vueltas: int) -> int:
+    """``broken`` and every signal net (not GND, the rails or the classes of ``criticas``) with copper on ``areas``,
+    ripped up and routed again together, with the rest of the board fixed."""
+    sys.path.insert(0, str(TOOLS))
+    import laberinto  # noqa: E402
+    board = pcbnew.LoadBoard(str(path))
     rip = set(broken)
     for t in board.GetTracks():
         name = t.GetNetname()
         if t.IsLocked() or name == "GND" or name in RIELES or t.GetNetClassName() in laberinto.SKIP_CLASSES:
             continue
         shape = t.GetEffectiveShape(t.GetLayer() if t.Type() != pcbnew.PCB_VIA_T else pcbnew.F_Cu)
-        if any(c.Collide(shape, 0) for c in corridors):
+        if any(c.Collide(shape, 0) for c in areas):
             rip.add(name)
     removed = 0
     for t in list(board.GetTracks()):
         if not t.IsLocked() and t.GetNetname() in rip:
             board.Delete(t)
             removed += 1
-    print(f"reparar: {len(broken)} redes sin terminar; se levantan {len(rip)} redes ({removed} pistas y vías)", flush=True)
+    print(f"{step}: {len(broken)} redes sin terminar; se levantan {len(rip)} redes ({removed} pistas y vías)", flush=True)
     done, failed = laberinto.route_all(board, lambda m: print(m, flush=True), iterations=vueltas, only=rip)
     save(board, path)
-    print(f"reparar: {done} conexiones ruteadas; sin ruta: {failed}")
+    print(f"{step}: {done} conexiones ruteadas; sin ruta: {failed}")
     return 0
+
+
+def retocar(path: Path, radio: float = 1.5, vueltas: int = 24) -> int:
+    """After ``podar``, for the few connections left: like ``reparar``, but only the nets with copper within
+    ``radio`` mm of the two ends of each one are ripped up (28/11/2026: ``reparar``'s corridor along a 30 mm
+    connection ripped up 40 nets and left more unfinished than before). ``planos``, ``remate``, ``podar``,
+    ``rescate`` and ``podar`` go after it."""
+    broken, areas = missing_connections(path, lambda a, b: [pcbnew.SHAPE_SEGMENT(p, p, mm(2 * radio)) for p in (a, b)])
+    return reroute_around(path, "retocar", broken, areas, vueltas)
 
 
 def walled_gnd_pads(board) -> list[tuple[str, str]]:
@@ -1310,6 +1495,12 @@ def walled_gnd_pads(board) -> list[tuple[str, str]]:
     return found
 
 
+# The gap ``rescate`` keeps to other nets' copper (not CLEAR): without vias in the pads, at 0.25 mm the walled-in GND
+# pads of R214 and R606 found no spot for their via (28/11/2026); 0.2 mm is still above every class but the GNSS
+# and USB ones, which keep their own clearance through ``Free``.
+RESCATE_CLEAR = 0.2
+
+
 def rescate(path: Path, vueltas: int = 12) -> int:
     """After ``podar``: a GND pad that the routed signals walled in (its piece of the L1 fill has no via, 25/11/2026:
     R316 and R318 between the tracks of LED_DG and LED_DB) gets its via and short track as if only the locked copper
@@ -1321,7 +1512,7 @@ def rescate(path: Path, vueltas: int = 12) -> int:
     board = pcbnew.LoadBoard(str(path))
     gnd = board.FindNet("GND").GetNetCode()
     pads += [p for p in walled_gnd_pads(board) if p not in pads]
-    free = Free(board)
+    free = Free(board, RESCATE_CLEAR)
     free.items = [it for it in free.items if it.Type() == pcbnew.PCB_PAD_T or it.IsLocked() or it.GetNetCode() == gnd]
     free.grid = {}
     for i, it in enumerate(free.items):
@@ -1430,7 +1621,11 @@ def main(argv: list[str]) -> int:
     if len(argv) > 1 and argv[1] == "rieles":
         return rieles(path, int(argv[argv.index("--vueltas") + 1]) if "--vueltas" in argv else 24)
     if len(argv) > 1 and argv[1] == "reparar":
-        return reparar(path, int(argv[argv.index("--vueltas") + 1]) if "--vueltas" in argv else 24)
+        return reparar(path, int(argv[argv.index("--vueltas") + 1]) if "--vueltas" in argv else 24,
+                       float(argv[argv.index("--margen") + 1]) if "--margen" in argv else 1.0)
+    if len(argv) > 1 and argv[1] == "retocar":
+        return retocar(path, float(argv[argv.index("--radio") + 1]) if "--radio" in argv else 1.5,
+                       int(argv[argv.index("--vueltas") + 1]) if "--vueltas" in argv else 24)
     if len(argv) > 1 and argv[1] == "rescate":
         return rescate(path, int(argv[argv.index("--vueltas") + 1]) if "--vueltas" in argv else 12)
     if len(argv) > 1 and argv[1] == "limpiar":

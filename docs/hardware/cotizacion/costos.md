@@ -81,15 +81,16 @@ Auditoría completa, parte por parte, en [`stock.md`](stock.md) (leída el **09/
 
 Lo que se compra ya (BMD-340, LSM6DSV32X, GVLB258.A, LC29H, BGA525N6, TPS7A2032P y 10 Ra-01SH) suma unos **US$ 4.920** (ya sin las 10 ADXL372, unos 177; detalle en `stock.md` y en [`alternativas-en-stock.md`](alternativas-en-stock.md)).
 
-## 2. Placa desnuda (estimación)
+## 2. Placa desnuda
 
-Placa de **6 capas** (desde el 23/11/2026; antes 4: ADR 0105, "Registro de decisiones"), 1,6 mm, unos 50 × 70 mm, FR4 Tg 150+, ENIG, máscara verde, impedancia controlada, **vías en el pad rellenas y tapadas** (las 4 del pad expuesto del TPS63900), ENIG también en los 5 pads de los resortes del inserto (el oro duro pasó a los pines del inserto, 14/11/2026), vía mínima de 0,45/0,2 mm. Ninguno de los dos calculadores se pudo leer en línea: **no verificado**. El rango de 6 capas sale de suponer que un prototipo de 6 capas cuesta entre 1,5 y 2,5 veces uno de 4 del mismo tamaño (supuesto, no una tarifa leída); se corrige con la cotización.
+Placa de **6 capas** (desde el 23/11/2026; antes 4: ADR 0105, "Registro de decisiones"), 1,6 mm, 50 × 70 mm, FR4 Tg 150+ (S1000H), ENIG, máscara verde, impedancia controlada, ENIG también en los 5 pads de los resortes del inserto (el oro duro pasó a los pines del inserto, 14/11/2026), vía mínima de 0,45/0,2 mm. **Sin vías en los pads desde el 27/11/2026**, así que sin relleno de resina ni tapa (POFV); solo quedan las 4 vías térmicas del pad expuesto del TPS63900, abiertas ([`pedido-pcbway.md`](pedido-pcbway.md), "Placa").
 
-| Concepto | 10 placas (para 5 armadas) | 100 placas | Base de la estimación |
+Precio en línea de PCBWay del 27/11/2026, placa sola, sin envío (todas las variantes en [`pedido-pcbway.md`](pedido-pcbway.md), "Precios por variante"):
+
+| Concepto | 10 placas (para 5 armadas) | 100 placas | Base |
 |---|---|---|---|
-| 6 capas, ENIG, impedancia | 150–300 | 500–900 | 1,5 a 2,5 veces el rango habitual de 4 capas (60–120 y 250–450) en PCBWay y JLCPCB; JLCPCB no cobra el control de impedancia |
-| Vías en el pad rellenas y tapadas | 0–80 | 0–150 | JLCPCB no lo cobra desde 6 capas (en 4 lo cobraba sin publicar el monto); PCBWay dice "puede ser más caro" |
-| **Total** | **150–380** | **500–1.050** | Por placa: 15–38 con 10 y 5–10,5 con 100 (en 4 capas eran 9–20 y 3–6) |
+| 6 capas, ENIG, impedancia, sin POFV (esta placa) | 234,25 | 317,89 | Cotización en línea de PCBWay; por placa 23,4 con 10 y 3,18 con 100 |
+| Con POFV (la placa de antes, pedido W237290AS5P2) | 596,69 | 854,28 | Misma cotización con "via in pad" y relleno de resina; por placa 59,7 con 10 y 8,54 con 100 |
 
 ## 3. Armado (estimación)
 
@@ -124,14 +125,14 @@ Placa armada en origen, sin batería, carcasa ni importación (variante base AA;
 | | 5 placas | 10 placas | 100 placas |
 |---|---|---|---|
 | Partes (tabla generada de la sección 1) | 74,05 | 65,13 | 53,98 |
-| Placa desnuda de 6 capas (se piden 10 para armar 5) | 30–76 | 15–38 | 5–10,5 |
+| Placa desnuda de 6 capas sin POFV (se piden 10 para armar 5; precio en línea de PCBWay, sección 2) | 46,85 | 23,43 | 3,18 |
 | Armado | 30–70 | 20–35 | 12–20 |
 | Envío desde China y consignados | 14–28 | 8–15 | 2–4 |
-| **Placa armada en Buenos Aires, sin impuestos** | **unos 148–248** | **unos 108–153** | **unos 73–88** |
+| **Placa armada en Buenos Aires, sin impuestos** | **unos 165–219** | **unos 117–139** | **unos 71–81** |
 | Batería certificada, carcasa MJF con junta y etiqueta (de `pod-f3.md`, **no verificado**) | 12–18 | 12–18 | 11–16 |
-| **Pod completo, sin impuestos** | **unos 160–266** | **unos 120–171** | **unos 84–104** |
+| **Pod completo, sin impuestos** | **unos 177–237** | **unos 129–157** | **unos 82–97** |
 
-- A 100, la placa armada (73–88 con 6 capas desde el 23/11/2026; 71–84 en 4 capas; sin el oro duro selectivo desde el 14/11/2026) queda en el orden de los 85–95 a nivel de placa de `pod-mecanica-produccion.md`, y el pod completo, **arriba de los US$ 80** del ADR 0105. Lo que más mueve: la **LC29H** (12,25), el **BMD-340** (9,60), el armado, la NAND y el **patch** (7,05 la GVLB258.A) (la de 2 Gbit ya está en el diseño; la variante de 4 Gbit suma **+6,78**).
+- A 100, la placa armada (71–81 con 6 capas y la placa al precio en línea sin vías en los pads, 27/11/2026; 73–88 con la estimación de antes; 71–84 en 4 capas; sin el oro duro selectivo desde el 14/11/2026) queda en el orden de los 85–95 a nivel de placa de `pod-mecanica-produccion.md`, y el pod completo, **arriba de los US$ 80** del ADR 0105. Lo que más mueve: la **LC29H** (12,25), el **BMD-340** (9,60), el armado, la NAND y el **patch** (7,05 la GVLB258.A) (la de 2 Gbit ya está en el diseño; la variante de 4 Gbit suma **+6,78**).
 - Con la EA en todas: **+12,41** por pod a 100.
 - Con los impuestos argentinos (supuesto de 50 %), multiplicar por 1,5 lo que viene de afuera.
 
